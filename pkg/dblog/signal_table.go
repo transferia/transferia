@@ -3,8 +3,8 @@ package dblog
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/google/uuid"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type WatermarkType string

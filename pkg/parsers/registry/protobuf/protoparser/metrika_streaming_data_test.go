@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoscanner"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/parsers/registry/protobuf/protoscanner"
 )
 
 func TestDoCloudStreamingExportHits(t *testing.T) {

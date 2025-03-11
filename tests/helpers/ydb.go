@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/providers/ydb"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -418,7 +418,7 @@ var (
 		time.Date(2024, 4, 8, 18, 38, 0, 0, time.UTC),
 		time.Date(2024, 4, 8, 18, 38, 22, 0, time.UTC),
 		time.Date(2024, 4, 8, 18, 38, 44, 0, time.UTC),
-		time.Duration(4291747200000000 - 1), // this is the largest possible: https://github.com/doublecloud/transfer/arcadia/contrib/ydb/core/ydb_convert/ydb_convert.cpp?rev=r13809522#L445
+		time.Duration(4291747200000000 - 1), // this is the largest possible: https://github.com/transferria/transferria/arcadia/contrib/ydb/core/ydb_convert/ydb_convert.cpp?rev=r13809522#L445
 	}
 
 	YDBTestMultikeyValues2 = []interface{}{
@@ -443,7 +443,7 @@ var (
 		time.Date(1970, 1, 1, 1, 1, 1, 1, time.UTC),
 		time.Date(1970, 1, 1, 1, 1, 1, 2, time.UTC),
 		time.Date(1970, 1, 1, 1, 1, 1, 3, time.UTC),
-		time.Duration(-4291747200000000 + 1), // this is the largest possible: https://github.com/doublecloud/transfer/arcadia/contrib/ydb/core/ydb_convert/ydb_convert.cpp?rev=r13809522#L445
+		time.Duration(-4291747200000000 + 1), // this is the largest possible: https://github.com/transferria/transferria/arcadia/contrib/ydb/core/ydb_convert/ydb_convert.cpp?rev=r13809522#L445
 	}
 
 	YDBTestMultikeyValues3 = []interface{}{

@@ -6,16 +6,16 @@ import (
 	"encoding/json"
 	"net"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgtype"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-// GenericArray is based on ArrayType https://github.com/doublecloud/transfer/arc_vcs/vendor/github.com/jackc/pgtype/array_type.go?rev=r8263453#L15
+// GenericArray is based on ArrayType https://github.com/transferria/transferria/arc_vcs/vendor/github.com/jackc/pgtype/array_type.go?rev=r8263453#L15
 type GenericArray struct {
 	elements   []pgtype.Value
 	dimensions []pgtype.ArrayDimension

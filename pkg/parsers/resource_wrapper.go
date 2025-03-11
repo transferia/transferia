@@ -1,8 +1,8 @@
 package parsers
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers/resources"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/parsers/resources"
 )
 
 type ResourceableParser struct {

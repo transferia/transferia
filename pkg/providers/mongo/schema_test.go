@@ -5,9 +5,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
 	"go.mongodb.org/mongo-driver/bson"
 )
 

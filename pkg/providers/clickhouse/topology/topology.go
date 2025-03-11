@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	conn2 "github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/slices"
+	conn2 "github.com/transferria/transferria/pkg/providers/clickhouse/conn"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferria/transferria/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/exp/maps"
 )

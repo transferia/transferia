@@ -3,7 +3,7 @@ package coordinator
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type OraclePositionState struct {

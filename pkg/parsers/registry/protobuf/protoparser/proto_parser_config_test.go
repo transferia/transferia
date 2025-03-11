@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/test/yatest"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/test/yatest"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 

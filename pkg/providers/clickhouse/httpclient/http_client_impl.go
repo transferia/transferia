@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
 	"github.com/klauspost/compress/zstd"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/errors/coded"
+	"github.com/transferria/transferria/pkg/format"
+	"github.com/transferria/transferria/pkg/providers"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/conn"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

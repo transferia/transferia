@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type SinkerStats struct {

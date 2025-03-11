@@ -5,12 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	client2 "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	client2 "github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/pkg/worker/tasks"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 var (

@@ -6,17 +6,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/dataplane/provideradapter"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/metering"
-	"github.com/doublecloud/transfer/pkg/runtime/shared"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/dataplane/provideradapter"
+	"github.com/transferria/transferria/pkg/errors"
+	"github.com/transferria/transferria/pkg/metering"
+	"github.com/transferria/transferria/pkg/runtime/shared"
+	"github.com/transferria/transferria/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -132,7 +132,7 @@ waitingForReplicationErr:
 		// status message will be set to error by the error processing code, so the status message is only set below for non-fatal errors
 		return xerrors.Errorf("a fatal error occurred in replication: %w", attemptErr), false
 	}
-	// https://st.yandex-team.ru/TM-2719 hack. Introduced in https://github.com/doublecloud/transfer/review/2122992/details
+	// https://st.yandex-team.ru/TM-2719 hack. Introduced in https://github.com/transferria/transferria/review/2122992/details
 	if strings.Contains(attemptErr.Error(), "SQLSTATE 53300") {
 		logger.Log.Error("replication failed, will restart the whole dataplane", log.Error(attemptErr))
 		return xerrors.Errorf("replication failed, dataplane must be restarted: %w", attemptErr), false

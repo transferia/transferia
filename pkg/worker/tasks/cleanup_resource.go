@@ -3,12 +3,12 @@ package tasks
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/cleanup"
-	"github.com/doublecloud/transfer/pkg/providers"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/cleanup"
+	"github.com/transferria/transferria/pkg/providers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

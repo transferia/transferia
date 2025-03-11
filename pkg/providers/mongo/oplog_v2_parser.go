@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.ytsaurus.tech/library/go/core/log"

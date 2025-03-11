@@ -3,8 +3,8 @@ package transformer
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	_ "github.com/doublecloud/transfer/pkg/dataplane"
+	"github.com/transferria/transferria/pkg/abstract"
+	_ "github.com/transferria/transferria/pkg/dataplane"
 )
 
 //---------------------------------------------------------------------------------------------------------------------

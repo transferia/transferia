@@ -1,10 +1,10 @@
 package prodstatus
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/providers/ydb"
 )
 
 var supportedSources = map[string]bool{

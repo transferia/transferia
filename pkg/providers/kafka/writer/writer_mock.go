@@ -13,7 +13,7 @@ import (
 	tls "crypto/tls"
 	reflect "reflect"
 
-	queue "github.com/doublecloud/transfer/pkg/serializer/queue"
+	queue "github.com/transferria/transferria/pkg/serializer/queue"
 	kafka "github.com/segmentio/kafka-go"
 	sasl "github.com/segmentio/kafka-go/sasl"
 	gomock "go.uber.org/mock/gomock"

@@ -6,16 +6,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	cpclient "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	mongocommon "github.com/doublecloud/transfer/pkg/providers/mongo"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	cpclient "github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	mongocommon "github.com/transferria/transferria/pkg/providers/mongo"
+	"github.com/transferria/transferria/pkg/runtime/local"
+	"github.com/transferria/transferria/pkg/worker/tasks"
+	"github.com/transferria/transferria/tests/helpers"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -91,7 +91,7 @@ func makeReadOnlyUser(ctx context.Context, adminSource *mongocommon.MongoSource,
 	return nil
 }
 
-// TODO(@kry127) refactor doubles: https://github.com/doublecloud/transfer/arc_vcs/transfer_manager/go/pkg/worker/tasks/e2e/load_sharded_snapshot_test.go?rev=r9868991#L111
+// TODO(@kry127) refactor doubles: https://github.com/transferria/transferria/arc_vcs/transfer_manager/go/pkg/worker/tasks/e2e/load_sharded_snapshot_test.go?rev=r9868991#L111
 type permissionSinker struct {
 	bannedCollections []mongocommon.MongoCollection
 }

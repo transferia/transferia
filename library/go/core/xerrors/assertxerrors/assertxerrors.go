@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors/internal/modes"
-	"github.com/doublecloud/transfer/library/go/test/testhelpers"
 	"github.com/stretchr/testify/assert"
+	"github.com/transferria/transferria/library/go/core/xerrors/internal/modes"
+	"github.com/transferria/transferria/library/go/test/testhelpers"
 )
 
 func RunTestsPerMode(t *testing.T, expected Expectations, constructor func(t *testing.T) error) {

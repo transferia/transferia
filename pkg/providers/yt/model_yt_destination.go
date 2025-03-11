@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/config/env"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	dp_model "github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/config/env"
+	"github.com/transferria/transferria/pkg/middlewares/async/bufferer"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	ytclient "github.com/transferria/transferria/pkg/providers/yt/client"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/exp/maps"
@@ -118,7 +118,7 @@ type YtDestination struct {
 
 	// If true, some errors on data insertion to YT will be skipped, and a warning will be written to the log.
 	// Among such errors are:
-	// * we were unable to find table schema in cache for some reason: https://github.com/doublecloud/transfer/arcadia/transfer_manager/go/pkg/providers/yt/sink/sink.go?rev=11063561#L482-484
+	// * we were unable to find table schema in cache for some reason: https://github.com/transferria/transferria/arcadia/transfer_manager/go/pkg/providers/yt/sink/sink.go?rev=11063561#L482-484
 	// * a row (or a value inside a row) being inserted into the YT table has exceeded YT limits (16 MB by default).
 	LoseDataOnError bool
 

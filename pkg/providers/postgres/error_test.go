@@ -3,9 +3,9 @@ package postgres
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgconn"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 func TestIsPgError(t *testing.T) {

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers/generic"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/parsers/generic"
+	"github.com/transferria/transferria/pkg/providers/s3"
 )
 
 func handleParseError(

@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
 )
 
 func TestInheritTableStorageSize(t *testing.T) {

@@ -1,8 +1,8 @@
 package postgres
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgtype"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 // This is basically an abstract.ChangeItem, but with two additional fields:

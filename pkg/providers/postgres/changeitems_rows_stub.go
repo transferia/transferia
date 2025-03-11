@@ -3,12 +3,12 @@ package postgres
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 // Sniffer you may replace Fetch with Sniffer to get raw data.

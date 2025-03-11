@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	ytmerge "github.com/doublecloud/transfer/pkg/providers/yt/mergejob"
+	ytmerge "github.com/transferria/transferria/pkg/providers/yt/mergejob"
 	"go.ytsaurus.tech/yt/go/mapreduce"
 )
 

@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/schema"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	dp_model "github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/schema"
+	"github.com/transferria/transferria/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

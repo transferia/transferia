@@ -3,8 +3,8 @@ package postgres
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func TestEnumAllValues(t *testing.T) {

@@ -3,11 +3,11 @@ package filter
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 func TestFilterColumnsTransformer(t *testing.T) {

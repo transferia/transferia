@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/errors/coded"
+	"github.com/transferria/transferria/pkg/providers"
+	"github.com/transferria/transferria/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

@@ -5,15 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	cpclient "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/blank"
-	"github.com/doublecloud/transfer/pkg/providers/kafka/client"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/abstract"
+	cpclient "github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/parsers/registry/blank"
+	"github.com/transferria/transferria/pkg/providers/kafka/client"
 )
 
 func TestTopicResolver(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/x/xreflect"
-	"github.com/doublecloud/transfer/library/go/x/xruntime"
+	"github.com/transferria/transferria/library/go/x/xreflect"
+	"github.com/transferria/transferria/library/go/x/xruntime"
 )
 
 // NewSentinel acts as New but does not add stack frame

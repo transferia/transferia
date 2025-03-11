@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoscanner"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/parsers/registry/protobuf/protoscanner"
+	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferria/transferria/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
+	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferria/transferria/pkg/util/jsonx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

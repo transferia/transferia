@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/xerrors"
 )

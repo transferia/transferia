@@ -3,8 +3,8 @@ package util
 import (
 	"fmt"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/slices"
 )
 
 // Errors is a slice of error.

@@ -1,6 +1,6 @@
 package sink
 
-import "github.com/doublecloud/transfer/pkg/serializer"
+import "github.com/transferria/transferria/pkg/serializer"
 
 type Snapshot interface {
 	Read(buf []byte) (n int, err error)

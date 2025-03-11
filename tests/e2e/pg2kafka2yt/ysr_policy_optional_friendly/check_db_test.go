@@ -7,17 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/debezium"
-	"github.com/doublecloud/transfer/pkg/providers/kafka"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/helpers"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/parsers/registry/debezium"
+	"github.com/transferria/transferria/pkg/providers/kafka"
+	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
+	"github.com/transferria/transferria/tests/helpers"
+	yt_helpers "github.com/transferria/transferria/tests/helpers/yt"
 )
 
 var (

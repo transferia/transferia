@@ -3,12 +3,12 @@ package snapshotnofk
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/tests/e2e/mysql2ch"
-	"github.com/doublecloud/transfer/tests/e2e/pg2ch"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
+	"github.com/transferria/transferria/tests/e2e/mysql2ch"
+	"github.com/transferria/transferria/tests/e2e/pg2ch"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func TestSnapshot(t *testing.T) {

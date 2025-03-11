@@ -3,9 +3,9 @@ package packer
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
 )
 
 type PackerSchemaRegistryMocked struct {

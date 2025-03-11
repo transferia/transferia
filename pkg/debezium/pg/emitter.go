@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/debezium/typeutil"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/jackc/pgtype"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferria/transferria/pkg/debezium/typeutil"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/util"
 )
 
 var mapPgNotParametrizedTypeToKafkaType = map[string]debeziumcommon.KafkaTypeDescr{

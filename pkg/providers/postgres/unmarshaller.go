@@ -3,14 +3,14 @@ package postgres
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/xlocale"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/util/xlocale"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

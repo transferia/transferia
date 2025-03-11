@@ -3,9 +3,9 @@ package logger
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/util/size"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/util/size"
 )
 
 func TestMutableRegistry(t *testing.T) {

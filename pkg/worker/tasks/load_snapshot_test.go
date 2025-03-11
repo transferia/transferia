@@ -3,11 +3,11 @@ package tasks
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/providers/postgres"
 )
 
 func TestCheckIncludeDirectives_DataObjects_NoError(t *testing.T) {

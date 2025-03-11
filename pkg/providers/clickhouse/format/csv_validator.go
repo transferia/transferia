@@ -4,7 +4,7 @@ import (
 	"encoding/csv"
 	"io"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 type CsvValidator struct {

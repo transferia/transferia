@@ -3,12 +3,12 @@ package ydb
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/worker/tasks"
 )
 
 func TestYdbSource_Include(t *testing.T) {

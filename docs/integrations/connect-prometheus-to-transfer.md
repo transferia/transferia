@@ -14,7 +14,7 @@ annotations:
   prometheus.io/scrape: "true"
 ```
 
-This will expose metrics scrapper for k8s scrapper. You can re-use our grafana dashboard template from Grafana template [here](https://github.com/doublecloud/transfer/blob/main/assets/grafana.tmpl.json).
+This will expose metrics scrapper for k8s scrapper. You can re-use our grafana dashboard template from Grafana template [here](https://github.com/transferia/transferia/blob/main/assets/grafana.tmpl.json).
 
 This template will generate for you something like this:
 

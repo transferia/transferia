@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func buildSelectQuery(table *abstract.TableDescription, tableColumns abstract.TableColumns, isHomo, deletable bool, additionalCond string) string {

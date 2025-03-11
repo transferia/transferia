@@ -5,10 +5,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type TestCase interface {

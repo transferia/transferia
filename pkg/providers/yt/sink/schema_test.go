@@ -3,9 +3,9 @@ package sink
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/yt"
 )
 
 func TestSystemKeysWorkaround(t *testing.T) {

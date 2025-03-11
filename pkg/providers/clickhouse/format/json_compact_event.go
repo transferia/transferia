@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/adapter"
-	"github.com/doublecloud/transfer/pkg/base/events"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/base/adapter"
+	"github.com/transferria/transferria/pkg/base/events"
 )
 
 type JSONCompactEvent struct {

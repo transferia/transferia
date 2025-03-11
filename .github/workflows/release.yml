@@ -12,7 +12,7 @@ on:
 permissions: {}
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: doublecloud/transfer
+  IMAGE_NAME: transferia/transferia
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest

@@ -1,8 +1,8 @@
 package cobraaux
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/spf13/cobra"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 // RegisterCommand is like parent.AddCommand(child), but also

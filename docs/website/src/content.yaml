@@ -91,7 +91,7 @@ blocks:
   - type: card-layout-block
     title: Features and benefits
     description: >-
-      We ensure quick and efficient data transferring with <b>speeds</b> 
+      We ensure quick and efficient data transferring with <b>speeds</b>
       <a href="https://medium.com/@laskoviymishka/transfer-s3-connector-vs-airbyte-s3-connector-360a0da084ae"><b>9x faster than Airbyte</b></a>
       and smooth integration with your existing infrastructure. More of what
       Transfers offers:
@@ -108,7 +108,7 @@ blocks:
         text: >-
           Automated deployment and management of your data pipelines with full
           control using
-          <a href="https://github.com/doublecloud/transfer/blob/main/docs/deploy_k8s.md">Helm</a>
+          <a href="https://github.com/transferia/transferia/blob/main/docs/deploy_k8s.md">Helm</a>
       - type: image-card
         title: A wide range of connectors
         text: >-
@@ -179,7 +179,7 @@ blocks:
       - tabName: CDC streaming
         title: CDC streaming
         text: >-
-          Build an event-driven architecture using Apache Kafka for landing real-time data. 
+          Build an event-driven architecture using Apache Kafka for landing real-time data.
           Transfer engine has a variety of source and target connectors that allow you to set up CDC event streaming to
           deliver changes in your kafka, and various configurable parsers read and structure data from kafka to you need them in real time.
         media:
@@ -303,7 +303,7 @@ blocks:
         text: >-
           In databases, Change Data Capture is a set of software design patterns
           used to determine and track data that has changed, so that actions can
-          be taken using the changed data. 
+          be taken using the changed data.
 
 
           Transfer supports Change Data Capture, but only for

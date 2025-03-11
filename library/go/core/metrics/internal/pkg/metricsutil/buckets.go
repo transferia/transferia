@@ -3,7 +3,7 @@ package metricsutil
 import (
 	"sort"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/metrics"
 )
 
 // BucketsBounds unwraps Buckets bounds to slice of float64.

@@ -1,9 +1,9 @@
 package cloudlogging
 
 import (
-	"github.com/doublecloud/transfer/pkg/parsers"
-	cloudloggingengine "github.com/doublecloud/transfer/pkg/parsers/registry/cloudlogging/engine"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferria/transferria/pkg/parsers"
+	cloudloggingengine "github.com/transferria/transferria/pkg/parsers/registry/cloudlogging/engine"
+	"github.com/transferria/transferria/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

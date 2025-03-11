@@ -1,10 +1,10 @@
 package dataobjects
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/providers/yt/tablemeta"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/providers/yt/tablemeta"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 )

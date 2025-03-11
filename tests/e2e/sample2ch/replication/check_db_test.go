@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/pkg/providers/sample"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
+	"github.com/transferria/transferria/pkg/providers/sample"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 const minNumberOfRows = 400

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"golang.org/x/exp/slices"
 )
 

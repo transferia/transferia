@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

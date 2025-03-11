@@ -5,17 +5,17 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/pkg/runtime/shared/pod"
-	transformers_registry "github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/dbt"
-	_ "github.com/doublecloud/transfer/pkg/transformer/registry/dbt/clickhouse"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/test/yatest"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
+	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
+	"github.com/transferria/transferria/pkg/runtime/shared/pod"
+	transformers_registry "github.com/transferria/transferria/pkg/transformer"
+	"github.com/transferria/transferria/pkg/transformer/registry/dbt"
+	_ "github.com/transferria/transferria/pkg/transformer/registry/dbt/clickhouse"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func TestSnapshot(t *testing.T) {

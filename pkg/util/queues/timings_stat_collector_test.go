@@ -3,8 +3,8 @@ package util
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func TestTimings(t *testing.T) {

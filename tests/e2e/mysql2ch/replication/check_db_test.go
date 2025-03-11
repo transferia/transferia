@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/tests/e2e/mysql2ch"
-	"github.com/doublecloud/transfer/tests/e2e/pg2ch"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	dp_model "github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/tests/e2e/mysql2ch"
+	"github.com/transferria/transferria/tests/e2e/pg2ch"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 var (

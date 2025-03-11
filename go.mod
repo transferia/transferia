@@ -1,4 +1,4 @@
-module github.com/doublecloud/transfer
+module github.com/transferria/transferria
 
 go 1.22.5
 
@@ -28,7 +28,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-mysql-org/go-mysql v1.8.0
-	github.com/go-sql-driver/mysql v1.8.1
+	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goccy/go-json v0.10.3
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang/protobuf v1.5.4
@@ -41,7 +41,7 @@ require (
 	github.com/jackc/pgtype v1.14.0
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/jhump/protoreflect v1.15.6
-	github.com/jmoiron/sqlx v1.4.0
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/klauspost/compress v1.17.9
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
@@ -107,7 +107,6 @@ require (
 	cloud.google.com/go/iam v1.1.7 // indirect
 	cloud.google.com/go/storage v1.40.0 // indirect
 	dario.cat/mergo v1.0.0 // indirect
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible // indirect
 	github.com/Azure/go-amqp v0.17.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
@@ -195,6 +194,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20220913051719-115f729f3c8c // indirect
 	github.com/magiconair/properties v1.8.7 // indirect

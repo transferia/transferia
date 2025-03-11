@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferria/transferria/pkg/util/jsonx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

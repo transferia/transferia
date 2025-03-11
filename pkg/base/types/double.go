@@ -1,9 +1,9 @@
 package types
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/util/castx"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/util/castx"
 	yt_schema "go.ytsaurus.tech/yt/go/schema"
 )
 

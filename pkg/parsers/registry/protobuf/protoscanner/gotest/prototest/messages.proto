@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoscanner/gotest/prototest";
+option go_package = "github.com/transferria/transferria/pkg/parsers/registry/protobuf/protoscanner/gotest/prototest";
 
 message MsgList {
     repeated Msg items = 1;

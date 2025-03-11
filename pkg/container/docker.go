@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

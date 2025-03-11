@@ -3,7 +3,7 @@ package parsers
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 // Message is struct describing incoming message

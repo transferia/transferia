@@ -3,11 +3,11 @@ package action
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/providers/delta/types"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/google/uuid"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferria/transferria/pkg/providers/delta/types"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 type Metadata struct {

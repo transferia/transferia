@@ -13,10 +13,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -159,14 +159,14 @@ func (c *CoordinatorS3) GetOperationWorkers(operationID string) ([]*model.Operat
 	prefix := operationID + "/worker_"
 	objects, err := c.listObjects(prefix)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to list prefix: %s: %w", prefix, err)
+		return nil, xerrors.Errorf("failed to list prefix %s: %w", prefix, err)
 	}
 
 	var workers []*model.OperationWorker
 	for _, obj := range objects {
 		resp, err := c.getObject(*obj.Key)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to get key: %s: %w", *obj.Key, err)
+			return nil, xerrors.Errorf("failed to get key %s: %w", *obj.Key, err)
 		}
 
 		var worker model.OperationWorker
@@ -211,14 +211,14 @@ func (c *CoordinatorS3) GetOperationTablesParts(operationID string) ([]*model.Op
 	prefix := operationID + "/table_"
 	objects, err := c.listObjects(prefix)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to list: %s: %w", prefix, err)
+		return nil, xerrors.Errorf("failed to list %s: %w", prefix, err)
 	}
 
 	var tables []*model.OperationTablePart
 	for _, obj := range objects {
 		resp, err := c.getObject(*obj.Key)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to get: %s: %w", *obj.Key, err)
+			return nil, xerrors.Errorf("failed to get %s: %w", *obj.Key, err)
 		}
 
 		var table model.OperationTablePart
@@ -254,7 +254,7 @@ func (c *CoordinatorS3) AssignOperationTablePart(operationID string, workerIndex
 
 		if err := c.putObject(key, body); err != nil {
 			lastErr = err
-			logger.Log.Warn(fmt.Sprintf("failed to assign: %s to %v", key, workerIndex), log.Error(err))
+			logger.Log.Warn(fmt.Sprintf("failed to assign %s to %v", key, workerIndex), log.Error(err))
 			continue
 		}
 		return table, nil
@@ -365,7 +365,7 @@ func (c *CoordinatorS3) getObject(key string) ([]byte, error) {
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get: %s: key: %w", key, err)
+		return nil, xerrors.Errorf("failed to get key %s: %w", key, err)
 	}
 	defer resp.Body.Close()
 

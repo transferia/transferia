@@ -1,11 +1,11 @@
 package middlewares
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/errors"
+	"github.com/transferria/transferria/pkg/errors/categories"
+	"github.com/transferria/transferria/pkg/stats"
 )
 
 // ErrorTracker do nothing except tracking error / success pushes into metrics

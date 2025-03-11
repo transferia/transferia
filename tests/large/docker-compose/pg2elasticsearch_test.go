@@ -3,13 +3,13 @@ package dockercompose
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/elastic"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/test/canon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/providers/elastic"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 var (

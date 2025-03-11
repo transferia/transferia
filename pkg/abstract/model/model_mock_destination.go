@@ -3,7 +3,7 @@ package model
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type MockDestination struct {

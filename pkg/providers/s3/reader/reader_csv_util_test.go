@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/s3"
 )
 
 func TestParseFloatValue(t *testing.T) {

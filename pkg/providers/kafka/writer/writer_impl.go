@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/providers/kafka/client"
-	serializer "github.com/doublecloud/transfer/pkg/serializer/queue"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/providers/kafka/client"
+	serializer "github.com/transferria/transferria/pkg/serializer/queue"
+	"github.com/transferria/transferria/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

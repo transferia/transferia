@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/tests/helpers"
-	simple_transformer "github.com/doublecloud/transfer/tests/helpers/transformer"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/tests/helpers"
+	simple_transformer "github.com/transferria/transferria/tests/helpers/transformer"
 )
 
 var (

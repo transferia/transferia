@@ -22,7 +22,7 @@ default:
   BIL: Billing
   TRFM: Terraform
   SWFL: Snowflake
-  source-root: https://github.com/doublecloud/transfer/tree/main/docs
+  source-root: https://github.com/transferia/transferia/tree/main/docs
   data-transfer-name: Transfer
   DC: Transfer
   lang: en

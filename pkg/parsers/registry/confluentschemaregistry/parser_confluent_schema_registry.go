@@ -1,9 +1,9 @@
 package confluentschemaregistry
 
 import (
-	"github.com/doublecloud/transfer/pkg/parsers"
-	conflueentschemaregistryengine "github.com/doublecloud/transfer/pkg/parsers/registry/confluentschemaregistry/engine"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferria/transferria/pkg/parsers"
+	conflueentschemaregistryengine "github.com/transferria/transferria/pkg/parsers/registry/confluentschemaregistry/engine"
+	"github.com/transferria/transferria/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

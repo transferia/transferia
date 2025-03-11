@@ -2,8 +2,8 @@ package token_regexp
 
 import (
 	"github.com/antlr4-go/antlr/v4"
-	"github.com/doublecloud/transfer/pkg/util/token_regexp/abstract"
-	"github.com/doublecloud/transfer/pkg/util/token_regexp/op"
+	"github.com/transferria/transferria/pkg/util/token_regexp/abstract"
+	"github.com/transferria/transferria/pkg/util/token_regexp/op"
 )
 
 type TokenRegexp struct {

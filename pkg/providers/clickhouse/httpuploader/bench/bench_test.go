@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/httpuploader"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/tests/canon"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract/changeitem"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/httpuploader"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/tests/canon"
 )
 
 var (

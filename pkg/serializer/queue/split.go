@@ -1,6 +1,6 @@
 package queue
 
-import "github.com/doublecloud/transfer/pkg/abstract"
+import "github.com/transferria/transferria/pkg/abstract"
 
 func splitByTablePartID(input []abstract.ChangeItem) map[abstract.TablePartID][]abstract.ChangeItem {
 	result := make(map[abstract.TablePartID][]abstract.ChangeItem)

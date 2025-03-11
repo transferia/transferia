@@ -73,7 +73,7 @@ graph LR
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/doublecloud/transfer
+   git clone https://github.com/transferia/transferia
    cd transfer/examples/mysql2kafka
    ```
 

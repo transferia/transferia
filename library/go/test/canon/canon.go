@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/test/yatest"
+	"github.com/transferria/transferria/library/go/test/yatest"
 )
 
 var isRunningUnderGotest bool

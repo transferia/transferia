@@ -1,10 +1,10 @@
 package prometheus
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/metricsutil"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/metricsutil"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 var _ metrics.CounterVec = (*CounterVec)(nil)

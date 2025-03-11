@@ -8,7 +8,7 @@ import (
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 // Filter syntax https://wiki.yandex-team.ru/cloud/devel/api/filtersyntax/
@@ -63,7 +63,7 @@ type Value struct {
 // delayedParse do post-parse parse
 // participle provide useful Capture interface for such tasks,
 // but it erase error types and our formatting.
-// https://github.com/doublecloud/transfer/arc/trunk/arcadia/vendor/github.com/alecthomas/participle/nodes.go?rev=5800326#L37
+// https://github.com/transferria/transferria/arc/trunk/arcadia/vendor/github.com/alecthomas/participle/nodes.go?rev=5800326#L37
 func (v *Value) delayedParse() error {
 	if v.DateTime != nil {
 		return v.DateTime.delayedParse()

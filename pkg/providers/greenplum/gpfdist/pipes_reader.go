@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	gpfdistbin "github.com/doublecloud/transfer/pkg/providers/greenplum/gpfdist/gpfdist_bin"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	gpfdistbin "github.com/transferria/transferria/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/errgroup"
 )

@@ -3,10 +3,10 @@ package queue
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/test/canon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
 )
 
 var nativeSerializerTestTypicalChangeItem *abstract.ChangeItem

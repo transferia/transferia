@@ -1,6 +1,6 @@
 package iter
 
-import "github.com/doublecloud/transfer/library/go/core/xerrors"
+import "github.com/transferria/transferria/library/go/core/xerrors"
 
 type MapIter[T any, R any] struct {
 	It     Iter[T]

@@ -3,9 +3,9 @@ package sink
 import (
 	"math"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	mathutil "github.com/doublecloud/transfer/pkg/util/math"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	mathutil "github.com/transferria/transferria/pkg/util/math"
 )
 
 type FileCache struct {

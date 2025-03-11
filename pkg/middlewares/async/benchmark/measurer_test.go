@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/middlewares/async"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/tests/canon/reference"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/middlewares"
+	"github.com/transferria/transferria/pkg/middlewares/async"
+	"github.com/transferria/transferria/pkg/middlewares/async/bufferer"
+	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferria/transferria/tests/canon/reference"
 )
 
 type mockAsyncSink struct {

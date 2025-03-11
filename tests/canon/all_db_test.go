@@ -3,14 +3,14 @@ package canon
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse"
-	"github.com/doublecloud/transfer/pkg/providers/mongo"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/tests/canon/validator"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/providers/clickhouse"
+	"github.com/transferria/transferria/pkg/providers/mongo"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/providers/ydb"
+	"github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferria/transferria/tests/canon/validator"
 )
 
 func TestAll(t *testing.T) {

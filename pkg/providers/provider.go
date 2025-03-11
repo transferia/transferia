@@ -1,12 +1,12 @@
 package providers
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/middlewares"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/middlewares"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

@@ -4,14 +4,14 @@ import (
 	"embed"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/internal/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	parsersfactory "github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/tests/canon/parser/testcase"
-	"github.com/doublecloud/transfer/tests/canon/validator"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/internal/metrics"
+	"github.com/transferria/transferria/pkg/abstract"
+	parsersfactory "github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferria/transferria/tests/canon/parser/testcase"
+	"github.com/transferria/transferria/tests/canon/validator"
 )
 
 //go:embed samples/static/generic/*

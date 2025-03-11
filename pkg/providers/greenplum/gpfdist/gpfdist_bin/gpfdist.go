@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/core/xerrors/multierr"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/terryid"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors/multierr"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/terryid"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/errgroup"
 )

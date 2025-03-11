@@ -1,7 +1,7 @@
 package parts
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 // Parts is a collection of table parts

@@ -6,14 +6,14 @@ import (
 	"net"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/castx"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/util/strict"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgtype"
 	"github.com/spf13/cast"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/util/castx"
+	"github.com/transferria/transferria/pkg/util/jsonx"
+	"github.com/transferria/transferria/pkg/util/strict"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -120,16 +120,16 @@ func expectedAnyCast(value any, colSchema *abstract.ColSchema, connInfo *pgtype.
 		// all possible pgtype types (which can appear in future PostgreSQL versions and those which Transfer just does not support) should fall into this case
 		result, err = v.Value()
 	case [16]byte:
-		// this should never appear, but has been present since https://github.com/doublecloud/transfer/review/757334/files/2#file-/trunk/arcadia/transfer_manager/go/pkg/storage/pg/scanner.go:R21
+		// this should never appear, but has been present since https://github.com/transferria/transferria/review/757334/files/2#file-/trunk/arcadia/transfer_manager/go/pkg/storage/pg/scanner.go:R21
 		result, err = uuid.FromBytesOrNil(v[:16]).String(), nil
 	case *net.IPNet:
-		// this should never appear, but has been present since https://github.com/doublecloud/transfer/review/1204645/files/2#file-transfer_manager/go/pkg/storage/pg/scanner.go:R98
+		// this should never appear, but has been present since https://github.com/transferria/transferria/review/1204645/files/2#file-transfer_manager/go/pkg/storage/pg/scanner.go:R98
 		result, err = unmarshalIPNet(v)
 	case net.IPNet:
-		// this should never appear, but has been present since https://github.com/doublecloud/transfer/review/1204645/files/2#file-transfer_manager/go/pkg/storage/pg/scanner.go:R98
+		// this should never appear, but has been present since https://github.com/transferria/transferria/review/1204645/files/2#file-transfer_manager/go/pkg/storage/pg/scanner.go:R98
 		result, err = unmarshalIPNet(&v)
 	case byte:
-		// unclear what this is for, but has been present since https://github.com/doublecloud/transfer/review/757334/files/2#file-/trunk/arcadia/transfer_manager/go/pkg/storage/pg/scanner.go:R19
+		// unclear what this is for, but has been present since https://github.com/transferria/transferria/review/757334/files/2#file-/trunk/arcadia/transfer_manager/go/pkg/storage/pg/scanner.go:R19
 		result, err = int(v), nil
 	default:
 		// ARRAY elements should fall into this case, they are normally basic Go types
@@ -271,7 +271,7 @@ func expectedStringCast(value any) (any, error) {
 		// Note that none of them are schema.Interval
 		result, err = strict.ExpectedSQL[*pgtype.Interval](v, castx.ToStringE)
 	case string:
-		// this should never appear, but has been present since https://github.com/doublecloud/transfer/review/757334/files/2#file-/trunk/arcadia/transfer_manager/go/pkg/storage/pg/scanner.go:R24
+		// this should never appear, but has been present since https://github.com/transferria/transferria/review/757334/files/2#file-/trunk/arcadia/transfer_manager/go/pkg/storage/pg/scanner.go:R24
 		result, err = v, nil
 	default:
 		result, err = strict.UnexpectedSQL(v, castx.ToStringE)

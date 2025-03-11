@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/doublecloud/transfer/library/go/test/yatest"
+	"github.com/transferria/transferria/library/go/test/yatest"
 )
 
 type Recipe interface {

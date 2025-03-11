@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/castx"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/util/strict"
 	"github.com/spf13/cast"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/util/castx"
+	"github.com/transferria/transferria/pkg/util/jsonx"
+	"github.com/transferria/transferria/pkg/util/strict"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

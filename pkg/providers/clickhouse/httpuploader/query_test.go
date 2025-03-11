@@ -8,10 +8,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

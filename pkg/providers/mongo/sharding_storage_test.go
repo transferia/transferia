@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

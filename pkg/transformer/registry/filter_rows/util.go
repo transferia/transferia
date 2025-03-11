@@ -5,9 +5,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/yandex/cloud/filter"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/yandex/cloud/filter"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 var errIntOverflow = xerrors.Errorf("Provided value overflows int64")

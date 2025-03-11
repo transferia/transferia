@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func RightStringToBase64BytesComparator(l interface{}, lCol abstract.ColSchema, r interface{}, rCol abstract.ColSchema, _ bool) (comparable bool, result bool, err error) {

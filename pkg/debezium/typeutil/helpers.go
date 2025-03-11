@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferria/transferria/pkg/util"
 )
 
 //---------------------------------------------------------------------------------------------------------------------

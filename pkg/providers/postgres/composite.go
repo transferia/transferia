@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

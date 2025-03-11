@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
 	"github.com/stretchr/testify/require"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
 )
 
 func TestChangeItemsBitsToDebezium(t *testing.T) {

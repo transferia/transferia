@@ -1,6 +1,6 @@
 package coordinator
 
-import "github.com/doublecloud/transfer/pkg/errors/coded"
+import "github.com/transferria/transferria/pkg/errors/coded"
 
 type StatusMessageType string
 

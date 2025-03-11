@@ -1,9 +1,9 @@
 package middlewares
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem/values"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/typesystem/values"
+	"github.com/transferria/transferria/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 )

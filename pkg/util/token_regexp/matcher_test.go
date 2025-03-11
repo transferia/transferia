@@ -3,10 +3,10 @@ package token_regexp
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/schema/ddl_parser/clickhouse_lexer"
-	"github.com/doublecloud/transfer/pkg/util/token_regexp/abstract"
-	"github.com/doublecloud/transfer/pkg/util/token_regexp/op"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/schema/ddl_parser/clickhouse_lexer"
+	"github.com/transferria/transferria/pkg/util/token_regexp/abstract"
+	"github.com/transferria/transferria/pkg/util/token_regexp/op"
 )
 
 func TestMatcher(t *testing.T) {

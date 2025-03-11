@@ -7,11 +7,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/dterrors"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/dterrors"
+	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferria/transferria/pkg/util/jsonx"
+	"github.com/transferria/transferria/pkg/util/set"
 	"go.ytsaurus.tech/yt/go/yson"
 )
 

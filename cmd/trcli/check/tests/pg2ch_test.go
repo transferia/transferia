@@ -4,10 +4,10 @@ import (
 	_ "embed"
 	"testing"
 
-	"github.com/doublecloud/transfer/cmd/trcli/check"
-	"github.com/doublecloud/transfer/cmd/trcli/config"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/cmd/trcli/check"
+	"github.com/transferria/transferria/cmd/trcli/config"
+	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
 )
 
 //go:embed transfer.yaml

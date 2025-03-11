@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/parquet-go/parquet-go"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type parquetStreamSerializer struct {

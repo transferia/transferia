@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"go.uber.org/atomic"
 )
 

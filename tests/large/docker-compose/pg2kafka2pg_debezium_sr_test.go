@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/debezium"
-	kafka_provider "github.com/doublecloud/transfer/pkg/providers/kafka"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/test/canon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/parsers/registry/debezium"
+	kafka_provider "github.com/transferria/transferria/pkg/providers/kafka"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func TestPg2Kafka2PgSchemaRegistry(t *testing.T) {

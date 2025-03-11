@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/splitter"
-	"github.com/doublecloud/transfer/pkg/stringutil"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/format"
+	"github.com/transferria/transferria/pkg/providers/postgres/splitter"
+	"github.com/transferria/transferria/pkg/stringutil"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 func (s *Storage) checkMinMax(ctx context.Context, table abstract.TableID, col abstract.ColSchema) (min, max int64, err error) {

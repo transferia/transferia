@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/metrics"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -96,7 +96,7 @@ func (m *MethodStat) Code(code codes.Code, duration time.Duration) {
 
 func methodDurations() []time.Duration {
 	// maxDuration from time package is private for some reason, so we define our own.
-	// https://github.com/doublecloud/transfer/arcadia/contrib/go/_std_1.19/src/time/time.go?rev=10968829#L595-595
+	// https://github.com/transferria/transferria/arcadia/contrib/go/_std_1.19/src/time/time.go?rev=10968829#L595-595
 	const maxDuration time.Duration = (1 << 63) - 1
 
 	return []time.Duration{

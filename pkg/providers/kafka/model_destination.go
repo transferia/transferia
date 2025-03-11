@@ -1,12 +1,12 @@
 package kafka
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferria/transferria/pkg/middlewares/async/bufferer"
 )
 
 type KafkaDestination struct {

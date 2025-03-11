@@ -1,10 +1,10 @@
 package fallback
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferria/transferria/pkg/providers/yt"
 )
 
 func init() {

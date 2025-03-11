@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/providers/mongo"
-	_ "github.com/doublecloud/transfer/pkg/transformer/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/providers/mongo"
+	_ "github.com/transferria/transferria/pkg/transformer/registry"
 )
 
 func TestParseTransferYaml_WithEnvSubstitution(t *testing.T) {

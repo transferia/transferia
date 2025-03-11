@@ -6,9 +6,9 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/spf13/cast"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

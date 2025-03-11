@@ -4,12 +4,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/tests/helpers"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	dp_model "github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferria/transferria/pkg/providers/s3"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 var Target = model.ChDestination{

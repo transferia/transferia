@@ -3,11 +3,11 @@ package engine
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references"
+	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
 	"google.golang.org/protobuf/proto"
 )
 

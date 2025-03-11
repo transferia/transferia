@@ -5,13 +5,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
+	"github.com/transferria/transferria/pkg/worker/tasks"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 var (

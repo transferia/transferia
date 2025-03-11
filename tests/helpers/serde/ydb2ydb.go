@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	simple_transformer "github.com/doublecloud/transfer/tests/helpers/transformer"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/debezium"
+	simple_transformer "github.com/transferria/transferria/tests/helpers/transformer"
 )
 
 func MakeYdb2YdbDebeziumSerDeUdf(pathOut string, outLastInsert *abstract.ChangeItem, emitter *debezium.Emitter, receiver *debezium.Receiver) simple_transformer.SimpleTransformerApplyUDF {

@@ -3,13 +3,13 @@ package legacy
 import (
 	"runtime"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/events"
-	"github.com/doublecloud/transfer/pkg/util/pool"
-	"github.com/doublecloud/transfer/pkg/worker/tasks/cleanup"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/base/events"
+	"github.com/transferria/transferria/pkg/util/pool"
+	"github.com/transferria/transferria/pkg/worker/tasks/cleanup"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

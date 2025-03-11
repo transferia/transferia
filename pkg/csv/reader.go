@@ -8,7 +8,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 )

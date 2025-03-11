@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/metrics"
 )
 
 func Rows(metrics metrics.Registry, table string, rows int) {

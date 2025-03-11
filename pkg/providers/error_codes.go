@@ -1,6 +1,6 @@
 package providers
 
-import "github.com/doublecloud/transfer/pkg/errors/coded"
+import "github.com/transferria/transferria/pkg/errors/coded"
 
 var (
 	NetworkUnreachable = coded.Register("generic", "network", "unreachable")

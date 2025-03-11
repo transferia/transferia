@@ -1,8 +1,8 @@
 package provider
 
 import (
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/table"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/providers/yt/provider/table"
 )
 
 type lazyYSON struct {

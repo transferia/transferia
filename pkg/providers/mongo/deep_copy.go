@@ -6,8 +6,8 @@ import (
 	"encoding/gob"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/poolba"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/poolba"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

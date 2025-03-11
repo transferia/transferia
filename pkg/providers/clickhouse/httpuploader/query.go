@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/multibuf"
-	"github.com/doublecloud/transfer/pkg/util/pool"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferria/transferria/pkg/util/multibuf"
+	"github.com/transferria/transferria/pkg/util/pool"
 )
 
 type query = *multibuf.PooledMultiBuffer

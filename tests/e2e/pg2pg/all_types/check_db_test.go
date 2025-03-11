@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	pg_provider "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/canon/postgres"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	pg_provider "github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
+	"github.com/transferria/transferria/tests/canon/postgres"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func TestAllDataTypes(t *testing.T) {

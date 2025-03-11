@@ -1,10 +1,10 @@
 package validate
 
 import (
-	"github.com/doublecloud/transfer/cmd/trcli/config"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/spf13/cobra"
+	"github.com/transferria/transferria/cmd/trcli/config"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 func ValidateCommand() *cobra.Command {

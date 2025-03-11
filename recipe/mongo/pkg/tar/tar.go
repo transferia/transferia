@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 func TarXzf(path string) (*tar.Reader, func() error, error) {

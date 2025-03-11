@@ -16,7 +16,7 @@ docs-viewer:
   logo-title: Transfer
   show-revision: true
   themes: ['dark']
-  github-url-prefix: https://github.com/doublecloud/transfer/tree/main/docs
+  github-url-prefix: https://github.com/transferia/transferia/tree/main/docs
 
   index-page:
     hidden: true
@@ -39,4 +39,4 @@ resources:
 
 # This configuration parameter is used to directly control the Edit button behaviour.
 vcs:
-  remoteBase: https://github.com/doublecloud/transfer/tree/main/docs
+  remoteBase: https://github.com/transferia/transferia/tree/main/docs

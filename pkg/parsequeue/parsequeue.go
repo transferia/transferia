@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -149,7 +149,7 @@ func New[TData any](
 		//
 		// This is a bit of a messy situation, indeed.
 		pushCh: make(chan parseTask[TData], parallelism-2),
-		ackCh:  make(chan pushTask[TData], 1_000_000), // see: https://github.com/doublecloud/transfer/review/4480529/details#comment-6575167
+		ackCh:  make(chan pushTask[TData], 1_000_000), // see: https://github.com/transferria/transferria/review/4480529/details#comment-6575167
 
 		logger: lgr,
 

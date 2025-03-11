@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/registryutil"
 )
 
 type RegistryOpts struct {

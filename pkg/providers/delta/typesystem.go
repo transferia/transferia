@@ -1,8 +1,8 @@
 package delta
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
-	"github.com/doublecloud/transfer/pkg/providers/delta/types"
+	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferria/transferria/pkg/providers/delta/types"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

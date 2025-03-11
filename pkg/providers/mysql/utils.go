@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/mysql/unmarshaller/snapshot"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/size"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/mysql/unmarshaller/snapshot"
+	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferria/transferria/pkg/util/size"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

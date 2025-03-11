@@ -57,7 +57,7 @@ run-tests:
 
 # Define variables
 HELM_CHART_PATH := ./helm/transfer
-IMAGE_NAME := ghcr.io/doublecloud/transfer-helm
+IMAGE_NAME := ghcr.io/transferia/transferia-helm
 VERSION := $(shell grep '^version:' $(HELM_CHART_PATH)/Chart.yaml | awk '{print $$2}')
 
 # Login to GitHub Container Registry

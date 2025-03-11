@@ -5,14 +5,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	ytcommon "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	ytcommon "github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferria/transferria/pkg/worker/tasks"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func TestMain(m *testing.M) {

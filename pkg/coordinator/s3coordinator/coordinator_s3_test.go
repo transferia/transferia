@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
 )
 
 func TestCoordinatorS3TransferState(t *testing.T) {

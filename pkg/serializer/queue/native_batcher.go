@@ -3,8 +3,8 @@ package queue
 import (
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
 )
 
 func isNativeExtraElementViolatesConstraint(batchingSettings model.Batching, startIndex, currIndex int, lenElements []uint64, prevBodiesSize uint64) bool {

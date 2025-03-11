@@ -5,13 +5,13 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/generic"
-	jsonparser "github.com/doublecloud/transfer/pkg/parsers/registry/json"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/parsers/generic"
+	jsonparser "github.com/transferria/transferria/pkg/parsers/registry/json"
+	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferria/transferria/pkg/util/jsonx"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

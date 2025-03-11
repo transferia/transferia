@@ -72,7 +72,7 @@ This diagram introduces `subgraph` elements for grouping, rounded boxes, and adj
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/doublecloud/transfer
+   git clone https://github.com/transferia/transferia
    cd transfer/examples/pg2yt
    ```
 

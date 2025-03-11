@@ -3,9 +3,9 @@ package yt
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	ytmerge "github.com/doublecloud/transfer/pkg/providers/yt/mergejob"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	ytmerge "github.com/transferria/transferria/pkg/providers/yt/mergejob"
+	"github.com/transferria/transferria/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/mapreduce"
 	ytspec "go.ytsaurus.tech/yt/go/mapreduce/spec"

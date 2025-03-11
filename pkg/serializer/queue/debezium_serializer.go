@@ -3,13 +3,13 @@ package queue
 import (
 	"runtime"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	"github.com/doublecloud/transfer/pkg/debezium/packer"
-	lightningcache "github.com/doublecloud/transfer/pkg/debezium/packer/lightning_cache"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/debezium"
+	"github.com/transferria/transferria/pkg/debezium/packer"
+	lightningcache "github.com/transferria/transferria/pkg/debezium/packer/lightning_cache"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

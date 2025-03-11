@@ -68,7 +68,7 @@ graph LR
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/doublecloud/transfer
+   git clone https://github.com/transferia/transferia
    cd transfer/examples/mysql2ch
    ```
 
@@ -78,7 +78,7 @@ graph LR
    ```
 
 3. **Access to Clickhouse**:
-   Access to ClickHouse via CLI: 
+   Access to ClickHouse via CLI:
    ```bash
    clickhouse-client --host localhost --port 9000 --user default --password 'ch_password'
    ```

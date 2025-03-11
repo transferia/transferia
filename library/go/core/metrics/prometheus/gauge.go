@@ -1,8 +1,8 @@
 package prometheus
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/metrics"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/transferria/transferria/library/go/core/metrics"
 )
 
 var _ metrics.Gauge = (*Gauge)(nil)

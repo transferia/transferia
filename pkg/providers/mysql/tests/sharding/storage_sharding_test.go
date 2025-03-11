@@ -5,11 +5,11 @@ import (
 	_ "embed"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/providers/mysql/mysqlrecipe"
 	default_mysql "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/pkg/providers/mysql/mysqlrecipe"
 )
 
 //go:embed source.sql

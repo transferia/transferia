@@ -3,7 +3,7 @@ package filter
 import (
 	"regexp"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 type Tables struct {

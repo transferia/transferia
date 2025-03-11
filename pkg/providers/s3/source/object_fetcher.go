@@ -6,10 +6,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/pkg/providers/s3/reader"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/providers/s3"
+	"github.com/transferria/transferria/pkg/providers/s3/reader"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

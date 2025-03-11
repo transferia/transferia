@@ -14,11 +14,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/tests/tcrecipes"
-	"github.com/doublecloud/transfer/tests/tcrecipes/objectstorage"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/tests/tcrecipes"
+	"github.com/transferria/transferria/tests/tcrecipes/objectstorage"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

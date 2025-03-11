@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/generic"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/warmup"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/pool"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/debezium"
+	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/parsers/generic"
+	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
+	"github.com/transferria/transferria/pkg/schemaregistry/warmup"
+	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferria/transferria/pkg/util/pool"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

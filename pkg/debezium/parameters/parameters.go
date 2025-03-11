@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 // Contract for parameters: all possible keys are present

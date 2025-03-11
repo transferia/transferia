@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"strconv"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/mysql/unmarshaller/types"
-	"github.com/doublecloud/transfer/pkg/util/castx"
-	"github.com/doublecloud/transfer/pkg/util/strict"
 	"github.com/spf13/cast"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/mysql/unmarshaller/types"
+	"github.com/transferria/transferria/pkg/util/castx"
+	"github.com/transferria/transferria/pkg/util/strict"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/xerrors"
 )

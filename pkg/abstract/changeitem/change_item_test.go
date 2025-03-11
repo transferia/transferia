@@ -7,10 +7,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/test/canon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/test/canon"
 	"go.ytsaurus.tech/yt/go/yson"
 )
 

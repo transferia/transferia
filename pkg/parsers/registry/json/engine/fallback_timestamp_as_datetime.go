@@ -3,9 +3,9 @@ package engine
 import (
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
-	"github.com/doublecloud/transfer/pkg/parsers/generic"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferria/transferria/pkg/parsers/generic"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
