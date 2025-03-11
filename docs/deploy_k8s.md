@@ -12,7 +12,7 @@ You can use a Cloud Provider, such as, AWS, GCP, Azure, or onto a single node, s
 
 We highly recommend deploying **transfer** using Helm and the documented Helm chart values.
 
-Helm is a Kubernetes package manager for automating deployment and management of complex applications with microservices on Kubernetes.  
+Helm is a Kubernetes package manager for automating deployment and management of complex applications with microservices on Kubernetes.
 Refer to our [Helm Chart Usage Guide](../helm) for more information about how to get started.
 
 ## Installation Guide
@@ -27,7 +27,7 @@ The deployment will use a Helm chart which is a package for Kubernetes applicati
 
 To add a remote helm repo:
 
-1. Run: `helm pull oci://ghcr.io/doublecloud/transfer-helm/transfer`. It will pull latest **transfer** helm chart locally
+1. Run: `helm pull oci://ghcr.io/transferia/transferia-helm/transfer`. It will pull latest **transfer** helm chart locally
 
 2. After adding the repo, perform the repo indexing process by running `helm repo update`.
 
@@ -48,7 +48,7 @@ To configure your installation of transfer, you will need to override specific p
 The documentation has been created to "build up" a values.yaml, so there is no need to copy the whole of the Chart values.yaml. You only need to provide the specific overrides.
 
 ```yaml
-image: ghcr.io/doublecloud/transfer:v0.0.0-rc8
+image: ghcr.io/transferia/transferia:v0.0.0-rc8
 env:
   AWS_REGION: eu-central-1
 
@@ -74,7 +74,7 @@ Then you can run:
 
 ```sh
 helm upgrade NAME_OF_TRANSFER \
-  --namespace NAME_OF_NAMESPACE oci://ghcr.io/doublecloud/transfer-helm/transfer \
+  --namespace NAME_OF_NAMESPACE oci://ghcr.io/transferia/transferia-helm/transfer \
   --values PATH_TO_VALUES_FILE \
   --install
 ```

@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/doublecloud/transfer
+  repository: ghcr.io/transferia/transferia
 
 resources:
   requests:

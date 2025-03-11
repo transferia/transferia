@@ -10,7 +10,7 @@ This adapter is ideal for scenarios where you need to synchronize data from an A
 
 We support source airbyte [connectors](https://docs.airbyte.com/category/sources)
 
-This adapter enables integration between [Airbyte](https://docs.airbyte.com/using-airbyte/core-concepts/) and [Transfer](https://GitHub.com/doublecloud/transfer), facilitating the translation of Airbyte's core concepts into Transfer-compatible constructs for streamlined data movement and transformations.
+This adapter enables integration between [Airbyte](https://docs.airbyte.com/using-airbyte/core-concepts/) and [Transfer](https://GitHub.com/transferia/transferia), facilitating the translation of Airbyte's core concepts into Transfer-compatible constructs for streamlined data movement and transformations.
 
 
 This example showcase how to integrate data from [GitHub](https://airbyte.com/connectors/GitHub) to Clickhouse via Airbyte Connector.
@@ -36,7 +36,7 @@ This example showcase how to integrate data from [GitHub](https://airbyte.com/co
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://GitHub.com/doublecloud/transfer
+   git clone https://GitHub.com/transferia/transferia
    cd transfer/examples/airbyte_adapter
    ```
 

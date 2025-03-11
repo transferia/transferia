@@ -10,7 +10,7 @@ To build the ingestion engine, clone the repository and run the build command us
 
 1. Clone the repository to your local machine:
    ```bash
-   git clone git@github.com:doublecloud/transfer.git
+   git clone git@github.com:transferia/transferia.git
    cd transfer
    ```
 
