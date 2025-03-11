@@ -57,7 +57,7 @@ jobs:
       - name: Build landing page
         run: |
           cd docs/website
-          PUBLIC_URL=/transfer npm run build
+          PUBLIC_URL=/transferia npm run build
           cd ../../
           ls ./_docs-lint
           cp -r ./_docs-lint ./docs/website/build/docs
