@@ -1,8 +1,8 @@
 package logger
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/transformer"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

@@ -9,16 +9,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/test/yatest"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	"github.com/transferria/transferria/pkg/debezium/testutil"
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/testutil"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

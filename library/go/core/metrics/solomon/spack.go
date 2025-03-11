@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type spackVersion uint16

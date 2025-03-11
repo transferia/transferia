@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/providers/yt/recipe"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 )
 
 func TestRounding(t *testing.T) {

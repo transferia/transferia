@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/errors/coded"
-	"github.com/transferria/transferria/pkg/providers"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/async/model/db"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 )
 
 type marshallingError struct {

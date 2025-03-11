@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/yatest"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/debezium"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 var ydbDebeziumCanonizedValuesSnapshot = map[string]interface{}{

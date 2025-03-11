@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/connection"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

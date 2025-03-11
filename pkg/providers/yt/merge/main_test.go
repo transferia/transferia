@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	ytcommon "github.com/transferria/transferria/pkg/providers/yt"
+	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
 )
 
 func TestMain(m *testing.M) {

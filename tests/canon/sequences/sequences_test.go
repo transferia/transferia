@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/tests/canon"
-	"github.com/transferria/transferria/tests/canon/validator"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/tests/canon"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

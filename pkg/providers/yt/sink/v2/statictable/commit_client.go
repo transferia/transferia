@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	yt2 "github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
 	"go.ytsaurus.tech/yt/go/mapreduce"
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
 	"go.ytsaurus.tech/yt/go/schema"

@@ -9,11 +9,11 @@ import (
 
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/pkg/worker/tasks"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 type testCaseParams struct {

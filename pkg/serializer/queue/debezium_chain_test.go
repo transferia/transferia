@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
-	debeziumengine "github.com/transferria/transferria/pkg/parsers/registry/debezium/engine"
-	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
-	confluentsrmock "github.com/transferria/transferria/tests/helpers/confluent_schema_registry_mock"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	debeziumengine "github.com/transferia/transferia/pkg/parsers/registry/debezium/engine"
+	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

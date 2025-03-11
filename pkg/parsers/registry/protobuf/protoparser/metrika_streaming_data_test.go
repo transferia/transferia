@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/parsers"
-	"github.com/transferria/transferria/pkg/parsers/registry/protobuf/protoscanner"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoscanner"
 )
 
 func TestDoCloudStreamingExportHits(t *testing.T) {

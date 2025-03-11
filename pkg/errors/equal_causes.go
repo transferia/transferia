@@ -3,7 +3,7 @@ package errors
 import (
 	"runtime"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // EqualCauses checks if two errors have the same cause. This is determined by an heuristic defined in this function.

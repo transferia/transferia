@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/worker/tasks"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/worker/tasks"
 )
 
 func Deactivate(t *testing.T, transfer *model.Transfer, worker *Worker, onErrorCallback ...func(err error)) error {

@@ -5,7 +5,7 @@ import (
 	"context"
 	"runtime"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 )

@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	"github.com/transferria/transferria/pkg/debezium/typeutil"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/util/jsonx"
-	"github.com/transferria/transferria/pkg/util/xlocale"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/typeutil"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/xlocale"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

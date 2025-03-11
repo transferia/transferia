@@ -8,7 +8,7 @@ import (
 	"github.com/ohler55/ojg/jp"
 	"github.com/ohler55/ojg/oj"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/canon"
+	"github.com/transferia/transferia/library/go/test/canon"
 )
 
 func checkInputData(t *testing.T, inProgram ingestPipelineProgram, inData, jsonPath string) (interface{}, bool) {

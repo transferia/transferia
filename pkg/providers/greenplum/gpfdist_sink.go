@@ -4,10 +4,10 @@ import (
 	"sync"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/core/xerrors/multierr"
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 var _ abstract.Sinker = (*GpfdistSink)(nil)

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/parsers"
-	_ "github.com/transferria/transferria/pkg/parsers/registry"
-	"github.com/transferria/transferria/pkg/providers/kafka"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/parsers"
+	_ "github.com/transferia/transferia/pkg/parsers/registry"
+	"github.com/transferia/transferia/pkg/providers/kafka"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/transferria/transferria/library/go/core/buildinfo"
+	"github.com/transferia/transferia/library/go/core/buildinfo"
 )
 
 func main() {

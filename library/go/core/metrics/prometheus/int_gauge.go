@@ -2,7 +2,7 @@ package prometheus
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics"
 )
 
 var _ metrics.IntGauge = (*IntGauge)(nil)

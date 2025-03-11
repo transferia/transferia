@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/pkg/providers/yt"
-	"github.com/transferria/transferria/pkg/providers/yt/storage"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/storage"
 	"go.ytsaurus.tech/yt/go/ypath"
 	ytMain "go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"

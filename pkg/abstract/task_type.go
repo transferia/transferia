@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/jackc/pgtype"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type TaskTypeName = string

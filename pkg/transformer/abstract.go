@@ -1,9 +1,9 @@
 package transformer
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/terryid"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/terryid"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type Config any

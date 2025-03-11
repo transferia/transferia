@@ -4,11 +4,11 @@ import (
 	"math"
 
 	"github.com/spf13/cast"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract/changeitem"
-	"github.com/transferria/transferria/pkg/abstract/dterrors"
-	"github.com/transferria/transferria/pkg/util/castx"
-	"github.com/transferria/transferria/pkg/util/generics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/dterrors"
+	"github.com/transferia/transferia/pkg/util/castx"
+	"github.com/transferia/transferia/pkg/util/generics"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

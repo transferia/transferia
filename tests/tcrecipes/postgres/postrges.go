@@ -12,7 +12,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferia/transferia/library/go/slices"
 )
 
 const defaultUser = "postgres"

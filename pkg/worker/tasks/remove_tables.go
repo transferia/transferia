@@ -3,10 +3,10 @@ package tasks
 import (
 	"context"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 func RemoveTables(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task model.TransferOperation, tables []string) error {

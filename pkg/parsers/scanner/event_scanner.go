@@ -1,7 +1,7 @@
 package scanner
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	"golang.org/x/xerrors"
 )
 

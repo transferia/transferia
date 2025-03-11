@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/pkg/abstract"
-	cpclient "github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/parsers"
-	"github.com/transferria/transferria/pkg/parsers/registry/blank"
-	"github.com/transferria/transferria/pkg/providers/kafka/client"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/registry/blank"
+	"github.com/transferia/transferia/pkg/providers/kafka/client"
 )
 
 func TestTopicResolver(t *testing.T) {

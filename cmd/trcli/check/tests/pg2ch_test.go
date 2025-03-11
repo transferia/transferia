@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/cmd/trcli/check"
-	"github.com/transferria/transferria/cmd/trcli/config"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/cmd/trcli/check"
+	"github.com/transferia/transferia/cmd/trcli/config"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 )
 
 //go:embed transfer.yaml

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 // Contract for parameters: all possible keys are present

@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/config/env"
-	"github.com/transferria/transferria/pkg/instanceutil"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/config/env"
+	"github.com/transferia/transferia/pkg/instanceutil"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

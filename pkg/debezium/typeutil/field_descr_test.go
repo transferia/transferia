@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 func checkMysqlDatetime(t *testing.T, originalType, expectedDebeziumType, expectedName string) {

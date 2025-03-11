@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	mathutil "github.com/transferria/transferria/pkg/util/math"
+	mathutil "github.com/transferia/transferia/pkg/util/math"
 )
 
 const MaxRetry = 100000

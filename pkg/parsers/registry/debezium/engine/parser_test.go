@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/test/canon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers"
 )
 
 var rawLines []string

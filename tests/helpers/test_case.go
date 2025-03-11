@@ -7,8 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type TestCase interface {

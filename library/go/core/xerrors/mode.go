@@ -3,8 +3,8 @@ package xerrors
 import (
 	"fmt"
 
-	"github.com/transferria/transferria/library/go/core/xerrors/internal/modes"
-	"github.com/transferria/transferria/library/go/x/xruntime"
+	"github.com/transferia/transferia/library/go/core/xerrors/internal/modes"
+	"github.com/transferia/transferia/library/go/x/xruntime"
 )
 
 func DefaultStackTraceMode() {

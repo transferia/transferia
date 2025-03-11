@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/test/canon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/test/canon"
 	"go.ytsaurus.tech/yt/go/yson"
 )
 

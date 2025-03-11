@@ -11,9 +11,9 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/transferria/transferria/internal/config"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/internal/config"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

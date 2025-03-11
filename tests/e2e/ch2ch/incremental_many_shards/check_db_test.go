@@ -9,15 +9,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/slices"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	dp_model "github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/clickhouse"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
-	"github.com/transferria/transferria/pkg/worker/tasks"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

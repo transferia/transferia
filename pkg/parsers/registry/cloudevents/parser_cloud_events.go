@@ -1,9 +1,9 @@
 package cloudevents
 
 import (
-	"github.com/transferria/transferria/pkg/parsers"
-	cloudeventsengine "github.com/transferria/transferria/pkg/parsers/registry/cloudevents/engine"
-	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferia/transferia/pkg/parsers"
+	cloudeventsengine "github.com/transferia/transferia/pkg/parsers/registry/cloudevents/engine"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

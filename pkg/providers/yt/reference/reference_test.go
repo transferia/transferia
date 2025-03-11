@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/providers/yt"
-	"github.com/transferria/transferria/pkg/providers/yt/sink"
-	"github.com/transferria/transferria/tests/canon/reference"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/sink"
+	"github.com/transferia/transferia/tests/canon/reference"
 )
 
 func TestPushReferenceTable(t *testing.T) {

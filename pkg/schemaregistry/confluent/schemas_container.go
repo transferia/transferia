@@ -1,8 +1,8 @@
 package confluent
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 type referenceObj struct {

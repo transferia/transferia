@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type livenessMonitor struct {

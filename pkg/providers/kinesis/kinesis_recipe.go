@@ -9,8 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	tc_localstack "github.com/transferria/transferria/tests/tcrecipes/localstack"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	tc_localstack "github.com/transferia/transferia/tests/tcrecipes/localstack"
 )
 
 func Prepare(img string) (string, error) {

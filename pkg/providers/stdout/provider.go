@@ -3,13 +3,13 @@ package stdout
 import (
 	"encoding/gob"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/middlewares"
-	"github.com/transferria/transferria/pkg/providers"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

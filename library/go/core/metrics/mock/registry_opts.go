@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/registryutil"
 )
 
 type RegistryOpts struct {

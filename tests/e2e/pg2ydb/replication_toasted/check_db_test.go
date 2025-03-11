@@ -8,13 +8,13 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
-	"github.com/transferria/transferria/pkg/providers/ydb"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

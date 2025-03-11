@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	abstract "github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/internal/logger"
+	abstract "github.com/transferia/transferia/pkg/abstract"
 )
 
 func TestRandomParseDelayWithEnsure(t *testing.T) {

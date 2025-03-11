@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/transferria/transferria/pkg/contextutil"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/pkg/contextutil"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -32,7 +32,7 @@ func (p pgxLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data
 	var params []log.Field
 	for k, v := range data {
 		if k == "sql" {
-			// https://github.com/transferria/transferria/arcadia/vendor/github.com/jackc/pgx/v4/conn.go?rev=r9171541#L413
+			// https://github.com/transferia/transferia/arcadia/vendor/github.com/jackc/pgx/v4/conn.go?rev=r9171541#L413
 			query, ok := v.(string)
 			if ok {
 				v = util.DefaultSample(query)

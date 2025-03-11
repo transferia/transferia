@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
-	"github.com/transferria/transferria/pkg/debezium/unpacker"
-	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
-	"github.com/transferria/transferria/pkg/schemaregistry/format"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/unpacker"
+	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
+	"github.com/transferia/transferia/pkg/schemaregistry/format"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type Receiver struct {

@@ -9,10 +9,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/tests/tcrecipes"
-	"github.com/transferria/transferria/tests/tcrecipes/objectstorage"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/tests/tcrecipes"
+	"github.com/transferia/transferia/tests/tcrecipes/objectstorage"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

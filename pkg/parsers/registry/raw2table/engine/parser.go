@@ -3,8 +3,8 @@ package engine
 import (
 	"unicode/utf8"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

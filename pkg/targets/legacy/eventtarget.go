@@ -3,13 +3,13 @@ package legacy
 import (
 	"runtime"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/base"
-	"github.com/transferria/transferria/pkg/base/events"
-	"github.com/transferria/transferria/pkg/util/pool"
-	"github.com/transferria/transferria/pkg/worker/tasks/cleanup"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/events"
+	"github.com/transferia/transferia/pkg/util/pool"
+	"github.com/transferia/transferia/pkg/worker/tasks/cleanup"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

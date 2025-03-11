@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/canon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/serializer"
-	e2e "github.com/transferria/transferria/tests/canon"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/serializer"
+	e2e "github.com/transferia/transferia/tests/canon"
 	"golang.org/x/exp/slices"
 )
 

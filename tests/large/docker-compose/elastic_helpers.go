@@ -10,9 +10,9 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/providers/elastic"
-	"github.com/transferria/transferria/pkg/util/jsonx"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/providers/elastic"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"golang.org/x/xerrors"
 )
 

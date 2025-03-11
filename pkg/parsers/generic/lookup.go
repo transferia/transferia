@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-json"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func lookupComplex(obj interface{}, path string) (interface{}, error) {

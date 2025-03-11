@@ -1,9 +1,9 @@
 package confluentschemaregistry
 
 import (
-	"github.com/transferria/transferria/pkg/parsers"
-	conflueentschemaregistryengine "github.com/transferria/transferria/pkg/parsers/registry/confluentschemaregistry/engine"
-	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferia/transferia/pkg/parsers"
+	conflueentschemaregistryengine "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

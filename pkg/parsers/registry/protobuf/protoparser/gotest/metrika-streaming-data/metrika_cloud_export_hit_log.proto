@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ru.yandex.metrika.cloud.proto;
 
-option go_package = "github.com/transferria/transferria/metrika/proto/cloud_export";
+option go_package = "github.com/transferia/transferia/metrika/proto/cloud_export";
 
 message CloudTransferHitList {
     repeated CloudTransferHit Hits = 1;

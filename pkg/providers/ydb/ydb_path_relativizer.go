@@ -3,7 +3,7 @@ package ydb
 import (
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 const (

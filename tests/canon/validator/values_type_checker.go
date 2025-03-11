@@ -3,11 +3,11 @@ package validator
 import (
 	"fmt"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/typesystem/values"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/typesystem/values"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

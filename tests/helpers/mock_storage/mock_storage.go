@@ -3,7 +3,7 @@ package mockstorage
 import (
 	"context"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type MockStorage struct {

@@ -3,7 +3,7 @@ package example
 import (
 	"testing"
 
-	"github.com/transferria/transferria/recipe/mongo/pkg/util"
+	"github.com/transferia/transferia/recipe/mongo/pkg/util"
 )
 
 func TestSample(t *testing.T) {

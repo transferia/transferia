@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/exp/slices"
 )

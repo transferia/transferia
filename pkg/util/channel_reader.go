@@ -3,7 +3,7 @@ package util
 import (
 	"io"
 
-	mathutil "github.com/transferria/transferria/pkg/util/math"
+	mathutil "github.com/transferia/transferia/pkg/util/math"
 )
 
 type ChannelReader struct {

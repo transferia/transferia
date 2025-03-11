@@ -3,7 +3,7 @@ package changeitem
 import (
 	"sync"
 
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 var (

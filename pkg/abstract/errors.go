@@ -1,6 +1,6 @@
 package abstract
 
-import "github.com/transferria/transferria/pkg/abstract/dterrors"
+import "github.com/transferia/transferia/pkg/abstract/dterrors"
 
 type RetriablePartUploadError = dterrors.RetriablePartUploadError
 type TableUploadError = dterrors.TableUploadError

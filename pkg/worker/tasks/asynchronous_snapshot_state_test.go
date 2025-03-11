@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/cleanup"
-	"github.com/transferria/transferria/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/cleanup"
+	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 )
 
 type fakeSink struct {

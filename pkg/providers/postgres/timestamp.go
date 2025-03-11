@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
-	"github.com/transferria/transferria/pkg/providers/postgres/sqltimestamp"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/pkg/providers/postgres/sqltimestamp"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 // TimeZoneParameterStatusKey is the identifier of the PostgreSQL connection property containing time zone

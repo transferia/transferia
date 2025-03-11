@@ -7,9 +7,9 @@ import (
 	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/canon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/parsers/registry/confluentschemaregistry/engine/testdata/types_protobuf_test_data"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/types_protobuf_test_data"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/base"
-	"github.com/transferria/transferria/pkg/base/adapter"
-	"github.com/transferria/transferria/pkg/base/events"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/adapter"
+	"github.com/transferia/transferia/pkg/base/events"
 )
 
 type CSVEvent struct {

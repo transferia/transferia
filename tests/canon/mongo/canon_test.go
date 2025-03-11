@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	mongocommon "github.com/transferria/transferria/pkg/providers/mongo"
-	"github.com/transferria/transferria/tests/canon/validator"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestCanonSource(t *testing.T) {

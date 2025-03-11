@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/errors"
-	"github.com/transferria/transferria/pkg/errors/categories"
-	"github.com/transferria/transferria/pkg/middlewares"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/sink"
-	"github.com/transferria/transferria/pkg/worker/tasks/cleanup"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/sink"
+	"github.com/transferia/transferia/pkg/worker/tasks/cleanup"
 )
 
 // CleanupSinker cleans up the sinker when non-incremental transfer is

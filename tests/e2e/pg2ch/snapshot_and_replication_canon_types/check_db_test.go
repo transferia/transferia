@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
-	"github.com/transferria/transferria/tests/canon/postgres"
-	"github.com/transferria/transferria/tests/e2e/pg2ch"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/canon/postgres"
+	"github.com/transferia/transferia/tests/e2e/pg2ch"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

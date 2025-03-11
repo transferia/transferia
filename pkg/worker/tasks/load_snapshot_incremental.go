@@ -3,13 +3,13 @@ package tasks
 import (
 	"context"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/errors"
-	"github.com/transferria/transferria/pkg/errors/categories"
-	"github.com/transferria/transferria/pkg/storage"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/storage"
 )
 
 const TablesFilterStateKey = "tables_filter"

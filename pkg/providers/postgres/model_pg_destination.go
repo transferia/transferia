@@ -3,11 +3,11 @@ package postgres
 import (
 	"time"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	dp_model "github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/middlewares/async/bufferer"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	"github.com/transferria/transferria/pkg/providers/postgres/utils"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/postgres/utils"
 )
 
 type PgDestination struct {

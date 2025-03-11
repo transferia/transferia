@@ -1,7 +1,7 @@
 package unpacker
 
 import (
-	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
+	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 )
 
 type Unpacker interface {

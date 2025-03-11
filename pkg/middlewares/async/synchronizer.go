@@ -3,8 +3,8 @@ package async
 import (
 	"sync"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

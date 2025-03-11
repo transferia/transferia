@@ -12,8 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/providers/mongo"
-	_ "github.com/transferria/transferria/pkg/transformer/registry"
+	"github.com/transferia/transferia/pkg/providers/mongo"
+	_ "github.com/transferia/transferia/pkg/transformer/registry"
 )
 
 func TestParseTransferYaml_WithEnvSubstitution(t *testing.T) {

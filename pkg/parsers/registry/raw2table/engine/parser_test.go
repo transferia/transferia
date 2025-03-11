@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	logger "github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/parsers"
+	logger "github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers"
 )
 
 func TestDo(t *testing.T) {

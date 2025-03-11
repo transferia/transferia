@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
-	confluentsrmock "github.com/transferria/transferria/tests/helpers/confluent_schema_registry_mock"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 )
 
 func panicOnError(err error) {

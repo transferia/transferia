@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/connection"
-	"github.com/transferria/transferria/pkg/dataplane/provideradapter"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/dataplane/provideradapter"
 	"golang.org/x/exp/slices"
 )
 

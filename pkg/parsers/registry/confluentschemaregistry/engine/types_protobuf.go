@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/jhump/protoreflect/dynamic"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/util/jsonx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"google.golang.org/protobuf/types/descriptorpb"
 )

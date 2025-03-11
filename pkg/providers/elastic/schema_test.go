@@ -5,10 +5,10 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/tests/helpers/utils"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/tests/helpers/utils"
 )
 
 func TestFixDataTypesWithSampleData(t *testing.T) {

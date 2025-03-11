@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/parsers/generic"
-	"github.com/transferria/transferria/pkg/transformer"
-	"github.com/transferria/transferria/pkg/transformer/registry/filter"
-	tostring "github.com/transferria/transferria/pkg/transformer/registry/to_string"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	tostring "github.com/transferia/transferia/pkg/transformer/registry/to_string"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

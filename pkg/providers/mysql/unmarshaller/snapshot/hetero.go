@@ -5,11 +5,11 @@ import (
 	"strconv"
 
 	"github.com/spf13/cast"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/mysql/unmarshaller/types"
-	"github.com/transferria/transferria/pkg/util/castx"
-	"github.com/transferria/transferria/pkg/util/strict"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/mysql/unmarshaller/types"
+	"github.com/transferia/transferia/pkg/util/castx"
+	"github.com/transferia/transferia/pkg/util/strict"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/xerrors"
 )

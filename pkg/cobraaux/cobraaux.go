@@ -2,7 +2,7 @@ package cobraaux
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // RegisterCommand is like parent.AddCommand(child), but also

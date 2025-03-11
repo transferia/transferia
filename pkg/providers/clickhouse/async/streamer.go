@@ -9,12 +9,12 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"github.com/dustin/go-humanize"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/core/xerrors/multierr"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/errors/coded"
-	"github.com/transferria/transferria/pkg/providers"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

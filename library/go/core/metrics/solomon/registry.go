@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/metricsutil"
-	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/metricsutil"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/registryutil"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/library/go/core/log/nop"
 )

@@ -5,11 +5,11 @@ import (
 
 	"github.com/golang/protobuf/descriptor"
 	"github.com/jhump/protoreflect/desc"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/parsers/registry/protobuf"
-	"github.com/transferria/transferria/tests/canon/parser/samples/dynamic/sample_proto/sample_proto"
-	"github.com/transferria/transferria/tests/canon/parser/testcase"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf"
+	"github.com/transferia/transferia/tests/canon/parser/samples/dynamic/sample_proto/sample_proto"
+	"github.com/transferia/transferia/tests/canon/parser/testcase"
 	"go.ytsaurus.tech/library/go/core/log"
 	"google.golang.org/protobuf/proto"
 )

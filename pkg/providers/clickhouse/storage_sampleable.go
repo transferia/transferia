@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 )
 
 const (

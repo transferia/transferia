@@ -3,7 +3,7 @@ package kafka
 import (
 	"context"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 

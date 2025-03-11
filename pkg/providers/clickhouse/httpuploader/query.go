@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	"github.com/transferria/transferria/pkg/util"
-	"github.com/transferria/transferria/pkg/util/multibuf"
-	"github.com/transferria/transferria/pkg/util/pool"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/multibuf"
+	"github.com/transferia/transferia/pkg/util/pool"
 )
 
 type query = *multibuf.PooledMultiBuffer

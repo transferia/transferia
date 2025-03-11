@@ -4,9 +4,9 @@ import (
 	"context"
 
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/format"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

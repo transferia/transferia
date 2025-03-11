@@ -1,13 +1,13 @@
 package clickhouse
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	dp_model "github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/middlewares"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	sink_factory "github.com/transferria/transferria/pkg/sink"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	sink_factory "github.com/transferia/transferia/pkg/sink"
 )
 
 func (p *Provider) loadClickHouseSchema() error {

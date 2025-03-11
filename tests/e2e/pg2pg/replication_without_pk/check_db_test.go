@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 const tableName = "public.__test"

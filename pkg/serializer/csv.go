@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/util/castx"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util/castx"
 	"golang.org/x/xerrors"
 )
 

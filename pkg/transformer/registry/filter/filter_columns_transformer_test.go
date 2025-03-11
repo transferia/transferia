@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/util"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 func TestFilterColumnsTransformer(t *testing.T) {

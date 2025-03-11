@@ -8,10 +8,10 @@ import (
 	"hash"
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/transformer/registry/filter"
-	tostring "github.com/transferria/transferria/pkg/transformer/registry/to_string"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	tostring "github.com/transferia/transferia/pkg/transformer/registry/to_string"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 )
 
 func TestBuildQuery(t *testing.T) {

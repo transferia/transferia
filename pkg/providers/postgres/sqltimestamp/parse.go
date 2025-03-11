@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 var InfiniteTimestampError = xerrors.NewSentinel("infinity is unparseable by the common timestamp parser")

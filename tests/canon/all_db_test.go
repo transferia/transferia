@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/providers/clickhouse"
-	"github.com/transferria/transferria/pkg/providers/mongo"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/ydb"
-	"github.com/transferria/transferria/pkg/providers/yt"
-	"github.com/transferria/transferria/tests/canon/validator"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/mongo"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/tests/canon/validator"
 )
 
 func TestAll(t *testing.T) {

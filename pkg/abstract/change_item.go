@@ -1,7 +1,7 @@
 package abstract
 
 import (
-	"github.com/transferria/transferria/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
 type ChangeItem = changeitem.ChangeItem

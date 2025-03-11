@@ -10,13 +10,13 @@ import (
 
 	"github.com/cloudevents/sdk-go/binding/format/protobuf/v2/pb"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/test/canon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/changeitem/strictify"
-	"github.com/transferria/transferria/pkg/parsers"
-	"github.com/transferria/transferria/pkg/parsers/registry/cloudevents/engine/testutils"
-	confluentsrmock "github.com/transferria/transferria/tests/helpers/confluent_schema_registry_mock"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/registry/cloudevents/engine/testutils"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 	"google.golang.org/protobuf/proto"
 )
 

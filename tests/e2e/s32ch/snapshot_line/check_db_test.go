@@ -11,11 +11,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
-	"github.com/transferria/transferria/pkg/providers/s3"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func init() {

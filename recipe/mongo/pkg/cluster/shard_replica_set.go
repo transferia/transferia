@@ -3,9 +3,9 @@ package shmongo
 import (
 	"context"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/util"
-	mongoshardedconfig "github.com/transferria/transferria/recipe/mongo/pkg/config"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util"
+	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.ytsaurus.tech/library/go/core/log"

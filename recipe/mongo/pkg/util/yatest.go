@@ -1,7 +1,7 @@
 package util
 
 import (
-	"github.com/transferria/transferria/library/go/test/yatest"
+	"github.com/transferia/transferia/library/go/test/yatest"
 )
 
 func MakeOutputPath(relativePath string) string {

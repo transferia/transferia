@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/dblog"
-	"github.com/transferria/transferria/pkg/dblog/tablequery"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/dblog"
+	"github.com/transferia/transferia/pkg/dblog/tablequery"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

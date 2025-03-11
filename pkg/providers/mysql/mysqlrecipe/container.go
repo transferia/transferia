@@ -9,9 +9,9 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/tests/tcrecipes"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/tests/tcrecipes"
 )
 
 const (

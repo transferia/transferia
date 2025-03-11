@@ -4,9 +4,9 @@ package metrics
 import (
 	"strings"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/metrics/prometheus"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/prometheus"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 )
 
 const (

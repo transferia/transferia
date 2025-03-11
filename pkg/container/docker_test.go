@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferia/transferia/internal/logger"
 )
 
 func TestDockerOptsString(t *testing.T) {

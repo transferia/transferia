@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	dp_model "github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/clickhouse"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	"github.com/transferria/transferria/tests/canon/validator"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func getID(item abstract.ChangeItem) uint64 {

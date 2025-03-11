@@ -4,10 +4,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/base"
-	"github.com/transferria/transferria/pkg/base/types"
-	"github.com/transferria/transferria/pkg/providers/yt/provider/table"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/types"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/table"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

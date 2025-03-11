@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/clickhouse"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/conn"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 )
 
 func TestIncrementalShardedStorage(t *testing.T) {

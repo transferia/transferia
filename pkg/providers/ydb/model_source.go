@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	v3credential "github.com/ydb-platform/ydb-go-sdk/v3/credentials"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 )

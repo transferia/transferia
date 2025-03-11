@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/canon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	kafka_provider "github.com/transferria/transferria/pkg/providers/kafka"
-	"github.com/transferria/transferria/pkg/util"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	kafka_provider "github.com/transferia/transferia/pkg/providers/kafka"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

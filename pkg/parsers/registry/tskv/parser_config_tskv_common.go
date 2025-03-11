@@ -1,7 +1,7 @@
 package tskv
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type ParserConfigTSKVCommon struct {

@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

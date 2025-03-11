@@ -1,10 +1,10 @@
 package lightningcache
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/debezium"
-	"github.com/transferria/transferria/pkg/debezium/packer"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	"github.com/transferia/transferia/pkg/debezium/packer"
 )
 
 func handleChangeItems(input []abstract.ChangeItem, schemaIDCache *SessionPackersSchemaIDCache, emitter *debezium.Emitter, isSnapshot bool) error {

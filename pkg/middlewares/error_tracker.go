@@ -1,11 +1,11 @@
 package middlewares
 
 import (
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/errors"
-	"github.com/transferria/transferria/pkg/errors/categories"
-	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/stats"
 )
 
 // ErrorTracker do nothing except tracking error / success pushes into metrics

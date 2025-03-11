@@ -1,9 +1,9 @@
 package delta
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	s3_provider "github.com/transferria/transferria/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	s3_provider "github.com/transferia/transferia/pkg/providers/s3"
 )
 
 // To verify providers contract implementation

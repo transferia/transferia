@@ -1,6 +1,6 @@
 package greenplum
 
-import "github.com/transferria/transferria/pkg/abstract"
+import "github.com/transferia/transferia/pkg/abstract"
 
 const EtaRowPartialProgress = 1 << 20
 

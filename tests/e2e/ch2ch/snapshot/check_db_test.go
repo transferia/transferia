@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/conn"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
-	"github.com/transferria/transferria/tests/helpers"
-	proxy "github.com/transferria/transferria/tests/helpers/http_proxy"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/tests/helpers"
+	proxy "github.com/transferia/transferia/tests/helpers/http_proxy"
 )
 
 var (

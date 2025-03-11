@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/test/canon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/transformer/registry/filter"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

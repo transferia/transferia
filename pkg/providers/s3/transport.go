@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/credentials"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/credentials"
 )
 
 const (

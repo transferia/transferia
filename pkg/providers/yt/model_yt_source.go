@@ -2,10 +2,10 @@ package yt
 
 import (
 	"github.com/dustin/go-humanize"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/config/env"
-	ytclient "github.com/transferria/transferria/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/config/env"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 

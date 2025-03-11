@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/test/yatest"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/debezium"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
-	"github.com/transferria/transferria/pkg/debezium/testutil"
-	"github.com/transferria/transferria/pkg/debezium/typeutil"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/testutil"
+	"github.com/transferia/transferia/pkg/debezium/typeutil"
 )
 
 var pgDebeziumCanonizedValuesSnapshot = map[string]interface{}{

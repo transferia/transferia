@@ -1,8 +1,8 @@
 package parsers
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/parsers/resources"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers/resources"
 )
 
 type ResourceableParser struct {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/jackc/pgtype"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func HstoreToMap(colVal string) (map[string]interface{}, error) {

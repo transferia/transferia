@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/util"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

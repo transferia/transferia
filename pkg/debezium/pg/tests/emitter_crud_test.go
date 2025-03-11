@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/yatest"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	"github.com/transferria/transferria/pkg/debezium/testutil"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/testutil"
 )
 
 var (

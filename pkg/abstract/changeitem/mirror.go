@@ -3,7 +3,7 @@ package changeitem
 import (
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

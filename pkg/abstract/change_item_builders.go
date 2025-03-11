@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/transferria/transferria/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

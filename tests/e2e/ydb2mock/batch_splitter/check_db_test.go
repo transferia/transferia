@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/ydb"
-	"github.com/transferria/transferria/pkg/transformer"
-	batchsplitter "github.com/transferria/transferria/pkg/transformer/registry/batch_splitter"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/pkg/transformer"
+	batchsplitter "github.com/transferia/transferia/pkg/transformer/registry/batch_splitter"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var expectedChangeItemsCount = 10

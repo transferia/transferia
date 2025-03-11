@@ -10,12 +10,12 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-mysql-org/go-mysql/mysql"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/mysql/unmarshaller/snapshot"
-	"github.com/transferria/transferria/pkg/util"
-	"github.com/transferria/transferria/pkg/util/size"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/mysql/unmarshaller/snapshot"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/size"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

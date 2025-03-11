@@ -1,5 +1,5 @@
 package abstract
 
-import "github.com/transferria/transferria/pkg/abstract/changeitem/strictify"
+import "github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
 
 var NewStrictifyError = strictify.NewStrictifyError

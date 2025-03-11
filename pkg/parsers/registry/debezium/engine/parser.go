@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/debezium"
-	"github.com/transferria/transferria/pkg/parsers"
-	"github.com/transferria/transferria/pkg/parsers/generic"
-	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
-	"github.com/transferria/transferria/pkg/schemaregistry/warmup"
-	"github.com/transferria/transferria/pkg/util"
-	"github.com/transferria/transferria/pkg/util/pool"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
+	"github.com/transferia/transferia/pkg/schemaregistry/warmup"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/pool"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

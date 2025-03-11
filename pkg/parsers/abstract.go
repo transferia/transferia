@@ -3,7 +3,7 @@ package parsers
 import (
 	"time"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // Message is struct describing incoming message

@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	ytcommon "github.com/transferria/transferria/pkg/providers/yt"
-	"github.com/transferria/transferria/tests/helpers"
-	yt_helpers "github.com/transferria/transferria/tests/helpers/yt"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/tests/helpers"
+	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
 

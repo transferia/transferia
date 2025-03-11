@@ -3,7 +3,7 @@ package strict
 import (
 	"database/sql/driver"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // ExpectedSQL automatically extracts values from `database/sql/driver` Valuer.

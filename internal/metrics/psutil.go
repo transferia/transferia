@@ -11,9 +11,9 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/pkg/format"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/format"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

@@ -1,7 +1,7 @@
 package pool
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 var ErrPoolClosed = xerrors.New("pool is closed")

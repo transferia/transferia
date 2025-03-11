@@ -1,7 +1,7 @@
 package iter
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type sliceIter[T any] struct {

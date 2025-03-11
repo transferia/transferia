@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	dp_model "github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/tests/e2e/mysql2ch"
-	"github.com/transferria/transferria/tests/e2e/pg2ch"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/tests/e2e/mysql2ch"
+	"github.com/transferia/transferia/tests/e2e/pg2ch"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

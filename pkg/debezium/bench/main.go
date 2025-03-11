@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	serializer "github.com/transferria/transferria/pkg/serializer/queue"
-	confluentsrmock "github.com/transferria/transferria/tests/helpers/confluent_schema_registry_mock"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	serializer "github.com/transferia/transferia/pkg/serializer/queue"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 )
 
 func getChangeItems(fullFilename string, limit int) ([]abstract.ChangeItem, error) {

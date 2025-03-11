@@ -3,9 +3,9 @@ package yt
 import (
 	"context"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	ytmerge "github.com/transferria/transferria/pkg/providers/yt/mergejob"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	ytmerge "github.com/transferia/transferia/pkg/providers/yt/mergejob"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/mapreduce"
 	ytspec "go.ytsaurus.tech/yt/go/mapreduce/spec"

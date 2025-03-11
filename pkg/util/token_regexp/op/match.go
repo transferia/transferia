@@ -3,7 +3,7 @@ package op
 import (
 	"strings"
 
-	"github.com/transferria/transferria/pkg/util/token_regexp/abstract"
+	"github.com/transferia/transferia/pkg/util/token_regexp/abstract"
 )
 
 type MatchOp struct {

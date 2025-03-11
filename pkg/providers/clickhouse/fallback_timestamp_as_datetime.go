@@ -1,8 +1,8 @@
 package clickhouse
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

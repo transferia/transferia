@@ -3,7 +3,7 @@ package coordinator
 import (
 	"context"
 
-	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 type TransferHeartbeat struct {

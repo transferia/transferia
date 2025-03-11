@@ -3,11 +3,11 @@ package errors
 import (
 	"sort"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/errors/categories"
-	"github.com/transferria/transferria/pkg/errors/coded"
-	"github.com/transferria/transferria/pkg/terryid"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/terryid"
 )
 
 var (

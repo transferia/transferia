@@ -1,7 +1,7 @@
 package op
 
 import (
-	"github.com/transferria/transferria/pkg/util/token_regexp/abstract"
+	"github.com/transferia/transferia/pkg/util/token_regexp/abstract"
 )
 
 type AnyTokenOp struct {

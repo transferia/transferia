@@ -3,9 +3,9 @@ package engine
 import (
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/typesystem"
-	"github.com/transferria/transferria/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/parsers/generic"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

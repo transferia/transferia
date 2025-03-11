@@ -15,11 +15,11 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/klauspost/compress/zstd"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/errors/coded"
-	"github.com/transferria/transferria/pkg/format"
-	"github.com/transferria/transferria/pkg/providers"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

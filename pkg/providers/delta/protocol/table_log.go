@@ -3,9 +3,9 @@ package protocol
 import (
 	"strings"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/providers/delta/action"
-	store2 "github.com/transferria/transferria/pkg/providers/delta/store"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/delta/action"
+	store2 "github.com/transferia/transferia/pkg/providers/delta/store"
 )
 
 type TableLog struct {

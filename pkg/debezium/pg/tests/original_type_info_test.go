@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/debezium"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
-	"github.com/transferria/transferria/pkg/debezium/pg"
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/pg"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 func TestOriginalType(t *testing.T) {

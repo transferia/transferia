@@ -3,7 +3,7 @@ package greenplum
 import (
 	"fmt"
 
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 type GreenplumFlavour struct {

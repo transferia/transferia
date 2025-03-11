@@ -1,4 +1,4 @@
-// dashboard generator for these metrics can be found at: github.com/transferria/transferria/arcadia/library/go/yandex/monitoring-dashboards
+// dashboard generator for these metrics can be found at: github.com/transferia/transferia/arcadia/library/go/yandex/monitoring-dashboards
 package collect
 
 import (
@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/prometheus/procfs"
-	"github.com/transferria/transferria/library/go/core/buildinfo"
-	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/buildinfo"
+	"github.com/transferia/transferia/library/go/core/metrics"
 )
 
 var _ Func = GoMetrics

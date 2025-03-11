@@ -3,9 +3,9 @@ package queue
 import (
 	"strings"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 func isJSONExtraElementViolatesConstraint(batchingSettings model.Batching, startIndex, currIndex int, lenElements []uint64, prevBodiesSize uint64) bool {

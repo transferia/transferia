@@ -7,10 +7,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/util"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 // see: https://coralogix.com/docs/rest-api-bulk/

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
 )
 
 var (

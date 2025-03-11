@@ -3,8 +3,8 @@ package pusher
 import (
 	"context"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/parsequeue"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsequeue"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

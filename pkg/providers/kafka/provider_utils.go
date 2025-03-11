@@ -1,15 +1,15 @@
 package kafka
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
-	debezium_prod_status "github.com/transferria/transferria/pkg/debezium/prodstatus"
-	"github.com/transferria/transferria/pkg/providers/airbyte"
-	clickhouse "github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	debezium_prod_status "github.com/transferia/transferia/pkg/debezium/prodstatus"
+	"github.com/transferia/transferia/pkg/providers/airbyte"
+	clickhouse "github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 type Mirrareable interface {

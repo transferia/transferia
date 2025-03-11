@@ -5,9 +5,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/metrics/collect"
-	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/collect"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/registryutil"
 )
 
 type PrometheusRegistry interface {

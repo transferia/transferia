@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/base"
-	"github.com/transferria/transferria/pkg/base/types"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/types"
 	yt_schema "go.ytsaurus.tech/yt/go/schema"
 )
 

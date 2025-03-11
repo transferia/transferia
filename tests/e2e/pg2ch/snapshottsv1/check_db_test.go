@@ -6,15 +6,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	client2 "github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
-	"github.com/transferria/transferria/pkg/worker/tasks"
-	"github.com/transferria/transferria/tests/e2e/pg2ch"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/e2e/pg2ch"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

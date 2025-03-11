@@ -8,7 +8,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/transferria/transferria/library/go/test/yatest"
+	"github.com/transferia/transferia/library/go/test/yatest"
 )
 
 const (

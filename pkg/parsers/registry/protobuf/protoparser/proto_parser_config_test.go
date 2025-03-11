@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/yatest"
+	"github.com/transferia/transferia/library/go/test/yatest"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 

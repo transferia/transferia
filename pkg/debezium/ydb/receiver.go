@@ -4,10 +4,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	"github.com/transferria/transferria/pkg/debezium/typeutil"
-	"github.com/transferria/transferria/pkg/util/jsonx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/typeutil"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 )
 
 //---------------------------------------------------------------------------------------------------------------------

@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/slices"
-	"github.com/transferria/transferria/pkg/abstract"
-	dp_model "github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 )
 
 func ResolveShards(config model.ChSinkParams, transfer *dp_model.Transfer) error {

@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

@@ -6,12 +6,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/slices"
-	"github.com/transferria/transferria/pkg/providers/delta/action"
-	"github.com/transferria/transferria/pkg/providers/delta/store"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/providers/delta/action"
+	"github.com/transferia/transferia/pkg/providers/delta/store"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 type SnapshotReader struct {

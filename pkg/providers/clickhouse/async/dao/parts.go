@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

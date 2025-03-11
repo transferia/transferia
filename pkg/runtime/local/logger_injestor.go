@@ -1,7 +1,7 @@
 package local
 
 import (
-	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferia/transferia/internal/logger"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

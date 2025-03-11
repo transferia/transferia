@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 var debeziumSerializerTestTypicalChangeItem *abstract.ChangeItem

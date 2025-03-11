@@ -1,7 +1,7 @@
 package events
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // TODO: Remove after new cleanup design based on TableLoadEvents

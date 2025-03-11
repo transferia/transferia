@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/internal/metrics"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/middlewares"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
 )
 
 func TestSnapshotTurnOffPerTransactionPush(t *testing.T) {

@@ -3,7 +3,7 @@ package action
 import (
 	"net/url"
 
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type RemoveFile struct {

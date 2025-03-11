@@ -1,10 +1,10 @@
 package fallback
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/abstract/typesystem"
-	"github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/providers/yt"
 )
 
 func init() {

@@ -3,8 +3,8 @@ package model
 import (
 	"context"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type EndpointParams interface {

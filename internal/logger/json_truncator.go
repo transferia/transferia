@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/pkg/stringutil"
-	"github.com/transferria/transferria/pkg/util/size"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/stringutil"
+	"github.com/transferia/transferia/pkg/util/size"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

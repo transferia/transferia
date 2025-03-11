@@ -9,14 +9,14 @@ import (
 
 	"github.com/Azure/azure-amqp-common-go/v3/sas"
 	eventhubs "github.com/Azure/azure-event-hubs-go/v3"
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/format"
-	"github.com/transferria/transferria/pkg/functions"
-	"github.com/transferria/transferria/pkg/parsers"
-	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/functions"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

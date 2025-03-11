@@ -4,10 +4,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/slices"
-	"github.com/transferria/transferria/pkg/providers/delta/types"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/providers/delta/types"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 type Metadata struct {

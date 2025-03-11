@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/clickhouse"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/ydb"
-	ytprovider "github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	ytprovider "github.com/transferia/transferia/pkg/providers/yt"
 	"golang.org/x/exp/slices"
 )
 

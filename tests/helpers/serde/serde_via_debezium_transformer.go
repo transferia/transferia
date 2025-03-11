@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/debezium"
-	"github.com/transferria/transferria/pkg/debezium/testutil"
-	simple_transformer "github.com/transferria/transferria/tests/helpers/transformer"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	"github.com/transferia/transferia/pkg/debezium/testutil"
+	simple_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
 var CountOfProcessedMessage = 0

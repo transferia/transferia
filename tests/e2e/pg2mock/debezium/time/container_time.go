@@ -8,10 +8,10 @@ import (
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/debezium"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 type containerTime struct {

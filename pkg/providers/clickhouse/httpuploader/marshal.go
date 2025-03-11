@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
-	"github.com/transferria/transferria/pkg/util/castx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/pkg/util/castx"
 	"github.com/valyala/fastjson/fastfloat"
 	"go.ytsaurus.tech/yt/go/schema"
 )

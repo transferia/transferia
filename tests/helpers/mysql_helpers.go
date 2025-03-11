@@ -10,9 +10,9 @@ import (
 
 	mysqldriver "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/pkg/providers/mysql/mysqlrecipe"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

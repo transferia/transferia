@@ -4,8 +4,8 @@
 package metering
 
 import (
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 func Agent() MeteringAgent {

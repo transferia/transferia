@@ -3,7 +3,7 @@ package jsonx
 import (
 	"encoding/json"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // ValueDecoder is a decoder which deserializes JSONs into the Data Transfer's JSON representation

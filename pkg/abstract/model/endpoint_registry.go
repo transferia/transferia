@@ -3,7 +3,7 @@ package model
 import (
 	"sort"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 var (

@@ -1,7 +1,7 @@
 package model
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // ConnectionHosts returns a list of hosts which can be used to connect to the ClickHouse cluster with the given shard.

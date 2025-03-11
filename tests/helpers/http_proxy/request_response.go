@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/klauspost/compress/zstd"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type RequestResponse struct {

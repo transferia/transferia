@@ -6,16 +6,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	cpclient "github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
-	"github.com/transferria/transferria/pkg/providers/kinesis"
-	"github.com/transferria/transferria/pkg/runtime/local"
-	"github.com/transferria/transferria/tests/canon/reference"
-	"github.com/transferria/transferria/tests/helpers"
-	"github.com/transferria/transferria/tests/tcrecipes"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/kinesis"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/tests/canon/reference"
+	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/tcrecipes"
 )
 
 func init() {

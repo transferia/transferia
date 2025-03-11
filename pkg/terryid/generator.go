@@ -1,7 +1,7 @@
 package terryid
 
 import (
-	"github.com/transferria/transferria/pkg/randutil"
+	"github.com/transferia/transferia/pkg/randutil"
 )
 
 const (

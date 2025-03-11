@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferia/transferia/internal/logger"
 )
 
 func TestGenericArray_DecodeText(t *testing.T) {

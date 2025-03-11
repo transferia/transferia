@@ -2,7 +2,7 @@ package bigquery
 
 import (
 	"cloud.google.com/go/bigquery"
-	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

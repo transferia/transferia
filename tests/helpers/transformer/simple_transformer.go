@@ -3,8 +3,8 @@ package transformer
 import (
 	"testing"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	_ "github.com/transferria/transferria/pkg/dataplane"
+	"github.com/transferia/transferia/pkg/abstract"
+	_ "github.com/transferia/transferia/pkg/dataplane"
 )
 
 //---------------------------------------------------------------------------------------------------------------------

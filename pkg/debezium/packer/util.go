@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 func makeSubjectName(

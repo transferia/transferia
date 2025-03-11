@@ -7,18 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/errors"
-	"github.com/transferria/transferria/pkg/errors/categories"
-	"github.com/transferria/transferria/pkg/providers/postgres/dblog"
-	"github.com/transferria/transferria/pkg/providers/postgres/utils"
-	"github.com/transferria/transferria/pkg/storage"
-	"github.com/transferria/transferria/pkg/transformer/registry/rename"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/providers/postgres/dblog"
+	"github.com/transferia/transferia/pkg/providers/postgres/utils"
+	"github.com/transferia/transferia/pkg/storage"
+	"github.com/transferia/transferia/pkg/transformer/registry/rename"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 const pgDesiredTableSize = 1024 * 1024 * 1024
@@ -468,7 +468,7 @@ func (s *PgSource) ToSinkParams() PgSourceWrapper {
 func (s *PgSource) isPreferReplica(transfer *model.Transfer) bool {
 	// PreferReplica auto-derives into 'true', if ALL next properties fulfilled:
 	// - It can be used only on 'managed' installation - bcs we are searching replicas via mdb api
-	// - It can be used only on heterogeneous transfers - bcs "for homo there are some technical restrictions" (https://github.com/transferria/transferria/review/4059241/details#comment-5973004)
+	// - It can be used only on heterogeneous transfers - bcs "for homo there are some technical restrictions" (https://github.com/transferia/transferia/review/4059241/details#comment-5973004)
 	//     There are some issues with reading sequence values from replica
 	// - It can be used only on SNAPSHOT_ONLY transfer - bcs we can't take consistent slot on master & snapshot on replica
 	//

@@ -2,8 +2,8 @@ package postgres
 
 import (
 	"github.com/jackc/pgconn"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/errors/coded"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
 )
 
 var (

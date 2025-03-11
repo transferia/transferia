@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferia/transferia/pkg/base"
 )
 
 // Asynchronizer is tasks.asynchronousSnapshotState for abstract2.

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // ResolveHostPortWithOverride - function which determines real port

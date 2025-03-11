@@ -3,10 +3,10 @@ package model
 import (
 	"encoding/json"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	transformers_registry "github.com/transferria/transferria/pkg/transformer"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	transformers_registry "github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type Transfer struct {

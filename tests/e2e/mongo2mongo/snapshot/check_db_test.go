@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	client2 "github.com/transferria/transferria/pkg/abstract/coordinator"
-	mongocommon "github.com/transferria/transferria/pkg/providers/mongo"
-	"github.com/transferria/transferria/pkg/worker/tasks"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
+	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 const databaseName string = "db"

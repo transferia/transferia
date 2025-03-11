@@ -1,10 +1,10 @@
 package middlewares
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/base"
-	"github.com/transferria/transferria/pkg/metering"
-	"github.com/transferria/transferria/pkg/providers/middlewares"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/metering"
+	"github.com/transferia/transferia/pkg/providers/middlewares"
 )
 
 func InputDataMetering() func(abstract.Sinker) abstract.Sinker {

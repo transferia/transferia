@@ -1,8 +1,8 @@
 package abstract
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors/multierr"
-	"github.com/transferria/transferria/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
 // CheckType test check type

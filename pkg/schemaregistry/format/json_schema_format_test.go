@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/canon"
+	"github.com/transferia/transferia/library/go/test/canon"
 )
 
 var (

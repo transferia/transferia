@@ -3,7 +3,7 @@ package logger
 import (
 	"sync"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics"
 )
 
 // mutableRegistry is a nasty hack, try not to use it. It overrides some metric

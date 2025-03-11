@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func UnmarshalChangeItems(t *testing.T, changeItemBuf []byte) []abstract.ChangeItem {

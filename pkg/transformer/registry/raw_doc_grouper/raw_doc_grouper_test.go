@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/transformer/registry/filter"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 func TestRawDocGroupTransformer(t *testing.T) {

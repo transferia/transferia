@@ -12,8 +12,8 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 )
 
 var _ conn.ConnParams = (*stubParams)(nil)

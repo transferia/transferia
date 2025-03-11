@@ -6,7 +6,7 @@ import (
 
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
-	serializer "github.com/transferria/transferria/pkg/serializer/queue"
+	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	ytcommon "github.com/transferria/transferria/pkg/providers/yt"
-	"github.com/transferria/transferria/tests/e2e/mongo2yt/rotator"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/tests/e2e/mongo2yt/rotator"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
 

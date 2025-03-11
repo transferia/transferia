@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/debezium"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
-	"github.com/transferria/transferria/pkg/debezium/testutil"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	yt_provider "github.com/transferria/transferria/pkg/providers/yt"
-	"github.com/transferria/transferria/tests/helpers"
-	yt_helpers "github.com/transferria/transferria/tests/helpers/yt"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/testutil"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/tests/helpers"
+	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
 
 var (

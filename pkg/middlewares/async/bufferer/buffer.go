@@ -1,6 +1,6 @@
 package bufferer
 
-import "github.com/transferria/transferria/pkg/abstract"
+import "github.com/transferia/transferia/pkg/abstract"
 
 type buffer struct {
 	batch           []abstract.ChangeItem

@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
-	"github.com/transferria/transferria/tests/e2e/mysql2ch"
-	"github.com/transferria/transferria/tests/e2e/pg2ch"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/pkg/abstract"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/tests/e2e/mysql2ch"
+	"github.com/transferia/transferia/tests/e2e/pg2ch"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestSnapshot(t *testing.T) {

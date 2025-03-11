@@ -15,10 +15,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/tests/tcrecipes"
-	"github.com/transferria/transferria/tests/tcrecipes/objectstorage"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/tests/tcrecipes"
+	"github.com/transferia/transferia/tests/tcrecipes/objectstorage"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

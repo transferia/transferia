@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	cpclient "github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	mongocommon "github.com/transferria/transferria/pkg/providers/mongo"
-	"github.com/transferria/transferria/pkg/runtime/local"
-	"github.com/transferria/transferria/pkg/worker/tasks"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.mongodb.org/mongo-driver/bson"
 )
 

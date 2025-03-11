@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func TestIsErrorCode(t *testing.T) {

@@ -1,6 +1,6 @@
 package ydb
 
-import "github.com/transferria/transferria/pkg/abstract"
+import "github.com/transferia/transferia/pkg/abstract"
 
 func (s *Storage) TableSizeInBytes(table abstract.TableID) (uint64, error) {
 	// we force full load for checksum

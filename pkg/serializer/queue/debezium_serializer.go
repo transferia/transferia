@@ -3,13 +3,13 @@ package queue
 import (
 	"runtime"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/debezium"
-	"github.com/transferria/transferria/pkg/debezium/packer"
-	lightningcache "github.com/transferria/transferria/pkg/debezium/packer/lightning_cache"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/debezium"
+	"github.com/transferia/transferia/pkg/debezium/packer"
+	lightningcache "github.com/transferia/transferia/pkg/debezium/packer/lightning_cache"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

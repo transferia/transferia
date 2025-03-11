@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/randutil"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/randutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.ytsaurus.tech/library/go/core/log"

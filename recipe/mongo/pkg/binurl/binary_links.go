@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/blang/semver/v4"
-	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferia/transferia/library/go/slices"
 )
 
 // BinaryLinks represent MongoDB binary distribution.

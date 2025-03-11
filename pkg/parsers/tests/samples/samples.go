@@ -4,7 +4,7 @@ import (
 	_ "embed"
 	"time"
 
-	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers"
 )
 
 var (

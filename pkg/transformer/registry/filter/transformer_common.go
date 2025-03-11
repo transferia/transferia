@@ -3,7 +3,7 @@ package filter
 import (
 	"fmt"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func TableFqtnVariants(tID abstract.TableID) []string {

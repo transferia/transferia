@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics"
 	"go.uber.org/atomic"
 )
 

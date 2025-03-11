@@ -1,11 +1,11 @@
 package kafka
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/slices"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/dbaas"
-	"github.com/transferria/transferria/pkg/providers/kafka/client"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/dbaas"
+	"github.com/transferia/transferia/pkg/providers/kafka/client"
 )
 
 func ResolveBrokers(s *KafkaConnectionOptions) ([]string, error) {

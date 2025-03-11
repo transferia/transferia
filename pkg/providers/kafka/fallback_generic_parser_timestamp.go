@@ -1,8 +1,8 @@
 package kafka
 
 import (
-	"github.com/transferria/transferria/pkg/abstract/typesystem"
-	jsonengine "github.com/transferria/transferria/pkg/parsers/registry/json/engine"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
+	jsonengine "github.com/transferia/transferia/pkg/parsers/registry/json/engine"
 )
 
 func init() {

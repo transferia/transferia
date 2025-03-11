@@ -2,9 +2,9 @@ package prometheus
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/metricsutil"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/metricsutil"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 var _ metrics.CounterVec = (*CounterVec)(nil)

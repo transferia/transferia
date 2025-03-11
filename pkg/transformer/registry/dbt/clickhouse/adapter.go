@@ -3,10 +3,10 @@ package clickhouse
 import (
 	"context"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	dp_model "github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
-	"github.com/transferria/transferria/pkg/transformer/registry/dbt"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/transformer/registry/dbt"
 )
 
 func init() {

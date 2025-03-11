@@ -2,9 +2,9 @@ package validate
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/transferria/transferria/cmd/trcli/config"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/cmd/trcli/config"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func ValidateCommand() *cobra.Command {

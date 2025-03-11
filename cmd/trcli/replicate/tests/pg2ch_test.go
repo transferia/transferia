@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/cmd/trcli/config"
-	"github.com/transferria/transferria/cmd/trcli/replicate"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/cmd/trcli/config"
+	"github.com/transferia/transferia/cmd/trcli/replicate"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 //go:embed transfer.yaml

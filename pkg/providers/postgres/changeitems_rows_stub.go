@@ -5,10 +5,10 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/library/go/slices"
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // Sniffer you may replace Fetch with Sniffer to get raw data.

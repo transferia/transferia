@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract/changeitem"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/httpuploader"
-	"github.com/transferria/transferria/pkg/providers/mysql"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/tests/canon"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpuploader"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/tests/canon"
 )
 
 var (

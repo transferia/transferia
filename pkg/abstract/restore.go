@@ -12,8 +12,8 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/gofrs/uuid"
 	"github.com/spf13/cast"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/util/jsonx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

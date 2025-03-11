@@ -3,7 +3,7 @@ package schema
 import (
 	"time"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 const matViewEngine = "MaterializedView"

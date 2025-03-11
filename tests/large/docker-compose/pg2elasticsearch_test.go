@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/library/go/test/canon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/elastic"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/elastic"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func Doc(typ abstract.ProviderType, title string) string {

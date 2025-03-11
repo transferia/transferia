@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
-	"github.com/transferria/transferria/tests/canon/validator"
-	"github.com/transferria/transferria/tests/helpers"
-	"github.com/transferria/transferria/tests/tcrecipes"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/tcrecipes"
 )
 
 func TestCanonSource(t *testing.T) {

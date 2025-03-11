@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
-	confluentsrmock "github.com/transferria/transferria/tests/helpers/confluent_schema_registry_mock"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 )
 
 func getParams(sr *confluentsrmock.ConfluentSRMock, isKey bool) map[string]string {

@@ -3,9 +3,9 @@ package dbt
 import (
 	"context"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/middlewares"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
 )
 
 type RegisterFunc = func(destination model.Destination) (SupportedDestination, error)

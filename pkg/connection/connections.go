@@ -1,7 +1,7 @@
 package connection
 
 import (
-	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 var _ ManagedConnection = (*ConnectionPG)(nil)

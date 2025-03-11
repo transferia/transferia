@@ -3,7 +3,7 @@ package tablequery
 import (
 	"context"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // StorageTableQueryable is storage with table query loading

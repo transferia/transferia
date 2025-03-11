@@ -1,7 +1,7 @@
 package coded
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // CodedError is an error with an attached code

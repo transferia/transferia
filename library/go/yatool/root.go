@@ -19,7 +19,7 @@ var (
 
 // FindArcadiaRoot searches Arcadia root for the target path
 //
-// Implementation reference https://github.com/transferria/transferria/arc/trunk/arcadia/library/python/find_root
+// Implementation reference https://github.com/transferia/transferia/arc/trunk/arcadia/library/python/find_root
 func FindArcadiaRoot(arcPath string) (string, error) {
 	isRoot := func(arcPath string) bool {
 		if _, err := os.Stat(filepath.Join(arcPath, ".arcadia.root")); err == nil {

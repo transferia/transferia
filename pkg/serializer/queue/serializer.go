@@ -1,8 +1,8 @@
 package queue
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/debezium/packer"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium/packer"
 )
 
 type SerializedMessage struct {

@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 var knownRuntimes = map[RuntimeType]func(spec string) (Runtime, error){}

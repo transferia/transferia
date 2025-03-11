@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go"
-	ytcommon "github.com/transferria/transferria/pkg/providers/yt"
+	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
 )
 
 func Main(m *testing.M) {

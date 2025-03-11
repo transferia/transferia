@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	pg_provider "github.com/transferria/transferria/pkg/providers/postgres"
-	yt_provider "github.com/transferria/transferria/pkg/providers/yt"
-	"github.com/transferria/transferria/tests/helpers"
-	yt_helpers "github.com/transferria/transferria/tests/helpers/yt"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	pg_provider "github.com/transferia/transferia/pkg/providers/postgres"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/tests/helpers"
+	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
 
 var (

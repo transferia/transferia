@@ -7,9 +7,9 @@ import (
 
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/scram"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/util/validators"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/util/validators"
 	franzsasl "github.com/twmb/franz-go/pkg/sasl"
 	franzscram "github.com/twmb/franz-go/pkg/sasl/scram"
 )

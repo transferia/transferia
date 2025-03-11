@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

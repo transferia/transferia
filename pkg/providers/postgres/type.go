@@ -6,17 +6,17 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
 // This is a copy of the pgx driver internal global map `nameValues`:
-// https://github.com/transferria/transferria/arcadia/vendor/github.com/jackc/pgtype/pgtype.go?rev=10676203#L924-924
+// https://github.com/transferia/transferia/arcadia/vendor/github.com/jackc/pgtype/pgtype.go?rev=10676203#L924-924
 // We want to override the fallback type for unknown types, and use
 // GenericBinary instead of GenericText when we have to.
 // To do that, we use our own implementation of InitializeDataTypes function,
 // which is, luckily, configurable:
-// https://github.com/transferria/transferria/arcadia/vendor/github.com/jackc/pgtype/pgtype.go?rev=10676203#L370-380
+// https://github.com/transferia/transferia/arcadia/vendor/github.com/jackc/pgtype/pgtype.go?rev=10676203#L370-380
 // Unfortunately, the driver does not expose its internal map with the
 // well-known PostgreSQL types which is used by the default implementation of
 // InitializeDataTypes, so we have to copy that map into our code.

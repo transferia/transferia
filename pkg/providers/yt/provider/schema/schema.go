@@ -3,11 +3,11 @@ package schema
 import (
 	"context"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	basetypes "github.com/transferria/transferria/pkg/base/types"
-	ytcommon "github.com/transferria/transferria/pkg/providers/yt"
-	"github.com/transferria/transferria/pkg/providers/yt/provider/table"
-	"github.com/transferria/transferria/pkg/providers/yt/provider/types"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	basetypes "github.com/transferia/transferia/pkg/base/types"
+	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/table"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/types"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/yt"
 )

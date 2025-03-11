@@ -9,10 +9,10 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -517,7 +517,7 @@ func (e *SchemaExtractor) FindDependentViews(ctx context.Context, conn *pgx.Conn
 	return views, nil
 }
 
-// TODO: implement Set for GenericArray https://github.com/transferria/transferria/arc/trunk/arcadia/transfer_manager/go/pkg/dataagent/pg/generic_array.go?rev=r9238739#L132
+// TODO: implement Set for GenericArray https://github.com/transferia/transferia/arc/trunk/arcadia/transfer_manager/go/pkg/dataagent/pg/generic_array.go?rev=r9238739#L132
 func (e *SchemaExtractor) getDependentViewsQuery(tables abstract.TableMap) string {
 	schemas, names := prepareSchemasAndNamesParams(tables)
 	return fmt.Sprintf(`

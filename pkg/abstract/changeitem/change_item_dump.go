@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"github.com/olekukonko/tablewriter"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

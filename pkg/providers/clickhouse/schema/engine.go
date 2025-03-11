@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	parser "github.com/transferria/transferria/pkg/providers/clickhouse/schema/ddl_parser"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	parser "github.com/transferia/transferia/pkg/providers/clickhouse/schema/ddl_parser"
 )
 
 type EngineType string

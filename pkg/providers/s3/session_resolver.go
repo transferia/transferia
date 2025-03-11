@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	creds "github.com/transferria/transferria/pkg/credentials"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	creds "github.com/transferia/transferia/pkg/credentials"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

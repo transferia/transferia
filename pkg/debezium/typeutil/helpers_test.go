@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 func TestChangeItemsBitsToDebezium(t *testing.T) {

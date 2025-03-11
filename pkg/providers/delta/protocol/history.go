@@ -3,10 +3,10 @@ package protocol
 import (
 	"math"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/providers/delta/action"
-	"github.com/transferria/transferria/pkg/providers/delta/store"
-	util_math "github.com/transferria/transferria/pkg/util/math"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/delta/action"
+	"github.com/transferia/transferia/pkg/providers/delta/store"
+	util_math "github.com/transferia/transferia/pkg/util/math"
 )
 
 type history struct {

@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/internal/metrics"
-	"github.com/transferria/transferria/pkg/abstract"
-	parsersfactory "github.com/transferria/transferria/pkg/parsers"
-	"github.com/transferria/transferria/pkg/stats"
-	"github.com/transferria/transferria/tests/canon/parser/testcase"
-	"github.com/transferria/transferria/tests/canon/validator"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	parsersfactory "github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/tests/canon/parser/testcase"
+	"github.com/transferia/transferia/tests/canon/validator"
 )
 
 //go:embed samples/static/generic/*

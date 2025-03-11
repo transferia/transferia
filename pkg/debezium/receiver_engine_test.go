@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

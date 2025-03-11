@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	store "github.com/transferria/transferria/pkg/providers/delta/store"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	store "github.com/transferia/transferia/pkg/providers/delta/store"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 // badGoldenTest it's a set of cases that doomed to fail

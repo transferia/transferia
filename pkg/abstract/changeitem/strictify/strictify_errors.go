@@ -1,8 +1,8 @@
 package strictify
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

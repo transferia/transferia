@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferia/transferia/internal/logger"
 )
 
 func TestSetCredentials(t *testing.T) {

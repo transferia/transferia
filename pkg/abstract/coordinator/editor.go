@@ -1,6 +1,6 @@
 package coordinator
 
-import "github.com/transferria/transferria/pkg/abstract/model"
+import "github.com/transferia/transferia/pkg/abstract/model"
 
 // Editor is obsolete interface to update entities on coordinator
 //

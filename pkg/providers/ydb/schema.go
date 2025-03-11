@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"go.ytsaurus.tech/yt/go/schema"
 )

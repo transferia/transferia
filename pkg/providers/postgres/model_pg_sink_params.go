@@ -3,7 +3,7 @@ package postgres
 import (
 	"time"
 
-	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 type PgSinkParams interface {

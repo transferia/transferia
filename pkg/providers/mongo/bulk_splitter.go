@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 

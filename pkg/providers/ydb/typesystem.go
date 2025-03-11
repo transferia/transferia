@@ -1,7 +1,7 @@
 package ydb
 
 import (
-	"github.com/transferria/transferria/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

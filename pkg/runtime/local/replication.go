@@ -6,17 +6,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/dataplane/provideradapter"
-	"github.com/transferria/transferria/pkg/errors"
-	"github.com/transferria/transferria/pkg/metering"
-	"github.com/transferria/transferria/pkg/runtime/shared"
-	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/dataplane/provideradapter"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/metering"
+	"github.com/transferia/transferia/pkg/runtime/shared"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -132,7 +132,7 @@ waitingForReplicationErr:
 		// status message will be set to error by the error processing code, so the status message is only set below for non-fatal errors
 		return xerrors.Errorf("a fatal error occurred in replication: %w", attemptErr), false
 	}
-	// https://st.yandex-team.ru/TM-2719 hack. Introduced in https://github.com/transferria/transferria/review/2122992/details
+	// https://st.yandex-team.ru/TM-2719 hack. Introduced in https://github.com/transferia/transferia/review/2122992/details
 	if strings.Contains(attemptErr.Error(), "SQLSTATE 53300") {
 		logger.Log.Error("replication failed, will restart the whole dataplane", log.Error(attemptErr))
 		return xerrors.Errorf("replication failed, dataplane must be restarted: %w", attemptErr), false

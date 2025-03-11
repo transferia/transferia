@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/transferria/transferria/library/go/core/xerrors/internal/modes"
-	"github.com/transferria/transferria/library/go/test/testhelpers"
+	"github.com/transferia/transferia/library/go/core/xerrors/internal/modes"
+	"github.com/transferia/transferia/library/go/test/testhelpers"
 )
 
 func RunTestsPerMode(t *testing.T, expected Expectations, constructor func(t *testing.T) error) {

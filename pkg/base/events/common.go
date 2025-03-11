@@ -1,8 +1,8 @@
 package events
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/base"
 )
 
 func validateValue(value base.Value) error {

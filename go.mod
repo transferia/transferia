@@ -1,4 +1,4 @@
-module github.com/transferria/transferria
+module github.com/transferia/transferia
 
 go 1.22.5
 

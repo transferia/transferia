@@ -3,7 +3,7 @@ package protocol
 import (
 	"time"
 
-	"github.com/transferria/transferria/pkg/providers/delta/store"
+	"github.com/transferia/transferia/pkg/providers/delta/store"
 )
 
 type LogSegment struct {

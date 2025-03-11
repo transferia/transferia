@@ -1,8 +1,8 @@
 package postgres
 
 import (
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func DropReplicationSlot(src *PgSource, tracker ...*Tracker) error {

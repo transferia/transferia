@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type OperationTablePart struct {

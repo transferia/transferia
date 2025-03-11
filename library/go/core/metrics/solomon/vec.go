@@ -3,8 +3,8 @@ package solomon
 import (
 	"sync"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/registryutil"
 )
 
 // metricsVector is a base implementation of vector of metrics of any supported type.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/transferria/transferria/library/go/test/yatest"
+	"github.com/transferia/transferia/library/go/test/yatest"
 )
 
 var isRunningUnderGotest bool

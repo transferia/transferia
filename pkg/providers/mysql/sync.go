@@ -10,9 +10,9 @@ import (
 	"github.com/go-mysql-org/go-mysql/schema"
 	"github.com/gofrs/uuid"
 	"github.com/pingcap/parser/ast"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
-	"github.com/transferria/transferria/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"golang.org/x/xerrors"
 )
 
@@ -20,7 +20,7 @@ func (j *JSON) Scan(src any) error { // Implements sql.Scanner
 	j.value = nil
 
 	switch input := src.(type) {
-	case []byte: // In the driver JSON is represented with sql.RawBytes, not a string: https://github.com/transferria/transferria/arcadia/vendor/github.com/go-sql-driver/mysql/fields.go?rev=10013250#L181-183
+	case []byte: // In the driver JSON is represented with sql.RawBytes, not a string: https://github.com/transferia/transferia/arcadia/vendor/github.com/go-sql-driver/mysql/fields.go?rev=10013250#L181-183
 		res, err := jsonx.NewValueDecoder(jsonx.NewDefaultDecoder(bytes.NewBuffer(input))).Decode()
 		if err != nil {
 			return xerrors.Errorf("cannot unmarshal json: %w", err)

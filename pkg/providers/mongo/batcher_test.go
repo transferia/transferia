@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferia/transferia/internal/logger"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.ytsaurus.tech/library/go/core/log"
 )

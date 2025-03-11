@@ -1,7 +1,7 @@
 package dterrors
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // FatalError denotes an error which must stop the transfer completely, forbidding to restart it automatically

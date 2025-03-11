@@ -3,7 +3,7 @@ package middlewares
 import (
 	"time"
 
-	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

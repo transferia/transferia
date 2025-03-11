@@ -1,9 +1,9 @@
 package types
 
 import (
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/base"
-	"github.com/transferria/transferria/pkg/util/castx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/util/castx"
 	yt_schema "go.ytsaurus.tech/yt/go/schema"
 )
 

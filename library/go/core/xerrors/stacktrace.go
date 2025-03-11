@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/transferria/transferria/library/go/x/xruntime"
+	"github.com/transferia/transferia/library/go/x/xruntime"
 )
 
 func writeStackTrace(w io.Writer, stacktrace *xruntime.StackTrace) {

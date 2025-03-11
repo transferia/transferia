@@ -1,7 +1,7 @@
 package action
 
 import (
-	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type CommitMarker interface {

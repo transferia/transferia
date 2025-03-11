@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/middlewares"
-	"github.com/transferria/transferria/pkg/middlewares/async"
-	"github.com/transferria/transferria/pkg/middlewares/async/bufferer"
-	"github.com/transferria/transferria/pkg/stats"
-	"github.com/transferria/transferria/tests/canon/reference"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/middlewares/async"
+	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/tests/canon/reference"
 )
 
 type mockAsyncSink struct {

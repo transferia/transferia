@@ -1,8 +1,8 @@
 package problemitemdetector
 
 import (
-	"github.com/transferria/transferria/pkg/abstract"
-	transformerregistry "github.com/transferria/transferria/pkg/transformer"
+	"github.com/transferia/transferia/pkg/abstract"
+	transformerregistry "github.com/transferia/transferia/pkg/transformer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

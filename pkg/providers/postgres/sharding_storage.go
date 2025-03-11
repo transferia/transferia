@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/format"
-	"github.com/transferria/transferria/pkg/providers/postgres/splitter"
-	"github.com/transferria/transferria/pkg/stringutil"
-	"github.com/transferria/transferria/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/providers/postgres/splitter"
+	"github.com/transferia/transferia/pkg/stringutil"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 func (s *Storage) checkMinMax(ctx context.Context, table abstract.TableID, col abstract.ColSchema) (min, max int64, err error) {

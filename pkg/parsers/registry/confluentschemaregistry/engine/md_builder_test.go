@@ -6,8 +6,8 @@ import (
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references"
-	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references"
+	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	"google.golang.org/protobuf/proto"
 )
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	mongoshardedcluster "github.com/transferria/transferria/recipe/mongo/pkg/cluster"
+	mongoshardedcluster "github.com/transferia/transferia/recipe/mongo/pkg/cluster"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

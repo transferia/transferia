@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

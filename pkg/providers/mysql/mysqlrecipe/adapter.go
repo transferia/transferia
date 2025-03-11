@@ -6,10 +6,10 @@ import (
 	"strconv"
 
 	default_mysql "github.com/go-sql-driver/mysql"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	"github.com/transferria/transferria/pkg/connection"
-	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/providers/mysql"
 )
 
 func RecipeMysqlSource() *mysql.MysqlSource {

@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/util"
-	"github.com/transferria/transferria/pkg/xtls"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/xtls"
 )
 
 func CreateCertPool(certPEMFile string, rootCAFiles []string) (*x509.CertPool, error) {

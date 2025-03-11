@@ -7,8 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
-	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
-	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

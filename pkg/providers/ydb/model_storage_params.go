@@ -1,7 +1,7 @@
 package ydb
 
 import (
-	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	v3credential "github.com/ydb-platform/ydb-go-sdk/v3/credentials"
 )
 

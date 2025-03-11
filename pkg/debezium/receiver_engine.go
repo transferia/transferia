@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
-	"github.com/transferria/transferria/pkg/debezium/mysql"
-	"github.com/transferria/transferria/pkg/debezium/pg"
-	"github.com/transferria/transferria/pkg/debezium/ydb"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/mysql"
+	"github.com/transferia/transferia/pkg/debezium/pg"
+	"github.com/transferia/transferia/pkg/debezium/ydb"
 )
 
 var prefixToNotDefaultReceiver map[string]debeziumcommon.NotDefaultReceiverDescription

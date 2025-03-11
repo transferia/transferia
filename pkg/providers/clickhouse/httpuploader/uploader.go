@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/conn"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/httpclient"
-	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

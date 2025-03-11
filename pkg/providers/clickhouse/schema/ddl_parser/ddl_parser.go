@@ -1,10 +1,10 @@
 package parser
 
 import (
-	"github.com/transferria/transferria/pkg/providers/clickhouse/schema/ddl_parser/clickhouse_lexer"
-	"github.com/transferria/transferria/pkg/util/token_regexp"
-	"github.com/transferria/transferria/pkg/util/token_regexp/abstract"
-	"github.com/transferria/transferria/pkg/util/token_regexp/op"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/schema/ddl_parser/clickhouse_lexer"
+	"github.com/transferia/transferia/pkg/util/token_regexp"
+	"github.com/transferia/transferia/pkg/util/token_regexp/abstract"
+	"github.com/transferia/transferia/pkg/util/token_regexp/op"
 )
 
 var queryFull = []interface{}{

@@ -2,9 +2,9 @@ package mysql
 
 import (
 	"github.com/go-mysql-org/go-mysql/mysql"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/xerrors"
-	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
 )
 
 const (

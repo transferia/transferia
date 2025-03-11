@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferria/transferria/internal/logger"
-	"github.com/transferria/transferria/library/go/core/metrics/solomon"
-	"github.com/transferria/transferria/pkg/abstract"
-	cpclient "github.com/transferria/transferria/pkg/abstract/coordinator"
-	"github.com/transferria/transferria/pkg/abstract/model"
-	mongodataagent "github.com/transferria/transferria/pkg/providers/mongo"
-	ydbStorage "github.com/transferria/transferria/pkg/providers/ydb"
-	"github.com/transferria/transferria/pkg/runtime/local"
-	"github.com/transferria/transferria/pkg/worker/tasks"
-	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	mongodataagent "github.com/transferia/transferia/pkg/providers/mongo"
+	ydbStorage "github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (

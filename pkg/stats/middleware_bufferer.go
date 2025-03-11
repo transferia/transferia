@@ -3,8 +3,8 @@ package stats
 import (
 	"time"
 
-	"github.com/transferria/transferria/library/go/core/metrics"
-	"github.com/transferria/transferria/pkg/util/size"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/util/size"
 )
 
 type MiddlewareBuffererStats struct {

@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	test "github.com/transferria/transferria/tests/e2e/mysql2mysql/cascade_deletes/common"
-	"github.com/transferria/transferria/tests/helpers"
+	test "github.com/transferia/transferia/tests/e2e/mysql2mysql/cascade_deletes/common"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestGroup(t *testing.T) {
