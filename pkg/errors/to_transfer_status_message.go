@@ -3,11 +3,11 @@ package errors
 import (
 	"sort"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/terryid"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/errors/categories"
+	"github.com/transferria/transferria/pkg/errors/coded"
+	"github.com/transferria/transferria/pkg/terryid"
 )
 
 var (

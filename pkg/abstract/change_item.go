@@ -1,7 +1,7 @@
 package abstract
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
+	"github.com/transferria/transferria/pkg/abstract/changeitem"
 )
 
 type ChangeItem = changeitem.ChangeItem

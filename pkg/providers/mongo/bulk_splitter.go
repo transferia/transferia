@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/pkg/util/set"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 

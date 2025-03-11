@@ -5,17 +5,17 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	client2 "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/connection"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/e2e/pg2ch"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	client2 "github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/connection"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
+	"github.com/transferria/transferria/pkg/worker/tasks"
+	"github.com/transferria/transferria/tests/e2e/pg2ch"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 var (

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/ptr"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/ptr"
+	"github.com/transferria/transferria/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
 	"go.ytsaurus.tech/yt/go/schema"

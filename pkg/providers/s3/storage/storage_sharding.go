@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/predicate"
-	"github.com/doublecloud/transfer/pkg/providers/s3/reader"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/predicate"
+	"github.com/transferria/transferria/pkg/providers/s3/reader"
 )
 
 // To verify providers contract implementation

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
 )
 
 func DescribeTable(db *sql.DB, database, table string, knownPrimaryKeys []string) (*abstract.TableSchema, error) {

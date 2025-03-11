@@ -3,8 +3,8 @@ package model
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract/model"
 	"github.com/dustin/go-humanize"
+	"github.com/transferria/transferria/pkg/abstract/model"
 )
 
 const (

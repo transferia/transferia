@@ -1,8 +1,8 @@
 package debezium
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func kindToOp(kind abstract.Kind, snapshot bool, emitType emitType) (string, error) {

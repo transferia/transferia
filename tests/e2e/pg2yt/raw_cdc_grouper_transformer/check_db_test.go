@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	pg_provider "github.com/doublecloud/transfer/pkg/providers/postgres"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/tests/helpers"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	pg_provider "github.com/transferria/transferria/pkg/providers/postgres"
+	yt_provider "github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferria/transferria/tests/helpers"
+	yt_helpers "github.com/transferria/transferria/tests/helpers/yt"
 )
 
 var (

@@ -3,10 +3,10 @@ package ytdict
 import (
 	"fmt"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/table"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/yt/provider/table"
+	"github.com/transferria/transferria/pkg/transformer"
+	"github.com/transferria/transferria/pkg/transformer/registry/filter"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/xerrors"

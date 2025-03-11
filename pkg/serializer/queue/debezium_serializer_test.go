@@ -3,10 +3,10 @@ package queue
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
 )
 
 var debeziumSerializerTestTypicalChangeItem *abstract.ChangeItem

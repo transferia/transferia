@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
 	"github.com/gofrs/uuid"
 	"github.com/spf13/cast"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/util/jsonx"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

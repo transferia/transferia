@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	parser "github.com/doublecloud/transfer/pkg/providers/clickhouse/schema/ddl_parser"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	parser "github.com/transferria/transferria/pkg/providers/clickhouse/schema/ddl_parser"
 )
 
 func IsDistributedDDL(sql string) bool {

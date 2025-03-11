@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/scanner"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 // Parser encapsulates the scanner and responsible for returning AST

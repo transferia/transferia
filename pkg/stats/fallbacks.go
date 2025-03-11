@@ -1,6 +1,6 @@
 package stats
 
-import "github.com/doublecloud/transfer/library/go/core/metrics"
+import "github.com/transferria/transferria/library/go/core/metrics"
 
 type FallbackStats struct {
 	registry metrics.Registry

@@ -3,13 +3,13 @@ package check
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/cmd/trcli/config"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
 	"github.com/spf13/cobra"
+	"github.com/transferria/transferria/cmd/trcli/config"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/worker/tasks"
 )
 
 func CheckCommand() *cobra.Command {

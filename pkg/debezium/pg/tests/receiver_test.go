@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/debezium/typeutil"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/debezium"
+	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferria/transferria/pkg/debezium/typeutil"
 )
 
 var debeziumMsg = `{"schema":{"type":"struct","fields":[{"type":"struct","fields":[{"type":"int32","optional":false,"field":"id"},{"type":"int64","optional":true,"field":"val"}],"optional":true,"name":"fullfillment.public.basic_types.Value","field":"before"},{"type":"struct","fields":[{"type":"int32","optional":false,"field":"id"},{"type":"int64","optional":true,"field":"val"}],"optional":true,"name":"fullfillment.public.basic_types.Value","field":"after"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false,incremental"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":true,"field":"sequence"},{"type":"string","optional":false,"field":"schema"},{"type":"string","optional":false,"field":"table"},{"type":"int64","optional":true,"field":"txId"},{"type":"int64","optional":true,"field":"lsn"},{"type":"int64","optional":true,"field":"xmin"}],"optional":false,"name":"io.debezium.connector.postgresql.Source","field":"source"},{"type":"string","optional":false,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"},{"type":"int64","optional":false,"field":"total_order"},{"type":"int64","optional":false,"field":"data_collection_order"}],"optional":true,"field":"transaction"}],"optional":false,"name":"fullfillment.public.basic_types.Envelope"},"payload":{"before":null,"after":{"id":1,"val":2},"source":{"version":"1.8.0.Final","connector":"postgresql","name":"fullfillment","ts_ms":1643471295802,"snapshot":"false","db":"pguser","sequence":"[\"23725184\",\"23725240\"]","schema":"public","table":"basic_types","txId":555,"lsn":23725240,"xmin":null},"op":"c","ts_ms":1643471296262,"transaction":null}}`

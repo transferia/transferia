@@ -3,9 +3,9 @@ package shmongo
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
-	mongoshardedconfig "github.com/doublecloud/transfer/recipe/mongo/pkg/config"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/util"
+	mongoshardedconfig "github.com/transferria/transferria/recipe/mongo/pkg/config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.ytsaurus.tech/library/go/core/log"

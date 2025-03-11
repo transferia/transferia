@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/storage"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferria/transferria/pkg/providers/yt/storage"
 	"go.ytsaurus.tech/yt/go/ypath"
 	ytMain "go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"

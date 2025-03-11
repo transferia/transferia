@@ -2,7 +2,7 @@
 package sink
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type columnName = string

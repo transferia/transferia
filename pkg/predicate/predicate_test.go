@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
 )
 
 func TestColumnMatch(t *testing.T) {

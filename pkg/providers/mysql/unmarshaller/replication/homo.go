@@ -3,8 +3,8 @@ package replication
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/strict"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/util/strict"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

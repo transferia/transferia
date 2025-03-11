@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/transformer/registry/filter"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 func TestRawCdcDocGroupTransformer(t *testing.T) {

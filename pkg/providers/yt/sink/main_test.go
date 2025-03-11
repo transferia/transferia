@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/config/env"
-	ytcommon "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
+	"github.com/transferria/transferria/pkg/config/env"
+	ytcommon "github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferria/transferria/pkg/providers/yt/recipe"
 )
 
 func TestMain(m *testing.M) {

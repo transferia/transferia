@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/transferria/transferria/library/go/test/yatest"
 )
 
 const (

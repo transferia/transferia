@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
+	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/pkg/providers/postgres/pgrecipe"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

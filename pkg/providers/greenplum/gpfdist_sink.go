@@ -3,11 +3,11 @@ package greenplum
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/core/xerrors/multierr"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors/multierr"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 var _ abstract.Sinker = (*GpfdistSink)(nil)

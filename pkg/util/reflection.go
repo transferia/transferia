@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 func MakeUnitedStructByKeyVal(copyVals bool, key interface{}, value interface{}) interface{} {

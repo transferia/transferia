@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 type Task interface {

@@ -4,12 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/cleanup"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/cleanup"
+	"github.com/transferria/transferria/pkg/middlewares/async/bufferer"
 )
 
 type fakeSink struct {

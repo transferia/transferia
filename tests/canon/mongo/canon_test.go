@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	mongocommon "github.com/doublecloud/transfer/pkg/providers/mongo"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	mongocommon "github.com/transferria/transferria/pkg/providers/mongo"
+	"github.com/transferria/transferria/tests/canon/validator"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func TestCanonSource(t *testing.T) {

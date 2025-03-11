@@ -3,7 +3,7 @@ package dblog
 import (
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 var supportedTypesArr = []string{

@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/doublecloud/transfer/internal/logger"
 	"github.com/jackc/pgtype/pgxtype"
+	"github.com/transferria/transferria/internal/logger"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

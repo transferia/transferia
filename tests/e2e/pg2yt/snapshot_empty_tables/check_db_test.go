@@ -4,13 +4,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/tests/helpers"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	yt_provider "github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferria/transferria/tests/helpers"
+	yt_helpers "github.com/transferria/transferria/tests/helpers/yt"
 )
 
 var (

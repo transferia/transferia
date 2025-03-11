@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/xerrors"
 )

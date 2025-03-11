@@ -1,8 +1,8 @@
 package snapshot
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func unmarshalHomo(value interface{}, colSchema *abstract.ColSchema) (any, error) {

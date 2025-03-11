@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/providers/s3"
+	"github.com/transferria/transferria/tests/canon/validator"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func TestUnsopportedData(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 func TestIsFatalClickhouseError(t *testing.T) {

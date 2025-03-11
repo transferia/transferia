@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/typeutil"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
+	"github.com/transferria/transferria/pkg/debezium/typeutil"
+	"github.com/transferria/transferria/pkg/util/jsonx"
 )
 
 //---------------------------------------------------------------------------------------------------------------------

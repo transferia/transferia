@@ -1,9 +1,9 @@
 package model
 
 import (
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/dbaas"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/dbaas"
 )
 
 func ShardFromCluster(clusterID, shardGroup string) (map[string][]string, error) {

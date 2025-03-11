@@ -1,8 +1,8 @@
 package middlewares
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 // NonRowSeparator separates non-row items and pushes each of them in a distinct call to Push (which will contain just one item)

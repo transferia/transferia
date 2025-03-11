@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yt/ythttp"
 )

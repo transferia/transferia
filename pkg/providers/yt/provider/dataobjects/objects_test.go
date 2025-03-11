@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/tablemeta"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferria/transferria/pkg/providers/yt/tablemeta"
 )
 
 func TestUniformPartTooManyTables(t *testing.T) {

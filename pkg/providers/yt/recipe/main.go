@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	ytcommon "github.com/doublecloud/transfer/pkg/providers/yt"
 	"github.com/testcontainers/testcontainers-go"
+	ytcommon "github.com/transferria/transferria/pkg/providers/yt"
 )
 
 func Main(m *testing.M) {

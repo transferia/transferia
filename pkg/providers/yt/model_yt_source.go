@@ -1,11 +1,11 @@
 package yt
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/config/env"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
 	"github.com/dustin/go-humanize"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/config/env"
+	ytclient "github.com/transferria/transferria/pkg/providers/yt/client"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 

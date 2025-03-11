@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/tests/tcrecipes/kafka"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/tests/tcrecipes/kafka"
 )
 
 func ContainerNeeded() bool {

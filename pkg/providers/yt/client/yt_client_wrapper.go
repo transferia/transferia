@@ -3,8 +3,8 @@ package ytclient
 import (
 	"fmt"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yt/ythttp"
@@ -32,7 +32,7 @@ func extractVerboseError(err error) (value string, ok bool) {
 	switch err.(type) {
 	case fmt.Formatter:
 		// note: applicable to errors verbosity is configured in xerrors standard library:
-		// https://github.com/doublecloud/transfer/arcadia/vendor/golang.org/x/xerrors/adaptor.go?rev=r4433436#L46
+		// https://github.com/transferria/transferria/arcadia/vendor/golang.org/x/xerrors/adaptor.go?rev=r4433436#L46
 		errorVerbose := fmt.Sprintf("%+v", err)
 		if errorVerbose != err.Error() {
 			return errorVerbose, true
@@ -46,7 +46,7 @@ func extractVerboseError(err error) (value string, ok bool) {
 // This method iterates through error fields which you may usually see in logs like log.Error(err)
 // The zap usually puts `err.Error()` as "error" field, but if error is rich formattable then it puts this result
 // into "errorVerbose" field if it differs from content of the "error" field.
-// Reference how library zap makes this: https://github.com/doublecloud/transfer/arcadia/vendor/go.uber.org/zap/zapcore/error.go?rev=r12909533#L73
+// Reference how library zap makes this: https://github.com/transferria/transferria/arcadia/vendor/go.uber.org/zap/zapcore/error.go?rev=r12909533#L73
 // Note: rich error is such error that implements fmt.Formatter and can be formatted as fmt.Sprintf("%+v", basicErr)
 //
 // So, as we do not show user errorVerbose, but for YT logger we want to show errorVerbose format, we reformat rich error

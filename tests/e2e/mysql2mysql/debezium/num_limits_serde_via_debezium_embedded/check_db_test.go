@@ -5,15 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/tests/helpers"
-	"github.com/doublecloud/transfer/tests/helpers/serde"
-	simple_transformer "github.com/doublecloud/transfer/tests/helpers/transformer"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/debezium"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferria/transferria/tests/helpers/serde"
+	simple_transformer "github.com/transferria/transferria/tests/helpers/transformer"
 )
 
 var (

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/doublecloud/transfer/tests/canon/parser/samples/dynamic/sample_proto/sample_proto";
+option go_package = "github.com/transferria/transferria/tests/canon/parser/samples/dynamic/sample_proto/sample_proto";
 
 message SampleProto {
     double doubleField = 1;

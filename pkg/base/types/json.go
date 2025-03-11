@@ -3,7 +3,7 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferria/transferria/pkg/base"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

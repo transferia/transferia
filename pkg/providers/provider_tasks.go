@@ -3,10 +3,10 @@ package providers
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/cleanup"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/cleanup"
+	"github.com/transferria/transferria/pkg/util"
 )
 
 type TablesOperationFunc = func(table abstract.TableMap) error

@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
-	"github.com/doublecloud/transfer/pkg/util/castx"
 	"github.com/goccy/go-json"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
+	"github.com/transferria/transferria/pkg/util/castx"
 	"github.com/valyala/fastjson/fastfloat"
 	"go.ytsaurus.tech/yt/go/schema"
 )

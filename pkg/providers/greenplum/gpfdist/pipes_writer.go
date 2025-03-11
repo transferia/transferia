@@ -7,10 +7,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/core/xerrors/multierr"
-	gpfdistbin "github.com/doublecloud/transfer/pkg/providers/greenplum/gpfdist/gpfdist_bin"
-	"github.com/doublecloud/transfer/pkg/util/slicesx"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors/multierr"
+	gpfdistbin "github.com/transferria/transferria/pkg/providers/greenplum/gpfdist/gpfdist_bin"
+	"github.com/transferria/transferria/pkg/util/slicesx"
 	"golang.org/x/sync/errgroup"
 )
 

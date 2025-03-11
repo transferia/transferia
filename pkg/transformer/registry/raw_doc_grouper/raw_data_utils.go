@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/util/set"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/exp/slices"
 )

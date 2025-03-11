@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/dustin/go-humanize"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

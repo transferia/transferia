@@ -3,8 +3,8 @@ package dterrors
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	errors "golang.org/x/xerrors"
 )
 

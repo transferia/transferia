@@ -1,6 +1,6 @@
 package strict
 
-import "github.com/doublecloud/transfer/library/go/core/xerrors"
+import "github.com/transferria/transferria/library/go/core/xerrors"
 
 // Expected is a pure wrapper over concrete cast.
 func Expected[ExpectedT any, ResultT any](value any, concreteCast func(any) (ResultT, error)) (any, error) {

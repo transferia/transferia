@@ -3,7 +3,7 @@ package logger
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/metrics"
 )
 
 // mutableRegistry is a nasty hack, try not to use it. It overrides some metric

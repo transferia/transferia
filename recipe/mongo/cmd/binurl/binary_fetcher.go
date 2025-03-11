@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/util/cli"
-	"github.com/doublecloud/transfer/recipe/mongo/pkg/binurl"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferria/transferria/pkg/util/cli"
+	"github.com/transferria/transferria/recipe/mongo/pkg/binurl"
 )
 
 var (

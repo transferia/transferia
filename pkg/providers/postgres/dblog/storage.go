@@ -3,11 +3,11 @@ package dblog
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/dblog"
-	"github.com/doublecloud/transfer/pkg/dblog/tablequery"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/dblog"
+	"github.com/transferria/transferria/pkg/dblog/tablequery"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

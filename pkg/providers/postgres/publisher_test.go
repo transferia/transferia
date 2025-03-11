@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/dblog"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/postgres/dblog"
 )
 
 func TestWal2jsonTableFromTableID(t *testing.T) {

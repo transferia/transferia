@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/dbaas"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/dbaas"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

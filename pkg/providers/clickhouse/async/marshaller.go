@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/db"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
 	"github.com/shopspring/decimal"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/errors/coded"
+	"github.com/transferria/transferria/pkg/providers"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
 )
 
 type marshallingError struct {

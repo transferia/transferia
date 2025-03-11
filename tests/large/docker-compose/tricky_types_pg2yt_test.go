@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	"cuelang.org/go/pkg/time"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/tests/helpers"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/test/canon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/postgres"
+	"github.com/transferria/transferria/tests/helpers"
+	yt_helpers "github.com/transferria/transferria/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
 )

@@ -3,10 +3,10 @@ package mysql
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
 )
 
 func GetLogFilePosition(storage *Storage) (string, uint32, string, error) {

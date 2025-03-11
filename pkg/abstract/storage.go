@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/util"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 type LoadProgress func(current, progress, total uint64)
@@ -245,7 +245,7 @@ func (t *TableDescription) ID() TableID {
 
 func (t *TableDescription) PartID() string {
 	if t.Offset == 0 && t.Filter == "" {
-		// This needed for s3, see: https://github.com/doublecloud/transfer/review/3538625
+		// This needed for s3, see: https://github.com/transferria/transferria/review/3538625
 		return ""
 	}
 

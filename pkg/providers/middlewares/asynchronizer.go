@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferria/transferria/pkg/base"
 )
 
 // Asynchronizer is tasks.asynchronousSnapshotState for abstract2.

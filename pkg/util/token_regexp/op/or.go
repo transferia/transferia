@@ -1,7 +1,7 @@
 package op
 
 import (
-	"github.com/doublecloud/transfer/pkg/util/token_regexp/abstract"
+	"github.com/transferria/transferria/pkg/util/token_regexp/abstract"
 )
 
 type OrOp struct {

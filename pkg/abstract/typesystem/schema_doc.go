@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func Doc(typ abstract.ProviderType, title string) string {

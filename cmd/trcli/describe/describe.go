@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/glamour"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/cobraaux"
-	"github.com/doublecloud/transfer/pkg/transformer"
 	"github.com/spf13/cobra"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/cobraaux"
+	"github.com/transferria/transferria/pkg/transformer"
 	"gopkg.in/yaml.v2"
 )
 

@@ -3,13 +3,13 @@ package engine
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/internal/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/generic"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/internal/metrics"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/parsers"
+	"github.com/transferria/transferria/pkg/parsers/generic"
+	"github.com/transferria/transferria/pkg/stats"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

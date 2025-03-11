@@ -6,14 +6,14 @@ import (
 	"sync"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/core/xerrors/multierr"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/dao"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/parts"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
-	chsink "github.com/doublecloud/transfer/pkg/providers/clickhouse/errors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/sharding"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors/multierr"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/async/dao"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/async/model/parts"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/columntypes"
+	chsink "github.com/transferria/transferria/pkg/providers/clickhouse/errors"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/sharding"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

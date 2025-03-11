@@ -1,7 +1,7 @@
 package unpacker
 
 import (
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
+	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
 )
 
 type Unpacker interface {

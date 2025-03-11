@@ -1,7 +1,7 @@
 package pool
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 var ErrPoolClosed = xerrors.New("pool is closed")

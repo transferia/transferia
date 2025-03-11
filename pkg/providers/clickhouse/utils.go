@@ -8,10 +8,10 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func InitValuesForScan(rows *sql.Rows) ([]interface{}, error) {

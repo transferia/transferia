@@ -3,9 +3,9 @@ package postgres
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgtype/pgxtype"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type tableInformationSchema struct {

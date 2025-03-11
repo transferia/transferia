@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/adapter"
-	"github.com/doublecloud/transfer/pkg/base/events"
-	"github.com/doublecloud/transfer/pkg/base/types"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/base/adapter"
+	"github.com/transferria/transferria/pkg/base/events"
+	"github.com/transferria/transferria/pkg/base/types"
+	"github.com/transferria/transferria/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

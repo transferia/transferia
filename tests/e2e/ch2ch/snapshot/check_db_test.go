@@ -5,13 +5,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/tests/helpers"
-	proxy "github.com/doublecloud/transfer/tests/helpers/http_proxy"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/conn"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
+	"github.com/transferria/transferria/tests/helpers"
+	proxy "github.com/transferria/transferria/tests/helpers/http_proxy"
 )
 
 var (

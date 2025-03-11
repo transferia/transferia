@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/tests/helpers"
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func TestSnapshotAndReplicationViewsCompatibility(t *testing.T) {

@@ -3,7 +3,7 @@ package schema
 import (
 	"encoding/binary"
 
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferria/transferria/pkg/base"
 )
 
 type DDLBatch struct {

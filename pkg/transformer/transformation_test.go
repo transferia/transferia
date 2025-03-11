@@ -3,17 +3,17 @@ package transformer_test
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/sink"
-	transformers_registry "github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
-	replaceprimarykey "github.com/doublecloud/transfer/pkg/transformer/registry/replace_primary_key"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/middlewares"
+	"github.com/transferria/transferria/pkg/sink"
+	transformers_registry "github.com/transferria/transferria/pkg/transformer"
+	"github.com/transferria/transferria/pkg/transformer/registry/filter"
+	replaceprimarykey "github.com/transferria/transferria/pkg/transformer/registry/replace_primary_key"
 )
 
 type mockSinker struct {

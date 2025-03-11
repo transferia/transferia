@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
 	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/conn"
 )
 
 var _ conn.ConnParams = (*stubParams)(nil)

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgtype"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 type TaskTypeName = string

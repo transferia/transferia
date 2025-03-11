@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/x/xruntime"
+	"github.com/transferria/transferria/library/go/x/xruntime"
 )
 
 type wrappedErrorf struct {

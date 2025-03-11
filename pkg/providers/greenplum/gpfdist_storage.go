@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/greenplum/gpfdist"
-	gpfdistbin "github.com/doublecloud/transfer/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/providers/greenplum/gpfdist"
+	gpfdistbin "github.com/transferria/transferria/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

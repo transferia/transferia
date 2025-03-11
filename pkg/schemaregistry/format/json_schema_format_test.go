@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/test/canon"
 )
 
 var (

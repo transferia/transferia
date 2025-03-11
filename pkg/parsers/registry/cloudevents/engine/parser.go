@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	genericparser "github.com/doublecloud/transfer/pkg/parsers/generic"
-	confluentschemaregistryengine "github.com/doublecloud/transfer/pkg/parsers/registry/confluentschemaregistry/engine"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/parsers"
+	genericparser "github.com/transferria/transferria/pkg/parsers/generic"
+	confluentschemaregistryengine "github.com/transferria/transferria/pkg/parsers/registry/confluentschemaregistry/engine"
+	"github.com/transferria/transferria/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )

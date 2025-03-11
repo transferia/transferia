@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/tests/canon/validator"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 func execBatch(t *testing.T, conn *sql.DB, sqlCommands string) {

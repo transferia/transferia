@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/testutil"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/test/yatest"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
+	"github.com/transferria/transferria/pkg/debezium/testutil"
+	"github.com/transferria/transferria/pkg/providers/mysql"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 var (

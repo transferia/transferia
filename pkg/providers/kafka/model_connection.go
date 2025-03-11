@@ -5,11 +5,11 @@ import (
 	"crypto/x509"
 	"net"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/util/validators"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/scram"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/util/validators"
 	franzsasl "github.com/twmb/franz-go/pkg/sasl"
 	franzscram "github.com/twmb/franz-go/pkg/sasl/scram"
 )

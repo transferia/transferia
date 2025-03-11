@@ -3,10 +3,10 @@ package engine
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
 )
 
 type key struct {

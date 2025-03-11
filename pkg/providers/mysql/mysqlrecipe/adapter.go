@@ -5,11 +5,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/connection"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
 	default_mysql "github.com/go-sql-driver/mysql"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/connection"
+	"github.com/transferria/transferria/pkg/providers/mysql"
 )
 
 func RecipeMysqlSource() *mysql.MysqlSource {

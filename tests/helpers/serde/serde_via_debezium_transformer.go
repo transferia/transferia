@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	"github.com/doublecloud/transfer/pkg/debezium/testutil"
-	simple_transformer "github.com/doublecloud/transfer/tests/helpers/transformer"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/debezium"
+	"github.com/transferria/transferria/pkg/debezium/testutil"
+	simple_transformer "github.com/transferria/transferria/tests/helpers/transformer"
 )
 
 var CountOfProcessedMessage = 0

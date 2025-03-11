@@ -3,9 +3,9 @@ package mock
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/metricsutil"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/metricsutil"
+	"github.com/transferria/transferria/library/go/core/metrics/internal/pkg/registryutil"
 	"go.uber.org/atomic"
 )
 

@@ -1,8 +1,8 @@
 package errors
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/errors/categories"
 )
 
 // Categorized is an error with an attached category

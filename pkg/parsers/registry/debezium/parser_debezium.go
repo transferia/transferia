@@ -3,11 +3,11 @@ package debezium
 import (
 	"runtime"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	debeziumengine "github.com/doublecloud/transfer/pkg/parsers/registry/debezium/engine"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/parsers"
+	debeziumengine "github.com/transferria/transferria/pkg/parsers/registry/debezium/engine"
+	"github.com/transferria/transferria/pkg/schemaregistry/confluent"
+	"github.com/transferria/transferria/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

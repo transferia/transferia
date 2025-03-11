@@ -3,14 +3,14 @@ package debezium
 import (
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/mysql"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/debezium/pg"
-	"github.com/doublecloud/transfer/pkg/debezium/ydb"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
+	"github.com/transferria/transferria/pkg/debezium/mysql"
+	debeziumparameters "github.com/transferria/transferria/pkg/debezium/parameters"
+	"github.com/transferria/transferria/pkg/debezium/pg"
+	"github.com/transferria/transferria/pkg/debezium/ydb"
+	pgcommon "github.com/transferria/transferria/pkg/providers/postgres"
 )
 
 type fieldsDescr struct {

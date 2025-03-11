@@ -4,10 +4,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/types"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/table"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/base/types"
+	"github.com/transferria/transferria/pkg/providers/yt/provider/table"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

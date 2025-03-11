@@ -3,9 +3,9 @@ package postgres
 import (
 	"database/sql/driver"
 
-	"github.com/doublecloud/transfer/pkg/providers/postgres/sqltimestamp"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/jackc/pgtype"
+	"github.com/transferria/transferria/pkg/providers/postgres/sqltimestamp"
+	"github.com/transferria/transferria/pkg/util"
 )
 
 type Date struct {

@@ -1,9 +1,9 @@
 package mysql
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
 	"github.com/go-sql-driver/mysql"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/errors/coded"
 )
 
 var (

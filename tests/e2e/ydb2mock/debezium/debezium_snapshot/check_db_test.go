@@ -5,16 +5,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/testutil"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/library/go/test/yatest"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	debeziumcommon "github.com/transferria/transferria/pkg/debezium/common"
+	"github.com/transferria/transferria/pkg/debezium/testutil"
+	"github.com/transferria/transferria/pkg/providers/ydb"
+	"github.com/transferria/transferria/tests/helpers"
 )
 
 //---------------------------------------------------------------------------------------------------------------------

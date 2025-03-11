@@ -1,7 +1,7 @@
 package packer
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 type BuilderFunc = func(changeItem *abstract.ChangeItem) ([]byte, error)

@@ -1,7 +1,7 @@
 package testutil
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
 )
 
 // FakeClientWithTransferState is a fake controlplane client which stores sharded object transfer state

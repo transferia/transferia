@@ -3,8 +3,8 @@ package gpfdistbin
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 var _ error = (*CancelFailedError)(nil)

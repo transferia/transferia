@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/providers/yt/recipe"
 )
 
 func TestClosingGaps(t *testing.T) {

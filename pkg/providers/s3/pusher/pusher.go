@@ -3,8 +3,8 @@ package pusher
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsequeue"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/parsequeue"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

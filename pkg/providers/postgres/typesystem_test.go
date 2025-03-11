@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract/typesystem"
 )
 
 var (

@@ -3,8 +3,8 @@ package clickhouse
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
 )
 
 func TestBuildQuery(t *testing.T) {

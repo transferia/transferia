@@ -3,9 +3,9 @@ package airbyte
 import (
 	"encoding/binary"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/base"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/exp/slices"
 )

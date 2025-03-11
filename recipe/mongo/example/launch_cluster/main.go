@@ -4,8 +4,8 @@ import (
 	"os"
 	"time"
 
-	mongoshardedcluster "github.com/doublecloud/transfer/recipe/mongo/pkg/cluster"
-	mongoshardedconfig "github.com/doublecloud/transfer/recipe/mongo/pkg/config"
+	mongoshardedcluster "github.com/transferria/transferria/recipe/mongo/pkg/cluster"
+	mongoshardedconfig "github.com/transferria/transferria/recipe/mongo/pkg/config"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/library/go/core/log/zap"
 )

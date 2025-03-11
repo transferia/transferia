@@ -7,18 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/dblog"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/utils"
-	"github.com/doublecloud/transfer/pkg/storage"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/rename"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/errors"
+	"github.com/transferria/transferria/pkg/errors/categories"
+	"github.com/transferria/transferria/pkg/providers/postgres/dblog"
+	"github.com/transferria/transferria/pkg/providers/postgres/utils"
+	"github.com/transferria/transferria/pkg/storage"
+	"github.com/transferria/transferria/pkg/transformer/registry/rename"
+	"github.com/transferria/transferria/pkg/util"
 )
 
 const pgDesiredTableSize = 1024 * 1024 * 1024
@@ -468,7 +468,7 @@ func (s *PgSource) ToSinkParams() PgSourceWrapper {
 func (s *PgSource) isPreferReplica(transfer *model.Transfer) bool {
 	// PreferReplica auto-derives into 'true', if ALL next properties fulfilled:
 	// - It can be used only on 'managed' installation - bcs we are searching replicas via mdb api
-	// - It can be used only on heterogeneous transfers - bcs "for homo there are some technical restrictions" (https://github.com/doublecloud/transfer/review/4059241/details#comment-5973004)
+	// - It can be used only on heterogeneous transfers - bcs "for homo there are some technical restrictions" (https://github.com/transferria/transferria/review/4059241/details#comment-5973004)
 	//     There are some issues with reading sequence values from replica
 	// - It can be used only on SNAPSHOT_ONLY transfer - bcs we can't take consistent slot on master & snapshot on replica
 	//

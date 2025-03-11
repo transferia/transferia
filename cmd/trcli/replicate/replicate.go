@@ -3,17 +3,17 @@ package replicate
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/cmd/trcli/activate"
-	"github.com/doublecloud/transfer/cmd/trcli/config"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/dataplane/provideradapter"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
 	"github.com/spf13/cobra"
+	"github.com/transferria/transferria/cmd/trcli/activate"
+	"github.com/transferria/transferria/cmd/trcli/config"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/dataplane/provideradapter"
+	"github.com/transferria/transferria/pkg/runtime/local"
 )
 
 func ReplicateCommand(cp *coordinator.Coordinator, rt abstract.Runtime, registry metrics.Registry) *cobra.Command {

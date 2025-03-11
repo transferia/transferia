@@ -7,9 +7,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/scram"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	zp "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"

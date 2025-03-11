@@ -1,8 +1,8 @@
 package ydb
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/typesystem"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

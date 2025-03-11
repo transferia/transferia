@@ -3,13 +3,13 @@ package tasks
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/storage"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/errors"
+	"github.com/transferria/transferria/pkg/errors/categories"
+	"github.com/transferria/transferria/pkg/storage"
 )
 
 const TablesFilterStateKey = "tables_filter"

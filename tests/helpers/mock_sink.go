@@ -1,6 +1,6 @@
 package helpers
 
-import "github.com/doublecloud/transfer/pkg/abstract"
+import "github.com/transferria/transferria/pkg/abstract"
 
 type MockSink struct {
 	PushCallback func([]abstract.ChangeItem)

@@ -8,12 +8,12 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/spf13/cast"
+	"github.com/transferria/transferria/library/go/core/metrics"
+	"github.com/transferria/transferria/library/go/slices"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/stats"
+	"github.com/transferria/transferria/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/xerrors"
 )

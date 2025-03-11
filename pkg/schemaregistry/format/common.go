@@ -3,7 +3,7 @@ package format
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 // KafkaJSONSchemaFromArr convert KafkaJSONSchema as []byte to struct KafkaJSONSchema

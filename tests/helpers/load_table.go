@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func compare(l, r interface{}) (bool, bool) { // equal, less

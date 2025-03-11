@@ -3,8 +3,8 @@ package clickhouse
 import (
 	"sort"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/util/set"
 )
 
 type Schema struct {

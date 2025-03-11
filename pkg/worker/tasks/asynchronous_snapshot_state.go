@@ -3,8 +3,8 @@ package tasks
 // XXX: This must be replaced with providers/middlewares `Asynchronizer` when abstract1 is dropped.
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 // asynchronousSnapshotState provides a wrapper around asynchronous sink with synchronous abstract.Pusher interface which works lazily.

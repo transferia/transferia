@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/coordinator/s3coordinator"
-	"github.com/doublecloud/transfer/pkg/terryid"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/library/go/core/metrics/solomon"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	model "github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/coordinator/s3coordinator"
+	"github.com/transferria/transferria/pkg/terryid"
+	"github.com/transferria/transferria/pkg/worker/tasks"
 )
 
 type fakeShardingStorage struct {

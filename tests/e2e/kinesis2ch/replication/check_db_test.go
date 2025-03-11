@@ -5,17 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	cpclient "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/pkg/providers/kinesis"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/tests/canon/reference"
-	"github.com/doublecloud/transfer/tests/helpers"
-	"github.com/doublecloud/transfer/tests/tcrecipes"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	cpclient "github.com/transferria/transferria/pkg/abstract/coordinator"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferria/transferria/pkg/providers/clickhouse/recipe"
+	"github.com/transferria/transferria/pkg/providers/kinesis"
+	"github.com/transferria/transferria/pkg/runtime/local"
+	"github.com/transferria/transferria/tests/canon/reference"
+	"github.com/transferria/transferria/tests/helpers"
+	"github.com/transferria/transferria/tests/tcrecipes"
 )
 
 func init() {

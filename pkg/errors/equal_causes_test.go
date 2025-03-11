@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util/castx"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/util/castx"
 )
 
 func TestEqualCausesDifferentFiles(t *testing.T) {

@@ -3,9 +3,9 @@ package types
 import (
 	"math"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/types"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/base"
+	"github.com/transferria/transferria/pkg/base/types"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

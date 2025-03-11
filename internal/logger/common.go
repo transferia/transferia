@@ -3,7 +3,7 @@ package logger
 import (
 	"os"
 
-	"github.com/doublecloud/transfer/pkg/instanceutil"
+	"github.com/transferria/transferria/pkg/instanceutil"
 	zp "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"

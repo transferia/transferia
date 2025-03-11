@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
 	"github.com/stretchr/testify/require"
+	yt_provider "github.com/transferria/transferria/pkg/providers/yt"
+	"github.com/transferria/transferria/pkg/providers/yt/recipe"
 	"go.ytsaurus.tech/yt/go/ypath"
 	commonyt "go.ytsaurus.tech/yt/go/yt"
 )

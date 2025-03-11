@@ -3,13 +3,13 @@ package greenplum
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	gpfdistbin "github.com/doublecloud/transfer/pkg/providers/greenplum/gpfdist/gpfdist_bin"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
+	"github.com/transferria/transferria/library/go/core/xerrors"
+	"github.com/transferria/transferria/pkg/abstract"
+	dp_model "github.com/transferria/transferria/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/middlewares/async/bufferer"
+	"github.com/transferria/transferria/pkg/providers/clickhouse/model"
+	gpfdistbin "github.com/transferria/transferria/pkg/providers/greenplum/gpfdist/gpfdist_bin"
+	"github.com/transferria/transferria/pkg/providers/postgres"
 )
 
 type GpDestination struct {

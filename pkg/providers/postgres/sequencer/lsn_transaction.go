@@ -1,6 +1,6 @@
 package sequencer
 
-import "github.com/doublecloud/transfer/library/go/core/xerrors"
+import "github.com/transferria/transferria/library/go/core/xerrors"
 
 // lsnTransaction contains all message lsns and ensures correct order
 type lsnTransaction struct {

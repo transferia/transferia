@@ -3,8 +3,8 @@ package queue
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	util "github.com/doublecloud/transfer/pkg/util/queues"
+	"github.com/transferria/transferria/pkg/abstract"
+	util "github.com/transferria/transferria/pkg/util/queues"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

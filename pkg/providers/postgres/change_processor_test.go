@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/require"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
 )
 
 func TestParseTimestamp(t *testing.T) {

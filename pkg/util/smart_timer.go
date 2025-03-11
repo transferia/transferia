@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 )
 
 // SmartTimer is an object that can be waited on for time to pass.

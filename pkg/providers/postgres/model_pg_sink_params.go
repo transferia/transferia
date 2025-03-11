@@ -3,7 +3,7 @@ package postgres
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferria/transferria/pkg/abstract/model"
 )
 
 type PgSinkParams interface {

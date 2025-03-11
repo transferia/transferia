@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/cloudevents/sdk-go/binding/format/protobuf/v2/pb"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferria/transferria/library/go/core/xerrors"
 	"google.golang.org/protobuf/proto"
 )
 

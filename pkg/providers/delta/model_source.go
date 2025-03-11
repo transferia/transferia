@@ -1,9 +1,9 @@
 package delta
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	s3_provider "github.com/doublecloud/transfer/pkg/providers/s3"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/model"
+	s3_provider "github.com/transferria/transferria/pkg/providers/s3"
 )
 
 // To verify providers contract implementation

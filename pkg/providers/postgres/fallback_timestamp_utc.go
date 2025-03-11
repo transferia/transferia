@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
 	"github.com/jackc/pgtype"
+	"github.com/transferria/transferria/internal/logger"
+	"github.com/transferria/transferria/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract/typesystem"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

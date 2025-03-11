@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const minReadBufferSize = 16 // https://github.com/doublecloud/transfer/arc_vcs/contrib/go/_std/src/bufio/bufio.go?rev=r9417606#L41
+const minReadBufferSize = 16 // https://github.com/transferria/transferria/arc_vcs/contrib/go/_std/src/bufio/bufio.go?rev=r9417606#L41
 
 func TestScannerBasic(t *testing.T) {
 	builder := strings.Builder{}

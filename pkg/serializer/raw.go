@@ -3,7 +3,7 @@ package serializer
 import (
 	"io"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferria/transferria/pkg/abstract"
 	"golang.org/x/xerrors"
 )
 
