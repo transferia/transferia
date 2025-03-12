@@ -112,7 +112,7 @@ func TestConsumer(t *testing.T) {
 	kafkaSource.Topic = "topic1"
 	kafkaSource.ParserConfig = parserConfigMap
 
-	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil)
+	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, kafkaClient.CreateTopicIfNotExist(logger.Log, kafkaSource.Topic, nil))
 
@@ -146,7 +146,7 @@ func TestMissedTopic(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, abstract.IsFatal(err))
 	kafkaSource.Topic = "topic1"
-	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil)
+	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, kafkaClient.CreateTopicIfNotExist(logger.Log, kafkaSource.Topic, nil))
 	_, err = NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
@@ -173,7 +173,7 @@ func TestOffsetPolicy(t *testing.T) {
 	kafkaSource.Topic = "topic2"
 	kafkaSource.ParserConfig = parserConfigMap
 
-	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil)
+	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, kafkaClient.CreateTopicIfNotExist(logger.Log, kafkaSource.Topic, nil))
 

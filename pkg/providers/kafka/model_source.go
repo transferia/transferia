@@ -1,6 +1,9 @@
 package kafka
 
 import (
+	"context"
+	"net"
+
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -15,6 +18,10 @@ type KafkaSource struct {
 	Topic       string
 	GroupTopics []string
 	Transformer *model.DataTransformOptions
+
+	// DialFunc can be used to intercept connections made by driver and replace hosts if needed,
+	// for instance, in cloud-specific network topology
+	DialFunc func(ctx context.Context, network string, address string) (net.Conn, error) `json:"-"`
 
 	BufferSize model.BytesSize // it's not some real buffer size - see comments to waitLimits() method in kafka-source
 
@@ -115,5 +122,5 @@ func (s *KafkaSource) HostsNames() ([]string, error) {
 	if s.Connection != nil && s.Connection.ClusterID != "" {
 		return nil, nil
 	}
-	return ResolveOnPremBrokers(s.Connection, s.Auth)
+	return ResolveOnPremBrokers(s.Connection, s.Auth, s.DialFunc)
 }

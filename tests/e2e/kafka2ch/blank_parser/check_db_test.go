@@ -27,7 +27,7 @@ func TestLogs(t *testing.T) {
 	src, err := kafka.SourceRecipe()
 	require.NoError(t, err)
 	src.Topic = "logs"
-	kafkaClient, err := client.NewClient(src.Connection.Brokers, nil, nil)
+	kafkaClient, err := client.NewClient(src.Connection.Brokers, nil, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, kafkaClient.CreateTopicIfNotExist(logger.Log, src.Topic, nil))
 	dst, err := chrecipe.Target(chrecipe.WithInitFile("ch_init.sql"), chrecipe.WithDatabase("mtmobproxy"))

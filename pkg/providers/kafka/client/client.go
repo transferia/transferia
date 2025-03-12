@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -25,9 +26,10 @@ type Client struct {
 	brokers   []string
 	mechanism sasl.Mechanism
 	tlsConfig *tls.Config
+	dial      func(ctx context.Context, network string, address string) (net.Conn, error)
 }
 
-func NewClient(brokers []string, mechanism sasl.Mechanism, tlsConfig *tls.Config) (*Client, error) {
+func NewClient(brokers []string, mechanism sasl.Mechanism, tlsConfig *tls.Config, dial func(ctx context.Context, network string, address string) (net.Conn, error)) (*Client, error) {
 	if len(brokers) == 0 {
 		return nil, abstract.NewFatalError(xerrors.New("expected at least one broker url"))
 	}
@@ -35,6 +37,7 @@ func NewClient(brokers []string, mechanism sasl.Mechanism, tlsConfig *tls.Config
 		brokers:   brokers,
 		mechanism: mechanism,
 		tlsConfig: tlsConfig,
+		dial:      dial,
 	}, nil
 }
 
@@ -51,6 +54,7 @@ func (c *Client) CreateBrokerConn() (*kafka.Conn, error) {
 		TLS:           c.tlsConfig,
 		SASLMechanism: c.mechanism,
 		Timeout:       requestTimeout,
+		DialFunc:      c.dial,
 	}
 	brokerConn, err := dialer.DialContext(ctx, "tcp", c.broker())
 	if err != nil {
@@ -67,6 +71,7 @@ func (c *Client) CreateControllerConn() (*kafka.Conn, error) {
 		TLS:           c.tlsConfig,
 		SASLMechanism: c.mechanism,
 		Timeout:       requestTimeout,
+		DialFunc:      c.dial,
 	}
 	brokerConn, err := dialer.DialContext(ctx, "tcp", c.broker())
 	if err != nil {

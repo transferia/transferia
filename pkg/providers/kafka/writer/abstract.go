@@ -3,6 +3,7 @@ package writer
 import (
 	"context"
 	"crypto/tls"
+	"net"
 
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
@@ -19,5 +20,5 @@ type AbstractWriter interface {
 }
 
 type AbstractWriterFactory interface {
-	BuildWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64) AbstractWriter
+	BuildWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64, dial func(ctx context.Context, network string, address string) (net.Conn, error)) AbstractWriter
 }

@@ -1,6 +1,9 @@
 package kafka
 
 import (
+	"context"
+	"net"
+
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -27,7 +30,7 @@ func ResolveBrokers(s *KafkaConnectionOptions) ([]string, error) {
 	return brokers, nil
 }
 
-func ResolveOnPremBrokers(connectionOpt *KafkaConnectionOptions, kafkaAuth *KafkaAuth) ([]string, error) {
+func ResolveOnPremBrokers(connectionOpt *KafkaConnectionOptions, kafkaAuth *KafkaAuth, dial func(ctx context.Context, network string, address string) (net.Conn, error)) ([]string, error) {
 	tls, err := connectionOpt.TLSConfig()
 	if err != nil {
 		return nil, xerrors.Errorf("Can't create TLSConfig: %w", err)
@@ -36,7 +39,7 @@ func ResolveOnPremBrokers(connectionOpt *KafkaConnectionOptions, kafkaAuth *Kafk
 	if err != nil {
 		return nil, xerrors.Errorf("Can't get auth mechanism: %w", err)
 	}
-	kafkaClient, err := client.NewClient(connectionOpt.Brokers, auth, tls)
+	kafkaClient, err := client.NewClient(connectionOpt.Brokers, auth, tls, dial)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create kafka client, err: %w", err)
 	}

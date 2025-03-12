@@ -1,6 +1,9 @@
 package kafka
 
 import (
+	"context"
+	"net"
+
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -13,6 +16,10 @@ type KafkaDestination struct {
 	Connection       *KafkaConnectionOptions
 	Auth             *KafkaAuth
 	SecurityGroupIDs []string
+
+	// DialFunc can be used to intercept connections made by driver and replace hosts if needed,
+	// for instance, in cloud-specific network topology
+	DialFunc func(ctx context.Context, network string, address string) (net.Conn, error) `json:"-"`
 
 	// The setting from segmentio/kafka-go Writer.
 	// Tunes max length of one message (see usages of BatchBytes in kafka-go)
@@ -138,5 +145,5 @@ func (d *KafkaDestination) HostsNames() ([]string, error) {
 	if d.Connection != nil && d.Connection.ClusterID != "" {
 		return nil, nil
 	}
-	return ResolveOnPremBrokers(d.Connection, d.Auth)
+	return ResolveOnPremBrokers(d.Connection, d.Auth, d.DialFunc)
 }

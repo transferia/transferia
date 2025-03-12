@@ -9,55 +9,41 @@
 package writer
 
 import (
+	log "go.ytsaurus.tech/library/go/core/log"
+	queue "github.com/transferia/transferia/pkg/serializer/queue"
 	context "context"
 	tls "crypto/tls"
-	reflect "reflect"
-
-	queue "github.com/transferia/transferia/pkg/serializer/queue"
-	kafka "github.com/segmentio/kafka-go"
+	gomock "github.com/golang/mock/gomock"
+	kafka_go "github.com/segmentio/kafka-go"
 	sasl "github.com/segmentio/kafka-go/sasl"
-	gomock "go.uber.org/mock/gomock"
-	log "go.ytsaurus.tech/library/go/core/log"
+	net "net"
+	reflect "reflect"
 )
 
-// MockAbstractWriter is a mock of AbstractWriter interface.
+// MockAbstractWriter is a mock of AbstractWriter interface
 type MockAbstractWriter struct {
 	ctrl     *gomock.Controller
 	recorder *MockAbstractWriterMockRecorder
 }
 
-// MockAbstractWriterMockRecorder is the mock recorder for MockAbstractWriter.
+// MockAbstractWriterMockRecorder is the mock recorder for MockAbstractWriter
 type MockAbstractWriterMockRecorder struct {
 	mock *MockAbstractWriter
 }
 
-// NewMockAbstractWriter creates a new mock instance.
+// NewMockAbstractWriter creates a new mock instance
 func NewMockAbstractWriter(ctrl *gomock.Controller) *MockAbstractWriter {
 	mock := &MockAbstractWriter{ctrl: ctrl}
 	mock.recorder = &MockAbstractWriterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockAbstractWriter) EXPECT() *MockAbstractWriterMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method.
-func (m *MockAbstractWriter) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockAbstractWriterMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockAbstractWriter)(nil).Close))
-}
-
-// WriteMessages mocks base method.
+// WriteMessages mocks base method
 func (m *MockAbstractWriter) WriteMessages(ctx context.Context, lgr log.Logger, topicName string, currMessages []queue.SerializedMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteMessages", ctx, lgr, topicName, currMessages)
@@ -65,45 +51,59 @@ func (m *MockAbstractWriter) WriteMessages(ctx context.Context, lgr log.Logger, 
 	return ret0
 }
 
-// WriteMessages indicates an expected call of WriteMessages.
-func (mr *MockAbstractWriterMockRecorder) WriteMessages(ctx, lgr, topicName, currMessages any) *gomock.Call {
+// WriteMessages indicates an expected call of WriteMessages
+func (mr *MockAbstractWriterMockRecorder) WriteMessages(ctx, lgr, topicName, currMessages interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteMessages", reflect.TypeOf((*MockAbstractWriter)(nil).WriteMessages), ctx, lgr, topicName, currMessages)
 }
 
-// MockAbstractWriterFactory is a mock of AbstractWriterFactory interface.
+// Close mocks base method
+func (m *MockAbstractWriter) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close
+func (mr *MockAbstractWriterMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockAbstractWriter)(nil).Close))
+}
+
+// MockAbstractWriterFactory is a mock of AbstractWriterFactory interface
 type MockAbstractWriterFactory struct {
 	ctrl     *gomock.Controller
 	recorder *MockAbstractWriterFactoryMockRecorder
 }
 
-// MockAbstractWriterFactoryMockRecorder is the mock recorder for MockAbstractWriterFactory.
+// MockAbstractWriterFactoryMockRecorder is the mock recorder for MockAbstractWriterFactory
 type MockAbstractWriterFactoryMockRecorder struct {
 	mock *MockAbstractWriterFactory
 }
 
-// NewMockAbstractWriterFactory creates a new mock instance.
+// NewMockAbstractWriterFactory creates a new mock instance
 func NewMockAbstractWriterFactory(ctrl *gomock.Controller) *MockAbstractWriterFactory {
 	mock := &MockAbstractWriterFactory{ctrl: ctrl}
 	mock.recorder = &MockAbstractWriterFactoryMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockAbstractWriterFactory) EXPECT() *MockAbstractWriterFactoryMockRecorder {
 	return m.recorder
 }
 
-// BuildWriter mocks base method.
-func (m *MockAbstractWriterFactory) BuildWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64) AbstractWriter {
+// BuildWriter mocks base method
+func (m *MockAbstractWriterFactory) BuildWriter(brokers []string, compression kafka_go.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64, dial func(context.Context, string, string) (net.Conn, error)) AbstractWriter {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildWriter", brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes)
+	ret := m.ctrl.Call(m, "BuildWriter", brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes, dial)
 	ret0, _ := ret[0].(AbstractWriter)
 	return ret0
 }
 
-// BuildWriter indicates an expected call of BuildWriter.
-func (mr *MockAbstractWriterFactoryMockRecorder) BuildWriter(brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes any) *gomock.Call {
+// BuildWriter indicates an expected call of BuildWriter
+func (mr *MockAbstractWriterFactoryMockRecorder) BuildWriter(brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes, dial interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildWriter", reflect.TypeOf((*MockAbstractWriterFactory)(nil).BuildWriter), brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildWriter", reflect.TypeOf((*MockAbstractWriterFactory)(nil).BuildWriter), brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes, dial)
 }

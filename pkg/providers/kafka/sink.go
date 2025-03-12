@@ -122,6 +122,7 @@ func NewSinkImpl(cfg *KafkaDestination, registry metrics.Registry, lgr log.Logge
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve brokers: %w", err)
 	}
+	lgr.Info("resolved brokers", log.Any("brokers", brokers))
 	cfg.Connection.Brokers = brokers
 	mechanism, err := cfg.Auth.GetAuthMechanism()
 	if err != nil {
@@ -155,7 +156,7 @@ func NewSinkImpl(cfg *KafkaDestination, registry metrics.Registry, lgr log.Logge
 		logger:     lgr,
 		metrics:    stats.NewSinkerStats(registry),
 		serializer: currSerializer,
-		writer:     writerFactory.BuildWriter(cfg.Connection.Brokers, cfg.Compression.AsKafka(), mechanism, tlsCfg, topicConfigEntryToSlices(cfg.TopicConfigEntries), cfg.BatchBytes),
+		writer:     writerFactory.BuildWriter(cfg.Connection.Brokers, cfg.Compression.AsKafka(), mechanism, tlsCfg, topicConfigEntryToSlices(cfg.TopicConfigEntries), cfg.BatchBytes, cfg.DialFunc),
 	}
 
 	return &result, nil

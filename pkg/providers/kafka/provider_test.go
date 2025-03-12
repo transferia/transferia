@@ -24,7 +24,7 @@ func TestTopicResolver(t *testing.T) {
 	require.NoError(t, err)
 	kafkaSource.ParserConfig = parserConfigMap
 
-	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil)
+	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, kafkaClient.CreateTopicIfNotExist(logger.Log, "topic1", nil))
 	loadData(t, kafkaSource, "topic1")

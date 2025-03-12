@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/segmentio/kafka-go"
@@ -27,18 +28,22 @@ type Writer struct {
 	writersMutex sync.Mutex
 	knownTopics  map[string]bool
 
+	dial func(ctx context.Context, network string, address string) (net.Conn, error)
+
 	rawKafkaWriter *kafka.Writer
 }
 
-func NewWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64) *Writer {
+func NewWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64, dial func(ctx context.Context, network string, address string) (net.Conn, error)) *Writer {
 	rawKafkaWriter := &kafka.Writer{
 		Addr:       kafka.TCP(brokers...),
 		Balancer:   &kafka.Hash{},
 		BatchBytes: batchBytes,
 		Transport: &kafka.Transport{
+			Dial: dial,
 			TLS:  tlsConfig,
 			SASL: saslMechanism,
 		},
+
 		Compression: compression,
 	}
 	return &Writer{
@@ -51,6 +56,8 @@ func NewWriter(brokers []string, compression kafka.Compression, saslMechanism sa
 		writersMutex: sync.Mutex{},
 		knownTopics:  make(map[string]bool),
 
+		dial: dial,
+
 		rawKafkaWriter: rawKafkaWriter,
 	}
 }
@@ -62,7 +69,7 @@ func (w *Writer) ensureTopicExists(lgr log.Logger, topic string) error {
 	if w.knownTopics[writerID] {
 		return nil
 	}
-	kafkaClient, err := client.NewClient(w.brokers, w.saslMechanism, w.tlsConfig)
+	kafkaClient, err := client.NewClient(w.brokers, w.saslMechanism, w.tlsConfig, w.dial)
 	if err != nil {
 		return xerrors.Errorf("unable to create kafka client, err: %w", err)
 	}

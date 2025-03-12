@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
@@ -20,7 +21,6 @@ import (
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	"github.com/transferia/transferia/tests/helpers"
-	"go.uber.org/mock/gomock"
 )
 
 var (
@@ -319,7 +319,7 @@ func TestReplication(t *testing.T) {
 	currWriter.EXPECT().Close().AnyTimes()
 
 	factory := writer.NewMockAbstractWriterFactory(ctrl)
-	factory.EXPECT().BuildWriter([]string{"my_broker_0"}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(currWriter)
+	factory.EXPECT().BuildWriter([]string{"my_broker_0"}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(currWriter)
 
 	sink, err := kafka_provider.NewSinkImpl(
 		dst,

@@ -87,7 +87,7 @@ func (p *Provider) Sniffer(_ context.Context) (abstract.Fetchable, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("unable to construct tls config: %w", err)
 		}
-		kafkaClient, err := client.NewClient(brokers, mechanism, tlsCfg)
+		kafkaClient, err := client.NewClient(brokers, mechanism, tlsCfg, nil)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create kafka client, err: %w", err)
 		}
