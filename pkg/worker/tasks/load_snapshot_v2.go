@@ -33,7 +33,7 @@ func (l *SnapshotLoader) descriptionsToParts(operationID string, descriptions ..
 		tables[description.Fqtn()] = append(tables[description.Fqtn()], description)
 	}
 
-	parts := []*model.OperationTablePart{}
+	var parts []*model.OperationTablePart
 	for _, tableDescriptions := range tables {
 		for i, description := range tableDescriptions {
 			part := model.NewOperationTablePartFromDescription(operationID, &description)
