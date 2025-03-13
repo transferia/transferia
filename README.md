@@ -1,12 +1,12 @@
-<h1 align="center">Transfer: Cloud Native Ingestion engine</h1>
+<h1 align="center">Transferia: Cloud Native Ingestion engine</h1>
 
 <div align="center">
 
 <h4 align="center">
-  <a href="https://doublecloud.github.io/transfer/">Transfer</a>  |
-  <a href="https://doublecloud.github.io/transfer/docs/getting_started.html">Documentation</a>  |
-  <a href="https://doublecloud.github.io/transfer/docs/benchmarks.html">Benchmarking</a>  |
-  <a href="https://doublecloud.github.io/transfer/docs/roadmap">Roadmap</a>
+  <a href="https://transferia.github.io/transferia/">Transferia</a>  |
+  <a href="https://transferia.github.io/transferia/docs/getting_started.html">Documentation</a>  |
+  <a href="https://transferia.github.io/transferia/docs/benchmarks.html">Benchmarking</a>  |
+  <a href="https://transferia.github.io/transferia/docs/roadmap">Roadmap</a>
 </h4>
 
 
@@ -18,15 +18,15 @@
 
 </div>
 
-**Transfer**, built in Go, is an open-source cloud native ingestion engine. Essentially we are building no-code (or low-code) EL(T) service that can scale data pipelines from several megabytes of data to dozens of petabytes without hassle.
+**Transferia**, built in Go, is an open-source cloud native ingestion engine. Essentially we are building no-code (or low-code) EL(T) service that can scale data pipelines from several megabytes of data to dozens of petabytes without hassle.
 
-Transfer provides a convenient way to transfer data between DBMSes, object stores, message brokers or anything that stores data.
+Transferia provides a convenient way to transfer data between DBMSes, object stores, message brokers or anything that stores data.
 Our ultimate mission is to help you move data from any source to any destination with fast, effective and easy-to-use tool.
 
 <div align="center">
 
 
-## 🚀 Try Transfer
+## 🚀 Try Transferia
 
 </div>
 
@@ -44,18 +44,18 @@ make build
 ### 2. Using docker container
 
 ```shell
-docker pull ghcr.io/doublecloud/transfer:dev
+docker pull ghcr.io/transferi/transferia:dev
 ```
 
 ### 3. Deploy via helm-chart
 
-We strongly believe in cloud-native technologies, and see **transfer** as a driven power for open-source data-platforms build on top of clouds.
+We strongly believe in cloud-native technologies, and see **transferia** as a driven power for open-source data-platforms build on top of clouds.
 
 Deploy as helm-chart in your own k8s cluster
 
 ```bash
 helm upgrade NAME_OF_TRANSFER \
-  --namespace NAME_OF_NAMESPACE oci://ghcr.io/doublecloud/transfer-helm/transfer \
+  --namespace NAME_OF_NAMESPACE oci://ghcr.io/transferia/transferia-helm/transferia \
   --values PATH_TO_VALUES_FILE \
   --install
 ```
@@ -156,7 +156,7 @@ More details [here](./docs/deploy_k8s.md).
 
 <div align="center">
 
-## 🚀 Why Transfer
+## 🚀 Why Transferia
 
 </div>
 
@@ -196,17 +196,17 @@ More details [here](./docs/deploy_k8s.md).
 
 </div>
 
-Transfer is a golang pluggable package that include into transfer binary and register itself into it. Our transfer plugins can be one of:
+Transferia is a golang pluggable package that include into transferia binary and register itself into it. Our transferia plugins can be one of:
 
 1. [Storage](./transfer_manager/go/pkg/abstract/storage.go) - one-time data reader
 2. [Sink](./transfer_manager/go/pkg/abstract/async_sink.go) - data writer
 3. [Source](./arcadia/transfer_manager/go/pkg/abstract/source.go) - streaming data reader
 
-Data pipeline composes with two [Endpoint](./transfer_manager/go/pkg/server/endpoint_params.go)-s: [Source](./transfer_manager/go/pkg/server/endpoint_params.go) and [Destination](./transfer_manager/go/pkg/server/endpoint_params.go).
+Data pipeline composes with two **Endpoint**-s: **Source** and **Destination**.
 Each Data pipeline essentially link between **Source** {`Storage`|`Source`} and **Destination** {`Sink`}.
-**Transfer** is a **LOGICAL** data transfer service. The minimum unit of data is a logical **ROW** (object). Between **source** and **target** we communicate via [ChangeItem](https://a.yandex-team.ru/arcadia/transfer_manager/go/pkg/abstract/changeset.go?rev=r10623357#L57)-s.
-Those items batched and we may apply stateless [Transformations](./transfer_manager/go/pkg/transformer).
-Overall this pipeline called [Transfer](./transfer_manager/go/pkg/server/model_transfer.go?rev=420c3cb117#L31)
+**Transferia** is a **LOGICAL** data transfer service. The minimum unit of data is a logical **ROW** (object). Between **source** and **target** we communicate via **ChangeItem**-s.
+Those items batched and we may apply stateless **Transformations**.
+Overall this pipeline called **Transfer**
 
 We could compose our primitive to create 2 main different types of connection
 
@@ -321,11 +321,11 @@ For current storages, we have approximately the following matrix:
 
 </div>
 
-Transfer thrives on community contributions! Whether it's through ideas, code, or documentation, every effort helps in enhancing our project. As a token of our appreciation, once your code is merged, your name will be eternally preserved in the **system.contributors** table.
+Transferia thrives on community contributions! Whether it's through ideas, code, or documentation, every effort helps in enhancing our project. As a token of our appreciation, once your code is merged, your name will be eternally preserved in the **system.contributors** table.
 
 Here are some resources to help you get started:
 
-- [Building Transfer From Source](./docs/contributor_building_from_source.md)
+- [Building Transferia From Source](./docs/contributor_building_from_source.md)
 - [The First Good Pull Request](./docs/contributor_good_pr.md)
 
 <div align="center">
@@ -334,10 +334,10 @@ Here are some resources to help you get started:
 
 </div>
 
-For guidance on using Transfer, we recommend starting with the official documentation. If you need further assistance, explore the following community channels:
+For guidance on using Transferia, we recommend starting with the official documentation. If you need further assistance, explore the following community channels:
 
 - [Slack](https://todo.com) (For live discussion with the Community)
-- [GitHub](https://github.com/doublecloud/transfer) (Feature/Bug reports, Contributions)
+- [GitHub](https://github.com/transferia/transferia) (Feature/Bug reports, Contributions)
 - [Twitter](https://x.com/laskoviymish) (Get the news fast)
 
 <div align="center">
@@ -346,7 +346,7 @@ For guidance on using Transfer, we recommend starting with the official document
 
 </div>
 
-Stay updated with Transfer's development journey. Here are our roadmap milestones:
+Stay updated with Transferia's development journey. Here are our roadmap milestones:
 
 - [Roadmap 2024](./roadmap/roadmap_2024.md)
 
@@ -356,6 +356,6 @@ Stay updated with Transfer's development journey. Here are our roadmap milestone
 
 </div>
 
-Transfer is released under the [Apache License 2.0](licenses/Apache-2.0.txt).
+Transferia is released under the [Apache License 2.0](licenses/Apache-2.0.txt).
 
 For more information, see the [LICENSE](LICENSE) file and [Licensing FAQs](https://todo.com).
