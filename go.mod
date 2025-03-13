@@ -78,7 +78,7 @@ require (
 	go.uber.org/mock v0.4.0
 	go.uber.org/zap v1.27.0
 	go.ytsaurus.tech/library/go/core/log v0.0.4
-	go.ytsaurus.tech/yt/go v0.0.24
+	go.ytsaurus.tech/yt/go v0.0.25
 	golang.org/x/crypto v0.32.0
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
 	golang.org/x/mod v0.22.0
@@ -263,6 +263,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.33.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.ytsaurus.tech/library/go/blockcodecs v0.0.3 // indirect
+	go.ytsaurus.tech/library/go/core/buildinfo v0.0.0-20250128064255-bfed144851b6 // indirect
 	go.ytsaurus.tech/library/go/core/xerrors v0.0.4 // indirect
 	go.ytsaurus.tech/library/go/ptr v0.0.2 // indirect
 	go.ytsaurus.tech/library/go/x/xreflect v0.0.3 // indirect
