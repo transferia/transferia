@@ -35,8 +35,8 @@ changelog:
 
 release:
   github:
-    owner: "doublecloud"
-    name: "transfer"
+    owner: "transferia"
+    name: "transferia"
 
   name_template: "{{.ProjectName}}-v{{.Version}}"
 
