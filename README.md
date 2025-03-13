@@ -198,9 +198,10 @@ More details [here](./docs/deploy_k8s.md).
 
 Transferia is a golang pluggable package that include into transferia binary and register itself into it. Our transferia plugins can be one of:
 
-1. [Storage](./transfer_manager/go/pkg/abstract/storage.go) - one-time data reader
-2. [Sink](./transfer_manager/go/pkg/abstract/async_sink.go) - data writer
-3. [Source](./arcadia/transfer_manager/go/pkg/abstract/source.go) - streaming data reader
+1. [Storage](./pkg/abstract/storage.go) - one-time data reader
+2. [Sink](./pkg/abstract/async_sink.go) - data writer
+3. [Source](./pkg/abstract/source.go) - streaming data reader
+4. [Transformer](./pkg/transformer/README.md) - something that make row-level change
 
 Data pipeline composes with two **Endpoint**-s: **Source** and **Destination**.
 Each Data pipeline essentially link between **Source** {`Storage`|`Source`} and **Destination** {`Sink`}.
@@ -325,8 +326,8 @@ Transferia thrives on community contributions! Whether it's through ideas, code,
 
 Here are some resources to help you get started:
 
-- [Building Transferia From Source](./docs/contributor_building_from_source.md)
-- [The First Good Pull Request](./docs/contributor_good_pr.md)
+- [Building From Source](./docs/getting_started.md)
+- [Contributing Guidelines](./docs/transfer-faq.md)
 
 <div align="center">
 
@@ -336,9 +337,8 @@ Here are some resources to help you get started:
 
 For guidance on using Transferia, we recommend starting with the official documentation. If you need further assistance, explore the following community channels:
 
-- [Slack](https://todo.com) (For live discussion with the Community)
 - [GitHub](https://github.com/transferia/transferia) (Feature/Bug reports, Contributions)
-- [Twitter](https://x.com/laskoviymish) (Get the news fast)
+- [Telegram](https://t.me/andrei_tserakhau) (Get the news fast)
 
 <div align="center">
 
@@ -348,7 +348,8 @@ For guidance on using Transferia, we recommend starting with the official docume
 
 Stay updated with Transferia's development journey. Here are our roadmap milestones:
 
-- [Roadmap 2024](./roadmap/roadmap_2024.md)
+- [Roadmap 2024](./docs/roadmap/roadmap_2024.md)
+- [Roadmap 2025](./docs/roadmap/roadmap_2025.md)
 
 <div align="center">
 
@@ -356,6 +357,6 @@ Stay updated with Transferia's development journey. Here are our roadmap milesto
 
 </div>
 
-Transferia is released under the [Apache License 2.0](licenses/Apache-2.0.txt).
+Transferia is released under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
-For more information, see the [LICENSE](LICENSE) file and [Licensing FAQs](https://todo.com).
+For more information, see the [LICENSE](./LICENSE) file.
