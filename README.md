@@ -55,7 +55,7 @@ Deploy as helm-chart in your own k8s cluster
 
 ```bash
 helm upgrade NAME_OF_TRANSFER \
-  --namespace NAME_OF_NAMESPACE oci://ghcr.io/transferia/transferia-helm/transferia \
+  --namespace NAME_OF_NAMESPACE oci://ghcr.io/transferia/transferia-helm/transfer \
   --values PATH_TO_VALUES_FILE \
   --install
 ```
