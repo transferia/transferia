@@ -99,6 +99,7 @@ require (
 	k8s.io/apimachinery v0.30.2
 	k8s.io/client-go v0.30.2
 	sigs.k8s.io/yaml v1.4.0
+	github.com/nats-io/nats.go v1.39.0
 )
 
 require (
