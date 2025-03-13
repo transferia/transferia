@@ -44,7 +44,7 @@ After setting baselines, fine-tune the transfer settings for better performance.
 
 ### Optimization Steps:
 1. **Activate the Transfer**  
-   Deploye transfer via [helm](deploy_k8s.html) in your k8s cluster.
+   Deploye transferia via [helm](deploy_k8s.html) in your k8s cluster.
 
 2. **Expose pprof for Profiling**
     - Expose the pprof port for profiling, by default `--run-profiler` is true.

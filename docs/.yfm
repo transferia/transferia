@@ -12,23 +12,23 @@ docs-viewer:
          width: 190
          offset: true
   favicon-src: https://static.double.tech/site-assets/favicon/favicon.ico
-  project-name: Transfer
-  logo-title: Transfer
+  project-name: Transferia
+  logo-title: Transferia
   show-revision: true
   themes: ['dark']
   github-url-prefix: https://github.com/transferia/transferia/tree/main/docs
 
   index-page:
     hidden: true
-    title: Transfer
-    description: "Transfer public docs"
+    title: Transferia
+    description: "Transferia public docs"
 
 connector:
     type: github
     github:
         endpoint: https://api.github.com
-        owner: doublecloud
-        repo: transfer
+        owner: transferia
+        repo: transferia
 
 resources:
   style:
