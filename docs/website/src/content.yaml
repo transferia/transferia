@@ -1,11 +1,11 @@
 meta:
-  title: Transfer - no-code data integration solution | DoubleCloud
+  title: Transferia - no-code data integration solution | DoubleCloud
   description: >-
     A simple and efficient solution will help you build end-to-end analytics
     based on data from the most popular advertisement platforms like Facebook
     ads, Google ads, Linkedin ads, and many others
   sharing:
-    title: Transfer - no-code data integration solution | DoubleCloud
+    title: Transferia - no-code data integration solution | DoubleCloud
     description: >-
       A simple and efficient solution will help you build end-to-end analytics
       based on data from the most popular advertisement platforms like Facebook
@@ -18,9 +18,9 @@ meta:
       - dmbs
 blocks:
   - type: header-block
-    title: Transfer
+    title: Transferia
     description: >-
-      Transfer gives you a simple, no-code, cloud-native data integration solution to
+      Transferia gives you a simple, no-code, cloud-native data integration solution to
       extract, load, and transform your data. Whether you want to migrate to a
       cloud, replicate your data or optimize it for real-time analytics, we have
       just the tool for that.
@@ -82,7 +82,7 @@ blocks:
     textContent:
       title: ClickHouse-native tool at your service
       text: >-
-        Transfer is the best tool on the market for moving
+        Transferia is the best tool on the market for moving
         data to and from ClickHouse. With us, you can do it fast, scale easily,
         and make snapshots. Our service is built for scale, which is reflected
         in price and performance. Why ClickHouse? If you use relational
@@ -100,7 +100,7 @@ blocks:
         title: Seamless scaling
         text: >-
           Scaling at up to <b>20 GB/s</b> without compromising data integrity. Data
-          Transfer is highly optimized for ingesting data into ClickHouse and
+          Transferia is highly optimized for ingesting data into ClickHouse and
           exporting data from it quickly.
         image: assets/transfer-service-card-1.png
       - type: image-card
@@ -127,7 +127,7 @@ blocks:
       - type: image-card
         title: Logs and metrics integration
         text: >-
-          Utilize Transfer to ingest data from different sources to and from
+          Utilize Transferia to ingest data from different sources to and from
           Apache Kafka, pulling metrics and logs to your observability platforms
           like Prometheus, Datadog, and CloudWatch.
         image: assets/transfer-service-card-4.png
@@ -141,12 +141,12 @@ blocks:
       - type: image-card
         title: Fault tolerance
         text: >-
-          Designed to reliably handle failures, Transfer automatically retries
+          Designed to reliably handle failures, Transferia automatically retries
           operations, maintaining data integrity and continuity.
       - type: image-card
         title: Cloud Native
         text: >-
-          Run your transfers on any cloud infrastructure, ranging from ec2 instance and k8s pods to lambda function.
+          Run your Transferias on any cloud infrastructure, ranging from ec2 instance and k8s pods to lambda function.
   - type: content-layout-block
     textContent:
       title: Predictable, transparent pricing
@@ -163,15 +163,15 @@ blocks:
       Add best-in-class open-source services <br>
       to make your <b>own</b> data platform
     description: >-
-      Transfer has everything you need to build modern, powerful, scalable ingestion at
-      scale. Combine Transfer with other fully opensource data services
+      Transferia has everything you need to build modern, powerful, scalable ingestion at
+      scale. Combine Transferia with other fully opensource data services
       to build a truly powerful solution that covers typical scenarios of
       working with data.
     items:
       - tabName: Data warehouse
         title: Data warehouse
         text: >-
-          Ingest and transform your data with Transfer, use
+          Ingest and transform your data with Transferia, use
           for ClickHouse to store or aggregate data, and build charts
           quickly with Visualization tools like data-lens or Apache Superset.
         media:
@@ -180,14 +180,14 @@ blocks:
         title: CDC streaming
         text: >-
           Build an event-driven architecture using Apache Kafka for landing real-time data.
-          Transfer engine has a variety of source and target connectors that allow you to set up CDC event streaming to
+          Transferia engine has a variety of source and target connectors that allow you to set up CDC event streaming to
           deliver changes in your kafka, and various configurable parsers read and structure data from kafka to you need them in real time.
         media:
           image: assets/doublecloud-transfer-kafka-2-3.png
       - tabName: Extract, Load, Transform
         title: Extract, Load, Transform
         text: >-
-          Set up your data pipeline powered by Transfer’s data extraction
+          Set up your data pipeline powered by Transferia’s data extraction
           and transformation capabilities. Use ClickHouse or YTsaurus as a
           storage and utilize Apache Airflow to automate and manage all your
           workflows.
@@ -197,7 +197,7 @@ blocks:
         title: Real-time analytics
         text: >-
           The data platform is built for creating efficient real-time
-          analytics. Use Transfer to connect your Kafka-like event streams to
+          analytics. Use Transferia to connect your Kafka-like event streams to
           DWH, for example clickhouse, one of the fastest databases for analytics. Top it up with
           Visualization tools (data-lens or Apache Superset) to create dashboards in an instant,
           and use embedded analytics to integrate charts into your application
@@ -206,7 +206,7 @@ blocks:
           image: assets/doublecloud-transfer-viz-4-3.png
   - type: slider-block
     title: Go deeper in our blog
-    description: Check out the latest insights from our Transfer team
+    description: Check out the latest insights from our Transferia team
     colSizes:
       all: 6
       md: 3
@@ -247,7 +247,7 @@ blocks:
       - type: layout-item
         controlPosition: footer
         content:
-          title: Transfer S3 connector vs. Airbyte S3 connector
+          title: Transferia S3 connector vs. Airbyte S3 connector
           text: 'Written by: Eraldo Jaku'
           buttons:
             - text: Read more
@@ -288,7 +288,7 @@ blocks:
           Sink + Source connection in one place, no need to intermidiate storage.
       - title: What type of synchronization/transfer do you support?
         text: |
-          Transfer supports three modes of synchronization:
+          Transferia supports three modes of synchronization:
           - Full snapshot
           - Log-based replication or CDC (Change data capture)
           - Key-based replication
@@ -299,14 +299,14 @@ blocks:
           egress traffic. However, you should check pricing for egress
           with your cloud provider. If you are using AWS, you could establish
           VPC peering, which will decrease your costs.
-      - title: What is Change Data Capture? Does Transfer support it?
+      - title: What is Change Data Capture? Does Transferia support it?
         text: >-
           In databases, Change Data Capture is a set of software design patterns
           used to determine and track data that has changed, so that actions can
           be taken using the changed data.
 
 
-          Transfer supports Change Data Capture, but only for
+          Transferia supports Change Data Capture, but only for
           sources that support that on their side, e.g. PostgreSQL, MySQL,
           MongoDB, and others.
       - title: How does key-based replication work?

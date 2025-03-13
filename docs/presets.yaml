@@ -23,8 +23,8 @@ default:
   TRFM: Terraform
   SWFL: Snowflake
   source-root: https://github.com/transferia/transferia/tree/main/docs
-  data-transfer-name: Transfer
-  DC: Transfer
+  data-transfer-name: Transferia
+  DC: Transferia
   lang: en
   audience: public
-  product-name: Transfer
+  product-name: Transferia

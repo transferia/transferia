@@ -27,7 +27,7 @@ func ActivateCommand(cp *coordinator.Coordinator, rt abstract.Runtime, registry 
 		RunE:  activate(cp, rt, &transferParams, registry, activateDelay, metricsPrefix),
 	}
 	activationCommand.Flags().StringVar(&transferParams, "transfer", "./transfer.yaml", "path to yaml file with transfer configuration")
-	activationCommand.Flags().DurationVar(&activateDelay, "min-delay", 10*time.Second, "minial delay for activation, use to ensure metrics got scrapped, default 10s")
+	activationCommand.Flags().DurationVar(&activateDelay, "min-delay", 10*time.Second, "minial delay for activation, use to ensure metrics got scrapped")
 	activationCommand.Flags().StringVar(&metricsPrefix, "metrics-prefix", "", "Optional prefix por Prometheus metrics")
 	return activationCommand
 }

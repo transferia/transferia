@@ -1,8 +1,8 @@
 # Getting Started Guide
 
-This guide will walk you through building the Transfer from the source repository and using it to manage data transfers. The process involves building the tool, validating configurations, checking the health of transfers, activating them, and finally verifying the data in your target database.
+This guide will walk you through building the Transferia from the source repository and using it to manage data transfers. The process involves building the tool, validating configurations, checking the health of transfers, activating them, and finally verifying the data in your target database.
 
-## Step 1: Build Transfer
+## Step 1: Build Transferia
 
 To build the ingestion engine, clone the repository and run the build command using `make`. The final executable will be located in the `binaries/trcli` directory.
 
@@ -11,7 +11,7 @@ To build the ingestion engine, clone the repository and run the build command us
 1. Clone the repository to your local machine:
    ```bash
    git clone git@github.com:transferia/transferia.git
-   cd transfer
+   cd transferia
    ```
 
 2. Build the project:

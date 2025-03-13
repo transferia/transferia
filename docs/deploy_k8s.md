@@ -1,12 +1,12 @@
-# Deploying Transfer
+# Deploying Transferia
 
-The Transfer is a sophisticated data ingestion engine that enables you to handle large amounts of data movement.
+The Transferia is a sophisticated data ingestion engine that enables you to handle large amounts of data movement.
 We strongly believe in cloud-native technologies, and see **transfer** as a driven power for open-source data-platforms build on top of clouds.
 To quickly deploy **transfer** on your local machine you can visit the [Quickstart](./getting_started.md) guide.
 
-## Understanding the Transfer Deployment
+## Understanding the Transferia Deployment
 
-Transfer is built to be deployed into a Kubernetes cluster.
+Transferia is built to be deployed into a Kubernetes cluster.
 
 You can use a Cloud Provider, such as, AWS, GCP, Azure, or onto a single node, such as an EC2 VM, or even locally on your computer.
 

@@ -1,7 +1,7 @@
 title: "{{product-name}}"
 description:
   - >-
-    Transfer is a tool designed for the logical transferring of data between storages. 
+    <b>{{ data-transfer-name }}</b> is a tool designed for the logical transferring of data between storages. 
     The service helps you quickly and safely perform logical migrations of your databases 
     between other cloud platforms or local databases, and API source.
   - >-

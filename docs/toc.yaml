@@ -21,7 +21,7 @@ items:
         href: concepts/data-type-system.md
       - name: Extensibility
         href: concepts/extensibility.md
-      - name: Transfer types
+      - name: Transferia type system
         href: concepts/transfer-types.md
       - name: Transformations
         href: concepts/transformations.md
@@ -116,7 +116,7 @@ items:
     items:
       - name: All integrations
         href: integrations/index.md
-      - name: Connect Prometheus to Transfer
+      - name: Connect Prometheus to Transferia
         href: integrations/connect-prometheus-to-transfer.md
 
   - name: Plans
@@ -127,7 +127,7 @@ items:
         href: roadmap/roadmap_2024.md
       - name: "Roadmap 2025"
         href: roadmap/roadmap_2025.md
-  - name: Resolve issues with Transfer
+  - name: Resolve issues with Transferia
     href: transfer-self-help.md
   - name: Questions and answers
     href: transfer-faq.md
