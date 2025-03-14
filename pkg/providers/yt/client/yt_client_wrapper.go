@@ -15,7 +15,7 @@ type ClientType string
 
 const (
 	HTTP ClientType = "http"
-	RPC  ClientType = "rpd"
+	RPC  ClientType = "rpc"
 )
 
 type verboseErrLogger struct {
