@@ -12,6 +12,7 @@ import (
 	_ "github.com/transferia/transferia/pkg/providers/kafka"
 	_ "github.com/transferia/transferia/pkg/providers/mongo"
 	_ "github.com/transferia/transferia/pkg/providers/mysql"
+	_ "github.com/transferia/transferia/pkg/providers/nats"
 	_ "github.com/transferia/transferia/pkg/providers/opensearch"
 	_ "github.com/transferia/transferia/pkg/providers/postgres"
 	_ "github.com/transferia/transferia/pkg/providers/s3/provider"
