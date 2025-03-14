@@ -78,8 +78,12 @@ func TestSinker_Push(t *testing.T) {
 	t.Run("many upserts", func(t *testing.T) {
 		data := make([]abstract.ChangeItem, batchSize*2)
 		for i := range batchSize * 2 {
+			kind := abstract.InsertKind
+			if i > 0 {
+				kind = abstract.UpdateKind
+			}
 			data[i] = abstract.ChangeItem{
-				Kind:         abstract.InsertKind,
+				Kind:         kind,
 				Schema:       "foo",
 				Table:        "many_upserts_test",
 				ColumnNames:  []string{"id", "val"},
