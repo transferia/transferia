@@ -6,10 +6,11 @@ This document provides a comprehensive overview of the Transferia architecture.
 
 ```mermaid
 graph TB
+
     subgraph "Transferia Core"
+        D[Coordinator] --> A
         A[Source Plugin] --> B[Transformer]
         B --> C[Sink Plugin]
-        D[Coordinator] --> A
         D --> B
         D --> C
     end
@@ -128,9 +129,7 @@ The Coordinator manages the overall transfer process:
 
 ```go
 type Coordinator interface {
-    CreateOperationWorkers(operationID string, workersCount int) error
-    GetOperationProgress(operationID string) (*model.AggregatedProgress, error)
-    AssignOperationTablePart(operationID string, workerIndex int) (*model.OperationTablePart, error)
+    // Methods
 }
 ```
 
@@ -139,40 +138,6 @@ Key features:
 - Progress tracking
 - Error handling
 - State management
-
-## Plugin System
-
-```mermaid
-classDiagram
-    class Source {
-        <<interface>>
-        +Run(sink AsyncSink) error
-        +Stop()
-    }
-
-    class AsyncSink {
-        <<interface>>
-        +AsyncPush(items []ChangeItem) chan error
-        +Close() error
-    }
-
-    class Transformer {
-        <<interface>>
-        +Transform(items []ChangeItem) []ChangeItem
-    }
-
-    class Coordinator {
-        <<interface>>
-        +CreateOperationWorkers()
-        +GetOperationProgress()
-        +AssignOperationTablePart()
-    }
-
-    Source --> AsyncSink
-    Transformer --> AsyncSink
-    Coordinator --> Source
-    Coordinator --> AsyncSink
-```
 
 ## Data Processing Pipeline
 
@@ -209,8 +174,8 @@ graph LR
 ```mermaid
 graph TD
     A[Error Occurs] --> B{Error Type}
-    B -->|Transient| C[Retry Logic]
-    B -->|Permanent| D[Error Handler]
+    B -->|Not Fatal| C[Retry Logic]
+    B -->|Fatal| D[Error Handler]
     C --> E{Retry Count}
     E -->|Max Retries| D
     E -->|Retry Available| F[Backoff]

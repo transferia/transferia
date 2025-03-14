@@ -149,9 +149,9 @@ When working with the data loading system:
    - Monitor memory usage
    - Implement proper batching
 
-## Example: Custom Upload Implementation
+## Oversimplified loader
 
-Here's an example of implementing a custom upload process:
+Here's an example of oversimplified upload process:
 
 ```go
 func (l *CustomLoader) Upload(ctx context.Context) error {

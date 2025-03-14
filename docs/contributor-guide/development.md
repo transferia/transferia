@@ -47,13 +47,12 @@ transferia/
 
 ### 1. Setting Up Development Environment
 
-```mermaid
-graph TD
-    A[Clone Repository] --> B[Install Dependencies]
-    B --> C[Build Project]
-    C --> D[Run Tests]
-    D --> E[Start Development]
-```
+Development environment setup process:
+1. Clone the repository
+2. Install all required dependencies
+3. Build the project
+4. Run tests to verify setup
+5. Start development work
 
 ### 2. Making Changes
 
@@ -79,14 +78,14 @@ graph TD
 
 ### 3. Code Review Process
 
-```mermaid
-graph LR
-    A[Submit PR] --> B[Code Review]
-    B --> C{Changes Needed}
-    C -->|Yes| D[Make Changes]
-    D --> B
-    C -->|No| E[Merge]
-```
+Code review workflow:
+1. Developer submits a Pull Request
+2. Code review is performed
+3. If changes are needed:
+   - Developer makes requested changes
+   - Returns to step 2
+4. If no changes needed:
+   - PR is merged
 
 ## Testing
 
@@ -154,14 +153,6 @@ logger.Info("Starting transfer",
 // Custom metrics
 metrics.Counter("transfer_operations_total").Inc()
 metrics.Gauge("transfer_latency_ms").Set(latency)
-```
-
-### Tracing
-
-```go
-// Distributed tracing
-ctx, span := tracer.Start(ctx, "transfer_operation")
-defer span.End()
 ```
 
 ## Documentation

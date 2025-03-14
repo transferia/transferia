@@ -170,8 +170,8 @@ Key features:
 ```mermaid
 graph TD
     A[Error] --> B{Error Type}
-    B -->|Transient| C[Retry]
-    B -->|Permanent| D[Fail]
+    B -->|Not Fatal| C[Retry]
+    B -->|Fatal| D[Fail]
     C --> E{Retry Count}
     E -->|Max| D
     E -->|Available| F[Backoff]
