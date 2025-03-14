@@ -31,6 +31,9 @@ links:
   - title: Deploy in k8s
     description: Create and configure your first production ready transfer in k8s.
     href: "deploy_k8s.md"
+  - title: Contributing
+    description: How to start developing {{product-name}}
+    href: "contributor-guide.md"
   - title: Concepts
     description: Familiarize yourself with {{product-name}} concepts.
     href: "concepts/index.md"
