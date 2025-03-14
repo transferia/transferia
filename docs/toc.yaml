@@ -9,6 +9,25 @@ items:
   - name: Architecture Overview
     href: architecture-overview.md
 
+  - name: Contributor Guide
+    items:
+      - name: Getting Started
+        href: contributor-guide/getting-started.md
+      - name: Architecture
+        href: contributor-guide/architecture.md
+      - name: Development
+        href: contributor-guide/development.md
+      - name: Core Concepts
+        href: contributor-guide/core-concepts.md
+      - name: Advanced Topics
+        href: contributor-guide/advanced.md
+      - name: Data Loading
+        href: contributor-guide/data-loading.md
+      - name: Plugins
+        href: contributor-guide/plugins.md
+      - name: Transformers
+        href: contributor-guide/transformers.md
+
   - name: Concepts
     items:
       - name: All concepts
@@ -37,6 +56,8 @@ items:
         href: concepts/schema-management.md
       - name: Logs
         href: concepts/logs.md
+      - name: Testing
+        href: concepts/testing.md
 
   - name: Use Cases
     items:
@@ -127,6 +148,8 @@ items:
         href: roadmap/roadmap_2024.md
       - name: "Roadmap 2025"
         href: roadmap/roadmap_2025.md
+  - name: Contributing
+    href: contributor-guide.md
   - name: Resolve issues with Transferia
     href: transfer-self-help.md
   - name: Questions and answers
