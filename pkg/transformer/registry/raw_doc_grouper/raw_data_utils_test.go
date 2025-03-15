@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
@@ -49,7 +48,6 @@ func TestProcessUpdateItem(t *testing.T) {
 		require.NotEmpty(t, hash)
 
 		updatedItem := processUpdateItem(item, additionalKeys[hash], addAdditionalKeys)
-		logger.Log.Infof("andreysss::updatedItem oldKeys : %v", updatedItem.OldKeys.KeyNames)
 		return updatedItem
 	}
 
