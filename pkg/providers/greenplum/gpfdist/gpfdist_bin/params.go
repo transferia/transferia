@@ -9,8 +9,7 @@ type GpfdistParams struct {
 	GpfdistBinPath string // Path to gpfdist executable.
 	ServiceSchema  string // ServiceSchema is a name of schema used for creating temporary objects.
 	Host           string // Host is for developers without full-qualified host name.
-	Port           int
-	PipesCnt       int // PipesCnt is number of pipes used by each gpfdist binary.
+	PipesCnt       int    // PipesCnt is number of pipes used by each gpfdist binary.
 }
 
 func (p *GpfdistParams) WithDefaults() {

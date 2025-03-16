@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -23,6 +25,8 @@ import (
 const (
 	openFifoTimeout = 600 * time.Second
 	defaultPipeMode = uint32(0644)
+	minPort         = 8500
+	maxPort         = 8600
 )
 
 type GpfdistMode string
@@ -190,30 +194,25 @@ func InitGpfdist(params GpfdistParams, mode GpfdistMode, conn *pgxpool.Pool) (*G
 			return nil, xerrors.Errorf("unable to resolve hostname: %w", err)
 		}
 	}
-	port := params.Port
-	if port == 0 {
-		port = 8500 // TODO: Map port in [8500; 8600) range if port is in use (e.g. by other instance of gpfdist).
-	}
 	pipesCnt := params.PipesCnt
 	if pipesCnt < 1 {
 		pipesCnt = 1
 	}
-
 	gpfdist := &Gpfdist{
-		cmd:           exec.Command(params.GpfdistBinPath, "-d", tmpDir, "-p", fmt.Sprint(port), "-w", "10"),
+		cmd:           exec.Command(params.GpfdistBinPath, "-d", tmpDir, "-p", fmt.Sprint(minPort), "-P", fmt.Sprint(maxPort), "-w", "10"),
 		host:          host,
-		port:          port,
 		workingDir:    tmpDir,
 		serviceSchema: params.ServiceSchema,
 		ddlExecutor:   NewGpfdistDDLExecutor(conn),
 		pipes:         nil,
 		mode:          mode,
+		port:          0,
 	}
 	if err := gpfdist.initPipes(pipesCnt); err != nil {
 		return nil, xerrors.Errorf("unable to init pipes: %w", err)
 	}
 
-	if err := startCmd(gpfdist.cmd); err != nil {
+	if err := gpfdist.startCmd(); err != nil {
 		return nil, xerrors.Errorf("unable to start gpfdist: %w", err)
 	}
 	return gpfdist, nil
@@ -226,28 +225,66 @@ func resolveHostname() (string, error) {
 	return os.Hostname()
 }
 
-func startCmd(cmd *exec.Cmd) error {
-	stderr, err := cmd.StderrPipe()
+func (g *Gpfdist) startCmd() error {
+	portChannel := make(chan int, 1)
+	stderr, err := g.cmd.StderrPipe()
 	if err != nil {
 		return xerrors.Errorf("unable to get stderr pipe: %w", err)
 	}
-	go processLog(stderr, log.ErrorLevel)
+	go processLog(stderr, log.ErrorLevel, nil)
 
-	stdout, err := cmd.StdoutPipe()
+	stdout, err := g.cmd.StdoutPipe()
 	if err != nil {
 		return xerrors.Errorf("unable to get stdout pipe: %w", err)
 	}
-	go processLog(stdout, log.InfoLevel)
+	go processLog(stdout, log.InfoLevel, portChannel)
 
 	logger.Log.Debugf("Will start gpfdist command")
-	return cmd.Start()
+	if err = g.cmd.Start(); err != nil {
+		return err
+	}
+	timer := time.NewTimer(time.Minute)
+	select {
+	case port := <-portChannel:
+		g.port = port
+		logger.Log.Debugf("Aquired port %d", g.port)
+		return nil
+	case <-timer.C:
+		err := g.cmd.Process.Kill()
+		if err != nil {
+			logger.Log.Errorf("Can't kill process %v", err)
+		}
+		return xerrors.Errorf("unable to aquire gpfdist port number")
+	}
 }
 
-func processLog(pipe io.ReadCloser, level log.Level) {
+func processLog(pipe io.ReadCloser, level log.Level, portChannel chan<- int) {
+	var r *regexp.Regexp
+	if portChannel != nil {
+		r = regexp.MustCompile("^Serving HTTP on port ([0-9]+)[^0-9]+")
+		defer func() {
+			if portChannel != nil {
+				close(portChannel)
+			}
+		}()
+	}
 	scanner := bufio.NewScanner(pipe)
 	logger.Log.Infof("Start processing gpfdist %s level logs", level.String())
 	for scanner.Scan() {
 		line := scanner.Text()
+		if portChannel != nil {
+			matches := r.FindStringSubmatch(line)
+			if len(matches) == 2 {
+				port, err := strconv.Atoi(matches[1])
+				if err != nil {
+					logger.Log.Errorf("Error parsing port '%s': %v", matches[1], err)
+				} else {
+					portChannel <- port
+				}
+				close(portChannel)
+				portChannel = nil
+			}
+		}
 		switch level {
 		case log.InfoLevel:
 			// logger.Log.Infof("Gpfdist: %s", line)
