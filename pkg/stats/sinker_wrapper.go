@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -55,7 +56,9 @@ func NewWrapperStats(registry metrics.Registry) *WrapperStats {
 
 func (s *WrapperStats) LogMaxReadLag(input []abstract.ChangeItem) {
 	oldestRow, _, _, _ := s.batchStats(input)
-	s.MaxReadLag.Set(time.Since(oldestRow).Seconds())
+	if !oldestRow.IsZero() {
+		s.MaxReadLag.Set(time.Since(oldestRow).Seconds())
+	}
 }
 
 func (s *WrapperStats) Log(logger log.Logger, startTime time.Time, input []abstract.ChangeItem, isDebugLog bool) {
@@ -67,12 +70,11 @@ func (s *WrapperStats) Log(logger log.Logger, startTime time.Time, input []abstr
 	}
 	s.ChangeItemsPushed.Add(int64(len(input)))
 	s.RowEventsPushed.Add(dataRowEvents)
-	if dataRowEvents > 0 {
+	if !oldestRow.IsZero() {
 		maxLag := time.Since(oldestRow)
 		if maxLag.Seconds() > 0 {
 			s.MaxLag.Set(maxLag.Seconds())
 		}
-
 	}
 	s.Timer.RecordDuration(time.Since(startTime))
 	logLine := fmt.Sprintf("Sink Committed %v row events (%v data row events, inflight: %s) in %v with %v - %v Lag. Catch up lag: %v in %v",
@@ -102,25 +104,36 @@ func (s *WrapperStats) Log(logger log.Logger, startTime time.Time, input []abstr
 	}
 }
 
-func (s *WrapperStats) batchStats(input []abstract.ChangeItem) (oldest time.Time, freshest time.Time, events int64, bytes uint64) {
-	oldest = time.Now()
-	freshest = time.Now().AddDate(-100, 0, 0)
+func (s *WrapperStats) batchStats(input []abstract.ChangeItem) (oldest time.Time, freshest time.Time, rowEvents int64, bytes uint64) {
+	oldest = time.Time{}
+	freshest = time.Time{}
+	itemsWithoutCommitTime := 0
 	for _, item := range input {
 		if !item.IsRowEvent() {
 			continue
 		}
 		bytes += item.Size.Values
-		events++
+		rowEvents++
 		rowTime := time.Unix(0, int64(item.CommitTime))
 		if item.CommitTime == 0 {
+			itemsWithoutCommitTime++
 			rowTime = time.Now()
 		}
-		if oldest.Sub(rowTime) > 0 {
+		if oldest.IsZero() && freshest.IsZero() {
+			// Init oldest and freshest.
+			oldest = rowTime
+			freshest = rowTime
+			continue
+		}
+		if oldest.Before(rowTime) {
 			oldest = rowTime
 		}
-		if freshest.Sub(rowTime) < 0 {
+		if freshest.After(rowTime) {
 			freshest = rowTime
 		}
 	}
-	return oldest, freshest, events, bytes
+	if itemsWithoutCommitTime > 0 {
+		logger.Log.Infof("%d of %d row-items have no CommitTime", itemsWithoutCommitTime, rowEvents)
+	}
+	return oldest, freshest, rowEvents, bytes
 }
