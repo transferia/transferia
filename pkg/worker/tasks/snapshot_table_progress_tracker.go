@@ -17,15 +17,12 @@ type SnapshotTableProgressTracker struct {
 	cancel          context.CancelFunc
 	pushTicker      *time.Ticker
 	waitForComplete sync.WaitGroup
-	closed          bool
+	closeOnce       *sync.Once
 
 	operationID         string
 	cpClient            coordinator.Coordinator
 	parts               map[string]*model.OperationTablePart
 	progressUpdateMutex *sync.Mutex
-
-	// TODO: Remove, A2 thing
-	progressFuncs map[string]func()
 }
 
 func NewSnapshotTableProgressTracker(
@@ -40,15 +37,12 @@ func NewSnapshotTableProgressTracker(
 		cancel:          cancel,
 		pushTicker:      nil,
 		waitForComplete: sync.WaitGroup{},
-		closed:          false,
+		closeOnce:       &sync.Once{},
 
 		operationID:         operationID,
 		cpClient:            cpClient,
 		parts:               map[string]*model.OperationTablePart{},
 		progressUpdateMutex: progressUpdateMutex,
-
-		// TODO: Remove, A2 thing
-		progressFuncs: map[string]func(){},
 	}
 
 	tracker.waitForComplete.Add(1)
@@ -65,35 +59,23 @@ func (t *SnapshotTableProgressTracker) run() {
 		case <-t.ctx.Done():
 			return
 		case <-t.pushTicker.C:
-			t.pushProgress()
+			t.Flush()
 		}
 	}
 }
 
-// Close
-// Safe to close few time, not thread safe;
-// But safe to use with defer and standalone call in same time;
+// Close is thread-safe. Only first call will make sense.
 func (t *SnapshotTableProgressTracker) Close() {
-	if t.closed {
-		return
-	}
-
-	t.pushTicker.Stop()
-	t.cancel()
-	t.waitForComplete.Wait()
-
-	t.pushProgress()
-	t.closed = true
+	t.closeOnce.Do(func() {
+		t.pushTicker.Stop()
+		t.cancel()
+		t.waitForComplete.Wait()
+		t.Flush()
+	})
 }
 
-func (t *SnapshotTableProgressTracker) pushProgress() {
+func (t *SnapshotTableProgressTracker) Flush() {
 	t.progressUpdateMutex.Lock()
-
-	// TODO: Remove, A2 thing
-	for _, progressFunc := range t.progressFuncs {
-		progressFunc()
-	}
-
 	partsCopy := make([]*model.OperationTablePart, 0, len(t.parts))
 	for _, table := range t.parts {
 		partsCopy = append(partsCopy, table.Copy())
@@ -131,22 +113,4 @@ func (t *SnapshotTableProgressTracker) Add(part *model.OperationTablePart) {
 	t.progressUpdateMutex.Lock()
 	defer t.progressUpdateMutex.Unlock()
 	t.parts[part.Key()] = part
-}
-
-func (t *SnapshotTableProgressTracker) Flush() {
-	t.pushProgress()
-}
-
-// AddGetProgress TODO: Remove, A2 thing
-func (t *SnapshotTableProgressTracker) AddGetProgress(part *model.OperationTablePart, progressFunc func()) {
-	t.progressUpdateMutex.Lock()
-	defer t.progressUpdateMutex.Unlock()
-	t.progressFuncs[part.Key()] = progressFunc
-}
-
-// RemoveGetProgress TODO: Remove, A2 thing
-func (t *SnapshotTableProgressTracker) RemoveGetProgress(part *model.OperationTablePart) {
-	t.progressUpdateMutex.Lock()
-	defer t.progressUpdateMutex.Unlock()
-	delete(t.progressFuncs, part.Key())
 }

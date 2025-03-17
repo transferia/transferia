@@ -560,6 +560,9 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 		}
 
 		go func() {
+			defer waitToComplete.Done()
+			defer parallelismSemaphore.Release(1)
+
 			upload := func() error {
 				if ctx.Err() != nil {
 					logger.Log.Warn(
@@ -610,13 +613,28 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 						log.Any("table_part", nextTablePart), log.Int("worker_index", l.workerIndex))
 				}
 
-				progressTracker.AddGetProgress(nextTablePart, getProgress)
+				// Run background `nextTablePart.CompletedRows` updater.
+				updaterCtx, cancelUpdater := context.WithCancel(context.Background())
+				defer cancelUpdater()
+				go func() {
+					ticker := time.NewTicker(15 * time.Second)
+					defer ticker.Stop()
+					for {
+						select {
+						case <-updaterCtx.Done():
+							getProgress() // Final call.
+							return
+						case <-ticker.C:
+							getProgress()
+						}
+					}
+				}()
 
 				if err := snapshotSource.Start(ctx, dataTarget); err != nil {
 					return xerrors.Errorf("unable upload part %v: %w", dataObjectPart.FullName(), err)
 				}
 
-				progressTracker.RemoveGetProgress(nextTablePart)
+				cancelUpdater()
 
 				l.progressUpdateMutex.Lock()
 				nextTablePart.Completed = true
@@ -630,8 +648,6 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 				return nil
 			}
 
-			defer waitToComplete.Done()
-			defer parallelismSemaphore.Release(1)
 			b := backoff.WithMaxRetries(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0)), 3)
 			operation := func() error {
 				uploadErr := upload()
