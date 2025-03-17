@@ -107,11 +107,13 @@ func Collapse(input []ChangeItem) []ChangeItem {
 			hashKToIdx[newHashK] = i
 
 		case DeleteKind:
-			if current, ok := rows[hashK]; ok && len(current.OldKeys.KeyValues) > 0 {
-				c.ColumnValues = current.OldKeys.KeyValues
+			current, ok := rows[hashK]
+			delete(rows, hashK)
+			if ok && len(current.OldKeys.KeyValues) > 0 {
+				c.OldKeys = current.OldKeys
+				hashK = c.OldOrCurrentKeysString(keyCols)
 			}
 			toDelete[hashK] = c
-			delete(rows, hashK)
 		default:
 			res = append(res, c)
 		}

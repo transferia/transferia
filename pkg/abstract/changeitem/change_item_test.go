@@ -580,11 +580,10 @@ func TestCollapse(t *testing.T) {
 			Schema:      "ppc",
 			Table:       "camp_options",
 			TableSchema: NewTableSchema([]ColSchema{{PrimaryKey: true, ColumnName: "cid"}}),
-			ColumnNames: []string{
-				"cid",
-			},
-			ColumnValues: []interface{}{
-				51615525,
+			ColumnNames: []string{},
+			OldKeys: OldKeysType{
+				KeyNames:  []string{"cid"},
+				KeyValues: []interface{}{51615525},
 			},
 		}}
 		Dump(changes)
@@ -592,7 +591,7 @@ func TestCollapse(t *testing.T) {
 		Dump(res)
 		assert.Equal(t, len(res), 1)
 		assert.Equal(t, res[0].Kind, DeleteKind)
-		assert.Equal(t, res[0].ColumnValues[0], 51615524)
+		assert.Equal(t, res[0].OldKeys.KeyValues[0], 51615524)
 	})
 	t.Run("Insert Update Delete Insert", func(t *testing.T) {
 		changes := []ChangeItem{{
