@@ -287,7 +287,7 @@ func processLog(pipe io.ReadCloser, level log.Level, portChannel chan<- int) {
 		}
 		switch level {
 		case log.InfoLevel:
-			// logger.Log.Infof("Gpfdist: %s", line)
+			logger.Log.Infof("Gpfdist: %s", line)
 		default:
 			logger.Log.Errorf("Gpfdist: %s", line)
 		}
