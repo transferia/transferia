@@ -14,6 +14,7 @@ import (
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/dustin/go-humanize"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
@@ -24,6 +25,8 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/errgroup"
 )
+
+const defaultBlockSize = humanize.MiByte
 
 var (
 	_ Reader     = (*GenericParserReader)(nil)
@@ -267,7 +270,7 @@ func NewGenericParserReader(src *s3.S3Source, lgr log.Logger, sess *session.Sess
 		logger:      lgr,
 		tableSchema: abstract.NewTableSchema(src.OutputSchema),
 		pathPrefix:  src.PathPrefix,
-		blockSize:   1 * 1024 * 1024, // 1mb
+		blockSize:   defaultBlockSize,
 		pathPattern: src.PathPattern,
 		metrics:     metrics,
 		parser:      parser,

@@ -1014,7 +1014,12 @@ func (l *SnapshotLoader) DoUploadTables(ctx context.Context, source abstract.Sto
 
 			expBackoff := backoff.NewExponentialBackOff()
 			expBackoff.MaxElapsedTime = 0
-			if err := backoff.Retry(upload, backoff.WithMaxRetries(expBackoff, 3)); err != nil {
+			notify := func(err error, dur time.Duration) {
+				logger.Log.Error(
+					fmt.Sprintf("Upload table '%v' on worker %v failed, will retry after %s", nextPart, l.workerIndex, dur),
+					log.Any("table_part", nextPart), log.Int("worker_index", l.workerIndex), log.Error(err))
+			}
+			if err := backoff.RetryNotify(upload, backoff.WithMaxRetries(expBackoff, 3), notify); err != nil {
 				errorOnce.Do(func() { tableUploadErr = err })
 				cancel()
 				logger.Log.Error(

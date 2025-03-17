@@ -58,15 +58,21 @@ type IsObj func(file *aws_s3.Object) bool
 
 // ListFiles lists all files matching the pathPattern in a bucket.
 // A fast circuit breaker is built in for schema resolution where we do not need the full list of objects.
-func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, logger log.Logger, maxResults *int, isObj IsObj) ([]*aws_s3.Object, error) {
+func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, logger log.Logger, limit *int, isObj IsObj) ([]*aws_s3.Object, error) {
 	var currentMarker *string
 	var res []*aws_s3.Object
 	fastStop := false
 	for {
+		listBatchSize := int64(1000)
+		if limit != nil {
+			remaining := max(0, int64(*limit-len(res)))
+			// For example, if remaining == 1, its more effective to list 1 object than 1000.
+			listBatchSize = min(listBatchSize, remaining)
+		}
 		files, err := client.ListObjects(&aws_s3.ListObjectsInput{
 			Bucket:  aws.String(bucket),
 			Prefix:  aws.String(pathPrefix),
-			MaxKeys: aws.Int64(1000), // set explicitly
+			MaxKeys: aws.Int64(listBatchSize),
 			Marker:  currentMarker,
 		})
 		if err != nil {
@@ -81,7 +87,7 @@ func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, log
 			res = append(res, file)
 
 			// for schema resolution we can stop the process of file fetching faster since we need only 1 file
-			if maxResults != nil && *maxResults == len(res) {
+			if limit != nil && *limit == len(res) {
 				fastStop = true
 				break
 			}
@@ -90,7 +96,7 @@ func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, log
 			currentMarker = files.Contents[len(files.Contents)-1].Key
 		}
 
-		if fastStop || len(files.Contents) < 1000 {
+		if fastStop || int64(len(files.Contents)) < listBatchSize {
 			break
 		}
 	}
@@ -170,7 +176,7 @@ func New(
 			parser,
 		)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to initialize new csv reader: %w", err)
+			return nil, xerrors.Errorf("failed to initialize new generic reader: %w", err)
 		}
 		return reader, nil
 	case model.ParsingFormatLine:
