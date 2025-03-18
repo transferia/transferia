@@ -70,14 +70,20 @@ func (r *GenericParserReader) estimateRows(ctx context.Context, files []*aws_s3.
 	eg.SetLimit(8)
 	for _, file := range files {
 		eg.Go(func() error {
-			reader, err := r.openReader(ctx, *file.Key)
-			if err != nil {
-				return xerrors.Errorf("unable to open reader for file: %s: %w", *file.Key, err)
-			}
-			size := reader.Size()
-			if randomReader == nil && size > 0 {
-				// Since we need just one random reader, race here is not a problem.
-				randomReader = reader
+			var size int64
+			if file.Size != nil {
+				size = *file.Size
+			} else {
+				r.logger.Warnf("size of file %s is unknown, will measure", *file.Key)
+				reader, err := r.openReader(ctx, *file.Key)
+				if err != nil {
+					return xerrors.Errorf("unable to open reader for file: %s: %w", *file.Key, err)
+				}
+				size = reader.Size()
+				if randomReader == nil && size > 0 {
+					// Since we need just one random reader, race here is not a problem.
+					randomReader = reader
+				}
 			}
 			totalSize.Add(size)
 			return nil
