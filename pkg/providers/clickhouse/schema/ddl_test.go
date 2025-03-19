@@ -69,6 +69,14 @@ func TestSetReplicatedEngine(t *testing.T) {
 		"CREATE TABLE default.search_conversions ( `search_uuid` String, `search_id` Int32, `uuid` String, `client_id` UInt32, `search_date` Date, `updated_at` UInt32, `search_at` UInt32, `pageview_at` Nullable(UInt32), INDEX hp pageview_at TYPE minmax GRANULARITY 1) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/default.search_conversions_cdc', '{replica}') PARTITION BY search_date ORDER BY (uuid, search_id) SETTINGS index_granularity = 8192",
 		changedDDL,
 	)
+
+	ddl = "CREATE TABLE db1.cyrillic\n(\n    `id` Int64,\n    `кириллица` String,\n    `value` String\n)\nENGINE = MergeTree\nORDER BY id\nSETTINGS index_granularity = 8192"
+	changedDDL, err = SetReplicatedEngine(ddl, "MergeTree", "default", "search_conversions")
+	require.NoError(t, err)
+	require.Equal(t,
+		"CREATE TABLE db1.cyrillic\n(\n    `id` Int64,\n    `кириллица` String,\n    `value` String\n)\nENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/default.search_conversions_cdc', '{replica}')\nORDER BY id\nSETTINGS index_granularity = 8192",
+		changedDDL,
+	)
 }
 
 func TestSetIfNotExists(t *testing.T) {

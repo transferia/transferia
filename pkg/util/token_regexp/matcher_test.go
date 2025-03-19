@@ -105,4 +105,17 @@ func TestMatcher(t *testing.T) {
 		require.Equal(t, "on cluster my_cluster", abstract.ResolveMatchedOps(originalStr, capturingGroups[0]))
 		require.Equal(t, "q", abstract.ResolveMatchedOps(originalStr, capturingGroups[1]))
 	})
+
+	t.Run("capturing group with cyrillic", func(t *testing.T) {
+		originalStr := "CREATE TABLE db1.cyrillic\n(\n    `id` Int64,\n    `кириллица` String,\n    `value` String\n)\nENGINE = MergeTree\nORDER BY id\nSETTINGS index_granularity = 8192\n"
+		tokens := clickhouse_lexer.StringToTokens(originalStr)
+		currMatcher := NewTokenRegexp(queryFull)
+		results := currMatcher.FindAll(tokens)
+		require.Equal(t, 1, results.Size())
+		matchedPath := results.Index(0)
+		capturingGroups := matchedPath.CapturingGroupArr()
+		require.Equal(t, 2, len(capturingGroups))
+		require.Equal(t, "", abstract.ResolveMatchedOps(originalStr, capturingGroups[0]))
+		require.Equal(t, "MergeTree", abstract.ResolveMatchedOps(originalStr, capturingGroups[1]))
+	})
 }

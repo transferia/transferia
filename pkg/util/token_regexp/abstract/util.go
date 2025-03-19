@@ -1,7 +1,12 @@
 package abstract
 
-import "math"
+import (
+	"math"
+)
 
+// tokensMinMaxPos - returns minPos & maxPos & is_found
+//
+// remember, that 'pos' here - it's number of rune in source text. To extract them - need to use something like golang.org/x/exp/utf8string or substringByRuneRange
 func tokensMinMaxPos(tokens []*Token) (int, int, bool) {
 	var currMin = math.MaxInt
 	var currMax = math.MinInt
@@ -18,6 +23,9 @@ func tokensMinMaxPos(tokens []*Token) (int, int, bool) {
 	return currMin, currMax, currMin != math.MaxInt && currMax != math.MinInt
 }
 
+// tokensMinMaxPosArr - returns minPos & maxPos & is_found
+//
+// remember, that 'pos' here - it's number of rune in source text. To extract them - need to use something like golang.org/x/exp/utf8string or substringByRuneRange
 func tokensMinMaxPosArr(in []*MatchedOp) (int, int, bool) {
 	var currMin = math.MaxInt
 	var currMax = math.MinInt
@@ -42,5 +50,9 @@ func ResolveMatchedOps(originalStr string, in []*MatchedOp) string {
 	if !isFound {
 		return ""
 	}
-	return originalStr[currMin : currMax+1]
+	return substringByRuneRange(originalStr, currMin, currMax)
+}
+
+func substringByRuneRange(in string, startRunePos, endRunePos int) string {
+	return string([]rune(in)[startRunePos : endRunePos+1])
 }

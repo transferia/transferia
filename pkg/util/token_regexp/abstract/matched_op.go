@@ -10,7 +10,7 @@ func (r *MatchedOp) MatchedSubstring(originalStr string) (string, bool) {
 	if !isFound {
 		return "", false
 	}
-	return originalStr[currMin : currMax+1], true
+	return substringByRuneRange(originalStr, currMin, currMax), true
 }
 
 func NewMatchedOp(op Op, tokens []*Token) *MatchedOp {
