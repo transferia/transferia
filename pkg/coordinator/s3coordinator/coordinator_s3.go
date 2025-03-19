@@ -33,6 +33,7 @@ type CoordinatorS3 struct {
 	s3Client *s3.S3
 	bucket   string
 	lgr      log.Logger
+	path     string
 }
 
 // GetTransferState fetches all state objects with a given transferID (prefix).
@@ -351,18 +352,26 @@ func (c *CoordinatorS3) FinishOperation(operationID string, shardIndex int, task
 
 // Utility functions to interact with S3.
 func (c *CoordinatorS3) putObject(key string, body []byte) error {
+	fullKey := key
+	if c.path != "" {
+		fullKey = c.path + "/" + key
+	}
 	_, err := c.s3Client.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(c.bucket),
-		Key:    aws.String(key),
+		Key:    aws.String(fullKey),
 		Body:   bytes.NewReader(body),
 	})
 	return err
 }
 
 func (c *CoordinatorS3) getObject(key string) ([]byte, error) {
+	fullKey := key
+	if c.path != "" {
+		fullKey = c.path + "/" + key
+	}
 	resp, err := c.s3Client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(c.bucket),
-		Key:    aws.String(key),
+		Key:    aws.String(fullKey),
 	})
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get: %s: key: %w", key, err)
@@ -373,9 +382,13 @@ func (c *CoordinatorS3) getObject(key string) ([]byte, error) {
 }
 
 func (c *CoordinatorS3) listObjects(prefix string) ([]*s3.Object, error) {
+	fullPrefix := prefix
+	if c.path != "" {
+		fullPrefix = c.path + "/" + prefix
+	}
 	listInput := &s3.ListObjectsV2Input{
 		Bucket: aws.String(c.bucket),
-		Prefix: aws.String(prefix),
+		Prefix: aws.String(fullPrefix),
 	}
 	listResp, err := c.s3Client.ListObjectsV2(listInput)
 	if err != nil {
@@ -385,7 +398,7 @@ func (c *CoordinatorS3) listObjects(prefix string) ([]*s3.Object, error) {
 }
 
 // NewS3 creates a new CoordinatorS3 with AWS SDK v1.
-func NewS3(bucket string, l log.Logger, cfgs ...*aws.Config) (*CoordinatorS3, error) {
+func NewS3(bucket string, l log.Logger, path string, cfgs ...*aws.Config) (*CoordinatorS3, error) {
 	sess, err := session.NewSession(cfgs...)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create AWS session: %w", err)
