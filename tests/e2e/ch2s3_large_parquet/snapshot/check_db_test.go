@@ -27,7 +27,7 @@ import (
 var (
 	testBucket   = s3_provider.EnvOrDefault("TEST_BUCKET", "barrel")
 	TransferType = abstract.TransferTypeSnapshotOnly
-	Source       = *chrecipe.MustSource(chrecipe.WithInitFile("snapshot/dump/src.sql"), chrecipe.WithDatabase("clickhouse_test"))
+	Source       = *chrecipe.MustSource(chrecipe.WithInitFile("dump/src.sql"), chrecipe.WithDatabase("clickhouse_test"))
 )
 
 func TestSnapshotParquet(t *testing.T) {
