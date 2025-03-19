@@ -99,7 +99,7 @@ func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unable to use gpfdist: %w", err)
 	}
 	if isGpfdist {
-		sink, err := NewGpfdistSink(dst, p.registry)
+		sink, err := NewGpfdistSink(dst, p.registry, p.logger, p.transfer.ID)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create gpfidst sink: %w", err)
 		}

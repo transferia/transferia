@@ -106,12 +106,11 @@ func (r *PipesReader) runImpl(pusher abstract.Pusher) error {
 			}
 		}
 	}()
-	rows := atomic.Int64{}
 	eg := errgroup.Group{}
 	for _, pipe := range pipes {
 		eg.Go(func() error {
 			curRows, err := r.readFromPipe(pipe, pusher)
-			rows.Add(curRows)
+			r.pushedCnt.Add(curRows)
 			return err
 		})
 	}
