@@ -136,6 +136,6 @@ func getParquetFileRowCount(obj *s3.GetObjectOutput) (int64, error) {
 	}
 	defer parquetReader.Close()
 
-	rowCount := parquetReader.MetaData().NumRows
+	rowCount := parquetReader.NumRows()
 	return rowCount, nil
 }
