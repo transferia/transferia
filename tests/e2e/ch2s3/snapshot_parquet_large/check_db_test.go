@@ -1,12 +1,9 @@
-package snapshot
+package snapshot_parquet_large
 
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
-	"fmt"
-	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/apache/arrow/go/v14/parquet/file"
+	"github.com/parquet-go/parquet-go"
 	"io"
 	"testing"
 	"time"
@@ -19,6 +16,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	ch_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	s3_provider "github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/tests/helpers"
@@ -27,7 +25,23 @@ import (
 var (
 	testBucket   = s3_provider.EnvOrDefault("TEST_BUCKET", "barrel")
 	TransferType = abstract.TransferTypeSnapshotOnly
-	Source       = *chrecipe.MustSource(chrecipe.WithInitFile("dump/src.sql"), chrecipe.WithDatabase("clickhouse_test"))
+	Source       = *chrecipe.MustSource(chrecipe.WithInitFile("src.sql"), chrecipe.WithDatabase("clickhouse_test"))
+	Target       = ch_model.ChDestination{
+		ShardsList: []ch_model.ClickHouseShard{
+			{
+				Name: "_",
+				Hosts: []string{
+					"localhost",
+				},
+			},
+		},
+		User:                "default",
+		Password:            "",
+		Database:            "clickhouse_test",
+		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		ProtocolUnspecified: true,
+	}
 )
 
 func TestSnapshotParquet(t *testing.T) {
@@ -83,33 +97,7 @@ func TestSnapshotParquet(t *testing.T) {
 	parquetRowCount, err := getParquetFileRowCount(obj)
 	require.NoError(t, err)
 
-	tableRowCount, err := getClickHouseTableRowCount()
-
-	require.NoError(t, err)
-	require.Equal(t, tableRowCount, parquetRowCount, "No of rows in table does not match parquet file row count")
-}
-
-func getClickHouseTableRowCount() (int64, error) {
-	conn, err := clickhouse.Open(&clickhouse.Options{
-		Addr: []string{fmt.Sprintf("localhost:%d", Source.NativePort)},
-		Auth: clickhouse.Auth{
-			Database: Source.Database,
-			Username: Source.User,
-		},
-		Protocol: clickhouse.Native, // Native protocol (faster)
-	})
-	if err != nil {
-		return 0, err
-	}
-	defer conn.Close()
-
-	var rowCount uint64
-	err = conn.QueryRow(context.Background(), "SELECT COUNT(*) FROM clickhouse_test.sample").Scan(&rowCount)
-	if err != nil {
-		return 0, err
-	}
-
-	return int64(rowCount), nil
+	helpers.CheckRowsCount(t, &Target, "clickhouse_test", "sample", uint64(parquetRowCount))
 }
 
 func getParquetFileRowCount(obj *s3.GetObjectOutput) (int64, error) {
@@ -130,12 +118,13 @@ func getParquetFileRowCount(obj *s3.GetObjectOutput) (int64, error) {
 		return 0, err
 	}
 
-	parquetReader, err := file.NewParquetReader(bytes.NewReader(parquetData))
+	parquetFile, err := parquet.OpenFile(bytes.NewReader(parquetData), int64(len(parquetData)), &parquet.FileConfig{
+		SkipPageIndex:    true,
+		SkipBloomFilters: true,
+	})
 	if err != nil {
 		return 0, err
 	}
-	defer parquetReader.Close()
 
-	rowCount := parquetReader.NumRows()
-	return rowCount, nil
+	return parquetFile.NumRows(), nil
 }
