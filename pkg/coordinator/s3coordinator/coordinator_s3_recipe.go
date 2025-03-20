@@ -23,7 +23,7 @@ func envOrDefault(key, def string) string {
 	return def
 }
 
-func NewS3Recipe(bucket string) (*CoordinatorS3, error) {
+func NewS3Recipe(bucket string, path ...string) (*CoordinatorS3, error) {
 	if tcrecipes.Enabled() {
 		_, err := objectstorage.Prepare(context.Background())
 		if err != nil {
@@ -55,9 +55,15 @@ func NewS3Recipe(bucket string) (*CoordinatorS3, error) {
 		// No need to check error because maybe the bucket already exists
 		logger.Log.Info("create bucket result", log.Any("res", res), log.Error(err))
 	}
+
+	pathStr := ""
+	if len(path) > 0 {
+		pathStr = path[0]
+	}
+
 	cp, err := NewS3(
 		bucket,
-		"",
+		pathStr,
 		logger.Log,
 		&aws.Config{
 			Region:           aws.String(region),
