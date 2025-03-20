@@ -352,10 +352,7 @@ func (c *CoordinatorS3) FinishOperation(operationID string, shardIndex int, task
 
 // Utility functions to interact with S3.
 func (c *CoordinatorS3) putObject(key string, body []byte) error {
-	fullKey := key
-	if c.path != "" {
-		fullKey = c.path + "/" + key
-	}
+	fullKey := c.fullKey(key)
 	_, err := c.s3Client.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(c.bucket),
 		Key:    aws.String(fullKey),
@@ -365,10 +362,7 @@ func (c *CoordinatorS3) putObject(key string, body []byte) error {
 }
 
 func (c *CoordinatorS3) getObject(key string) ([]byte, error) {
-	fullKey := key
-	if c.path != "" {
-		fullKey = c.path + "/" + key
-	}
+	fullKey := c.fullKey(key)
 	resp, err := c.s3Client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(c.bucket),
 		Key:    aws.String(fullKey),
@@ -382,10 +376,7 @@ func (c *CoordinatorS3) getObject(key string) ([]byte, error) {
 }
 
 func (c *CoordinatorS3) listObjects(prefix string) ([]*s3.Object, error) {
-	fullPrefix := prefix
-	if c.path != "" {
-		fullPrefix = c.path + "/" + prefix
-	}
+	fullPrefix := c.fullKey(prefix)
 	listInput := &s3.ListObjectsV2Input{
 		Bucket: aws.String(c.bucket),
 		Prefix: aws.String(fullPrefix),
@@ -397,8 +388,16 @@ func (c *CoordinatorS3) listObjects(prefix string) ([]*s3.Object, error) {
 	return listResp.Contents, nil
 }
 
+func (c *CoordinatorS3) fullKey(key string) string {
+	fullKey := key
+	if c.path != "" {
+		fullKey = c.path + "/" + key
+	}
+	return fullKey
+}
+
 // NewS3 creates a new CoordinatorS3 with AWS SDK v1.
-func NewS3(bucket string, l log.Logger, path string, cfgs ...*aws.Config) (*CoordinatorS3, error) {
+func NewS3(bucket string, path string, l log.Logger, cfgs ...*aws.Config) (*CoordinatorS3, error) {
 	sess, err := session.NewSession(cfgs...)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create AWS session: %w", err)

@@ -57,8 +57,8 @@ func NewS3Recipe(bucket string) (*CoordinatorS3, error) {
 	}
 	cp, err := NewS3(
 		bucket,
-		logger.Log,
 		"",
+		logger.Log,
 		&aws.Config{
 			Region:           aws.String(region),
 			Credentials:      credentials.NewStaticCredentials(accessKey, secret, ""),
