@@ -103,7 +103,7 @@ func InitGpfdistTableSink(
 	// Run PipesWriter that would asyncly serve its `.Write()` method calls.
 	pipesWriter, err := gpfdist.InitPipesWriter(gpfd)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to init pipes writer")
+		return nil, xerrors.Errorf("unable to init pipes writer: %w", err)
 	}
 
 	return &GpfdistTableSink{
