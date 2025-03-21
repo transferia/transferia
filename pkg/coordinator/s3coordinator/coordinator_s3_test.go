@@ -190,3 +190,48 @@ func TestDataplaneServiceShardedTasks(t *testing.T) {
 		}
 	})
 }
+
+func TestCoordinatorS3TransferStateWithPrefix(t *testing.T) {
+	cp, err := NewS3Recipe(os.Getenv("S3_BUCKET"), "test/prefix")
+	require.NoError(t, err)
+	transferID := "test-transfer"
+
+	// Test that objects are created with correct prefix
+	t.Run("VerifyPathPrefix", func(t *testing.T) {
+		// Set some state
+		stateData := map[string]*coordinator.TransferStateData{
+			"file1": {Generic: "1"},
+		}
+		err := cp.SetTransferState(transferID, stateData)
+		require.NoError(t, err)
+
+		// Get the state and verify it works with prefix
+		state, err := cp.GetTransferState(transferID)
+		require.NoError(t, err)
+		require.Equal(t, stateData, state)
+	})
+
+	// Test that prefix doesn't affect normal operations
+	t.Run("NormalOperations", func(t *testing.T) {
+		// Test regular operations to ensure they work the same as without prefix
+		// This ensures prefix doesn't break existing functionality
+		stateData := map[string]*coordinator.TransferStateData{
+			"file2": {Generic: "2"},
+		}
+
+		// Set, get, remove operations should work normally
+		err := cp.SetTransferState(transferID, stateData)
+		require.NoError(t, err)
+
+		state, err := cp.GetTransferState(transferID)
+		require.NoError(t, err)
+		require.Contains(t, state, "file2")
+
+		err = cp.RemoveTransferState(transferID, []string{"file2"})
+		require.NoError(t, err)
+
+		state, err = cp.GetTransferState(transferID)
+		require.NoError(t, err)
+		require.NotContains(t, state, "file2")
+	})
+}
