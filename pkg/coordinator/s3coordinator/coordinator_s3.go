@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -389,11 +390,10 @@ func (c *CoordinatorS3) listObjects(prefix string) ([]*s3.Object, error) {
 }
 
 func (c *CoordinatorS3) fullKey(key string) string {
-	fullKey := key
-	if c.path != "" {
-		fullKey = c.path + "/" + key
+	if c.path == "" {
+		return key
 	}
-	return fullKey
+	return path.Join(c.path, key)
 }
 
 // NewS3 creates a new CoordinatorS3 with AWS SDK v1.
