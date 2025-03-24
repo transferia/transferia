@@ -2763,8 +2763,8 @@ github.com/ydb-platform/ydb-go-genproto v0.0.0-20221215182650-986f9d10542f/go.mo
 github.com/ydb-platform/ydb-go-genproto v0.0.0-20241112172322-ea1f63298f77 h1:LY6cI8cP4B9rrpTleZk95+08kl2gF4rixG7+V/dwL6Q=
 github.com/ydb-platform/ydb-go-genproto v0.0.0-20241112172322-ea1f63298f77/go.mod h1:Er+FePu1dNUieD+XTMDduGpQuCPssK5Q4BjF+IIXJ3I=
 github.com/ydb-platform/ydb-go-sdk/v3 v3.44.0/go.mod h1:oSLwnuilwIpaF5bJJMAofnGgzPJusoI3zWMNb8I+GnM=
-github.com/ydb-platform/ydb-go-sdk/v3 v3.99.10 h1:nkAVBcMT0vZRlgBqBinvVuewD7nrS1EfYRMeH7quZfo=
-github.com/ydb-platform/ydb-go-sdk/v3 v3.99.10/go.mod h1:knXehPLqrF/uBrYY0EbDtAMR+Ve8sAwIm/pNsfvbs7E=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.104.6 h1:8ECRvaU+UuFnZ3AI3BHuUunIl596J68lwc8dHJ5eXw4=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.104.6/go.mod h1:knXehPLqrF/uBrYY0EbDtAMR+Ve8sAwIm/pNsfvbs7E=
 github.com/ydb-platform/ydb-go-yc-metadata v0.6.1 h1:9E5q8Nsy2RiJMZDNVy0A3KUrIMBPakJ2VgloeWbcI84=
 github.com/ydb-platform/ydb-go-yc-metadata v0.6.1/go.mod h1:NW4LXW2WhY2tLAwCBHBuHAwRUVF5lsscaSPjdAFKldc=
 github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d/go.mod h1:rHwXgn7JulP+udvsHwJoVG1YGAP6VLg4y9I5dyZdqmA=
