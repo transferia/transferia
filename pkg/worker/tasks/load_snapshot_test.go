@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
+	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 )
 
 func TestCheckIncludeDirectives_DataObjects_NoError(t *testing.T) {
@@ -97,4 +99,20 @@ func TestCheckIncludeDirectives_Src_Error(t *testing.T) {
 	err := snapshotLoader.CheckIncludeDirectives(tables)
 	require.Error(t, err)
 	require.Equal(t, "some tables from include list are missing in the source database: [schema1.table2 schema2.*]", err.Error())
+}
+
+func TestDoUploadTables_CtxCancelledNoErr(t *testing.T) {
+	transfer := new(model.Transfer)
+	transfer.Src = &postgres.PgSource{DBTables: []string{
+		"schema1.table1",
+		"schema1.table2",
+		"schema2.*",
+	}}
+
+	storage := &mockstorage.MockStorage{}
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := snapshotLoader.DoUploadTables(ctx, storage, snapshotLoader.GetLocalTablePartProvider())
+	require.NoError(t, err)
 }

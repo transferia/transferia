@@ -534,7 +534,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 
 	progressTracker := NewSnapshotTableProgressTracker(ctx, l.operationID, l.cp, &l.progressUpdateMutex)
 
-	for {
+	for ctx.Err() == nil {
 		if err := parallelismSemaphore.Acquire(ctx, 1); err != nil {
 			return errors.CategorizedErrorf(categories.Internal, "failed to acquire semaphore: %w", err)
 		}

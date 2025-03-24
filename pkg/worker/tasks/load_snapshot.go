@@ -869,7 +869,7 @@ func (l *SnapshotLoader) DoUploadTables(ctx context.Context, source abstract.Sto
 
 	progressTracker := NewSnapshotTableProgressTracker(ctx, l.operationID, l.cp, &l.progressUpdateMutex)
 
-	for {
+	for ctx.Err() == nil {
 		if err := parallelismSemaphore.Acquire(ctx, 1); err != nil {
 			logger.Log.Error("Failed to acquire semaphore to load next table", log.Any("worker_index", l.workerIndex), log.Error(ctx.Err()))
 			if tableUploadErr != nil {
