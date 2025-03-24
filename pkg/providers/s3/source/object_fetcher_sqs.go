@@ -95,7 +95,7 @@ func (s *sqsSource) fetchMessages() ([]Object, error) {
 					if reader.SkipObject(&aws_s3.Object{
 						Key:  aws.String(unescapedKey),
 						Size: aws.Int64(record.S3.Object.Size),
-					}, s.pathPattern, "|", s.reader.IsObj) {
+					}, s.pathPattern, "|", s.reader.ObjectsFilter()) {
 						s.logger.Infof("File did not pass type/path check, skipping: file %s, pathPattern: %s", unescapedKey, s.pathPattern)
 						s.toDelete = append(s.toDelete, currentMessage) // most probably a folder creation event message
 						continue

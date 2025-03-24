@@ -118,7 +118,7 @@ func (r *GenericParserReader) RowCount(ctx context.Context, obj *aws_s3.Object) 
 }
 
 func (r *GenericParserReader) TotalRowCount(ctx context.Context) (uint64, error) {
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.IsObj)
+	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -206,7 +206,7 @@ func (r *GenericParserReader) ResolveSchema(ctx context.Context) (*abstract.Tabl
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.IsObj)
+	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -218,12 +218,7 @@ func (r *GenericParserReader) ResolveSchema(ctx context.Context) (*abstract.Tabl
 	return r.resolveSchema(ctx, *files[0].Key)
 }
 
-func (r *GenericParserReader) IsObj(file *aws_s3.Object) bool {
-	if file.Size == nil || *file.Size == 0 { // dir
-		return false
-	}
-	return true
-}
+func (r *GenericParserReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
 
 func (r *GenericParserReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
 	s3Reader, err := r.openReader(ctx, key)

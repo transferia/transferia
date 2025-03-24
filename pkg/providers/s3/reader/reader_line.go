@@ -48,7 +48,7 @@ type LineReader struct {
 }
 
 func (r *LineReader) TotalRowCount(ctx context.Context) (uint64, error) {
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.IsObj)
+	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -258,19 +258,14 @@ func (r *LineReader) ParsePassthrough(chunk chunk_pusher.Chunk) []abstract.Chang
 	return chunk.Items
 }
 
-func (r *LineReader) IsObj(file *aws_s3.Object) bool {
-	if file.Size == nil || *file.Size == 0 { // dir
-		return false
-	}
-	return true
-}
+func (r *LineReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
 
 func (r *LineReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, error) {
 	if r.tableSchema != nil && len(r.tableSchema.Columns()) != 0 {
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.IsObj)
+	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}

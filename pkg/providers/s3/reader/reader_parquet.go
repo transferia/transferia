@@ -56,7 +56,7 @@ func (r *ReaderParquet) RowCount(ctx context.Context, obj *aws_s3.Object) (uint6
 
 func (r *ReaderParquet) TotalRowCount(ctx context.Context) (uint64, error) {
 	res := uint64(0)
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.IsObj)
+	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -84,7 +84,7 @@ func (r *ReaderParquet) ResolveSchema(ctx context.Context) (*abstract.TableSchem
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.IsObj)
+	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -96,14 +96,13 @@ func (r *ReaderParquet) ResolveSchema(ctx context.Context) (*abstract.TableSchem
 	return r.resolveSchema(ctx, *files[0].Key)
 }
 
-func (r *ReaderParquet) IsObj(file *aws_s3.Object) bool {
-	if file.Size == nil || *file.Size == 0 { // dir
-		return false
+func (r *ReaderParquet) ObjectsFilter() ObjectsFilter {
+	return func(file *aws_s3.Object) bool {
+		if !IsNotEmpty(file) {
+			return false
+		}
+		return strings.HasSuffix(*file.Key, ".parquet")
 	}
-	if !strings.HasSuffix(*file.Key, ".parquet") { // non-parquet file
-		return false
-	}
-	return true
 }
 
 func (r *ReaderParquet) resolveSchema(ctx context.Context, filePath string) (*abstract.TableSchema, error) {

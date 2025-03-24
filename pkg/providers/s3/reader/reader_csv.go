@@ -68,7 +68,7 @@ func (r *CSVReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, e
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.IsObj)
+	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -117,7 +117,7 @@ func (r *CSVReader) RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, e
 }
 
 func (r *CSVReader) TotalRowCount(ctx context.Context) (uint64, error) {
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.IsObj)
+	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -341,12 +341,7 @@ func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time,
 	}, nil
 }
 
-func (r *CSVReader) IsObj(file *aws_s3.Object) bool {
-	if file.Size == nil || *file.Size == 0 { // dir
-		return false
-	}
-	return true
-}
+func (r *CSVReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
 
 func (r *CSVReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
 	s3Reader, err := r.openReader(ctx, key)

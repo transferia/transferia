@@ -25,7 +25,7 @@ const (
 func (s *Storage) ShardTable(ctx context.Context, tdsec abstract.TableDescription) ([]abstract.TableDescription, error) {
 	s.logger.Infof("try to shard: %v", tdsec.String())
 
-	files, err := reader.ListFiles(s.cfg.Bucket, s.cfg.PathPrefix, s.cfg.PathPattern, s.client, s.logger, nil, s.reader.IsObj)
+	files, err := reader.ListFiles(s.cfg.Bucket, s.cfg.PathPrefix, s.cfg.PathPattern, s.client, s.logger, nil, s.reader.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}

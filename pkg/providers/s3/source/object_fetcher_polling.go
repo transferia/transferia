@@ -84,7 +84,7 @@ func (s *pollingSource) listFiles(lastObject *Object) ([]Object, error) {
 		}, func(o *aws_s3.ListObjectsOutput, _ bool) bool {
 			for _, file := range o.Contents {
 				currentMarker = file.Key
-				if reader.SkipObject(file, s.src.PathPattern, "|", s.reader.IsObj) {
+				if reader.SkipObject(file, s.src.PathPattern, "|", s.reader.ObjectsFilter()) {
 					s.logger.Infof("file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, s.src.PathPattern)
 					continue
 				}

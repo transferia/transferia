@@ -61,7 +61,7 @@ func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstrac
 				for _, file := range o.Contents {
 					currentMarker = file.Key
 					s.logger.Infof("file %s: %s", *file.Key, *file.LastModified)
-					if reader.SkipObject(file, s.cfg.PathPattern, "|", s.reader.IsObj) {
+					if reader.SkipObject(file, s.cfg.PathPattern, "|", s.reader.ObjectsFilter()) {
 						s.logger.Infof("file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, s.cfg.PathPattern)
 						continue
 					}
