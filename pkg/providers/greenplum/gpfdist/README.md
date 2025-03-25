@@ -5,9 +5,9 @@ skinparam sequenceMessageAlign center
 
 Participant Activate
 Participant GpfdistStorage
-Participant PipesReader
+Participant PipeReader
 Participant GpfdistBin
-Participant Pipes
+Participant Pipe
 Participant ExternalTable
 
 activate GpfdistStorage
@@ -17,45 +17,45 @@ Activate -> GpfdistStorage: LoadTable(pusher)
 GpfdistStorage -> GpfdistBin: Init GpfdistBin
 activate GpfdistBin
 
-GpfdistBin -> Pipes: []syscall.MkFifo(file)
-activate Pipes
+GpfdistBin -> Pipe: []syscall.MkFifo(file)
+activate Pipe
 
-GpfdistStorage -> PipesReader: Create PipesReader
-activate PipesReader
-GpfdistStorage --> PipesReader: Run(pusher)
+GpfdistStorage -> PipeReader: Create PipeReader
+activate PipeReader
+GpfdistStorage --> PipeReader: Run(pusher)
 
-PipesReader -> GpfdistBin: Open pipes as read only
+PipeReader -> GpfdistBin: Open pipe as read only
 
-GpfdistBin -> Pipes: []os.OpenFile(pipe)
-GpfdistBin <- Pipes: []os.File
-PipesReader <- GpfdistBin: []os.File
+GpfdistBin -> Pipe: []os.OpenFile(pipe)
+GpfdistBin <- Pipe: []os.File
+PipeReader <- GpfdistBin: []os.File
 
-PipesReader -> Pipes: Read pipes
+PipeReader -> Pipe: Read pipe
 
 GpfdistStorage -> GpfdistBin: Start read through external table
 
 GpfdistBin -> ExternalTable: Create writable external table and start insert
 activate ExternalTable
 
-Pipes <-- ExternalTable: TSV Data
-PipesReader <-- Pipes: TSV Data
-PipesReader --> PipesReader: pusher(TSV Data)
+Pipe <-- ExternalTable: TSV Data
+PipeReader <-- Pipe: TSV Data
+PipeReader --> PipeReader: pusher(TSV Data)
 
 ExternalTable -> GpfdistBin: Exported rows count
 deactivate ExternalTable
 GpfdistBin -> GpfdistStorage: Exported rows count
 
-GpfdistStorage -> PipesReader: Wait for result
+GpfdistStorage -> PipeReader: Wait for result
 
-PipesReader -> Pipes: Close pipes
+PipeReader -> Pipe: Close pipe
 
-GpfdistStorage <-- PipesReader: Pushed rows count
+GpfdistStorage <-- PipeReader: Pushed rows count
 
-deactivate PipesReader
+deactivate PipeReader
 
 GpfdistStorage -> GpfdistBin: Stop
 
-GpfdistBin -> Pipes: []os.Remove(pipe)
+GpfdistBin -> Pipe: []os.Remove(pipe)
 deactivate GpfdistBin
 
 GpfdistStorage -> Activate: Result

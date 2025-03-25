@@ -37,15 +37,15 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 	if err != nil {
 		return xerrors.Errorf("unable to init gpfdist: %w", err)
 	}
+	logger.Log.Debugf("Gpfdist for storage initialized")
 	defer func() {
 		if err := gpfd.Stop(); err != nil {
 			logger.Log.Error("Unable to stop gpfdist", log.Error(err))
 		}
 	}()
-	logger.Log.Debugf("Gpfdist started on LoadTable")
 
 	// Async run PipesReader which will parse data from pipes and push it.
-	pipeReader := gpfdist.NewPipesReader(gpfd, s.itemTemplate(table, schema), pushBatchSize)
+	pipeReader := gpfdist.NewPipeReader(gpfd, s.itemTemplate(table, schema), pushBatchSize)
 	go pipeReader.Run(pusher)
 
 	// Run gpfdist export through external table.

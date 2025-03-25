@@ -14,10 +14,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"go.ytsaurus.tech/library/go/core/log"
-	"golang.org/x/sync/errgroup"
 )
 
-type PipesReader struct {
+type PipeReader struct {
 	ctx       context.Context
 	gpfdist   *gpfdistbin.Gpfdist
 	template  abstract.ChangeItem
@@ -26,7 +25,7 @@ type PipesReader struct {
 	errCh     chan error
 }
 
-func (r *PipesReader) readFromPipe(reader io.Reader, pusher abstract.Pusher) (int64, error) {
+func (r *PipeReader) readFromPipe(reader io.Reader, pusher abstract.Pusher) (int64, error) {
 	batch := make([]abstract.ChangeItem, 0, r.batchSize)
 	pushedCnt, quotesCnt := int64(0), 0
 	var lineParts []string
@@ -75,13 +74,13 @@ func (r *PipesReader) readFromPipe(reader io.Reader, pusher abstract.Pusher) (in
 	return pushedCnt, nil
 }
 
-func (r *PipesReader) itemFromTemplate(columnValues []any) abstract.ChangeItem {
+func (r *PipeReader) itemFromTemplate(columnValues []any) abstract.ChangeItem {
 	item := r.template
 	item.ColumnValues = columnValues
 	return item
 }
 
-func (r *PipesReader) Stop(timeout time.Duration) (int64, error) {
+func (r *PipeReader) Stop(timeout time.Duration) (int64, error) {
 	var cancel context.CancelFunc
 	r.ctx, cancel = context.WithTimeout(r.ctx, timeout)
 	defer cancel()
@@ -89,43 +88,38 @@ func (r *PipesReader) Stop(timeout time.Duration) (int64, error) {
 	return r.pushedCnt.Load(), err
 }
 
-// Run should be called once per PipesReader life, it is not guaranteed that more calls will proceed.
-func (r *PipesReader) Run(pusher abstract.Pusher) {
+// Run should be called once per PipeReader life, it is not guaranteed that more calls will proceed.
+func (r *PipeReader) Run(pusher abstract.Pusher) {
 	r.errCh <- r.runImpl(pusher)
 }
 
-func (r *PipesReader) runImpl(pusher abstract.Pusher) error {
-	pipes, err := r.gpfdist.OpenPipes()
+func (r *PipeReader) runImpl(pusher abstract.Pusher) error {
+	pipe, err := r.gpfdist.OpenPipe()
 	if err != nil {
-		return xerrors.Errorf("unable to open pipes: %w", err)
+		return xerrors.Errorf("unable to open pipe: %w", err)
 	}
 	defer func() {
-		for _, pipe := range pipes {
-			if err := pipe.Close(); err != nil {
-				logger.Log.Error(fmt.Sprintf("Unable to close pipe %s", pipe.Name()), log.Error(err))
-			}
+		if err := pipe.Close(); err != nil {
+			logger.Log.Error(fmt.Sprintf("Unable to close pipe %s", pipe.Name()), log.Error(err))
 		}
 	}()
-	eg := errgroup.Group{}
-	for _, pipe := range pipes {
-		eg.Go(func() error {
-			curRows, err := r.readFromPipe(pipe, pusher)
-			r.pushedCnt.Add(curRows)
-			return err
-		})
-	}
-	egErrCh := make(chan error, 1)
-	go func() { egErrCh <- eg.Wait() }()
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		curRows, err := r.readFromPipe(pipe, pusher)
+		r.pushedCnt.Add(curRows)
+		errCh <- err
+	}()
 	select {
-	case err := <-egErrCh:
+	case err := <-errCh:
 		return err
 	case <-r.ctx.Done():
-		return xerrors.New("context is done before PipeReader workers")
+		return xerrors.New("context is done before PipeReader worker")
 	}
 }
 
-func NewPipesReader(gpfdist *gpfdistbin.Gpfdist, template abstract.ChangeItem, batchSize int) *PipesReader {
-	return &PipesReader{
+func NewPipeReader(gpfdist *gpfdistbin.Gpfdist, template abstract.ChangeItem, batchSize int) *PipeReader {
+	return &PipeReader{
 		ctx:       context.Background(),
 		gpfdist:   gpfdist,
 		template:  template,

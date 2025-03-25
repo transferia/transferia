@@ -19,7 +19,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/terryid"
 	"go.ytsaurus.tech/library/go/core/log"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -42,15 +41,15 @@ type Gpfdist struct {
 	port          int
 	workingDir    string
 	serviceSchema string
-	pipes         []string
+	pipeName      string
 	ddlExecutor   *GpfdistDDLExecutor
 	mode          GpfdistMode
 }
 
 func (g *Gpfdist) Stop() error {
 	var errors []error
-	if err := g.removePipes(); err != nil {
-		errors = append(errors, xerrors.Errorf("unable to remove pipes: %w", err))
+	if err := g.removePipe(); err != nil {
+		errors = append(errors, xerrors.Errorf("unable to remove pipe: %w", err))
 	}
 	if g.cmd.Process != nil {
 		if err := g.cmd.Process.Kill(); err != nil {
@@ -64,30 +63,6 @@ func (g *Gpfdist) Stop() error {
 
 func (g *Gpfdist) RunExternalTableTransaction(ctx context.Context, table abstract.TableID, schema *abstract.TableSchema) (int64, error) {
 	return g.ddlExecutor.createExternalTableAndInsertRows(ctx, g.externalTableMode(), table, schema, g.serviceSchema, g.locations())
-}
-
-func (g *Gpfdist) OpenPipes() ([]*os.File, error) {
-	files := make([]*os.File, len(g.pipes))
-	eg := errgroup.Group{}
-	for i, pipe := range g.pipes {
-		eg.Go(func() error {
-			var err error
-			files[i], err = g.openPipe(pipe, g.pipeOpenFlag())
-			return err
-		})
-	}
-	if err := eg.Wait(); err != nil {
-		for _, file := range files {
-			if file == nil {
-				continue
-			}
-			if closeErr := file.Close(); closeErr != nil {
-				logger.Log.Error(fmt.Sprintf("Unable to close file %s", file.Name()), log.Error(err))
-			}
-		}
-		return nil, err
-	}
-	return files, nil
 }
 
 func (g *Gpfdist) externalTableMode() externalTableMode {
@@ -104,20 +79,20 @@ func (g *Gpfdist) pipeOpenFlag() int {
 	return os.O_WRONLY
 }
 
-func (g *Gpfdist) openPipe(name string, openFlag int) (*os.File, error) {
+func (g *Gpfdist) OpenPipe() (*os.File, error) {
 	var cancelFlag int
-	switch openFlag {
+	switch g.pipeOpenFlag() {
 	case os.O_RDONLY:
 		cancelFlag = os.O_WRONLY | syscall.O_NONBLOCK
 	case os.O_WRONLY:
 		cancelFlag = os.O_RDONLY | syscall.O_NONBLOCK
 	}
 
-	pipePath := g.fullPath(name)
+	pipePath := g.fullPath(g.pipeName)
 	var file *os.File
 	openFile := func() error {
 		var openErr error
-		file, openErr = os.OpenFile(pipePath, openFlag, 0)
+		file, openErr = os.OpenFile(pipePath, g.pipeOpenFlag(), 0)
 		return openErr
 	}
 	cancelOpenFile := func() error {
@@ -132,7 +107,7 @@ func (g *Gpfdist) openPipe(name string, openFlag int) (*os.File, error) {
 		if xerrors.As(err, new(CancelFailedError)) {
 			err = abstract.NewFatalError(err)
 		}
-		return nil, xerrors.Errorf("unable to open pipe %s file: %w", name, err)
+		return nil, xerrors.Errorf("unable to open pipe %s file: %w", g.pipeName, err)
 	}
 	return file, nil
 }
@@ -143,38 +118,17 @@ func (g *Gpfdist) fullPath(relativePath string) string {
 }
 
 func (g *Gpfdist) locations() []string {
-	res := make([]string, len(g.pipes))
-	for i, pipe := range g.pipes {
-		res[i] = fmt.Sprintf("gpfdist://%s:%d/%s", g.host, g.port, pipe)
-	}
-	return res
+	return []string{fmt.Sprintf("gpfdist://%s:%d/%s", g.host, g.port, g.pipeName)}
 }
 
-func (g *Gpfdist) removePipes() error {
-	var errors []error
-	for _, pipe := range g.pipes {
-		fullPath := g.fullPath(pipe)
-		logger.Log.Infof("Removing pipe %s", fullPath)
-		if err := os.Remove(fullPath); err != nil {
-			errors = append(errors, err)
-		}
-	}
-	return multierr.Combine(errors...)
+func (g *Gpfdist) removePipe() error {
+	logger.Log.Infof("Removing pipe %s", g.pipeName)
+	return os.Remove(g.fullPath(g.pipeName))
 }
 
-func (g *Gpfdist) initPipes(n int) error {
-	g.pipes = make([]string, n)
-	prefix := fmt.Sprintf("pipe-%s", terryid.GenerateSuffix())
-	for i := range n {
-		name := fmt.Sprintf("%s-%d", prefix, i)
-		fullPath := g.fullPath(name)
-		logger.Log.Infof("Creating pipe %s", fullPath)
-		if err := syscall.Mkfifo(fullPath, defaultPipeMode); err != nil {
-			return xerrors.Errorf("unable to create pipe %s: %w", fullPath, err)
-		}
-		g.pipes[i] = name
-	}
-	return nil
+func (g *Gpfdist) initPipe() error {
+	logger.Log.Infof("Creating pipe %s", g.pipeName)
+	return syscall.Mkfifo(g.fullPath(g.pipeName), defaultPipeMode)
 }
 
 func InitGpfdist(params GpfdistParams, mode GpfdistMode, conn *pgxpool.Pool) (*Gpfdist, error) {
@@ -188,15 +142,9 @@ func InitGpfdist(params GpfdistParams, mode GpfdistMode, conn *pgxpool.Pool) (*G
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create temp dir: %w", err)
 	}
-	host := params.Host
-	if host == "" {
-		if host, err = resolveHostname(); err != nil {
-			return nil, xerrors.Errorf("unable to resolve hostname: %w", err)
-		}
-	}
-	pipesCnt := params.PipesCnt
-	if pipesCnt < 1 {
-		pipesCnt = 1
+	host, err := resolveHostname()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve hostname: %w", err)
 	}
 	gpfdist := &Gpfdist{
 		cmd:           exec.Command(params.GpfdistBinPath, "-d", tmpDir, "-p", fmt.Sprint(minPort), "-P", fmt.Sprint(maxPort), "-w", "10"),
@@ -204,12 +152,12 @@ func InitGpfdist(params GpfdistParams, mode GpfdistMode, conn *pgxpool.Pool) (*G
 		workingDir:    tmpDir,
 		serviceSchema: params.ServiceSchema,
 		ddlExecutor:   NewGpfdistDDLExecutor(conn),
-		pipes:         nil,
+		pipeName:      fmt.Sprintf("pipe-%s", terryid.GenerateSuffix()),
 		mode:          mode,
 		port:          0,
 	}
-	if err := gpfdist.initPipes(pipesCnt); err != nil {
-		return nil, xerrors.Errorf("unable to init pipes: %w", err)
+	if err := gpfdist.initPipe(); err != nil {
+		return nil, xerrors.Errorf("unable to init pipe: %w", err)
 	}
 
 	if err := gpfdist.startCmd(); err != nil {

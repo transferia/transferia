@@ -15,7 +15,7 @@ import (
 
 type GpfdistTableSink struct {
 	// pipesWriter used to push data by its `.Write()` method.
-	pipesWriter *gpfdist.PipesWriter
+	pipesWriter *gpfdist.PipeWriter
 	gpfdist     *gpfdistbin.Gpfdist
 
 	// stopExtWriter waits for ExtWriter self-stop, and forcely cancels it if `timeout` expires.
@@ -72,6 +72,7 @@ func InitGpfdistTableSink(
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init gpfdist: %w", err)
 	}
+	logger.Log.Debugf("Gpfdist for sink initialized")
 
 	type workerResult struct {
 		rows int64
@@ -101,7 +102,7 @@ func InitGpfdistTableSink(
 	}()
 
 	// Run PipesWriter that would asyncly serve its `.Write()` method calls.
-	pipesWriter, err := gpfdist.InitPipesWriter(gpfd)
+	pipesWriter, err := gpfdist.InitPipeWriter(gpfd)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init pipes writer: %w", err)
 	}
