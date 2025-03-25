@@ -63,6 +63,72 @@ func TestInsertWithFloat(t *testing.T) {
 	}
 }
 
+func TestOnlyPKTable(t *testing.T) {
+	env, cancel := recipe.NewEnv(t)
+	defer cancel()
+	defer teardown(env.YT, "//home/cdc/test/generic/temp")
+	schema_ := abstract.NewTableSchema([]abstract.ColSchema{
+		{
+			DataType:   "double",
+			ColumnName: "test",
+			PrimaryKey: true,
+		},
+	})
+	cfg := yt2.NewYtDestinationV1(yt2.YtDestination{CellBundle: "default", PrimaryMedium: "default"})
+	cfg.WithDefaults()
+	table, err := NewSortedTable(env.YT, "//home/cdc/test/generic/temp", schema_.Columns(), cfg, stats.NewSinkerStats(metrics.NewRegistry()), logger.Log)
+	require.NoError(t, err)
+
+	// check that __dummy column was added
+	tableSchema := NewSchema(table.columns.columns, table.config, table.path)
+	actualSchema, err := tableSchema.BuildSchema(tableSchema.Cols())
+	require.NoError(t, err)
+	require.Equal(t, 2, len(actualSchema.Columns))
+	//do insert of only pk row
+	require.NoError(t, table.Write([]abstract.ChangeItem{
+		{
+			TableSchema:  schema_,
+			Kind:         "insert",
+			ColumnNames:  []string{"test"},
+			ColumnValues: []interface{}{3.99},
+			Table:        "test_table",
+		},
+	}))
+	//do update of only pk row
+	require.NoError(t, table.Write([]abstract.ChangeItem{
+		{
+			TableSchema:  schema_,
+			Kind:         "update",
+			ColumnNames:  []string{"test"},
+			ColumnValues: []interface{}{4.01},
+			Table:        "test_table",
+			OldKeys: abstract.OldKeysType{
+				KeyNames:  []string{"test"},
+				KeyTypes:  []string{"double"},
+				KeyValues: []interface{}{3.99},
+			},
+		},
+	}))
+	// check that one row is present in table
+	rows, err := env.YT.SelectRows(
+		env.Ctx,
+		"sum(1) as count from [//home/cdc/test/generic/temp] group by 1",
+		nil,
+	)
+	require.NoError(t, err)
+
+	type counter struct {
+		Count int64 `yson:"count"`
+	}
+	var rowsN int64
+	for rows.Next() {
+		var c counter
+		require.NoError(t, rows.Scan(&c))
+		rowsN += c.Count
+	}
+	require.Equal(t, int64(1), rowsN)
+}
+
 func TestCustomAttributes(t *testing.T) {
 	env, cancel := recipe.NewEnv(t)
 	defer cancel()

@@ -46,7 +46,6 @@ func (di *dataItemView) makeOldKeys() (ytRow, error) {
 }
 
 func (di *dataItemView) makeRow() (ytRow, error) {
-	hasOnlyPKey := true
 	row := ytRow{}
 	for i, colName := range di.change.ColumnNames {
 		tableColumn, ok := di.columns.getByName(colName)
@@ -58,12 +57,6 @@ func (di *dataItemView) makeRow() (ytRow, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("Cannot restore value for column '%s': %w", colName, err)
 		}
-		if !di.columns.hasKey(colName) {
-			hasOnlyPKey = false
-		}
-	}
-	if hasOnlyPKey {
-		row["__dummy"] = nil
 	}
 	return row, nil
 }
@@ -138,7 +131,6 @@ func (ii *indexItemView) makeRow() (ytRow, error) {
 	}
 	row := ytRow{
 		ii.indexColumnName: value,
-		"_dummy":           nil,
 	}
 
 	for i, colName := range ii.change.ColumnNames {
