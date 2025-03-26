@@ -3237,6 +3237,7 @@
   "tests/e2e/yt2ch_async/yt_dict_transformer/check_db_test.go":"transfer_manager/go/tests/e2e/yt2ch_async/yt_dict_transformer/check_db_test.go",
   "tests/e2e/yt2pg/snapshot/check_db_test.go":"transfer_manager/go/tests/e2e/yt2pg/snapshot/check_db_test.go",
   "tests/e2e/yt2pg/snapshot/dump/pg/dump.sql":"transfer_manager/go/tests/e2e/yt2pg/snapshot/dump/pg/dump.sql",
+  "tests/e2e/yt2s3/bigtable/check_db_test.go":"transfer_manager/go/tests/e2e/yt2s3/bigtable/check_db_test.go",
   "tests/e2e/yt2ydb/snapshot/check_db_test.go":"transfer_manager/go/tests/e2e/yt2ydb/snapshot/check_db_test.go",
   "tests/e2e/yt2yt/copy/copy_test.go":"transfer_manager/go/tests/e2e/yt2yt/copy/copy_test.go",
   "tests/helpers/README.md":"transfer_manager/go/tests/helpers/README.md",
