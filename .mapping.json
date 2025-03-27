@@ -2081,6 +2081,7 @@
   "pkg/source/source_factory.go":"transfer_manager/go/pkg/source/source_factory.go",
   "pkg/stats/auth.go":"transfer_manager/go/pkg/stats/auth.go",
   "pkg/stats/ch.go":"transfer_manager/go/pkg/stats/ch.go",
+  "pkg/stats/client.go":"transfer_manager/go/pkg/stats/client.go",
   "pkg/stats/fallbacks.go":"transfer_manager/go/pkg/stats/fallbacks.go",
   "pkg/stats/metric_types.go":"transfer_manager/go/pkg/stats/metric_types.go",
   "pkg/stats/middleware_bufferer.go":"transfer_manager/go/pkg/stats/middleware_bufferer.go",
