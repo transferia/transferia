@@ -59,6 +59,10 @@ func (d *DockerWrapper) Pull(ctx context.Context, image string, opts types.Image
 		if pullErr != nil {
 			return xerrors.Errorf("error pulling image %s: %w", image, pullErr)
 		}
+		_, err := io.Copy(os.Stdout, reader)
+		if err != nil {
+			return err
+		}
 		defer reader.Close()
 	} else if err != nil {
 		return xerrors.Errorf("error inspecting image %s: %w", image, err)
@@ -72,6 +76,7 @@ func (d *DockerWrapper) Run(ctx context.Context, opts ContainerOpts) (stdout io.
 }
 
 func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdout io.Reader, stderr io.Reader, err error) {
+	d.logger.Info("Run docker container")
 	if d.cli == nil {
 		return nil, nil, xerrors.Errorf("docker unavailable")
 	}
@@ -79,6 +84,8 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 	if err := d.Pull(ctx, opts.Image, types.ImagePullOptions{}); err != nil {
 		return nil, nil, err
 	}
+
+	d.logger.Infof("Image %s pulled", opts.Image)
 
 	containerConfig := &container.Config{
 		Image:  opts.Image,
@@ -89,9 +96,10 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 	}
 
 	hostConfig := &container.HostConfig{
-		Mounts:     opts.Mounts,
-		AutoRemove: opts.AutoRemove,
-		LogConfig:  container.LogConfig{Type: opts.LogDriver, Config: opts.LogOptions},
+		Mounts:      opts.Mounts,
+		AutoRemove:  opts.AutoRemove,
+		LogConfig:   container.LogConfig{Type: opts.LogDriver, Config: opts.LogOptions},
+		NetworkMode: "host",
 	}
 
 	if opts.RestartPolicy.Name != "" {
@@ -110,11 +118,14 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 		return nil, nil, xerrors.Errorf("error creating container: %w", err)
 	}
 
+	d.logger.Infof("container created : %v", resp)
+
 	waitCh, errCh := d.cli.ContainerWait(ctx, resp.ID, container.WaitConditionNextExit)
 
 	if err := d.cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		return nil, nil, xerrors.Errorf("error starting container: %w", err)
 	}
+	d.logger.Info("Docker container started")
 
 	attachOptions := container.AttachOptions{
 		Stream: true,
@@ -126,6 +137,8 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 	if err != nil {
 		return nil, nil, xerrors.Errorf("error attaching to container: %w", err)
 	}
+
+	d.logger.Info("Success attaching to container")
 
 	// TODO: don't hold stdoutBuf and stderrBuf in memory
 	stdoutBuf := new(bytes.Buffer)

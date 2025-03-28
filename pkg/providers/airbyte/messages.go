@@ -224,6 +224,7 @@ const (
 	MessageTypeRecord           MessageType = "RECORD"
 	MessageTypeState            MessageType = "STATE"
 	MessageTypeLog              MessageType = "LOG"
+	MessageTypeTrace            MessageType = "TRACE"
 	MessageTypeSpec             MessageType = "SPEC"
 	MessageTypeConnectionStatus MessageType = "CONNECTION_STATUS"
 	MessageTypeCatalog          MessageType = "CATALOG"
