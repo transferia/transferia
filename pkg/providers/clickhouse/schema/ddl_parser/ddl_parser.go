@@ -3,7 +3,6 @@ package parser
 import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/schema/ddl_parser/clickhouse_lexer"
 	"github.com/transferia/transferia/pkg/util/token_regexp"
-	"github.com/transferia/transferia/pkg/util/token_regexp/abstract"
 	"github.com/transferia/transferia/pkg/util/token_regexp/op"
 )
 
@@ -34,14 +33,14 @@ func ExtractNameClusterEngine(createDdlSQL string) (onClusterClause, engineStr s
 		return "", "", false
 	}
 	matchedPath := results.Index(0) // take the longest match
-	capturingGroups := matchedPath.CapturingGroupArr()
-	if len(capturingGroups) != 2 {
+	capturingGroups := matchedPath.CapturingGroups()
+	if capturingGroups.GroupsNum() != 2 {
 		// somehow capturing groups didn't match 2 times
 		return "", "", false
 	}
 
-	onClusterClause = abstract.ResolveMatchedOps(createDdlSQL, capturingGroups[0])
-	engineStr = abstract.ResolveMatchedOps(createDdlSQL, capturingGroups[1])
+	onClusterClause = capturingGroups.GroupToText(createDdlSQL, 0)
+	engineStr = capturingGroups.GroupToText(createDdlSQL, 1)
 
 	return onClusterClause, engineStr, true
 }

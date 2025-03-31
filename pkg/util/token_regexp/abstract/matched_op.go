@@ -5,6 +5,10 @@ type MatchedOp struct {
 	tokens []*Token
 }
 
+func (r *MatchedOp) Tokens() []*Token {
+	return r.tokens
+}
+
 func (r *MatchedOp) MatchedSubstring(originalStr string) (string, bool) {
 	currMin, currMax, isFound := tokensMinMaxPos(r.tokens)
 	if !isFound {

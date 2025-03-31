@@ -1,8 +1,6 @@
 package abstract
 
-import (
-	"math"
-)
+import "math"
 
 // tokensMinMaxPos - returns minPos & maxPos & is_found
 //

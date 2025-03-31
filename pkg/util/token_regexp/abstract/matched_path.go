@@ -9,7 +9,19 @@ func (r *MatchedPath) Length() int {
 	return r.lengthTokens
 }
 
-func (r *MatchedPath) CapturingGroupArr() [][]*MatchedOp {
+func (r *MatchedPath) Path() []*MatchedOp {
+	return r.path
+}
+
+func (r *MatchedPath) Tokens() []*Token {
+	result := make([]*Token, 0)
+	for _, matchedOp := range r.path {
+		result = append(result, matchedOp.Tokens()...)
+	}
+	return result
+}
+
+func (r *MatchedPath) CapturingGroups() *CapturingGroupResults {
 	isParentMatched := func(checkingOp *MatchedOp, potentialParent Op) bool {
 		currentOp := checkingOp.op
 		for {
@@ -46,29 +58,51 @@ func (r *MatchedPath) CapturingGroupArr() [][]*MatchedOp {
 		result = append(result, currBucket)
 	}
 
-	return result
+	return NewCapturingGroupResults(result)
 }
 
-func NewEmptyMatchedPath() *MatchedPath {
+// NewMatchedPathEmpty - ctor for empty_match
+//
+// empty_match means 'op' matched by zero tokens. It's useful for ops: '?', '*' - then can match zero tokens
+func NewMatchedPathEmpty() *MatchedPath {
 	return &MatchedPath{
 		path:         nil,
 		lengthTokens: 0,
 	}
 }
 
-func NewMatchedPathSimple(matchedOp *MatchedOp) *MatchedPath {
+// NewMatchedPathPrimitive - ctor for 'ConsumePrimitive'
+//
+// 'ConsumePrimitive' matches 'op' to some amount of tokens
+func NewMatchedPathPrimitive(matchedOp *MatchedOp) *MatchedPath {
 	return &MatchedPath{
 		path:         []*MatchedOp{matchedOp},
 		lengthTokens: len(matchedOp.tokens),
 	}
 }
 
-func NewMatchedPathChild(parentOp *MatchedOp, childPath *MatchedPath) *MatchedPath {
+// NewMatchedPathParentOpChildPath - ctor for 'AddLocal'
+//
+// 'AddLocal' usually used after ConsumeComplex, to consume its results
+func NewMatchedPathParentOpChildPath(parentOp *MatchedOp, childPath *MatchedPath) *MatchedPath {
 	currPath := make([]*MatchedOp, 0, len(childPath.path)+1)
 	currPath = append(currPath, parentOp)
 	currPath = append(currPath, childPath.path...)
 	return &MatchedPath{
 		path:         currPath,
 		lengthTokens: len(parentOp.tokens) + childPath.lengthTokens,
+	}
+}
+
+// NewMatchedPathParentPathChildPath - ctor for cases, when need to concat parent matched path with child matched paths
+//
+//	used in 'plus'
+func NewMatchedPathParentPathChildPath(parentPath *MatchedPath, childPath *MatchedPath) *MatchedPath {
+	currPath := make([]*MatchedOp, 0, len(parentPath.path)+len(childPath.path))
+	currPath = append(currPath, parentPath.path...)
+	currPath = append(currPath, childPath.path...)
+	return &MatchedPath{
+		path:         currPath,
+		lengthTokens: len(currPath),
 	}
 }

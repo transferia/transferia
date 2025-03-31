@@ -14,18 +14,18 @@ func (t *OptOp) IsOp() {}
 func (t *OptOp) ConsumeComplex(tokens []*abstract.Token) *abstract.MatchedResults {
 	result := abstract.NewMatchedResults()
 	if len(tokens) == 0 {
-		result.AddMatchedPath(abstract.NewEmptyMatchedPath())
+		result.AddMatchedPath(abstract.NewMatchedPathEmpty())
 		return result
 	}
 	switch v := t.op.(type) {
 	case abstract.OpPrimitive:
 		lengths := v.ConsumePrimitive(tokens)
-		result.AddMatchedPathsAfterSimpleConsume(lengths, t.op, tokens)
+		result.AddMatchedPathsAfterConsumePrimitive(lengths, t.op, tokens)
 	case abstract.OpComplex:
-		oneElementResult := v.ConsumeComplex(tokens)
-		result.AddLocalPaths(oneElementResult, t.op, nil)
+		localResults := v.ConsumeComplex(tokens)
+		result.AddLocalResults(localResults, t.op, nil)
 	}
-	result.AddMatchedPath(abstract.NewEmptyMatchedPath())
+	result.AddMatchedPath(abstract.NewMatchedPathEmpty())
 	return result
 }
 

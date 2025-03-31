@@ -17,10 +17,10 @@ func (t *OrOp) ConsumeComplex(tokens []*abstract.Token) *abstract.MatchedResults
 		switch currOp := t.ops[index].(type) {
 		case abstract.OpPrimitive:
 			lengths := currOp.ConsumePrimitive(tokens)
-			result.AddMatchedPathsAfterSimpleConsume(lengths, t.ops[index], tokens)
+			result.AddMatchedPathsAfterConsumePrimitive(lengths, t.ops[index], tokens)
 		case abstract.OpComplex:
-			collectedResults := currOp.ConsumeComplex(tokens)
-			result.AddLocalPaths(collectedResults, t.ops[index], nil)
+			localResults := currOp.ConsumeComplex(tokens)
+			result.AddLocalResults(localResults, t.ops[index], nil)
 		}
 	}
 	return result
