@@ -131,8 +131,8 @@ func (d *KafkaDestination) Serializer() (model.SerializationFormat, bool) {
 	return formatSettings, d.SaveTxOrder
 }
 
-func (d *KafkaDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *KafkaDestination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    d.FormatSettings.BatchingSettings.MaxChangeItems,
 		TriggingSize:     uint64(d.FormatSettings.BatchingSettings.MaxMessageSize),
 		TriggingInterval: d.FormatSettings.BatchingSettings.Interval,

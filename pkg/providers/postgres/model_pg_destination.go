@@ -98,8 +98,8 @@ func (d *PgDestination) WithDefaults() {
 	}
 }
 
-func (d *PgDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *PgDestination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    d.BatchSize,
 		TriggingSize:     d.BufferTriggingSize,
 		TriggingInterval: d.BufferTriggingInterval,

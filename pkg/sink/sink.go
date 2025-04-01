@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -153,6 +154,10 @@ func calculateBuffererConfig(transfer *model.Transfer, middlewaresConfig middlew
 	}
 
 	result := bufferableDst.BuffererConfig()
+	if result == nil {
+		logger.Log.Infof("Dst (type %T) is bufferable but decided not to use bufferer", transfer.Dst)
+		return nil
+	}
 
 	if middlewaresConfig.ReplicationStage {
 		if result.TriggingInterval == 0 {
@@ -167,7 +172,7 @@ func calculateBuffererConfig(transfer *model.Transfer, middlewaresConfig middlew
 
 	lgr.Info("bufferer config was calculated", log.Int("trigging_count", result.TriggingCount),
 		log.UInt64("trigging_size", result.TriggingSize), log.Float64("trigging_interval_seconds", result.TriggingInterval.Seconds()))
-	return &result
+	return result
 }
 
 func getMemoryThrottlerSettings(transfer *model.Transfer) (uint64, bool) {

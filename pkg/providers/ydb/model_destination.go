@@ -82,8 +82,8 @@ func (d *YdbDestination) Validate() error {
 	return nil
 }
 
-func (d *YdbDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *YdbDestination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    0,
 		TriggingSize:     d.TriggingSize,
 		TriggingInterval: d.TriggingInterval,

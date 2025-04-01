@@ -40,8 +40,8 @@ func (d *StdoutDestination) Validate() error {
 	return nil
 }
 
-func (d *StdoutDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *StdoutDestination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    d.TriggingCount,
 		TriggingSize:     d.TriggingSize,
 		TriggingInterval: d.TriggingInterval,

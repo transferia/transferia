@@ -102,8 +102,8 @@ func (d *MysqlDestination) PostSnapshotHacks() {
 	d.PerTransactionPush = d.prevPerTransactionPush
 }
 
-func (d *MysqlDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *MysqlDestination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    0,
 		TriggingSize:     d.BufferTriggingSize,
 		TriggingInterval: d.BufferTriggingInterval,

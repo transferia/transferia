@@ -25,6 +25,7 @@ const (
 type YtDestinationModel interface {
 	dp_model.TmpPolicyProvider
 	ytclient.ConnParams
+	bufferer.Bufferable
 
 	ToStorageParams() *YtStorageParams
 
@@ -82,8 +83,6 @@ type YtDestinationModel interface {
 
 	GetConnectionData() ConnectionData
 	DisableProxyDiscovery() bool
-
-	BuffererConfig() bufferer.BuffererConfig
 
 	SupportSharding() bool
 
@@ -442,8 +441,8 @@ func (d *YtDestinationWrapper) WithDefaults() {
 	}
 }
 
-func (d *YtDestinationWrapper) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *YtDestinationWrapper) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    0,
 		TriggingSize:     d.BufferTriggingSize(),
 		TriggingInterval: d.BufferTriggingInterval(),

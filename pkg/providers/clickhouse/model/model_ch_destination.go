@@ -160,8 +160,8 @@ func (d *ChDestination) WithDefaults() {
 	}
 }
 
-func (d *ChDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *ChDestination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    d.InflightBuffer,
 		TriggingSize:     d.BufferTriggingSize,
 		TriggingInterval: d.Interval,

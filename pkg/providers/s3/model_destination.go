@@ -69,8 +69,8 @@ func (d *S3Destination) WithDefaults() {
 	}
 }
 
-func (d *S3Destination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *S3Destination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    0,
 		TriggingSize:     uint64(d.BufferSize),
 		TriggingInterval: d.BufferInterval,

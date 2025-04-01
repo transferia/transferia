@@ -55,8 +55,13 @@ func (d *GpDestination) WithDefaults() {
 	}
 }
 
-func (d *GpDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *GpDestination) BuffererConfig() *bufferer.BuffererConfig {
+	if d.GpfdistParams.IsEnabled {
+		// Since gpfdist is only supported for Greenplum source with gpfdist
+		// enabled, there is no need in custom bufferer at all.
+		return nil
+	}
+	return &bufferer.BuffererConfig{
 		TriggingCount:    0,
 		TriggingSize:     d.BufferTriggingSize,
 		TriggingInterval: d.BufferTriggingInterval,
