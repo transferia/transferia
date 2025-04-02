@@ -3332,8 +3332,6 @@
   "tests/large/docker-compose/pg2kafka2pg_debezium_sr_test.go":"transfer_manager/go/tests/large/docker-compose/pg2kafka2pg_debezium_sr_test.go",
   "tests/large/docker-compose/tricky_types_pg2pg_test.go":"transfer_manager/go/tests/large/docker-compose/tricky_types_pg2pg_test.go",
   "tests/large/docker-compose/tricky_types_pg2yt_test.go":"transfer_manager/go/tests/large/docker-compose/tricky_types_pg2yt_test.go",
-  "tests/storage/ch/downtime/downtime_test.go":"transfer_manager/go/tests/storage/ch/downtime/downtime_test.go",
-  "tests/storage/ch/downtime/scripts/init.sql":"transfer_manager/go/tests/storage/ch/downtime/scripts/init.sql",
   "tests/storage/mysql/permissions/dump/init_db.sql":"transfer_manager/go/tests/storage/mysql/permissions/dump/init_db.sql",
   "tests/storage/mysql/permissions/permissions_test.go":"transfer_manager/go/tests/storage/mysql/permissions/permissions_test.go",
   "tests/storage/pg/permissions/dump/init_db.sql":"transfer_manager/go/tests/storage/pg/permissions/dump/init_db.sql",

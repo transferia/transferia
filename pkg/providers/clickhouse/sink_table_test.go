@@ -49,14 +49,13 @@ func makeSchema(cols *abstract.TableSchema, isUpdateable bool) (*Schema, *sinkTa
 	config.WithDefaults()
 
 	table := &sinkTable{
-		server:          nil,
-		tableName:       "test_table",
-		config:          config.ToReplicationFromPGSinkParams().MakeChildServerParams("1.1.1.1"),
-		logger:          logger.Log,
-		cols:            cols,
-		cluster:         &sinkCluster{topology: topology.NewTopology("asd", true)},
-		timezoneFetched: true,
-		timezone:        time.UTC,
+		server:    nil,
+		tableName: "test_table",
+		config:    config.ToReplicationFromPGSinkParams().MakeChildServerParams("1.1.1.1"),
+		logger:    logger.Log,
+		cols:      cols,
+		cluster:   &sinkCluster{topology: topology.NewTopology("asd", true)},
+		timezone:  time.UTC,
 	}
 
 	return NewSchema(cols.Columns(), table.config.SystemColumnsFirst(), table.tableName), table
@@ -180,9 +179,7 @@ func TestTable_doOperation_failed_on_TOAST(t *testing.T) {
 	require.NoError(t, err)
 
 	_, table := makeSchema(cols, true)
-	sinkServer, err := NewSinkServerImplWithVersion(table.config, table.logger, table.metrics, nil, semver.Version{})
-	sinkServer.db = db
-	require.NoError(t, err)
+	sinkServer := NewSinkServerImpl(table.config, db, semver.Version{Major: 20}, time.UTC, table.logger, table.metrics, nil)
 
 	table.metrics = stats.NewChStats(emptyRegistry())
 	table.server = sinkServer

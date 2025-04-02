@@ -28,18 +28,17 @@ import (
 )
 
 type sinkTable struct {
-	server          *SinkServer
-	tableName       string
-	config          model.ChSinkServerParams
-	logger          log.Logger
-	colTypes        columntypes.TypeMapping
-	cols            *abstract.TableSchema // warn: schema can be changed inflight
-	metrics         *stats.ChStats
-	avgRowSize      int
-	cluster         *sinkCluster
-	timezoneFetched bool
-	timezone        *time.Location
-	version         semver.Version
+	server     *SinkServer
+	tableName  string
+	config     model.ChSinkServerParams
+	logger     log.Logger
+	colTypes   columntypes.TypeMapping
+	cols       *abstract.TableSchema // warn: schema can be changed inflight
+	metrics    *stats.ChStats
+	avgRowSize int
+	cluster    *sinkCluster
+	timezone   *time.Location
+	version    semver.Version
 }
 
 var (
@@ -685,28 +684,6 @@ func (t *sinkTable) checkExist() (bool, error) {
 		return exist, err
 	}
 	return exist, nil
-}
-
-func (t *sinkTable) resolveTimezone() error {
-	if !t.timezoneFetched {
-		row := t.server.db.QueryRow(`SELECT timezone();`)
-		var timezone string
-		err := row.Scan(&timezone)
-		if err != nil {
-			return xerrors.Errorf("failed to fetch CH timezone: %w", err)
-		}
-
-		t.logger.Infof("Fetched CH cluster timezone %s", timezone)
-
-		loc, err := time.LoadLocation(timezone)
-		if err != nil {
-			return xerrors.Errorf("failed to parse CH timezone %s: %w", timezone, err)
-		}
-		t.timezone = loc
-		t.timezoneFetched = true
-	}
-
-	return nil
 }
 
 func restoreVals(vals []interface{}, cols []abstract.ColSchema) []interface{} {
