@@ -8,7 +8,17 @@ import (
 )
 
 func TestSetContains(t *testing.T) {
-	s := New[int](1, 3)
+	set := New[int]()
+	testSetContains(t, set)
+}
+
+func TestSyncSetContains(t *testing.T) {
+	set := NewSyncSet[int]()
+	testSetContains(t, set)
+}
+
+func testSetContains[T AbstractSet[int]](t *testing.T, s T) {
+	s.Add([]int{1, 3}...)
 	require.True(t, s.Contains(1))
 	require.False(t, s.Contains(2))
 	require.True(t, s.Contains(3))
@@ -20,7 +30,19 @@ func TestSetContains(t *testing.T) {
 	require.True(t, s.Contains(2))
 }
 
+//---
+
 func TestSetString(t *testing.T) {
+	set := New[int]()
+	testSetString(t, set)
+}
+
+func TestSyncSetString(t *testing.T) {
+	set := NewSyncSet[int]()
+	testSetString(t, set)
+}
+
+func testSetString[T AbstractSet[int]](t *testing.T, s T) {
 	var empty []int
 	require.Equal(t, fmt.Sprint(empty), fmt.Sprint(New[int](empty...)))
 
@@ -34,17 +56,17 @@ func TestSetString(t *testing.T) {
 	require.Contains(t, multiple, fmt.Sprint(New[int](1, 2, 3)))
 }
 
-func permutations[T any](items []T) [][]T {
+func permutations(items []int) [][]int {
 	if len(items) == 0 {
 		return nil
 	}
 	if len(items) == 1 {
-		return [][]T{items}
+		return [][]int{items}
 	}
-	var result [][]T
+	var result [][]int
 	for _, basePermutation := range permutations(items[1:]) {
 		for i := range basePermutation {
-			var permutation []T
+			var permutation []int
 			permutation = append(permutation, basePermutation[:i]...)
 			permutation = append(permutation, items[0])
 			permutation = append(permutation, basePermutation[i:]...)

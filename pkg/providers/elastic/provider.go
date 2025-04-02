@@ -2,7 +2,6 @@ package elastic
 
 import (
 	"context"
-	"encoding/gob"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -11,14 +10,15 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
 	abstract.RegisterProviderName(ProviderType, "ElasticSearch")
 
-	gob.RegisterName("*server.ElasticSearchDestination", new(ElasticSearchDestination))
-	gob.RegisterName("*server.ElasticSearchSource", new(ElasticSearchSource))
+	gobwrapper.RegisterName("*server.ElasticSearchDestination", new(ElasticSearchDestination))
+	gobwrapper.RegisterName("*server.ElasticSearchSource", new(ElasticSearchSource))
 
 	model.RegisterDestination(ProviderType, destinationModelFactory)
 

@@ -1,7 +1,6 @@
 package s3
 
 import (
-	"encoding/gob"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -9,10 +8,11 @@ import (
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 func init() {
-	gob.RegisterName("*server.S3Destination", new(S3Destination))
+	gobwrapper.RegisterName("*server.S3Destination", new(S3Destination))
 	dp_model.RegisterDestination(ProviderType, func() dp_model.Destination {
 		return new(S3Destination)
 	})

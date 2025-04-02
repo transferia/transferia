@@ -2,7 +2,6 @@ package ydb
 
 import (
 	"context"
-	"encoding/gob"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -11,12 +10,13 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.YdbDestination", new(YdbDestination))
-	gob.RegisterName("*server.YdbSource", new(YdbSource))
+	gobwrapper.RegisterName("*server.YdbDestination", new(YdbDestination))
+	gobwrapper.RegisterName("*server.YdbSource", new(YdbSource))
 	model.RegisterDestination(ProviderType, func() model.Destination {
 		return new(YdbDestination)
 	})

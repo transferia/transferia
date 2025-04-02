@@ -1,17 +1,17 @@
 package mongo
 
 import (
-	"encoding/gob"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func init() {
-	gob.Register(map[string]interface{}{})
-	gob.Register(map[string]string{})
+	gobwrapper.Register(map[string]interface{}{})
+	gobwrapper.Register(map[string]string{})
 }
 
 func BenchmarkDeepCopy(b *testing.B) {

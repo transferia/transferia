@@ -2,7 +2,6 @@ package mongo
 
 import (
 	"context"
-	"encoding/gob"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -11,13 +10,14 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.MongoCollection", new(MongoCollection))
-	gob.RegisterName("*server.MongoSource", new(MongoSource))
-	gob.RegisterName("*server.MongoDestination", new(MongoDestination))
+	gobwrapper.RegisterName("*server.MongoCollection", new(MongoCollection))
+	gobwrapper.RegisterName("*server.MongoSource", new(MongoSource))
+	gobwrapper.RegisterName("*server.MongoDestination", new(MongoDestination))
 	model.RegisterDestination(ProviderType, func() model.Destination {
 		return new(MongoDestination)
 	})

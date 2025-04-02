@@ -2,7 +2,6 @@ package kinesis
 
 import (
 	"context"
-	"encoding/gob"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -10,11 +9,12 @@ import (
 	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.Register(new(KinesisSource))
+	gobwrapper.Register(new(KinesisSource))
 	model.RegisterSource(ProviderType, func() model.Source {
 		return new(KinesisSource)
 	})

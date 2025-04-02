@@ -1,10 +1,9 @@
 package yt
 
 import (
-	"encoding/gob"
-
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 func init() {
@@ -21,11 +20,11 @@ func init() {
 		return new(LfStagingDestination)
 	}
 
-	gob.RegisterName("*server.YtDestination", new(YtDestination))
-	gob.RegisterName("*server.YtDestinationWrapper", new(YtDestinationWrapper))
-	gob.RegisterName("*server.YtSource", new(YtSource))
-	gob.RegisterName("*server.YtCopyDestination", new(YtCopyDestination))
-	gob.RegisterName("*server.LfStagingDestination", new(LfStagingDestination))
+	gobwrapper.RegisterName("*server.YtDestination", new(YtDestination))
+	gobwrapper.RegisterName("*server.YtDestinationWrapper", new(YtDestinationWrapper))
+	gobwrapper.RegisterName("*server.YtSource", new(YtSource))
+	gobwrapper.RegisterName("*server.YtCopyDestination", new(YtCopyDestination))
+	gobwrapper.RegisterName("*server.LfStagingDestination", new(LfStagingDestination))
 
 	model.RegisterDestination(ProviderType, destinationFactory)
 	model.RegisterDestination(StagingType, stagingFactory)

@@ -1,15 +1,15 @@
 package shared
 
 import (
-	"encoding/gob"
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 func init() {
-	gob.Register(new(JobNoJob))
+	gobwrapper.Register(new(JobNoJob))
 }
 
 type JobNoJob struct {

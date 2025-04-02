@@ -1,8 +1,6 @@
 package coralogix
 
 import (
-	"encoding/gob"
-
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -10,11 +8,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.Register(new(CoralogixDestination))
+	gobwrapper.Register(new(CoralogixDestination))
 	providers.Register(ProviderType, New)
 	abstract.RegisterProviderName(ProviderType, "Coralogix")
 	model.RegisterDestination(ProviderType, destinationModelFactory)

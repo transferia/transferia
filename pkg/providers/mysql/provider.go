@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"encoding/gob"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/metrics"
@@ -14,12 +13,13 @@ import (
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.MysqlSource", new(MysqlSource))
-	gob.RegisterName("*server.MysqlDestination", new(MysqlDestination))
+	gobwrapper.RegisterName("*server.MysqlSource", new(MysqlSource))
+	gobwrapper.RegisterName("*server.MysqlDestination", new(MysqlDestination))
 	model.RegisterDestination(ProviderType, func() model.Destination {
 		return new(MysqlDestination)
 	})

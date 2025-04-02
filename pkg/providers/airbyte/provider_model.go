@@ -1,7 +1,6 @@
 package airbyte
 
 import (
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/runtime/shared/pod"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 const (
@@ -18,13 +18,13 @@ const (
 )
 
 func init() {
-	gob.RegisterName("*server.AirbyteSource", new(AirbyteSource))
-	gob.RegisterName("*server.SyncStreams", new(SyncStreams))
-	gob.RegisterName("*server.AirbyteStream", new(AirbyteStream))
-	gob.RegisterName("*server.AirbyteSyncStream", new(AirbyteSyncStream))
-	gob.RegisterName("*server.JSONSchema", new(JSONSchema))
-	gob.RegisterName("*server.JSONProperty", new(JSONProperty))
-	gob.RegisterName("*server.StringOrArray", new(StringOrArray))
+	gobwrapper.RegisterName("*server.AirbyteSource", new(AirbyteSource))
+	gobwrapper.RegisterName("*server.SyncStreams", new(SyncStreams))
+	gobwrapper.RegisterName("*server.AirbyteStream", new(AirbyteStream))
+	gobwrapper.RegisterName("*server.AirbyteSyncStream", new(AirbyteSyncStream))
+	gobwrapper.RegisterName("*server.JSONSchema", new(JSONSchema))
+	gobwrapper.RegisterName("*server.JSONProperty", new(JSONProperty))
+	gobwrapper.RegisterName("*server.StringOrArray", new(StringOrArray))
 	model.RegisterSource(ProviderType, func() model.Source {
 		return new(AirbyteSource)
 	})

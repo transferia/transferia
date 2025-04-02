@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"encoding/gob"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -13,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/kafka/client"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -21,8 +21,8 @@ func init() {
 	destinationFactory := func() model.Destination {
 		return new(KafkaDestination)
 	}
-	gob.RegisterName("*server.KafkaSource", new(KafkaSource))
-	gob.RegisterName("*server.KafkaDestination", new(KafkaDestination))
+	gobwrapper.RegisterName("*server.KafkaSource", new(KafkaSource))
+	gobwrapper.RegisterName("*server.KafkaDestination", new(KafkaDestination))
 	model.RegisterSource(ProviderType, func() model.Source {
 		return new(KafkaSource)
 	})

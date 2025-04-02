@@ -2,7 +2,6 @@ package greenplum
 
 import (
 	"context"
-	"encoding/gob"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -13,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -28,8 +28,8 @@ func init() {
 	abstract.RegisterProviderName(ProviderType, "Greenplum")
 	providers.Register(ProviderType, New)
 
-	gob.RegisterName("*server.GpSource", new(GpSource))
-	gob.RegisterName("*server.GpDestination", new(GpDestination))
+	gobwrapper.RegisterName("*server.GpSource", new(GpSource))
+	gobwrapper.RegisterName("*server.GpDestination", new(GpDestination))
 
 	typesystem.AddFallbackSourceFactory(func() typesystem.Fallback {
 		return typesystem.Fallback{

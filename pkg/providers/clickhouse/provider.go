@@ -2,7 +2,6 @@ package clickhouse
 
 import (
 	"context"
-	"encoding/gob"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
@@ -19,12 +18,13 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	sink_registry "github.com/transferia/transferia/pkg/sink"
 	"github.com/transferia/transferia/pkg/targets"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.ChSource", new(model.ChSource))
-	gob.RegisterName("*server.ChDestination", new(model.ChDestination))
+	gobwrapper.RegisterName("*server.ChSource", new(model.ChSource))
+	gobwrapper.RegisterName("*server.ChDestination", new(model.ChDestination))
 	dp_model.RegisterDestination(ProviderType, func() dp_model.Destination {
 		return new(model.ChDestination)
 	})

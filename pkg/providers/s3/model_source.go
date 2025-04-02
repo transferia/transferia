@@ -1,15 +1,14 @@
 package s3
 
 import (
-	"encoding/gob"
-
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 func init() {
-	gob.Register(new(S3Source))
+	gobwrapper.Register(new(S3Source))
 	model.RegisterSource(ProviderType, func() model.Source {
 		return new(S3Source)
 	})

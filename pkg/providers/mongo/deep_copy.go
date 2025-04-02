@@ -8,24 +8,25 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/poolba"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func registerPrimitiveTypes() {
-	gob.Register(primitive.Binary{})
-	gob.Register(primitive.CodeWithScope{})
-	gob.Register(primitive.DateTime(0))
-	gob.Register(primitive.DBPointer{})
-	gob.Register(primitive.Decimal128{})
-	gob.Register(primitive.JavaScript(""))
-	gob.Register(primitive.MaxKey{})
-	gob.Register(primitive.MinKey{})
-	gob.Register(primitive.Null{})
-	gob.Register(primitive.ObjectID{})
-	gob.Register(primitive.Regex{})
-	gob.Register(primitive.Symbol(""))
-	gob.Register(primitive.Timestamp{})
-	gob.Register(primitive.Undefined{})
+	gobwrapper.Register(primitive.Binary{})
+	gobwrapper.Register(primitive.CodeWithScope{})
+	gobwrapper.Register(primitive.DateTime(0))
+	gobwrapper.Register(primitive.DBPointer{})
+	gobwrapper.Register(primitive.Decimal128{})
+	gobwrapper.Register(primitive.JavaScript(""))
+	gobwrapper.Register(primitive.MaxKey{})
+	gobwrapper.Register(primitive.MinKey{})
+	gobwrapper.Register(primitive.Null{})
+	gobwrapper.Register(primitive.ObjectID{})
+	gobwrapper.Register(primitive.Regex{})
+	gobwrapper.Register(primitive.Symbol(""))
+	gobwrapper.Register(primitive.Timestamp{})
+	gobwrapper.Register(primitive.Undefined{})
 }
 
 var (

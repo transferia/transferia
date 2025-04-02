@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"encoding/gob"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -20,12 +19,13 @@ import (
 	abstract_sink "github.com/transferia/transferia/pkg/sink"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.PgSource", new(PgSource))
-	gob.RegisterName("*server.PgDestination", new(PgDestination))
+	gobwrapper.RegisterName("*server.PgSource", new(PgSource))
+	gobwrapper.RegisterName("*server.PgDestination", new(PgDestination))
 	model.RegisterDestination(ProviderType, func() model.Destination {
 		return new(PgDestination)
 	})

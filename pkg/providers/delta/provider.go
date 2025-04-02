@@ -1,13 +1,12 @@
 package delta
 
 import (
-	"encoding/gob"
-
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -18,7 +17,7 @@ func init() {
 		return new(DeltaSource)
 	}
 
-	gob.Register(new(DeltaSource))
+	gobwrapper.Register(new(DeltaSource))
 	model.RegisterSource(ProviderType, sourceFactory)
 	abstract.RegisterProviderName(ProviderType, "Delta Lake")
 }

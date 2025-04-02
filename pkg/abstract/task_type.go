@@ -1,13 +1,13 @@
 package abstract
 
 import (
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"reflect"
 
 	"github.com/jackc/pgtype"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 type TaskTypeName = string
@@ -197,7 +197,7 @@ func makeTaskTypeByNameMap() map[TaskTypeName]TaskType {
 		if zeroValue == nil {
 			continue
 		}
-		gob.Register(zeroValue)
+		gobwrapper.Register(zeroValue)
 	}
 
 	return taskTypeMap

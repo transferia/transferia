@@ -1,12 +1,12 @@
 package transformer
 
 import (
-	"encoding/gob"
 	"sort"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -32,7 +32,7 @@ func IsKnownTransformerType(t abstract.TransformerType) bool {
 }
 
 func Register[TConfig Config](typ abstract.TransformerType, f func(cfg TConfig, lgr log.Logger, runtime abstract.TransformationRuntimeOpts) (abstract.Transformer, error)) {
-	gob.Register(new(TConfig))
+	gobwrapper.Register(new(TConfig))
 	knownTransformer[typ] = func(genericCfg any, lgr log.Logger, runtime abstract.TransformationRuntimeOpts) (abstract.Transformer, error) {
 		var t TConfig
 		if err := util.MapFromJSON(genericCfg, &t); err != nil {

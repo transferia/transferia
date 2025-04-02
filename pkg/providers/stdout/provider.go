@@ -1,8 +1,6 @@
 package stdout
 
 import (
-	"encoding/gob"
-
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -10,12 +8,13 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.StdoutDestination", new(StdoutDestination))
-	gob.RegisterName("*server.EmptySource", new(EmptySource))
+	gobwrapper.RegisterName("*server.StdoutDestination", new(StdoutDestination))
+	gobwrapper.RegisterName("*server.EmptySource", new(EmptySource))
 	model.RegisterSource(ProviderType, sourceModelFactory)
 	model.RegisterDestination(ProviderType, destinationModelFactory)
 	model.RegisterDestination(ProviderTypeStdout, destinationModelFactory)

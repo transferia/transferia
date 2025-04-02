@@ -1,8 +1,6 @@
 package datadog
 
 import (
-	"encoding/gob"
-
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -10,13 +8,14 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
 	abstract.RegisterProviderName(ProviderType, "Datadog")
 
-	gob.Register(new(DatadogDestination))
+	gobwrapper.Register(new(DatadogDestination))
 
 	model.RegisterDestination(ProviderType, destinationModelFactory)
 	providers.Register(ProviderType, New)

@@ -1,16 +1,16 @@
 package abstract
 
 import (
-	"encoding/gob"
 	"encoding/json"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 var knownRuntimes = map[RuntimeType]func(spec string) (Runtime, error){}
 
 func init() {
-	gob.RegisterName("*abstract.LocalRuntime", new(LocalRuntime))
+	gobwrapper.RegisterName("*abstract.LocalRuntime", new(LocalRuntime))
 }
 
 type YtCluster string
