@@ -171,7 +171,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 
 	for rows.Next() {
 		var dummy int
-		var tSchema, tName, cName, cDefault, dataType, dataTypeUnderlyingUnderDomain, expr string
+		var tSchema, tName, cName, cDefault, dataType, dataTypeUnderlyingUnderDomain, expr, dtSchema string
 		var allEnumValues interface{}
 		var domainName *string
 		var isNullable bool
@@ -181,6 +181,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 			&cName,
 			&cDefault,
 			&dataType,
+			&dtSchema,
 			&domainName,
 			&dataTypeUnderlyingUnderDomain,
 			&allEnumValues,
@@ -190,6 +191,9 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 		)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to scan from schema retrieval query: %w", err)
+		}
+		if dataTypeUnderlyingUnderDomain == "USER-DEFINED" && !strings.Contains(dataType, dtSchema) && dtSchema != "public" {
+			dataType = fmt.Sprintf("%s.%s", dtSchema, dataType)
 		}
 		originalType := dataType
 		if domainName != nil {
