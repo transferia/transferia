@@ -70,7 +70,6 @@ type ChDestination struct {
 	Hosts []string
 
 	// ChSinkShardParams
-	RetryCount           int
 	UseSchemaInTableName bool
 	ShardCol             string
 	Interval             time.Duration
@@ -134,9 +133,6 @@ func (d *ChDestination) CleanupMode() model.CleanupType {
 }
 
 func (d *ChDestination) WithDefaults() {
-	if d.RetryCount == 0 {
-		d.RetryCount = 20
-	}
 	if d.Interval == 0 {
 		d.Interval = time.Second
 	}
@@ -345,10 +341,6 @@ func (d ChDestinationWrapper) SystemColumnsFirst() bool {
 
 func (d ChDestinationWrapper) AltHosts() []string {
 	return d.Model.Hosts
-}
-
-func (d ChDestinationWrapper) RetryCount() int {
-	return d.Model.RetryCount
 }
 
 func (d ChDestinationWrapper) UseSchemaInTableName() bool {

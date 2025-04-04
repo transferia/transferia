@@ -269,10 +269,6 @@ func (s ChSourceWrapper) AltHosts() []string {
 	return s.altHosts
 }
 
-func (s ChSourceWrapper) RetryCount() int {
-	return 10
-}
-
 func (s ChSourceWrapper) UseSchemaInTableName() bool {
 	return false
 }

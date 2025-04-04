@@ -115,9 +115,6 @@ type ChSinkClusterParamsWrapper struct {
 
 type ChSinkShardParams interface {
 	ChSinkClusterParams
-	// RetryCount
-	// amount of retries in sinkShard::upload - very, very bad design of this part. TODO - remove this ugly stuff
-	RetryCount() int
 	// UseSchemaInTableName
 	// add schema to tableName. TODO - replace it by universal transformer
 	UseSchemaInTableName() bool

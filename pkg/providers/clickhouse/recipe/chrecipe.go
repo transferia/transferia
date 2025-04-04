@@ -181,7 +181,6 @@ func Target(opts ...Option) (*model.ChDestination, error) {
 		IsUpdateable:            false,
 		UpsertAbsentToastedRows: false,
 		Hosts:                   nil,
-		RetryCount:              0,
 		UseSchemaInTableName:    false,
 		ShardCol:                "",
 		Interval:                0,

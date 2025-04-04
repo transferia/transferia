@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -84,27 +85,30 @@ func (s *sink) Push(input []abstract.ChangeItem) error {
 	)
 
 	var wg sync.WaitGroup
-	var errs util.Errors
+	var errs = make([]error, len(shardToChangeItems))
+	i := 0
 	for shard, itemsForShard := range shardToChangeItems {
 		wg.Add(1)
-		go func(shardIdx sharding.ShardID, batch []abstract.ChangeItem) {
+		go func(shardIdx sharding.ShardID, batch []abstract.ChangeItem, i int) {
 			defer wg.Done()
 			cluster, err := s.shardMap[shardIdx].Sink()
 			if err != nil {
-				errs = util.AppendErr(errs, xerrors.Errorf("failed to get a ClickHouse sink for shard %d: %w", shardIdx, err))
+				errs[i] = xerrors.Errorf("failed to get a ClickHouse sink for shard %d: %w", shardIdx, err)
 				return
 			}
 			if err := cluster.Push(batch); err != nil {
-				errs = util.AppendErr(errs, xerrors.Errorf("failed to push %d rows to ClickHouse shard %d: %w", len(batch), shardIdx, err))
+				errs[i] = xerrors.Errorf("failed to push %d rows to ClickHouse shard %d: %w", len(batch), shardIdx, err)
 			}
-		}(shard, itemsForShard)
+		}(shard, itemsForShard, i)
+		i++
 	}
 	wg.Wait()
-	if len(errs) > 0 {
+	err := errors.Join(errs...)
+	if err != nil {
 		if slices.ContainsFunc(errs, abstract.IsFatal) {
-			return abstract.NewFatalError(errs)
+			return abstract.NewFatalError(err)
 		}
-		return errs
+		return err
 	}
 	return nil
 }

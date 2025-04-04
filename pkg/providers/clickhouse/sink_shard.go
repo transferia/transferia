@@ -6,7 +6,6 @@ import (
 	"database/sql/driver"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -17,6 +16,10 @@ import (
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
+)
+
+const (
+	maxPushElapsedTime = 30 * time.Minute
 )
 
 type lazySinkShard struct {
@@ -73,6 +76,7 @@ type sinkShard struct {
 	altNames       map[string]string
 	closeReasonErr error
 	topology       *topology.Topology
+	retryFunc      func(func() error) error
 }
 
 func (s *sinkShard) Close() error {
@@ -117,48 +121,41 @@ func (s *sinkShard) reset() {
 	}
 }
 
-func (s *sinkShard) Push(input []abstract.ChangeItem) error {
-	var err error
-	for i := 0; i < s.config.RetryCount(); i++ {
-		for i := 0; i < s.config.RetryCount(); i++ {
-			err = s.pushBatch(input)
-			if err == nil || err == sql.ErrTxDone {
-				return nil
-			}
-
-			if abstract.IsFatal(err) {
-				return xerrors.Errorf("ClickHouse Push failed (got fatal error): %w", err)
-			}
-
-			var ddlTaskErr errors.DDLTaskError
-			// No reason to fill DDL task queue with retries on half-dead cluster
-			if xerrors.As(err, &ddlTaskErr) {
-				return xerrors.Errorf("ddl task error: %w", err)
-			}
-
-			exception := new(clickhouse.Exception)
-			if xerrors.As(err, &exception) {
-				if !errors.RetryableCode[exception.Code] {
-					s.logger.Warn("Non-retriable ClickHouse error", log.Any("attempt", i), log.Any("stack", exception.StackTrace), log.Error(err))
-					return err
-				}
-				s.logger.Warn("ClickHouse Retry", log.Any("attempt", i), log.Any("stack", exception.StackTrace), log.Error(err))
-				time.Sleep(5 + time.Second*time.Duration(i))
-				continue
-			}
-
-			if err == driver.ErrBadConn {
-				s.logger.Warn("ClickHouse Retry", log.Any("attempt", i), log.Error(err))
-				s.reset()
-				time.Sleep(5 + time.Second*time.Duration(i))
-				continue
-			}
-			break
-		}
-		s.reset()
-		s.logger.Warn("Retrying push error", log.Error(err), log.Int("attempt", i))
+func (s *sinkShard) retry(f func() error) error {
+	if s.retryFunc != nil {
+		//nolint:descriptiveerrors
+		return s.retryFunc(f)
 	}
-	return xerrors.Errorf("ClickHouse Push failed after %d attempts; last error: %w", s.config.RetryCount(), err)
+	//nolint:descriptiveerrors
+	return backoff.Retry(f, backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(maxPushElapsedTime)))
+}
+
+func (s *sinkShard) Push(input []abstract.ChangeItem) error {
+	err := s.retry(func() error {
+		err := s.pushBatch(input)
+		if err == nil || xerrors.Is(err, sql.ErrTxDone) {
+			return nil
+		}
+
+		if abstract.IsFatal(err) {
+			return xerrors.Errorf("ClickHouse Push failed (got fatal error): %w", &backoff.PermanentError{Err: err})
+		}
+
+		var ddlTaskErr errors.DDLTaskError
+		// No reason to fill DDL task queue with retries on half-dead cluster
+		if xerrors.As(err, &ddlTaskErr) {
+			return xerrors.Errorf("ddl task error: %w", &backoff.PermanentError{Err: err})
+		}
+
+		if xerrors.Is(err, driver.ErrBadConn) {
+			s.reset()
+		}
+		return err
+	})
+	if err != nil {
+		return xerrors.Errorf("ClickHouse Push failed; last error: %w", err)
+	}
+	return nil
 }
 
 type opStats struct {
@@ -327,6 +324,7 @@ func newSinkShard(shardName string, config model.ChSinkShardParams, topology *to
 		altNames:       MakeAltNames(config),
 		closeReasonErr: nil,
 		topology:       topology,
+		retryFunc:      nil,
 	}
 
 	return s, nil
