@@ -11,7 +11,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/library/go/test/recipe"
 	"github.com/transferia/transferia/library/go/test/yatest"
 	"github.com/transferia/transferia/pkg/util"
@@ -90,7 +90,7 @@ func (y *shardedMongoRecipe) archiveNamesToBinaryLinks() ([]binurl.BinaryLinks, 
 
 // selectBinaryPrefix function selects the best packet (MongoDB binary) in packet with packets
 func (y *shardedMongoRecipe) selectSuitableBinaryLink(binaryLinks []binurl.BinaryLinks, version string) (binurl.BinaryLinks, error) {
-	links := slices.Filter(binaryLinks, func(binLink binurl.BinaryLinks) bool {
+	links := yslices.Filter(binaryLinks, func(binLink binurl.BinaryLinks) bool {
 		return version == fmt.Sprintf("%d.%d", binLink.Version.Major, binLink.Version.Minor)
 	})
 	maxPatchLinks, err := binurl.TakeMaxPatchVersion(links)
@@ -136,7 +136,7 @@ func (y *shardedMongoRecipe) produceMongoDBBinaryPath(version string) (string, e
 	}
 	if len(dirEntries) > 1 {
 		return "", xerrors.Errorf("archive content is ambiguous: %s",
-			slices.Map(dirEntries, func(entry os.DirEntry) string { return entry.Name() }),
+			yslices.Map(dirEntries, func(entry os.DirEntry) string { return entry.Name() }),
 		)
 	}
 	return path.Join(destination, dirEntries[0].Name()), nil
@@ -202,7 +202,7 @@ func (y *shardedMongoRecipe) startCluster(logger log.Logger, cfgID int, configFi
 
 	allPids, _ := cluster.GetAllPids()
 	logger.Info("cluster has been successfully started!",
-		log.Ints("ports_mongos", slices.Map(cluster.MongoSList, func(s mongoshardedcluster.MongoS) int {
+		log.Ints("ports_mongos", yslices.Map(cluster.MongoSList, func(s mongoshardedcluster.MongoS) int {
 			return s.Port
 		})),
 		log.Ints("all_pids", allPids),

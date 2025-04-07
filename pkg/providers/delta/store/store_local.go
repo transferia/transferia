@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/util/iter"
 )
 
@@ -50,10 +50,10 @@ func (l *Local) ListFrom(path string) (iter.Iter[*FileMeta], error) {
 		return nil, xerrors.Errorf("local store list: %s:%w", parent, err)
 	}
 
-	stats = slices.Filter(stats, func(n os.DirEntry) bool {
+	stats = yslices.Filter(stats, func(n os.DirEntry) bool {
 		return !n.IsDir() && strings.Compare(n.Name(), startFile) >= 0
 	})
-	res := slices.Map(stats, func(n os.DirEntry) *FileMeta {
+	res := yslices.Map(stats, func(n os.DirEntry) *FileMeta {
 		info, _ := n.Info()
 		return &FileMeta{
 			path:         filepath.Join(parent, n.Name()),

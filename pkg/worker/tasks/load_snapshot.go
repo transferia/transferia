@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -378,7 +378,7 @@ func (l *SnapshotLoader) dumpTablePartsToLogs(parts []*model.OperationTablePart)
 			end = len(parts)
 		}
 
-		partsToDump := slices.Map(parts[i:end], func(part *model.OperationTablePart) string {
+		partsToDump := yslices.Map(parts[i:end], func(part *model.OperationTablePart) string {
 			return part.String()
 		})
 		logger.Log.Info(fmt.Sprintf("Tables parts (shards) to copy [%v, %v]", i+1, end), log.Strings("parts", partsToDump))

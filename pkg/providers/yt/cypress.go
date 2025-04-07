@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -135,7 +135,7 @@ func SafeChild(path ypath.Path, children ...string) ypath.Path {
 // to correct YPath.
 func relativePathSuitableForYPath(relativePath string) string {
 	tokens := strings.Split(relativePath, "/")
-	nonEmptyTokens := slices.Filter(tokens, func(token string) bool {
+	nonEmptyTokens := yslices.Filter(tokens, func(token string) bool {
 		return len(token) > 0
 	})
 	deduplicatedSlashes := strings.Join(nonEmptyTokens, "/")

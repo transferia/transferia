@@ -14,7 +14,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
@@ -161,7 +161,7 @@ func (t *sinkTable) generateDDL(cols []abstract.ColSchema, distributed bool) str
 	result.WriteString(fmt.Sprintf(" ENGINE=%s(%s)", engine, strings.Join(engineArgs, ", ")))
 
 	if keys := keys(cols); len(keys) > 0 {
-		escapedKeys := slices.Map(keys, func(col string) string {
+		escapedKeys := yslices.Map(keys, func(col string) string {
 			return fmt.Sprintf("`%s`", col)
 		})
 		result.WriteString(fmt.Sprintf(" ORDER BY (%s)", strings.Join(escapedKeys, ", ")))

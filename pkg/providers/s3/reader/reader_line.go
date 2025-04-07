@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
 	"github.com/transferia/transferia/pkg/parsers/scanner"
@@ -312,7 +312,7 @@ func NewLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metr
 		reader.tableSchema = appendSystemColsTableSchema(cols)
 	}
 
-	reader.ColumnNames = slices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
+	reader.ColumnNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
 
 	return reader, nil
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -95,7 +95,7 @@ func (p *Provider) Sniffer(_ context.Context) (abstract.Fetchable, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("unable to list topics: %w", err)
 		}
-		topics = slices.Filter(topics, func(s string) bool {
+		topics = yslices.Filter(topics, func(s string) bool {
 			return !systemTopics.Contains(s) // ignore system topics
 		})
 	}

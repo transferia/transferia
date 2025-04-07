@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/internal/metrics"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -393,7 +393,7 @@ func makeLargeChangeItem() abstract.ChangeItem {
 		{ColumnName: "value", DataType: string(yt_schema.TypeString)},
 		{ColumnName: "version", DataType: string(yt_schema.TypeInt64)},
 	})
-	colNames := slices.Map(tableSchema.Columns(), func(colSchema abstract.ColSchema) string {
+	colNames := yslices.Map(tableSchema.Columns(), func(colSchema abstract.ColSchema) string {
 		return colSchema.ColumnName
 	})
 	const mib = 1024 * 1024

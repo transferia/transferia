@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/providers/delta/types"
 	"github.com/transferia/transferia/pkg/util/set"
 )
@@ -82,7 +82,7 @@ func (m *Metadata) DataSchema() (*types.StructType, error) {
 		return nil, err
 	}
 
-	fields := slices.Filter(s.GetFields(), func(f *types.StructField) bool {
+	fields := yslices.Filter(s.GetFields(), func(f *types.StructField) bool {
 		return !partitions.Contains(f.Name)
 	})
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 )
 
 // Errors is a slice of error.
@@ -46,7 +46,7 @@ func (e Errors) Empty() bool {
 // Nil errors are thrown away
 // If no errors are left in list, returns nil.
 func NewErrs(err ...error) Errors {
-	errs := slices.Filter(err, func(err error) bool { return err != nil })
+	errs := yslices.Filter(err, func(err error) bool { return err != nil })
 	if len(errs) == 0 {
 		return nil
 	}
@@ -122,7 +122,7 @@ func UniqueErrors(errs Errors) Errors {
 // All errors that occur during processing are stored in multi error object.
 func MapErr[S ~[]T, T, M any](s S, fn func(T) (M, error)) ([]M, error) {
 	var errs Errors
-	result := slices.Map(s, func(subs T) M {
+	result := yslices.Map(s, func(subs T) M {
 		subt, err := fn(subs)
 		errs = AppendErr(errs, err)
 		return subt

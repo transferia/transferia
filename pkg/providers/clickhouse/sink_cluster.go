@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/ptr"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
@@ -179,7 +179,7 @@ func (c *sinkCluster) Reset() error {
 func (c *sinkCluster) Init() error {
 	st := make([]*SinkServer, 0)
 	var errs util.Errors
-	for _, host := range slices.Shuffle(c.config.AltHosts(), nil) {
+	for _, host := range yslices.Shuffle(c.config.AltHosts(), nil) {
 		c.logger.Debugf("init sinkServer %v", host)
 		sinkServer, err := NewSinkServer(
 			c.config.MakeChildServerParams(host),

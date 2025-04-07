@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -64,7 +64,7 @@ func makeBson() bson.D {
 	for i := 0; i < len(alphabet); i++ {
 		ids = append(ids, i)
 	}
-	slices.Shuffle(ids, rand.NewSource(time.Now().Unix()))
+	yslices.Shuffle(ids, rand.NewSource(time.Now().Unix()))
 	for i := 0; i < keyCount; i++ {
 		result = append(result, bson.E{Key: string(alphabet[ids[i]]), Value: randString(int(rand.Uint32()%4 + 2))})
 	}
@@ -280,7 +280,7 @@ func (b *bsonOrderingTester) RunTest(t *testing.T) {
 	require.NoError(t, err)
 
 	keyAsID, indexAsID := false, false
-	docsToBsons := slices.Map(documents, func(doc interface{}) bson.D {
+	docsToBsons := yslices.Map(documents, func(doc interface{}) bson.D {
 		switch d := doc.(type) {
 		case BsonAsID:
 			keyAsID = true
@@ -296,7 +296,7 @@ func (b *bsonOrderingTester) RunTest(t *testing.T) {
 	if keyAsID && indexAsID {
 		t.Fatalf("Collection of heterogeneous type! choose only one of them")
 	}
-	newDocumentsToBsons := slices.Map(newDocuments, func(doc bson.D) bson.D {
+	newDocumentsToBsons := yslices.Map(newDocuments, func(doc bson.D) bson.D {
 		if keyAsID {
 			return doc.Map()["_id"].(bson.D)
 		}

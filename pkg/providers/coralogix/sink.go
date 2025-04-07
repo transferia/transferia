@@ -10,7 +10,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/spf13/cast"
 	"github.com/transferia/transferia/library/go/core/metrics"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/set"
@@ -77,7 +77,7 @@ func (s *Sink) Push(items []abstract.ChangeItem) error {
 }
 
 func (s *Sink) mapChanges(chunk []abstract.ChangeItem) []HTTPLogItem {
-	return slices.Map(chunk, func(t abstract.ChangeItem) HTTPLogItem {
+	return yslices.Map(chunk, func(t abstract.ChangeItem) HTTPLogItem {
 		tmap := t.AsMap()
 		messageBldr := new(strings.Builder)
 		_ = s.tmpl.Execute(messageBldr, tmap)

@@ -15,7 +15,7 @@ import (
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	ytstorage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/tests/helpers"
-	"github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
 	ydb3 "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )

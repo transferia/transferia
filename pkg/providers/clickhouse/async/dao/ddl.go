@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
@@ -68,7 +68,7 @@ func (d *DDLDAO) CreateTable(db, table string, schema []abstract.ColSchema) erro
 			q.WriteString(fmt.Sprintf(" ON CLUSTER %s ", cluster))
 		}
 		q.WriteString(" ( ")
-		cols := slices.Map(schema, func(col abstract.ColSchema) string {
+		cols := yslices.Map(schema, func(col abstract.ColSchema) string {
 			return fmt.Sprintf("`%s` %s", col.ColumnName, columntypes.ToChType(col.DataType))
 		})
 		q.WriteString(strings.Join(cols, ", "))

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/predicate"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -71,7 +71,7 @@ func (s *Storage) getMaxKeyValue(ctx context.Context, path string, tbl *options.
 	}
 	keyCol := tbl.PrimaryKey[0]
 
-	keyColDesc := slices.Filter(tbl.Columns, func(col options.Column) bool {
+	keyColDesc := yslices.Filter(tbl.Columns, func(col options.Column) bool {
 		return col.Name == keyCol
 	})
 	if l := len(keyColDesc); l != 1 {
@@ -151,7 +151,7 @@ func (s *Storage) resolveExprValue(ctx context.Context, yqlStr string, typ types
 
 func (s *Storage) filterToKeyRange(ctx context.Context, filter abstract.WhereStatement, ydbTable options.Description) (keyTupleFrom, keyTupleTo types.Value, err error) {
 	keyColName := ydbTable.PrimaryKey[0]
-	keyCol := slices.Filter(ydbTable.Columns, func(col options.Column) bool {
+	keyCol := yslices.Filter(ydbTable.Columns, func(col options.Column) bool {
 		return col.Name == keyColName
 	})[0]
 

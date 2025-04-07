@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/util"
 	"golang.org/x/exp/constraints"
 )
@@ -42,7 +42,7 @@ func (d DiffItems) String() string {
 // for default configuration
 func (d DiffItems) AsString(options *diffItemsAsStringOptions) string {
 	opts := util.Coalesce(options, makeDiffAsStringOptions())
-	items := slices.Filter(d, func(item DiffItem) bool {
+	items := yslices.Filter(d, func(item DiffItem) bool {
 		for _, diffSourceExcluded := range opts.DiffSourceExcludeFilter {
 			if item.From == diffSourceExcluded {
 				return false
@@ -50,7 +50,7 @@ func (d DiffItems) AsString(options *diffItemsAsStringOptions) string {
 		}
 		return true
 	})
-	itemsStrings := slices.Map(items, func(item DiffItem) string {
+	itemsStrings := yslices.Map(items, func(item DiffItem) string {
 		switch item.From {
 		case DiffSourceBoth:
 			return opts.CommonPrefix + item.Line

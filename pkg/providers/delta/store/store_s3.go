@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/util/iter"
 )
 
@@ -66,10 +66,10 @@ func (s S3) ListFrom(path string) (iter.Iter[*FileMeta], error) {
 	if err != nil {
 		return nil, xerrors.Errorf("unable to list objects: %s: %w", path, err)
 	}
-	contents := slices.Filter(ls.Contents, func(object *s3.Object) bool {
+	contents := yslices.Filter(ls.Contents, func(object *s3.Object) bool {
 		return *object.Key > path
 	})
-	return iter.FromSlice(slices.Map(contents, func(t *s3.Object) *FileMeta {
+	return iter.FromSlice(yslices.Map(contents, func(t *s3.Object) *FileMeta {
 		return &FileMeta{
 			path:         *t.Key,
 			timeModified: *t.LastModified,

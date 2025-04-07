@@ -2,7 +2,7 @@ package utils
 
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/util/set"
 )
@@ -16,7 +16,7 @@ const (
 // it allows to be filled both fields - 'host' & 'hosts' - can be useful on migration period.
 // it saves order, but enforces uniqueness.
 func HandleHostAndHosts(host string, hosts []string) []string {
-	allHosts := slices.Filter(append([]string{host}, hosts...), func(s string) bool { return s != "" })
+	allHosts := yslices.Filter(append([]string{host}, hosts...), func(s string) bool { return s != "" })
 	allHosts = set.New(allHosts...).SortedSliceFunc(func(a, b string) bool {
 		return a < b
 	})

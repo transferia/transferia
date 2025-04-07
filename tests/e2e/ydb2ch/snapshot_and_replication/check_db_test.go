@@ -15,7 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
-	"github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"go.ytsaurus.tech/yt/go/schema"
 )

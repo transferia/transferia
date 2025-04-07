@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/util"
 	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
 	"go.mongodb.org/mongo-driver/bson"
@@ -158,7 +158,7 @@ func saveAllPids(cluster Cluster, envInfo EnvironmentInfo) error {
 	}
 
 	pidsFileContent := strings.Join(
-		slices.Map(pids, func(pid int) string { return fmt.Sprint(pid) }),
+		yslices.Map(pids, func(pid int) string { return fmt.Sprint(pid) }),
 		"\n")
 	return os.WriteFile(envInfo.PidFilePath(), []byte(pidsFileContent), 0755)
 }

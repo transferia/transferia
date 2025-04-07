@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -12,7 +12,7 @@ import (
 var _ abstract.IncrementalStorage = (*Storage)(nil)
 
 func (a *Storage) GetIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.TableDescription, error) {
-	return slices.Map(incremental, func(t abstract.IncrementalTable) abstract.TableDescription {
+	return yslices.Map(incremental, func(t abstract.IncrementalTable) abstract.TableDescription {
 		return abstract.TableDescription{
 			Name:   t.Name,
 			Schema: t.Namespace,

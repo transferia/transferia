@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cast"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
-	xslices "github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/stats"
@@ -215,10 +215,10 @@ ROWS:
 		if len(versions) > 0 {
 			skipped, newestRows = t.splitOldNewRows(insertRows, versions)
 		} else {
-			newestRows = xslices.Map(insertRows, func(t map[string]interface{}) interface{} { return t })
+			newestRows = yslices.Map(insertRows, func(t map[string]interface{}) interface{} { return t })
 		}
 	} else {
-		newestRows = xslices.Map(insertRows, func(t map[string]interface{}) interface{} { return t })
+		newestRows = yslices.Map(insertRows, func(t map[string]interface{}) interface{} { return t })
 	}
 
 	t.logger.Infof("Skipped %v from %v rows (%v will be inserted)", len(skipped), len(insertRows), len(newestRows))

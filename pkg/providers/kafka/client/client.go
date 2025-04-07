@@ -10,7 +10,7 @@ import (
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	"github.com/transferia/transferia/pkg/providers"
@@ -104,7 +104,7 @@ func (c *Client) ListTopics() ([]string, error) {
 		return nil, xerrors.Errorf("unable to list topics: %w", err)
 	}
 
-	return set.New(slices.Map(partitions, func(t kafka.Partition) string {
+	return set.New(yslices.Map(partitions, func(t kafka.Partition) string {
 		return t.Topic
 	})...).Slice(), nil
 }
@@ -155,7 +155,7 @@ func (c *Client) CreateTopicIfNotExist(
 		NumPartitions:      -1,
 		ReplicationFactor:  -1,
 		ReplicaAssignments: nil,
-		ConfigEntries: slices.Map(entries, func(t [2]string) kafka.ConfigEntry {
+		ConfigEntries: yslices.Map(entries, func(t [2]string) kafka.ConfigEntry {
 			return kafka.ConfigEntry{
 				ConfigName:  t[0],
 				ConfigValue: t[1],

@@ -16,7 +16,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
@@ -611,7 +611,7 @@ func (s *Storage) checkTables(tables abstract.TableMap) error {
 		return nil
 	}
 	return xerrors.Errorf("the following tables have not Distributed or Replicated engines and are not yet supported: %s",
-		strings.Join(slices.Map(badTables, func(id abstract.TableID) string { return id.Fqtn() }), ", "))
+		strings.Join(yslices.Map(badTables, func(id abstract.TableID) string { return id.Fqtn() }), ", "))
 }
 
 func (s *Storage) getTableSchema(tID abstract.TableID, isHomo bool) (*abstract.TableSchema, *abstract.TableSchema, error) {

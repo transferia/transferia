@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 )
 
@@ -30,7 +30,7 @@ func (s *Storage) ensureSnapshot() error {
 			return xerrors.Errorf("unable to load data scheam: %w", err)
 		}
 		s.tableSchema = s.asTableSchema(typ)
-		s.colNames = slices.Map(s.tableSchema.Columns(), func(t abstract.ColSchema) string {
+		s.colNames = yslices.Map(s.tableSchema.Columns(), func(t abstract.ColSchema) string {
 			return t.ColumnName
 		})
 	}

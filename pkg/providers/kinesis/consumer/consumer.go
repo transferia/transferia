@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -166,7 +166,7 @@ func (c *Consumer) ScanShard(ctx context.Context, shardID string, fn ScanFunc) e
 				return xerrors.Errorf("get shard iterator error: %w", err)
 			}
 		} else {
-			err = fn(slices.Map(resp.Records, func(r *kinesis.Record) *Record {
+			err = fn(yslices.Map(resp.Records, func(r *kinesis.Record) *Record {
 				lastSeqNum = *r.SequenceNumber
 				return &Record{r, shardID, resp.MillisBehindLatest}
 			}))

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/mapreduce"
@@ -190,7 +190,7 @@ func logMergePlan(path ypath.Path, inputInfix string, tmpSuffix string,
 	}
 
 	getNodesPath := func(nodes []*yt2.NodeInfo) []string {
-		return slices.Map(nodes, getNodePath)
+		return yslices.Map(nodes, getNodePath)
 	}
 
 	mergePlan := mapMap(mergeNodes, ypathToString, getNodesPath)
@@ -198,7 +198,7 @@ func logMergePlan(path ypath.Path, inputInfix string, tmpSuffix string,
 	logger.Infof("infer merge plan by input infix - %v and tmp suffix - %v for input(%v) inside %v:\n\t\tmerges input tables to tmp tables:\n\t\t\t%v\n\t\tmove tmp to result:\n\t\t\t%v",
 		inputInfix,
 		tmpSuffix,
-		slices.Map(inputNodes, getNodePath),
+		yslices.Map(inputNodes, getNodePath),
 		path,
 		mergePlan,
 		movePlan,

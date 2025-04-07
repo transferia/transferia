@@ -7,7 +7,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
@@ -48,7 +48,7 @@ func GetClickhouseOptions(cfg ConnParams, hosts []string) (*clickhouse.Options, 
 	}
 
 	portStr := strconv.Itoa(cfg.NativePort())
-	addrs := slices.Map(hosts, func(host string) string {
+	addrs := yslices.Map(hosts, func(host string) string {
 		return host + ":" + portStr
 	})
 

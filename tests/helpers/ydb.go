@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/ydb"
@@ -221,7 +221,7 @@ func YDBStmtDeleteCompoundKey(t *testing.T, tablePath string, ids ...any) *abstr
 	result.ColumnValues = result.ColumnValues[0:len(ids)]
 	result.OldKeys = abstract.OldKeysType{
 		KeyNames:  result.ColumnNames,
-		KeyTypes:  slices.Map(result.TableSchema.Columns()[0:len(ids)], func(col abstract.ColSchema) string { return col.DataType }),
+		KeyTypes:  yslices.Map(result.TableSchema.Columns()[0:len(ids)], func(col abstract.ColSchema) string { return col.DataType }),
 		KeyValues: ids,
 	}
 

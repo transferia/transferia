@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/stats"
@@ -222,7 +222,7 @@ func (s *Storage) makeDBList(ctx context.Context, schemaName string) ([]string, 
 }
 
 func filterSystemDBs(allDBNames []string, systemDBs []string) []string {
-	return slices.Filter(allDBNames, func(db string) bool {
+	return yslices.Filter(allDBNames, func(db string) bool {
 		return !goslice.Contains(systemDBs, db)
 	})
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/blang/semver/v4"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 )
 
 // BinaryLinks represent MongoDB binary distribution.
@@ -58,8 +58,8 @@ var (
 )
 
 func buildRegexp(tmpl string) *regexp.Regexp {
-	opSystems := slices.Map(OperationSystems, func(op OperationSystem) string { return string(op) })
-	archs := slices.Map(Archs, func(op Arch) string { return string(op) })
+	opSystems := yslices.Map(OperationSystems, func(op OperationSystem) string { return string(op) })
+	archs := yslices.Map(Archs, func(op Arch) string { return string(op) })
 
 	re := fmt.Sprintf(tmpl,
 		strings.Join(opSystems, "|"), // capture group #3

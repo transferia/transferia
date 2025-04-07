@@ -8,7 +8,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/dao"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
@@ -37,7 +37,7 @@ func (s *shardPart) initQueryWMarshaller(row abstract.ChangeItem) error {
 	if s.query != "" {
 		return nil
 	}
-	colNames := slices.Map(row.ColumnNames, func(c string) string { return fmt.Sprintf("`%s`", c) })
+	colNames := yslices.Map(row.ColumnNames, func(c string) string { return fmt.Sprintf("`%s`", c) })
 	s.query = fmt.Sprintf("INSERT INTO `%s`.`%s` (%s)", s.tmpDB, s.tmpTable, strings.Join(colNames, ","))
 	s.marshaller = NewCHV2Marshaller(row.TableSchema.Columns(), s.cols)
 	return nil

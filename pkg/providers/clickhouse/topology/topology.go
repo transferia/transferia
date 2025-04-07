@@ -7,7 +7,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	conn2 "github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/util"
@@ -90,7 +90,7 @@ func ResolveTopology(params model.ChSinkParams, lgr log.Logger) (*Topology, erro
 		if len(remainHosts) == 0 {
 			remainHosts = make([]string, len(allHosts))
 			copy(remainHosts, allHosts)
-			remainHosts = slices.Shuffle(remainHosts, nil)
+			remainHosts = yslices.Shuffle(remainHosts, nil)
 		}
 		host := remainHosts[0]
 		remainHosts = remainHosts[1:]

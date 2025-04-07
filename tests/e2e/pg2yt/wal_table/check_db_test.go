@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
@@ -51,7 +51,7 @@ func Load(t *testing.T) {
 	lsn := uint64(1000)
 	txID := uint32(1)
 	fixLSN := func(_ *testing.T, items []abstract.ChangeItem) abstract.TransformerResult {
-		items = slices.Filter(items, func(item abstract.ChangeItem) bool {
+		items = yslices.Filter(items, func(item abstract.ChangeItem) bool {
 			return !abstract.IsSystemTable(item.Table)
 		})
 		for i := 0; i < len(items); i++ {

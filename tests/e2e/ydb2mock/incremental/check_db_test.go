@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	libslices "github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -45,7 +45,7 @@ func TestYDBIncrementalSnapshot(t *testing.T) {
 	var sinkLock sync.Mutex
 	sinker := &helpers.MockSink{
 		PushCallback: func(items []abstract.ChangeItem) {
-			items = libslices.Filter(items, func(i abstract.ChangeItem) bool {
+			items = yslices.Filter(items, func(i abstract.ChangeItem) bool {
 				return i.IsRowEvent()
 			})
 			sinkLock.Lock()

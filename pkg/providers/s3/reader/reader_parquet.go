@@ -14,7 +14,7 @@ import (
 	"github.com/parquet-go/parquet-go/deprecated"
 	"github.com/parquet-go/parquet-go/format"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
@@ -376,6 +376,6 @@ func NewParquet(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics
 		reader.tableSchema = appendSystemColsTableSchema(cols)
 	}
 
-	reader.colNames = slices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
+	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
 	return reader, nil
 }

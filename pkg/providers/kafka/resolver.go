@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/dbaas"
 	"github.com/transferia/transferia/pkg/providers/kafka/client"
@@ -18,7 +18,7 @@ func ResolveBrokers(s *KafkaConnectionOptions) ([]string, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("cannot get hosts for cluster %s: %w", s.ClusterID, err)
 		}
-		brokers = slices.Map(hosts, func(t dbaas.ClusterHost) string {
+		brokers = yslices.Map(hosts, func(t dbaas.ClusterHost) string {
 			return t.Name
 		})
 	} else {

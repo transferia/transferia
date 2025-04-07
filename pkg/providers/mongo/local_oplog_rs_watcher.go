@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -85,7 +85,7 @@ func BuildFullWhereStatement(f MongoCollectionFilter) *bson.D {
 		CollectionName: "$cmd",
 	})
 	result := bson.D{}
-	namespacesList := slices.Map(allowList, ToRegexp)
+	namespacesList := yslices.Map(allowList, ToRegexp)
 	// noop has no collection, but should be added
 	namespacesList = append(namespacesList, "")
 
@@ -95,7 +95,7 @@ func BuildFullWhereStatement(f MongoCollectionFilter) *bson.D {
 	}
 	if len(f.ExcludedCollections) > 0 {
 		result = append(result, bson.E{Key: "ns", Value: bson.D{{Key: "$not", Value: primitive.Regex{
-			Pattern: buildRegex(slices.Map(f.ExcludedCollections, ToRegexp)),
+			Pattern: buildRegex(yslices.Map(f.ExcludedCollections, ToRegexp)),
 			Options: "",
 		}}}})
 	}

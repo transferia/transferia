@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/tests/canon/validator"
@@ -85,7 +85,7 @@ func Table() []abstract.ChangeItem {
 		//{ColumnName: "t_yson", DataType: schema.Optional{Item: schema.TypeAny}},
 		//{ ColumnName: "t_decimal"},
 	})
-	colNames := slices.Map(cols.Columns(), func(colSchema abstract.ColSchema) string {
+	colNames := yslices.Map(cols.Columns(), func(colSchema abstract.ColSchema) string {
 		return colSchema.ColumnName
 	})
 	inRow := Row{

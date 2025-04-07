@@ -6,7 +6,7 @@ import (
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/base"
 	"github.com/transferia/transferia/pkg/base/filter"
@@ -143,7 +143,7 @@ func NewClusterTables(storage ClickhouseStorage, config *model.ChSource, inputFi
 		if err != nil {
 			return nil, xerrors.Errorf("unable to list filters: %w", err)
 		}
-		tableDescriptions = slices.Filter(tableDescriptions, func(description abstract.TableDescription) bool {
+		tableDescriptions = yslices.Filter(tableDescriptions, func(description abstract.TableDescription) bool {
 			ok, err := inputFilter.IncludesID(description.ID())
 			return ok && err == nil
 		})

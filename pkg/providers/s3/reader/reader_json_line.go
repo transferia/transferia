@@ -17,7 +17,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/spf13/cast"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
 	"github.com/transferia/transferia/pkg/parsers/scanner"
@@ -523,7 +523,7 @@ func NewJSONLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, 
 		reader.tableSchema = appendSystemColsTableSchema(cols)
 	}
 
-	reader.colNames = slices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
+	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
 	reader.fastCols = reader.tableSchema.FastColumns() // need to cache it, so we will not construct it for every line
 	return reader, nil
 }

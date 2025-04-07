@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -409,7 +409,7 @@ func TestCustomColLayautFailures(t *testing.T) {
 	})
 	require.NoError(t, err)
 	defer cleanup(t, sinker, cfg, objects)
-	objKeys := slices.Map(objects.Contents, func(t *s3.Object) string {
+	objKeys := yslices.Map(objects.Contents, func(t *s3.Object) string {
 		return *t.Key
 	})
 	logger.Log.Infof("found: %s", objKeys)
@@ -439,7 +439,7 @@ func TestParquetReplication(t *testing.T) {
 	})
 	require.NoError(t, err)
 	defer cleanup(t, sinker, cfg, objects)
-	objKeys := slices.Map(objects.Contents, func(t *s3.Object) string {
+	objKeys := yslices.Map(objects.Contents, func(t *s3.Object) string {
 		return *t.Key
 	})
 	logger.Log.Infof("found: %s", objKeys)

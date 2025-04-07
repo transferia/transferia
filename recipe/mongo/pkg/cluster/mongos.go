@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/util"
 	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
 	"go.mongodb.org/mongo-driver/bson"
@@ -56,7 +56,7 @@ func StartSingleMongos(
 	logPath := path.Join(binInfo.LogsPath, commonSubPath, "mongod.log")
 	pidPath := path.Join(binInfo.WorkspacePath, commonSubPath, "mongos.pid")
 
-	cfgHostList := strings.Join(slices.Map(configReplicaSet.MongoDaemons, func(d MongoD) string {
+	cfgHostList := strings.Join(yslices.Map(configReplicaSet.MongoDaemons, func(d MongoD) string {
 		return d.Fqdn()
 	}), ",")
 	cfgHostsURL := fmt.Sprintf("%s/%s", configReplicaSet.ReplicaSet, cfgHostList)
@@ -173,7 +173,7 @@ func (s MongoS) WithRootConnection(ctxFunc func(client *mongo.Client) error) (er
 }
 
 func (s MongoS) addShardReplicaSet(client *mongo.Client, shard ShardReplicaSet) error {
-	shardHostList := strings.Join(slices.Map(shard.MongoDaemons, func(d MongoD) string {
+	shardHostList := strings.Join(yslices.Map(shard.MongoDaemons, func(d MongoD) string {
 		return d.Fqdn()
 	}), ",")
 	shardHostsURL := fmt.Sprintf("%s/%s", shard.ReplicaSet, shardHostList)

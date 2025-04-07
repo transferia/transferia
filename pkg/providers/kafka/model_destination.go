@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
@@ -51,7 +51,7 @@ type TopicConfigEntry struct {
 }
 
 func topicConfigEntryToSlices(t []TopicConfigEntry) [][2]string {
-	return slices.Map(t, func(tt TopicConfigEntry) [2]string {
+	return yslices.Map(t, func(tt TopicConfigEntry) [2]string {
 		return [2]string{tt.ConfigName, tt.ConfigValue}
 	})
 }

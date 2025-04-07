@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferia/transferia/library/go/slices"
+	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
@@ -72,7 +72,7 @@ func TestIncrementalSnapshot(t *testing.T) {
 	// 9 and not 8, because we had to specify the same host in two shards
 
 	ids := readIdsFromTarget(t, helpers.GetSampleableStorageByModel(t, Target))
-	require.True(t, slices.ContainsAll(ids, []uint16{1, 2, 3, 4, 5, 7}))
+	require.True(t, yslices.ContainsAll(ids, []uint16{1, 2, 3, 4, 5, 7}))
 }
 
 func addData(t *testing.T, conn *sql.DB) {
