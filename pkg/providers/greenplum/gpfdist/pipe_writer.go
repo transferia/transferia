@@ -1,8 +1,6 @@
 package gpfdist
 
 import (
-	"bufio"
-	"io"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -30,31 +28,19 @@ func (w *PipeWriter) Stop() (int64, error) {
 	return w.pushedCnt.Load(), err
 }
 
-// Write pushes `input` by equal parts per each pipe.
-func (w *PipeWriter) Write(input []string) error {
+func (w *PipeWriter) Write(input [][]byte) error {
 	w.pipeMu.RLock()
 	defer w.pipeMu.RUnlock()
 	if w.pipe == nil {
 		return xerrors.New("pipe writer is closed")
 	}
-	curRows, err := writeToPipe(w.pipe, input)
-	w.pushedCnt.Add(curRows)
-	return err
-}
-
-func writeToPipe(target io.Writer, input []string) (int64, error) {
-	writer := bufio.NewWriter(target)
-	var pushedCnt int64
 	for _, line := range input {
-		if _, err := writer.WriteString(line); err != nil {
-			return pushedCnt, xerrors.Errorf("unable to write string: %w", err)
+		if _, err := w.pipe.Write(line); err != nil {
+			return xerrors.Errorf("unable to write to %s: %w", w.pipe.Name(), err)
 		}
-		pushedCnt++
+		w.pushedCnt.Add(1)
 	}
-	if err := writer.Flush(); err != nil {
-		return pushedCnt, xerrors.Errorf("unable to flush: %w", err)
-	}
-	return pushedCnt, nil
+	return nil
 }
 
 func InitPipeWriter(gpfdist *gpfdistbin.Gpfdist) (*PipeWriter, error) {

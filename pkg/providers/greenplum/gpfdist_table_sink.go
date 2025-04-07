@@ -44,7 +44,7 @@ func (s *GpfdistTableSink) Close() error {
 }
 
 func (s *GpfdistTableSink) Push(items []*abstract.ChangeItem) error {
-	lines := make([]string, len(items))
+	lines := make([][]byte, len(items))
 	for i, item := range items {
 		if item.Kind != abstract.InsertKind {
 			return xerrors.Errorf("unexpected item kind %s", string(item.Kind))
@@ -52,9 +52,9 @@ func (s *GpfdistTableSink) Push(items []*abstract.ChangeItem) error {
 		if len(item.ColumnValues) != 1 {
 			return xerrors.Errorf("unexpected item with %d values", len(item.ColumnValues))
 		}
-		line, ok := item.ColumnValues[0].(string)
+		line, ok := item.ColumnValues[0].([]byte)
 		if !ok || len(line) == 0 {
-			return xerrors.Errorf("expected item's value to be string, got '%T' or empty string", item.ColumnValues[0])
+			return xerrors.Errorf("expected item's value to be []byte, got '%T' or empty []byte", item.ColumnValues[0])
 		}
 		lines[i] = line
 	}

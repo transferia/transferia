@@ -1,20 +1,85 @@
 package gpfdist
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
-	"strings"
+	"os"
 	"sync/atomic"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/sync/errgroup"
 )
+
+const (
+	changeItemsBatchSize = 10000
+	readFileBlockSize    = 25 * humanize.MiByte
+	parseQueueCap        = 250 * humanize.MiByte / readFileBlockSize
+)
+
+type AsyncSplitter struct {
+	quotesCnt int
+	buffer    []byte
+	ResCh     chan [][]byte
+	DoneCh    chan error
+}
+
+func InitAsyncSplitter(input <-chan []byte) *AsyncSplitter {
+	s := &AsyncSplitter{
+		quotesCnt: 0,
+		buffer:    nil,
+		ResCh:     make(chan [][]byte, parseQueueCap),
+		DoneCh:    make(chan error, 1),
+	}
+	go func() {
+		defer close(s.ResCh)
+		defer close(s.DoneCh)
+		for bytes := range input {
+			if res := s.doPart(bytes); len(res) > 0 {
+				s.ResCh <- res
+			}
+		}
+		if len(s.buffer) > 0 {
+			s.DoneCh <- xerrors.New("buffer is not empty")
+		}
+	}()
+	return s
+}
+
+func (s *AsyncSplitter) doPart(bytes []byte) [][]byte {
+	res := make([][]byte, 0, 100_000)
+	lineStartIndex := 0
+	for i := range bytes {
+		if bytes[i] == '"' {
+			s.quotesCnt++
+			continue
+		}
+		if bytes[i] != '\n' || s.quotesCnt%2 != 0 {
+			continue
+		}
+		// Found '\n' which is not escaped by '"', flush line.
+		var curRes []byte
+		if len(s.buffer) > 0 {
+			curRes = append(s.buffer, bytes[lineStartIndex:i+1]...)
+		} else {
+			curRes = bytes[lineStartIndex : i+1]
+		}
+		if len(curRes) > 0 {
+			res = append(res, curRes)
+		}
+		s.quotesCnt = 0
+		s.buffer = nil
+		lineStartIndex = i + 1
+	}
+	s.buffer = append(s.buffer, bytes[lineStartIndex:]...)
+	return res
+}
 
 type PipeReader struct {
 	ctx       context.Context
@@ -25,58 +90,59 @@ type PipeReader struct {
 	errCh     chan error
 }
 
-func (r *PipeReader) readFromPipe(reader io.Reader, pusher abstract.Pusher) (int64, error) {
-	batch := make([]abstract.ChangeItem, 0, r.batchSize)
-	pushedCnt, quotesCnt := int64(0), 0
-	var lineParts []string
+func (r *PipeReader) readFromPipe(file *os.File, pusher abstract.Pusher) (int64, error) {
+	pushedCnt := int64(0)
+	parseQueue := make(chan []byte, parseQueueCap)
+	splitter := InitAsyncSplitter(parseQueue)
 
-	scanner := bufio.NewReader(reader)
-	var readErr error
-	for readErr != io.EOF {
-		var line string
-		line, readErr = scanner.ReadString('\n')
-		if readErr != nil && readErr != io.EOF {
-			return pushedCnt, xerrors.Errorf("unable to read string: %w", readErr)
-		}
-		if readErr == io.EOF && len(line) == 0 {
-			continue // On io.EOF `line` may be either empty or not.
-		}
-		quotesCnt += strings.Count(line, `"`)
-		if quotesCnt%2 != 0 {
-			// Quotes not paired, got not full line.
-			lineParts = append(lineParts, line)
-			continue
-		}
-
-		// Quotes paired, add line to batch.
-		quotesCnt = 0
-		line = strings.Join(lineParts, "") + line
-		lineParts = nil
-		batch = append(batch, r.itemFromTemplate([]any{line}))
-		if len(batch) == r.batchSize {
-			if err := pusher(batch); err != nil {
-				return pushedCnt, xerrors.Errorf("unable to push %d-elements batch: %w", len(batch), err)
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		batch := make([]abstract.ChangeItem, 0, changeItemsBatchSize)
+		for lines := range splitter.ResCh {
+			for _, line := range lines {
+				batch = append(batch, r.itemFromTemplate(line))
+				if len(batch) < changeItemsBatchSize {
+					continue
+				}
+				if err := pusher(batch); err != nil {
+					return xerrors.Errorf("unable to push %d-elements batch: %w", len(batch), err)
+				}
+				pushedCnt += int64(len(batch))
+				batch = make([]abstract.ChangeItem, 0, changeItemsBatchSize)
 			}
-			pushedCnt += int64(r.batchSize)
-			batch = make([]abstract.ChangeItem, 0, r.batchSize)
 		}
-	}
-	if len(batch) > 0 {
-		if err := pusher(batch); err != nil {
-			return pushedCnt, xerrors.Errorf("unable to push %d-elements batch (last): %w", len(batch), err)
+		if len(batch) > 0 {
+			if err := pusher(batch); err != nil {
+				return xerrors.Errorf("unable to push last %d-elements batch: %w", len(batch), err)
+			}
+			pushedCnt += int64(len(batch))
 		}
-		pushedCnt += int64(len(batch))
-	}
+		return nil
+	})
 
-	if lineParts != nil {
-		return pushedCnt, xerrors.New("got non-paired quotes")
-	}
-	return pushedCnt, nil
+	eg.Go(func() error {
+		defer close(parseQueue)
+		for {
+			b := make([]byte, readFileBlockSize)
+			n, err := io.ReadAtLeast(file, b, len(b))
+			if err == io.EOF {
+				break
+			}
+			if err != nil && err != io.ErrUnexpectedEOF {
+				return xerrors.Errorf("unable to read file: %w", err)
+			}
+			parseQueue <- b[:n]
+		}
+		return nil
+	})
+
+	err := eg.Wait()
+	return pushedCnt, err
 }
 
-func (r *PipeReader) itemFromTemplate(columnValues []any) abstract.ChangeItem {
+func (r *PipeReader) itemFromTemplate(columnValues []byte) abstract.ChangeItem {
 	item := r.template
-	item.ColumnValues = columnValues
+	item.ColumnValues = []any{columnValues}
 	return item
 }
 
