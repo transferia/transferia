@@ -1462,7 +1462,7 @@ func NewSinker(lgr log.Logger, cfg *YdbDestination, mtrcs metrics.Registry) (abs
 		return nil, xerrors.Errorf("Cannot create YDB credentials: %w", err)
 	}
 
-	ydbDriver, err := newYDBDriver(ctx, cfg.Database, cfg.Instance, creds, tlsConfig)
+	ydbDriver, err := newYDBDriver(ctx, cfg.Database, cfg.Instance, creds, tlsConfig, false)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init ydb driver: %w", err)
 	}

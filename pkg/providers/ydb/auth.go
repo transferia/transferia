@@ -84,5 +84,5 @@ func ResolveCredentials(
 	if userDataAuth {
 		return credentials.NewIamCreds(logger)
 	}
-	return nil, nil // no creds
+	return v3credential.NewAnonymousCredentials(), nil
 }

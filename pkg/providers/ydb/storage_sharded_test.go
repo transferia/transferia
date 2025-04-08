@@ -72,7 +72,7 @@ func TestYdbStorageSharded_TableLoad(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	ydbDriver, err := newYDBDriver(clientCtx, src.Database, src.Instance, ydbCreds, tlsConfig)
+	ydbDriver, err := newYDBDriver(clientCtx, src.Database, src.Instance, ydbCreds, tlsConfig, false)
 	require.NoError(t, err)
 
 	err = ydbDriver.Table().Do(clientCtx,
