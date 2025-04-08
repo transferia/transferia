@@ -1,6 +1,6 @@
 module github.com/transferia/transferia
 
-go 1.22.5
+go 1.23.8
 
 require (
 	cloud.google.com/go v0.112.2
@@ -63,7 +63,7 @@ require (
 	github.com/shopspring/decimal v1.3.1
 	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed
 	github.com/spf13/cast v1.7.0
-	github.com/spf13/cobra v1.8.1
+	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.31.0
 	github.com/twmb/franz-go v1.17.0
@@ -79,10 +79,10 @@ require (
 	go.uber.org/zap v1.27.0
 	go.ytsaurus.tech/library/go/core/log v0.0.4
 	go.ytsaurus.tech/yt/go v0.0.25
-	golang.org/x/crypto v0.32.0
+	golang.org/x/crypto v0.33.0
 	golang.org/x/exp v0.0.0-20240707233637-46b078467d37
-	golang.org/x/mod v0.22.0
-	golang.org/x/net v0.34.0
+	golang.org/x/mod v0.23.0
+	golang.org/x/net v0.35.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/text v0.22.0
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028
@@ -239,7 +239,7 @@ require (
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.2.2 // indirect
-	github.com/spf13/pflag v1.0.6-0.20201009195203-85dd5c8bc61c // indirect
+	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
@@ -270,9 +270,9 @@ require (
 	go.ytsaurus.tech/library/go/x/xruntime v0.0.4 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.28.0 // indirect
+	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
-	golang.org/x/tools v0.27.0 // indirect
+	golang.org/x/tools v0.30.1-0.20250221230316-5055f70f240c // indirect
 	gonum.org/v1/gonum v0.14.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
