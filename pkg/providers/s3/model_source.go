@@ -59,6 +59,19 @@ type S3Source struct {
 	Format         Format
 	EventSource    EventSource
 	UnparsedPolicy UnparsedPolicy
+
+	// ShardingParams describes configuration of sharding logic.
+	// 	When nil, each file is a separate table part.
+	// 	When enabled, each part grows depending on configuration.
+	ShardingParams *ShardingParams
+}
+
+// TODO: Add sharding of one file to bytes ranges.
+type ShardingParams struct {
+	// PartBytesLimit limits total files sizes (in bytes) per part.
+	// NOTE: It could be exceeded, but not more than the size of last file in part.
+	PartBytesLimit uint64
+	PartFilesLimit uint64 // PartFilesLimit limits total files count per part.
 }
 
 type ConnectionConfig struct {

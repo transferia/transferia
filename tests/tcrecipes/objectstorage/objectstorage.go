@@ -50,6 +50,8 @@ func Prepare(ctx context.Context) (*MiniIOContainer, error) {
 			},
 			Cmd: []string{
 				"server",
+				"--address", fmt.Sprintf(":%s", s3APIPort.Port()),
+				"--console-address", fmt.Sprintf(":%s", consolePort.Port()),
 				"/data",
 			},
 		},

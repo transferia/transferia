@@ -41,6 +41,7 @@ func (o Operand) Match(v any) bool {
 	}
 }
 
+// Deprecated: Use library/go/yandex/cloud/filter instead, see TM-8537 for details.
 func InclusionOperands(predicate abstract.WhereStatement, col string) ([]Operand, error) {
 	if predicate == "" {
 		return nil, nil
@@ -73,7 +74,7 @@ func traverseOperands(expr Expr, col string, op Token, ops []Operand, inverted b
 		}
 		ops = append(ops, Operand{
 			Op:  maybeInvert(n.Op, inverted),
-			Val: FindVal(n.RHS),
+			Val: findVal(n.RHS),
 		})
 
 		return ops
@@ -101,7 +102,7 @@ func maybeInvert(op Token, inverted bool) Token {
 	return op
 }
 
-func FindVal(expr Expr) any {
+func findVal(expr Expr) any {
 	switch n := expr.(type) {
 	case *NumberLiteral:
 		return n.Val

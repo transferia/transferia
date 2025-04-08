@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/yandex/cloud/filter"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/predicate"
 	"github.com/transferia/transferia/pkg/providers/s3"
@@ -38,13 +39,32 @@ func (s *Storage) TableSchema(ctx context.Context, table abstract.TableID) (*abs
 	return s.tableSchema, nil
 }
 
-func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
+func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription, syncPusher abstract.Pusher) error {
+	if s.cfg.ShardingParams != nil { // TODO: Remove that `if` in TM-8537.
+		// With enabled sharding params, common-known cloud filter parser is used.
+		// Unfortunatelly, for default sharding (when ShardingParams == nil) self-written pkg/predicate is used.
+		// Since there are no purposes to use self-written filter parser, it should be refactored in TM-8537.
+		pusher := pusher.New(abstract.Pusher(func(items []abstract.ChangeItem) error {
+			for i, item := range items {
+				if item.IsRowEvent() {
+					items[i].PartID = table.PartID()
+					items[i].Schema = s.cfg.TableNamespace
+					items[i].Table = s.cfg.TableName
+				}
+			}
+			return syncPusher(items)
+		}), nil, s.logger, 0)
+		if err := s.readFiles(ctx, table, pusher); err != nil {
+			return xerrors.Errorf("unable to read many files: %w", err)
+		}
+		return nil
+	}
 	fileOps, err := predicate.InclusionOperands(table.Filter, s3FileNameCol)
 	if err != nil {
 		return xerrors.Errorf("unable to extract: %s: filter: %w", s3FileNameCol, err)
 	}
 	if len(fileOps) > 0 {
-		return s.readFile(ctx, table, pusher)
+		return s.readFile(ctx, table, syncPusher)
 	}
 	parts, err := s.ShardTable(ctx, table)
 	if err != nil {
@@ -55,8 +75,36 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		totalRows += part.EtaRow
 	}
 	for _, part := range parts {
-		if err := s.readFile(ctx, part, pusher); err != nil {
+		if err := s.readFile(ctx, part, syncPusher); err != nil {
 			return xerrors.Errorf("unable to read part: %v: %w", part.String(), err)
+		}
+	}
+	return nil
+}
+
+// readFiles read files extracted from IN-operator of part.Filter.
+// For now, readFiles is used only with s.cfg.ShardingParams != nil and should be fixed in TM-8537.
+func (s *Storage) readFiles(ctx context.Context, part abstract.TableDescription, pusher pusher.Pusher) error {
+	terms, err := filter.Parse(string(part.Filter))
+	if err != nil {
+		return xerrors.Errorf("unable to parse filter: %w", err)
+	}
+	if len(terms) != 1 {
+		return xerrors.Errorf("expected filter with only one 'IN' operator, got '%s'", part.Filter)
+	}
+	term := terms[0]
+	if term.Operator != filter.In {
+		return xerrors.Errorf("unexpected operator '%s' in filter '%s'", term.Operator.String(), part.Filter)
+	}
+	if term.Attribute != s3FileNameCol {
+		return xerrors.Errorf("expected attr '%s', got '%s' in filter '%s'", s3FileNameCol, term.Attribute, part.Filter)
+	}
+	if !term.Value.IsStringList() {
+		return xerrors.Errorf("expected []string value, got '%s' in filter '%s'", term.Value.Type(), part.Filter)
+	}
+	for _, filePath := range term.Value.AsStringList() {
+		if err := s.reader.Read(ctx, filePath, pusher); err != nil {
+			return xerrors.Errorf("unable to read file %s: %w", filePath, err)
 		}
 	}
 	return nil
