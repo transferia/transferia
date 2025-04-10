@@ -121,7 +121,7 @@ func (m *SlotMonitor) checkSlot(version PgVersion, maxSlotByteLag int64) error {
 		slotByteLag, slotByteLagErr = m.getLag(slotByteLagQuery)
 	}
 	if slotByteLagErr != nil {
-		return xerrors.Errorf("failed to check replication slot lag: %w", m.describeError(err))
+		return xerrors.Errorf("failed to check replication slot lag: %w", m.describeError(slotByteLagErr))
 	}
 	m.logger.Infof("replication slot %q WAL lag %s / %s", m.slotName, bytesToString(slotByteLag), format.SizeUInt64(uint64(maxSlotByteLag)))
 	m.metrics.Usage.Set(float64(slotByteLag))
