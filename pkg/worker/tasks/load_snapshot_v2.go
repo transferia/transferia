@@ -533,32 +533,26 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 	var tableUploadErr error
 
 	progressTracker := NewSnapshotTableProgressTracker(ctx, l.operationID, l.cp, &l.progressUpdateMutex)
+	defer progressTracker.Close()
 
 	for ctx.Err() == nil {
 		if err := parallelismSemaphore.Acquire(ctx, 1); err != nil {
-			return errors.CategorizedErrorf(categories.Internal, "failed to acquire semaphore: %w", err)
-		}
-		waitToComplete.Add(1)
-
-		if ctx.Err() != nil {
-			logger.Log.Warn("Context is canceled while upload tables", log.Int("worker_index", l.workerIndex), log.Error(ctx.Err()))
-			waitToComplete.Done()
-			parallelismSemaphore.Release(1)
-			break // Transfer canceled
+			logger.Log.Error("Failed to acquire semaphore to load next table", log.Any("worker_index", l.workerIndex), log.Error(err))
+			continue
 		}
 
 		nextTablePart, err := nextTablePartProvider()
 		if err != nil {
 			logger.Log.Error("Unable to get next table to upload", log.Int("worker_index", l.workerIndex), log.Error(ctx.Err()))
+			parallelismSemaphore.Release(1)
 			return errors.CategorizedErrorf(categories.Internal, "unable to get next table to upload: %w", err)
 		}
 		if nextTablePart == nil {
 			logger.Log.Info("There are no more parts to transfer", log.Int("worker_index", l.workerIndex))
-			waitToComplete.Done()
 			parallelismSemaphore.Release(1)
 			break // No more tables to transfer
 		}
-
+		waitToComplete.Add(1)
 		go func() {
 			defer waitToComplete.Done()
 			defer parallelismSemaphore.Release(1)
@@ -667,10 +661,9 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 
 	}
 	waitToComplete.Wait()
-	progressTracker.Close()
 
 	if tableUploadErr != nil {
-		return tableUploadErr
+		return errors.CategorizedErrorf(categories.Internal, "Upload error: %w", tableUploadErr)
 	}
 
 	return nil
