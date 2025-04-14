@@ -91,19 +91,28 @@ func (w *Worker) run(sink abstract.AsyncSink) error {
 	w.publisher = pubStream
 	defer w.metrics.Master.Set(0)
 	defer sink.Close()
-	for {
-		select {
-		case err := <-errCh:
-			if err != nil {
-				w.logger.Error("stream closed", log.Error(err))
-			}
-			//nolint:descriptiveerrors
-			return err
-		case <-w.keeper.CloseSign:
-			return nil
-		case <-lockCh:
-			return nil
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			w.logger.Error("stream closed", log.Error(err))
 		}
+		//nolint:descriptiveerrors
+		return err
+	case <-w.keeper.CloseSign:
+	case <-lockCh:
+	}
+
+	// We check errCh again in case an error has arrived at the same time as other signals, wait 1 second to make sure there is no error
+	select {
+	case err := <-errCh:
+		if err != nil {
+			w.logger.Error("stream closed while receiving signal", log.Error(err))
+		}
+		//nolint:descriptiveerrors
+		return err
+	case <-time.After(time.Second):
+		return nil
 	}
 }
 
