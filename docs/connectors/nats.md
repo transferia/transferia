@@ -16,39 +16,40 @@ The **NATS Source Connector** enables replication from **NATS** streams. [NATS](
   ### Example Configuration
 
 ```yaml
-NatsSource:
-  Config:
-    Connection:
-      NatsConnectionOptions:
-        URL: "nats://localhost:4222"
-        MaxReconnect: 10
-    StreamIngestionConfigs:
-      - Stream: "events_stream"
-        SubjectIngestionConfigs:
-          - TableName: "events_table"
-            ConsumerConfig:
-              Durable: "event_consumer"
-              AckPolicy: 1
-              MaxDeliver: 5
-              FilterSubject: "events.*"
-            ParserConfig:
-              "json.lb":
-                AddRest: false
-                AddSystemCols: false
-                DropUnparsed: false
-                Fields:
-                  - Name: "cluster_id"
-                    Type: "string"
-                  - Name: "cluster_name"
-                    Type: "string"
-                  - Name: "host"
-                    Type: "string"
-                  - Name: "database"
-                    Type: "string"
-                  - Name: "pid"
-                    Type: "uint32"
-                  - Name: "version"
-                    Type: "uint64"
+    Config:
+      Connection:
+        NatsConnectionOptions:
+          URL: "nats://localhost:4222"
+          MaxReconnect: 10
+      StreamIngestionConfigs:
+        - Stream: "events_stream"
+          SubjectIngestionConfigs:
+            - TableName: "events_table"
+              ConsumerConfig:
+                Durable_Name: "events_consumer"
+                Name: "events_consumer"
+                Deliver_Policy: 0
+                Ack_Policy: 1
+                Filter_Subject: "events.*"
+                Max_Batch: 100
+              ParserConfig:
+                "json.lb":
+                  AddRest: false
+                  AddSystemCols: false
+                  DropUnparsed: false
+                  Fields:
+                    - Name: "cluster_id"
+                      Type: "string"
+                    - Name: "cluster_name"
+                      Type: "string"
+                    - Name: "host"
+                      Type: "string"
+                    - Name: "database"
+                      Type: "string"
+                    - Name: "pid"
+                      Type: "uint32"
+                    - Name: "version"
+                      Type: "uint64"
    ```
 
 ## Fields Breakdown
