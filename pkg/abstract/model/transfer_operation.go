@@ -64,3 +64,7 @@ const (
 func (s TaskStatus) IsFinal() bool {
 	return s == CompletedTask || s == FailedTask
 }
+
+func (s TaskStatus) IsSuccess() bool {
+	return s == CompletedTask
+}
