@@ -496,6 +496,9 @@ func (s *Storage) getGtid(ctx context.Context, tx Queryable) (string, error) {
 	var gtidSet string
 	err := tx.QueryRowContext(ctx, "select @@global.gtid_executed;").Scan(&gtidSet)
 	if err != nil {
+		if strings.Contains(err.Error(), "Unknown system variable 'gtid_executed'") {
+			return "", nil
+		}
 		return "", xerrors.Errorf("Unable to get gtid executed: %w", err)
 	}
 	return gtidSet, nil
