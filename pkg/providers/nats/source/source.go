@@ -55,7 +55,7 @@ func (s *NatsSource) WithDefaults() {
 	}
 	if s.Config.Connection == nil {
 		s.Config.Connection = &connection.ConnectionConfig{
-			NatsConnectionOptions: &nats.Options{
+			NatsConnectionOptions: &connection.NatsConnectionOptions{
 				Url:          nats.DefaultURL,
 				MaxReconnect: 10,
 			},
