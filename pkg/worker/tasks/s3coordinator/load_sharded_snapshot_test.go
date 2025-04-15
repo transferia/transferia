@@ -80,7 +80,6 @@ func (f fakeSinker) Push(input []abstract.ChangeItem) error {
 	return nil
 }
 
-// Obsolete, remove or refactor after all transfers move to revision after TM-5319, TM-5321
 func TestShardedUploadCoordinator(t *testing.T) {
 	cp, err := s3coordinator.NewS3Recipe(os.Getenv("S3_BUCKET"))
 	require.NoError(t, err)
