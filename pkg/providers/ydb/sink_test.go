@@ -230,6 +230,39 @@ func TestSinker_Push(t *testing.T) {
 			},
 		}))
 	})
+
+	tableSchemaWithFlowColumn := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "id", DataType: string(schema.TypeInt32), PrimaryKey: true},
+		// flow is a hidden internal data type, but user should suffer from it. No docs of it whatsoever, but if no escaping happens, it blows up
+		{ColumnName: "flow", DataType: string(schema.TypeString), PrimaryKey: true},
+		// list, as well as flow, has the same bad behaviour
+		{ColumnName: "list", DataType: string(schema.TypeString), PrimaryKey: true},
+	})
+	t.Run("inserts_with_odd_colname", func(t *testing.T) {
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{
+			abstract.ChangeItem{
+				Kind:         abstract.InsertKind,
+				Schema:       "foo",
+				Table:        "inserts_with_odd_colname",
+				ColumnNames:  []string{"id", "flow", "list"},
+				ColumnValues: []interface{}{1, "flowjob", "listing is 300 bucks"},
+				TableSchema:  tableSchemaWithFlowColumn,
+			},
+		}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{
+			abstract.ChangeItem{
+				Kind:   abstract.DeleteKind,
+				Schema: "foo",
+				Table:  "inserts_with_odd_colname",
+				OldKeys: abstract.OldKeysType{
+					KeyNames:  []string{"id", "flow", "list"},
+					KeyTypes:  nil,
+					KeyValues: []interface{}{1, "flowjob", "listing is 300 bucks"},
+				},
+				TableSchema: tableSchemaWithFlowColumn,
+			},
+		}))
+	})
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
 		{
 			Kind:   abstract.DropTableKind,
@@ -256,6 +289,11 @@ func TestSinker_Push(t *testing.T) {
 			Schema: "foo",
 			Table:  "many_upserts_test",
 		},
+		{
+			Kind:   abstract.DropTableKind,
+			Schema: "foo",
+			Table:  "inserts_with_odd_colname",
+		},
 	}))
 }
 
@@ -276,30 +314,69 @@ func TestSinker_insertQuery(t *testing.T) {
 	require.Equal(t, `--!syntax_v1
 DECLARE $batch AS List<
 	Struct<
-		_timestamp:Datetime?,
-		_partition:Utf8?,
-		_offset:Int64?,
-		_idx:Int32?,
-		_rest:Json?,
-		raw_value:Utf8?
+		`+"`_timestamp`"+`:Datetime?,
+		`+"`_partition`"+`:Utf8?,
+		`+"`_offset`"+`:Int64?,
+		`+"`_idx`"+`:Int32?,
+		`+"`_rest`"+`:Json?,
+		`+"`raw_value`"+`:Utf8?
 	>
 >;
 UPSERT INTO `+"`test_table`"+` (
-		_timestamp,
-		_partition,
-		_offset,
-		_idx,
-		_rest,
-		raw_value
+		`+"`_timestamp`"+`,
+		`+"`_partition`"+`,
+		`+"`_offset`"+`,
+		`+"`_idx`"+`,
+		`+"`_rest`"+`,
+		`+"`raw_value`"+`
 )
 SELECT
-	_timestamp,
-	_partition,
-	_offset,
-	_idx,
-	_rest,
-	raw_value
+	`+"`_timestamp`"+`,
+	`+"`_partition`"+`,
+	`+"`_offset`"+`,
+	`+"`_idx`"+`,
+	`+"`_rest`"+`,
+	`+"`raw_value`"+`
 FROM AS_TABLE($batch)
+`, q)
+}
+
+func TestSinker_deleteQuery(t *testing.T) {
+	s := &sinker{config: &YdbDestination{}}
+	q := s.deleteQuery(
+		"flow_table",
+		[]abstract.ColSchema{
+			{ColumnName: "_timestamp", DataType: "DateTime"},
+			{ColumnName: "_partition", DataType: string(schema.TypeString)},
+			{ColumnName: "_offset", DataType: string(schema.TypeInt64)},
+			{ColumnName: "_idx", DataType: string(schema.TypeInt32)},
+			{ColumnName: "_rest", DataType: string(schema.TypeAny)},
+			// flow is a hidden internal data type, but user should suffer from it. No docs of it whatsoever, but if no escaping happens, it blows up
+			{ColumnName: "flow", DataType: string(schema.TypeString)},
+			{ColumnName: "list", DataType: string(schema.TypeString)},
+		},
+	)
+
+	require.Equal(t, `--!syntax_v1
+DECLARE $batch AS Struct<
+	`+"`_timestamp`"+`:Datetime?,
+	`+"`_partition`"+`:Utf8?,
+	`+"`_offset`"+`:Int64?,
+	`+"`_idx`"+`:Int32?,
+	`+"`_rest`"+`:Json?,
+	`+"`flow`"+`:Utf8?,
+	`+"`list`"+`:Utf8?
+>;
+DELETE FROM `+"`flow_table`"+`
+WHERE 1=1
+
+	and `+"`_timestamp`"+` = $batch.`+"`_timestamp`"+`
+	and `+"`_partition`"+` = $batch.`+"`_partition`"+`
+	and `+"`_offset`"+` = $batch.`+"`_offset`"+`
+	and `+"`_idx`"+` = $batch.`+"`_idx`"+`
+	and `+"`_rest`"+` = $batch.`+"`_rest`"+`
+	and `+"`flow`"+` = $batch.`+"`flow`"+`
+	and `+"`list`"+` = $batch.`+"`list`"+`
 `, q)
 }
 

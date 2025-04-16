@@ -55,14 +55,14 @@ var insertTemplate, _ = template.New("query").Parse(`
 --!syntax_v1
 DECLARE $batch AS List<
 	Struct<{{ range .Cols }}
-		{{ .Name }}:{{ .Typ }}?{{ .Comma }}{{ end }}
+		` + "`{{ .Name }}`" + `:{{ .Typ }}?{{ .Comma }}{{ end }}
 	>
 >;
 UPSERT INTO ` + "`{{ .Path }}`" + ` ({{ range .Cols }}
-		{{ .Name }}{{ .Comma }}{{ end }}
+		` + "`{{ .Name }}`" + `{{ .Comma }}{{ end }}
 )
 SELECT{{ range .Cols }}
-	{{ .Name }}{{ .Comma }}{{ end }}
+	` + "`{{ .Name }}`" + `{{ .Comma }}{{ end }}
 FROM AS_TABLE($batch)
 `)
 
@@ -70,12 +70,12 @@ var deleteTemplate, _ = template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 --!syntax_v1
 DECLARE $batch AS Struct<{{ range .Cols }}
-	{{ .Name }}:{{ .Typ }}?{{ .Comma }}{{ end }}
+	` + "`{{ .Name }}`" + `:{{ .Typ }}?{{ .Comma }}{{ end }}
 >;
 DELETE FROM ` + "`{{ .Path }}`" + `
 WHERE 1=1
 {{ range .Cols }}
-	and {{ .Name }} = $batch.{{ .Name }}{{ end }}
+	and ` + "`{{ .Name }}`" + ` = $batch.` + "`{{ .Name }}`" + `{{ end }}
 `)
 
 var createTableQueryTemplate, _ = template.New(
