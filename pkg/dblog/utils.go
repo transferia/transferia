@@ -22,6 +22,14 @@ const (
 	emptySQLTuple            = "()"
 )
 
+type TypeSupport int
+
+const (
+	TypeSupported   TypeSupport = 1
+	TypeUnsupported TypeSupport = 2
+	TypeUnknown     TypeSupport = 3
+)
+
 type ChangeItemConverter func(val interface{}, colSchema abstract.ColSchema) (string, error)
 
 func InferChunkSize(storage abstract.SampleableStorage, tableID abstract.TableID, chunkSizeInBytes uint64) (uint64, error) {
@@ -77,7 +85,7 @@ func PKeysToStringArr(item *abstract.ChangeItem, primaryKey []string, converter 
 	fastTableSchema := changeitem.MakeFastTableSchema(item.TableSchema.Columns())
 	var columnNamesIndices map[string]int
 
-	keysChanged := item.KeysChanged()
+	keysChanged := item.KeysChanged() || item.Kind == abstract.DeleteKind
 	if keysChanged {
 		columnNamesIndices = make(map[string]int, len(item.OldKeys.KeyNames))
 
@@ -114,7 +122,7 @@ func ResolvePrimaryKeyColumns(
 	ctx context.Context,
 	storage abstract.Storage,
 	tableID abstract.TableID,
-	IsSupportedKeyType func(keyType string) bool,
+	checkTypeCompatibility func(keyType string) TypeSupport,
 ) ([]string, error) {
 
 	schema, err := storage.TableSchema(ctx, tableID)
@@ -127,10 +135,13 @@ func ResolvePrimaryKeyColumns(
 	for _, column := range schema.Columns() {
 		if column.PrimaryKey {
 			primaryKey = append(primaryKey, column.ColumnName)
-		}
-
-		if !IsSupportedKeyType(column.OriginalType) {
-			return nil, xerrors.Errorf("unsupported by data-transfer incremental snapshot")
+			switch checkTypeCompatibility(column.OriginalType) {
+			case TypeSupported:
+			case TypeUnsupported:
+				return nil, abstract.NewFatalError(xerrors.Errorf("unsupported by data-transfer incremental snapshot type: %s, column: %s", column.OriginalType, column.ColumnName))
+			case TypeUnknown:
+				return nil, abstract.NewFatalError(xerrors.Errorf("unknown type: %s, column: %s", column.OriginalType, column.ColumnName))
+			}
 		}
 	}
 

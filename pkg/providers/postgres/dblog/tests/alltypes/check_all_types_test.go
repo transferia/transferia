@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v4"
@@ -13,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/dblog"
 	"github.com/transferia/transferia/pkg/dblog/tablequery"
 	"github.com/transferia/transferia/pkg/providers/postgres"
+	pg_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 )
@@ -39,12 +41,14 @@ var (
 		"bigint",
 		"bigserial",
 		"oid",
+		"tid",
 
 		"real",
 		"double precision",
 
 		"char",
 		"varchar",
+		"name",
 
 		"character",
 		"character varying",
@@ -86,6 +90,40 @@ var (
 		"cidr",
 		"macaddr",
 		"citext",
+
+		"_jsonb",
+		"_numeric",
+		"_text",
+		"_timestamp",
+		"_timestamptz",
+		// "_tsrange",  failed to execute SELECT: ERROR: malformed range literal: "[2023-01-01 00:00:00" (SQLSTATE 22P02)
+		// "_tstzrange", failed to execute SELECT: ERROR: malformed range literal: "[2023-01-01 00:00:00Z" (SQLSTATE 22P02)
+		"_uuid",
+		"_varchar",
+		// "_aclitem", could not identify a comparison function for type aclitem
+		"_bool",
+		"_bpchar",
+		"_bytea",
+		"_cidr",
+		"_date",
+		"_float4",
+		"_float8",
+		"_inet",
+		"_int2",
+		"_int4",
+		"_int8",
+		"bpchar",
+		"float4",
+		"float8",
+		"int2",
+		"int4",
+		"int8",
+		"bool",
+
+		// pg 14+
+		"nummultirange",
+		"int4multirange",
+		"int8multirange",
 	}
 )
 
@@ -110,7 +148,14 @@ func TestIncrementalSnapshot(t *testing.T) {
 	tx, err := conn.BeginTx(context.TODO(), repeatableReadWriteTxOptions)
 	require.NoError(t, err)
 
+	tableNames := make([]string, 0, len(postgresTypes))
+
 	for _, pgType := range postgresTypes {
+		require.Equal(t, dblog.TypeSupported, pg_dblog.CheckTypeCompatibility(pgType), "pgType: %s", pgType)
+
+		tableName := createTableNameForType(pgType)
+		tableNames = append(tableNames, tableName)
+
 		_, err := tx.Exec(context.TODO(), createTableWithPkTypeQuery(pgType))
 		require.NoError(t, err)
 	}
@@ -133,6 +178,7 @@ func TestIncrementalSnapshot(t *testing.T) {
 
 		"char_pk_table":    {"'A'", "'B'"},
 		"varchar_pk_table": {"'alpha'", "'beta'"},
+		"name_pk_table":    {"'A'", "'B'"},
 
 		"character_pk_table":                   {"'A'", "'B'"},
 		"character varying_pk_table":           {"'alpha'", "'beta'"},
@@ -168,10 +214,56 @@ func TestIncrementalSnapshot(t *testing.T) {
 		"cidr_pk_table":    {"'192.168.1.0/24'", "'192.168.2.0/24'"},
 		"macaddr_pk_table": {"'08:00:2b:01:02:03'", "'08:00:2b:01:02:04'"},
 		"citext_pk_table":  {"'example'", "'test'"},
+
+		"tid_pk_table":    {"'(0,1)'", "'(0,2)'"},
+		"bpchar_pk_table": {"'A'", "'B'"},
+		"float4_pk_table": {"'1.1'", "'2.2'"},
+		"float8_pk_table": {"'1.1'", "'2.2'"},
+		"int2_pk_table":   {"'1'", "'2'"},
+		"int4_pk_table":   {"'1'", "'2'"},
+		"int8_pk_table":   {"'100'", "'200'"},
+		"bool_pk_table":   {"'false'", "'true'"},
+
+		// pg 14+
+		"nummultirange_pk_table":  {"'{(15e-1,25e-1), (25e-1,35e-1)}'", "'{(20e-1,30e-1), (30e-1,40e-1)}'"},
+		"int4multirange_pk_table": {"'{[3,7), [8,9)}'", "'{[4,8), [9,10)}'"},
+		"int8multirange_pk_table": {"'{[1,100), [200,300)}'", "'{[100,200), [300,400)}'"},
+
+		"_jsonb_pk_table":       {"'{1, 2, 3}'", "'{4, 5, 6}'"},
+		"_numeric_pk_table":     {"ARRAY['1.1', '2.2']::numeric[]", "ARRAY['3.3', '4.4']::numeric[]"},
+		"_text_pk_table":        {"ARRAY['alpha', 'beta']::text[]", "ARRAY['gamma', 'delta']::text[]"},
+		"_timestamp_pk_table":   {"ARRAY['2023-01-01 00:00:00', '2023-01-02 00:00:00']::timestamp[]", "ARRAY['2023-01-03 00:00:00']::timestamp[]"},
+		"_timestamptz_pk_table": {"'{2023-01-01 00:00:00+03, 2023-01-02 00:00:00+03}'", "'{2023-01-03 00:00:00+03, 2023-01-04 00:00:00+03}'"},
+		//  failed to execute SELECT:	ERROR: malformed range literal: "[2023-01-01 00:00:00" (SQLSTATE 22P02)
+		// "_tsrange_pk_table":     {"'{\"[2023-01-01 00:00:00,2023-01-01 01:00:00)\"}'::tsrange[]", "'{\"[2023-01-02 00:00:00,2023-01-02 01:00:00)\"}'::tsrange[]"}
+		// "_tstzrange_pk_table": {"'{\"[2023-01-01 00:00:00Z,2023-01-01 01:00:00Z)\"}'", "'{\"[2023-01-02 00:00:00Z,2023-01-02 01:00:00Z)\"}'"},
+		"_uuid_pk_table":    {"'{550e8400-e29b-41d4-a716-446655440000, 550e8400-e29b-41d4-a716-446655440001}'", "'{550e8400-e29b-41d4-a716-446655440002, 550e8400-e29b-41d4-a716-446655440003}'"},
+		"_varchar_pk_table": {"'{alpha, beta}'", "'{gamma, delta}'"},
+		"_bool_pk_table":    {"'{false, true}'", "'{true, true}'"},
+		"_bpchar_pk_table":  {"'{A, B}'", "'{C, D}'"},
+		"_bytea_pk_table":   {"'{\\x00, \\xff}'", "'{\\xaa}'"},
+		"_cidr_pk_table":    {"'{192.168.1.0/24, 192.168.2.0/24}'", "'{192.168.3.0/24}'"},
+		"_date_pk_table":    {"'{2023-01-01, 2023-01-02}'", "'{2023-01-03}'"},
+		"_float4_pk_table":  {"'{1.1, 2.2}'", "'{3.3, 4.4}'"},
+		"_float8_pk_table":  {"'{1.1, 2.2}'", "'{3.3, 4.4}'"},
+		"_inet_pk_table":    {"'{192.168.1.1, 192.168.1.2}'", "'{192.168.1.3}'"},
+		"_int2_pk_table":    {"'{1, 2}'", "'{3, 4}'"},
+		"_int4_pk_table":    {"'{1, 2}'", "'{3, 4}'"},
+		"_int8_pk_table":    {"'{100, 200}'", "'{300, 400}'"},
 	}
 
-	for tableName, insert := range inserts {
-		_, err := tx.Exec(context.TODO(), insertQueryValues(tableName, addIdxToPk(insert)))
+	keys := make([]string, 0, len(inserts))
+	tableNamesInInserts := make([]string, 0, len(inserts))
+	for key := range inserts {
+		keys = append(keys, strings.TrimSuffix(key, "_pk_table"))
+		tableNamesInInserts = append(tableNamesInInserts, key)
+	}
+
+	require.ElementsMatch(t, postgresTypes, keys)
+	require.ElementsMatch(t, tableNamesInInserts, tableNames)
+
+	for _, tableName := range tableNames {
+		_, err := tx.Exec(context.TODO(), insertQueryValues(tableName, addIdxToPk(inserts[tableName])))
 		require.NoError(t, err)
 	}
 

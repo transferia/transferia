@@ -471,9 +471,10 @@ func (s *PgSource) isPreferReplica(transfer *model.Transfer) bool {
 	// - It can be used only on heterogeneous transfers - bcs "for homo there are some technical restrictions" (https://github.com/transferia/transferia/review/4059241/details#comment-5973004)
 	//     There are some issues with reading sequence values from replica
 	// - It can be used only on SNAPSHOT_ONLY transfer - bcs we can't take consistent slot on master & snapshot on replica
+	// - It can be used only when DBLog is disabled - bcs DBLog requires master connection to insert/update records in signal table
 	//
 	// When 'PreferReplica' is true - reading happens from synchronous replica
-	return !s.IsHomo && transfer != nil && (transfer.SnapshotOnly() || !transfer.IncrementOnly())
+	return !s.IsHomo && transfer != nil && (transfer.SnapshotOnly() || !transfer.IncrementOnly()) && !s.DBLogEnabled
 }
 
 func (s *PgSource) ToStorageParams(transfer *model.Transfer) *PgStorageParams {

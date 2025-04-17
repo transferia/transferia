@@ -59,7 +59,7 @@ func (s *Storage) Ping() error {
 }
 
 func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescription, pusher abstract.Pusher) error {
-	pkColNames, err := dblog.ResolvePrimaryKeyColumns(ctx, s.pgStorage, tableDescr.ID(), IsSupportedKeyType)
+	pkColNames, err := dblog.ResolvePrimaryKeyColumns(ctx, s.pgStorage, tableDescr.ID(), CheckTypeCompatibility)
 	if err != nil {
 		return xerrors.Errorf("unable to get primary key: %w", err)
 	}

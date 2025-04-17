@@ -18,12 +18,12 @@ import (
 var (
 	storage = CreateMockStorage()
 
-	isSupporterKeyType = func(keyType string) bool {
+	isSupporterKeyType = func(keyType string) dblog.TypeSupport {
 		if keyType == "pg:text" || keyType == "pg:int" {
-			return true
+			return dblog.TypeSupported
 		}
 
-		return false
+		return dblog.TypeUnsupported
 	}
 
 	converter = func(val interface{}, colSchema abstract.ColSchema) (string, error) {

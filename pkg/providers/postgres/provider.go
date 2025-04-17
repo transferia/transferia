@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -441,7 +442,7 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap) er
 			return xerrors.Errorf("failed to make async sink: %w", err)
 		}
 
-		if err = backoff.Retry(func() error {
+		if err = backoff.RetryNotify(func() error {
 			logger.Log.Infof("Starting upload table: %s", table.String())
 
 			sourceWrapper, err := NewSourceWrapper(src, src.SlotID, p.transfer.DataObjects, p.logger, stats.NewSourceStats(p.registry), p.cp, true)
@@ -462,7 +463,7 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap) er
 			}
 			logger.Log.Infof("Upload table %s successfully", table.String())
 			return nil
-		}, util.NewExponentialBackOff()); err != nil {
+		}, util.NewExponentialBackOff(), util.BackoffLogger(logger.Log, fmt.Sprintf("loading table: %s", table.String()))); err != nil {
 			return xerrors.Errorf("failed to load table: %w", err)
 		}
 	}
