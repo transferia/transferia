@@ -72,17 +72,18 @@ ORDER BY num.relname ASC, att.attnum ASC
 )
 
 type sink struct {
-	conn               *pgxpool.Pool
-	currentConn        *pgxpool.Conn
-	config             PgSinkParams
-	logger             log.Logger
-	metrics            *stats.SinkerStats
-	keys               map[string][]string // table name -> key column names
-	currentTX          pgx.Tx
-	currentTXID        uint32
-	transferID         string
-	lsnTrack           map[abstract.TableID]uint64
-	pendingTableCounts map[abstract.TableID]int
+	conn                *pgxpool.Pool
+	currentConn         *pgxpool.Conn
+	config              PgSinkParams
+	logger              log.Logger
+	metrics             *stats.SinkerStats
+	keys                map[string][]string // table name -> key column names
+	existingTableSchema map[abstract.TableID]abstract.TableSchema
+	currentTX           pgx.Tx
+	currentTXID         uint32
+	transferID          string
+	lsnTrack            map[abstract.TableID]uint64
+	pendingTableCounts  map[abstract.TableID]int
 }
 
 func (s *sink) Close() error {
@@ -123,15 +124,25 @@ func getUniqueIndexKeys(ctx context.Context, conn *pgxpool.Pool) (map[string][]s
 	return result, nil
 }
 
+func prepareOriginalType(col abstract.ColSchema) (abstract.ColSchema, error) {
+	res := col.Copy()
+	if res.OriginalType == "" || !strings.HasPrefix(res.OriginalType, "pg:") {
+		pgType, err := DataToOriginal(res.DataType)
+		if err != nil {
+			return abstract.ColSchema{}, xerrors.Errorf("failed to convert type %q: %w", col.DataType, err)
+		}
+		res.OriginalType = "pg:" + pgType
+	}
+	return *res, nil
+}
+
 func prepareOriginalTypes(schema []abstract.ColSchema) error {
 	for i, v := range schema {
-		if v.OriginalType == "" || !strings.HasPrefix(v.OriginalType, "pg:") {
-			pgType, err := DataToOriginal(v.DataType)
-			if err != nil {
-				return xerrors.Errorf("failed to convert type %q: %w", v.DataType, err)
-			}
-			(schema)[i].OriginalType = "pg:" + pgType
+		col, err := prepareOriginalType(v)
+		if err != nil {
+			return xerrors.Errorf("failed to convert type %q: %w", v.DataType, err)
 		}
+		schema[i] = col
 	}
 	return nil
 }
@@ -155,65 +166,146 @@ func CreateSchemaQueryOptional(fullTableName string) string {
 	return ""
 }
 
-func CreateTableQuery(fullTableName string, schema []abstract.ColSchema) (string, error) {
-	if err := prepareOriginalTypes(schema); err != nil {
-		return "", xerrors.Errorf("failed to prepare original types for parsing: %w", err)
-	}
-
-	var primaryKeys []string
-	b := strings.Builder{}
-	b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (`, fullTableName))
-	for idx, col := range schema {
-		var queryType string
-		if col.OriginalType != "" {
-			queryType = strings.TrimPrefix(col.OriginalType, "pg:")
-			queryType = strings.ReplaceAll(queryType, "USER-DEFINED", "TEXT")
-		} else {
-			var err error
-			queryType, err = DataToOriginal(col.DataType)
-			if err != nil {
-				return "", xerrors.Errorf("failed to convert column %q to original type: %w", col.ColumnName, err)
-			}
-		}
-		if strings.HasPrefix(col.Expression, "pg:") {
-			queryType += " " + strings.TrimPrefix(col.Expression, "pg:")
-		}
-		b.WriteString(fmt.Sprintf(`"%v" %v`, col.ColumnName, queryType))
-		if col.IsKey() {
-			primaryKeys = append(primaryKeys, fmt.Sprintf(`"%s"`, col.ColumnName))
-		}
-		if idx < len(schema)-1 {
-			b.WriteString(",")
-		}
-	}
-	if len(primaryKeys) > 0 {
-		b.WriteString(fmt.Sprintf(", primary key (%v)", strings.Join(primaryKeys, ",")))
-	}
-	b.WriteString(")")
-
-	return b.String(), nil
-}
-
-func (s *sink) checkTable(ctx context.Context, name string, schema []abstract.ColSchema) error {
+func (s *sink) checkTable(ctx context.Context, in abstract.TableSchema) error {
 	if !s.config.MaintainTables() {
 		return nil
 	}
-
-	if csq := CreateSchemaQueryOptional(name); len(csq) > 0 {
+	fqtn := in.TableID().Fqtn()
+	if csq := CreateSchemaQueryOptional(fqtn); len(csq) > 0 {
 		if _, err := s.conn.Exec(ctx, csq); err != nil {
 			s.logger.Warn("Failed to execute CREATE SCHEMA.", log.Error(err))
 		}
 	}
+	if err := s.ensureTableSchema(ctx, in); err != nil {
+		return xerrors.Errorf("failed to ensure table schema %s exists or not: %w", in.TableID().Fqtn(), err)
+	}
+	existingSchema := s.existingTableSchema[in.TableID()]
+	if existingSchema.Equal(&in) {
+		return nil
+	}
 
-	if ctq, err := CreateTableQuery(name, schema); err != nil {
+	if err := s.CreateTable(ctx, in); err != nil {
+		return xerrors.Errorf("create table failed with: %w", err)
+	}
+	if err := s.CreateEnums(ctx, in); err != nil {
+		return xerrors.Errorf("create enums failed with: %w", err)
+	}
+	if err := s.AlterEnums(ctx, in); err != nil {
+		return xerrors.Errorf("alter enums failed with: %w", err)
+	}
+	if err := s.AlterTable(ctx, in); err != nil {
+		return xerrors.Errorf("alter table failed with: %w", err)
+	}
+
+	return nil
+}
+
+func (s *sink) ensureTableSchema(ctx context.Context, in abstract.TableSchema) error {
+	if currSchema, ok := s.existingTableSchema[in.TableID()]; !ok || !currSchema.Equal(&in) {
+		conn, err := s.conn.Acquire(ctx)
+		if err != nil {
+			return xerrors.Errorf("failed to acquire connection from pool: %w", err)
+		}
+		defer conn.Release()
+		tID := in.TableID()
+		schema, err := NewSchemaExtractor().LoadSchema(ctx, conn.Conn(), &tID)
+		if err != nil {
+			return xerrors.Errorf("failed to get current table scheme: %w", err)
+		}
+		if val, ok := schema[in.TableID()]; ok {
+			s.existingTableSchema[in.TableID()] = *val
+		}
+	}
+	return nil
+}
+
+func (s *sink) CreateTable(ctx context.Context, in abstract.TableSchema) error {
+	if _, ok := s.existingTableSchema[in.TableID()]; ok {
+		return nil
+	}
+	if ctq, err := CreateTableQuery(in.TableID().Fqtn(), in.Columns()); err != nil {
 		return xerrors.Errorf("failed to create a SQL query to ensure table existence: %w", err)
 	} else {
 		if _, err = s.conn.Exec(ctx, ctq); err != nil {
 			s.logger.Warn("Failed to execute CREATE TABLE.", log.Error(err))
 		}
-		s.logger.Info("Table created", log.Any("ddl", ctq))
+		s.logger.Info(fmt.Sprintf("%s table created", in.TableID().Fqtn()), log.Any("ddl", ctq))
 	}
+	return nil
+}
 
+func (s *sink) CreateEnums(ctx context.Context, in abstract.TableSchema) error {
+	ets := s.existingTableSchema[in.TableID()]
+	for _, col := range in.Columns() {
+		if !isPgEnum(col) {
+			continue
+		}
+		// if column exists in table type is considered created
+		if _, ok := ets.FastColumns()[abstract.ColumnName(col.ColumnName)]; ok {
+			continue
+		}
+		query, err := createEnumQuery(col)
+		if err != nil {
+			s.logger.Warn("failed to create a SQL query to ensure ENUM existence", log.Error(err))
+		}
+		if _, err = s.conn.Exec(ctx, query); err != nil {
+			s.logger.Warn("Failed to execute CREATE TYPE.", log.Error(err))
+		}
+
+		s.logger.Info(fmt.Sprintf("%s type created", in.TableID().Fqtn()), log.Any("ddl", query))
+	}
+	return nil
+}
+
+func isPgEnum(col abstract.ColSchema) bool {
+	vals := GetPropertyEnumAllValues(&col)
+	return vals != nil
+}
+
+func (s *sink) AlterEnums(ctx context.Context, in abstract.TableSchema) error {
+	ets := s.existingTableSchema[in.TableID()]
+	for _, col := range in.Columns() {
+		if !isPgEnum(col) {
+			continue
+		}
+		queries, err := addEnumValsQuery(ets.FastColumns()[abstract.ColumnName(col.ColumnName)], col)
+		if err != nil {
+			s.logger.Warn("failed to create a SQL query to ensure ENUM values", log.Error(err))
+		}
+		if len(queries) == 0 {
+			continue
+		}
+		for _, query := range queries {
+			if _, err = s.conn.Exec(ctx, query); err != nil {
+				s.logger.Warn("Failed to execute ALTER TYPE.", log.Error(err))
+			}
+		}
+		s.logger.Info(fmt.Sprintf("%s type altered", in.TableID().Fqtn()), log.Any("ddl", queries))
+	}
+	return nil
+}
+
+func (s *sink) AlterTable(ctx context.Context, in abstract.TableSchema) error {
+	added := make([]abstract.ColSchema, 0, len(in.Columns()))
+	ets := s.existingTableSchema[in.TableID()]
+	for _, col := range in.Columns() {
+		if _, ok := ets.FastColumns()[abstract.ColumnName(col.ColumnName)]; !ok {
+			added = append(added, col)
+			continue
+		}
+	}
+	if len(added) == 0 {
+		return nil
+	}
+	query, err := addColsQuery(in.TableID().Fqtn(), added)
+	if err != nil {
+		return xerrors.Errorf("failed to create a SQL query to ensure columns existence: %w", err)
+	}
+	if _, err = s.conn.Exec(ctx, query); err != nil {
+		s.logger.Warn("Failed to execute ALTER TABLE.", log.Error(err))
+	}
+	s.logger.Info(fmt.Sprintf("%s table altered", in.TableID().Fqtn()), log.Any("ddl", query))
+	s.existingTableSchema[in.TableID()] = in
 	return nil
 }
 
@@ -489,11 +581,16 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 		if s.config.Tables()[table] != "" {
 			pgTable = s.config.Tables()[table]
 		}
-		tableSchema := batch[0].TableSchema.Columns()
-		if err := s.checkTable(context.TODO(), pgTable, tableSchema); err != nil {
+		tableID, err := abstract.NewTableIDFromStringPg(pgTable, false)
+		if err != nil {
+			return xerrors.Errorf("failed to parse TableID from %s: %w", pgTable, err)
+		}
+		batch[0].TableSchema.SetTableID(*tableID)
+		if err := s.checkTable(context.TODO(), *batch[0].TableSchema); err != nil {
 			//nolint:descriptiveerrors
 			return err
 		}
+		tableSchema := batch[0].TableSchema.Columns()
 		// TODO: This must be moved into middleware (and the same must be done in other sinks)
 		batch = abstract.Collapse(batch)
 
@@ -537,13 +634,13 @@ func Represent(val interface{}, colSchema abstract.ColSchema) (string, error) {
 
 		if strings.HasPrefix(colSchema.OriginalType, "pg:time") &&
 			!strings.HasPrefix(colSchema.OriginalType, "pg:timestamp") {
-			//by default Value of time always returns as array of bytes which can not be processed in plain insert
-			//however if we cast decoder to pgtype.Time while unmarshalling it will lead to errors in tests because
-			//pgtype.Time doesn't store the precision and always uses the maximum(6)
+			// by default Value of time always returns as array of bytes which can not be processed in plain insert
+			// however if we cast decoder to pgtype.Time while unmarshalling it will lead to errors in tests because
+			// pgtype.Time doesn't store the precision and always uses the maximum(6)
 			if vvv, ok := vv.([]byte); ok && vv != nil {
 				coder := new(pgtype.Time)
 
-				//we only use binary->binary (de)serialization in homogeneous pg->pg
+				// we only use binary->binary (de)serialization in homogeneous pg->pg
 				if err := coder.DecodeBinary(nil, vvv); err == nil {
 					//nolint:descriptiveerrors
 					return Represent(coder, colSchema)
@@ -946,7 +1043,7 @@ func (s *sink) insert(ctx context.Context, table string, schema []abstract.ColSc
 		return xerrors.Errorf("failed to build queries to process items at sink: %w", err)
 	}
 
-	//s.logger.Infof("Prepare query %v rows %v for table %v", len(items), format.SizeInt(len(queries)), table)
+	// s.logger.Infof("Prepare query %v rows %v for table %v", len(items), format.SizeInt(len(queries)), table)
 	execStart := time.Now()
 	processedQueries := 0
 	for processedQueries < len(queries) {
@@ -1085,18 +1182,20 @@ func NewSinkWithPool(ctx context.Context, lgr log.Logger, transferID string, con
 		return nil, xerrors.Errorf("failed to get UNIQUE INDEX keys: %w", err)
 	}
 	result := &sink{
-		conn:               pool,
-		currentConn:        nil,
-		config:             config,
-		logger:             lgr,
-		metrics:            stats.NewSinkerStats(mtrcs),
-		keys:               keys,
-		currentTX:          nil,
-		currentTXID:        0,
-		transferID:         transferID,
-		lsnTrack:           map[abstract.TableID]uint64{},
-		pendingTableCounts: map[abstract.TableID]int{},
+		conn:                pool,
+		currentConn:         nil,
+		config:              config,
+		logger:              lgr,
+		metrics:             stats.NewSinkerStats(mtrcs),
+		keys:                keys,
+		existingTableSchema: make(map[abstract.TableID]abstract.TableSchema),
+		currentTX:           nil,
+		currentTXID:         0,
+		transferID:          transferID,
+		lsnTrack:            map[abstract.TableID]uint64{},
+		pendingTableCounts:  map[abstract.TableID]int{},
 	}
+
 	if config.PerTransactionPush() {
 		if _, err := pool.Exec(ctx, LSNTrackTableDDL); err != nil {
 			return nil, xerrors.Errorf("failed to CREATE TABLE to track LSNs: %w", err)

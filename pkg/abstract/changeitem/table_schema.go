@@ -8,8 +8,21 @@ import (
 )
 
 type TableSchema struct {
-	columns TableColumns
-	hash    string
+	tableID         TableID
+	fastTableSchema FastTableSchema
+	columns         TableColumns
+	hash            string
+}
+
+func (s *TableSchema) TableID() TableID {
+	if s.tableID.Name == "" && len(s.columns) != 0 {
+		return s.columns[0].TableID()
+	}
+	return s.tableID
+}
+
+func (s *TableSchema) SetTableID(TableID TableID) {
+	s.tableID = TableID
 }
 
 func (s *TableSchema) Copy() *TableSchema {
@@ -31,7 +44,11 @@ func (s *TableSchema) ColumnNames() []string {
 }
 
 func (s *TableSchema) FastColumns() FastTableSchema {
-	return MakeFastTableSchema(s.columns)
+	if s.fastTableSchema != nil {
+		return s.fastTableSchema
+	}
+	s.fastTableSchema = MakeFastTableSchema(s.columns)
+	return s.fastTableSchema
 }
 
 func (s *TableSchema) Hash() (string, error) {
@@ -65,5 +82,10 @@ func NewTableSchema(columns []ColSchema) *TableSchema {
 	return &TableSchema{
 		columns: columns,
 		hash:    "",
+		tableID: TableID{
+			Namespace: "",
+			Name:      "",
+		},
+		fastTableSchema: nil,
 	}
 }
