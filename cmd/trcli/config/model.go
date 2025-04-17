@@ -51,6 +51,7 @@ type TransferYamlView struct {
 	Transformation    *transformer.Transformers `yaml:"transformation"`
 	DataObjects       *model.DataObjects        `yaml:"data_objects"`
 	TypeSystemVersion int                       `yaml:"type_system_version"`
+	AsyncOperations   bool
 }
 
 func (v TransferYamlView) Validate() error {

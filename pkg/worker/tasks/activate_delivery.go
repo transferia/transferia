@@ -26,8 +26,13 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 	rollbacks.Add(func() {
-		if err := cp.SetStatus(transfer.ID, model.Failing); err != nil {
-			logger.Log.Warn("failed to set failing transfer's status", log.Error(err))
+		// apparently this may happen only if replication was started ?
+		// for async activation we will not need it only for replication stage
+		// TODO: remove set status when async replication is implemented
+		if !transfer.AsyncOperations || !transfer.SnapshotOnly() {
+			if err := cp.SetStatus(transfer.ID, model.Failing); err != nil {
+				logger.Log.Warn("failed to set failing transfer's status", log.Error(err))
+			}
 		}
 	})
 
@@ -76,7 +81,7 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 			return errors.CategorizedErrorf(categories.Source, "unable to init data provider: %w", err)
 		}
 
-		if !transfer.IncrementOnly() {
+		if !transfer.IncrementOnly() && !transfer.AsyncOperations {
 			err := cp.SetStatus(transfer.ID, model.Started)
 			if err != nil {
 				return errors.CategorizedErrorf(categories.Internal, "Cannot update transfer status: %w", err)
@@ -131,7 +136,7 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 		return NoTablesError
 	}
 
-	if !transfer.IncrementOnly() {
+	if !transfer.IncrementOnly() && !transfer.AsyncOperations {
 		err := cp.SetStatus(transfer.ID, model.Started)
 		if err != nil {
 			return errors.CategorizedErrorf(categories.Internal, "Cannot update transfer status: %w", err)

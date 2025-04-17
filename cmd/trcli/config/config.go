@@ -261,6 +261,7 @@ func transfer(source model.Source, target model.Destination, tr *TransferYamlVie
 	transfer.RegularSnapshot = tr.RegularSnapshot
 	transfer.DataObjects = tr.DataObjects
 	transfer.TypeSystemVersion = tr.TypeSystemVersion
+	transfer.AsyncOperations = tr.AsyncOperations
 	return transfer
 }
 

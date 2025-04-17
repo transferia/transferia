@@ -16,13 +16,25 @@ func StartJob(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 	if !transfer.IsMain() {
 		return nil
 	}
-	transfer.Status = model.Running
-	if transfer.SnapshotOnly() {
-		transfer.Status = model.Completed
+
+	// we do not need this for async snaphot operations, currently only async activate is supported
+	// TODO: TM-8542 remove set status for async replication when it's implemented
+	// TODO: TM-8326 remove set status for other async tasks when implemented
+	needChangeStatus := true
+	if transfer.AsyncOperations && transfer.SnapshotOnly() && task.TaskType.String() == "Activate" {
+		needChangeStatus = false
 	}
-	if err := cp.SetStatus(transfer.ID, transfer.Status); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "Cannot transit transfer into the %s state: %w", string(transfer.Status), err)
+
+	if needChangeStatus {
+		transfer.Status = model.Running
+		if transfer.SnapshotOnly() {
+			transfer.Status = model.Completed
+		}
+		if err := cp.SetStatus(transfer.ID, transfer.Status); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "Cannot transit transfer into the %s state: %w", string(transfer.Status), err)
+		}
 	}
+
 	if transfer.SnapshotOnly() {
 		return nil
 	}

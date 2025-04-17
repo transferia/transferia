@@ -78,6 +78,7 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 				TmpPolicy:         transfer.TmpPolicy,
 				DataObjects:       transfer.DataObjects,
 				TypeSystemVersion: transfer.TypeSystemVersion,
+				AsyncOperations:   transfer.AsyncOperations,
 			}
 
 			if !transfer.IsAbstract2() {

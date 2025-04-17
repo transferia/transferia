@@ -25,6 +25,8 @@ type Transfer struct {
 	TypeSystemVersion int
 	TmpPolicy         *TmpPolicyConfig
 
+	AsyncOperations bool // real async operation flag
+
 	// TODO: remove
 	FolderID string
 	CloudID  string
@@ -441,6 +443,7 @@ func (f *Transfer) Copy(name string) Transfer {
 		FolderID:          f.FolderID,
 		CloudID:           f.CloudID,
 		Author:            f.Author,
+		AsyncOperations:   f.AsyncOperations,
 	}
 }
 
