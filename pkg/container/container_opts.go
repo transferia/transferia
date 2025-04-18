@@ -118,6 +118,7 @@ func (c *ContainerOpts) ToK8sOpts() K8sOpts {
 	return K8sOpts{
 		Namespace:     c.Namespace,
 		PodName:       c.PodName,
+		ContainerName: c.ContainerName,
 		Image:         c.Image,
 		RestartPolicy: c.RestartPolicy,
 		Command:       c.Command,

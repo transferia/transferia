@@ -3,7 +3,9 @@ package container
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -43,15 +45,51 @@ func (w *K8sWrapper) Pull(_ context.Context, _ string, _ types.ImagePullOptions)
 	return nil
 }
 
+func (w *K8sWrapper) getCurrentNamespace() (string, error) {
+	b, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
+}
+
 func (w *K8sWrapper) RunPod(ctx context.Context, opts K8sOpts) (*bytes.Buffer, error) {
+	if opts.Namespace == "" {
+		ns, err := w.getCurrentNamespace()
+		if err != nil {
+			ns = "default"
+		}
+		opts.Namespace = ns
+	}
+
+	if opts.PodName == "" {
+		opts.PodName = "transferia-runner"
+	}
+
+	if opts.ContainerName == "" {
+		opts.ContainerName = "runner"
+	}
+
+	// Get the current node name from environment variable
+	nodeName := os.Getenv("OPERATOR_POD_NODE_NAME")
+	if nodeName == "" {
+		// Log a warning if NODE_NAME is not set
+		fmt.Println("Warning: OPERATOR_POD_NODE_NAME environment variable not set. Pod will be scheduled according to cluster rules.")
+	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: opts.PodName,
+			GenerateName: fmt.Sprintf("%s-", opts.PodName),
+			Namespace:    opts.Namespace,
 		},
 		Spec: corev1.PodSpec{
+			// FIXME: This is a temporary workaround to the issue of sharing the data volume between the main process and runner pod.
+			// Ideally, we should use a shared volume or a different approach to share data.
+			NodeName: nodeName,
 			Containers: []corev1.Container{
 				{
-					Name:         opts.PodName,
+					Name:         opts.ContainerName,
 					Image:        opts.Image,
 					Command:      opts.Command,
 					Args:         opts.Args,
@@ -64,7 +102,7 @@ func (w *K8sWrapper) RunPod(ctx context.Context, opts K8sOpts) (*bytes.Buffer, e
 		},
 	}
 
-	_, err := w.client.CoreV1().Pods(opts.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+	p, err := w.client.CoreV1().Pods(opts.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create pod: %w", err)
 	}
@@ -78,10 +116,10 @@ waitLoop:
 		select {
 		case <-timeout:
 			// If timed out, clean up.
-			_ = w.client.CoreV1().Pods(opts.Namespace).Delete(ctx, opts.PodName, metav1.DeleteOptions{})
-			return nil, xerrors.Errorf("timeout waiting for pod %s to complete", opts.PodName)
+			_ = w.client.CoreV1().Pods(opts.Namespace).Delete(ctx, p.GetName(), metav1.DeleteOptions{})
+			return nil, xerrors.Errorf("timeout waiting for pod %s to complete", p.GetName())
 		case <-tick.C:
-			p, err := w.client.CoreV1().Pods(opts.Namespace).Get(ctx, opts.PodName, metav1.GetOptions{})
+			p, err := w.client.CoreV1().Pods(opts.Namespace).Get(ctx, p.GetName(), metav1.GetOptions{})
 			if err != nil {
 				return nil, xerrors.Errorf("failed to get pod info: %w", err)
 			}
@@ -93,9 +131,9 @@ waitLoop:
 	}
 
 	logOpts := &corev1.PodLogOptions{
-		Container: opts.PodName,
+		Container: opts.ContainerName,
 	}
-	rc := w.client.CoreV1().Pods(opts.Namespace).GetLogs(opts.PodName, logOpts)
+	rc := w.client.CoreV1().Pods(opts.Namespace).GetLogs(p.GetName(), logOpts)
 	stream, err := rc.Stream(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to stream pod logs: %w", err)
@@ -109,7 +147,7 @@ waitLoop:
 		return stdout, xerrors.Errorf("failed copying pod logs: %w", err)
 	}
 
-	_ = w.client.CoreV1().Pods(opts.Namespace).Delete(ctx, opts.PodName, metav1.DeleteOptions{})
+	_ = w.client.CoreV1().Pods(opts.Namespace).Delete(ctx, p.GetName(), metav1.DeleteOptions{})
 	return stdout, nil
 }
 

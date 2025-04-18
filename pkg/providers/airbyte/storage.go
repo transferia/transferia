@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -81,7 +83,7 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		fmt.Sprintf("/data/%s", catalogFile),
 	}
 
-	stdout, stderr, err := a.runRawCommand(args...)
+	stdout, stderr, err := a.runRawCommand(nil, args...)
 	if err != nil {
 		return xerrors.Errorf("%s unable to start: %w", table.ID().String(), err)
 	}
@@ -307,13 +309,13 @@ func (a *Storage) parse(data []byte) (*Message, []string) {
 }
 
 func (a *Storage) writeFile(fileName, fileData string) error {
-	fullPath := fmt.Sprintf("%v/%v", a.config.DataDir(), fileName)
+	fullPath := filepath.Join(a.config.DataDir(), fileName)
 	a.logger.Debugf("%s -> \n%s", fileName, fileData)
 	defer a.logger.Infof("file(%s) %s written", format.SizeInt(len(fileData)), fullPath)
 	return os.WriteFile(
 		fullPath,
 		[]byte(fileData),
-		0664,
+		0o664,
 	)
 }
 
@@ -322,6 +324,7 @@ func (a *Storage) check() error {
 	if err := a.writeFile("config.json", a.config.Config); err != nil {
 		return xerrors.Errorf("unable to write config: %w", err)
 	}
+
 	configResponse, err := a.runCommand("check", "--config", "/data/config.json")
 	if err != nil {
 		return err
@@ -330,6 +333,11 @@ func (a *Storage) check() error {
 	for _, row := range logs {
 		a.logger.Infof("config: %v", row)
 	}
+
+	if resp == nil {
+		return xerrors.New("empty response")
+	}
+
 	if resp.Type != MessageTypeConnectionStatus {
 		return xerrors.Errorf("unexpected response type: %v", resp.Type)
 	}
@@ -378,11 +386,11 @@ func (a *Storage) baseOpts() container.ContainerOpts {
 		},
 		Namespace:     "",
 		RestartPolicy: "Never",
-		PodName:       "",
+		PodName:       "airbyte-runner",
 		Image:         a.config.DockerImage(),
 		LogDriver:     "local",
 		Network:       "host",
-		ContainerName: "",
+		ContainerName: "runner",
 		Volumes: []container.Volume{
 			{
 				Name:          "data",
@@ -391,63 +399,92 @@ func (a *Storage) baseOpts() container.ContainerOpts {
 				VolumeType:    "bind",
 			},
 		},
-		Command:      nil,
-		Args:         nil,
-		Timeout:      0,
+		Command: nil,
+		Args:    nil,
+		// FIXME: make this configurable
+		Timeout:      12 * time.Hour,
 		AttachStdout: true,
 		AttachStderr: true,
 		AutoRemove:   true,
 	}
 }
 
-func (a *Storage) runRawCommand(args ...string) (io.Reader, io.Reader, error) {
+func (a *Storage) runRawCommand(cmd []string, args ...string) (io.Reader, io.Reader, error) {
 	ctx := context.Background()
 
 	opts := a.baseOpts()
-	opts.Command = args
+
+	opts.Command = cmd
+	opts.Args = args
 
 	a.logger.Info(opts.String())
 
 	return a.cw.Run(ctx, opts)
 }
 
+// safeReadFrom safely reads from an io.Reader into a buffer using defer/recover to handle panics
+// Returns the number of bytes read and any error that occurred during reading
+func safeReadFrom(dst *bytes.Buffer, src io.Reader) (n int64, err error) {
+	// Use defer/recover to catch any panics that might occur during ReadFrom
+	defer func() {
+		if r := recover(); r != nil {
+			err = xerrors.Errorf("panic during read: %v", r)
+		}
+	}()
+
+	// Only attempt to read if source is not nil
+	if src == nil {
+		return 0, nil
+	}
+
+	return dst.ReadFrom(src)
+}
+
 func (a *Storage) runCommand(args ...string) ([]byte, error) {
-	outReader, errReader, err := a.runRawCommand(args...)
+	outReader, errReader, cmdErr := a.runRawCommand(nil, args...)
 
 	outBuf := new(bytes.Buffer)
 	errBuf := new(bytes.Buffer)
 
-	if outReader != nil {
-		if _, err := outBuf.ReadFrom(outReader); err != nil {
-			return nil, xerrors.Errorf("failed to read stdout: %w", err)
-		}
-	}
+	// Safely read from stdout
+	_, outReadErr := safeReadFrom(outBuf, outReader)
 
-	if errReader != nil {
-		if _, err := errBuf.ReadFrom(outReader); err != nil {
-			return nil, xerrors.Errorf("failed to read stdout: %w", err)
-		}
-	}
+	// Safely read from stderr
+	_, errReadErr := safeReadFrom(errBuf, errReader)
 
-	if err != nil {
-		// TODO: duplicated code
+	// Log command details if there was an error with the command execution
+	if cmdErr != nil {
 		opts := a.baseOpts()
 		opts.Command = args
+
+		a.logger.Error(cmdErr.Error())
 
 		a.logger.Errorf("command: %s stdout:\n%s", opts.String(), outBuf.String())
 		a.logger.Errorf("command: %s stderr:\n%s", opts.String(), errBuf.String())
 
-		return nil, xerrors.Errorf("failed: %w", err)
+		return nil, xerrors.Errorf("command failed: %w", cmdErr)
 	}
 
-	scr := bufio.NewScanner(errReader)
-	var errs util.Errors
-	for scr.Scan() {
-		errs = append(errs, xerrors.New(scr.Text()))
+	if outReadErr != nil {
+		return nil, xerrors.Errorf("failed to read stdout: %w", outReadErr)
 	}
-	if len(errs) > 0 {
-		a.logger.Warnf("stderr: %v", log.Error(errs))
+
+	if errReadErr != nil {
+		return nil, xerrors.Errorf("failed to read stderr: %w", errReadErr)
 	}
+
+	// Scan the captured errBuf for stderr messages
+	if errBuf.Len() > 0 {
+		scanner := bufio.NewScanner(bytes.NewReader(errBuf.Bytes()))
+		var errs util.Errors
+		for scanner.Scan() {
+			errs = append(errs, xerrors.New(scanner.Text()))
+		}
+		if len(errs) > 0 {
+			a.logger.Warnf("stderr: %v", log.Error(errs))
+		}
+	}
+
 	return outBuf.Bytes(), nil
 }
 

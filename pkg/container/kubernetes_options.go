@@ -12,6 +12,7 @@ import (
 type K8sOpts struct {
 	Namespace     string
 	PodName       string
+	ContainerName string
 	Image         string
 	RestartPolicy corev1.RestartPolicy
 	Command       []string
