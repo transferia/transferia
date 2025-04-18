@@ -58,6 +58,9 @@ func (di *dataItemView) makeRow() (ytRow, error) {
 			return nil, xerrors.Errorf("Cannot restore value for column '%s': %w", colName, err)
 		}
 	}
+	if di.columns.hasOnlyPKey() {
+		row["__dummy"] = nil
+	}
 	return row, nil
 }
 
@@ -131,6 +134,7 @@ func (ii *indexItemView) makeRow() (ytRow, error) {
 	}
 	row := ytRow{
 		ii.indexColumnName: value,
+		"_dummy":           nil,
 	}
 
 	for i, colName := range ii.change.ColumnNames {

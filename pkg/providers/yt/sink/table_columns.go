@@ -30,6 +30,15 @@ func (t *tableColumns) hasKey(name columnName) bool {
 	return t.columns[columnPos].PrimaryKey
 }
 
+func (t *tableColumns) hasOnlyPKey() bool {
+	for _, column := range t.columns {
+		if !column.PrimaryKey {
+			return false
+		}
+	}
+	return true
+}
+
 func newTableColumns(columns []abstract.ColSchema) tableColumns {
 	byName := make(map[columnName]columnIndex)
 

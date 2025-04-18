@@ -538,11 +538,86 @@ func (s *sinker) pushOneBatch(table string, batch []abstract.ChangeItem) error {
 	} else {
 		// YT have a-b-a problem with PKey update, this would split such changes in sub-batches without PKey updates.
 		for _, subslice := range abstract.SplitUpdatedPKeys(batch) {
+			if err := s.processPKUpdates(subslice, table); err != nil {
+				return xerrors.Errorf("failed while processing key update: %w", err)
+			}
 			if err := s.pushSlice(subslice, table); err != nil {
 				return xerrors.Errorf("unable to upload batch: %w", err)
 			}
 			s.logger.Infof("Upload %v changes delay %v", len(subslice), time.Since(start))
 		}
+	}
+	return nil
+}
+
+// if we catch change with primary keys update we will transform it to insert + delete
+// When processing insert we will add __dummy column, if only primary keys were present. This will lead to error
+// If some non PK colum were absent in update we will lose data
+// Therefore we first try to fill this updates with non primary key col values
+func (s *sinker) processPKUpdates(batch []abstract.ChangeItem, table string) error {
+	if len(batch) != 2 {
+		return nil
+	}
+	if batch[1].Kind != abstract.InsertKind || batch[0].Kind != abstract.DeleteKind {
+		return nil
+	}
+	if len(batch[1].TableSchema.Columns()) == len(batch[1].ColumnNames) { // All columns are present in change
+		return nil
+	}
+
+	deleteItem := batch[0]
+	insertItem := batch[1]
+	keys := ytRow{}
+	columns := newTableColumns(deleteItem.TableSchema.Columns())
+	for i, colName := range deleteItem.OldKeys.KeyNames {
+		colSchema, ok := columns.getByName(colName)
+		if !ok {
+			return xerrors.Errorf("Cannot find column %s in schema %v", colName, columns)
+		}
+		if colSchema.PrimaryKey {
+			var err error
+			keys[colName], err = Restore(colSchema, deleteItem.OldKeys.KeyValues[i])
+			if err != nil {
+				return xerrors.Errorf("Cannot restore value for column '%s': %w", colName, err)
+			}
+		}
+	}
+	if len(keys) == 0 {
+		return xerrors.Errorf("No old key columns found for change item %s", util.Sample(deleteItem.ToJSONString(), 10000))
+	}
+
+	tablePath := yt2.SafeChild(s.dir, table)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := backoff.Retry(func() error {
+		reader, err := s.ytClient.LookupRows(ctx, tablePath, []any{keys}, &yt.LookupRowsOptions{})
+		if err != nil {
+			return xerrors.Errorf("Cannot lookup row: %w", err)
+		}
+		defer reader.Close()
+
+		if !reader.Next() {
+			return xerrors.Errorf("Trying to update row that does not exist, possible err: %v", reader.Err())
+		}
+		var oldRow ytRow
+		if err := reader.Scan(&oldRow); err != nil {
+			return xerrors.Errorf("Cannot scan value: %w", err)
+		}
+
+		newColValues := make([]any, len(insertItem.TableSchema.ColumnNames()))
+		for idx, colName := range insertItem.ColumnNames {
+			oldRow[colName] = insertItem.ColumnValues[idx]
+		}
+		for idx, colName := range insertItem.TableSchema.ColumnNames() {
+			newColValues[idx] = oldRow[colName]
+		}
+		insertItem.ColumnNames = insertItem.TableSchema.ColumnNames()
+		insertItem.ColumnValues = newColValues
+		batch[1] = insertItem
+
+		return nil
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5)); err != nil {
+		return xerrors.Errorf("unable to do lookup row for primary key update: %w", err)
 	}
 	return nil
 }

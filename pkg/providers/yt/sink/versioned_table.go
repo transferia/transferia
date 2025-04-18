@@ -113,6 +113,10 @@ func (t *VersionedTable) Init() error {
 	return nil
 }
 
+func (t *VersionedTable) hasOnlyPKey() bool {
+	return len(t.schema) == len(t.orderedKeys)
+}
+
 func (t *VersionedTable) Write(input []abstract.ChangeItem) error {
 	if t == nil {
 		return nil
@@ -168,6 +172,9 @@ ROWS:
 				if err != nil {
 					return xerrors.Errorf("unable to restore value for column '%s': %w", col, err)
 				}
+			}
+			if t.hasOnlyPKey() {
+				row["__dummy"] = nil
 			}
 			lookupKeys = append(lookupKeys, keys)
 			insertRows = append(insertRows, row)
@@ -272,6 +279,7 @@ func (t *VersionedTable) updateIndexes(ctx context.Context, tx yt.TabletTx, rows
 				}
 				idxRow := map[string]interface{}{}
 				idxRow[k] = r[k]
+				idxRow["_dummy"] = nil
 				for _, col := range t.schema {
 					if col.PrimaryKey {
 						idxRow[col.ColumnName] = r[col.ColumnName]

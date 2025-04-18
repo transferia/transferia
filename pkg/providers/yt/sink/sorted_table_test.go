@@ -74,18 +74,18 @@ func TestOnlyPKTable(t *testing.T) {
 			PrimaryKey: true,
 		},
 	})
-	cfg := yt2.NewYtDestinationV1(yt2.YtDestination{CellBundle: "default", PrimaryMedium: "default"})
+	cfg := yt2.NewYtDestinationV1(yt2.YtDestination{
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+		Path:          "//home/cdc/test/generic/temp",
+		Cluster:       os.Getenv("YT_PROXY"),
+	})
 	cfg.WithDefaults()
-	table, err := NewSortedTable(env.YT, "//home/cdc/test/generic/temp", schema_.Columns(), cfg, stats.NewSinkerStats(metrics.NewRegistry()), logger.Log)
+	sink, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 
-	// check that __dummy column was added
-	tableSchema := NewSchema(table.columns.columns, table.config, table.path)
-	actualSchema, err := tableSchema.BuildSchema(tableSchema.Cols())
-	require.NoError(t, err)
-	require.Equal(t, 2, len(actualSchema.Columns))
 	//do insert of only pk row
-	require.NoError(t, table.Write([]abstract.ChangeItem{
+	require.NoError(t, sink.Push([]abstract.ChangeItem{
 		{
 			TableSchema:  schema_,
 			Kind:         "insert",
@@ -95,7 +95,7 @@ func TestOnlyPKTable(t *testing.T) {
 		},
 	}))
 	//do update of only pk row
-	require.NoError(t, table.Write([]abstract.ChangeItem{
+	require.NoError(t, sink.Push([]abstract.ChangeItem{
 		{
 			TableSchema:  schema_,
 			Kind:         "update",
@@ -109,10 +109,24 @@ func TestOnlyPKTable(t *testing.T) {
 			},
 		},
 	}))
+
+	var outputSchema schema.Schema
+	err = env.YT.GetNode(env.Ctx, ypath.Path("//home/cdc/test/generic/temp/test_table/@schema"), &outputSchema, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(outputSchema.Columns))
+	dummyFound := false
+	for _, col := range outputSchema.Columns {
+		if col.Name == "__dummy" {
+			dummyFound = true
+			break
+		}
+	}
+	require.True(t, dummyFound)
+
 	// check that one row is present in table
 	rows, err := env.YT.SelectRows(
 		env.Ctx,
-		"sum(1) as count from [//home/cdc/test/generic/temp] group by 1",
+		"sum(1) as count from [//home/cdc/test/generic/temp/test_table] group by 1",
 		nil,
 	)
 	require.NoError(t, err)
@@ -125,6 +139,91 @@ func TestOnlyPKTable(t *testing.T) {
 		var c counter
 		require.NoError(t, rows.Scan(&c))
 		rowsN += c.Count
+	}
+	require.Equal(t, int64(1), rowsN)
+}
+
+func TestNoDataLossOnPKUpdate(t *testing.T) {
+	env, cancel := recipe.NewEnv(t)
+	defer cancel()
+	defer teardown(env.YT, "//home/cdc/test/generic/temp")
+	schema_ := abstract.NewTableSchema([]abstract.ColSchema{
+		{
+			DataType:   "double",
+			ColumnName: "key1",
+			PrimaryKey: true,
+		},
+		{
+			DataType:   "double",
+			ColumnName: "key2",
+			PrimaryKey: true,
+		},
+		{
+			DataType:   "double",
+			ColumnName: "nonkey",
+		},
+	})
+	cfg := yt2.NewYtDestinationV1(yt2.YtDestination{
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+		Path:          "//home/cdc/test/generic/temp",
+		Cluster:       os.Getenv("YT_PROXY"),
+	})
+	cfg.WithDefaults()
+	sink, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	require.NoError(t, err)
+
+	//do insert of only pk row
+	require.NoError(t, sink.Push([]abstract.ChangeItem{
+		{
+			TableSchema:  schema_,
+			Kind:         "insert",
+			ColumnNames:  []string{"key1", "key2", "nonkey"},
+			ColumnValues: []interface{}{3.99, 3.99, 4.01},
+			Table:        "test_table",
+		},
+	}))
+	//do update of only pk row
+	require.NoError(t, sink.Push([]abstract.ChangeItem{
+		{
+			TableSchema:  schema_,
+			Kind:         "update",
+			ColumnNames:  []string{"key1", "key2"},
+			ColumnValues: []interface{}{4.01, 4.01},
+			Table:        "test_table",
+			OldKeys: abstract.OldKeysType{
+				KeyNames:  []string{"key1", "key2"},
+				KeyTypes:  []string{"double", "double"},
+				KeyValues: []interface{}{3.99, 3.99},
+			},
+		},
+	}))
+
+	var outputSchema schema.Schema
+	err = env.YT.GetNode(env.Ctx, ypath.Path("//home/cdc/test/generic/temp/test_table/@schema"), &outputSchema, nil)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(outputSchema.Columns))
+
+	// check that one row is present in table
+	rows, err := env.YT.SelectRows(
+		env.Ctx,
+		"* from [//home/cdc/test/generic/temp/test_table]",
+		nil,
+	)
+	require.NoError(t, err)
+
+	type counter struct {
+		Count int64 `yson:"count"`
+	}
+	var rowsN int64
+	for rows.Next() {
+		var row ytRow
+		require.NoError(t, rows.Scan(&row))
+		for colName, val := range row {
+			logger.Log.Infof("checking value of column %v", colName)
+			require.Equal(t, 4.01, val)
+		}
+		rowsN += 1
 	}
 	require.Equal(t, int64(1), rowsN)
 }
