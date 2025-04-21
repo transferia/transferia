@@ -47,10 +47,10 @@ func ListNodesWithAttrs(ctx context.Context, client yt.CypressClient, path ypath
 	var result []*NodeInfo
 	for _, node := range nodes {
 		if strings.HasPrefix(node, prefix) {
-			attrs := new(NodeAttrs)
 			nodePath := SafeChild(path, node)
-			if err := client.GetNode(ctx, nodePath.Attrs(), attrs, nil); err != nil {
-				return nil, xerrors.Errorf("unable to get node: %w", err)
+			attrs, err := GetNodeAttrs(ctx, client, nodePath)
+			if err != nil {
+				return nil, xerrors.Errorf("unable to get node attributes: %w", err)
 			}
 			result = append(result, NewNodeInfo(node, nodePath, attrs))
 		}
@@ -104,11 +104,20 @@ func listNodesRecursive(ctx context.Context, client yt.CypressClient, basePath y
 }
 
 func GetNodeInfo(ctx context.Context, client yt.CypressClient, path ypath.Path) (*NodeInfo, error) {
-	attrs := new(NodeAttrs)
-	if err := client.GetNode(ctx, path.Attrs(), attrs, nil); err != nil {
-		return nil, xerrors.Errorf("unable to get node: %w", err)
+	attrs, err := GetNodeAttrs(ctx, client, path)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get node attributes: %w", err)
 	}
 	return NewNodeInfo("", path, attrs), nil
+}
+
+func GetNodeAttrs(ctx context.Context, client yt.CypressClient, path ypath.Path) (*NodeAttrs, error) {
+	attrs := new(NodeAttrs)
+	if err := client.GetNode(ctx, path.Attrs(), &attrs, &yt.GetNodeOptions{
+		Attributes: []string{"type", "dynamic", "tablet_state", "schema", "optimize_for", "atomicity"}}); err != nil {
+		return nil, xerrors.Errorf("unable to get node: %w", err)
+	}
+	return attrs, nil
 }
 
 // SafeChild appends children to path. It works like path.Child(child) with exceptions.

@@ -58,9 +58,9 @@ func handleNodesAsync(
 	errors chan<- error,
 	count *int,
 ) error {
-	attrs := new(NodeAttrs)
-	if err := client.GetNode(ctx, path.Attrs(), attrs, nil); err != nil {
-		return xerrors.Errorf("unable to get node: %w", err)
+	attrs, err := GetNodeAttrs(ctx, client, path)
+	if err != nil {
+		return xerrors.Errorf("unable to get node attributes: %w", err)
 	}
 
 	switch attrs.Type {
