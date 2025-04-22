@@ -1,10 +1,12 @@
 package dbt
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -204,8 +206,67 @@ func (r *runner) run(ctx context.Context) error {
 		AutoRemove:   true,
 	}
 
-	if _, _, err := r.cw.Run(ctx, opts); err != nil {
+	stdoutReader, stderrReader, err := r.cw.Run(ctx, opts)
+	if err != nil {
 		return xerrors.Errorf("docker run failed: %w", err)
+	}
+	defer stdoutReader.Close()
+	defer stderrReader.Close()
+
+	// Use WaitGroup to read both streams concurrently until EOF
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Channel for collecting errors
+	errCh := make(chan error, 2)
+
+	// Read stdout line by line
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stdoutReader)
+		for scanner.Scan() {
+			// Log each line as it's read
+			logger.Log.Info("stdout: " + scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			errCh <- xerrors.Errorf("error scanning stdout: %w", err)
+		}
+	}()
+
+	// Read stderr line by line
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stderrReader)
+		for scanner.Scan() {
+			// Log each line as it's read
+			logger.Log.Warn("stderr: " + scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			errCh <- xerrors.Errorf("error scanning stderr: %w", err)
+		}
+	}()
+
+	// Wait for both streams to be fully read
+	wg.Wait()
+	close(errCh)
+
+	// Collect any errors
+	var errs []error
+	for e := range errCh {
+		errs = append(errs, e)
+	}
+
+	// Return combined error if any
+	if len(errs) > 0 {
+		var combinedErr error
+		for _, e := range errs {
+			if combinedErr == nil {
+				combinedErr = e
+			} else {
+				combinedErr = xerrors.Errorf("%v; %w", combinedErr, e)
+			}
+		}
+		return combinedErr
 	}
 
 	return nil

@@ -33,11 +33,92 @@ func NewK8sWrapper() (*K8sWrapper, error) {
 	return &K8sWrapper{client: clientset}, nil
 }
 
-func (w *K8sWrapper) Run(ctx context.Context, opts ContainerOpts) (io.Reader, io.Reader, error) {
-	// Unfortunately, Kubernetes does not provide a way to demux stdout and stderr
-	b, err := w.RunPod(ctx, opts.ToK8sOpts())
+func (w *K8sWrapper) Run(ctx context.Context, opts ContainerOpts) (stdout io.ReadCloser, stderr io.ReadCloser, err error) {
+	// Convert options to K8s options
+	k8sOpts := opts.ToK8sOpts()
 
-	return b, nil, err
+	// Create the pod
+	pod, err := w.createPod(ctx, k8sOpts)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("failed to create pod: %w", err)
+	}
+
+	// Launch a goroutine to monitor pod completion and cleanup
+	go func() {
+		watchPod := func() {
+			timeout := time.After(k8sOpts.Timeout)
+			tick := time.NewTicker(2 * time.Second)
+			defer tick.Stop()
+
+			for {
+				select {
+				case <-ctx.Done():
+					// Context cancelled, clean up the pod
+					_ = w.client.CoreV1().Pods(k8sOpts.Namespace).Delete(context.Background(), pod.GetName(), metav1.DeleteOptions{})
+					return
+				case <-timeout:
+					// Timeout reached, clean up the pod
+					_ = w.client.CoreV1().Pods(k8sOpts.Namespace).Delete(context.Background(), pod.GetName(), metav1.DeleteOptions{})
+					return
+				case <-tick.C:
+					p, err := w.client.CoreV1().Pods(k8sOpts.Namespace).Get(ctx, pod.GetName(), metav1.GetOptions{})
+					if err != nil {
+						// Error getting pod info, continue monitoring
+						continue
+					}
+
+					phase := p.Status.Phase
+					if phase == corev1.PodSucceeded || phase == corev1.PodFailed {
+						// Pod completed, clean up
+						_ = w.client.CoreV1().Pods(k8sOpts.Namespace).Delete(context.Background(), pod.GetName(), metav1.DeleteOptions{})
+						return
+					}
+				}
+			}
+		}
+
+		watchPod()
+	}()
+
+	// Set up log streaming options
+	logOpts := &corev1.PodLogOptions{
+		Container: k8sOpts.ContainerName,
+		Follow:    true, // Stream logs as they become available
+	}
+
+	// Get logs stream
+	req := w.client.CoreV1().Pods(k8sOpts.Namespace).GetLogs(pod.GetName(), logOpts)
+	stream, err := req.Stream(ctx)
+	if err != nil {
+		// Clean up the pod if we can't get logs
+		_ = w.client.CoreV1().Pods(k8sOpts.Namespace).Delete(ctx, pod.GetName(), metav1.DeleteOptions{})
+		return nil, nil, xerrors.Errorf("failed to stream pod logs: %w", err)
+	}
+
+	// Return the stream immediately (non-blocking)
+	// Note: stderr is nil for Kubernetes as GetLogs combines stdout and stderr
+	return stream, nil, nil
+}
+
+func (w *K8sWrapper) RunAndWait(ctx context.Context, opts ContainerOpts) (stdoutBuf *bytes.Buffer, stderrBuf *bytes.Buffer, err error) {
+	// 1. Call Run to get the readers
+	stdoutReader, _, err := w.Run(ctx, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer stdoutReader.Close()
+
+	// 2. Create buffers for output
+	stdoutBuf = new(bytes.Buffer)
+	stderrBuf = new(bytes.Buffer) // Empty buffer for stderr since K8s doesn't provide separate stderr
+
+	// 3. Copy from the reader to the buffer
+	_, err = io.Copy(stdoutBuf, stdoutReader)
+	if err != nil && err != io.EOF {
+		return stdoutBuf, stderrBuf, xerrors.Errorf("error copying pod logs: %w", err)
+	}
+
+	return stdoutBuf, stderrBuf, nil
 }
 
 func (w *K8sWrapper) Pull(_ context.Context, _ string, _ types.ImagePullOptions) error {
@@ -54,7 +135,8 @@ func (w *K8sWrapper) getCurrentNamespace() (string, error) {
 	return string(b), nil
 }
 
-func (w *K8sWrapper) RunPod(ctx context.Context, opts K8sOpts) (*bytes.Buffer, error) {
+// Helper method to create a pod
+func (w *K8sWrapper) createPod(ctx context.Context, opts K8sOpts) (*corev1.Pod, error) {
 	if opts.Namespace == "" {
 		ns, err := w.getCurrentNamespace()
 		if err != nil {
@@ -102,53 +184,35 @@ func (w *K8sWrapper) RunPod(ctx context.Context, opts K8sOpts) (*bytes.Buffer, e
 		},
 	}
 
-	p, err := w.client.CoreV1().Pods(opts.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+	return w.client.CoreV1().Pods(opts.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+}
+
+// Legacy method for backward compatibility
+func (w *K8sWrapper) RunPod(ctx context.Context, opts K8sOpts) (*bytes.Buffer, error) {
+	// Create a ContainerOpts that will convert to the provided K8sOpts
+	containerOpts := ContainerOpts{
+		Namespace:     opts.Namespace,
+		PodName:       opts.PodName,
+		ContainerName: opts.ContainerName,
+		Image:         opts.Image,
+		RestartPolicy: opts.RestartPolicy,
+		Command:       opts.Command,
+		Args:          opts.Args,
+		Timeout:       opts.Timeout,
+	}
+
+	// Convert environment variables
+	containerOpts.Env = make(map[string]string)
+	for _, env := range opts.Env {
+		containerOpts.Env[env.Name] = env.Value
+	}
+
+	// Run and wait for completion
+	stdoutBuf, _, err := w.RunAndWait(ctx, containerOpts)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create pod: %w", err)
+		return nil, err
 	}
-
-	timeout := time.After(opts.Timeout)
-	tick := time.NewTicker(2 * time.Second)
-	defer tick.Stop()
-
-waitLoop:
-	for {
-		select {
-		case <-timeout:
-			// If timed out, clean up.
-			_ = w.client.CoreV1().Pods(opts.Namespace).Delete(ctx, p.GetName(), metav1.DeleteOptions{})
-			return nil, xerrors.Errorf("timeout waiting for pod %s to complete", p.GetName())
-		case <-tick.C:
-			p, err := w.client.CoreV1().Pods(opts.Namespace).Get(ctx, p.GetName(), metav1.GetOptions{})
-			if err != nil {
-				return nil, xerrors.Errorf("failed to get pod info: %w", err)
-			}
-			phase := p.Status.Phase
-			if phase == corev1.PodSucceeded || phase == corev1.PodFailed {
-				break waitLoop
-			}
-		}
-	}
-
-	logOpts := &corev1.PodLogOptions{
-		Container: opts.ContainerName,
-	}
-	rc := w.client.CoreV1().Pods(opts.Namespace).GetLogs(p.GetName(), logOpts)
-	stream, err := rc.Stream(ctx)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to stream pod logs: %w", err)
-	}
-	defer stream.Close()
-
-	stdout := new(bytes.Buffer)
-
-	_, err = io.Copy(stdout, stream)
-	if err != nil {
-		return stdout, xerrors.Errorf("failed copying pod logs: %w", err)
-	}
-
-	_ = w.client.CoreV1().Pods(opts.Namespace).Delete(ctx, p.GetName(), metav1.DeleteOptions{})
-	return stdout, nil
+	return stdoutBuf, nil
 }
 
 func NewK8sWrapperFromKubeconfig(kubeconfigPath string) (*K8sWrapper, error) {

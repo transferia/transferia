@@ -1,6 +1,7 @@
 package container
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -10,9 +11,21 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+// Container defines container operations
 type ContainerImpl interface {
-	Run(context.Context, ContainerOpts) (io.Reader, io.Reader, error)
-	Pull(context.Context, string, types.ImagePullOptions) error
+	// Run executes the container/pod process in the background.
+	// It returns immediately with io.ReadCloser streams for stdout and stderr.
+	// The readers will return io.EOF when the underlying process completes.
+	// Implementations should ensure proper handling of context cancellation.
+	Run(ctx context.Context, options ContainerOpts) (stdout io.ReadCloser, stderr io.ReadCloser, err error)
+
+	// RunAndWait executes the container/pod process and blocks until completion.
+	// It captures the full stdout and stderr streams into buffers.
+	// Returns the captured output and any error encountered during execution or capture.
+	RunAndWait(ctx context.Context, options ContainerOpts) (stdout *bytes.Buffer, stderr *bytes.Buffer, err error)
+
+	// Pull pulls a container image
+	Pull(ctx context.Context, image string, opts types.ImagePullOptions) error
 }
 
 func NewContainerImpl(l log.Logger) (ContainerImpl, error) {

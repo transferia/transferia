@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
@@ -83,16 +84,18 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		fmt.Sprintf("/data/%s", catalogFile),
 	}
 
-	stdout, stderr, err := a.runRawCommand(nil, args...)
+	stdoutReader, stderrReader, err := a.runRawCommand(nil, args...)
 	if err != nil {
 		return xerrors.Errorf("%s unable to start: %w", table.ID().String(), err)
 	}
+	defer stdoutReader.Close()
+	defer stderrReader.Close()
 
 	var batch *RecordBatch
 	cntr := 0
 	batch = NewRecordBatch(cntr, stream.Stream.AsModel())
 
-	reader := bufio.NewScanner(stdout)
+	reader := bufio.NewScanner(stdoutReader)
 	buf := make([]byte, 1024*1024, math.Max(a.config.MaxRowSize, 1024*1024))
 	reader.Buffer(buf, a.config.MaxRowSize)
 	for reader.Scan() {
@@ -162,12 +165,15 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 	if err := a.storeState(table.ID(), currentState); err != nil {
 		return xerrors.Errorf("unable to store incremental state: %w", err)
 	}
-	data, err := io.ReadAll(stderr)
+
+	// Read stderr to completion to ensure the container process is waited upon
+	stderrBuf := new(bytes.Buffer)
+	_, err = io.Copy(stderrBuf, stderrReader)
 	if err != nil {
-		return xerrors.Errorf("%s stderr read all failed: %w", table.ID().String(), err)
+		return xerrors.Errorf("%s stderr read failed: %w", table.ID().String(), err)
 	}
-	if len(data) > 0 {
-		a.logger.Warnf("stderr: %v\nlast error:%v", string(data), lastAirbyteError)
+	if stderrBuf.Len() > 0 {
+		a.logger.Warnf("stderr: %v\nlast error:%v", stderrBuf.String(), lastAirbyteError)
 	}
 
 	return nil
@@ -409,7 +415,7 @@ func (a *Storage) baseOpts() container.ContainerOpts {
 	}
 }
 
-func (a *Storage) runRawCommand(cmd []string, args ...string) (io.Reader, io.Reader, error) {
+func (a *Storage) runRawCommand(cmd []string, args ...string) (io.ReadCloser, io.ReadCloser, error) {
 	ctx := context.Background()
 
 	opts := a.baseOpts()
@@ -422,70 +428,93 @@ func (a *Storage) runRawCommand(cmd []string, args ...string) (io.Reader, io.Rea
 	return a.cw.Run(ctx, opts)
 }
 
-// safeReadFrom safely reads from an io.Reader into a buffer using defer/recover to handle panics
-// Returns the number of bytes read and any error that occurred during reading
-func safeReadFrom(dst *bytes.Buffer, src io.Reader) (n int64, err error) {
-	// Use defer/recover to catch any panics that might occur during ReadFrom
-	defer func() {
-		if r := recover(); r != nil {
-			err = xerrors.Errorf("panic during read: %v", r)
-		}
-	}()
-
-	// Only attempt to read if source is not nil
-	if src == nil {
-		return 0, nil
-	}
-
-	return dst.ReadFrom(src)
-}
-
 func (a *Storage) runCommand(args ...string) ([]byte, error) {
-	outReader, errReader, cmdErr := a.runRawCommand(nil, args...)
-
-	outBuf := new(bytes.Buffer)
-	errBuf := new(bytes.Buffer)
-
-	// Safely read from stdout
-	_, outReadErr := safeReadFrom(outBuf, outReader)
-
-	// Safely read from stderr
-	_, errReadErr := safeReadFrom(errBuf, errReader)
-
-	// Log command details if there was an error with the command execution
+	// 1. Call runRawCommand to get the readers
+	stdoutReader, stderrReader, cmdErr := a.runRawCommand(nil, args...)
 	if cmdErr != nil {
 		opts := a.baseOpts()
 		opts.Command = args
-
 		a.logger.Error(cmdErr.Error())
-
-		a.logger.Errorf("command: %s stdout:\n%s", opts.String(), outBuf.String())
-		a.logger.Errorf("command: %s stderr:\n%s", opts.String(), errBuf.String())
-
 		return nil, xerrors.Errorf("command failed: %w", cmdErr)
 	}
+	defer stdoutReader.Close()
+	defer stderrReader.Close()
 
-	if outReadErr != nil {
-		return nil, xerrors.Errorf("failed to read stdout: %w", outReadErr)
-	}
+	// 2. Create buffers for output
+	stdoutBuf := new(bytes.Buffer)
+	stderrBuf := new(bytes.Buffer)
 
-	if errReadErr != nil {
-		return nil, xerrors.Errorf("failed to read stderr: %w", errReadErr)
-	}
+	// 3. Use WaitGroup to wait for both streams to be copied
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	// Scan the captured errBuf for stderr messages
-	if errBuf.Len() > 0 {
-		scanner := bufio.NewScanner(bytes.NewReader(errBuf.Bytes()))
-		var errs util.Errors
+	// 4. Channel for collecting errors
+	errCh := make(chan error, 2)
+
+	// Read stdout line by line
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stdoutReader)
 		for scanner.Scan() {
-			errs = append(errs, xerrors.New(scanner.Text()))
+			// Append each line with a newline character
+			stdoutBuf.Write(scanner.Bytes())
+			stdoutBuf.WriteByte('\n')
 		}
-		if len(errs) > 0 {
-			a.logger.Warnf("stderr: %v", log.Error(errs))
+		if err := scanner.Err(); err != nil {
+			errCh <- xerrors.Errorf("error scanning stdout: %w", err)
+		}
+	}()
+
+	// Read stderr line by line
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stderrReader)
+		for scanner.Scan() {
+			// Append each line with a newline character
+			stderrBuf.Write(scanner.Bytes())
+			stderrBuf.WriteByte('\n')
+		}
+		if err := scanner.Err(); err != nil {
+			errCh <- xerrors.Errorf("error scanning stderr: %w", err)
+		}
+	}()
+
+	// 5. Wait for both copies to complete
+	wg.Wait()
+	close(errCh)
+
+	// 6. Collect any errors
+	var errs []error
+	for e := range errCh {
+		errs = append(errs, e)
+	}
+
+	// 7. Return combined error if any
+	if len(errs) > 0 {
+		var combinedErr error
+		for _, e := range errs {
+			if combinedErr == nil {
+				combinedErr = e
+			} else {
+				combinedErr = xerrors.Errorf("%v; %w", combinedErr, e)
+			}
+		}
+		return nil, combinedErr
+	}
+
+	// Scan the captured stderrBuf for stderr messages
+	if stderrBuf.Len() > 0 {
+		scanner := bufio.NewScanner(bytes.NewReader(stderrBuf.Bytes()))
+		var stderrErrs util.Errors
+		for scanner.Scan() {
+			stderrErrs = append(stderrErrs, xerrors.New(scanner.Text()))
+		}
+		if len(stderrErrs) > 0 {
+			a.logger.Warnf("stderr: %v", log.Error(stderrErrs))
 		}
 	}
 
-	return outBuf.Bytes(), nil
+	return stdoutBuf.Bytes(), nil
 }
 
 func (a *Storage) extractState(table abstract.TableDescription) string {

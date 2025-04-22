@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -71,11 +72,75 @@ func (d *DockerWrapper) Pull(ctx context.Context, image string, opts types.Image
 	return nil
 }
 
-func (d *DockerWrapper) Run(ctx context.Context, opts ContainerOpts) (stdout io.Reader, stderr io.Reader, err error) {
+func (d *DockerWrapper) Run(ctx context.Context, opts ContainerOpts) (stdout io.ReadCloser, stderr io.ReadCloser, err error) {
 	return d.RunContainer(ctx, opts.ToDockerOpts())
 }
 
-func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdout io.Reader, stderr io.Reader, err error) {
+func (d *DockerWrapper) RunAndWait(ctx context.Context, opts ContainerOpts) (stdoutBuf *bytes.Buffer, stderrBuf *bytes.Buffer, err error) {
+	// 1. Call Run to get the readers
+	stdoutReader, stderrReader, err := d.Run(ctx, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer stdoutReader.Close()
+	defer stderrReader.Close()
+
+	// 2. Create buffers for output
+	stdoutBuf = new(bytes.Buffer)
+	stderrBuf = new(bytes.Buffer)
+
+	// 3. Use WaitGroup to wait for both streams to be copied
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// 4. Channel for collecting errors
+	errCh := make(chan error, 2)
+
+	// Copy stdout
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(stdoutBuf, stdoutReader)
+		if err != nil && err != io.EOF {
+			errCh <- xerrors.Errorf("error copying stdout: %w", err)
+		}
+	}()
+
+	// Copy stderr
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(stderrBuf, stderrReader)
+		if err != nil && err != io.EOF {
+			errCh <- xerrors.Errorf("error copying stderr: %w", err)
+		}
+	}()
+
+	// 5. Wait for both copies to complete
+	wg.Wait()
+	close(errCh)
+
+	// 6. Collect any errors
+	var errs []error
+	for e := range errCh {
+		errs = append(errs, e)
+	}
+
+	// 7. Return combined error if any
+	if len(errs) > 0 {
+		var combinedErr error
+		for _, e := range errs {
+			if combinedErr == nil {
+				combinedErr = e
+			} else {
+				combinedErr = xerrors.Errorf("%v; %w", combinedErr, e)
+			}
+		}
+		return stdoutBuf, stderrBuf, combinedErr
+	}
+
+	return stdoutBuf, stderrBuf, nil
+}
+
+func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdout io.ReadCloser, stderr io.ReadCloser, err error) {
 	d.logger.Info("Run docker container")
 	if d.cli == nil {
 		return nil, nil, xerrors.Errorf("docker unavailable")
@@ -120,13 +185,6 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 
 	d.logger.Infof("container created : %v", resp)
 
-	waitCh, errCh := d.cli.ContainerWait(ctx, resp.ID, container.WaitConditionNextExit)
-
-	if err := d.cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
-		return nil, nil, xerrors.Errorf("error starting container: %w", err)
-	}
-	d.logger.Info("Docker container started")
-
 	attachOptions := container.AttachOptions{
 		Stream: true,
 		Stdout: opts.AttachStdout,
@@ -140,45 +198,66 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 
 	d.logger.Info("Success attaching to container")
 
-	// TODO: don't hold stdoutBuf and stderrBuf in memory
-	stdoutBuf := new(bytes.Buffer)
-	stderrBuf := new(bytes.Buffer)
+	// Create pipe readers/writers for stdout and stderr
+	stdoutReader, stdoutWriter := io.Pipe()
+	stderrReader, stderrWriter := io.Pipe()
 
-	copyCh := make(chan error)
+	// Start the container (non-blocking)
+	if err := d.cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		stdoutReader.Close()
+		stderrReader.Close()
+		stdoutWriter.Close()
+		stderrWriter.Close()
+		return nil, nil, xerrors.Errorf("error starting container: %w", err)
+	}
+	d.logger.Info("Docker container started")
 
+	// Launch a goroutine to monitor container completion and manage streams
 	go func() {
-		defer close(copyCh)
-		if attachResp.Conn != nil {
-			defer attachResp.Close()
-		}
-		if _, err := stdcopy.StdCopy(stdoutBuf, stderrBuf, attachResp.Reader); err != nil {
-			copyCh <- err
-		}
-	}()
+		defer stdoutWriter.Close()
+		defer stderrWriter.Close()
 
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return nil, nil, xerrors.Errorf("error waiting for container: %w", err)
-		}
-	case <-waitCh:
+		// Copy from Docker's multiplexed stream to our separate pipes
+		copyErrCh := make(chan error, 1)
+		go func() {
+			_, err := stdcopy.StdCopy(stdoutWriter, stderrWriter, attachResp.Reader)
+			copyErrCh <- err
+			close(copyErrCh)
+		}()
+
+		// Wait for container to exit
+		waitCh, errCh := d.cli.ContainerWait(ctx, resp.ID, container.WaitConditionNextExit)
+
+		// Handle container completion or context cancellation
 		select {
 		case err := <-errCh:
 			if err != nil {
-				return nil, nil, xerrors.Errorf("error waiting for container: %w", err)
+				d.logger.Errorf("Error waiting for container: %v", err)
+				stdoutWriter.CloseWithError(err)
+				stderrWriter.CloseWithError(err)
 			}
-		default:
+		case <-waitCh:
+			// Container exited normally
+			copyErr := <-copyErrCh
+			if copyErr != nil {
+				d.logger.Errorf("Error copying container output: %v", copyErr)
+				stdoutWriter.CloseWithError(copyErr)
+				stderrWriter.CloseWithError(copyErr)
+			}
+		case <-ctx.Done():
+			// Context cancelled
+			_ = d.cli.ContainerKill(context.Background(), resp.ID, "SIGKILL")
+			stdoutWriter.CloseWithError(ctx.Err())
+			stderrWriter.CloseWithError(ctx.Err())
 		}
-	case <-ctx.Done():
-		_ = d.cli.ContainerKill(ctx, resp.ID, "SIGKILL")
-		return nil, nil, xerrors.Errorf("error waiting for container: %w", ctx.Err())
-	}
 
-	if err := <-copyCh; err != nil {
-		return nil, nil, xerrors.Errorf("error copying container output: %w", err)
-	}
+		// Clean up
+		if attachResp.Conn != nil {
+			attachResp.Close()
+		}
+	}()
 
-	return stdoutBuf, stderrBuf, nil
+	return stdoutReader, stderrReader, nil
 }
 
 func (d *DockerWrapper) ensureDocker(supervisorConfigPath string, timeout time.Duration) error {
