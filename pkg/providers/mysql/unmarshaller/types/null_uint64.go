@@ -3,7 +3,6 @@ package types
 import (
 	"database/sql"
 	"database/sql/driver"
-	"strconv"
 
 	"golang.org/x/xerrors"
 )
@@ -25,22 +24,12 @@ func (n *NullUint64) Scan(value interface{}) error {
 		return nil
 	}
 
-	var source *[]byte
 	switch t := value.(type) {
-	case []byte:
-		source = &t
-	case *[]byte:
-		source = t
-	}
-
-	if source != nil {
-		v, err := strconv.ParseUint(string(*source), 10, 64)
-		if err != nil {
-			n.Valid = false
-			return xerrors.Errorf("unable to parse unsigned int: %w", err)
-		}
+	case uint64:
+		n.UInt64 = t
 		n.Valid = true
-		n.UInt64 = v
+	default:
+		return xerrors.Errorf("unable to scan, expected: uint64, got: %T", value)
 	}
 
 	return nil

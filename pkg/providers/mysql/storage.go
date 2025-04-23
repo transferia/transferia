@@ -330,7 +330,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 	return nil
 }
 
-func (s *Storage) getBinlogPosition(ctx context.Context, tx Queryable) (string, uint32, error) {
+func (s *Storage) getBinlogPosition(ctx context.Context, tx Queryable) (string, uint64, error) {
 	masterStatusQuery := "show master status;"
 	_, version, err := CheckMySQLVersion(s)
 	if err != nil {
@@ -351,7 +351,7 @@ func (s *Storage) getBinlogPosition(ctx context.Context, tx Queryable) (string, 
 		return "", 0, xerrors.Errorf("unable to get master status: %w", err)
 	}
 	var file string
-	var pos uint32
+	var pos uint64
 	filesCount := 0
 	for binlogStatus.Next() {
 		filesCount++
@@ -375,9 +375,8 @@ func (s *Storage) getBinlogPosition(ctx context.Context, tx Queryable) (string, 
 				}
 			}
 			if strings.ToLower(col) == "position" {
-				if v, ok := cols[i].([]byte); ok {
-					p, _ := strconv.Atoi(string(v))
-					pos = uint32(p)
+				if v, ok := cols[i].(uint64); ok {
+					pos = v
 				}
 			}
 		}

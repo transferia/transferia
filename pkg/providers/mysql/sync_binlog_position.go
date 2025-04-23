@@ -9,7 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 )
 
-func GetLogFilePosition(storage *Storage) (string, uint32, string, error) {
+func GetLogFilePosition(storage *Storage) (string, uint64, string, error) {
 	ctx := context.Background()
 	tx, rollbacks, err := storage.getSnapshotQueryable(ctx)
 	if err != nil {

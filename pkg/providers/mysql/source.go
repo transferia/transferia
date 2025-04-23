@@ -188,7 +188,7 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 	colNames := schEvent.ColumnNames()
 	sch := schEvent.Schema()
 
-	lsn := CalculateLSN(h.nextPos.Name, event.Header.LogPos)
+	lsn := CalculateLSN(h.nextPos.Name, uint64(event.Header.LogPos))
 	txSequence := event.Header.Timestamp
 	gtidStr := ""
 	if gtid := h.canal.SyncedGTIDSet(); gtid != nil {
@@ -513,7 +513,7 @@ func (p *publisher) flusher() {
 				continue
 			}
 			p.handler.rw.Lock()
-			lsn := CalculateLSN(p.handler.nextPos.Name, p.handler.nextPos.Pos)
+			lsn := CalculateLSN(p.handler.nextPos.Name, uint64(p.handler.nextPos.Pos))
 			txSequence := p.handler.nextPos.Pos
 			execTS := time.Now()
 			gtidStr := fmt.Sprintf("%v", txSequence)
@@ -584,7 +584,7 @@ func (p *publisher) flusher() {
 					return xerrors.Errorf("unable to store gtidset: %w", err)
 				}
 			} else {
-				if err := h.tracker.Store(nPos.Name, nPos.Pos); err != nil {
+				if err := h.tracker.Store(nPos.Name, uint64(nPos.Pos)); err != nil {
 					h.logger.Warn("unable to store progress", log.Error(err))
 					return xerrors.Errorf("unable to store binlog position: %w", err)
 				}

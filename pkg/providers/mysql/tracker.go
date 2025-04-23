@@ -67,7 +67,7 @@ func (n *Tracker) Close() error {
 	return nil
 }
 
-func (n *Tracker) Store(file string, pos uint32) error {
+func (n *Tracker) Store(file string, pos uint64) error {
 	logger.Log.Infof("track %v:%v", file, pos)
 	return n.cp.SetTransferState(n.transferID, map[string]*coordinator.TransferStateData{
 		binlogPosKey: {

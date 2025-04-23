@@ -28,7 +28,7 @@ func unmarshalHetero(value interface{}, colSchema *abstract.ColSchema) (any, err
 	case schema.TypeInt64:
 		result, err = strict.ExpectedSQL[*sql.NullInt64](value, cast.ToInt64E)
 	case schema.TypeInt32:
-		result, err = strict.ExpectedSQL[*sql.NullInt64](value, cast.ToInt32E)
+		result, err = strict.UnexpectedSQL(value, cast.ToInt32E)
 	case schema.TypeInt16:
 		result, err = strict.ExpectedSQL[*sql.NullInt64](value, cast.ToInt16E)
 	case schema.TypeInt8:
@@ -36,7 +36,7 @@ func unmarshalHetero(value interface{}, colSchema *abstract.ColSchema) (any, err
 	case schema.TypeUint64:
 		result, err = strict.ExpectedSQL[*types.NullUint64](value, cast.ToUint64E)
 	case schema.TypeUint32:
-		result, err = strict.ExpectedSQL[*sql.NullInt64](value, cast.ToUint32E)
+		result, err = strict.UnexpectedSQL(value, cast.ToUint32E)
 	case schema.TypeUint16:
 		result, err = strict.ExpectedSQL[*sql.NullInt64](value, cast.ToUint16E)
 	case schema.TypeUint8:
@@ -47,15 +47,15 @@ func unmarshalHetero(value interface{}, colSchema *abstract.ColSchema) (any, err
 		switch v := value.(type) {
 		case *sql.NullFloat64:
 			result, err = strict.ExpectedSQL[*sql.NullFloat64](v, castx.ToJSONNumberE)
-		case *sql.RawBytes:
-			result, err = strict.Expected[[]byte](unmarshalRawBytesAsBytes(v), castx.ToJSONNumberE)
+		case *sql.NullString:
+			result, err = strict.ExpectedSQL[*sql.NullString](v, castx.ToJSONNumberE)
 		default:
 			result, err = strict.UnexpectedSQL(v, castx.ToJSONNumberE)
 		}
 	case schema.TypeBytes:
 		switch v := value.(type) {
-		case *sql.RawBytes:
-			result, err = unmarshalRawBytesAsBytes(v), nil
+		case *[]byte:
+			result, err = strict.Expected[[]byte](unwrapBytes(v), castx.ToByteSliceE)
 		default:
 			result, err = strict.UnexpectedSQL(v, castx.ToByteSliceE)
 		}
@@ -71,8 +71,10 @@ func unmarshalHetero(value interface{}, colSchema *abstract.ColSchema) (any, err
 		result, err = strict.UnexpectedSQL(value, cast.ToDurationE)
 	case schema.TypeString:
 		switch v := value.(type) {
-		case *sql.RawBytes:
-			result, err = strict.ExpectedSQL[[]byte](unmarshalRawBytesAsBytes(v), castx.ToStringE)
+		case *sql.NullString:
+			result, err = strict.ExpectedSQL[*sql.NullString](v, castx.ToStringE)
+		case *[]byte:
+			result, err = strict.Expected[[]byte](unwrapBytes(v), castx.ToStringE)
 		case *sql.NullInt64:
 			result, err = unmarshalInt64AsString(v)
 		default:
@@ -91,8 +93,8 @@ func unmarshalHetero(value interface{}, colSchema *abstract.ColSchema) (any, err
 	return result, nil
 }
 
-func unmarshalRawBytesAsBytes(v *sql.RawBytes) any {
-	if *v == nil {
+func unwrapBytes(v *[]byte) any {
+	if v == nil || *v == nil {
 		return nil
 	}
 	// https://st.yandex-team.ru/TM-6428 copying bytes here is REQUIRED

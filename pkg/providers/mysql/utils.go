@@ -200,13 +200,13 @@ func pushCreateTable(ctx context.Context, tx Queryable, table abstract.TableID, 
 // fileOffset for next file we add this number to LSN
 const fileOffset = 1_000_000_000_000
 
-func CalculateLSN(file string, pos uint32) uint64 {
+func CalculateLSN(file string, pos uint64) uint64 {
 	parts := strings.Split(file, ".")
 	if len(parts) <= 1 {
-		return fileOffset + uint64(pos)
+		return fileOffset + pos
 	}
 	fIdx, _ := strconv.Atoi(parts[1])
-	return uint64(fIdx*fileOffset) + uint64(pos)
+	return uint64(fIdx*fileOffset) + pos
 }
 
 func readRowsAndPushByChunks(
