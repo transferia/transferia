@@ -620,6 +620,7 @@
   "library/go/slices/intersects.go":"library/go/slices/intersects.go",
   "library/go/slices/join.go":"library/go/slices/join.go",
   "library/go/slices/map.go":"library/go/slices/map.go",
+  "library/go/slices/merge_sorted.go":"library/go/slices/merge_sorted.go",
   "library/go/slices/reverse.go":"library/go/slices/reverse.go",
   "library/go/slices/shuffle.go":"library/go/slices/shuffle.go",
   "library/go/slices/sort.go":"library/go/slices/sort.go",

@@ -43,7 +43,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/jhump/protoreflect v1.15.6
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/klauspost/compress v1.17.9
+	github.com/klauspost/compress v1.17.11
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
 	github.com/montanaflynn/stats v0.7.1
@@ -53,7 +53,7 @@ require (
 	github.com/parquet-go/parquet-go v0.24.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/pingcap/parser v0.0.0-20210415081931-48e7f467fd74
-	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/client_golang v1.21.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.62.0
 	github.com/prometheus/procfs v0.15.1
@@ -351,8 +351,6 @@ replace github.com/temporalio/features/harness/go => github.com/temporalio/featu
 replace github.com/temporalio/omes => github.com/temporalio/omes v0.0.0-20240701113332-211647aa9dae
 
 replace github.com/aleroyer/rsyslog_exporter => github.com/prometheus-community/rsyslog_exporter v1.1.0
-
-replace github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.20.5
 
 replace github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
 
