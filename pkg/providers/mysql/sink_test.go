@@ -448,7 +448,7 @@ func Test_create_table(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta(".")).
 		WillReturnError(xerrors.New("an exec error occurred"))
 	sink := &sinker{
-		cache:  map[string]bool{},
+		cache:  map[abstract.TableID]*abstract.TableSchema{},
 		db:     db,
 		logger: logger.Log,
 	}
@@ -457,9 +457,6 @@ func Test_create_table(t *testing.T) {
 		changeitem.TableID{
 			Namespace: "namespace",
 			Name:      "name",
-		},
-		changeitem.ChangeItem{
-			TableSchema: tableSchema,
-		})
+		}, tableSchema)
 	require.True(t, abstract.IsFatal(err))
 }
