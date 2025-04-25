@@ -626,6 +626,7 @@
   "library/go/slices/shuffle.go":"library/go/slices/shuffle.go",
   "library/go/slices/sort.go":"library/go/slices/sort.go",
   "library/go/slices/subtract.go":"library/go/slices/subtract.go",
+  "library/go/slices/zip.go":"library/go/slices/zip.go",
   "library/go/test/canon/canon.go":"library/go/test/canon/canon.go",
   "library/go/test/canon/dctest.go":"cloud/doublecloud/transfer/github_os/library/go/test/canon/dctest.go",
   "library/go/test/canon/gotest.go":"library/go/test/canon/gotest.go",
