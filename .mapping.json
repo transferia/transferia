@@ -2695,6 +2695,8 @@
   "tests/e2e/mysql2mysql/cleanup_tables/target/dump.sql":"transfer_manager/go/tests/e2e/mysql2mysql/cleanup_tables/target/dump.sql",
   "tests/e2e/mysql2mysql/comment/check_db_test.go":"transfer_manager/go/tests/e2e/mysql2mysql/comment/check_db_test.go",
   "tests/e2e/mysql2mysql/comment/dump/comment.sql":"transfer_manager/go/tests/e2e/mysql2mysql/comment/dump/comment.sql",
+  "tests/e2e/mysql2mysql/connection_limit/check_db_test.go":"transfer_manager/go/tests/e2e/mysql2mysql/connection_limit/check_db_test.go",
+  "tests/e2e/mysql2mysql/connection_limit/source/init.sql":"transfer_manager/go/tests/e2e/mysql2mysql/connection_limit/source/init.sql",
   "tests/e2e/mysql2mysql/consistent_snapshot/check_db_test.go":"transfer_manager/go/tests/e2e/mysql2mysql/consistent_snapshot/check_db_test.go",
   "tests/e2e/mysql2mysql/consistent_snapshot/dump/consistent_snapshot.sql":"transfer_manager/go/tests/e2e/mysql2mysql/consistent_snapshot/dump/consistent_snapshot.sql",
   "tests/e2e/mysql2mysql/date_time/check_db_test.go":"transfer_manager/go/tests/e2e/mysql2mysql/date_time/check_db_test.go",

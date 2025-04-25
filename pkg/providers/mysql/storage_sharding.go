@@ -35,6 +35,7 @@ WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?;
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve partitions: %w", err)
 	}
+	defer rows.Close()
 	var res []abstract.TableDescription
 	for rows.Next() {
 		var partName string
