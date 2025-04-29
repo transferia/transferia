@@ -2,7 +2,6 @@ package reader
 
 import (
 	"bytes"
-	"compress/gzip"
 	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,22 +11,25 @@ import (
 	"github.com/transferia/transferia/pkg/stats"
 )
 
-var _ io.ReaderAt = (*gzipReader)(nil)
+type Wrapper[T io.ReadCloser] func(io.Reader) (T, error)
 
-type gzipReader struct {
+var _ io.ReaderAt = (*wrappedReader[io.ReadCloser])(nil)
+
+type wrappedReader[T io.ReadCloser] struct {
 	fetcher                *s3Fetcher
 	downloader             *s3manager.Downloader
 	stats                  *stats.SourceStats
 	fullUncompressedObject []byte
+	wrapper                Wrapper[T]
 }
 
-func (r *gzipReader) ReadAt(p []byte, off int64) (int, error) {
+func (r *wrappedReader[T]) ReadAt(p []byte, off int64) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
 	if r.fullUncompressedObject == nil {
-		if err := r.loadGZObjectInMemory(); err != nil {
-			return 0, xerrors.Errorf("failed to load full gzip file %s into memory: %w", r.fetcher.key, err)
+		if err := r.loadObjectInMemory(); err != nil {
+			return 0, xerrors.Errorf("failed to load full file %s into memory: %w", r.fetcher.key, err)
 		}
 	}
 
@@ -51,7 +53,7 @@ func (r *gzipReader) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
-func (r *gzipReader) loadGZObjectInMemory() error {
+func (r *wrappedReader[T]) loadObjectInMemory() error {
 	_, err := r.fetcher.fetchSize()
 	if err != nil {
 		return xerrors.Errorf("unable to fetch object size %s: %w", r.fetcher.key, err)
@@ -63,43 +65,41 @@ func (r *gzipReader) loadGZObjectInMemory() error {
 		Key:    aws.String(r.fetcher.key),
 	})
 	if err != nil {
-		return xerrors.Errorf("failed to download gzip object %s: %w", r.fetcher.key, err)
+		return xerrors.Errorf("failed to download object %s: %w", r.fetcher.key, err)
 	}
 
 	data := buff.Bytes()
 
-	gzipReader, err := gzip.NewReader(bytes.NewReader(data))
+	wrapper, err := r.wrapper(bytes.NewReader(data))
 	if err != nil {
-		return xerrors.Errorf("failed to initialize gzip reader: %w", err)
+		return xerrors.Errorf("failed to initialize wrapper: %w", err)
 	}
-	defer gzipReader.Close()
+	defer wrapper.Close()
 
-	r.fullUncompressedObject, err = io.ReadAll(gzipReader)
+	r.fullUncompressedObject, err = io.ReadAll(wrapper)
 	if err != nil {
-		return xerrors.Errorf("failed to decompress gzip file %s: %w", r.fetcher.key, err)
+		return xerrors.Errorf("failed to read from wrapper %s: %w", r.fetcher.key, err)
 	}
 	return nil
 }
 
-func NewGzipReader(fetcher *s3Fetcher, downloader *s3manager.Downloader, stats *stats.SourceStats) (io.ReaderAt, error) {
+func NewWrappedReader[T io.ReadCloser](
+	fetcher *s3Fetcher, downloader *s3manager.Downloader, stats *stats.SourceStats, wrapper Wrapper[T],
+) (io.ReaderAt, error) {
 	if fetcher == nil {
 		return nil, xerrors.New("missing s3 fetcher for gzip reader")
 	}
-
 	if downloader == nil {
 		return nil, xerrors.New("missing s3 downloader for gzip reader")
 	}
-
 	if stats == nil {
 		return nil, xerrors.New("missing stats for gzip reader")
 	}
-
-	reader := &gzipReader{
+	return &wrappedReader[T]{
 		fetcher:                fetcher,
 		downloader:             downloader,
 		stats:                  stats,
 		fullUncompressedObject: nil,
-	}
-
-	return reader, nil
+		wrapper:                wrapper,
+	}, nil
 }

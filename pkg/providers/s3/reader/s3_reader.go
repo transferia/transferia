@@ -1,6 +1,8 @@
 package reader
 
 import (
+	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"io"
 	"strings"
@@ -43,7 +45,7 @@ func (r *S3Reader) LastModified() time.Time {
 	return r.fetcher.lastModified()
 }
 
-func NewS3Reader(ctx context.Context, client s3iface.S3API, downloader *s3manager.Downloader, bucket string, key string, metrics *stats.SourceStats) (*S3Reader, error) {
+func NewS3Reader(ctx context.Context, client s3iface.S3API, downloader *s3manager.Downloader, bucket, key string, metrics *stats.SourceStats) (*S3Reader, error) {
 	fetcher, err := NewS3Fetcher(ctx, client, bucket, key)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to initialize new s3 fetcher for reader: %w", err)
@@ -52,9 +54,14 @@ func NewS3Reader(ctx context.Context, client s3iface.S3API, downloader *s3manage
 	var reader io.ReaderAt
 
 	if strings.HasSuffix(key, ".gz") {
-		reader, err = NewGzipReader(fetcher, downloader, metrics)
+		reader, err = NewWrappedReader(fetcher, downloader, metrics, gzip.NewReader)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to initialize new gzip reader: %w", err)
+		}
+	} else if strings.HasSuffix(key, ".zlib") {
+		reader, err = NewWrappedReader(fetcher, downloader, metrics, zlib.NewReader)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to initialize new zlib reader: %w", err)
 		}
 	} else {
 		reader, err = NewChunkedReader(fetcher, metrics)
