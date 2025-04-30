@@ -43,7 +43,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/jhump/protoreflect v1.15.6
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/klauspost/compress v1.17.11
+	github.com/klauspost/compress v1.18.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
 	github.com/montanaflynn/stats v0.7.1
@@ -79,7 +79,7 @@ require (
 	go.ytsaurus.tech/library/go/core/log v0.0.4
 	go.ytsaurus.tech/yt/go v0.0.25
 	golang.org/x/crypto v0.33.0
-	golang.org/x/exp v0.0.0-20240707233637-46b078467d37
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	golang.org/x/mod v0.23.0
 	golang.org/x/net v0.35.0
 	golang.org/x/sync v0.11.0
@@ -143,7 +143,7 @@ require (
 	github.com/charmbracelet/x/exp/golden v0.0.0-20240815200342-61de596daa2b // indirect
 	github.com/cloudflare/circl v1.5.0 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
-	github.com/containerd/containerd v1.7.20 // indirect
+	github.com/containerd/containerd v1.7.23 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
@@ -206,7 +206,8 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
-	github.com/moby/sys/user v0.1.0 // indirect
+	github.com/moby/sys/user v0.3.0 // indirect
+	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
