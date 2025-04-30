@@ -47,6 +47,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
 	github.com/montanaflynn/stats v0.7.1
+	github.com/nats-io/nats.go v1.39.0
 	github.com/ohler55/ojg v1.26.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/opencontainers/image-spec v1.1.0
@@ -216,6 +217,8 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/nats-io/nkeys v0.4.9 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/onsi/ginkgo/v2 v2.19.0 // indirect
 	github.com/onsi/gomega v1.34.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
