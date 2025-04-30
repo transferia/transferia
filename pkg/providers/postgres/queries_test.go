@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
 func TestAddEnumValsQuery(t *testing.T) {
@@ -176,13 +177,15 @@ func TestAddColsQuery(t *testing.T) {
 			want: `ALTER TABLE public.test_table ADD COLUMN IF NOT EXISTS "id" integer,ADD COLUMN IF NOT EXISTS "name" text`,
 		},
 		{
-			name: "with expr",
+			name: "with default timestamp",
 			ftn:  "public.test_table",
 			added: []abstract.ColSchema{
 				{
 					ColumnName:   "created_at",
 					OriginalType: "pg:timestamp",
-					Expression:   "pg:DEFAULT CURRENT_TIMESTAMP",
+					Properties: map[abstract.PropertyKey]any{
+						changeitem.DefaultPropertyKey: "CURRENT_TIMESTAMP",
+					},
 				},
 			},
 			want: `ALTER TABLE public.test_table ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT CURRENT_TIMESTAMP`,
@@ -239,11 +242,13 @@ func TestAddColsQuery(t *testing.T) {
 				{
 					ColumnName:   "updated_at",
 					OriginalType: "pg:timestamp",
-					Expression:   "pg:DEFAULT CURRENT_TIMESTAMP",
 					Required:     true,
+					Properties: map[abstract.PropertyKey]any{
+						changeitem.DefaultPropertyKey: "CURRENT_TIMESTAMP",
+					},
 				},
 			},
-			want: `ALTER TABLE public.test_table ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL`,
+			want: `ALTER TABLE public.test_table ADD COLUMN IF NOT EXISTS "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP`,
 		},
 		{
 			name: "camel case",
@@ -252,11 +257,13 @@ func TestAddColsQuery(t *testing.T) {
 				{
 					ColumnName:   "UpdatedAt",
 					OriginalType: "pg:timestamp",
-					Expression:   "pg:DEFAULT CURRENT_TIMESTAMP",
 					Required:     true,
+					Properties: map[abstract.PropertyKey]any{
+						changeitem.DefaultPropertyKey: "CURRENT_TIMESTAMP",
+					},
 				},
 			},
-			want: `ALTER TABLE public.test_table ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL`,
+			want: `ALTER TABLE public.test_table ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP`,
 		},
 	}
 
@@ -267,9 +274,7 @@ func TestAddColsQuery(t *testing.T) {
 				t.Errorf("addColsQuery() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("addColsQuery():\n\t%v\nwant\n\t%v", got, tt.want)
-			}
+			require.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -331,12 +336,16 @@ func TestCreateTableQuery(t *testing.T) {
 				{
 					ColumnName:   "created_at",
 					OriginalType: "pg:timestamp",
-					Expression:   "pg:DEFAULT CURRENT_TIMESTAMP",
+					Properties: map[abstract.PropertyKey]any{
+						changeitem.DefaultPropertyKey: "CURRENT_TIMESTAMP",
+					},
 				},
 				{
 					ColumnName:   "is_active",
 					OriginalType: "pg:boolean",
-					Expression:   "pg:DEFAULT true",
+					Properties: map[abstract.PropertyKey]any{
+						changeitem.DefaultPropertyKey: "true",
+					},
 				},
 			},
 			want: `CREATE TABLE IF NOT EXISTS public.test_table ("id" integer,"created_at" timestamp DEFAULT CURRENT_TIMESTAMP,"is_active" boolean DEFAULT true, primary key ("id"))`,
@@ -441,11 +450,13 @@ func TestCreateTableQuery(t *testing.T) {
 				{
 					ColumnName:   "UpdatedAt",
 					OriginalType: "pg:timestamp",
-					Expression:   "pg:DEFAULT CURRENT_TIMESTAMP",
 					Required:     true,
+					Properties: map[abstract.PropertyKey]any{
+						changeitem.DefaultPropertyKey: "CURRENT_TIMESTAMP",
+					},
 				},
 			},
-			want: `CREATE TABLE IF NOT EXISTS public.test_table ("UpdatedAt" timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+			want: `CREATE TABLE IF NOT EXISTS public.test_table ("UpdatedAt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
 		},
 	}
 

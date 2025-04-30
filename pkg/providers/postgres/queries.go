@@ -7,6 +7,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
 func CreateTableQuery(fullTableName string, schema []abstract.ColSchema) (string, error) {
@@ -34,6 +35,9 @@ func CreateTableQuery(fullTableName string, schema []abstract.ColSchema) (string
 		}
 		if col.Required {
 			queryType += " NOT NULL"
+		}
+		if d, ok := col.Properties[changeitem.DefaultPropertyKey]; ok {
+			queryType += fmt.Sprintf(" DEFAULT %s", d)
 		}
 		b.WriteString(fmt.Sprintf(`"%v" %v`, col.ColumnName, queryType))
 		if col.IsKey() {
@@ -135,7 +139,6 @@ func addEnumValsQuery(currentCol, col abstract.ColSchema) ([]string, error) {
 	typeName := strings.TrimPrefix(col.OriginalType, "pg:")
 
 	for _, add := range toAdd {
-
 		if add.before != "" {
 			res = append(res, fmt.Sprintf(`ALTER TYPE %s ADD VALUE IF NOT EXISTS '%s' BEFORE '%s'`,
 				typeName, add.val, add.before))
@@ -176,6 +179,9 @@ func addColsQuery(ftn string, added []abstract.ColSchema) (string, error) {
 		}
 		if col.Required {
 			queryType += " NOT NULL"
+		}
+		if d, ok := col.Properties[changeitem.DefaultPropertyKey]; ok {
+			queryType += fmt.Sprintf(" DEFAULT %s", d)
 		}
 		b.WriteString(fmt.Sprintf(`ADD COLUMN IF NOT EXISTS "%v" %v`, col.ColumnName, queryType))
 		if idx < len(added)-1 {

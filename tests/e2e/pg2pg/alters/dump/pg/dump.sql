@@ -5,6 +5,8 @@ create table __test
     "Val1" int,
     val2 varchar not null default 'foo',
     "FancyEnum" "fancyEnum",
+    "created_at" timestamp DEFAULT CURRENT_TIMESTAMP,
+    is_important boolean default true,
     primary key (id)
 );
 
