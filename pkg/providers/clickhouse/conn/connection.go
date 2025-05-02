@@ -38,7 +38,15 @@ func ConnectNative(host string, cfg ConnParams, hosts ...string) (*sql.DB, error
 	if err != nil {
 		return nil, err
 	}
-	return clickhouse.OpenDB(opts), nil
+
+	db := clickhouse.OpenDB(opts)
+
+	// OpenDB suggests it's the caller's responsibility to configure the connection pool, so we must set it to reasonable defaults for long-running jobs.
+	// FIXME: make these configurable
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(20)
+	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetConnMaxIdleTime(10 * time.Minute)
 }
 
 func GetClickhouseOptions(cfg ConnParams, hosts []string) (*clickhouse.Options, error) {
