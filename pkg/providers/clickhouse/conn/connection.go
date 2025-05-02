@@ -47,6 +47,8 @@ func ConnectNative(host string, cfg ConnParams, hosts ...string) (*sql.DB, error
 	db.SetMaxIdleConns(20)
 	db.SetConnMaxLifetime(30 * time.Minute)
 	db.SetConnMaxIdleTime(10 * time.Minute)
+
+	return db, nil
 }
 
 func GetClickhouseOptions(cfg ConnParams, hosts []string) (*clickhouse.Options, error) {
