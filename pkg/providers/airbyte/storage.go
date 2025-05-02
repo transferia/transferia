@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
@@ -44,7 +43,14 @@ type Storage struct {
 	cw container.ContainerImpl
 }
 
-func (a *Storage) Close() {}
+func (a *Storage) Close() {
+	dir, err := a.getFilesDir()
+	if err == nil {
+		if err := os.RemoveAll(dir); err != nil {
+			a.logger.Warnf("unable to remove temp dir: %s", dir)
+		}
+	}
+}
 
 func (a *Storage) Ping() error {
 	return a.check()
@@ -84,12 +90,14 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		fmt.Sprintf("/data/%s", catalogFile),
 	}
 
-	stdoutReader, stderrReader, err := a.runRawCommand(nil, args...)
+	stdoutReader, stderrReader, err := a.runCommand(nil, args...)
 	if err != nil {
 		return xerrors.Errorf("%s unable to start: %w", table.ID().String(), err)
 	}
 	defer stdoutReader.Close()
-	defer stderrReader.Close()
+	if stderrReader != nil {
+		defer stderrReader.Close()
+	}
 
 	var batch *RecordBatch
 	cntr := 0
@@ -166,14 +174,16 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		return xerrors.Errorf("unable to store incremental state: %w", err)
 	}
 
-	// Read stderr to completion to ensure the container process is waited upon
-	stderrBuf := new(bytes.Buffer)
-	_, err = io.Copy(stderrBuf, stderrReader)
-	if err != nil {
-		return xerrors.Errorf("%s stderr read failed: %w", table.ID().String(), err)
-	}
-	if stderrBuf.Len() > 0 {
-		a.logger.Warnf("stderr: %v\nlast error:%v", stderrBuf.String(), lastAirbyteError)
+	if stderrReader != nil {
+		// Read stderr to completion to ensure the container process is waited upon
+		stderrBuf := new(bytes.Buffer)
+		_, err = io.Copy(stderrBuf, stderrReader)
+		if err != nil {
+			return xerrors.Errorf("%s stderr read failed: %w", table.ID().String(), err)
+		}
+		if stderrBuf.Len() > 0 {
+			a.logger.Warnf("stderr: %v\nlast error:%v", stderrBuf.String(), lastAirbyteError)
+		}
 	}
 
 	return nil
@@ -314,8 +324,31 @@ func (a *Storage) parse(data []byte) (*Message, []string) {
 	return res, logs
 }
 
+func (a *Storage) getFilesDir() (string, error) {
+	switch a.cw.Type() {
+	case container.BackendDocker:
+		return a.config.DataDir(), nil
+	case container.BackendKubernetes:
+		tempDir := filepath.Join(os.TempDir(), "airbyte-secrets", a.transfer.ID)
+		if err := os.MkdirAll(tempDir, 0o755); err != nil && !os.IsExist(err) {
+			return "", xerrors.Errorf("unable to create temp directory: %w", err)
+		}
+		return tempDir, nil
+	}
+
+	return "", xerrors.New("unknown container backend")
+}
+
 func (a *Storage) writeFile(fileName, fileData string) error {
-	fullPath := filepath.Join(a.config.DataDir(), fileName)
+	var fullPath string
+
+	dir, err := a.getFilesDir()
+	if err != nil {
+		return xerrors.Errorf("unable to get files dir: %w", err)
+	}
+
+	fullPath = filepath.Join(dir, fileName)
+
 	a.logger.Debugf("%s -> \n%s", fileName, fileData)
 	defer a.logger.Infof("file(%s) %s written", format.SizeInt(len(fileData)), fullPath)
 	return os.WriteFile(
@@ -331,7 +364,7 @@ func (a *Storage) check() error {
 		return xerrors.Errorf("unable to write config: %w", err)
 	}
 
-	configResponse, err := a.runCommand("check", "--config", "/data/config.json")
+	configResponse, err := a.runSyncCommand(nil, "check", "--config", "/data/config.json")
 	if err != nil {
 		return err
 	}
@@ -360,7 +393,7 @@ func (a *Storage) discover() error {
 	if err := a.check(); err != nil {
 		return xerrors.Errorf("unable to check provider: %w", err)
 	}
-	response, err := a.runCommand("discover", "--config", "/data/config.json")
+	response, err := a.runSyncCommand(nil, "discover", "--config", "/data/config.json")
 	if err != nil {
 		return xerrors.Errorf("exec error: %w", err)
 	}
@@ -382,7 +415,7 @@ func (a *Storage) discover() error {
 }
 
 func (a *Storage) baseOpts() container.ContainerOpts {
-	return container.ContainerOpts{
+	opts := container.ContainerOpts{
 		Env: map[string]string{
 			"AWS_EC2_METADATA_DISABLED": "true",
 		},
@@ -397,25 +430,80 @@ func (a *Storage) baseOpts() container.ContainerOpts {
 		LogDriver:     "local",
 		Network:       "host",
 		ContainerName: "runner",
-		Volumes: []container.Volume{
-			{
-				Name:          "data",
-				HostPath:      a.config.DataDir(),
-				ContainerPath: "/data",
-				VolumeType:    "bind",
-			},
-		},
-		Command: nil,
-		Args:    nil,
+		Command:       nil,
+		Args:          nil,
 		// FIXME: make this configurable
 		Timeout:      12 * time.Hour,
 		AttachStdout: true,
 		AttachStderr: true,
 		AutoRemove:   true,
 	}
+
+	dir, err := a.getFilesDir()
+	if err != nil {
+		a.logger.Errorf("unable to specify data dir: %w", err)
+	}
+
+	switch a.cw.Type() {
+	case container.BackendDocker:
+		opts.Volumes = []container.Volume{
+			{
+				Name:          "data",
+				HostPath:      dir,
+				ContainerPath: "/data",
+				VolumeType:    "bind",
+			},
+		}
+	case container.BackendKubernetes:
+		if _, err := os.Stat(dir); err == nil {
+			// Create a unique secret name based on the transfer ID
+			secretName := fmt.Sprintf("airbyte-secret-%s-%s", a.transfer.ID, time.Now().Format("20060102-150405"))
+
+			// Create a map to store file contents for the secret
+			secretData := make(map[string][]byte)
+
+			// Read all files from the temporary directory
+			files, err := os.ReadDir(dir)
+			if err == nil && len(files) > 0 {
+				for _, file := range files {
+					if !file.IsDir() {
+						filePath := filepath.Join(dir, file.Name())
+						data, err := os.ReadFile(filePath)
+						if err == nil {
+							secretData[file.Name()] = data
+						} else {
+							a.logger.Warnf("Failed to read file %s: %v", filePath, err)
+						}
+					}
+				}
+
+				// Add the secret to the container options
+				opts.Secrets = []container.Secret{
+					{
+						Name: secretName,
+						Data: secretData,
+					},
+				}
+
+				// Mount the secret as a volume
+				opts.Volumes = []container.Volume{
+					{
+						Name:          "data",
+						SecretName:    secretName,
+						ContainerPath: "/data",
+						VolumeType:    "secret",
+					},
+				}
+
+				return opts
+			}
+		}
+	}
+
+	return opts
 }
 
-func (a *Storage) runRawCommand(cmd []string, args ...string) (io.ReadCloser, io.ReadCloser, error) {
+func (a *Storage) runCommand(cmd []string, args ...string) (io.ReadCloser, io.ReadCloser, error) {
 	ctx := context.Background()
 
 	opts := a.baseOpts()
@@ -428,82 +516,23 @@ func (a *Storage) runRawCommand(cmd []string, args ...string) (io.ReadCloser, io
 	return a.cw.Run(ctx, opts)
 }
 
-func (a *Storage) runCommand(args ...string) ([]byte, error) {
-	// 1. Call runRawCommand to get the readers
-	stdoutReader, stderrReader, cmdErr := a.runRawCommand(nil, args...)
+func (a *Storage) runSyncCommand(cmd []string, args ...string) ([]byte, error) {
+	ctx := context.Background()
+
+	opts := a.baseOpts()
+
+	opts.Command = cmd
+	opts.Args = args
+
+	a.logger.Info(opts.String())
+
+	stdoutBuf, stderrBuf, cmdErr := a.cw.RunAndWait(ctx, opts)
 	if cmdErr != nil {
-		opts := a.baseOpts()
-		opts.Command = args
 		a.logger.Error(cmdErr.Error())
 		return nil, xerrors.Errorf("command failed: %w", cmdErr)
 	}
-	defer stdoutReader.Close()
-	defer stderrReader.Close()
 
-	// 2. Create buffers for output
-	stdoutBuf := new(bytes.Buffer)
-	stderrBuf := new(bytes.Buffer)
-
-	// 3. Use WaitGroup to wait for both streams to be copied
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// 4. Channel for collecting errors
-	errCh := make(chan error, 2)
-
-	// Read stdout line by line
-	go func() {
-		defer wg.Done()
-		scanner := bufio.NewScanner(stdoutReader)
-		for scanner.Scan() {
-			// Append each line with a newline character
-			stdoutBuf.Write(scanner.Bytes())
-			stdoutBuf.WriteByte('\n')
-		}
-		if err := scanner.Err(); err != nil {
-			errCh <- xerrors.Errorf("error scanning stdout: %w", err)
-		}
-	}()
-
-	// Read stderr line by line
-	go func() {
-		defer wg.Done()
-		scanner := bufio.NewScanner(stderrReader)
-		for scanner.Scan() {
-			// Append each line with a newline character
-			stderrBuf.Write(scanner.Bytes())
-			stderrBuf.WriteByte('\n')
-		}
-		if err := scanner.Err(); err != nil {
-			errCh <- xerrors.Errorf("error scanning stderr: %w", err)
-		}
-	}()
-
-	// 5. Wait for both copies to complete
-	wg.Wait()
-	close(errCh)
-
-	// 6. Collect any errors
-	var errs []error
-	for e := range errCh {
-		errs = append(errs, e)
-	}
-
-	// 7. Return combined error if any
-	if len(errs) > 0 {
-		var combinedErr error
-		for _, e := range errs {
-			if combinedErr == nil {
-				combinedErr = e
-			} else {
-				combinedErr = xerrors.Errorf("%v; %w", combinedErr, e)
-			}
-		}
-		return nil, combinedErr
-	}
-
-	// Scan the captured stderrBuf for stderr messages
-	if stderrBuf.Len() > 0 {
+	if stderrBuf != nil {
 		scanner := bufio.NewScanner(bytes.NewReader(stderrBuf.Bytes()))
 		var stderrErrs util.Errors
 		for scanner.Scan() {

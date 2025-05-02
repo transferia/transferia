@@ -328,3 +328,8 @@ func (d *DockerWrapper) ensureDocker(supervisorConfigPath string, timeout time.D
 		return xerrors.Errorf("timeout: %v waiting for Docker to be ready", timeout)
 	}
 }
+
+// Type returns the container backend type
+func (d *DockerWrapper) Type() ContainerBackend {
+	return BackendDocker
+}

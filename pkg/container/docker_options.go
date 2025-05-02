@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type DockerOpts struct {
@@ -122,4 +123,47 @@ func (o DockerOpts) String() string {
 	cmd := append([]string{"docker", "run"}, args...)
 
 	return strings.Join(cmd, " ")
+}
+
+func (c *ContainerOpts) ToDockerOpts() DockerOpts {
+	var envSlice []string
+	for key, value := range c.Env {
+		envSlice = append(envSlice, key+"="+value)
+	}
+
+	var mounts []mount.Mount
+	for _, vol := range c.Volumes {
+		mounts = append(mounts, mount.Mount{
+			Type:     mount.Type(vol.VolumeType),
+			Source:   vol.HostPath,
+			Target:   vol.ContainerPath,
+			ReadOnly: vol.ReadOnly,
+		})
+	}
+
+	var restartPolicy container.RestartPolicy
+	switch c.RestartPolicy {
+	case corev1.RestartPolicyAlways:
+		restartPolicy.Name = container.RestartPolicyAlways
+	case corev1.RestartPolicyOnFailure:
+		restartPolicy.Name = container.RestartPolicyOnFailure
+	case corev1.RestartPolicyNever:
+		restartPolicy.Name = container.RestartPolicyDisabled
+	}
+
+	return DockerOpts{
+		RestartPolicy: restartPolicy,
+		Mounts:        mounts,
+		LogDriver:     c.LogDriver,
+		LogOptions:    c.LogOptions,
+		Image:         c.Image,
+		Network:       c.Network,
+		ContainerName: c.ContainerName,
+		Command:       c.Command,
+		Env:           envSlice,
+		Timeout:       c.Timeout,
+		AutoRemove:    c.AutoRemove,
+		AttachStdout:  c.AttachStdout,
+		AttachStderr:  c.AttachStderr,
+	}
 }
