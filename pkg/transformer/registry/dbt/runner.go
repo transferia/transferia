@@ -211,16 +211,18 @@ func (r *runner) run(ctx context.Context) error {
 		return xerrors.Errorf("docker run failed: %w", err)
 	}
 	defer stdoutReader.Close()
-	defer stderrReader.Close()
+	if stderrReader != nil {
+		defer stderrReader.Close()
+	}
 
 	// Use WaitGroup to read both streams concurrently until EOF
 	var wg sync.WaitGroup
-	wg.Add(2)
 
 	// Channel for collecting errors
 	errCh := make(chan error, 2)
 
 	// Read stdout line by line
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		scanner := bufio.NewScanner(stdoutReader)
@@ -233,18 +235,21 @@ func (r *runner) run(ctx context.Context) error {
 		}
 	}()
 
-	// Read stderr line by line
-	go func() {
-		defer wg.Done()
-		scanner := bufio.NewScanner(stderrReader)
-		for scanner.Scan() {
-			// Log each line as it's read
-			logger.Log.Warn("stderr: " + scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			errCh <- xerrors.Errorf("error scanning stderr: %w", err)
-		}
-	}()
+	if stderrReader != nil {
+		wg.Add(1)
+		// Read stderr line by line
+		go func() {
+			defer wg.Done()
+			scanner := bufio.NewScanner(stderrReader)
+			for scanner.Scan() {
+				// Log each line as it's read
+				logger.Log.Warn("stderr: " + scanner.Text())
+			}
+			if err := scanner.Err(); err != nil {
+				errCh <- xerrors.Errorf("error scanning stderr: %w", err)
+			}
+		}()
+	}
 
 	// Wait for both streams to be fully read
 	wg.Wait()
