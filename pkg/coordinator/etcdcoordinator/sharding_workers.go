@@ -12,8 +12,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
-// --- coordinator.Sharding Interface Implementation (Workers) ---
-
 // GetOperationProgress retrieves and aggregates progress from all workers.
 func (c *EtcdCoordinator) GetOperationProgress(operationID string) (*model.AggregatedProgress, error) {
 	c.logger.Debug("Getting operation progress", log.String("operationID", operationID))
@@ -50,8 +48,7 @@ func (c *EtcdCoordinator) GetOperationProgress(operationID string) (*model.Aggre
 func (c *EtcdCoordinator) CreateOperationWorkers(operationID string, workersCount int) error {
 	c.logger.Info("Creating operation workers", log.String("operationID", operationID), log.Int("workersCount", workersCount))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Example timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	for i := 1; i <= workersCount; i++ {
@@ -62,7 +59,7 @@ func (c *EtcdCoordinator) CreateOperationWorkers(operationID string, workersCoun
 			Err:         "",
 			Progress:    model.NewAggregatedProgress(),
 		}
-		worker.Progress.LastUpdateAt = time.Now() // Set initial time
+		worker.Progress.LastUpdateAt = time.Now()
 
 		key := workerPath(operationID, i)
 		data, err := json.Marshal(worker)
@@ -87,8 +84,7 @@ func (c *EtcdCoordinator) GetOperationWorkers(operationID string) ([]*model.Oper
 	prefix := workersBasePath(operationID)
 	c.logger.Debug("Getting operation workers", log.String("operationID", operationID), log.String("prefix", prefix))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Example timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	resp, err := c.client.Get(ctx, prefix, clientv3.WithPrefix())
@@ -131,17 +127,15 @@ func (c *EtcdCoordinator) GetOperationWorkersCount(operationID string, completed
 }
 
 // FinishOperation marks a specific worker as completed.
-// Requires Get-Modify-Put, potentially using transaction.
 func (c *EtcdCoordinator) FinishOperation(operationID string, shardIndex int, taskErr error) error {
 	key := workerPath(operationID, shardIndex)
 	c.logger.Info("Finishing operation for worker", log.String("operationID", operationID), log.Int("workerIndex", shardIndex), log.String("key", key), log.Error(taskErr))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Example timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	for attempt := 0; attempt < 3; attempt++ {
-		// 1. Get the current worker state
+		// Get the current worker state
 		resp, err := c.client.Get(ctx, key)
 		if err != nil {
 			c.logger.Error("Failed to get worker for finishing", log.String("key", key), log.Error(err))
@@ -160,9 +154,9 @@ func (c *EtcdCoordinator) FinishOperation(operationID string, shardIndex int, ta
 			return fmt.Errorf("failed to unmarshal worker %s for finishing: %w", key, err)
 		}
 
-		// 2. Update the worker state
+		// Update the worker state
 		worker.Completed = true
-		worker.Progress.LastUpdateAt = time.Now() // Update timestamp
+		worker.Progress.LastUpdateAt = time.Now()
 		if taskErr != nil {
 			worker.Err = taskErr.Error()
 		} else {
@@ -175,7 +169,7 @@ func (c *EtcdCoordinator) FinishOperation(operationID string, shardIndex int, ta
 			return fmt.Errorf("failed to marshal updated worker %s: %w", key, err)
 		}
 
-		// 3. Attempt atomic update using CAS
+		// Attempt atomic update using CAS
 		txnResp, err := c.client.Txn(ctx).
 			If(clientv3.Compare(clientv3.ModRevision(key), "=", kv.ModRevision)).
 			Then(clientv3.OpPut(key, string(updatedData))).
@@ -185,13 +179,13 @@ func (c *EtcdCoordinator) FinishOperation(operationID string, shardIndex int, ta
 			return fmt.Errorf("etcd Txn failed for finishing worker %s: %w", key, err)
 		}
 
-		// 4. Check if succeeded
+		// Check if succeeded
 		if txnResp.Succeeded {
 			c.logger.Info("Successfully finished operation for worker", log.String("key", key), log.Int("workerIndex", shardIndex))
 			return nil // Success
 		}
 
-		// 5. Retry on conflict
+		// Retry on conflict
 		c.logger.Warn("Concurrent modification detected during finishing worker, retrying...", log.String("key", key), log.Int("attempt", attempt+1))
 		time.Sleep(time.Duration(50+attempt*50) * time.Millisecond)
 	}

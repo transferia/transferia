@@ -12,14 +12,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
-// --- coordinator.Sharding Interface Implementation (Table Parts) ---
-
 // CreateOperationTablesParts creates table part entries in etcd.
 func (c *EtcdCoordinator) CreateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
 	c.logger.Info("Creating operation table parts", log.String("operationID", operationID), log.Int("partsCount", len(tables)))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second) // Example timeout, potentially longer for many parts
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	for _, table := range tables {
@@ -50,8 +47,7 @@ func (c *EtcdCoordinator) GetOperationTablesParts(operationID string) ([]*model.
 	prefix := partsBasePath(operationID)
 	c.logger.Debug("Getting operation table parts", log.String("operationID", operationID), log.String("prefix", prefix))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Example timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	resp, err := c.client.Get(ctx, prefix, clientv3.WithPrefix())
@@ -76,19 +72,17 @@ func (c *EtcdCoordinator) GetOperationTablesParts(operationID string) ([]*model.
 }
 
 // AssignOperationTablePart assigns the first available table part to a worker.
-// This requires a Get-Modify-Put pattern, potentially using etcd transactions for atomicity.
 func (c *EtcdCoordinator) AssignOperationTablePart(operationID string, workerIndex int) (*model.OperationTablePart, error) {
 	prefix := partsBasePath(operationID)
 	c.logger.Debug("Attempting to assign table part", log.String("operationID", operationID), log.Int("workerIndex", workerIndex), log.String("prefix", prefix))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second) // Longer timeout for potential transaction
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// Loop potentially needed if first attempt fails due to concurrent modification
-	for attempt := 0; attempt < 3; attempt++ { // Limit retries
-		// 1. Get all parts
-		resp, err := c.client.Get(ctx, prefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend)) // Sort for deterministic assignment order
+	for attempt := 0; attempt < 3; attempt++ {
+		// Get all parts
+		resp, err := c.client.Get(ctx, prefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
 		if err != nil {
 			c.logger.Error("Failed to get table parts for assignment", log.String("prefix", prefix), log.Error(err))
 			return nil, fmt.Errorf("etcd Get failed for assignment %s: %w", prefix, err)
@@ -98,7 +92,7 @@ func (c *EtcdCoordinator) AssignOperationTablePart(operationID string, workerInd
 		var targetKey string
 		var targetRevision int64
 
-		// 2. Find the first unassigned part
+		// Find the first unassigned part
 		for _, kv := range resp.Kvs {
 			var part model.OperationTablePart
 			if err := json.Unmarshal(kv.Value, &part); err != nil {
@@ -114,13 +108,13 @@ func (c *EtcdCoordinator) AssignOperationTablePart(operationID string, workerInd
 			}
 		}
 
-		// 3. If no unassigned part found, return nil
+		// If no unassigned part found, return nil
 		if targetPart == nil {
 			c.logger.Info("No unassigned table parts found to assign", log.String("operationID", operationID), log.Int("workerIndex", workerIndex))
 			return nil, nil // No error, just nothing to assign
 		}
 
-		// 4. Prepare the update
+		// Prepare the update
 		targetPart.WorkerIndex = &workerIndex
 		updatedData, err := json.Marshal(targetPart)
 		if err != nil {
@@ -128,7 +122,7 @@ func (c *EtcdCoordinator) AssignOperationTablePart(operationID string, workerInd
 			return nil, fmt.Errorf("failed to marshal updated part %s: %w", targetKey, err)
 		}
 
-		// 5. Attempt atomic update using Compare-and-Swap (CAS) via etcd transaction
+		// Attempt atomic update using Compare-and-Swap (CAS) via etcd transaction
 		txnResp, err := c.client.Txn(ctx).
 			// If the key targetKey still has revision targetRevision...
 			If(clientv3.Compare(clientv3.ModRevision(targetKey), "=", targetRevision)).
@@ -140,15 +134,14 @@ func (c *EtcdCoordinator) AssignOperationTablePart(operationID string, workerInd
 			return nil, fmt.Errorf("etcd Txn failed for assignment %s: %w", targetKey, err)
 		}
 
-		// 6. Check if the transaction succeeded (Compare condition was met)
+		// Check if the transaction succeeded (Compare condition was met)
 		if txnResp.Succeeded {
 			c.logger.Info("Successfully assigned table part", log.String("key", targetKey), log.Int("workerIndex", workerIndex))
 			return targetPart, nil // Assignment successful
 		}
 
-		// 7. If transaction failed (Succeeded=false), it means the part was modified concurrently. Retry.
+		// If transaction failed (Succeeded=false), it means the part was modified concurrently. Retry.
 		c.logger.Warn("Concurrent modification detected during assignment, retrying...", log.String("key", targetKey), log.Int("attempt", attempt+1))
-		// Optional: Add a small delay before retrying
 		time.Sleep(time.Duration(50+attempt*50) * time.Millisecond)
 	}
 
@@ -158,12 +151,10 @@ func (c *EtcdCoordinator) AssignOperationTablePart(operationID string, workerInd
 }
 
 // ClearAssignedTablesParts unassigns parts previously assigned to a specific worker.
-// Requires Get-Modify-Put pattern, potentially using transactions.
 func (c *EtcdCoordinator) ClearAssignedTablesParts(ctx context.Context, operationID string, workerIndex int) (int64, error) {
 	prefix := partsBasePath(operationID)
 	c.logger.Info("Clearing assigned table parts for worker", log.String("operationID", operationID), log.Int("workerIndex", workerIndex), log.String("prefix", prefix))
 
-	// Use provided context or create one with timeout
 	if ctx == nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
@@ -175,10 +166,10 @@ func (c *EtcdCoordinator) ClearAssignedTablesParts(ctx context.Context, operatio
 
 	// Loop potentially needed if CAS fails, though less likely for clearing
 	for attempt := 0; attempt < 3; attempt++ {
-		firstError = nil // Reset error for retry attempt
-		clearedCount = 0 // Reset count for retry attempt
+		firstError = nil
+		clearedCount = 0
 
-		// 1. Get all parts
+		// Get all parts
 		resp, err := c.client.Get(ctx, prefix, clientv3.WithPrefix())
 		if err != nil {
 			c.logger.Error("Failed to get table parts for clearing", log.String("prefix", prefix), log.Error(err))
@@ -188,7 +179,7 @@ func (c *EtcdCoordinator) ClearAssignedTablesParts(ctx context.Context, operatio
 		var ops []clientv3.Op
 		var conditions []clientv3.Cmp
 
-		// 2. Find parts assigned to the worker and prepare updates/conditions
+		// Find parts assigned to the worker and prepare updates/conditions
 		for _, kv := range resp.Kvs {
 			var part model.OperationTablePart
 			if err := json.Unmarshal(kv.Value, &part); err != nil {
@@ -223,13 +214,13 @@ func (c *EtcdCoordinator) ClearAssignedTablesParts(ctx context.Context, operatio
 			return 0, firstError
 		}
 
-		// 3. If no parts were assigned to this worker, we're done
+		// If no parts were assigned to this worker, we're done
 		if len(ops) == 0 {
 			c.logger.Info("No table parts found assigned to worker to clear", log.String("operationID", operationID), log.Int("workerIndex", workerIndex))
 			return 0, nil
 		}
 
-		// 4. Execute the transaction
+		// Execute the transaction
 		txnResp, err := c.client.Txn(ctx).
 			// If all parts still have their original revisions...
 			If(conditions...).
@@ -241,14 +232,14 @@ func (c *EtcdCoordinator) ClearAssignedTablesParts(ctx context.Context, operatio
 			return 0, fmt.Errorf("etcd Txn failed for clearing parts for worker %d: %w", workerIndex, err)
 		}
 
-		// 5. Check if the transaction succeeded
+		// Check if the transaction succeeded
 		if txnResp.Succeeded {
 			clearedCount = int64(len(ops)) // Number of parts successfully cleared
 			c.logger.Info("Successfully cleared assigned table parts", log.Int64("clearedCount", clearedCount), log.String("operationID", operationID), log.Int("workerIndex", workerIndex))
 			return clearedCount, nil
 		}
 
-		// 6. If transaction failed, retry
+		// If transaction failed, retry
 		c.logger.Warn("Concurrent modification detected during clearing, retrying...", log.String("operationID", operationID), log.Int("workerIndex", workerIndex), log.Int("attempt", attempt+1))
 		time.Sleep(time.Duration(50+attempt*50) * time.Millisecond)
 	}
@@ -259,17 +250,14 @@ func (c *EtcdCoordinator) ClearAssignedTablesParts(ctx context.Context, operatio
 }
 
 // UpdateOperationTablesParts updates specific table parts (e.g., marking as completed).
-// Requires Get-Modify-Put pattern, potentially using transactions.
 func (c *EtcdCoordinator) UpdateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
 	c.logger.Info("Updating operation table parts", log.String("operationID", operationID), log.Int("partsToUpdate", len(tables)))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second) // Example timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	var firstError error
 
-	// Process updates in batches or individually
 	var ops []clientv3.Op
 
 	for _, table := range tables {

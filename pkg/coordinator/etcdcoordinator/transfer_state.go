@@ -14,16 +14,13 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 )
 
-// --- coordinator.TransferState Interface Implementation ---
-
 // GetTransferState retrieves all state objects for a given transferID.
 // Maps to etcd Get operation with prefix.
 func (c *EtcdCoordinator) GetTransferState(transferID string) (map[string]*coordinator.TransferStateData, error) {
 	prefix := transferStatePrefix(transferID)
 	c.logger.Debug("Getting transfer state", log.String("transferID", transferID), log.String("prefix", prefix))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Example timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	resp, err := c.client.Get(ctx, prefix, clientv3.WithPrefix())
@@ -59,8 +56,7 @@ func (c *EtcdCoordinator) GetTransferState(transferID string) (map[string]*coord
 func (c *EtcdCoordinator) SetTransferState(transferID string, state map[string]*coordinator.TransferStateData) error {
 	c.logger.Debug("Setting transfer state", log.String("transferID", transferID), log.Int("keysToSet", len(state)))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Example timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	for key, value := range state {
@@ -87,8 +83,7 @@ func (c *EtcdCoordinator) SetTransferState(transferID string, state map[string]*
 func (c *EtcdCoordinator) RemoveTransferState(transferID string, keys []string) error {
 	c.logger.Info("Removing transfer state keys", log.String("transferID", transferID), log.Strings("keys", keys))
 
-	// Use context.Background() or a configurable context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Example timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var firstError error
