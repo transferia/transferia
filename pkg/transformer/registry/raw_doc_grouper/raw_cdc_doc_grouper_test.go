@@ -81,6 +81,20 @@ func TestRawCdcDocGroupTransformer(t *testing.T) {
 		}
 	})
 
+	t.Run("All keys are present on delete", func(t *testing.T) {
+		transformer, _ := NewCdcHistoryGroupTransformer(RawCDCDocGrouperConfig{
+			Tables: filter.Tables{IncludeTables: []string{"table1"}},
+			Keys:   []string{"col1", "col2"},
+		})
+		item := dummyItemWithKindAndTable([]colParams{col1Key, col2NotKey}, abstract.DeleteKind, "table1")
+		require.True(t, transformer.Suitable(item.TableID(), item.TableSchema))
+
+		transformResult := transformer.Apply([]abstract.ChangeItem{item})
+		require.Equal(t, 1, len(transformResult.Transformed), "Some data was not transformed!")
+		require.Equal(t, 0, len(transformResult.Errors), "No Error expected!!")
+		require.Contains(t, transformResult.Transformed[0].ColumnNames, "col2", "Some keys are missing!")
+	})
+
 	t.Run("Values are parsed", func(t *testing.T) {
 		transformer, _ := NewCdcHistoryGroupTransformer(RawCDCDocGrouperConfig{
 			Keys:   []string{"col1", "col2"},
@@ -101,7 +115,11 @@ func TestRawCdcDocGroupTransformer(t *testing.T) {
 			}
 
 			require.Equal(t, resultItem.Kind, abstract.InsertKind, "All transformed data should be of insert kind!")
-			compareColumns(t, resultItem, []string{"etl_updated_at", "col1", "col2", "col3", "deleted_flg", "doc"})
+			expectedCols := []string{"etl_updated_at", "col1", "col2", "deleted_flg", "doc"}
+			if testItem.Kind != abstract.DeleteKind {
+				expectedCols = append(expectedCols, "col3")
+			}
+			compareColumns(t, resultItem, expectedCols)
 
 			valuesByColName := getExpectedValuesCdc(testItem, chItemNumber)
 

@@ -157,7 +157,7 @@ func (r *CdcHistoryGroupTransformer) collectParsedData(changeItem abstract.Chang
 		columnValues = changeItem.ColumnValues
 	}
 
-	//firstly adding data from original columns and collecting doc
+	// Firstly adding data from original columns and collecting doc
 	for idx, colName := range columnNames {
 		colValue := columnValues[idx]
 		docData[colName] = colValue
@@ -166,7 +166,24 @@ func (r *CdcHistoryGroupTransformer) collectParsedData(changeItem abstract.Chang
 			newValues = append(newValues, colValue)
 		}
 	}
-	//adding system columns
+
+	// Adding key colmuns that were absent in original changeItem
+	for _, colSchema := range changeItem.TableSchema.Columns() {
+		if !r.keySet.Contains(colSchema.ColumnName) {
+			continue
+		}
+		if colSchema.Required {
+			// Never suppose to happen, adding this check just in case
+			logger.Log.Errorf("Required field is missing in change item! Field: %s, Change: %v", colSchema.ColumnName, changeItem)
+			continue
+		}
+		if _, ok := docData[colSchema.ColumnName]; !ok {
+			newCols = append(newCols, colSchema.ColumnName)
+			newValues = append(newValues, nil) // that is how it used to work
+		}
+	}
+
+	// Adding system columns
 	newCols = append(newCols, etlUpdatedField)
 	newValues = append(newValues, time.Unix(0, int64(changeItem.CommitTime)))
 
