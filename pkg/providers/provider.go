@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
@@ -86,6 +87,26 @@ func Source[T Provider](lgr log.Logger, registry metrics.Registry, cp coordinato
 	res := f(lgr, registry, cp, transfer)
 	typedRes, ok := res.(T)
 	return typedRes, ok
+}
+
+// Source implements a specific provider interface from registry
+func SourceIs[T Provider](transfer *model.Transfer) bool {
+	return ProviderIs[T](transfer.SrcType())
+}
+
+// Destination implements a specific provider interface from registry
+func DestinationIs[T Provider](transfer *model.Transfer) bool {
+	return ProviderIs[T](transfer.DstType())
+}
+
+func ProviderIs[T Provider](provider abstract.ProviderType) bool {
+	f, ok := knownProviders[provider]
+	if !ok {
+		return false
+	}
+	res := f(logger.Log, nil, coordinator.NewFakeClient(), new(model.Transfer))
+	_, ok = res.(T)
+	return ok
 }
 
 // Destination resolve a specific provider interface from registry by `transfer.DstType()` provider type.

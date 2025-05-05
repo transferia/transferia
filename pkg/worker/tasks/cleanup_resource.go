@@ -12,7 +12,26 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+// fast check whether cleanup may be skipped
+// if returns false, it can be skipped definitely
+// if returns true, we should run cleanup just in case  - this keeps old logic
+func CleanupNeeded(transfer model.Transfer) bool {
+	if _, ok := transfer.Dst.(model.TmpPolicyProvider); ok && transfer.TmpPolicy != nil {
+		return true
+	}
+
+	if transfer.SnapshotOnly() {
+		return false
+	}
+
+	return providers.SourceIs[providers.Cleanuper](&transfer)
+}
+
 func CleanupResource(ctx context.Context, task model.TransferOperation, transfer model.Transfer, logger log.Logger, cp coordinator.Coordinator) error {
+	if !CleanupNeeded(transfer) {
+		return nil
+	}
+
 	err := cleanupTmp(ctx, transfer, logger, cp, task)
 	if err != nil {
 		return xerrors.Errorf("unable to cleanup tmp: %w", err)

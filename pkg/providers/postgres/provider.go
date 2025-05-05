@@ -87,11 +87,9 @@ func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) e
 	if p.transfer.SnapshotOnly() {
 		return nil
 	}
-	if !p.transfer.SnapshotOnly() {
-		tracker := NewTracker(p.transfer.ID, p.cp)
-		if err := DropReplicationSlot(src, tracker); err != nil {
-			return xerrors.Errorf("Unable to drop replication slot: %w", err)
-		}
+	tracker := NewTracker(p.transfer.ID, p.cp)
+	if err := DropReplicationSlot(src, tracker); err != nil {
+		return xerrors.Errorf("Unable to drop replication slot: %w", err)
 	}
 	if src.DBLogEnabled {
 		if err := p.DBLogCleanup(ctx, src); err != nil {
@@ -106,10 +104,11 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 	if !ok {
 		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
 	}
-	p.fillParams(src)
 	if p.transfer.SnapshotOnly() {
 		return nil
 	}
+
+	p.fillParams(src)
 	tracker := NewTracker(p.transfer.ID, p.cp)
 	if err := DropReplicationSlot(src, tracker); err != nil {
 		return xerrors.Errorf("Unable to drop replication slot: %w", err)
