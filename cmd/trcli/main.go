@@ -50,6 +50,9 @@ func main() {
 	coordinatorEtcdEndpoints := []string{}
 	coordinatorEtcdUsername := ""
 	coordinatorEtcdPassword := ""
+	coordinatorEtcdCertFile := ""
+	coordinatorEtcdKeyFile := ""
+	coordinatorEtcdCAFile := ""
 	runProfiler := false
 
 	promRegistry, registry := internal_metrics.NewPrometheusRegistryWithNameProcessor()
@@ -131,6 +134,9 @@ func main() {
 					Endpoints: coordinatorEtcdEndpoints,
 					Username:  coordinatorEtcdUsername,
 					Password:  coordinatorEtcdPassword,
+					CertFile:  coordinatorEtcdCertFile,
+					KeyFile:   coordinatorEtcdKeyFile,
+					CAFile:    coordinatorEtcdCAFile,
 				}, logger.Log)
 				if err != nil {
 					return xerrors.Errorf("unable to load etcd coordinator: %w", err)
@@ -163,6 +169,9 @@ func main() {
 	rootCommand.PersistentFlags().StringSliceVar(&coordinatorEtcdEndpoints, "coordinator-etcd-endpoints", []string{"http://localhost:2379"}, "Endpoints for etcd coordinator")
 	rootCommand.PersistentFlags().StringVar(&coordinatorEtcdUsername, "coordinator-etcd-username", "", "Username for etcd coordinator")
 	rootCommand.PersistentFlags().StringVar(&coordinatorEtcdPassword, "coordinator-etcd-password", "", "Password for etcd coordinator")
+	rootCommand.PersistentFlags().StringVar(&coordinatorEtcdCertFile, "coordinator-etcd-cert-file", "", "Path to the etcd client certificate file")
+	rootCommand.PersistentFlags().StringVar(&coordinatorEtcdKeyFile, "coordinator-etcd-key-file", "", "Path to the etcd client key file")
+	rootCommand.PersistentFlags().StringVar(&coordinatorEtcdCAFile, "coordinator-etcd-ca-file", "", "Path to the etcd CA certificate file")
 
 	rootCommand.PersistentFlags().BoolVar(&runProfiler, "run-profiler", true, "Run go pprof for performance profiles on 8080 port")
 	rootCommand.PersistentFlags().IntVar(&rt.CurrentJob, "coordinator-job-index", 0, "Worker job index")
