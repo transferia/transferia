@@ -53,7 +53,6 @@ jobs:
             { group: "tests/e2e", name: "mongo2ch", path: "mongo2ch" },
             { group: "tests/e2e", name: "kinesis2ch", path: "kinesis2ch" },
             { group: "tests/e2e", name: "ch2s3", path: "ch2s3" },
-            { group: "tests/e2e", name: "ch2s3", path: "ch2s3" },
             { group: "tests/e2e", name: "coordinator", path: "coordinator" },
           ]
     steps:
