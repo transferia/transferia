@@ -82,7 +82,7 @@ require (
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	golang.org/x/mod v0.23.0
 	golang.org/x/net v0.35.0
-	golang.org/x/sync v0.11.0
+	golang.org/x/sync v0.14.0
 	golang.org/x/text v0.22.0
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
 	golang.yandex/hasql v1.1.1
