@@ -9,7 +9,11 @@ import (
 // Empty `shard` is supported.
 func ConnectionHosts(cfg *ChStorageParams, shard string) ([]string, error) {
 	if !cfg.IsManaged() {
-		return connectionHostsOnPremises(cfg, shard), nil
+		result := connectionHostsOnPremises(cfg, shard)
+		if len(result) == 0 {
+			return nil, xerrors.Errorf("unable to find hosts for shard: %s", shard)
+		}
+		return result, nil
 	}
 
 	result, err := connectionHostsManaged(cfg, shard)
