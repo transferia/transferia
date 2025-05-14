@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -98,15 +99,22 @@ type InsertParams struct {
 }
 
 func (p InsertParams) AsQueryPart() string {
-	settingsQ := ""
 	var settings []string
 	if p.MaterializedViewsIgnoreErrors {
 		settings = append(settings, "materialized_views_ignore_errors = '1'")
 	}
 	if len(settings) > 0 {
-		settingsQ = fmt.Sprintf("SETTINGS %s", strings.Join(settings, ","))
+		return fmt.Sprintf("SETTINGS %s", strings.Join(settings, ","))
 	}
-	return settingsQ
+	return ""
+}
+
+func (p InsertParams) ToQueryOption() clickhouse.QueryOption {
+	settings := make(clickhouse.Settings)
+	if p.MaterializedViewsIgnoreErrors {
+		settings["materialized_views_ignore_errors"] = "1"
+	}
+	return clickhouse.WithSettings(settings)
 }
 
 func (d *ChDestination) Describe() model.Doc {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/column"
 	"github.com/blang/semver/v4"
 	"github.com/dustin/go-humanize"
@@ -641,14 +642,15 @@ func doOperation(t *sinkTable, tx *sql.Tx, items []abstract.ChangeItem) (err err
 	}
 
 	q := fmt.Sprintf(
-		"INSERT INTO `%s`.`%s` (%s) %s VALUES (%s)",
+		"INSERT INTO `%s`.`%s` (%s) VALUES (%s)",
 		t.config.Database(),
 		t.tableName,
 		strings.Join(colNames, ","),
-		t.config.InsertSettings().AsQueryPart(),
 		strings.Join(colVals, ","),
 	)
-	insertQuery, err := tx.Prepare(q)
+
+	insertCtx := clickhouse.Context(context.Background(), t.config.InsertSettings().ToQueryOption())
+	insertQuery, err := tx.PrepareContext(insertCtx, q)
 	if err != nil {
 		if err.Error() == "Decimal128 is not supported" {
 			return abstract.NewFatalError(xerrors.New("Decimal128 is not supported by native clickhouse-go driver. try to switch on HTTP/JSON protocol in dst endpoint settings"))
