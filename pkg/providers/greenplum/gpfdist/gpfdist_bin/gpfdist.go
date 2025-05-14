@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -37,7 +38,7 @@ const (
 
 type Gpfdist struct {
 	cmd           *exec.Cmd // cmd is a command to run gpfdist executable.
-	host          string
+	localAddr     net.IP
 	port          int
 	workingDir    string
 	serviceSchema string
@@ -118,7 +119,7 @@ func (g *Gpfdist) fullPath(relativePath string) string {
 }
 
 func (g *Gpfdist) locations() []string {
-	return []string{fmt.Sprintf("gpfdist://%s:%d/%s", g.host, g.port, g.pipeName)}
+	return []string{fmt.Sprintf("gpfdist://%s:%d/%s", g.localAddr.String(), g.port, g.pipeName)}
 }
 
 func (g *Gpfdist) removePipe() error {
@@ -131,7 +132,7 @@ func (g *Gpfdist) initPipe() error {
 	return syscall.Mkfifo(g.fullPath(g.pipeName), defaultPipeMode)
 }
 
-func InitGpfdist(params GpfdistParams, mode GpfdistMode, conn *pgxpool.Pool) (*Gpfdist, error) {
+func InitGpfdist(params GpfdistParams, localAddr net.IP, mode GpfdistMode, conn *pgxpool.Pool) (*Gpfdist, error) {
 	switch mode {
 	case ExportTable, ImportTable:
 	default:
@@ -142,13 +143,9 @@ func InitGpfdist(params GpfdistParams, mode GpfdistMode, conn *pgxpool.Pool) (*G
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create temp dir: %w", err)
 	}
-	host, err := resolveHostname()
-	if err != nil {
-		return nil, xerrors.Errorf("unable to resolve hostname: %w", err)
-	}
 	gpfdist := &Gpfdist{
 		cmd:           exec.Command(params.GpfdistBinPath, "-d", tmpDir, "-p", fmt.Sprint(minPort), "-P", fmt.Sprint(maxPort), "-w", "10"),
-		host:          host,
+		localAddr:     localAddr,
 		workingDir:    tmpDir,
 		serviceSchema: params.ServiceSchema,
 		ddlExecutor:   NewGpfdistDDLExecutor(conn),
@@ -164,13 +161,6 @@ func InitGpfdist(params GpfdistParams, mode GpfdistMode, conn *pgxpool.Pool) (*G
 		return nil, xerrors.Errorf("unable to start gpfdist: %w", err)
 	}
 	return gpfdist, nil
-}
-
-func resolveHostname() (string, error) {
-	if host := os.Getenv("YT_IP_ADDRESS_DEFAULT"); host != "" {
-		return fmt.Sprintf("[%s]", host), nil
-	}
-	return os.Hostname()
 }
 
 func (g *Gpfdist) startCmd() error {

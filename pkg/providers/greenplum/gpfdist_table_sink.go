@@ -2,6 +2,7 @@ package greenplum
 
 import (
 	"context"
+	"net"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -65,10 +66,10 @@ func (s *GpfdistTableSink) Push(items []*abstract.ChangeItem) error {
 }
 
 func InitGpfdistTableSink(
-	table abstract.TableID, tableSchema *abstract.TableSchema, conn *pgxpool.Pool, dst *GpDestination,
+	table abstract.TableID, tableSchema *abstract.TableSchema, localAddr net.IP, conn *pgxpool.Pool, dst *GpDestination,
 ) (*GpfdistTableSink, error) {
 	// Init gpfdist binary.
-	gpfd, err := gpfdistbin.InitGpfdist(dst.GpfdistParams, gpfdistbin.ImportTable, conn)
+	gpfd, err := gpfdistbin.InitGpfdist(dst.GpfdistParams, localAddr, gpfdistbin.ImportTable, conn)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init gpfdist: %w", err)
 	}

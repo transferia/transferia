@@ -166,6 +166,16 @@ type GpHAP struct {
 	Mirror  *GpHP
 }
 
+func (s *GpHAP) AnyAvailable() (*GpHP, error) {
+	if s.Primary != nil && s.Primary.Valid() {
+		return s.Primary, nil
+	}
+	if s.Mirror != nil && s.Mirror.Valid() {
+		return s.Mirror, nil
+	}
+	return nil, xerrors.New("Neither primary nor mirror are available")
+}
+
 func (s *GpHAP) String() string {
 	if s.Mirror == nil || !s.Mirror.Valid() {
 		return strings.Join([]string{s.Primary.String(), "no mirror"}, " / ")

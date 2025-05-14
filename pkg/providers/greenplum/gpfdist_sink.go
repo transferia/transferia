@@ -2,6 +2,7 @@ package greenplum
 
 import (
 	"context"
+	"net"
 	"sync"
 	"time"
 
@@ -25,6 +26,7 @@ type GpfdistSink struct {
 	tableSinks   map[abstract.TableID]*GpfdistTableSink
 	tableSinksMu sync.RWMutex
 	pgCoordSink  abstract.Sinker
+	localAddr    net.IP
 }
 
 // Close closes and removes all tableSinks.
@@ -70,7 +72,7 @@ func (s *GpfdistSink) getOrCreateTableSink(table abstract.TableID, schema *abstr
 		return nil
 	}
 
-	tableSink, err := InitGpfdistTableSink(table, schema, s.conn, s.dst)
+	tableSink, err := InitGpfdistTableSink(table, schema, s.localAddr, s.conn, s.dst)
 	if err != nil {
 		return xerrors.Errorf("unable to init sink for table %s: %w", table, err)
 	}
@@ -179,6 +181,10 @@ func NewGpfdistSink(dst *GpDestination, registry metrics.Registry, lgr log.Logge
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init coordinator conn: %w", err)
 	}
+	localAddr, err := localAddrFromStorage(storage)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get local address: %w", err)
+	}
 	sinkParams := GpDestinationToPgSinkParamsRegulated(dst)
 	sinks := newPgSinks(storage, lgr, transferID, registry)
 	ctx := context.Background()
@@ -193,5 +199,6 @@ func NewGpfdistSink(dst *GpDestination, registry metrics.Registry, lgr log.Logge
 		tableSinks:   make(map[abstract.TableID]*GpfdistTableSink),
 		tableSinksMu: sync.RWMutex{},
 		pgCoordSink:  pgCoordSinker,
+		localAddr:    localAddr,
 	}, nil
 }

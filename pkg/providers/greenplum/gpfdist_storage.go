@@ -2,6 +2,7 @@ package greenplum
 
 import (
 	"context"
+	"net"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -33,7 +34,11 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 	if err != nil {
 		return xerrors.Errorf("unable to init coordinator conn: %w", err)
 	}
-	gpfd, err := gpfdistbin.InitGpfdist(s.src.GpfdistParams, gpfdistbin.ExportTable, conn)
+	localAddr, err := localAddrFromStorage(s.Storage)
+	if err != nil {
+		return xerrors.Errorf("unable to get local address: %w", err)
+	}
+	gpfd, err := gpfdistbin.InitGpfdist(s.src.GpfdistParams, localAddr, gpfdistbin.ExportTable, conn)
 	if err != nil {
 		return xerrors.Errorf("unable to init gpfdist: %w", err)
 	}
@@ -87,6 +92,34 @@ func (s *GpfdistStorage) itemTemplate(table abstract.TableDescription, schema *a
 func coordinatorConnFromStorage(storage *Storage) (*pgxpool.Pool, error) {
 	coordinator, err := storage.PGStorage(context.Background(), Coordinator())
 	return coordinator.Conn, err
+}
+
+// localAddrFromStorage returns host for external connections (from GreenPlum VMs to Transfer VMs).
+func localAddrFromStorage(storage *Storage) (net.IP, error) {
+	var gpAddr *GpHP
+	var err error
+	if storage.config.MDBClusterID() != "" {
+		if gpAddr, _, err = storage.ResolveDbaasMasterHosts(); err != nil {
+			return nil, xerrors.Errorf("unable to resolve dbaas master host: %w", err)
+		}
+	} else {
+		if gpAddr, err = storage.config.Connection.OnPremises.Coordinator.AnyAvailable(); err != nil {
+			return nil, xerrors.Errorf("unable to get coordinator host: %w", err)
+		}
+	}
+
+	conn, err := net.Dial("tcp", gpAddr.String())
+	if err != nil {
+		return nil, xerrors.Errorf("unable to dial GP address %s: %w", gpAddr, err)
+	}
+	defer conn.Close()
+
+	addr := conn.LocalAddr()
+	tcpAddr, ok := addr.(*net.TCPAddr)
+	if !ok {
+		return nil, xerrors.Errorf("expected LocalAddr to be *net.TCPAddr, got %T", addr)
+	}
+	return tcpAddr.IP, nil
 }
 
 func NewGpfdistStorage(config *GpSource, mRegistry metrics.Registry) (*GpfdistStorage, error) {
