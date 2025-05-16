@@ -72,8 +72,6 @@ func (c *chV2Streamer) Append(row abstract.ChangeItem) error {
 		if xerrors.As(err, &blockErr) {
 			var code coded.Code
 			switch blockErr.Err.(type) {
-			case *column.DateOverflowError:
-				code = providers.DataOutOfRange
 			case *column.ColumnConverterError:
 				code = providers.UnsupportedConversion
 			case *column.UnsupportedColumnTypeError:

@@ -2,8 +2,6 @@ package errors
 
 import (
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/ClickHouse/clickhouse-go/v2/lib/column"
-	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/errors/coded"
 )
@@ -72,11 +70,6 @@ func IsClickhouseError(err error) bool {
 }
 
 func IsFatalClickhouseError(err error) bool {
-	var blockErr = new(proto.BlockError)
-	if xerrors.As(err, &blockErr) && blockErr.Err != nil {
-		_, dateOverflow := blockErr.Err.(*column.DateOverflowError)
-		return dateOverflow
-	}
 	var exception = new(clickhouse.Exception)
 	if !xerrors.As(err, &exception) {
 		return false
