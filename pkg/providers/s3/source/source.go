@@ -21,12 +21,12 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var _ abstract.Source = (*s3Source)(nil)
+var _ abstract.Source = (*S3Source)(nil)
 
-type s3Source struct {
+type S3Source struct {
 	ctx           context.Context
 	cancel        func()
-	src           *s3.S3Source
+	srcModel      *s3.S3Source
 	transferID    string
 	client        s3iface.S3API
 	logger        log.Logger
@@ -45,12 +45,12 @@ var (
 	TestEvent       = "s3:TestEvent"
 )
 
-func (s *s3Source) Run(sink abstract.AsyncSink) error {
+func (s *S3Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.New(s.logger, 10, sink, s.reader.ParsePassthrough, s.ack)
 	return s.run(parseQ)
 }
 
-func (s *s3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
+func (s *S3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 	defer s.metrics.Master.Set(0)
 	backoffTimer := backoff.NewExponentialBackOff()
 	backoffTimer.InitialInterval = time.Second * 10
@@ -58,8 +58,8 @@ func (s *s3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 	backoffTimer.Reset()
 	nextWaitDuration := backoffTimer.NextBackOff()
 
-	pusher := pusher.New(nil, parseQ, s.logger, s.inflightLimit)
-	s.pusher = pusher
+	currPusher := pusher.New(nil, parseQ, s.logger, s.inflightLimit)
+	s.pusher = currPusher
 
 	sqsFetcher, ok := s.objectFetcher.(*sqsSource)
 	if ok {
@@ -91,9 +91,9 @@ func (s *s3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 		}
 		backoffTimer.Reset()
 
-		if err := util.ParallelDoWithContextAbort(s.ctx, len(objectList), int(s.src.Concurrency), func(i int, ctx context.Context) error {
+		if err := util.ParallelDoWithContextAbort(s.ctx, len(objectList), int(s.srcModel.Concurrency), func(i int, ctx context.Context) error {
 			singleObject := objectList[i]
-			return s.reader.Read(ctx, singleObject.Name, pusher)
+			return s.reader.Read(ctx, singleObject.Name, currPusher)
 		}); err != nil {
 			return xerrors.Errorf("failed to read and push object: %w", err)
 		}
@@ -102,7 +102,7 @@ func (s *s3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 	}
 }
 
-func (s *s3Source) ack(chunk pusher.Chunk, pushSt time.Time, err error) {
+func (s *S3Source) ack(chunk pusher.Chunk, pushSt time.Time, err error) {
 	if err != nil {
 		util.Send(s.ctx, s.errCh, err)
 		return
@@ -117,10 +117,13 @@ func (s *s3Source) ack(chunk pusher.Chunk, pushSt time.Time, err error) {
 
 	if done {
 		// commit this file
-		if err := s.objectFetcher.Commit(Object{
-			Name:         chunk.FilePath,
-			LastModified: time.Now(),
-		}); err != nil {
+		err = s.objectFetcher.Commit(
+			Object{
+				Name:         chunk.FilePath,
+				LastModified: time.Now(),
+			},
+		)
+		if err != nil {
 			util.Send(s.ctx, s.errCh, err)
 			return
 		}
@@ -133,7 +136,7 @@ func (s *s3Source) ack(chunk pusher.Chunk, pushSt time.Time, err error) {
 	s.metrics.PushTime.RecordDuration(time.Since(pushSt))
 }
 
-func (s *s3Source) Stop() {
+func (s *S3Source) Stop() {
 	s.cancel()
 }
 
@@ -143,9 +146,8 @@ func NewSource(src *s3.S3Source, transferID string, logger log.Logger, registry 
 		return nil, xerrors.Errorf("failed to create aws session: %w", err)
 	}
 
-	metrics := stats.NewSourceStats(registry)
-
-	reader, err := reader.New(src, logger, sess, metrics)
+	currMetrics := stats.NewSourceStats(registry)
+	currReader, err := reader.New(src, logger, sess, currMetrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader: %w", err)
 	}
@@ -154,21 +156,21 @@ func NewSource(src *s3.S3Source, transferID string, logger log.Logger, registry 
 
 	client := aws_s3.New(sess)
 
-	fetcher, err := NewObjectFetcher(ctx, client, logger, cp, transferID, reader, sess, src)
+	fetcher, err := NewObjectFetcher(ctx, client, logger, cp, transferID, currReader, sess, src)
 	if err != nil {
 		cancel()
 		return nil, xerrors.Errorf("failed to initialize new object fetcher: %w", err)
 	}
 
-	return &s3Source{
-		src:           src,
+	return &S3Source{
 		ctx:           ctx,
-		transferID:    transferID,
 		cancel:        cancel,
-		reader:        reader,
-		logger:        logger,
-		metrics:       metrics,
+		srcModel:      src,
+		transferID:    transferID,
 		client:        client,
+		logger:        logger,
+		metrics:       currMetrics,
+		reader:        currReader,
 		cp:            cp,
 		objectFetcher: fetcher,
 		errCh:         make(chan error, 1),

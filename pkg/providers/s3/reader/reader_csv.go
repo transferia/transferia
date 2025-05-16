@@ -23,6 +23,7 @@ import (
 	"github.com/transferia/transferia/pkg/csv"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/valyala/fastjson"
@@ -45,7 +46,7 @@ type CSVReader struct {
 	fastCols                abstract.FastTableSchema
 	colNames                []string
 	hideSystemCols          bool
-	batchSize               int
+	maxBatchSize            int // from s3 file read buf-by-buf, into every buf read by #maxBatchSize amount of changeItems
 	blockSize               int64
 	pathPrefix              string
 	delimiter               rune
@@ -83,7 +84,7 @@ func (r *CSVReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, e
 func (r *CSVReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	totalRows := float64(0)
 
-	totalSize, sampleReader, err := estimateTotalSize(ctx, r.logger, files, r.openReader)
+	totalSize, sampleReader, err := estimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
 	}
@@ -129,8 +130,8 @@ func (r *CSVReader) TotalRowCount(ctx context.Context) (uint64, error) {
 	return res, nil
 }
 
-func (r *CSVReader) openReader(ctx context.Context, filePath string) (*S3Reader, error) {
-	sr, err := NewS3Reader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
+func (r *CSVReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.AbstractS3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
@@ -138,14 +139,14 @@ func (r *CSVReader) openReader(ctx context.Context, filePath string) (*S3Reader,
 }
 
 func (r *CSVReader) Read(ctx context.Context, filePath string, pusher chunk_pusher.Pusher) error {
-	s3Reader, err := r.openReader(ctx, filePath)
+	s3RawReader, err := r.newS3RawReader(ctx, filePath)
 	if err != nil {
 		return xerrors.Errorf("unable to open reader: %w", err)
 	}
 
-	offset := int64(0)
-	lineCounter := uint64(1)
-	for {
+	offsetInFile := int64(0) // offset from beginning of file!
+	rowsCounter := uint64(1)
+	for { // this loop - over one file, read buffer-by-buffer
 		select {
 		case <-ctx.Done():
 			r.logger.Info("Read canceled")
@@ -153,34 +154,43 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher chunk_push
 		default:
 		}
 
-		csvReader, endOfFileReached, err := r.readFromS3(s3Reader, offset)
+		csvReader, endOfFileReached, err := r.readBufferFromS3(s3RawReader, offsetInFile)
 		if err != nil {
-			return xerrors.Errorf("failed to read fom S3 file: %w", err)
+			return xerrors.Errorf("failed to read fom S3 file, err: %w", err)
 		}
 
-		currentOffset := int64(0)
-		for {
-			buff, err := r.ParseCSVRows(csvReader, filePath, s3Reader.LastModified(), &lineCounter)
-			if err != nil {
-				return xerrors.Errorf("failed to parse lines from csv file %s: %w", filePath, err)
-			}
-			currentOffset = csvReader.GetOffset()
+		offsetInBuf := int64(0)
+		for { // this loop - into this one buffer, which we just read from s3, parse batch-by-batch
+			offsetInBufBefore := csvReader.GetOffset()
 
-			if len(buff) == 0 {
+			changeItems, err := r.parseCSVRows(csvReader, filePath, s3RawReader.LastModified(), &rowsCounter, r.maxBatchSize)
+			if err != nil {
+				return xerrors.Errorf("failed to parse lines from csv file %s, err: %w", filePath, err)
+			}
+
+			offsetInBufAfter := csvReader.GetOffset()
+
+			parsedSize := offsetInBufAfter - offsetInBufBefore
+			offsetInBuf = offsetInBufAfter
+
+			if len(changeItems) == 0 {
 				break
 			}
-			if err := pusher.Push(ctx, chunk_pusher.Chunk{
-				Items:     buff,
+
+			chunk := chunk_pusher.Chunk{
 				FilePath:  filePath,
-				Offset:    lineCounter,
 				Completed: endOfFileReached,
-				Size:      currentOffset,
-			}); err != nil {
-				return xerrors.Errorf("unable to push: %w", err)
+				Offset:    rowsCounter,
+				Size:      parsedSize,
+				Items:     changeItems,
+			}
+			err = pusher.Push(ctx, chunk)
+			if err != nil {
+				return xerrors.Errorf("unable to push, err: %w", err)
 			}
 		}
 
-		offset += currentOffset
+		offsetInFile += offsetInBuf
 		if endOfFileReached {
 			break
 		}
@@ -188,14 +198,14 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher chunk_push
 	return nil
 }
 
-// readFromS3 reads range [offset + blockSize] from S3 bucket.
+// readBufferFromS3 reads range [offset + blockSize] from S3 bucket.
 // It returns a *csv.Reader that should be used for csv rows reading.
 // It returns a boolean flag if the end of the end of the S3 file was reached.
 // It returns any error it encounters during the reading process.
-func (r *CSVReader) readFromS3(s3Reader *S3Reader, offset int64) (*csv.Reader, bool, error) {
+func (r *CSVReader) readBufferFromS3(s3RawReader s3raw.AbstractS3RawReader, offsetInFile int64) (*csv.Reader, bool, error) {
 	data := make([]byte, r.blockSize)
 	endOfFile := false
-	n, err := s3Reader.ReadAt(data, offset)
+	n, err := s3RawReader.ReadAt(data, offsetInFile)
 	if err != nil {
 		if xerrors.Is(err, io.EOF) && n > 0 {
 			data = data[0:n]
@@ -206,7 +216,7 @@ func (r *CSVReader) readFromS3(s3Reader *S3Reader, offset int64) (*csv.Reader, b
 	}
 
 	csvReader := r.newCSVReaderFromReader(bufio.NewReaderSize(bytes.NewReader(data), 1024))
-	if offset == 0 {
+	if offsetInFile == 0 {
 		if err := r.skipUnnecessaryLines(csvReader); err != nil {
 			return nil, endOfFile, xerrors.Errorf("failed to skip unnecessary rows: %w", err)
 		}
@@ -215,35 +225,39 @@ func (r *CSVReader) readFromS3(s3Reader *S3Reader, offset int64) (*csv.Reader, b
 	return csvReader, endOfFile, nil
 }
 
-// ParseCSVRows reads and parses line by line the fetched data block from S3.
-// If EOF or batchSize limit is reached the extracted changeItems are returned.
-func (r *CSVReader) ParseCSVRows(csvReader *csv.Reader, filePath string, lastModified time.Time, lineCounter *uint64) ([]abstract.ChangeItem, error) {
-	var buff []abstract.ChangeItem
+// parseCSVRows reads and parses line by line the fetched data block from S3.
+// If EOF or maxBatchSize limit is reached the extracted changeItems are returned.
+func (r *CSVReader) parseCSVRows(csvReader *csv.Reader, filePath string, lastModified time.Time, rowNumber *uint64, maxBatchSize int) ([]abstract.ChangeItem, error) {
+	var result []abstract.ChangeItem
 	for {
 		line, err := csvReader.ReadLine()
 		if xerrors.Is(err, io.EOF) {
-			return buff, nil
+			return result, nil
 		}
 		if err != nil {
 			return nil, xerrors.Errorf("failed to read row form csv: %w", err)
 		}
 
-		ci, err := r.doParse(line, filePath, lastModified, *lineCounter)
+		// DEBUG
+		fmt.Println("timmyb32rQQQ", strings.Join(line, ""))
+		// DEBUG
+
+		changeItem, err := r.doParse(line, filePath, lastModified, *rowNumber)
 		if err != nil {
-			unparsedCI, err := handleParseError(r.table, r.unparsedPolicy, filePath, int(*lineCounter), err)
+			unparsedChangeItem, err := handleParseError(r.table, r.unparsedPolicy, filePath, int(*rowNumber), err)
 			if err != nil {
 				return nil, xerrors.Errorf("failed to parse row: %w", err)
 			}
-			buff = append(buff, *unparsedCI)
-			*lineCounter += 1
+			result = append(result, *unparsedChangeItem)
+			*rowNumber += 1
 			continue
 		}
-		*lineCounter += 1
+		*rowNumber += 1
 
-		buff = append(buff, *ci)
+		result = append(result, *changeItem)
 
-		if len(buff) > r.batchSize {
-			return buff, nil
+		if len(result) > maxBatchSize {
+			return result, nil
 		}
 	}
 }
@@ -253,8 +267,8 @@ func (r *CSVReader) ParsePassthrough(chunk chunk_pusher.Chunk) []abstract.Change
 	return chunk.Items
 }
 
-func (r *CSVReader) doParse(line []string, filePath string, lastModified time.Time, lineCounter uint64) (*abstract.ChangeItem, error) {
-	ci, err := r.constructCI(line, filePath, lastModified, lineCounter)
+func (r *CSVReader) doParse(line []string, filePath string, lastModified time.Time, rowNumber uint64) (*abstract.ChangeItem, error) {
+	ci, err := r.constructCI(line, filePath, lastModified, rowNumber)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to construct change item: %w", err)
 	}
@@ -281,7 +295,7 @@ func (r *CSVReader) skipUnnecessaryLines(csvReader *csv.Reader) error {
 	return nil
 }
 
-func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time, idx uint64) (*abstract.ChangeItem, error) {
+func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time, rowNumber uint64) (*abstract.ChangeItem, error) {
 	vals := make([]interface{}, len(r.tableSchema.Columns()))
 	for i, col := range r.tableSchema.Columns() {
 		if systemColumnNames[col.ColumnName] {
@@ -292,7 +306,7 @@ func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time,
 			case FileNameSystemCol:
 				vals[i] = fname
 			case RowIndexSystemCol:
-				vals[i] = idx
+				vals[i] = rowNumber
 			default:
 				continue
 			}
@@ -344,13 +358,13 @@ func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time,
 func (r *CSVReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
 
 func (r *CSVReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
-	s3Reader, err := r.openReader(ctx, key)
+	s3RawReader, err := r.newS3RawReader(ctx, key)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to open reader for file: %s: %w", key, err)
 	}
 
 	buff := make([]byte, r.blockSize)
-	read, err := s3Reader.ReadAt(buff, 0)
+	read, err := s3RawReader.ReadAt(buff, 0)
 	if err != nil && !xerrors.Is(err, io.EOF) {
 		return nil, xerrors.Errorf("failed to read sample from file: %s: %w", key, err)
 	}
@@ -625,7 +639,7 @@ func NewCSVReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metri
 		fastCols:                abstract.NewTableSchema(src.OutputSchema).FastColumns(),
 		colNames:                nil,
 		hideSystemCols:          src.HideSystemCols,
-		batchSize:               src.ReadBatchSize,
+		maxBatchSize:            src.ReadBatchSize,
 		blockSize:               csvSettings.BlockSize,
 		pathPrefix:              src.PathPrefix,
 		pathPattern:             src.PathPattern,

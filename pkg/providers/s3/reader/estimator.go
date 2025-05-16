@@ -6,14 +6,15 @@ import (
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-type readerF = func(ctx context.Context, filePath string) (*S3Reader, error)
+type readerCtorF = func(ctx context.Context, filePath string) (s3raw.AbstractS3RawReader, error)
 
-func estimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Object, readerF readerF) (uint64, *S3Reader, error) {
-	var sampleReader *S3Reader
+func estimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Object, readerCtor readerCtorF) (uint64, s3raw.AbstractS3RawReader, error) {
+	var sampleReader s3raw.AbstractS3RawReader
 	multiplier := float64(1)
 	sniffFiles := files
 	if len(files) > EstimateFilesLimit {
@@ -26,7 +27,7 @@ func estimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Obje
 
 	if err := util.ParallelDo(ctx, len(sniffFiles), 5, func(i int) error {
 		file := sniffFiles[i]
-		reader, err := readerF(ctx, *file.Key)
+		reader, err := readerCtor(ctx, *file.Key)
 		if err != nil {
 			return xerrors.Errorf("unable to open reader for file: %s: %w", *file.Key, err)
 		}

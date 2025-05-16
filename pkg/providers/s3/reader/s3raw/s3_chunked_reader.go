@@ -1,6 +1,7 @@
-package reader
+package s3raw
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -54,7 +55,7 @@ func (r *chunkedReader) ReadAt(p []byte, off int64) (int, error) {
 	n, err := io.ReadFull(resp.Body, p)
 
 	r.stats.Size.Add(int64(n))
-	if err == io.ErrUnexpectedEOF {
+	if errors.Is(err, io.ErrUnexpectedEOF) {
 		return n, io.EOF
 	}
 
@@ -69,7 +70,7 @@ func (r *chunkedReader) ReadAt(p []byte, off int64) (int, error) {
 	return n, err
 }
 
-func NewChunkedReader(fetcher *s3Fetcher, stats *stats.SourceStats) (io.ReaderAt, error) {
+func newChunkedReader(fetcher *s3Fetcher, stats *stats.SourceStats) (io.ReaderAt, error) {
 	if fetcher == nil {
 		return nil, xerrors.New("missing s3 fetcher for chunked reader")
 	}

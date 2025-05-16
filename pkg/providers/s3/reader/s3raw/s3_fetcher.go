@@ -1,8 +1,7 @@
-package reader
+package s3raw
 
 import (
 	"context"
-	"io"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -91,36 +90,6 @@ func (f *s3Fetcher) headObjectInfo(input *s3.HeadObjectInput) error {
 	return nil
 }
 
-func calcRange(p []byte, off int64, totalSize int64) (int64, int64, error) {
-	var err error
-	if off < 0 {
-		return 0, 0, xerrors.New("negative offset not allowed")
-	}
-
-	if totalSize <= 0 {
-		return 0, 0, xerrors.New("unable to read form object with no size")
-	}
-
-	start := off
-	end := off + int64(len(p)) - 1
-	if end >= totalSize {
-		// Clamp down the requested range.
-		end = totalSize - 1
-		err = io.EOF
-
-		if end < start {
-			// this occurs when offset is bigger than the total size of the object
-			return 0, 0, xerrors.New("offset outside of possible range")
-		}
-		if end-start > int64(len(p)) {
-			// should never occur
-			return 0, 0, xerrors.New("covered range is bigger than full object size")
-		}
-	}
-
-	return start, end, err
-}
-
 func (f *s3Fetcher) getObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
 	client := f.client
 
@@ -131,7 +100,7 @@ func (f *s3Fetcher) getObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, er
 	return resp, nil
 }
 
-func NewS3Fetcher(ctx context.Context, client s3iface.S3API, bucket string, key string) (*s3Fetcher, error) {
+func newS3Fetcher(ctx context.Context, client s3iface.S3API, bucket string, key string) (*s3Fetcher, error) {
 	return &s3Fetcher{
 		ctx:                   ctx,
 		client:                client,

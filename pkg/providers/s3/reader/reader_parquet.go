@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -41,7 +42,7 @@ type ReaderParquet struct {
 	pathPrefix     string
 	pathPattern    string
 	metrics        *stats.SourceStats
-	s3reader       *S3Reader
+	s3RawReader    *s3raw.S3RawReader
 }
 
 func (r *ReaderParquet) RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
@@ -182,11 +183,11 @@ func (r *ReaderParquet) resolveSchema(ctx context.Context, filePath string) (*ab
 }
 
 func (r *ReaderParquet) openReader(ctx context.Context, filePath string) (*parquet.Reader, error) {
-	sr, err := NewS3Reader(ctx, r.client, nil, r.bucket, filePath, r.metrics)
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, nil, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
-	r.s3reader = sr
+	r.s3RawReader = sr
 	return parquet.NewReader(sr), nil
 }
 
@@ -219,7 +220,7 @@ func (r *ReaderParquet) Read(ctx context.Context, filePath string, pusher chunk_
 			return xerrors.Errorf("unable to read row: %w", err)
 		}
 		i += 1
-		ci, err := r.constructCI(rowFields, row, filePath, r.s3reader.LastModified(), i)
+		ci, err := r.constructCI(rowFields, row, filePath, r.s3RawReader.LastModified(), i)
 		if err != nil {
 			return xerrors.Errorf("unable to construct change item: %w", err)
 		}
@@ -359,7 +360,7 @@ func NewParquet(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics
 		tableSchema: abstract.NewTableSchema(src.OutputSchema),
 		colNames:    nil,
 		metrics:     metrics,
-		s3reader:    nil,
+		s3RawReader: nil,
 	}
 
 	if len(reader.tableSchema.Columns()) == 0 {

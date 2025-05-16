@@ -43,7 +43,7 @@ func TestResolveCSVSchema(t *testing.T) {
 	csvReader := CSVReader{
 		client:          aws_s3.New(sess),
 		pathPrefix:      "test_csv_schemas",
-		batchSize:       1 * 1024 * 1024,
+		maxBatchSize:    128,
 		blockSize:       1 * 1024 * 1024,
 		logger:          logger.Log,
 		bucket:          src.Bucket,

@@ -18,6 +18,7 @@ import (
 	s3_source "github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -119,7 +120,7 @@ func (s *Storage) ExactTableRowsCount(_ abstract.TableID) (uint64, error) {
 	for _, file := range files {
 		totalByteSize += file.Size
 		filePath := fmt.Sprintf("%s/%s", s.cfg.PathPrefix, file.Path)
-		sr, err := s3_reader.NewS3Reader(context.TODO(), s.client, nil, s.cfg.Bucket, filePath, stats.NewSourceStats(s.registry))
+		sr, err := s3raw.NewS3RawReader(context.TODO(), s.client, nil, s.cfg.Bucket, filePath, stats.NewSourceStats(s.registry))
 		if err != nil {
 			return 0, xerrors.Errorf("unable to create reader at: %w", err)
 		}

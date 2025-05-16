@@ -1,4 +1,4 @@
-package reader
+package s3raw
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/stats"
 )
 
-type Wrapper[T io.ReadCloser] func(io.Reader) (T, error)
+type wrapper[T io.ReadCloser] func(io.Reader) (T, error)
 
 var _ io.ReaderAt = (*wrappedReader[io.ReadCloser])(nil)
 
@@ -20,7 +20,7 @@ type wrappedReader[T io.ReadCloser] struct {
 	downloader             *s3manager.Downloader
 	stats                  *stats.SourceStats
 	fullUncompressedObject []byte
-	wrapper                Wrapper[T]
+	wrapper                wrapper[T]
 }
 
 func (r *wrappedReader[T]) ReadAt(p []byte, off int64) (int, error) {
@@ -83,8 +83,8 @@ func (r *wrappedReader[T]) loadObjectInMemory() error {
 	return nil
 }
 
-func NewWrappedReader[T io.ReadCloser](
-	fetcher *s3Fetcher, downloader *s3manager.Downloader, stats *stats.SourceStats, wrapper Wrapper[T],
+func newWrappedReader[T io.ReadCloser](
+	fetcher *s3Fetcher, downloader *s3manager.Downloader, stats *stats.SourceStats, wrapper wrapper[T],
 ) (io.ReaderAt, error) {
 	if fetcher == nil {
 		return nil, xerrors.New("missing s3 fetcher for gzip reader")

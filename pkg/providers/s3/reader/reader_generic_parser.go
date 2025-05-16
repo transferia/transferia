@@ -20,6 +20,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -47,8 +48,8 @@ type GenericParserReader struct {
 	parser      parsers.Parser
 }
 
-func (r *GenericParserReader) openReader(ctx context.Context, filePath string) (*S3Reader, error) {
-	sr, err := NewS3Reader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
+func (r *GenericParserReader) newS3RawReader(ctx context.Context, filePath string) (*s3raw.S3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
@@ -63,7 +64,7 @@ func (r *GenericParserReader) openReader(ctx context.Context, filePath string) (
 // 3. Divide size of all files by average line size to get result (total rows count).
 func (r *GenericParserReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	totalSize := atomic.Int64{}
-	var randomReader *S3Reader
+	var randomReader *s3raw.S3RawReader
 
 	// 1. Open readers for all files to obtain their sizes.
 	eg := errgroup.Group{}
@@ -75,14 +76,14 @@ func (r *GenericParserReader) estimateRows(ctx context.Context, files []*aws_s3.
 				size = *file.Size
 			} else {
 				r.logger.Warnf("size of file %s is unknown, will measure", *file.Key)
-				reader, err := r.openReader(ctx, *file.Key)
+				s3RawReader, err := r.newS3RawReader(ctx, *file.Key)
 				if err != nil {
-					return xerrors.Errorf("unable to open reader for file: %s: %w", *file.Key, err)
+					return xerrors.Errorf("unable to open s3RawReader for file: %s: %w", *file.Key, err)
 				}
-				size = reader.Size()
+				size = s3RawReader.Size()
 				if randomReader == nil && size > 0 {
-					// Since we need just one random reader, race here is not a problem.
-					randomReader = reader
+					// Since we need just one random s3RawReader, race here is not a problem.
+					randomReader = s3RawReader
 				}
 			}
 			totalSize.Add(size)
@@ -131,13 +132,13 @@ func (r *GenericParserReader) TotalRowCount(ctx context.Context) (uint64, error)
 }
 
 func (r *GenericParserReader) Read(ctx context.Context, filePath string, pusher chunk_pusher.Pusher) error {
-	s3Reader, err := r.openReader(ctx, filePath)
+	s3RawReader, err := r.newS3RawReader(ctx, filePath)
 	if err != nil {
 		return xerrors.Errorf("unable to open reader: %w", err)
 	}
 
-	readSize := s3Reader.Size()
-	buff, err := r.ParseFile(ctx, filePath, s3Reader)
+	readSize := s3RawReader.Size()
+	buff, err := r.ParseFile(ctx, filePath, s3RawReader)
 	if err != nil {
 		return xerrors.Errorf("unable to parse: %s: %w", filePath, err)
 	}
@@ -161,7 +162,7 @@ func (r *GenericParserReader) ParsePassthrough(chunk chunk_pusher.Chunk) []abstr
 	return chunk.Items
 }
 
-func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, s3Reader *S3Reader) ([]abstract.ChangeItem, error) {
+func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, s3RawReader *s3raw.S3RawReader) ([]abstract.ChangeItem, error) {
 	offset := 0
 
 	var fullFile []byte
@@ -174,7 +175,7 @@ func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, s3
 		}
 		data := make([]byte, r.blockSize)
 		lastRound := false
-		n, err := s3Reader.ReadAt(data, int64(offset))
+		n, err := s3RawReader.ReadAt(data, int64(offset))
 		if err != nil {
 			if xerrors.Is(err, io.EOF) && n > 0 {
 				data = data[0:n]
@@ -194,8 +195,8 @@ func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, s3
 		Offset:     0,
 		SeqNo:      0,
 		Key:        nil,
-		CreateTime: s3Reader.LastModified(),
-		WriteTime:  s3Reader.LastModified(),
+		CreateTime: s3RawReader.LastModified(),
+		WriteTime:  s3RawReader.LastModified(),
 		Value:      fullFile,
 		Headers:    nil,
 	}, abstract.NewPartition(filePath, 0)), nil
@@ -221,13 +222,13 @@ func (r *GenericParserReader) ResolveSchema(ctx context.Context) (*abstract.Tabl
 func (r *GenericParserReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
 
 func (r *GenericParserReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
-	s3Reader, err := r.openReader(ctx, key)
+	s3RawReader, err := r.newS3RawReader(ctx, key)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to open reader for file: %s: %w", key, err)
 	}
 
 	buff := make([]byte, r.blockSize)
-	read, err := s3Reader.ReadAt(buff, 0)
+	read, err := s3RawReader.ReadAt(buff, 0)
 	if err != nil && !xerrors.Is(err, io.EOF) {
 		return nil, xerrors.Errorf("failed to read sample from file: %s: %w", key, err)
 	}
@@ -245,8 +246,8 @@ func (r *GenericParserReader) resolveSchema(ctx context.Context, key string) (*a
 		Offset:     0,
 		SeqNo:      0,
 		Key:        []byte(key),
-		CreateTime: s3Reader.LastModified(),
-		WriteTime:  s3Reader.LastModified(),
+		CreateTime: s3RawReader.LastModified(),
+		WriteTime:  s3RawReader.LastModified(),
 		Value:      content,
 		Headers:    nil,
 	}, abstract.NewPartition(key, 0))

@@ -84,14 +84,18 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 		},
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Endpoint:         aws.String(sqsEndpoint),
-		Region:           aws.String(sqsRegion),
-		S3ForcePathStyle: aws.Bool(src.ConnectionConfig.S3ForcePathStyle),
-		Credentials: credentials.NewStaticCredentials(
-			sqsUser, string(sqsQueueName), "",
-		),
-	})
+	sess, err := session.NewSession(
+		&aws.Config{
+			Endpoint:         aws.String(sqsEndpoint),
+			Region:           aws.String(sqsRegion),
+			S3ForcePathStyle: aws.Bool(src.ConnectionConfig.S3ForcePathStyle),
+			Credentials: credentials.NewStaticCredentials(
+				sqsUser,
+				sqsQueueName,
+				"",
+			),
+		},
+	)
 	require.NoError(t, err)
 
 	sqsClient := sqs.New(sess)

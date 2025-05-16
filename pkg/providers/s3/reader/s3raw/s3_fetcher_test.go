@@ -1,4 +1,4 @@
-package reader
+package s3raw
 
 import (
 	"io"

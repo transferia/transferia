@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsers/scanner"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -72,7 +73,7 @@ func (r *LineReader) RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, 
 func (r *LineReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	res := uint64(0)
 
-	totalSize, sampleReader, err := estimateTotalSize(ctx, r.logger, files, r.openReader)
+	totalSize, sampleReader, err := estimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
 	}
@@ -98,8 +99,8 @@ func (r *LineReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (
 	return res, nil
 }
 
-func (r *LineReader) openReader(ctx context.Context, filePath string) (*S3Reader, error) {
-	sr, err := NewS3Reader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
+func (r *LineReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.AbstractS3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
@@ -108,7 +109,7 @@ func (r *LineReader) openReader(ctx context.Context, filePath string) (*S3Reader
 }
 
 func (r *LineReader) Read(ctx context.Context, filePath string, pusher chunk_pusher.Pusher) error {
-	s3Reader, err := r.openReader(ctx, filePath)
+	s3RawReader, err := r.newS3RawReader(ctx, filePath)
 	if err != nil {
 		return xerrors.Errorf("unable to open reader: %w", err)
 	}
@@ -129,7 +130,7 @@ func (r *LineReader) Read(ctx context.Context, filePath string, pusher chunk_pus
 		data := make([]byte, r.blockSize)
 		lastRound := false
 
-		n, err := s3Reader.ReadAt(data, int64(offset))
+		n, err := s3RawReader.ReadAt(data, int64(offset))
 		if err != nil {
 			if xerrors.Is(err, io.EOF) && n > 0 {
 				data = data[0:n]
@@ -153,7 +154,7 @@ func (r *LineReader) Read(ctx context.Context, filePath string, pusher chunk_pus
 				continue
 			}
 
-			ci, err := r.doParse(line, filePath, s3Reader.LastModified(), lineCounter)
+			ci, err := r.doParse(line, filePath, s3RawReader.LastModified(), lineCounter)
 			if err != nil {
 				continue
 			}

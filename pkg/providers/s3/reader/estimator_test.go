@@ -10,16 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 )
 
-// Reader function to return dummy S3Reader with specified sizes
-func dummyReaderF(sizes map[string]int64) readerF {
-	return func(ctx context.Context, filePath string) (*S3Reader, error) {
-		size, exists := sizes[filePath]
+// Reader function to return dummy S3RawReader with specified sizes
+func dummyReaderF(sizes map[string]int64) readerCtorF {
+	return func(ctx context.Context, filePath string) (s3raw.AbstractS3RawReader, error) {
+		fileSize, exists := sizes[filePath]
 		if !exists {
 			return nil, xerrors.Errorf("file not found: %s", filePath)
 		}
-		return &S3Reader{fetcher: &s3Fetcher{objectSize: size}}, nil
+		return s3raw.NewFakeS3RawReader(fileSize), nil
 	}
 }
 
