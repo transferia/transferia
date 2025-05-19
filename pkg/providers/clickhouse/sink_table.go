@@ -42,10 +42,8 @@ type sinkTable struct {
 	version    semver.Version
 }
 
-var (
-	// see: https://github.com/Altinity/clickhouse-sink-connector/issues/206#issuecomment-1529968850
-	deleteableVersion = semver.MustParse("23.2.0")
-)
+// see: https://github.com/Altinity/clickhouse-sink-connector/issues/206#issuecomment-1529968850
+var deleteableVersion = semver.MustParse("23.2.0")
 
 func normalizeTableName(table string) string {
 	res := strings.ReplaceAll(table, "-", "_")
