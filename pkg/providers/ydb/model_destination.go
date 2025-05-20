@@ -44,7 +44,12 @@ type YdbDestination struct {
 	OAuth2Config    *v3credential.OAuth2Config
 }
 
-var _ model.Destination = (*YdbDestination)(nil)
+var (
+	_ model.Destination          = (*YdbDestination)(nil)
+	_ model.AlterableDestination = (*YdbDestination)(nil)
+)
+
+func (d *YdbDestination) IsAlterable() {}
 
 func (d *YdbDestination) MDBClusterID() string {
 	return d.Instance + d.Database

@@ -44,12 +44,17 @@ type MysqlDestination struct {
 	ConnectionID           string
 }
 
-var _ model.Destination = (*MysqlDestination)(nil)
-var _ model.WithConnectionID = (*MysqlDestination)(nil)
+var (
+	_ model.Destination          = (*MysqlDestination)(nil)
+	_ model.WithConnectionID     = (*MysqlDestination)(nil)
+	_ model.AlterableDestination = (*MysqlDestination)(nil)
+)
 
 func (d *MysqlDestination) MDBClusterID() string {
 	return d.ClusterID
 }
+
+func (d *MysqlDestination) IsAlterable() {}
 
 func (d *MysqlDestination) GetConnectionID() string {
 	return d.ConnectionID

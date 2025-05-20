@@ -27,8 +27,9 @@ type ClickHouseColumnValueToShardName struct {
 }
 
 var (
-	_ model.Destination = (*ChDestination)(nil)
-	_ model.Describable = (*ChDestination)(nil)
+	_ model.Destination          = (*ChDestination)(nil)
+	_ model.Describable          = (*ChDestination)(nil)
+	_ model.AlterableDestination = (*ChDestination)(nil)
 )
 
 // ChDestination - see description of fields in sink_params.go
@@ -116,6 +117,8 @@ func (p InsertParams) ToQueryOption() clickhouse.QueryOption {
 	}
 	return clickhouse.WithSettings(settings)
 }
+
+func (d *ChDestination) IsAlterable() {}
 
 func (d *ChDestination) Describe() model.Doc {
 	return model.Doc{

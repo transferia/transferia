@@ -223,7 +223,7 @@ type sinker struct {
 	metrics *stats.SinkerStats
 	locks   *maplock.Mutex
 	lock    sync.Mutex
-	cache   map[ydbPath]bool
+	cache   map[ydbPath]*abstract.TableSchema
 	once    sync.Once
 	closeCh chan struct{}
 	db      *ydb.Driver
@@ -270,8 +270,8 @@ func (s *sinker) isClosed() bool {
 	}
 }
 
-func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) error {
-	if s.cache[tablePath] {
+func (s *sinker) checkTable(tablePath ydbPath, schema *abstract.TableSchema) error {
+	if existingSchema, ok := s.cache[tablePath]; ok && existingSchema.Equal(schema) {
 		return nil
 	}
 	for {
@@ -308,7 +308,7 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 		if err := s.db.Table().Do(ctx, func(ctx context.Context, session table.Session) error {
 			columns := make([]ColumnTemplate, 0)
 			keys := make([]string, 0)
-			for _, col := range schema {
+			for _, col := range schema.Columns() {
 				if col.ColumnName == "_shard_key" {
 					continue
 				}
@@ -358,7 +358,6 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 			}
 
 			s.logger.Info("Try to create table", log.String("table", s.getFullPath(tablePath)), log.String("query", query.String()))
-
 			return session.ExecuteSchemeQuery(ctx, query.String())
 		}); err != nil {
 			return xerrors.Errorf("unable to create table: %s: %w", s.getFullPath(tablePath), err)
@@ -371,10 +370,10 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 			if err != nil {
 				return xerrors.Errorf("unable to describe path %s: %w", s.getFullPath(tablePath), err)
 			}
-			s.logger.Infof("check migration %v -> %v", len(desc.Columns), len(schema))
+			s.logger.Infof("check migration %v -> %v", len(desc.Columns), len(schema.Columns()))
 
 			addColumns := make([]ColumnTemplate, 0)
-			for _, a := range schema {
+			for _, a := range schema.Columns() {
 				exist := false
 				for _, b := range FromYdbSchema(desc.Columns, desc.PrimaryKey) {
 					if a.ColumnName == b.ColumnName {
@@ -398,7 +397,7 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 						continue
 					}
 					exist := false
-					for _, b := range schema {
+					for _, b := range schema.Columns() {
 						if a.ColumnName == b.ColumnName {
 							exist = true
 						}
@@ -436,7 +435,7 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.cache[tablePath] = true
+	s.cache[tablePath] = schema
 	return nil
 }
 
@@ -522,7 +521,7 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 					if err != nil {
 						return xerrors.Errorf("Cannot describe table %s: %w", childPath, err)
 					}
-					if err := s.checkTable(nextTablePath, FromYdbSchema(desc.Columns, desc.PrimaryKey)); err != nil {
+					if err := s.checkTable(nextTablePath, abstract.NewTableSchema(FromYdbSchema(desc.Columns, desc.PrimaryKey))); err != nil {
 						s.logger.Warn("Unable to init clone", log.Error(err))
 					}
 
@@ -609,10 +608,10 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	wg := sync.WaitGroup{}
 	errs := util.Errors{}
 	for tablePath, batch := range batches {
-		if err := s.checkTable(tablePath, batch[0].TableSchema.Columns()); err != nil {
+		if err := s.checkTable(tablePath, batch[0].TableSchema); err != nil {
 			if err == SchemaMismatchErr {
 				time.Sleep(time.Second)
-				if err := s.checkTable(tablePath, batch[0].TableSchema.Columns()); err != nil {
+				if err := s.checkTable(tablePath, batch[0].TableSchema); err != nil {
 					s.logger.Error("Check table error", log.Error(err))
 					errs = append(errs, xerrors.Errorf("unable to check table %s: %w", tablePath, err))
 				}
@@ -1474,7 +1473,7 @@ func NewSinker(lgr log.Logger, cfg *YdbDestination, mtrcs metrics.Registry) (abs
 		metrics: stats.NewSinkerStats(mtrcs),
 		locks:   maplock.NewMapMutex(),
 		lock:    sync.Mutex{},
-		cache:   map[ydbPath]bool{},
+		cache:   make(map[ydbPath]*abstract.TableSchema),
 		once:    sync.Once{},
 		closeCh: make(chan struct{}),
 	}

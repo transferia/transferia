@@ -159,7 +159,10 @@ type YtDestinationWrapper struct {
 	_pushWal bool
 }
 
-var _ dp_model.Destination = (*YtDestinationWrapper)(nil)
+var (
+	_ dp_model.Destination          = (*YtDestinationWrapper)(nil)
+	_ dp_model.AlterableDestination = (*YtDestinationWrapper)(nil)
+)
 
 func (d *YtDestinationWrapper) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.Model)
@@ -173,6 +176,8 @@ func (d *YtDestinationWrapper) UnmarshalJSON(data []byte) error {
 	d.Model = &dest
 	return nil
 }
+
+func (d *YtDestinationWrapper) IsAlterable() {}
 
 func (d *YtDestinationWrapper) Params() string {
 	r, _ := json.Marshal(d.Model)

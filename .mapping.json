@@ -2548,6 +2548,8 @@
   "tests/e2e/ch2s3/snapshot/dump/src.sql":"transfer_manager/go/tests/e2e/ch2s3/snapshot/dump/src.sql",
   "tests/e2e/ch2yt/static_table/check_db_test.go":"transfer_manager/go/tests/e2e/ch2yt/static_table/check_db_test.go",
   "tests/e2e/ch2yt/static_table/dump/src.sql":"transfer_manager/go/tests/e2e/ch2yt/static_table/dump/src.sql",
+  "tests/e2e/complex_flows/alters/alters_test.go":"transfer_manager/go/tests/e2e/complex_flows/alters/alters_test.go",
+  "tests/e2e/complex_flows/alters/data/ch.sql":"transfer_manager/go/tests/e2e/complex_flows/alters/data/ch.sql",
   "tests/e2e/kafka2ch/blank_parser/ch_init.sql":"transfer_manager/go/tests/e2e/kafka2ch/blank_parser/ch_init.sql",
   "tests/e2e/kafka2ch/blank_parser/check_db_test.go":"transfer_manager/go/tests/e2e/kafka2ch/blank_parser/check_db_test.go",
   "tests/e2e/kafka2ch/replication/canondata/replication.replication.TestReplication/extracted":"transfer_manager/go/tests/e2e/kafka2ch/replication/canondata/replication.replication.TestReplication/extracted",

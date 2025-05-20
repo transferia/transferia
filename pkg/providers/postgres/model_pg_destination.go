@@ -41,8 +41,11 @@ type PgDestination struct {
 	ConnectionID           string
 }
 
-var _ dp_model.Destination = (*PgDestination)(nil)
-var _ dp_model.WithConnectionID = (*PgDestination)(nil)
+var (
+	_ dp_model.Destination          = (*PgDestination)(nil)
+	_ dp_model.WithConnectionID     = (*PgDestination)(nil)
+	_ dp_model.AlterableDestination = (*PgDestination)(nil)
+)
 
 const PGDefaultQueryTimeout time.Duration = 30 * time.Minute
 
@@ -53,6 +56,8 @@ func (d *PgDestination) MDBClusterID() string {
 func (d *PgDestination) GetConnectionID() string {
 	return d.ConnectionID
 }
+
+func (d *PgDestination) IsAlterable() {}
 
 func (d *PgDestination) FillDependentFields(transfer *dp_model.Transfer) {
 	_, isHomo := transfer.Src.(*PgSource)

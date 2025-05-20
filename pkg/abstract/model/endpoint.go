@@ -35,6 +35,11 @@ type Destination interface {
 	IsDestination()
 }
 
+type AlterableDestination interface {
+	Destination
+	IsAlterable()
+}
+
 type SystemTablesDependantDestination interface {
 	Destination
 	ReliesOnSystemTablesTransferring() bool
@@ -215,8 +220,7 @@ type ExtraTransformableSource interface {
 	ExtraTransformers(ctx context.Context, transfer *Transfer, registry metrics.Registry) ([]abstract.Transformer, error)
 }
 
-type defaultParallelizationSupport struct {
-}
+type defaultParallelizationSupport struct{}
 
 func (p defaultParallelizationSupport) SupportMultiWorkers() bool {
 	return true
