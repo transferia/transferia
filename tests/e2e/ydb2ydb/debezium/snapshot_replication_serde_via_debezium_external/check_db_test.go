@@ -82,6 +82,7 @@ func TestSnapshotAndReplicationSerDeViaDebeziumExternal(t *testing.T) {
 			"Utf8_":         {OriginalType: "ydb:Utf8"},
 			"Json_":         {OriginalType: "ydb:Json"},
 			"JsonDocument_": {OriginalType: "ydb:JsonDocument"},
+			"Uuid_":         {OriginalType: "ydb:Uuid"},
 			"Date_":         {OriginalType: "ydb:Date"},
 			"Datetime_":     {OriginalType: "ydb:Datetime"},
 			"Timestamp_":    {OriginalType: "ydb:Timestamp"},

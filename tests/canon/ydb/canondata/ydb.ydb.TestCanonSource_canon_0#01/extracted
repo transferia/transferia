@@ -21,6 +21,7 @@
                 "Utf8_",
                 "Json_",
                 "JsonDocument_",
+                "Uuid_",
                 "Date_",
                 "Datetime_",
                 "Timestamp_",
@@ -103,6 +104,10 @@
                     "value": {}
                 },
                 {
+                    "type": "string",
+                    "value": "6af014ea-29dd-401c-a7e3-68a58305f4fb"
+                },
+                {
                     "type": "time.Time",
                     "value": "2020-02-02T00:00:00Z"
                 },
@@ -159,8 +164,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 629,
-                "Values": 629
+                "Read": 697,
+                "Values": 697
             }
         },
         "Table": {
@@ -390,6 +395,18 @@
                     "table_schema": "",
                     "table_name": "",
                     "path": "",
+                    "name": "Uuid_",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "ydb:Uuid"
+                },
+                {
+                    "table_schema": "",
+                    "table_name": "",
+                    "path": "",
                     "name": "Date_",
                     "type": "date",
                     "key": false,
@@ -463,6 +480,7 @@
                 "Utf8_",
                 "Json_",
                 "JsonDocument_",
+                "Uuid_",
                 "Date_",
                 "Datetime_",
                 "Timestamp_",
@@ -545,6 +563,10 @@
                     "value": null
                 },
                 {
+                    "type": "nil",
+                    "value": null
+                },
+                {
                     "type": "time.Time",
                     "value": "2020-02-02T00:00:00Z"
                 },
@@ -601,8 +623,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 456,
-                "Values": 456
+                "Read": 472,
+                "Values": 472
             }
         },
         "Table": {
@@ -827,6 +849,18 @@
                     "required": false,
                     "expression": "",
                     "original_type": "ydb:JsonDocument"
+                },
+                {
+                    "table_schema": "",
+                    "table_name": "",
+                    "path": "",
+                    "name": "Uuid_",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "ydb:Uuid"
                 },
                 {
                     "table_schema": "",

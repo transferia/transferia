@@ -18,6 +18,7 @@
             "Interval_": 123000,
             "JsonDocument_": "{}",
             "Json_": "{}",
+            "Uuid_": "6af014ea-29dd-401c-a7e3-68a58305f4fb",
             "String_": "AQ==",
             "Timestamp_": 1580637742000000,
             "Uint16_": 6,
@@ -131,6 +132,10 @@
                 "optional": true,
                 "type": "string",
                 "version": 1
+            }, {
+                "field": "Uuid_",
+                "optional": true,
+                "type": "string"
             }, {
                 "field": "String_",
                 "optional": true,
@@ -255,6 +260,10 @@
                 "optional": true,
                 "type": "string",
                 "version": 1
+            }, {
+                "field": "Uuid_",
+                "optional": true,
+                "type": "string"
             }, {
                 "field": "String_",
                 "optional": true,
