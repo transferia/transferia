@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/coordinator/etcdcoordinator"
 	"github.com/transferia/transferia/tests/tcrecipes/etcd"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -42,6 +44,25 @@ func createTestCoordinator(t *testing.T, endpoint string) *etcdcoordinator.EtcdC
 	config := etcdcoordinator.EtcdConfig{
 		Endpoints:   []string{endpoint},
 		DialTimeout: 5 * time.Second,
+	}
+
+	// Create a mock logger for testing
+	logger := MockLogger{}
+
+	ctx := context.Background()
+	coordinator, err := etcdcoordinator.NewEtcdCoordinator(ctx, config, logger)
+	require.NoError(t, err, "Failed to create EtcdCoordinator")
+	require.NotNil(t, coordinator, "EtcdCoordinator should not be nil")
+
+	return coordinator
+}
+
+func createAuthenticatedTestCoordinator(t *testing.T, endpoint, username, password string) *etcdcoordinator.EtcdCoordinator {
+	config := etcdcoordinator.EtcdConfig{
+		Endpoints:   []string{endpoint},
+		DialTimeout: 5 * time.Second,
+		Username:    username,
+		Password:    password,
 	}
 
 	// Create a mock logger for testing
@@ -97,6 +118,57 @@ func TestEtcdCoordinator(t *testing.T) {
 	t.Run("TestShardingTableParts", func(t *testing.T) {
 		testShardingTableParts(t, etcdCoord)
 	})
+
+	t.Run("TestAuth", func(t *testing.T) {
+		testAuth(t, etcdCoord)
+	})
+}
+
+func testAuth(t *testing.T, etcdCoord *etcdcoordinator.EtcdCoordinator) {
+	ctx := context.Background()
+
+	options := &clientv3.UserAddOptions{
+		NoPassword: false,
+	}
+
+	client := etcdCoord.GetClient()
+
+	resp, err := client.Auth.UserAddWithOptions(ctx, "root", "password", options)
+	require.NoError(t, err, "UserAddWithOptions should not error")
+	require.NotNil(t, resp, "UserAddWithOptions should return a non-nil response")
+
+	grantResp, err := client.Auth.UserGrantRole(ctx, "root", "root")
+	require.NoError(t, err, "UserGrantRole should not error")
+	require.NotNil(t, grantResp, "UserGrantRole should return a non-nil response")
+
+	authResp, err := client.AuthEnable(ctx)
+	require.NoError(t, err, "AuthEnable should not error")
+	require.NotNil(t, authResp, "AuthEnable should return a non-nil response")
+
+	authenticatedEtcdCoord := createAuthenticatedTestCoordinator(t, etcdCoord.GetClient().Endpoints()[0], "root", "password")
+
+	authenticatedClient := authenticatedEtcdCoord.GetClient()
+
+	for _, ep := range authenticatedClient.Endpoints() {
+		status, err := authenticatedClient.Status(ctx, ep)
+		require.NoError(t, err, "Failed to get status for endpoint %s", ep)
+		require.NotNil(t, status, "Status should not be nil for endpoint %s", ep)
+	}
+
+	// Put a key (write operation)
+	pingKey := "ping_test_key"
+	pingValue := fmt.Sprintf("ping_at_%d", time.Now().Unix())
+	_, err = authenticatedClient.Put(ctx, pingKey, pingValue)
+	require.NoError(t, err, "Failed to put key")
+
+	getResp, err := authenticatedClient.Get(ctx, pingKey)
+	require.NoError(t, err, "Failed to get key")
+	require.NotNil(t, getResp, "Get response should not be nil")
+	require.Equal(t, 1, len(getResp.Kvs), "Get response should contain one key-value pair")
+	require.Equal(t, pingKey, string(getResp.Kvs[0].Key), "Key should match")
+
+	_, err = authenticatedClient.Delete(ctx, pingKey)
+	require.NoError(t, err, "Failed to delete key")
 }
 
 // testTransferState tests the TransferState operations

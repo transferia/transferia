@@ -82,6 +82,10 @@ func NewEtcdCoordinator(ctx context.Context, config EtcdConfig, logger log.Logge
 	}, nil
 }
 
+func (c *EtcdCoordinator) GetClient() *clientv3.Client {
+	return c.client
+}
+
 // Close terminates the connection to the etcd cluster.
 func (c *EtcdCoordinator) Close() error {
 	if c.client != nil {
