@@ -179,7 +179,7 @@ func (t *SingleStaticTable) write(input []abstract.ChangeItem) error {
 			for idx, col := range item.ColumnNames {
 				schemeID := colNameToIndex[col]
 				var err error
-				row[col], err = Restore(item.TableSchema.Columns()[schemeID], item.ColumnValues[idx])
+				row[col], err = RestoreWithLengthLimitCheck(item.TableSchema.Columns()[schemeID], item.ColumnValues[idx], t.config.DiscardBigValues(), YtDynMaxStringLength)
 				if err != nil {
 					return xerrors.Errorf("cannot restore value for column '%s': %w", col, err)
 				}

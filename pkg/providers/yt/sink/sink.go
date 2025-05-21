@@ -576,7 +576,7 @@ func (s *sinker) processPKUpdates(batch []abstract.ChangeItem, table string) err
 		}
 		if colSchema.PrimaryKey {
 			var err error
-			keys[colName], err = Restore(colSchema, deleteItem.OldKeys.KeyValues[i])
+			keys[colName], err = RestoreWithLengthLimitCheck(colSchema, deleteItem.OldKeys.KeyValues[i], s.config.DiscardBigValues(), YtDynMaxStringLength)
 			if err != nil {
 				return xerrors.Errorf("Cannot restore value for column '%s': %w", colName, err)
 			}
@@ -651,19 +651,7 @@ func (s *sinker) pushSlice(batch []abstract.ChangeItem, table string) error {
 					log.Any("table", table),
 					log.Error(err),
 				)
-				if strings.Contains(err.Error(), "value is too long:") && s.config.LoseDataOnError() {
-					s.logger.Warn("Value is too big", log.Error(err))
-				} else if s.config.DiscardBigValues() &&
-					(strings.Contains(err.Error(), "is too long for dynamic data") ||
-						strings.Contains(err.Error(), "memory limit exceeded while parsing YSON stream: allocated")) {
-					s.logger.Warn("batch was discarded", log.Error(err))
-					for _, item := range chunk {
-						keys := item.KeysAsMap()
-						s.logger.Warn("change item was discarded", log.String("table", item.Fqtn()), log.Any("keys", keys))
-					}
-				} else {
-					return err
-				}
+				return err
 			}
 			s.logger.Info(
 				"Committed",

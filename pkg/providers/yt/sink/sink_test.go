@@ -339,7 +339,7 @@ func TestLargeRowsWorkWithSpecialSinkOption(t *testing.T) {
 	for _, cfg := range configs {
 		ytModel := cfg.(*yt2.YtDestinationWrapper).Model
 		ytModel.UseStaticTableOnSnapshot = false
-		ytModel.LoseDataOnError = true
+		ytModel.DiscardBigValues = true
 		ytModel.Cluster = os.Getenv("YT_PROXY")
 		ytModel.CellBundle = "default"
 		ytModel.PrimaryMedium = "default"
@@ -353,7 +353,7 @@ func TestLargeRowsWorkWithSpecialSinkOption(t *testing.T) {
 		reader, err := ytEnv.YT.SelectRows(context.Background(), fmt.Sprintf("sum(1) from [%s/test] group by 1", ytModel.Path), &yt.SelectRowsOptions{})
 		require.NoError(t, err)
 		require.NoError(t, reader.Err())
-		require.False(t, reader.Next()) // no rows => no groups of rows
+		require.True(t, reader.Next()) // rows are still written but with magic string
 		require.NoError(t, reader.Close())
 	}
 }

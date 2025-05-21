@@ -46,7 +46,7 @@ func (w *Writer) Write(items []changeitem.ChangeItem) error {
 				return abstract.NewFatalError(xerrors.Errorf("unknown column name: %s", col))
 			}
 			var err error
-			row[col], err = sink.Restore(colScheme, item.ColumnValues[idx])
+			row[col], err = sink.RestoreWithLengthLimitCheck(colScheme, item.ColumnValues[idx], false, sink.YtStatMaxStringLength)
 			if err != nil {
 				return xerrors.Errorf("cannot restore value for column '%s': %w", col, err)
 			}

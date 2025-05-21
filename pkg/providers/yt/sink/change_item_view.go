@@ -16,8 +16,9 @@ type changeItemView interface {
 }
 
 type dataItemView struct {
-	change  *abstract.ChangeItem
-	columns *tableColumns
+	change           *abstract.ChangeItem
+	columns          *tableColumns
+	discardBigValues bool
 }
 
 func (di *dataItemView) keysChanged() (bool, error) {
@@ -33,7 +34,7 @@ func (di *dataItemView) makeOldKeys() (ytRow, error) {
 		}
 		if tableColumn.PrimaryKey {
 			var err error
-			row[colName], err = Restore(tableColumn, di.change.OldKeys.KeyValues[i])
+			row[colName], err = RestoreWithLengthLimitCheck(tableColumn, di.change.OldKeys.KeyValues[i], di.discardBigValues, YtDynMaxStringLength)
 			if err != nil {
 				return nil, xerrors.Errorf("Cannot restore value for column '%s': %w", colName, err)
 			}
@@ -53,7 +54,7 @@ func (di *dataItemView) makeRow() (ytRow, error) {
 			return nil, xerrors.Errorf("Cannot find column %s in schema %v", colName, di.columns.columns)
 		}
 		var err error
-		row[colName], err = Restore(tableColumn, di.change.ColumnValues[i])
+		row[colName], err = RestoreWithLengthLimitCheck(tableColumn, di.change.ColumnValues[i], di.discardBigValues, YtDynMaxStringLength)
 		if err != nil {
 			return nil, xerrors.Errorf("Cannot restore value for column '%s': %w", colName, err)
 		}
@@ -64,17 +65,18 @@ func (di *dataItemView) makeRow() (ytRow, error) {
 	return row, nil
 }
 
-func newDataItemView(change *abstract.ChangeItem, columns *tableColumns) dataItemView {
-	return dataItemView{change: change, columns: columns}
+func newDataItemView(change *abstract.ChangeItem, columns *tableColumns, discardBigValues bool) dataItemView {
+	return dataItemView{change: change, columns: columns, discardBigValues: discardBigValues}
 }
 
 type indexItemView struct {
-	dataView        dataItemView
-	change          *abstract.ChangeItem
-	oldRow          ytRow
-	columns         *tableColumns
-	indexColumnPos  int
-	indexColumnName string
+	dataView         dataItemView
+	change           *abstract.ChangeItem
+	oldRow           ytRow
+	columns          *tableColumns
+	indexColumnPos   int
+	indexColumnName  string
+	discardBigValues bool
 }
 
 func (ii *indexItemView) indexColumnChanged() (bool, error) {
@@ -85,7 +87,7 @@ func (ii *indexItemView) indexColumnChanged() (bool, error) {
 	if !ok || ii.indexColumnPos < 0 {
 		return false, nil
 	}
-	newIndexValue, err := Restore(indexTableColumn, ii.change.ColumnValues[ii.indexColumnPos])
+	newIndexValue, err := RestoreWithLengthLimitCheck(indexTableColumn, ii.change.ColumnValues[ii.indexColumnPos], ii.discardBigValues, YtDynMaxStringLength)
 	if err != nil {
 		return false, xerrors.Errorf("Cannot restore value for index column '%s': %w", ii.indexColumnName, err)
 	}
@@ -128,7 +130,7 @@ func (ii *indexItemView) makeRow() (ytRow, error) {
 		return nil, xerrors.Errorf("Cannot find column %s in schema %v", ii.indexColumnName, ii.columns.columns)
 	}
 
-	value, err := Restore(tableColumn, ii.change.ColumnValues[ii.indexColumnPos])
+	value, err := RestoreWithLengthLimitCheck(tableColumn, ii.change.ColumnValues[ii.indexColumnPos], ii.discardBigValues, YtDynMaxStringLength)
 	if err != nil {
 		return nil, xerrors.Errorf("Cannot restore value for index column '%s': %w", tableColumn.ColumnName, err)
 	}
@@ -146,7 +148,7 @@ func (ii *indexItemView) makeRow() (ytRow, error) {
 			continue
 		}
 
-		row[colName], err = Restore(tableColumn, ii.change.ColumnValues[i])
+		row[colName], err = RestoreWithLengthLimitCheck(tableColumn, ii.change.ColumnValues[i], ii.discardBigValues, YtDynMaxStringLength)
 		if err != nil {
 			return nil, xerrors.Errorf("Cannot restore value for column '%s': %w", colName, err)
 		}
@@ -156,8 +158,8 @@ func (ii *indexItemView) makeRow() (ytRow, error) {
 
 var noIndexColumn error = xerrors.New("Index column not found")
 
-func newIndexItemView(change *abstract.ChangeItem, columns *tableColumns, indexColName columnName, oldRow ytRow) (indexItemView, error) {
-	dataView := newDataItemView(change, columns)
+func newIndexItemView(change *abstract.ChangeItem, columns *tableColumns, indexColName columnName, oldRow ytRow, discardBigValues bool) (indexItemView, error) {
+	dataView := newDataItemView(change, columns, discardBigValues)
 
 	if _, ok := columns.getByName(indexColName); !ok {
 		return indexItemView{}, noIndexColumn
@@ -172,11 +174,12 @@ func newIndexItemView(change *abstract.ChangeItem, columns *tableColumns, indexC
 	}
 
 	return indexItemView{
-		dataView:        dataView,
-		change:          change,
-		oldRow:          oldRow,
-		columns:         columns,
-		indexColumnPos:  indexColumnPos,
-		indexColumnName: indexColName,
+		dataView:         dataView,
+		change:           change,
+		oldRow:           oldRow,
+		columns:          columns,
+		indexColumnPos:   indexColumnPos,
+		indexColumnName:  indexColName,
+		discardBigValues: discardBigValues,
 	}, nil
 }

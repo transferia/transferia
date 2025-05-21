@@ -20,23 +20,6 @@ type ytDataBatch struct {
 	deleteRows    deleteRowsFn
 }
 
-const (
-	ytMaxStringLength = 16 * 1024 * 1024 // https://yt.yandex-team.ru/docs/description/dynamic_tables/dynamic_tables_overview#limitations
-)
-
-var (
-	stringTooLarge = xerrors.Errorf("String length has exceeded the limit of %d bytes", ytMaxStringLength)
-)
-
-func checkLimits(row ytRow) error {
-	for key, value := range row {
-		if s, ok := value.(string); ok && len(s) > ytMaxStringLength {
-			return xerrors.Errorf("Column %s: %w", key, stringTooLarge)
-		}
-	}
-	return nil
-}
-
 func (b *ytDataBatch) addUpdate(item changeItemView) error {
 	isKeysChanged, err := item.keysChanged()
 	if err != nil {
@@ -57,10 +40,6 @@ func (b *ytDataBatch) addUpdate(item changeItemView) error {
 	if err != nil {
 		return xerrors.Errorf("Cannot create column values: %w", err)
 	}
-	if err := checkLimits(row); err != nil {
-		//nolint:descriptiveerrors
-		return err
-	}
 	b.toUpdateRows = append(b.toUpdateRows, row)
 
 	return nil
@@ -70,9 +49,6 @@ func (b *ytDataBatch) addInsert(item changeItemView) error {
 	row, err := item.makeRow()
 	if err != nil {
 		return xerrors.Errorf("Cannot create column values: %w", err)
-	}
-	if err := checkLimits(row); err != nil {
-		return err
 	}
 	b.toInsert = append(b.toInsert, row)
 	return nil

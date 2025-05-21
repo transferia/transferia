@@ -298,15 +298,16 @@ func (t *OrderedTable) Write(input []abstract.ChangeItem) error {
 }
 
 type InsertChangeItem struct {
-	TabletIndex uint32
-	ChangeItem  abstract.ChangeItem
+	DiscardBigValues bool
+	TabletIndex      uint32
+	ChangeItem       abstract.ChangeItem
 }
 
 func (i *InsertChangeItem) MarshalYSON(w *yson.Writer) error {
 	w.BeginMap()
 	for idx, colName := range i.ChangeItem.ColumnNames {
 		w.MapKeyString(colName)
-		value, err := Restore(i.ChangeItem.TableSchema.Columns()[idx], i.ChangeItem.ColumnValues[idx])
+		value, err := RestoreWithLengthLimitCheck(i.ChangeItem.TableSchema.Columns()[idx], i.ChangeItem.ColumnValues[idx], i.DiscardBigValues, YtDynMaxStringLength)
 		if err != nil {
 			return xerrors.Errorf("Unable to restore value for column '%s': %w", colName, err)
 		}
@@ -350,7 +351,7 @@ func (t *OrderedTable) insertToSpecificTablet(tabletIndex uint32, changeItems []
 			continue
 		}
 
-		insertChangeItems = append(insertChangeItems, &InsertChangeItem{TabletIndex: tabletIndex, ChangeItem: changeItem})
+		insertChangeItems = append(insertChangeItems, &InsertChangeItem{TabletIndex: tabletIndex, ChangeItem: changeItem, DiscardBigValues: t.config.DiscardBigValues()})
 	}
 
 	if skippedCount != 0 {

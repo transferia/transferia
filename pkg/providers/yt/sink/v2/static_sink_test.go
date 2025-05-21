@@ -231,7 +231,7 @@ func wrongOrderOfValuesInChangeItem(t *testing.T) {
 	row := newBigRow()
 	values := row.toValues()
 	values[3] = false
-	_ = statTable.Push([]abstract.ChangeItem{
+	err = statTable.Push([]abstract.ChangeItem{
 		{
 			TableSchema:  bigRowSchema,
 			Kind:         abstract.InsertKind,
@@ -240,6 +240,7 @@ func wrongOrderOfValuesInChangeItem(t *testing.T) {
 			ColumnNames:  bigRowSchema.Columns().ColumnNames(),
 			ColumnValues: values,
 		}})
+	require.ErrorContains(t, err, "unaccepted value false for yt type int64")
 	err = statTable.Push([]abstract.ChangeItem{
 		{
 			TableSchema: bigRowSchema,
@@ -247,13 +248,13 @@ func wrongOrderOfValuesInChangeItem(t *testing.T) {
 			Schema:      tableID.Namespace,
 			Table:       tableID.Name,
 		}})
+	require.NoError(t, err)
 	require.NoError(t, statTable.Push([]abstract.ChangeItem{{
 		TableSchema: bigRowSchema,
 		Kind:        abstract.DoneShardedTableLoad,
 		Schema:      tableID.Namespace,
 		Table:       tableID.Name,
 	}}))
-	require.ErrorContains(t, err, "invalid type: expected \"int64\", actual \"boolean\"")
 }
 
 func customAttributesStaticTable(t *testing.T) {

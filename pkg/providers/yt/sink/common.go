@@ -3,6 +3,7 @@ package sink
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"time"
 
@@ -14,7 +15,9 @@ import (
 	"go.ytsaurus.tech/yt/go/migrate"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
+	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
+	"golang.org/x/exp/constraints"
 )
 
 type IncompatibleSchemaErr struct{ error }
@@ -317,7 +320,73 @@ func beginTabletTransaction(ctx context.Context, ytClient yt.Client, fullAtomici
 	return tx, rollbacks, nil
 }
 
-func Restore(colSchema abstract.ColSchema, val interface{}) (interface{}, error) {
+const (
+	YtDynMaxStringLength  = 16 * 1024 * 1024  // https://yt.yandex-team.ru/docs/description/dynamic_tables/dynamic_tables_overview#limitations
+	YtStatMaxStringLength = 128 * 1024 * 1024 // https://yt.yandex-team.ru/docs/user-guide/storage/static-tables#limitations
+	MagicString           = "BigStringValueStub"
+)
+
+type rpcAnyWrapper struct {
+	ysonVal []byte
+}
+
+func (w rpcAnyWrapper) MarshalYSON() ([]byte, error) {
+	return w.ysonVal, nil
+}
+
+func newAnyWrapper(val any) (*rpcAnyWrapper, error) {
+	res, err := yson.Marshal(val)
+	if err != nil {
+		return nil, err
+	}
+	return &rpcAnyWrapper{ysonVal: res}, nil
+}
+
+func RestoreWithLengthLimitCheck(colSchema abstract.ColSchema, val interface{}, ignoreBigVals bool, lengthLimit int) (interface{}, error) {
+	res, err := restore(colSchema, val)
+	if err != nil {
+		//nolint:descriptiveerrors
+		return res, err
+	}
+	switch v := res.(type) {
+	case *rpcAnyWrapper:
+		if len(v.ysonVal) > lengthLimit {
+			if ignoreBigVals {
+				//nolint:descriptiveerrors
+				return newAnyWrapper(MagicString)
+			}
+			return res, xerrors.Errorf("string of type %v is larger than allowed for dynamic table size", colSchema.DataType)
+		}
+	case []byte:
+		if len(v) > lengthLimit {
+			if ignoreBigVals {
+				return []byte(MagicString), nil
+			}
+			return res, xerrors.Errorf("string of type %v is larger than allowed for dynamic table size", colSchema.DataType)
+		}
+	case string:
+		if len(v) > lengthLimit {
+			if ignoreBigVals {
+				return MagicString, nil
+			}
+			return res, xerrors.Errorf("string of type %v is larger than allowed for dynamic table size", colSchema.DataType)
+		}
+	}
+	return res, nil
+}
+
+func restore(colSchema abstract.ColSchema, val interface{}) (interface{}, error) {
+	if val == nil {
+		return val, nil
+	}
+	if reflect.ValueOf(val).Kind() == reflect.Pointer {
+		restored, err := restore(colSchema, reflect.ValueOf(val).Elem().Interface())
+		if err != nil {
+			return nil, xerrors.Errorf("unable to restore from ptr: %w", err)
+		}
+		return restored, nil
+	}
+
 	if colSchema.PrimaryKey && strings.Contains(colSchema.OriginalType, "json") {
 		// TM-2118 TM-1893 DTSUPPORT-594 if primary key, should be marshalled independently to prevent "122" == "\"122\""
 		stringifiedJSON, err := json.Marshal(val)
@@ -355,33 +424,22 @@ func Restore(colSchema abstract.ColSchema, val interface{}) (interface{}, error)
 			return -v.UnixNano(), nil
 		}
 
-	case *time.Time:
-		switch strings.ToLower(colSchema.DataType) {
-		case string(schema.TypeDatetime):
-			if v == nil {
-				return nil, nil
-			}
-			restored, err := Restore(colSchema, *v)
-			if err != nil {
-				return nil, xerrors.Errorf("unable to restore datetime from ptr: %w", err)
-			}
-			return restored, nil
-		case string(schema.TypeInt64):
-			if v == nil {
-				return nil, nil
-			}
-			return -v.UnixNano(), nil
-		}
-
 	case json.Number:
+		var res any
+		var err error
 		if colSchema.OriginalType == "mysql:json" {
-			return v, nil
+			res = v
+		} else {
+			res, err = v.Float64()
+			if err != nil {
+				return nil, xerrors.Errorf("unable to parse float64 from json number: %w", err)
+			}
 		}
-		result, err := v.Float64()
-		if err != nil {
-			return nil, xerrors.Errorf("unable to parse float64 from json number: %w", err)
+		if colSchema.DataType == schema.TypeAny.String() {
+			//nolint:descriptiveerrors
+			return newAnyWrapper(res)
 		}
-		return result, nil
+		return res, nil
 
 	case time.Duration:
 		asInterval, err := schema.NewInterval(v)
@@ -390,35 +448,48 @@ func Restore(colSchema abstract.ColSchema, val interface{}) (interface{}, error)
 		}
 		return asInterval, nil
 
-	case *time.Duration:
-		if v == nil {
-			return nil, nil
-		}
-		restored, err := Restore(colSchema, *v)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to restore interval from ptr: %w", err)
-		}
-		return restored, nil
-
 	default:
-		if colSchema.Numeric() {
-			// TODO: remove this kostyl
-			// for YT we need to limit restore capabilities for actual restore
-			// so for numeric column that contains no possible numeric value we should return raw value
-			// and it would return meaningfull error later
-			switch val.(type) {
-			case bool, map[string]interface{}, interface{}:
-				return val, nil
+		ytType := strings.ToLower(colSchema.DataType)
+		switch ytType {
+		case string(schema.TypeInt64), string(schema.TypeInt32), string(schema.TypeInt16), string(schema.TypeInt8):
+			//nolint:descriptiveerrors
+			return doNumberConversion[int64](val, ytType)
+		case string(schema.TypeUint64), string(schema.TypeUint32), string(schema.TypeUint16), string(schema.TypeUint8):
+			//nolint:descriptiveerrors
+			return doNumberConversion[uint64](val, ytType)
+		case string(schema.TypeFloat32), string(schema.TypeFloat64):
+			//nolint:descriptiveerrors
+			return doNumberConversion[float64](val, ytType)
+		case string(schema.TypeBytes), string(schema.TypeString):
+			//nolint:descriptiveerrors
+			return doTextConversion(val, ytType)
+		case string(schema.TypeBoolean):
+			converted, ok := val.(bool)
+			if !ok {
+				return nil, xerrors.Errorf("unaccepted value %v for yt type %s", val, ytType)
 			}
+			return converted, nil
+		case string(schema.TypeDate), string(schema.TypeDatetime), string(schema.TypeTimestamp):
+			converted, ok := val.(uint64)
+			if !ok {
+				return nil, xerrors.Errorf("unaccepted value %v for yt type %s", val, ytType)
+			}
+			return converted, nil
+		case string(schema.TypeInterval):
+			converted, ok := val.(int64)
+			if !ok {
+				return nil, xerrors.Errorf("unaccepted value %v for yt type %s", val, ytType)
+			}
+			return converted, nil
 		}
 	}
 
-	if colSchema.PrimaryKey && colSchema.DataType == "any" { // YT not support yson as primary key
+	if colSchema.PrimaryKey && colSchema.DataType == schema.TypeAny.String() { // YT not support yson as primary key
 		switch v := val.(type) {
 		case string:
 			return v, nil
 		default:
-			bytes, err := json.Marshal(val)
+			bytes, err := yson.Marshal(val)
 			if err != nil {
 				return nil, xerrors.Errorf("unable to marshal item's value of type '%T': %w", val, err)
 			}
@@ -426,7 +497,58 @@ func Restore(colSchema abstract.ColSchema, val interface{}) (interface{}, error)
 		}
 	}
 
-	return abstract.Restore(colSchema, val), nil
+	res := abstract.Restore(colSchema, val)
+	if colSchema.DataType == schema.TypeAny.String() {
+		//nolint:descriptiveerrors
+		return newAnyWrapper(res)
+	}
+	return res, nil
+}
+
+type Number interface {
+	constraints.Integer | constraints.Float
+}
+
+func doNumberConversion[T Number](val interface{}, ytType string) (T, error) {
+	switch v := val.(type) {
+	case int:
+		return T(v), nil
+	case int8:
+		return T(v), nil
+	case int16:
+		return T(v), nil
+	case int32:
+		return T(v), nil
+	case int64:
+		return T(v), nil
+	case uint:
+		return T(v), nil
+	case uint8:
+		return T(v), nil
+	case uint16:
+		return T(v), nil
+	case uint32:
+		return T(v), nil
+	case uint64:
+		return T(v), nil
+	case float32:
+		return T(v), nil
+	case float64:
+		return T(v), nil
+	}
+	return *new(T), xerrors.Errorf("unaccepted value %v for yt type %v", val, ytType)
+}
+
+func doTextConversion(val interface{}, ytType string) (string, error) {
+	switch v := val.(type) {
+	case string:
+		return v, nil
+	case []byte:
+		return string(v), nil
+	case byte:
+		return string(v), nil
+	}
+	return "", xerrors.Errorf("unaccepted value %v for yt type %v", val, ytType)
 }
 
 // TODO: Completely remove this legacy hack

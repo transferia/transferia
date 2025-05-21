@@ -130,7 +130,6 @@ func (t *VersionedTable) Write(input []abstract.ChangeItem) error {
 	lookupKeys := make([]interface{}, 0)
 	insertRows := make([]map[string]interface{}, 0)
 
-ROWS:
 	for _, item := range input {
 		schemaCompatible, err := t.ensureSchema(item.TableSchema.Columns())
 		if err != nil {
@@ -153,22 +152,16 @@ ROWS:
 		switch item.Kind {
 		case "update", "insert":
 			for idx, col := range item.ColumnNames {
-				if typeMap[col].DataType == "string" {
-					if s, ok := item.ColumnValues[idx].(string); ok && len(s) > 16777216 && t.config.LoseDataOnError() {
-						t.logger.Warn("Skip row limit", log.Any("col", col), log.Any("size", len(s)))
-						continue ROWS
-					}
-				}
 				if len(item.ColumnValues) <= idx || !t.props[col] {
 					continue
 				}
 				if t.keys[col] {
-					keys[col], err = Restore(typeMap[col], item.ColumnValues[idx])
+					keys[col], err = RestoreWithLengthLimitCheck(typeMap[col], item.ColumnValues[idx], t.config.DiscardBigValues(), YtDynMaxStringLength)
 					if err != nil {
 						return xerrors.Errorf("unable to restore value for key column '%s': %w", col, err)
 					}
 				}
-				row[col], err = Restore(typeMap[col], item.ColumnValues[idx])
+				row[col], err = RestoreWithLengthLimitCheck(typeMap[col], item.ColumnValues[idx], t.config.DiscardBigValues(), YtDynMaxStringLength)
 				if err != nil {
 					return xerrors.Errorf("unable to restore value for column '%s': %w", col, err)
 				}

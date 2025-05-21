@@ -115,15 +115,10 @@ func (t *SortedTable) prepareDataRows(input []abstract.ChangeItem, commitTime ui
 			upd = true
 		}
 
-		itemView := newDataItemView(&item, &t.columns)
+		itemView := newDataItemView(&item, &t.columns, t.config.DiscardBigValues())
 
 		if err := t.dispatchItem(&dataBatch, item.Kind, &itemView); err != nil {
-			if xerrors.Is(err, stringTooLarge) && t.config.LoseDataOnError() {
-				t.logger.Warn("Cannot dispatch input item; skipping", log.Error(err), log.String("kind", string(item.Kind)))
-				continue
-			} else {
-				return ytDataBatch{}, xerrors.Errorf("Cannot dispatch input item of kind %s: %w", item.Kind, err)
-			}
+			return ytDataBatch{}, xerrors.Errorf("Cannot dispatch input item of kind %s: %w", item.Kind, err)
 		}
 	}
 
@@ -146,7 +141,7 @@ func (t *SortedTable) prepareIndexRows(ctx context.Context, input []abstract.Cha
 	for i := range input {
 		item := &input[i]
 		for _, indexColumnName := range t.config.Index() {
-			itemView, err := newIndexItemView(item, &t.columns, indexColumnName, oldRows[i])
+			itemView, err := newIndexItemView(item, &t.columns, indexColumnName, oldRows[i], t.config.DiscardBigValues())
 			if err != nil {
 				if xerrors.Is(err, noIndexColumn) {
 					// TODO: this is ugly. It happens for each row of a table which doesn't have a column
@@ -167,12 +162,7 @@ func (t *SortedTable) prepareIndexRows(ctx context.Context, input []abstract.Cha
 			}
 
 			if err := t.dispatchItem(batch, item.Kind, &itemView); err != nil {
-				if xerrors.Is(err, stringTooLarge) && t.config.LoseDataOnError() {
-					t.logger.Warn("Cannot dispatch input item; skipping", log.Error(err), log.String("kind", string(item.Kind)))
-					continue
-				} else {
-					return nil, xerrors.Errorf("Cannot dispatch input item of kind %s: %w", item.Kind, err)
-				}
+				return nil, xerrors.Errorf("Cannot dispatch input item of kind %s: %w", item.Kind, err)
 			}
 		}
 	}
@@ -190,7 +180,7 @@ func (t *SortedTable) getOldRows(ctx context.Context, input []abstract.ChangeIte
 			continue
 		}
 
-		dataView := newDataItemView(item, &t.columns)
+		dataView := newDataItemView(item, &t.columns, t.config.DiscardBigValues())
 		key, err := dataView.makeOldKeys()
 		if err != nil {
 			return nil, xerrors.Errorf("Cannot create change item key: %w", err)

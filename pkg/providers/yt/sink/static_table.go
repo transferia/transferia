@@ -260,7 +260,7 @@ func (t *StaticTable) Push(items []abstract.ChangeItem) error {
 					return xerrors.Errorf("unknown column to get schema: %s", columnName)
 				}
 				var err error
-				row[columnName], err = Restore(colSchema, item.ColumnValues[i])
+				row[columnName], err = RestoreWithLengthLimitCheck(colSchema, item.ColumnValues[i], false, YtStatMaxStringLength)
 				if err != nil {
 					return xerrors.Errorf("failed to restore value for column '%s': %w", columnName, err)
 				}
