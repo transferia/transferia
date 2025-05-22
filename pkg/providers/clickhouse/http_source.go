@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	middlewares2 "github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/format"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
@@ -33,7 +34,7 @@ type HTTPSource struct {
 	config  *model.ChStorageParams
 	query   string
 	metrics *stats.SourceStats
-	hosts   []string
+	hosts   []*clickhouse.Host
 	part    *TablePartA2
 	cols    *abstract.TableSchema
 
@@ -225,8 +226,8 @@ func NewHTTPSourceImpl(
 	query string,
 	countQuery string,
 	cols *abstract.TableSchema,
-	hosts []string,
-	config *model.ChSource,
+	hosts []*clickhouse.Host,
+	config *model.ChStorageParams,
 	part *TablePartA2,
 	sourceStats *stats.SourceStats,
 	client httpclient.HTTPClient,
@@ -234,7 +235,7 @@ func NewHTTPSourceImpl(
 	return &HTTPSource{
 		client: client,
 
-		config:     config.ToStorageParams(),
+		config:     config,
 		query:      query,
 		countQuery: countQuery,
 		metrics:    sourceStats,
@@ -259,12 +260,17 @@ func NewHTTPSource(
 	query string,
 	countQuery string,
 	cols *abstract.TableSchema,
-	hosts []string,
+	hosts []*clickhouse.Host,
 	config *model.ChSource,
 	part *TablePartA2,
 	sourceStats *stats.SourceStats,
 ) (*HTTPSource, error) {
-	cl, err := httpclient.NewHTTPClientImpl(config.ToStorageParams().ToConnParams())
+	storageParams, err := config.ToStorageParams()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve storage params")
+	}
+
+	cl, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	if err != nil {
 		return nil, xerrors.Errorf("error creating CH HTTP client: %w", err)
 	}
@@ -274,7 +280,7 @@ func NewHTTPSource(
 		countQuery,
 		cols,
 		hosts,
-		config,
+		storageParams,
 		part,
 		sourceStats,
 		cl,

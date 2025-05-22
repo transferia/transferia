@@ -868,29 +868,15 @@ func parseSemver(version string) (*semver.Version, error) {
 
 func NewStorage(config *model.ChStorageParams, transfer *dp_model.Transfer, opts ...StorageOpt) (ClickhouseStorage, error) {
 	singleHost := false
-	if config.IsManaged() {
-		shards, err := model.ShardFromCluster(config.MdbClusterID, config.ChClusterName)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve cluster from shards: %w", err)
-		}
-		if len(shards) > 1 {
-			res, err := NewShardedFromUrls(shards, config, transfer, opts...)
-			if err != nil {
-				return nil, xerrors.Errorf("unable to create sharded storage from urls: %w", err)
-			}
-			return res, nil
-		}
-		singleHost = topology.IsSingleNode(shards)
-	}
-	if len(config.Shards) > 1 {
-		res, err := NewShardedFromUrls(config.Shards, config, transfer, opts...)
+	if len(config.ConnectionParams.Shards) > 1 {
+		res, err := NewShardedFromUrls(config, transfer, opts...)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create sharded storage from urls: %w", err)
 		}
 		return res, nil
 	}
 
-	singleHost = singleHost || topology.IsSingleNode(config.Shards) || len(config.Hosts) > 1
+	singleHost = singleHost || topology.IsSingleNode(config.ConnectionParams.Shards) || len(config.ConnectionParams.Hosts) > 1
 
 	db, err := MakeConnection(config)
 	if err != nil {
@@ -917,7 +903,7 @@ func NewStorage(config *model.ChStorageParams, transfer *dp_model.Transfer, opts
 	}
 	return WithOpts(&Storage{
 		db:        db,
-		database:  config.Database,
+		database:  config.ConnectionParams.Database,
 		cluster:   config.ChClusterName,
 		bufSize:   config.BufferSize,
 		logger:    logger.Log,

@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	conn2 "github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/util"
@@ -57,11 +58,11 @@ func resolveClusterName(ctx context.Context, db *sql.DB, cfg model.ChSinkServerP
 	return name, nil
 }
 
-func IsSingleNode(shards map[string][]string) bool {
+func IsSingleNode(shards map[string][]*clickhouse.Host) bool {
 	return len(shards) == 1 && len(maps.Values(shards)[0]) == 1
 }
 
-func validateShards(shards map[string][]string) error {
+func validateShards(shards map[string][]*clickhouse.Host) error {
 	if len(shards) < 1 {
 		return xerrors.New("empty shards config")
 	}
@@ -80,7 +81,7 @@ func ResolveTopology(params model.ChSinkParams, lgr log.Logger) (*Topology, erro
 	}
 
 	singleNode := IsSingleNode(shards)
-	var allHosts, remainHosts []string
+	var allHosts, remainHosts []*clickhouse.Host
 	for _, hosts := range shards {
 		allHosts = append(allHosts, hosts...)
 	}
@@ -88,17 +89,17 @@ func ResolveTopology(params model.ChSinkParams, lgr log.Logger) (*Topology, erro
 	// Cyclic iterate over all cluster hosts in random order
 	clusterName, err := backoff.RetryNotifyWithData(func() (string, error) {
 		if len(remainHosts) == 0 {
-			remainHosts = make([]string, len(allHosts))
+			remainHosts = make([]*clickhouse.Host, len(allHosts))
 			copy(remainHosts, allHosts)
 			remainHosts = yslices.Shuffle(remainHosts, nil)
 		}
 		host := remainHosts[0]
 		remainHosts = remainHosts[1:]
 
-		lgr.Infof("Trying to resolve cluster name from host %s", host)
+		lgr.Infof("Trying to resolve cluster name from host %s", host.Name)
 		conn, err := conn2.ConnectNative(host, params)
 		if err != nil {
-			return "", xerrors.Errorf("error connecting to clickhouse host %s: %w", host, err)
+			return "", xerrors.Errorf("error connecting to clickhouse host %s: %w", host.Name, err)
 		}
 		defer conn.Close()
 

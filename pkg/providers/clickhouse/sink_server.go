@@ -336,11 +336,16 @@ func NewSinkServerImpl(
 	metrics *stats.ChStats,
 	cluster *sinkCluster,
 ) *SinkServer {
-	host := *cfg.Host()
+	host := cfg.Host()
+	hostName := ""
+	if host != nil {
+		hostName = host.Name
+	}
+
 	return &SinkServer{
 		db:            db,
-		logger:        log.With(lgr, log.String("ch_host", host)),
-		host:          host,
+		logger:        log.With(lgr, log.String("ch_host", hostName)),
+		host:          hostName,
 		metrics:       metrics,
 		config:        cfg,
 		getTableMutex: sync.Mutex{},
@@ -360,7 +365,7 @@ func (s *SinkServer) RunGoroutines() {
 }
 
 func NewSinkServer(cfg model.ChSinkServerParams, lgr log.Logger, metrics *stats.ChStats, cluster *sinkCluster) (*SinkServer, error) {
-	host := *cfg.Host()
+	host := cfg.Host()
 	db, err := conn.ConnectNative(host, cfg)
 	if err != nil {
 		return nil, xerrors.Errorf("native connection error: %w", err)

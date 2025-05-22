@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
@@ -39,9 +40,11 @@ func TestTargetPush(t *testing.T) {
 	}
 	chDst, err := chrecipe.Target(chrecipe.WithInitFile("gotest/dump.sql"))
 	require.NoError(t, err)
-	client, err := httpclient.NewHTTPClientImpl(chDst.ToReplicationFromPGSinkParams())
+	sinkParams, err := chDst.ToSinkParams(&dp_model.Transfer{})
 	require.NoError(t, err)
-	target, err := newHTTPTargetImpl(new(dp_model.Transfer), chDst.ToReplicationFromPGSinkParams(), solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
+	client, err := httpclient.NewHTTPClientImpl(sinkParams)
+	require.NoError(t, err)
+	target, err := newHTTPTargetImpl(new(dp_model.Transfer), sinkParams, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
 	require.NoError(t, err)
 	require.NoError(t, <-target.AsyncPush(
 		&schema.DDLBatch{
@@ -168,9 +171,15 @@ func TestAdjustDDLToTarget(t *testing.T) {
 	cluster := &topology.Cluster{
 		Topology: *topology.NewTopology("179f2d18-5c22-4e2b-9558-55f605a410ca", false),
 		Shards: topology.ShardHostMap{1: {
-			"sas-z7pefafuvw6ss0et.db.yandex.net",
-			"man-a3fg8ewmwkxflr7h.db.yandex.net",
-			"vla-a8srnet6jntawnm0.db.yandex.net",
+			&clickhouse.Host{
+				Name: "sas-z7pefafuvw6ss0et.db.yandex.net",
+			},
+			&clickhouse.Host{
+				Name: "man-a3fg8ewmwkxflr7h.db.yandex.net",
+			},
+			&clickhouse.Host{
+				Name: "vla-a8srnet6jntawnm0.db.yandex.net",
+			},
 		}},
 	}
 	target := createTargetWithTopology(t, cluster)

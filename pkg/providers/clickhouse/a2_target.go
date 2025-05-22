@@ -20,8 +20,8 @@ import (
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/base"
 	"github.com/transferia/transferia/pkg/base/events"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/format"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
@@ -226,22 +226,22 @@ func (c *HTTPTarget) adjustDDLToTarget(ddl schema.TableDDL, distributed bool) (s
 	return sqlDDL, nil
 }
 
-func (c *HTTPTarget) HostByPart(part *TablePartA2) string {
-	host := ""
+func (c *HTTPTarget) HostByPart(part *TablePartA2) *clickhouse.Host {
+	host := (*clickhouse.Host)(nil)
 	if c.config.Host() != nil {
-		host = *c.config.Host()
+		host = c.config.Host()
 	}
-	if host == "" && len(c.config.AltHosts()) > 0 {
+	if host == nil || host.Name == "" && len(c.config.AltHosts()) > 0 {
 		randomIndex := rand.Intn(len(c.config.AltHosts()))
 		host = c.config.AltHosts()[randomIndex]
 	}
 
 	// Choose random host of first shard for cluster DDL
-	if host == "" && part == nil && len(c.config.Shards()) > 0 {
+	if host == nil || host.Name == "" && part == nil && len(c.config.Shards()) > 0 {
 		for shardName, hosts := range c.config.Shards() {
 			idx := rand.Intn(len(hosts))
 			host = hosts[idx]
-			c.logger.Debugf("choose random host %s of shard %s for DDL query", host, shardName)
+			c.logger.Debugf("choose random host %s of shard %s for DDL query", host.Name, shardName)
 			return host
 		}
 	}
@@ -335,9 +335,6 @@ func (c *HTTPTarget) execDDL(executor func(distributed bool) error) error {
 }
 
 func newHTTPTargetImpl(transfer *dp_model.Transfer, config model.ChSinkParams, mtrc metrics.Registry, logger log.Logger) (*HTTPTarget, error) {
-	if err := conn.ResolveShards(config, transfer); err != nil {
-		return nil, xerrors.Errorf("Can't resolve shards: %w", err)
-	}
 	client, err := httpclient.NewHTTPClientImpl(config)
 	if err != nil {
 		return nil, xerrors.Errorf("error creating CH HTTP client: %w", err)
@@ -369,5 +366,10 @@ func NewHTTPTarget(transfer *dp_model.Transfer, mtrc metrics.Registry, logger lo
 		panic("expected ClickHouse destination in ClickHouse sink constructor")
 	}
 
-	return newHTTPTargetImpl(transfer, dst.ToSinkParams(transfer), mtrc, logger)
+	sinkParams, err := dst.ToSinkParams(transfer)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to resolve sink params: %w", err)
+	}
+
+	return newHTTPTargetImpl(transfer, sinkParams, mtrc, logger)
 }

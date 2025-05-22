@@ -74,14 +74,19 @@ func initYTTable(t *testing.T) {
 }
 
 func initCHTable(t *testing.T) {
-	chClient, err := httpclient.NewHTTPClientImpl(Target.ToStorageParams().ToConnParams())
+	storageParams, err := Target.ToStorageParams()
+	require.NoError(t, err)
+	chClient, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	require.NoError(t, err)
 
+	require.GreaterOrEqual(t, len(storageParams.ConnectionParams.Shards["_"]), 1)
+	host := storageParams.ConnectionParams.Shards["_"][0]
+
 	q := `DROP TABLE IF EXISTS types_test`
-	_ = chClient.Exec(context.Background(), logger.Log, Target.Shards()["_"][0], q)
+	_ = chClient.Exec(context.Background(), logger.Log, host, q)
 
 	q = fmt.Sprintf(`CREATE TABLE types_test (%s) ENGINE MergeTree() ORDER BY id`, yt_helpers.ChSchemaForYtTypesTestData())
-	require.NoError(t, chClient.Exec(context.Background(), logger.Log, Target.Shards()["_"][0], q))
+	require.NoError(t, chClient.Exec(context.Background(), logger.Log, host, q))
 }
 
 func TestSnapshot(t *testing.T) {

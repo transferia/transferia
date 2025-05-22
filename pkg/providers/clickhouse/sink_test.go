@@ -74,7 +74,9 @@ func TestMultiShard_Push(t *testing.T) {
 		ShardCol:      "test",
 	}
 	q.WithDefaults()
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	checker := func(row abstract.ChangeItem, expected int) {
@@ -133,7 +135,9 @@ func TestMultiShard_Push_ManualMap(t *testing.T) {
 		ShardCol: "test",
 	}
 	q.WithDefaults()
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	checker := func(row abstract.ChangeItem, expected int) {
@@ -178,7 +182,9 @@ func TestNewSink_shardRoundRobin(t *testing.T) {
 		},
 		CurrentJob: 7,
 	}
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
 	require.NoError(t, err)
 
 	for i, row := range rows {
@@ -219,7 +225,9 @@ func TestNewSink_shardColumnShardingNoKey(t *testing.T) {
 		},
 		CurrentJob: 7,
 	}
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
 	require.NoError(t, err)
 
 	for _, row := range rows {
@@ -278,7 +286,9 @@ func TestNewSink_shardColumnShardingNoKeyWithUserMapping(t *testing.T) {
 		},
 		CurrentJob: 7,
 	}
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
 	require.NoError(t, err)
 
 	for _, row := range rows {

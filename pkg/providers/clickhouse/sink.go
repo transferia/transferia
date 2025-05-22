@@ -13,7 +13,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
 	topology2 "github.com/transferia/transferia/pkg/providers/clickhouse/topology"
@@ -150,10 +149,6 @@ func (s *sink) rotate() error {
 }
 
 func newSinkImpl(transfer *dp_model.Transfer, config model.ChSinkParams, logger log.Logger, metrics metrics.Registry, runtime abstract.Runtime) (*sink, error) {
-	if err := conn.ResolveShards(config, transfer); err != nil {
-		return nil, xerrors.Errorf("Can't resolve shards: %w", err)
-	}
-
 	topology, err := topology2.ResolveTopology(config, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error resolving cluster topology: %w", err)
@@ -208,8 +203,12 @@ func NewSink(transfer *dp_model.Transfer, logger log.Logger, metrics metrics.Reg
 	if !ok {
 		panic("expected ClickHouse destination in ClickHouse sink constructor")
 	}
+	params, err := dst.ToSinkParams(transfer)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to resolve sink params: %w", err)
+	}
 
-	uncasted, err := newSinkImpl(transfer, dst.ToSinkParams(transfer), logger, metrics, runtime)
+	uncasted, err := newSinkImpl(transfer, params, logger, metrics, runtime)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create pure ClickHouse sink: %w", err)
 	}

@@ -79,8 +79,9 @@ func TestBigTable(t *testing.T) {
 	transfer.Labels = `{"dt-async-ch": "on"}`
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
 	require.NoError(t, snapshotLoader.UploadV2(context.Background(), nil, nil))
-
-	chClient, err := httpclient.NewHTTPClientImpl(Target.ToStorageParams().ToConnParams())
+	storageParams, err := Target.ToStorageParams()
+	require.NoError(t, err)
+	chClient, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	require.NoError(t, err)
 
 	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy, Token: Source.YtToken})
@@ -90,7 +91,7 @@ func TestBigTable(t *testing.T) {
 	err = ytc.GetNode(context.Background(), ypath.NewRich(Source.Paths[0]).YPath().Attr("row_count"), &rowCount, nil)
 	require.NoError(t, err)
 
-	host := Target.ShardsList[0].Hosts[0]
+	host := storageParams.ConnectionParams.Hosts[0]
 	query := `
 		SELECT
 			min(some_number) as min_value,

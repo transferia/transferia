@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -36,11 +37,11 @@ func ColumnShardingKeyGen(col string) func(row abstract.ChangeItem) string {
 	}
 }
 
-func ShardsFromSinkParams(shards map[string][]string) ShardMap[[]string] {
+func ShardsFromSinkParams(shards map[string][]*clickhouse.Host) ShardMap[[]*clickhouse.Host] {
 	names := maps.Keys(shards)
 	slices.Sort(names)
 
-	res := make(ShardMap[[]string])
+	res := make(ShardMap[[]*clickhouse.Host])
 	for idx, name := range names {
 		res[ShardID(idx)] = shards[name]
 	}

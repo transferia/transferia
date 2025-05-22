@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/schema"
 	"github.com/transferia/transferia/pkg/stats"
@@ -20,7 +21,7 @@ type DataProvider struct {
 	registry   metrics.Registry
 	config     *model.ChSource
 	transferID string
-	shards     map[string][]string
+	shards     map[string][]*clickhouse.Host
 	storage    ClickhouseStorage
 }
 
@@ -136,24 +137,17 @@ func (c *DataProvider) TablePartToDataObjectPart(tableDescription *abstract.Tabl
 }
 
 func NewClickhouseProvider(logger log.Logger, registry metrics.Registry, config *model.ChSource, transfer *dp_model.Transfer) (base.SnapshotProvider, error) {
-	shards := config.ToSinkParams().Shards()
-	if config.ToStorageParams().IsManaged() {
-		res, err := model.ShardFromCluster(config.MdbClusterID, config.ChClusterName)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve cluster from shards: %w", err)
-		}
-
-		shards = res
-		config.ShardsList = []model.ClickHouseShard{}
-		for shard, hosts := range shards {
-			config.ShardsList = append(config.ShardsList, model.ClickHouseShard{
-				Name:  shard,
-				Hosts: hosts,
-			})
-		}
+	sinkParams, err := config.ToSinkParams()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get sink params: %w", err)
+	}
+	shards := sinkParams.Shards()
+	storageParams, err := config.ToStorageParams()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve storage params")
 	}
 	logger.Infof("init clickhouse provider: %v", shards)
-	storage, err := NewStorage(config.ToStorageParams(), transfer, WithHomo(), WithTableFilter(config))
+	storage, err := NewStorage(storageParams, transfer, WithHomo(), WithTableFilter(config))
 	if err != nil {
 		return nil, err
 	}

@@ -8,48 +8,26 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
-	"github.com/transferia/transferia/pkg/abstract"
-	dp_model "github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 )
 
-func ResolveShards(config model.ChSinkParams, transfer *dp_model.Transfer) error {
-	if config.MdbClusterID() != "" {
-		shards, err := model.ShardFromCluster(config.MdbClusterID(), config.ChClusterName())
-		if err != nil {
-			return xerrors.Errorf("failed to obtain a list of shards from MDB ClickHouse: %w", err)
-		}
-
-		if len(shards) == 0 {
-			return abstract.NewFatalError(xerrors.Errorf("can't find shards for managed ClickHouse '%v'", config.MdbClusterID()))
-		}
-
-		config.SetShards(shards)
-	} else {
-		if len(config.Shards()) == 0 {
-			return abstract.NewFatalError(xerrors.New("shards not set for an on-premises ClickHouse"))
-		}
-	}
-	return nil
-}
-
-func ConnectNative(host string, cfg ConnParams, hosts ...string) (*sql.DB, error) {
-	opts, err := GetClickhouseOptions(cfg, append([]string{host}, hosts...))
+func ConnectNative(host *chconn.Host, cfg ConnParams, hosts ...*chconn.Host) (*sql.DB, error) {
+	opts, err := GetClickhouseOptions(cfg, append([]*chconn.Host{host}, hosts...))
 	if err != nil {
 		return nil, err
 	}
 	return clickhouse.OpenDB(opts), nil
 }
 
-func GetClickhouseOptions(cfg ConnParams, hosts []string) (*clickhouse.Options, error) {
+func GetClickhouseOptions(cfg ConnParams, hosts []*chconn.Host) (*clickhouse.Options, error) {
 	tlsConfig, err := NewTLS(cfg)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load tls: %w", err)
 	}
 
-	portStr := strconv.Itoa(cfg.NativePort())
-	addrs := yslices.Map(hosts, func(host string) string {
-		return host + ":" + portStr
+	addrs := yslices.Map(hosts, func(host *chconn.Host) string {
+		portStr := strconv.Itoa(host.NativePort)
+		return host.Name + ":" + portStr
 	})
 
 	password, err := cfg.ResolvePassword()

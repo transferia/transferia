@@ -142,7 +142,9 @@ func TestOptimizeCleanup(t *testing.T) {
 		60*time.Second))
 
 	// Get CH connection for verification
-	chConn, err := clickhouse.MakeConnection(Target.ToStorageParams())
+	storageParams, err := Target.ToStorageParams()
+	require.NoError(t, err)
+	chConn, err := clickhouse.MakeConnection(storageParams)
 	require.NoError(t, err)
 
 	// Run OPTIMIZE ... FINAL CLEANUP

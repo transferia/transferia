@@ -12,7 +12,8 @@ func TestConnectionHosts(t *testing.T) {
 		MdbClusterID: "",
 		ShardsList:   nil,
 	}
-	storageParams := srcModel.ToStorageParams()
+	storageParams, err := srcModel.ToStorageParams()
+	require.NoError(t, err)
 	result, err := ConnectionHosts(storageParams, "")
 	require.Error(t, err)
 	require.Equal(t, len(result), 0)

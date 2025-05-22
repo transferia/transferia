@@ -6,6 +6,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 )
 
 var _ ConnResolver = (*StubConnectionResolver)(nil)
@@ -33,7 +34,7 @@ func (d *StubConnectionResolver) ResolveConnection(ctx context.Context, connecti
 		}
 		return nil, xerrors.Errorf("Unable to cast mysql connection %s", connectionID)
 	case "ch":
-		if chConn, ok := res.(*ConnectionCH); ok {
+		if chConn, ok := res.(*clickhouse.Connection); ok {
 			return chConn, nil
 		}
 		return nil, xerrors.Errorf("Unable to cast ch connection %s", connectionID)

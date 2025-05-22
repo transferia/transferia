@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
@@ -59,7 +60,15 @@ func TestSnapshot(t *testing.T) {
 
 	t.Run("drop", func(t *testing.T) {
 		transfer := helpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
-		db, err := conn.ConnectNative("localhost", Target.ToSinkParams(transfer))
+		host := &clickhouse.Host{
+			Name:       "localhost",
+			NativePort: Target.NativePort,
+			HTTPPort:   Target.HTTPPort,
+		}
+
+		params, err := Target.ToSinkParams(transfer)
+		require.NoError(t, err)
+		db, err := conn.ConnectNative(host, params)
 		require.NoError(t, err)
 
 		exec := func(query string) {

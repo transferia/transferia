@@ -54,13 +54,21 @@ func GetSampleableStorageByModel(t *testing.T, serverModel interface{}) abstract
 		result, err = pgStorage.NewStorage(withTextSerialization(model.ToStorageParams()))
 	// ch
 	case chModel.ChSource:
-		result, err = clickhouse.NewStorage(model.ToStorageParams(), nil)
+		storageParams, storageParamsErr := model.ToStorageParams()
+		require.NoError(t, storageParamsErr)
+		result, err = clickhouse.NewStorage(storageParams, nil)
 	case *chModel.ChSource:
-		result, err = clickhouse.NewStorage(model.ToStorageParams(), nil)
+		storageParams, storageParamsErr := model.ToStorageParams()
+		require.NoError(t, storageParamsErr)
+		result, err = clickhouse.NewStorage(storageParams, nil)
 	case chModel.ChDestination:
-		result, err = clickhouse.NewStorage(model.ToStorageParams(), nil)
+		storageParams, storageParamsErr := model.ToStorageParams()
+		require.NoError(t, storageParamsErr)
+		result, err = clickhouse.NewStorage(storageParams, nil)
 	case *chModel.ChDestination:
-		result, err = clickhouse.NewStorage(model.ToStorageParams(), nil)
+		storageParams, storageParamsErr := model.ToStorageParams()
+		require.NoError(t, storageParamsErr)
+		result, err = clickhouse.NewStorage(storageParams, nil)
 	// mysql
 	case mysqlStorage.MysqlSource:
 		result, err = mysqlStorage.NewStorage(model.ToStorageParams())

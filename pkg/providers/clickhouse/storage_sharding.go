@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/schema"
 	"github.com/transferia/transferia/pkg/stats"
@@ -323,11 +324,11 @@ func NewShardedStorage(shards map[string]*Storage) ClickhouseStorage {
 	return &ShardStorage{shards: shards, logger: logger.Log}
 }
 
-func NewShardedFromUrls(shardUrls map[string][]string, config *model.ChStorageParams, transfer *dp_model.Transfer, opts ...StorageOpt) (ClickhouseStorage, error) {
+func NewShardedFromUrls(config *model.ChStorageParams, transfer *dp_model.Transfer, opts ...StorageOpt) (ClickhouseStorage, error) {
 	shards := map[string]*Storage{}
-	allShardsAreSingleHost := slices.IndexFunc(maps.Values(shardUrls),
-		func(hosts []string) bool { return len(hosts) > 1 }) == -1
-	for name := range shardUrls {
+	allShardsAreSingleHost := slices.IndexFunc(maps.Values(config.ConnectionParams.Shards),
+		func(hosts []*clickhouse.Host) bool { return len(hosts) > 1 }) == -1
+	for name := range config.ConnectionParams.Shards {
 		db, err := makeShardConnection(config, name)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to init connection for shard %v: %w", name, err)
@@ -350,7 +351,7 @@ func NewShardedFromUrls(shardUrls map[string][]string, config *model.ChStoragePa
 		}
 		st := WithOpts(&Storage{
 			db:        db,
-			database:  config.Database,
+			database:  config.ConnectionParams.Database,
 			cluster:   config.ChClusterName,
 			bufSize:   config.BufferSize,
 			logger:    logger.Log,

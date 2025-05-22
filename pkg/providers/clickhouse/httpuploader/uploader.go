@@ -87,7 +87,7 @@ func UploadCIBatch(
 	rd := io.TeeReader(q, st)
 
 	stats.UploadStartTime = time.Now()
-	if err := cl.Exec(context.Background(), lgr, *config.Host(), rd); err != nil {
+	if err := cl.Exec(context.Background(), lgr, config.Host(), rd); err != nil {
 		lgr.Error("Unable to insert", log.String("truncated_query", st.Sample()), log.Error(err))
 		return nil, xerrors.Errorf("error executing CH query: %w", err)
 	}

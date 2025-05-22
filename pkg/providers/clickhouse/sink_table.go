@@ -332,7 +332,7 @@ func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
 	t.metrics.Len.Add(int64(len(items)))
 	t.metrics.Count.Inc()
 
-	t.logger.Debugf("Committed %d changeItems (%s) in %v", len(items), *t.config.Host(), time.Since(start))
+	t.logger.Debugf("Committed %d changeItems (%s) in %v", len(items), t.config.Host().Name, time.Since(start))
 	return nil
 }
 

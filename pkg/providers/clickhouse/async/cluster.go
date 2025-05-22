@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/library/go/ptr"
 	"github.com/transferia/transferia/pkg/abstract"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	db_model "github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
@@ -232,7 +233,7 @@ func (s *shardClient) nextHostAddr() string {
 	return s.opts.Addr[s.hostIterator]
 }
 
-func NewShardClient(hosts []string, cp conn.ConnParams, topology *topology2.Topology, lgr log.Logger) (ShardClient, error) {
+func NewShardClient(hosts []*chconn.Host, cp conn.ConnParams, topology *topology2.Topology, lgr log.Logger) (ShardClient, error) {
 	opts, err := conn.GetClickhouseOptions(cp, hosts)
 	if err != nil {
 		return nil, err
@@ -290,7 +291,7 @@ func (c *clusterClient) randomShard() ShardClient {
 	return c.Shard(k)
 }
 
-func NewClusterClient(conn conn.ConnParams, topology *topology2.Topology, shards sharding.ShardMap[[]string], lgr log.Logger) (ClusterClient, error) {
+func NewClusterClient(conn conn.ConnParams, topology *topology2.Topology, shards sharding.ShardMap[[]*chconn.Host], lgr log.Logger) (ClusterClient, error) {
 	clients := make(sharding.ShardMap[ShardClient])
 	for shard, hosts := range shards {
 		cl, err := NewShardClient(hosts, conn, topology, log.With(lgr, log.String("shardID", fmt.Sprint(shard))))
