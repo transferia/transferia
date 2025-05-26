@@ -337,7 +337,7 @@ func (l *SnapshotLoader) UploadTables(ctx context.Context, tables []abstract.Tab
 
 	paralleledRuntime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 
-	if !ok || paralleledRuntime.WorkersNum() <= 1 {
+	if !ok || paralleledRuntime.SnapshotWorkersNum() <= 1 {
 		if err := l.uploadSingle(ctx, tables, updateIncrementalState); err != nil {
 			return xerrors.Errorf("unable to upload tables: %w", err)
 		}
@@ -400,7 +400,7 @@ func (l *SnapshotLoader) NewServicePusher() (abstract.Pusher, *util.Rollbacks, e
 
 func (l *SnapshotLoader) uploadMain(ctx context.Context, tables []abstract.TableDescription, updateIncrementalState bool) error {
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
-	if !ok || runtime.WorkersNum() <= 1 {
+	if !ok || runtime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
 	}
 
@@ -457,13 +457,13 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, tables []abstract.Table
 	}
 
 	// Start load tables on secondary workers
-	if err := l.cp.CreateOperationWorkers(l.operationID, runtime.WorkersNum()); err != nil {
+	if err := l.cp.CreateOperationWorkers(l.operationID, runtime.SnapshotWorkersNum()); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to create operation workers for operation '%v': %w", l.operationID, err)
 	}
 
 	waitErrCh := make(chan error)
 	go func() {
-		waitErrCh <- l.WaitWorkersCompleted(ctx, runtime.WorkersNum())
+		waitErrCh <- l.WaitWorkersCompleted(ctx, runtime.SnapshotWorkersNum())
 	}()
 	joinedErr := func() error {
 		select {
@@ -558,7 +558,7 @@ func (l *SnapshotLoader) startSnapshotIncremental(
 
 func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
-	if !ok || runtime.WorkersNum() <= 1 {
+	if !ok || runtime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
 	}
 

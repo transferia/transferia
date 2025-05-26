@@ -74,8 +74,8 @@ func NewSyncTask(
 			return nil, xerrors.Errorf("unable to start task workflow: %w", err)
 		}
 		rt, ok := transfer.Runtime.(*abstract.LocalRuntime)
-		if ok && rt.WorkersNum() > 1 {
-			for i := 1; i <= rt.WorkersNum(); i++ {
+		if ok && rt.SnapshotWorkersNum() > 1 {
+			for i := 1; i <= rt.SnapshotWorkersNum(); i++ {
 				subTr := st.transfer
 				subTr.Runtime = &abstract.LocalRuntime{
 					Host:       rt.Host,

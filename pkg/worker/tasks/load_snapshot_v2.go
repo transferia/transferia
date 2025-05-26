@@ -169,7 +169,7 @@ func IntersectFilter(transfer *model.Transfer, basic base.DataObjectFilter) (bas
 func (l *SnapshotLoader) UploadV2(ctx context.Context, snapshotProvider base.SnapshotProvider, tables []abstract.TableDescription) error {
 	paralleledRuntime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 
-	if !ok || paralleledRuntime.WorkersNum() <= 1 {
+	if !ok || paralleledRuntime.SnapshotWorkersNum() <= 1 {
 		if err := l.uploadV2Single(ctx, snapshotProvider, tables); err != nil {
 			return xerrors.Errorf("unable to upload tables: %w", err)
 		}
@@ -324,7 +324,7 @@ func (l *SnapshotLoader) uploadV2Sharded(ctx context.Context, snapshotProvider b
 
 func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base.SnapshotProvider, tables []abstract.TableDescription) error {
 	paralleledRuntime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
-	if !ok || paralleledRuntime.WorkersNum() <= 1 {
+	if !ok || paralleledRuntime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
 	}
 
@@ -425,11 +425,11 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		return xerrors.Errorf("unable to start loading tables: %w", err)
 	}
 
-	if err := l.cp.CreateOperationWorkers(l.operationID, paralleledRuntime.WorkersNum()); err != nil {
+	if err := l.cp.CreateOperationWorkers(l.operationID, paralleledRuntime.SnapshotWorkersNum()); err != nil {
 		return xerrors.Errorf("unable to create operation workers for operation '%v': %w", l.operationID, err)
 	}
 
-	if err := l.WaitWorkersCompleted(ctx, paralleledRuntime.WorkersNum()); err != nil {
+	if err := l.WaitWorkersCompleted(ctx, paralleledRuntime.SnapshotWorkersNum()); err != nil {
 		return xerrors.Errorf("unable to wait shard completed: %w", err)
 	}
 
@@ -464,7 +464,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 
 func (l *SnapshotLoader) uploadV2Secondary(ctx context.Context, snapshotProvider base.SnapshotProvider) error {
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
-	if !ok || runtime.WorkersNum() <= 1 {
+	if !ok || runtime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
 	}
 

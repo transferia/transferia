@@ -65,7 +65,7 @@ func MakeSynchronizeEvent() ChangeItem {
 		ID:           0,
 		Kind:         SynchronizeKind,
 		Counter:      0,
-		CommitTime:   0,
+		CommitTime:   uint64(time.Now().UnixNano()),
 		LSN:          0,
 		TableSchema:  nil,
 		ColumnNames:  nil,

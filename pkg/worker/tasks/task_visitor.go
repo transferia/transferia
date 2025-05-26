@@ -202,7 +202,7 @@ func (v runTaskVisitor) PushOperationHealthMeta(t time.Time) {
 
 func Run(ctx context.Context, task model.TransferOperation, command abstract.RunnableTask, cp coordinator.Coordinator, transfer model.Transfer, params interface{}, registry metrics.Registry) error {
 	if _, ok := command.(abstract.ShardableTask); !ok {
-		if rt, ok := transfer.Runtime.(abstract.ShardingTaskRuntime); ok && !rt.IsMain() {
+		if rt, ok := transfer.Runtime.(abstract.ShardingTaskRuntime); ok && !rt.SnapshotIsMain() {
 			logger.Log.Warn("run non sharding task inside sharding runtime secondary worker, will do nothing")
 			return nil
 		}
