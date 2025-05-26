@@ -294,6 +294,8 @@ replace cloud.google.com/go/pubsub => cloud.google.com/go/pubsub v1.30.0
 
 replace go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc => go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.22.0
 
+replace go.temporal.io/api => go.temporal.io/api v1.43.2
+
 replace go.temporal.io/server => go.temporal.io/server v1.26.2
 
 replace go.temporal.io/sdk => go.temporal.io/sdk v1.31.0
