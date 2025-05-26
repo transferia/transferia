@@ -875,7 +875,19 @@ func (s *sink) buildInsertQuery(
 	if err != nil {
 		return "", xerrors.Errorf("unable to get unchanged values: %w", err)
 	}
-	colsToUpdate := len(row.ColumnNames) - len(generatedCols) - len(unchangedCols)
+
+	totalColNumber := len(row.ColumnNames)
+	generatedColNumber := len(generatedCols)
+	unchangedColNumber := len(unchangedCols)
+	colsToUpdate := totalColNumber - generatedColNumber - unchangedColNumber
+
+	// This may happen if postgresql update doesn't actually change anything (it is still present in WAL though) and per transaction push is enabled
+	if colsToUpdate == 0 {
+		return "", nil
+	} else if colsToUpdate < 0 {
+		return "", xerrors.Errorf("unexpected negative number of columns to update for table %s, got %d total columns, %d is generated and %d unchanged",
+			table, totalColNumber, generatedColNumber, unchangedColNumber)
+	}
 	values := make([]string, colsToUpdate)
 	colNames := make([]string, colsToUpdate)
 	iEC := 0

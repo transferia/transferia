@@ -79,11 +79,10 @@ type Provider struct {
 }
 
 func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) error {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return xerrors.Errorf("error getting src params from transfer: %w", err)
 	}
-	p.fillParams(src)
 	if p.transfer.SnapshotOnly() {
 		return nil
 	}
@@ -100,15 +99,15 @@ func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) e
 }
 
 func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation) error {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
-	}
 	if p.transfer.SnapshotOnly() {
 		return nil
 	}
 
-	p.fillParams(src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return xerrors.Errorf("error getting src params from transfer: %w", err)
+	}
+
 	tracker := NewTracker(p.transfer.ID, p.cp)
 	if err := DropReplicationSlot(src, tracker); err != nil {
 		return xerrors.Errorf("Unable to drop replication slot: %w", err)
@@ -127,11 +126,10 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 }
 
 func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, tables abstract.TableMap, callbacks providers.ActivateCallbacks) error {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return xerrors.Errorf("error getting src params from transfer: %w", err)
 	}
-	p.fillParams(src)
 	if err := VerifyPostgresTables(src, p.transfer, p.logger); err != nil {
 		if IsPKeyCheckError(err) {
 			if !p.transfer.SnapshotOnly() {
@@ -207,11 +205,10 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 }
 
 func (p *Provider) Verify(ctx context.Context) error {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return xerrors.Errorf("error getting src snapshot sink params from transfer: %w", err)
 	}
-	p.fillParams(src)
 	if src.SubNetworkID != "" {
 		return xerrors.New("unable to verify derived network")
 	}
@@ -235,53 +232,49 @@ func (p *Provider) Verify(ctx context.Context) error {
 	return nil
 }
 
-func (p *Provider) Sink(mwConfig middlewares.Config) (abstract.Sinker, error) {
-	dst, ok := p.transfer.Dst.(*PgDestination)
+func (p *Provider) dstParamsFromTransfer() (*PgDestination, error) {
+	transferDst, ok := p.transfer.Dst.(*PgDestination)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Dst)
 	}
-
-	isHomo := p.transfer.SrcType() == ProviderType
-	if !isHomo && !dst.MaintainTables {
+	// prevent accidental transfer params mutation as it may break tests
+	dst := *transferDst
+	if p.transfer.SrcType() != ProviderType {
 		dst.MaintainTables = true
 	}
-	s, err := NewSink(p.logger, p.transfer.ID, dst.ToSinkParams(), p.registry)
+	dst.CopyUpload = false
+	return &dst, nil
+}
+
+func (p *Provider) Sink(mwConfig middlewares.Config) (abstract.Sinker, error) {
+	dst, err := p.dstParamsFromTransfer()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create PostgreSQL sinker: %w", err)
+		return nil, xerrors.Errorf("error getting dst sink params from transfer: %w", err)
 	}
-	return s, nil
+	return NewSink(p.logger, p.transfer.ID, dst.ToSinkParams(), p.registry)
 }
 
 func (p *Provider) SnapshotSink(mwConfig middlewares.Config) (abstract.Sinker, error) {
-	dst, ok := p.transfer.Dst.(*PgDestination)
-	if !ok {
-		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Dst)
+	dst, err := p.dstParamsFromTransfer()
+	if err != nil {
+		return nil, xerrors.Errorf("error getting dst snapshot sink params from transfer: %w", err)
 	}
-
-	dst.PerTransactionPush = false
-	return p.Sink(mwConfig)
+	if p.transfer.SrcType() == ProviderType {
+		dst.CopyUpload = true
+	}
+	dst.PerTransactionPush = false // should be always disabled for snapshot stage
+	return NewSink(p.logger, p.transfer.ID, dst.ToSinkParams(), p.registry)
 }
 
 func (p *Provider) Source() (abstract.Source, error) {
-	s, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	s, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return nil, xerrors.Errorf("error getting source params from transfer: %w", err)
 	}
-	p.fillParams(s)
-	var src abstract.Source
 	st := stats.NewSourceStats(p.registry)
-	if err := backoff.Retry(func() error {
-		if source, err := NewSourceWrapper(s, p.transfer.ID, p.transfer.DataObjects, p.logger, st, p.cp, false); err != nil {
-			p.logger.Error("unable to init", log.Error(err))
-			return xerrors.Errorf("unable to create new pg source: %w", err)
-		} else {
-			src = source
-		}
-		return nil
-	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 3)); err != nil {
-		return nil, err
-	}
-	return src, nil
+	return backoff.RetryNotifyWithData(func() (abstract.Source, error) {
+		return NewSourceWrapper(s, p.transfer.ID, p.transfer.DataObjects, p.logger, st, p.cp, false)
+	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 3), util.BackoffLoggerWarn(p.logger, "unable to init pg source"))
 }
 
 // Build a type mapping and print elapsed time in log.
@@ -295,11 +288,10 @@ func buildTypeMapping(ctx context.Context, storage *Storage) (TypeNameToOIDMap, 
 }
 
 func (p *Provider) Storage() (abstract.Storage, error) {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return nil, xerrors.Errorf("error getting src storage params from transfer: %w", err)
 	}
-	p.fillParams(src)
 	opts := []StorageOpt{WithMetrics(p.registry)}
 	pgDst, ok := p.transfer.Dst.(*PgDestination)
 	if ok {
@@ -326,7 +318,13 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	return storage, nil
 }
 
-func (p *Provider) fillParams(src *PgSource) {
+func (p *Provider) srcParamsFromTransfer() (*PgSource, error) {
+	transferSrc, ok := p.transfer.Src.(*PgSource)
+	if !ok {
+		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	}
+	// prevent accidental transfer params mutation as it may break tests
+	src := *transferSrc
 	if src.SlotID == "" {
 		src.SlotID = p.transfer.ID
 	}
@@ -336,13 +334,13 @@ func (p *Provider) fillParams(src *PgSource) {
 	if src.NoHomo {
 		src.IsHomo = false
 	}
+	return &src, nil
 }
 
 func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abstract.TableDescription, error) {
-	src, ok := p.transfer.Src.(*PgSource)
-	p.fillParams(src)
-	if !ok {
-		return nil, nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return nil, nil, xerrors.Errorf("error getting src sampleable storage params from transfer: %w", err)
 	}
 	srcStorage, err := NewStorage(src.ToStorageParams(p.transfer))
 	if err != nil {

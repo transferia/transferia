@@ -1692,7 +1692,6 @@
   "pkg/providers/postgres/pgrecipe/postgres_recipe.go":"transfer_manager/go/pkg/providers/postgres/pgrecipe/postgres_recipe.go",
   "pkg/providers/postgres/postgres_keywords.txt":"transfer_manager/go/pkg/providers/postgres/postgres_keywords.txt",
   "pkg/providers/postgres/provider.go":"transfer_manager/go/pkg/providers/postgres/provider.go",
-  "pkg/providers/postgres/provider_test.go":"transfer_manager/go/pkg/providers/postgres/provider_test.go",
   "pkg/providers/postgres/publisher.go":"transfer_manager/go/pkg/providers/postgres/publisher.go",
   "pkg/providers/postgres/publisher_polling.go":"transfer_manager/go/pkg/providers/postgres/publisher_polling.go",
   "pkg/providers/postgres/publisher_replication.go":"transfer_manager/go/pkg/providers/postgres/publisher_replication.go",

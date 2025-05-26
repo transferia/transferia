@@ -10,7 +10,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"go.uber.org/zap/zapcore"
@@ -78,15 +77,13 @@ func ActivateWithCP(transfer *model.Transfer, cp coordinator.Coordinator) (*Work
 		worker: nil,
 		cp:     cp,
 	}
+
 	err := tasks.ActivateDelivery(context.Background(), nil, result.cp, *transfer, EmptyRegistry())
 	if err != nil {
 		return nil, err
 	}
 
 	if transfer.Type == abstract.TransferTypeSnapshotAndIncrement || transfer.Type == abstract.TransferTypeIncrementOnly {
-		if pgDst, ok := transfer.Dst.(*postgres.PgDestination); ok {
-			pgDst.CopyUpload = false
-		}
 		result.initLocalWorker(transfer)
 		result.worker.Start()
 	}

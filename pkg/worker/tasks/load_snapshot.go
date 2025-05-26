@@ -142,14 +142,8 @@ func (l *SnapshotLoader) endpointsPreSnapshotActions(sourceStorage abstract.Stor
 		specificStorage.SetWorkersCount(l.parallelismParams.JobCount)
 	}
 
-	switch dst := l.transfer.Dst.(type) {
-	case *postgres.PgDestination:
-		if _, ok := sourceStorage.(*postgres.Storage); ok {
-			dst.CopyUpload = true
-		}
-		dst.PerTransactionPush = false
-	case model.HackableTarget:
-		defer dst.PreSnapshotHacks()
+	if dst, ok := l.transfer.Dst.(model.HackableTarget); ok {
+		dst.PreSnapshotHacks()
 	}
 }
 

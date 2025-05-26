@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
@@ -66,24 +65,34 @@ func Load(t *testing.T) {
 
 	st, err := postgres.NewStorage(Source.ToStorageParams(nil))
 	require.NoError(t, err)
+	defer st.Close()
 	_, err = st.Conn.Exec(context.Background(), "delete from __test where id > 10")
 	require.NoError(t, err)
-	defer st.Close()
 
 	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 180*time.Second))
 
 	//-----------------------------------------------------------------------------------------------------------------
 
-	addData(t, st.Conn)
+	conn := st.Conn
+
+	_, err = conn.Exec(context.Background(), "INSERT INTO trash (title) VALUES ('xyz');")
+	require.NoError(t, err)
+	_, err = conn.Exec(context.Background(), "INSERT INTO pkey_only (key1, key2) VALUES ('bar', 'baz');")
+	require.NoError(t, err)
+	// Real update changing value
+	_, err = conn.Exec(context.Background(), "UPDATE pkey_only SET key2 = 'barbar' WHERE key1 = 'foo';")
+	require.NoError(t, err)
 
 	helpers.CheckRowsCount(t, Source, "public", "trash", 1)
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 180*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
-}
+	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "trash", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 180*time.Second))
 
-func addData(t *testing.T, conn *pgxpool.Pool) {
-	_, err := conn.Exec(context.Background(), "INSERT INTO trash (title) VALUES ('xyz');")
+	// "Fake" update, does not change anything in DB but is present in WAL
+	_, err = conn.Exec(context.Background(), "UPDATE pkey_only SET key2 = 'baz' WHERE key1 = 'bar';")
 	require.NoError(t, err)
+
 	_, err = conn.Exec(context.Background(), "INSERT INTO __test (id, title) VALUES (11, 'abc'), (12, 'def');")
 	require.NoError(t, err)
+
+	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 180*time.Second))
+	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
 }
