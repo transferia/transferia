@@ -32,7 +32,6 @@ type sink struct {
 	logger                log.Logger
 	metrics               metrics.Registry
 	transferID            string
-	runtime               abstract.Runtime
 	sharder               sharding.Sharder
 	shardMap              sharding.ShardMap[*lazySinkShard]
 }
@@ -148,7 +147,12 @@ func (s *sink) rotate() error {
 	return nil
 }
 
-func newSinkImpl(transfer *dp_model.Transfer, config model.ChSinkParams, logger log.Logger, metrics metrics.Registry, runtime abstract.Runtime) (*sink, error) {
+func newSinkImpl(
+	transfer *dp_model.Transfer,
+	config model.ChSinkParams,
+	logger log.Logger,
+	metrics metrics.Registry,
+) (*sink, error) {
 	topology, err := topology2.ResolveTopology(config, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error resolving cluster topology: %w", err)
@@ -186,7 +190,6 @@ func newSinkImpl(transfer *dp_model.Transfer, config model.ChSinkParams, logger 
 		logger:                logger,
 		metrics:               metrics,
 		transferID:            transfer.ID,
-		runtime:               runtime,
 		sharder:               sharding.CHSharder(config, transfer.ID),
 		shardMap:              shardMap,
 	}
@@ -198,7 +201,12 @@ func newSinkImpl(transfer *dp_model.Transfer, config model.ChSinkParams, logger 
 	return result, nil
 }
 
-func NewSink(transfer *dp_model.Transfer, logger log.Logger, metrics metrics.Registry, runtime abstract.Runtime, middlewaresConfig middlewares.Config) (abstract.Sinker, error) {
+func NewSink(
+	transfer *dp_model.Transfer,
+	logger log.Logger,
+	metrics metrics.Registry,
+	middlewaresConfig middlewares.Config,
+) (abstract.Sinker, error) {
 	dst, ok := transfer.Dst.(*model.ChDestination)
 	if !ok {
 		panic("expected ClickHouse destination in ClickHouse sink constructor")
@@ -208,7 +216,7 @@ func NewSink(transfer *dp_model.Transfer, logger log.Logger, metrics metrics.Reg
 		return nil, xerrors.Errorf("failed to resolve sink params: %w", err)
 	}
 
-	uncasted, err := newSinkImpl(transfer, params, logger, metrics, runtime)
+	uncasted, err := newSinkImpl(transfer, params, logger, metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create pure ClickHouse sink: %w", err)
 	}

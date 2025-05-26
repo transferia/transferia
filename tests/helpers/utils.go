@@ -79,6 +79,14 @@ func MakeTransfer(transferID string, src model.Source, dst model.Destination, tr
 		Type: transferType,
 		Src:  src,
 		Dst:  dst,
+		Runtime: &abstract.LocalRuntime{
+			Host:       "localhost",
+			CurrentJob: 0,
+			ShardingUpload: abstract.ShardUploadParams{
+				JobCount:     1,
+				ProcessCount: 1,
+			},
+		},
 	}
 	transfer.FillDependentFields()
 	// fill dependent fields on drugs

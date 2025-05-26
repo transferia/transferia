@@ -64,7 +64,7 @@ func (p *Provider) Target(options ...abstract.SinkOption) (base.EventTarget, err
 }
 
 func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
-	s, err := NewSink(p.transfer, p.logger, p.registry, p.transfer.Runtime, config)
+	s, err := NewSink(p.transfer, p.logger, p.registry, config)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create ClickHouse sinker: %w", err)
 	}
