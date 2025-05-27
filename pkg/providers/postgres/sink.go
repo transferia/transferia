@@ -554,7 +554,7 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 					return err
 				}
 			}
-		case abstract.InitShardedTableLoad:
+		case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad, abstract.SynchronizeKind:
 			// not needed for now
 		case abstract.InitTableLoad, abstract.DoneTableLoad:
 			if s.config.PerTransactionPush() {
@@ -568,8 +568,6 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 					return err
 				}
 			}
-		case abstract.DoneShardedTableLoad:
-			// not needed for now
 		case abstract.InsertKind, abstract.UpdateKind, abstract.DeleteKind:
 			batches[item.PgName()] = append(batches[item.PgName()], item)
 		default:

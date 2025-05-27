@@ -40,20 +40,20 @@ func (s *sink) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	errors := util.NewErrs()
+	result := util.NewErrs()
 
 	for i, ls := range s.shardMap {
 		sink := ls.SinkIfInitialized()
 		if sink != nil {
 			if err := sink.Close(); err != nil {
-				errors = util.AppendErr(errors, xerrors.Errorf("failed to close shard %d: %w", i, err))
+				result = util.AppendErr(result, xerrors.Errorf("failed to close shard %d: %w", i, err))
 			}
 		}
 	}
 	s.closed = true
 
-	if len(errors) > 0 {
-		return errors
+	if len(result) > 0 {
+		return result
 	}
 	return nil
 }

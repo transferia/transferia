@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -54,15 +53,15 @@ func NewWrapperStats(registry metrics.Registry) *WrapperStats {
 	}
 }
 
-func (s *WrapperStats) LogMaxReadLag(input []abstract.ChangeItem) {
-	oldestRow, _, _, _ := s.batchStats(input)
+func (s *WrapperStats) LogMaxReadLag(logger log.Logger, input []abstract.ChangeItem) {
+	oldestRow, _, _, _ := batchStats(logger, input)
 	if !oldestRow.IsZero() {
 		s.MaxReadLag.Set(time.Since(oldestRow).Seconds())
 	}
 }
 
 func (s *WrapperStats) Log(logger log.Logger, startTime time.Time, input []abstract.ChangeItem, isDebugLog bool) {
-	oldestRow, freshestRow, dataRowEvents, inflighBytes := s.batchStats(input)
+	oldestRow, freshestRow, dataRowEvents, inflighBytes := batchStats(logger, input)
 	for _, row := range input {
 		if row.IsRowEvent() {
 			s.Lag.RecordDuration(time.Since(time.Unix(0, int64(row.CommitTime))))
@@ -102,38 +101,4 @@ func (s *WrapperStats) Log(logger log.Logger, startTime time.Time, input []abstr
 			log.Any("lag", time.Since(freshestRow).Seconds()),
 		)
 	}
-}
-
-func (s *WrapperStats) batchStats(input []abstract.ChangeItem) (oldest time.Time, freshest time.Time, rowEvents int64, bytes uint64) {
-	oldest = time.Time{}
-	freshest = time.Time{}
-	itemsWithoutCommitTime := 0
-	for _, item := range input {
-		if !item.IsRowEvent() {
-			continue
-		}
-		bytes += item.Size.Values
-		rowEvents++
-		rowTime := time.Unix(0, int64(item.CommitTime))
-		if item.CommitTime == 0 {
-			itemsWithoutCommitTime++
-			rowTime = time.Now()
-		}
-		if oldest.IsZero() && freshest.IsZero() {
-			// Init oldest and freshest.
-			oldest = rowTime
-			freshest = rowTime
-			continue
-		}
-		if oldest.Before(rowTime) {
-			oldest = rowTime
-		}
-		if freshest.After(rowTime) {
-			freshest = rowTime
-		}
-	}
-	if itemsWithoutCommitTime > 0 {
-		logger.Log.Infof("%d of %d row-items have no CommitTime", itemsWithoutCommitTime, rowEvents)
-	}
-	return oldest, freshest, rowEvents, bytes
 }
