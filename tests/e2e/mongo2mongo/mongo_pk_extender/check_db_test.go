@@ -20,384 +20,420 @@ import (
 )
 
 var (
-	TransferType = abstract.TransferTypeIncrementOnly
-	Source       = *mongodataagent.RecipeSource(
-		mongodataagent.WithCollections(
-			mongodataagent.MongoCollection{DatabaseName: "db", CollectionName: "timmyb32r_test"}))
-	Target = *mongodataagent.RecipeTarget(mongodataagent.WithPrefix("DB0_"))
+	CollectionName = "issues"
+	CommonDbName   = "common"
+	FirstDbName    = "first"
+	SecondDbName   = "second"
 )
 
-func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-}
+func initEndpoints(t *testing.T, source *mongodataagent.MongoSource, target *mongodataagent.MongoDestination) (*mongodataagent.MongoClientWrapper, *mongodataagent.MongoClientWrapper) {
+	_ = os.Setenv("YC", "1")
 
-//---------------------------------------------------------------------------------------------------------------------
-// utils
-
-func MakeDstClient(t *mongodataagent.MongoDestination) (*mongodataagent.MongoClientWrapper, error) {
-	return mongodataagent.Connect(context.Background(), t.ConnectionOptions([]string{}), nil)
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-
-func TestGroup(t *testing.T) {
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: Target.Port},
+			helpers.LabeledPort{Label: "Mongo source", Port: source.Port},
+			helpers.LabeledPort{Label: "Mongo target", Port: target.Port},
 		))
 	}()
 
-	t.Run("Group after port check", func(t *testing.T) {
-		t.Run("ExtendSimplePK", ExtendSimplePK)
-		t.Run("ExtendCompositePK", ExtendCompositePK)
-		t.Run("CollapseToCompositePK", CollapseToCompositePK)
-		t.Run("CollapseToSimplePK", CollapseToSimplePK)
-	})
+	srcClient, err := mongodataagent.Connect(context.Background(), source.ConnectionOptions([]string{}), nil)
+	require.NoError(t, err)
+
+	targetClient, err := mongodataagent.Connect(context.Background(), target.ConnectionOptions([]string{}), nil)
+	require.NoError(t, err)
+
+	return srcClient, targetClient
 }
 
-func ExtendSimplePK(t *testing.T) {
-	client, err := mongodataagent.Connect(context.Background(), Source.ConnectionOptions([]string{}), nil)
+func runTransfer(t *testing.T, source *mongodataagent.MongoSource, target *mongodataagent.MongoDestination, expand bool) *local.LocalWorker {
+	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+
+	transformer, err := mongo_pk_extender.NewMongoPKExtenderTransformer(
+		mongo_pk_extender.Config{
+			Expand:              expand,
+			DiscriminatorField:  "orgId",
+			DiscriminatorValues: []mongo_pk_extender.SchemaDiscriminator{{Schema: FirstDbName, Value: "24"}, {Schema: SecondDbName, Value: "81"}},
+			Tables: filter.Tables{
+				ExcludeTables: []string{mongodataagent.ClusterTimeCollName},
+			},
+		},
+		logger.Log,
+	)
 	require.NoError(t, err)
-	defer func() { _ = client.Close(context.Background()) }()
+	helpers.AddTransformer(t, transfer, transformer)
 
-	//------------------------------------------------------------------------------------
-	// insert one record
+	err = tasks.ActivateDelivery(context.TODO(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	require.NoError(t, err)
 
-	db := client.Database("db")
+	localWorker := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker.Start()
+	return localWorker
+}
+
+func Test_Group(t *testing.T) {
+	t.Run("SimpleFromMultipleToCommon", SimpleFromMultipleToCommon)
+	t.Run("SimpleFromCommonToMultiple", SimpleFromCommonToMultiple)
+	t.Run("CompositeFromMultipleToCommon", CompositeFromMultipleToCommon)
+	t.Run("CompositeFromCommonToMultiple", CompositeFromCommonToMultiple)
+}
+
+func SimpleFromMultipleToCommon(t *testing.T) {
+	var (
+		Source = *mongodataagent.RecipeSource(
+			mongodataagent.WithCollections(
+				mongodataagent.MongoCollection{DatabaseName: FirstDbName, CollectionName: CollectionName},
+				mongodataagent.MongoCollection{DatabaseName: SecondDbName, CollectionName: CollectionName}))
+		Target = *mongodataagent.RecipeTarget(
+			mongodataagent.WithPrefix("DB0_"),
+			mongodataagent.WithDatabase(CommonDbName),
+		)
+	)
+
+	srcClient, targetClient := initEndpoints(t, &Source, &Target)
 	defer func() {
-		// clear collection in the end (for local debug)
-		_ = db.Collection("timmyb32r_test").Drop(context.Background())
+		_ = srcClient.Close(context.Background())
+		_ = targetClient.Close(context.Background())
 	}()
-	err = db.CreateCollection(context.Background(), "timmyb32r_test")
-	require.NoError(t, err)
 
-	coll := db.Collection("timmyb32r_test")
+	db1 := srcClient.Database(FirstDbName)
+	db1Coll := db1.Collection(CollectionName)
 
-	type Actor struct {
-		Name string
-		Age  int
-		City string
+	db2 := srcClient.Database(SecondDbName)
+	db2Coll := db2.Collection(CollectionName)
+
+	defer func() {
+		_ = db1Coll.Drop(context.Background())
+		_ = db2Coll.Drop(context.Background())
+	}()
+
+	var err error
+
+	// insert initial data
+	{
+		err = db1.CreateCollection(context.Background(), CollectionName)
+		require.NoError(t, err)
+
+		err = db2.CreateCollection(context.Background(), CollectionName)
+		require.NoError(t, err)
+
+		_, err = db1Coll.InsertOne(context.Background(), bson.D{{Key: "queue", Value: "SUPPORT"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
+
+		_, err = db1Coll.InsertOne(context.Background(), bson.D{{Key: "queue", Value: "SUPPORT"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
+
+		_, err = db2Coll.InsertOne(context.Background(), bson.D{{Key: "queue", Value: "DEVELOP"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
+
+		_, err = db2Coll.InsertOne(context.Background(), bson.D{{Key: "queue", Value: "DEVELOP"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
 	}
 
-	_, err = coll.InsertOne(context.Background(), Actor{Name: "Daniel Craig", Age: 47, City: "Chester, England"})
-	require.NoError(t, err)
+	worker := runTransfer(t, &Source, &Target, true)
+	defer func(worker *local.LocalWorker) {
+		_ = worker.Stop()
+	}(worker)
 
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "Daniel Craig"}, bson.M{"$set": bson.M{"age": 57}})
-	require.NoError(t, err)
+	// update while replicating
+	{
+		_, err = db1Coll.InsertOne(context.Background(), bson.D{{Key: "queue", Value: "SERVICE"}, {Key: "number", Value: 4}})
+		require.NoError(t, err)
 
-	_, err = coll.InsertOne(context.Background(), Actor{Name: "Ryan Gosling", Age: 44, City: "London, Ontario"})
-	require.NoError(t, err)
+		_, err = db1Coll.UpdateOne(context.Background(), bson.M{"queue": "SUPPORT", "number": 1}, bson.M{"$set": bson.M{"queue": "JUNK"}})
+		require.NoError(t, err)
 
-	//------------------------------------------------------------------------------------
-	// start worker
+		_, err = db2Coll.DeleteOne(context.Background(), bson.M{"queue": "DEVELOP", "number": 1})
+		require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
+		_, err = db2Coll.InsertOne(context.Background(), bson.D{{Key: "queue", Value: "SERVICE"}, {Key: "number", Value: 5}})
+		require.NoError(t, err)
+	}
 
-	transformer, err := mongo_pk_extender.NewMongoPKExtenderTransformer(
-		mongo_pk_extender.Config{
-			Expand:          true,
-			ExtraFieldName:  "orgId",
-			ExtraFieldValue: "42",
-			Tables: filter.Tables{
-				ExcludeTables: []string{"__dt_cluster_time"},
-			},
-		},
-		logger.Log,
-	)
-	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
+	// check
+	{
+		require.NoError(t, helpers.WaitDestinationEqualRowsCount(CommonDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), 2*time.Minute, 5))
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
+		targetColl := targetClient.Database(CommonDbName).Collection(CollectionName)
+		defer func() {
+			_ = targetColl.Drop(context.Background())
+		}()
 
-	localWorker := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
-	localWorker.Start()
-	defer localWorker.Stop() //nolint
+		db1rowsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.orgId": 24})
+		require.NoError(t, err)
+		require.Equal(t, int64(3), db1rowsCount)
 
-	//------------------------------------------------------------------------------------
-	// check results
-
-	_, err = coll.InsertOne(context.Background(), Actor{Name: "Tom Holland", Age: 38, City: "London, England"})
-	require.NoError(t, err)
-
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "Tom Holland"}, bson.M{"$set": bson.M{"age": 28}})
-	require.NoError(t, err)
-
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "Ryan Gosling"}, bson.M{"$set": bson.M{"age": 66}})
-	require.NoError(t, err)
-
-	_, err = coll.DeleteOne(context.Background(), bson.M{"name": "Daniel Craig"})
-	require.NoError(t, err)
-
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "db", "timmyb32r_test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-
-	targetClient, err := MakeDstClient(&Target)
-	require.NoError(t, err)
-
-	defer func() { _ = targetClient.Close(context.Background()) }()
-
-	targetColl := targetClient.Database("db").Collection("timmyb32r_test")
-
-	deletedDocumentCount, err := targetColl.CountDocuments(context.Background(), bson.M{"name": "Daniel Craig"})
-	require.NoError(t, err)
-	require.Equal(t, int64(1), deletedDocumentCount)
-
-	compositePKdocumentsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.orgId": 42})
-	require.NoError(t, err)
-	require.Equal(t, int64(2), compositePKdocumentsCount)
+		db2rowsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.orgId": 81})
+		require.NoError(t, err)
+		require.Equal(t, int64(2), db2rowsCount)
+	}
 }
 
-func ExtendCompositePK(t *testing.T) {
-	client, err := mongodataagent.Connect(context.Background(), Source.ConnectionOptions([]string{}), nil)
-	require.NoError(t, err)
-	defer func() { _ = client.Close(context.Background()) }()
-
-	//------------------------------------------------------------------------------------
-	// insert one record
-
-	db := client.Database("db")
-	defer func() {
-		// clear collection in the end (for local debug)
-		_ = db.Collection("timmyb32r_test").Drop(context.Background())
-	}()
-	err = db.CreateCollection(context.Background(), "timmyb32r_test")
-	require.NoError(t, err)
-
-	coll := db.Collection("timmyb32r_test")
-
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "car"}}}, {Key: "name", Value: "Opel"}, {Key: "power", Value: 100}})
-	require.NoError(t, err)
-
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "bike"}}}, {Key: "name", Value: "Yamaha"}, {Key: "power", Value: 250}})
-	require.NoError(t, err)
-
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "Opel"}, bson.M{"$set": bson.M{"power": 105}})
-	require.NoError(t, err)
-
-	//------------------------------------------------------------------------------------
-	// start worker
-
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
-
-	transformer, err := mongo_pk_extender.NewMongoPKExtenderTransformer(
-		mongo_pk_extender.Config{
-			Expand:          true,
-			ExtraFieldName:  "orgId",
-			ExtraFieldValue: "42",
-			Tables: filter.Tables{
-				ExcludeTables: []string{"__dt_cluster_time"},
-			},
-		},
-		logger.Log,
+func SimpleFromCommonToMultiple(t *testing.T) {
+	var (
+		Source = *mongodataagent.RecipeSource(
+			mongodataagent.WithCollections(
+				mongodataagent.MongoCollection{DatabaseName: CommonDbName, CollectionName: CollectionName}))
+		Target = *mongodataagent.RecipeTarget(
+			mongodataagent.WithPrefix("DB0_"),
+		)
 	)
-	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
+	srcClient, targetClient := initEndpoints(t, &Source, &Target)
+	defer func() {
+		_ = srcClient.Close(context.Background())
+		_ = targetClient.Close(context.Background())
+	}()
 
-	localWorker := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
-	localWorker.Start()
-	defer localWorker.Stop() //nolint
+	srcDb := srcClient.Database(CommonDbName)
+	srcColl := srcDb.Collection(CollectionName)
+	defer func() {
+		_ = srcColl.Drop(context.Background())
+	}()
 
-	//------------------------------------------------------------------------------------
-	// check results
+	var err error
 
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "id", Value: 2}, {Key: "category", Value: "car"}}}, {Key: "name", Value: "Porsche"}, {Key: "power", Value: 200}})
-	require.NoError(t, err)
+	// insert initial data
+	{
+		err = srcDb.CreateCollection(context.Background(), CollectionName)
+		require.NoError(t, err)
 
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "Yamaha"}, bson.M{"$set": bson.M{"power": 333}})
-	require.NoError(t, err)
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 24}, {Key: "id", Value: 1}}}, {Key: "queue", Value: "SUPPORT"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	_, err = coll.DeleteOne(context.Background(), bson.M{"name": "Opel"})
-	require.NoError(t, err)
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 24}, {Key: "id", Value: 2}}}, {Key: "queue", Value: "SUPPORT"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "db", "timmyb32r_test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 81}, {Key: "id", Value: 1}}}, {Key: "queue", Value: "DEVELOP"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	targetClient, err := MakeDstClient(&Target)
-	require.NoError(t, err)
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 81}, {Key: "id", Value: 2}}}, {Key: "queue", Value: "DEVELOP"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
 
-	defer func() { _ = targetClient.Close(context.Background()) }()
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 666}, {Key: "id", Value: 1}}}, {Key: "queue", Value: "INVALID"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	targetColl := targetClient.Database("db").Collection("timmyb32r_test")
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 666}, {Key: "id", Value: 2}}}, {Key: "queue", Value: "INVALID"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
+	}
 
-	deletedDocumentCount, err := targetColl.CountDocuments(context.Background(), bson.M{"name": "Opel"})
-	require.NoError(t, err)
-	require.Equal(t, int64(1), deletedDocumentCount)
+	worker := runTransfer(t, &Source, &Target, false)
+	defer func(worker *local.LocalWorker) {
+		_ = worker.Stop()
+	}(worker)
 
-	compositePKdocumentsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.orgId": 42})
-	require.NoError(t, err)
-	require.Equal(t, int64(2), compositePKdocumentsCount)
+	// update while replicating
+	{
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 24}, {Key: "id", Value: 3}}}, {Key: "queue", Value: "SERVICE"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	carsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.id.category": "car"})
-	require.NoError(t, err)
-	require.Equal(t, int64(1), carsCount)
+		_, err = srcColl.UpdateOne(context.Background(), bson.M{"queue": "SUPPORT", "number": 1}, bson.M{"$set": bson.M{"queue": "JUNK"}})
+		require.NoError(t, err)
+
+		_, err = srcColl.DeleteOne(context.Background(), bson.M{"queue": "DEVELOP", "number": 1})
+		require.NoError(t, err)
+
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 81}, {Key: "id", Value: 3}}}, {Key: "queue", Value: "SERVICE"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
+	}
+
+	// check
+	{
+		require.NoError(t, helpers.WaitDestinationEqualRowsCount(FirstDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 3))
+		require.NoError(t, helpers.WaitDestinationEqualRowsCount(SecondDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 2))
+
+		db1SimpleColl := targetClient.Database(FirstDbName).Collection(CollectionName)
+		db2SimpleColl := targetClient.Database(SecondDbName).Collection(CollectionName)
+		defer func() {
+			_ = db1SimpleColl.Drop(context.Background())
+			_ = db2SimpleColl.Drop(context.Background())
+		}()
+
+		db1rowsCount, err := db1SimpleColl.CountDocuments(context.Background(), bson.M{"_id.orgId": bson.M{"$exists": true}})
+		require.NoError(t, err)
+		require.Equal(t, int64(0), db1rowsCount)
+
+		db2rowsCount, err := db2SimpleColl.CountDocuments(context.Background(), bson.M{"_id.orgId": bson.M{"$exists": true}})
+		require.NoError(t, err)
+		require.Equal(t, int64(0), db2rowsCount)
+	}
 }
 
-func CollapseToCompositePK(t *testing.T) {
-	client, err := mongodataagent.Connect(context.Background(), Source.ConnectionOptions([]string{}), nil)
-	require.NoError(t, err)
-	defer func() { _ = client.Close(context.Background()) }()
-
-	//------------------------------------------------------------------------------------
-	// insert one record
-
-	db := client.Database("db")
-	defer func() {
-		// clear collection in the end (for local debug)
-		_ = db.Collection("timmyb32r_test").Drop(context.Background())
-	}()
-	err = db.CreateCollection(context.Background(), "timmyb32r_test")
-	require.NoError(t, err)
-
-	coll := db.Collection("timmyb32r_test")
-
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 42}, {Key: "id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "car"}}}}}, {Key: "name", Value: "Porsche"}, {Key: "power", Value: 200}})
-	require.NoError(t, err)
-
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 42}, {Key: "id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "bike"}}}}}, {Key: "name", Value: "Yamaha"}, {Key: "power", Value: 250}})
-	require.NoError(t, err)
-
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "Porsche"}, bson.M{"$set": bson.M{"power": 300}})
-	require.NoError(t, err)
-
-	//------------------------------------------------------------------------------------
-	// start worker
-
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
-
-	transformer, err := mongo_pk_extender.NewMongoPKExtenderTransformer(
-		mongo_pk_extender.Config{
-			Expand:          false,
-			ExtraFieldName:  "orgId",
-			ExtraFieldValue: "42",
-			Tables: filter.Tables{
-				ExcludeTables: []string{"__dt_cluster_time"},
-			},
-		},
-		logger.Log,
+func CompositeFromMultipleToCommon(t *testing.T) {
+	var (
+		Source = *mongodataagent.RecipeSource(
+			mongodataagent.WithCollections(
+				mongodataagent.MongoCollection{DatabaseName: FirstDbName, CollectionName: CollectionName},
+				mongodataagent.MongoCollection{DatabaseName: SecondDbName, CollectionName: CollectionName}))
+		Target = *mongodataagent.RecipeTarget(
+			mongodataagent.WithPrefix("DB0_"),
+			mongodataagent.WithDatabase(CommonDbName),
+		)
 	)
-	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
+	srcClient, targetClient := initEndpoints(t, &Source, &Target)
+	defer func() {
+		_ = srcClient.Close(context.Background())
+		_ = targetClient.Close(context.Background())
+	}()
 
-	localWorker := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
-	localWorker.Start()
-	defer localWorker.Stop() //nolint
+	db1 := srcClient.Database(FirstDbName)
+	db1Coll := db1.Collection(CollectionName)
 
-	//------------------------------------------------------------------------------------
-	// check results
+	db2 := srcClient.Database(SecondDbName)
+	db2Coll := db2.Collection(CollectionName)
 
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 42}, {Key: "id", Value: bson.D{{Key: "id", Value: 2}, {Key: "category", Value: "car"}}}}}, {Key: "name", Value: "BMW"}, {Key: "power", Value: 400}})
-	require.NoError(t, err)
+	defer func() {
+		_ = db1.Collection(CollectionName).Drop(context.Background())
+		_ = db2.Collection(CollectionName).Drop(context.Background())
+	}()
 
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "BMW"}, bson.M{"$set": bson.M{"power": 350}})
-	require.NoError(t, err)
+	var err error
 
-	_, err = coll.DeleteOne(context.Background(), bson.M{"name": "Porsche"})
-	require.NoError(t, err)
+	// insert initial data
+	{
+		err = db1.CreateCollection(context.Background(), CollectionName)
+		require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "db", "timmyb32r_test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
+		_, err = db1Coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "issueId", Value: 1}}}, {Key: "queue", Value: "SUPPORT"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	targetClient, err := MakeDstClient(&Target)
-	require.NoError(t, err)
+		_, err = db1Coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "issueId", Value: 2}}}, {Key: "queue", Value: "SUPPORT"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
 
-	defer func() { _ = targetClient.Close(context.Background()) }()
+		_, err = db2Coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "issueId", Value: 1}}}, {Key: "queue", Value: "DEVELOP"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	targetColl := targetClient.Database("db").Collection("timmyb32r_test")
+		_, err = db2Coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "issueId", Value: 2}}}, {Key: "queue", Value: "DEVELOP"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
+	}
 
-	deletedDocumentCount, err := targetColl.CountDocuments(context.Background(), bson.M{"name": "Porsche"})
-	require.NoError(t, err)
-	require.Equal(t, int64(1), deletedDocumentCount)
+	worker := runTransfer(t, &Source, &Target, true)
+	defer func(worker *local.LocalWorker) {
+		_ = worker.Stop()
+	}(worker)
 
-	compositePKdocumentsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.orgId": 42})
-	require.NoError(t, err)
-	require.Equal(t, int64(0), compositePKdocumentsCount)
+	// update while replicating
+	{
+		_, err = db1Coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "issueId", Value: 3}}}, {Key: "queue", Value: "SERVICE"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
+
+		_, err = db1Coll.UpdateOne(context.Background(), bson.M{"queue": "SUPPORT", "number": 1}, bson.M{"$set": bson.M{"queue": "JUNK"}})
+		require.NoError(t, err)
+
+		_, err = db2Coll.DeleteOne(context.Background(), bson.M{"queue": "DEVELOP", "number": 1})
+		require.NoError(t, err)
+
+		_, err = db2Coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "issueId", Value: 3}}}, {Key: "queue", Value: "SERVICE"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
+
+	}
+
+	// check
+	{
+		require.NoError(t, helpers.WaitDestinationEqualRowsCount(CommonDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 5))
+
+		targetColl := targetClient.Database(CommonDbName).Collection(CollectionName)
+		defer func() {
+			_ = targetColl.Drop(context.Background())
+		}()
+
+		db1rowsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.orgId": 24})
+		require.NoError(t, err)
+		require.Equal(t, int64(3), db1rowsCount)
+
+		db2rowsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.orgId": 81})
+		require.NoError(t, err)
+		require.Equal(t, int64(2), db2rowsCount)
+	}
 }
 
-func CollapseToSimplePK(t *testing.T) {
-	client, err := mongodataagent.Connect(context.Background(), Source.ConnectionOptions([]string{}), nil)
-	require.NoError(t, err)
-	defer func() { _ = client.Close(context.Background()) }()
-
-	//------------------------------------------------------------------------------------
-	// insert one record
-
-	db := client.Database("db")
-	defer func() {
-		// clear collection in the end (for local debug)
-		_ = db.Collection("timmyb32r_test").Drop(context.Background())
-	}()
-	err = db.CreateCollection(context.Background(), "timmyb32r_test")
-	require.NoError(t, err)
-
-	coll := db.Collection("timmyb32r_test")
-
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 42}, {Key: "id", Value: 1}}}, {Key: "name", Value: "first"}, {Key: "count", Value: 10}})
-	require.NoError(t, err)
-
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 42}, {Key: "id", Value: 2}}}, {Key: "name", Value: "second"}, {Key: "count", Value: 25}})
-	require.NoError(t, err)
-
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "first"}, bson.M{"$set": bson.M{"count": 12}})
-	require.NoError(t, err)
-
-	//------------------------------------------------------------------------------------
-	// start worker
-
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
-
-	transformer, err := mongo_pk_extender.NewMongoPKExtenderTransformer(
-		mongo_pk_extender.Config{
-			Expand:          false,
-			ExtraFieldName:  "orgId",
-			ExtraFieldValue: "42",
-			Tables: filter.Tables{
-				ExcludeTables: []string{"__dt_cluster_time"},
-			},
-		},
-		logger.Log,
+func CompositeFromCommonToMultiple(t *testing.T) {
+	var (
+		Source = *mongodataagent.RecipeSource(
+			mongodataagent.WithCollections(
+				mongodataagent.MongoCollection{DatabaseName: CommonDbName, CollectionName: CollectionName}))
+		Target = *mongodataagent.RecipeTarget(
+			mongodataagent.WithPrefix("DB0_"),
+		)
 	)
-	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
+	srcClient, targetClient := initEndpoints(t, &Source, &Target)
+	defer func() {
+		_ = srcClient.Close(context.Background())
+		_ = targetClient.Close(context.Background())
+	}()
 
-	localWorker := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
-	localWorker.Start()
-	defer localWorker.Stop() //nolint
+	srcDb := srcClient.Database(CommonDbName)
+	srcColl := srcDb.Collection(CollectionName)
+	defer func() {
+		_ = srcColl.Drop(context.Background())
+	}()
 
-	//------------------------------------------------------------------------------------
-	// check results
+	var err error
 
-	_, err = coll.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 42}, {Key: "id", Value: 3}}}, {Key: "name", Value: "third"}, {Key: "count", Value: 55}})
-	require.NoError(t, err)
+	// insert initial data
+	{
+		err = srcDb.CreateCollection(context.Background(), CollectionName)
+		require.NoError(t, err)
 
-	_, err = coll.UpdateOne(context.Background(), bson.M{"name": "third"}, bson.M{"$set": bson.M{"count": 66}})
-	require.NoError(t, err)
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 24}, {Key: "id", Value: bson.D{{Key: "issueId", Value: 1}}}}}, {Key: "queue", Value: "SUPPORT"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	_, err = coll.DeleteOne(context.Background(), bson.M{"name": "first"})
-	require.NoError(t, err)
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 24}, {Key: "id", Value: bson.D{{Key: "issueId", Value: 2}}}}}, {Key: "queue", Value: "SUPPORT"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "db", "timmyb32r_test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 81}, {Key: "id", Value: bson.D{{Key: "issueId", Value: 1}}}}}, {Key: "queue", Value: "DEVELOP"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	targetClient, err := MakeDstClient(&Target)
-	require.NoError(t, err)
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 81}, {Key: "id", Value: bson.D{{Key: "issueId", Value: 2}}}}}, {Key: "queue", Value: "DEVELOP"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
 
-	defer func() { _ = targetClient.Close(context.Background()) }()
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 666}, {Key: "id", Value: bson.D{{Key: "issueId", Value: 1}}}}}, {Key: "queue", Value: "INVALID"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
 
-	targetColl := targetClient.Database("db").Collection("timmyb32r_test")
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 666}, {Key: "id", Value: bson.D{{Key: "issueId", Value: 2}}}}}, {Key: "queue", Value: "INVALID"}, {Key: "number", Value: 2}})
+		require.NoError(t, err)
+	}
 
-	deletedDocumentCount, err := targetColl.CountDocuments(context.Background(), bson.M{"name": "first"})
-	require.NoError(t, err)
-	require.Equal(t, int64(1), deletedDocumentCount)
+	worker := runTransfer(t, &Source, &Target, false)
+	defer func(worker *local.LocalWorker) {
+		_ = worker.Stop()
+	}(worker)
 
-	compositePKdocumentsCount, err := targetColl.CountDocuments(context.Background(), bson.M{"_id.orgId": 42})
-	require.NoError(t, err)
-	require.Equal(t, int64(0), compositePKdocumentsCount)
+	// update while replicating
+	{
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 24}, {Key: "id", Value: bson.D{{Key: "issueId", Value: 3}}}}}, {Key: "queue", Value: "SERVICE"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
+
+		_, err = srcColl.UpdateOne(context.Background(), bson.M{"queue": "SUPPORT", "number": 1}, bson.M{"$set": bson.M{"queue": "JUNK"}})
+		require.NoError(t, err)
+
+		_, err = srcColl.DeleteOne(context.Background(), bson.M{"queue": "DEVELOP", "number": 1})
+		require.NoError(t, err)
+
+		_, err = srcColl.InsertOne(context.Background(), bson.D{{Key: "_id", Value: bson.D{{Key: "orgId", Value: 81}, {Key: "id", Value: bson.D{{Key: "issueId", Value: 3}}}}}, {Key: "queue", Value: "SERVICE"}, {Key: "number", Value: 1}})
+		require.NoError(t, err)
+	}
+
+	// check
+	{
+		require.NoError(t, helpers.WaitDestinationEqualRowsCount(FirstDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 3))
+		require.NoError(t, helpers.WaitDestinationEqualRowsCount(SecondDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 2))
+
+		db1SimpleColl := targetClient.Database(FirstDbName).Collection(CollectionName)
+		db2SimpleColl := targetClient.Database(SecondDbName).Collection(CollectionName)
+
+		defer func() {
+			_ = db1SimpleColl.Drop(context.Background())
+			_ = db2SimpleColl.Drop(context.Background())
+		}()
+
+		db1rowsCount, err := db1SimpleColl.CountDocuments(context.Background(), bson.M{"_id.orgId": bson.M{"$exists": true}})
+		require.NoError(t, err)
+		require.Equal(t, int64(0), db1rowsCount)
+
+		db2rowsCount, err := db2SimpleColl.CountDocuments(context.Background(), bson.M{"_id.orgId": bson.M{"$exists": true}})
+		require.NoError(t, err)
+		require.Equal(t, int64(0), db2rowsCount)
+	}
 }
