@@ -738,8 +738,9 @@ func (s *sinker) Close() error {
 func (s *sinker) checkTable(tableID abstract.TableID, tableSchema *abstract.TableSchema) error {
 	s.rw.Lock()
 	defer s.rw.Unlock()
-	// keep it for backward compatibility. keep it as is until TM-8571
-	if s.config.MaintainTables {
+	// MaintainTables historically was used incorrectly. Have to keep it for backward compatibility until we move to
+	// GetIsSchemaMigrationDisabled flag completely
+	if s.config.IsSchemaMigrationDisabled || s.config.MaintainTables {
 		return nil
 	}
 	if err := s.ensureTableSchema(tableID, tableSchema); err != nil {

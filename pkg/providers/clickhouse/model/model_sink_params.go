@@ -59,6 +59,7 @@ type ChSinkServerParams interface {
 	// MigrationOptions
 	// Sink table modification settings
 	MigrationOptions() ChSinkMigrationOptions
+	GetIsSchemaMigrationDisabled() bool
 	// UploadAsJSON enables JSON format upload. See CH destination model for details.
 	UploadAsJSON() bool
 	// AnyAsString

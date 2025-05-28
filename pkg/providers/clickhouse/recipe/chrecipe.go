@@ -208,6 +208,7 @@ func Target(opts ...Option) (*model.ChDestination, error) {
 		BufferTriggingSize:         0,
 		RootCACertPaths:            nil,
 		ConnectionID:               "",
+		IsSchemaMigrationDisabled:  false,
 	}
 	res.WithDefaults()
 	return res, nil

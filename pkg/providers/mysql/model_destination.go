@@ -39,9 +39,10 @@ type MysqlDestination struct {
 	RootCAFiles []string
 
 	// Used for snapshot in runtime only
-	prevSkipKeyChecks      bool
-	prevPerTransactionPush bool
-	ConnectionID           string
+	prevSkipKeyChecks         bool
+	prevPerTransactionPush    bool
+	ConnectionID              string
+	IsSchemaMigrationDisabled bool
 }
 
 var (

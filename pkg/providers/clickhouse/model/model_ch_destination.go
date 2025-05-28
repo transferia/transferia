@@ -37,19 +37,21 @@ var (
 // ChDestination - see description of fields in sink_params.go
 type ChDestination struct {
 	// ChSinkServerParams
-	MdbClusterID     string `json:"Cluster"`
-	ChClusterName    string // CH cluster to which data will be transfered. Other clusters would be ignored.
-	User             string
-	Password         model.SecretString
-	Database         string
-	Partition        string
-	SSLEnabled       bool
-	HTTPPort         int
-	NativePort       int
-	TTL              string
-	InferSchema      bool
-	MigrationOptions *ChSinkMigrationOptions
-	ConnectionID     string
+	MdbClusterID  string `json:"Cluster"`
+	ChClusterName string // CH cluster to which data will be transfered. Other clusters would be ignored.
+	User          string
+	Password      model.SecretString
+	Database      string
+	Partition     string
+	SSLEnabled    bool
+	HTTPPort      int
+	NativePort    int
+	TTL           string
+	InferSchema   bool
+	// MigrationOptions deprecated
+	MigrationOptions          *ChSinkMigrationOptions
+	ConnectionID              string
+	IsSchemaMigrationDisabled bool
 	// ForceJSONMode forces JSON protocol at sink:
 	// - allows upload records without 'required'-fields, clickhouse fills them via defaults.
 	//         BUT IF THEY ARE 'REQUIRED' - WHAT THE POINT?
@@ -360,6 +362,10 @@ func (d ChDestinationWrapper) InferSchema() bool {
 
 func (d ChDestinationWrapper) MigrationOptions() ChSinkMigrationOptions {
 	return d.migrationOpts
+}
+
+func (d ChDestinationWrapper) GetIsSchemaMigrationDisabled() bool {
+	return d.Model.IsSchemaMigrationDisabled
 }
 
 func (d ChDestinationWrapper) UploadAsJSON() bool {

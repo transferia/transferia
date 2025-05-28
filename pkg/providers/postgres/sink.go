@@ -167,7 +167,7 @@ func CreateSchemaQueryOptional(fullTableName string) string {
 }
 
 func (s *sink) checkTable(ctx context.Context, in abstract.TableSchema) error {
-	if !s.config.MaintainTables() {
+	if s.config.GetIsSchemaMigrationDisabled() || !s.config.MaintainTables() {
 		return nil
 	}
 	fqtn := in.TableID().Fqtn()

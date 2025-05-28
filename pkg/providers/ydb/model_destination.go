@@ -10,30 +10,31 @@ import (
 )
 
 type YdbDestination struct {
-	Token                   model.SecretString
-	Database                string
-	Path                    string
-	Instance                string
-	LegacyWriter            bool
-	ShardCount              int64
-	Rotation                *model.RotatorConfig
-	TransformerConfig       map[string]string
-	AltNames                map[string]string
-	StoragePolicy           string
-	CompactionPolicy        string
-	SubNetworkID            string
-	SecurityGroupIDs        []string
-	Cleanup                 model.CleanupType
-	DropUnknownColumns      bool
-	Underlay                bool
-	ServiceAccountID        string
-	IgnoreRowTooLargeErrors bool
-	FitDatetime             bool // will crop date-time to allowed time range (with data-loss)
-	SAKeyContent            string
-	TriggingInterval        time.Duration
-	TriggingSize            uint64
-	IsTableColumnOriented   bool
-	DefaultCompression      string
+	Token                     model.SecretString
+	Database                  string
+	Path                      string
+	Instance                  string
+	LegacyWriter              bool
+	ShardCount                int64
+	Rotation                  *model.RotatorConfig
+	TransformerConfig         map[string]string
+	AltNames                  map[string]string
+	StoragePolicy             string
+	CompactionPolicy          string
+	SubNetworkID              string
+	SecurityGroupIDs          []string
+	Cleanup                   model.CleanupType
+	DropUnknownColumns        bool
+	IsSchemaMigrationDisabled bool
+	Underlay                  bool
+	ServiceAccountID          string
+	IgnoreRowTooLargeErrors   bool
+	FitDatetime               bool // will crop date-time to allowed time range (with data-loss)
+	SAKeyContent              string
+	TriggingInterval          time.Duration
+	TriggingSize              uint64
+	IsTableColumnOriented     bool
+	DefaultCompression        string
 
 	Primary bool // if worker is first, i.e. primary, will run background jobs
 

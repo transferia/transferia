@@ -7,22 +7,27 @@ import (
 )
 
 type PgSinkParamsRegulated struct {
-	FClusterID              string
-	FAllHosts               []string
-	FPort                   int
-	FDatabase               string
-	FUser                   string
-	FPassword               string
-	FTLSFile                string
-	FMaintainTables         bool
-	FPerTransactionPush     bool
-	FLoozeMode              bool
-	FCleanupMode            model.CleanupType
-	FTables                 map[string]string
-	FCopyUpload             bool
-	FIgnoreUniqueConstraint bool
-	FDisableSQLFallback     bool
-	FQueryTimeout           time.Duration
+	FClusterID                string
+	FAllHosts                 []string
+	FPort                     int
+	FDatabase                 string
+	FUser                     string
+	FPassword                 string
+	FTLSFile                  string
+	FMaintainTables           bool
+	FPerTransactionPush       bool
+	FLoozeMode                bool
+	IsSchemaMigrationDisabled bool
+	FCleanupMode              model.CleanupType
+	FTables                   map[string]string
+	FCopyUpload               bool
+	FIgnoreUniqueConstraint   bool
+	FDisableSQLFallback       bool
+	FQueryTimeout             time.Duration
+}
+
+func (p PgSinkParamsRegulated) GetIsSchemaMigrationDisabled() bool {
+	return p.IsSchemaMigrationDisabled
 }
 
 func (p PgSinkParamsRegulated) ClusterID() string {
@@ -104,6 +109,7 @@ func GpDestinationToPgSinkParamsRegulated(d *GpDestination) *PgSinkParamsRegulat
 	result.FPassword = string(d.Connection.AuthProps.Password)
 	result.FTLSFile = d.Connection.AuthProps.CACertificate
 	result.FMaintainTables = true
+	result.IsSchemaMigrationDisabled = true
 	result.FCleanupMode = d.CleanupPolicy
 	result.FQueryTimeout = d.QueryTimeout
 	return result

@@ -175,6 +175,10 @@ type ChSourceWrapper struct {
 	connectionParams connectionParams
 }
 
+func (s ChSourceWrapper) GetIsSchemaMigrationDisabled() bool {
+	return false
+}
+
 func (s ChSourceWrapper) InsertSettings() InsertParams {
 	return InsertParams{MaterializedViewsIgnoreErrors: false}
 }

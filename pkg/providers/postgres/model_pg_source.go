@@ -80,8 +80,10 @@ type PgSource struct {
 	ConnectionID                string
 }
 
-var _ model.Source = (*PgSource)(nil)
-var _ model.WithConnectionID = (*PgSource)(nil)
+var (
+	_ model.Source           = (*PgSource)(nil)
+	_ model.WithConnectionID = (*PgSource)(nil)
+)
 
 func (s *PgSource) MDBClusterID() string {
 	return s.ClusterID
@@ -340,9 +342,11 @@ func (p *PgDumpSteps) AnyStepIsTrue() bool {
 		sequenceSet = *p.SequenceSet
 	}
 
-	return slices.Contains([]bool{p.Sequence, p.SequenceOwnedBy, sequenceSet, p.Table, p.PrimaryKey, p.FkConstraint,
+	return slices.Contains([]bool{
+		p.Sequence, p.SequenceOwnedBy, sequenceSet, p.Table, p.PrimaryKey, p.FkConstraint,
 		p.Default, p.Constraint, p.Index, p.View, p.MaterializedView, p.Function, p.Trigger,
-		p.Type, p.Rule, p.Collation, p.Policy, p.Cast}, true)
+		p.Type, p.Rule, p.Collation, p.Policy, p.Cast,
+	}, true)
 }
 
 func (s *PgSource) Validate() error {
@@ -425,6 +429,7 @@ func (d PgSourceWrapper) MaintainTables() bool {
 func (d PgSourceWrapper) ConnectionID() string {
 	return d.Model.ConnectionID
 }
+
 func (d PgSourceWrapper) PerTransactionPush() bool {
 	return false
 }
@@ -455,6 +460,10 @@ func (d PgSourceWrapper) DisableSQLFallback() bool {
 
 func (d PgSourceWrapper) QueryTimeout() time.Duration {
 	return PGDefaultQueryTimeout
+}
+
+func (d PgSourceWrapper) GetIsSchemaMigrationDisabled() bool {
+	return false
 }
 
 func (s *PgSource) ToSinkParams() PgSourceWrapper {

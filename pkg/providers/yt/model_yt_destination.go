@@ -38,6 +38,7 @@ type YtDestinationModel interface {
 	TTL() int64
 	OptimizeFor() string
 	CanAlter() bool
+	IsSchemaMigrationDisabled() bool
 	TimeShardCount() int
 	Index() []string
 	HashColumn() string
@@ -98,22 +99,23 @@ type YtDestinationModel interface {
 }
 
 type YtDestination struct {
-	Path           string
-	Cluster        string
-	Token          string
-	PushWal        bool
-	NeedArchive    bool
-	CellBundle     string
-	TTL            int64 // it's in milliseconds
-	OptimizeFor    string
-	CanAlter       bool
-	TimeShardCount int
-	Index          []string
-	HashColumn     string
-	PrimaryMedium  string
-	Pool           string       // pool for running merge and sort operations for static tables
-	Strict         bool         // DEPRECATED, UNUSED IN NEW DATA PLANE - use LoseDataOnError and Atomicity
-	Atomicity      yt.Atomicity // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
+	Path                      string
+	Cluster                   string
+	Token                     string
+	PushWal                   bool
+	NeedArchive               bool
+	CellBundle                string
+	TTL                       int64 // it's in milliseconds
+	OptimizeFor               string
+	CanAlter                  bool
+	IsSchemaMigrationDisabled bool
+	TimeShardCount            int
+	Index                     []string
+	HashColumn                string
+	PrimaryMedium             string
+	Pool                      string       // pool for running merge and sort operations for static tables
+	Strict                    bool         // DEPRECATED, UNUSED IN NEW DATA PLANE - use LoseDataOnError and Atomicity
+	Atomicity                 yt.Atomicity // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
 
 	// If true, some errors on data insertion to YT will be skipped, and a warning will be written to the log.
 	// Among such errors are:
@@ -228,6 +230,7 @@ func (d *YtDestinationWrapper) SetStaticTable() {
 
 func (d *YtDestinationWrapper) AllowAlter() {
 	d.Model.CanAlter = true
+	d.Model.IsSchemaMigrationDisabled = false
 }
 
 func (d *YtDestinationWrapper) PreSnapshotHacks() {
@@ -281,6 +284,10 @@ func (d *YtDestinationWrapper) OptimizeFor() string {
 
 func (d *YtDestinationWrapper) CanAlter() bool {
 	return d.Model.CanAlter
+}
+
+func (d *YtDestinationWrapper) IsSchemaMigrationDisabled() bool {
+	return d.Model.IsSchemaMigrationDisabled
 }
 
 func (d *YtDestinationWrapper) TimeShardCount() int {

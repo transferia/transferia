@@ -271,6 +271,9 @@ func (s *sinker) isClosed() bool {
 }
 
 func (s *sinker) checkTable(tablePath ydbPath, schema *abstract.TableSchema) error {
+	if s.config.IsSchemaMigrationDisabled {
+		return nil
+	}
 	if existingSchema, ok := s.cache[tablePath]; ok && existingSchema.Equal(schema) {
 		return nil
 	}

@@ -2,9 +2,12 @@ package alters
 
 import (
 	"os"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -26,6 +29,21 @@ import (
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/schema"
 )
+
+func TestFlag(t *testing.T) {
+	sinks := model.KnownDestinations()
+	for _, sinkType := range sinks {
+		p, ok := model.DestinationF(abstract.ProviderType(sinkType))
+		require.Truef(t, ok, "Unknown destination type %s", sinkType)
+		prov := p()
+		if _, ok := prov.(model.AlterableDestination); !ok {
+			continue
+		}
+		t.Run(sinkType, func(t *testing.T) {
+			checkSchemaFlag(t, prov)
+		})
+	}
+}
 
 func TestAllSinks(t *testing.T) {
 	sinks := model.KnownDestinations()
@@ -94,6 +112,27 @@ func TestAllSinks(t *testing.T) {
 			}
 		})
 	}
+}
+
+func checkSchemaFlag(t *testing.T, i model.Destination) {
+	val := reflect.ValueOf(i)
+
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	for val.Kind() == reflect.Interface && !val.IsNil() {
+		val = val.Elem()
+	}
+	// hack for yt destination wrapper
+	if strings.Contains(val.String(), "Wrapper") {
+		val = val.FieldByName("Model").Elem()
+	}
+
+	field := val.FieldByName("IsSchemaMigrationDisabled")
+	if !field.IsValid() {
+		t.Errorf("Field IsSchemaMigrationDisabled not found in %s", val.String())
+	}
+	require.Equal(t, reflect.Bool, field.Kind())
 }
 
 func getAlterableDestination(t *testing.T, sinkType abstract.ProviderType) (model.Destination, error) {

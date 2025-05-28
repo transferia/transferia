@@ -373,7 +373,7 @@ func (t *VersionedTable) splitOldNewRows(insertRows []map[string]interface{}, ve
 }
 
 func (t *VersionedTable) ensureSchema(schemas []abstract.ColSchema) (schemaCompatible bool, err error) {
-	if !t.config.CanAlter() {
+	if t.config.IsSchemaMigrationDisabled() || !t.config.CanAlter() {
 		return true, nil
 	}
 	if !t.config.DisableDatetimeHack() {
