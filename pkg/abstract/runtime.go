@@ -88,7 +88,7 @@ type ShardingTaskRuntime interface {
 }
 
 type ScheduledTask interface {
-	Stop()
+	Stop() error
 	Runtime() Runtime
 }
 

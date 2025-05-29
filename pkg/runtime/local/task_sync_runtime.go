@@ -24,8 +24,9 @@ type SyncTask struct {
 	cp       coordinator.Coordinator
 }
 
-func (s *SyncTask) Stop() {
+func (s *SyncTask) Stop() error {
 	s.wg.Wait()
+	return nil
 }
 
 func (s *SyncTask) Runtime() abstract.Runtime {
@@ -70,7 +71,9 @@ func NewSyncTask(
 
 	if task.Status == model.NewTask {
 		if err := workflow.OnStart(task); err != nil {
-			st.Stop()
+			if err := st.Stop(); err != nil {
+				logger.Log.Error("stop task failed", log.Error(err))
+			}
 			return nil, xerrors.Errorf("unable to start task workflow: %w", err)
 		}
 		rt, ok := transfer.Runtime.(*abstract.LocalRuntime)

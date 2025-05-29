@@ -43,6 +43,10 @@ func (w *LocalWorker) Error() error {
 	return nil
 }
 
+func (w *LocalWorker) RuntimeStatus() abstract.RuntimeStatus {
+	return abstract.Unknown
+}
+
 func (w *LocalWorker) Start() {
 	w.wg.Add(1)
 	go func() {
