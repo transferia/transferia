@@ -455,6 +455,8 @@ func (d ChDestinationWrapper) MakeChildShardParams(altHosts []*chConn.Host) ChSi
 		useJSON:          d.useJSON,
 		migrationOpts:    d.MigrationOptions(),
 	}
+	newChDestinationWrapper.connectionParams.Hosts = altHosts
+
 	return newChDestinationWrapper
 }
 

@@ -44,9 +44,23 @@ func ResolveShardGroupHostsAndShards(clusterID, shardGroup string, nativePort, h
 			HTTPPort:   httpPort,
 			ShardName:  host.ShardName,
 		}
-		shards[host.Name] = append(shards[host.Name], connHost)
+		shards[host.ShardName] = append(shards[host.ShardName], connHost)
 		result = append(result, connHost)
 	}
+
+	if len(shards) == 0 {
+		return nil, nil, abstract.NewFatalError(xerrors.Errorf("can't find shards for managed ClickHouse '%v'", clusterID))
+	}
+
+	// shardHostsMap is only for logging
+	shardHostsMap := make(map[string][]string)
+	for shardName, hosts := range shards {
+		shardHostsMap[shardName] = make([]string, 0, len(hosts))
+		for _, host := range hosts {
+			shardHostsMap[shardName] = append(shardHostsMap[shardName], host.Name)
+		}
+	}
+	logger.Log.Infof("resolved shards: %v", shardHostsMap)
 
 	return result, shards, nil
 }
