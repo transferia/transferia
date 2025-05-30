@@ -39,7 +39,7 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 	req := testcontainers.ContainerRequest{
 		Name: "temporal",
 		FromDockerfile: testcontainers.FromDockerfile{
-			Context:       yatest.SourcePath("cloud/doublecloud/transfer/resources/temporalite"),
+			Context:       yatest.SourcePath("cloud/dataplatform/testcontainer/temporal"),
 			PrintBuildLog: true,
 		},
 		ExposedPorts: []string{webUIPort.Port(), apiPort.Port()},
