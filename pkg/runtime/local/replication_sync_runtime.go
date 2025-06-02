@@ -22,6 +22,8 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+var _ abstract.Transfer = (*LocalWorker)(nil)
+
 type LocalWorker struct {
 	transfer            *model.Transfer
 	registry            metrics.Registry
@@ -53,7 +55,7 @@ func (w *LocalWorker) Start() {
 		defer w.wg.Done()
 		err := runReplication(w.ctx, w.cp, w.transfer, w.registry, w.logger)
 
-		if !isOpen(w.stopCh) {
+		if !util.IsOpen(w.stopCh) {
 			// Stopped intentionally via Stop()
 			return
 		}
@@ -62,15 +64,6 @@ func (w *LocalWorker) Start() {
 			w.logger.Error("Local worker error", log.Error(err), log.Any("worker", w))
 		}
 	}()
-}
-
-func isOpen(ch chan struct{}) bool {
-	select {
-	case <-ch:
-		return false
-	default:
-		return true
-	}
 }
 
 func (w *LocalWorker) StopReplicationSource() {
@@ -86,16 +79,20 @@ func (w *LocalWorker) StopReplicationSource() {
 	}
 }
 
+func (w *LocalWorker) Detach() {
+	if util.IsOpen(w.stopCh) {
+		w.logger.Infof("Detach: stop monitoring and keeping alive transfer %s", w.transfer.ID)
+		close(w.stopCh)
+		w.cancel()
+	}
+}
+
 func (w *LocalWorker) Stop() error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
 	w.logger.Info("LocalWorker is stopping", log.Any("callstack", util.GetCurrentGoroutineCallstack()))
-
-	if isOpen(w.stopCh) {
-		close(w.stopCh)
-		w.cancel()
-	}
+	w.Detach()
 
 	if !w.initialized {
 		// Not started yet
@@ -120,7 +117,7 @@ func (w *LocalWorker) Runtime() abstract.Runtime {
 }
 
 func (w *LocalWorker) initialize() (err error) {
-	if !isOpen(w.stopCh) {
+	if !util.IsOpen(w.stopCh) {
 		return xerrors.New("Stopped before initialization completion")
 	}
 

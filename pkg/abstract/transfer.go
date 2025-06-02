@@ -56,4 +56,6 @@ type Transfer interface {
 	Error() error
 
 	RuntimeStatus() RuntimeStatus
+	// Stop monitoring transfer and forget it when new scheduler is overtaking it
+	Detach()
 }
