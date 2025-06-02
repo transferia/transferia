@@ -95,10 +95,6 @@ func (m *MethodStat) Code(code codes.Code, duration time.Duration) {
 }
 
 func methodDurations() []time.Duration {
-	// maxDuration from time package is private for some reason, so we define our own.
-	// https://github.com/transferia/transferia/arcadia/contrib/go/_std_1.19/src/time/time.go?rev=10968829#L595-595
-	const maxDuration time.Duration = (1 << 63) - 1
-
 	return []time.Duration{
 		100 * time.Millisecond,
 		200 * time.Millisecond,
@@ -106,7 +102,8 @@ func methodDurations() []time.Duration {
 		1 * time.Second,
 		2 * time.Second,
 		4 * time.Second,
-		maxDuration,
+		10 * time.Second,
+		30 * time.Second,
 	}
 }
 
