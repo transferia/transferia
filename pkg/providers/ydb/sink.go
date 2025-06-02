@@ -604,6 +604,8 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 				tablePath = ydbPath(path.Join(s.config.Path, string(tablePath)))
 			}
 			batches[tablePath] = append(batches[tablePath], item)
+		case abstract.SynchronizeKind:
+			// do nothing
 		default:
 			s.logger.Infof("kind: %v not supported", item.Kind)
 		}
