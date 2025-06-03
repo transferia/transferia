@@ -264,12 +264,15 @@ func (p *replication) standbyStatus() {
 		} else {
 			p.logger.Infof("Heartbeat send %v", copiedMaxLsn)
 		}
-		cancel()
 		if tracker, ok := p.slot.(*LsnTrackedSlot); ok && copiedMaxLsn > 0 {
-			if err := tracker.Move(pglogrepl.LSN(copiedMaxLsn).String()); err != nil {
+			var restartLsn string
+			if err := p.conn.QueryRow(ctx, SelectLsnForSlot, p.transferID).Scan(&restartLsn); err != nil {
+				logger.Log.Warn("Unable to get restart lsn", log.Error(err))
+			} else if err := tracker.Move(restartLsn); err != nil {
 				logger.Log.Warn("Unable to move lsn", log.Error(err))
 			}
 		}
+		cancel()
 	}
 }
 
