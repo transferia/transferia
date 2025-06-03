@@ -20,7 +20,7 @@ func estimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Obje
 	if len(files) > EstimateFilesLimit {
 		multiplier = float64(len(files)) / float64(EstimateFilesLimit)
 		sniffFiles = files[:EstimateFilesLimit]
-		lgr.Infof("there is to many files: %v, will sniff: %v files and multiply result on %v", len(files), EstimateFilesLimit, multiplier)
+		lgr.Infof("there are too many files: %v, will sniff: %v files and multiply result on %v", len(files), EstimateFilesLimit, multiplier)
 	}
 	lgr.Infof("start to read: %v files in parralel", len(sniffFiles))
 	sizes := make([]int64, len(sniffFiles))

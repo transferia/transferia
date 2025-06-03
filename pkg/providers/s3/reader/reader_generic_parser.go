@@ -148,7 +148,7 @@ func (r *GenericParserReader) Read(ctx context.Context, filePath string, pusher 
 			Items:     buff,
 			FilePath:  filePath,
 			Offset:    0,
-			Completed: true,
+			Completed: false,
 			Size:      readSize,
 		}); err != nil {
 			return xerrors.Errorf("unable to push: %w", err)

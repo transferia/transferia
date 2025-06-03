@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -16,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	objectfetcher "github.com/transferia/transferia/pkg/providers/s3/source/object_fetcher"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -26,28 +25,47 @@ var _ abstract.Source = (*S3Source)(nil)
 type S3Source struct {
 	ctx           context.Context
 	cancel        func()
+	logger        log.Logger
 	srcModel      *s3.S3Source
 	transferID    string
-	client        s3iface.S3API
-	logger        log.Logger
 	metrics       *stats.SourceStats
 	reader        reader.Reader
-	cp            coordinator.Coordinator
-	objectFetcher ObjectFetcher
+	objectFetcher objectfetcher.ObjectFetcher
 	errCh         chan error
 	pusher        pusher.Pusher
 	inflightLimit int64
 }
 
-var (
-	ReadProgressKey = "ReadProgressKey"
-	CreationEvent   = "ObjectCreated:"
-	TestEvent       = "s3:TestEvent"
-)
-
 func (s *S3Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.New(s.logger, 10, sink, s.reader.ParsePassthrough, s.ack)
 	return s.run(parseQ)
+}
+
+func (s *S3Source) waitPusherEmpty() {
+	for {
+		if s.pusher.IsEmpty() {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func (s *S3Source) sendSynchronizeEvent() error {
+	err := s.pusher.Push(
+		s.ctx,
+		pusher.Chunk{
+			FilePath:  "",
+			Completed: true,
+			Offset:    0,
+			Size:      0,
+			Items:     []abstract.ChangeItem{abstract.MakeSynchronizeEvent()},
+		},
+	)
+	if err != nil {
+		return xerrors.Errorf("failed to push synchronize event: %w", err)
+	}
+	s.waitPusherEmpty()
+	return nil
 }
 
 func (s *S3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
@@ -61,11 +79,7 @@ func (s *S3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 	currPusher := pusher.New(nil, parseQ, s.logger, s.inflightLimit)
 	s.pusher = currPusher
 
-	sqsFetcher, ok := s.objectFetcher.(*sqsSource)
-	if ok {
-		// enable heartbeat for message visibility
-		go sqsFetcher.visibilityHeartbeat(s.errCh)
-	}
+	s.objectFetcher.RunBackgroundThreads(s.errCh)
 
 	for {
 		select {
@@ -78,12 +92,16 @@ func (s *S3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 		default:
 		}
 		s.metrics.Master.Set(1)
-		objectList, err := s.objectFetcher.FetchObjects()
+		objectList, err := s.objectFetcher.FetchObjects(s.reader)
 		if err != nil {
 			return xerrors.Errorf("failed to get list of new objects: %w", err)
 		}
 
 		if len(objectList) == 0 {
+			err = s.sendSynchronizeEvent()
+			if err != nil {
+				return xerrors.Errorf("failed to send synchronize event: %w", err)
+			}
 			s.logger.Infof("No new file from s3 found, will wait %v", nextWaitDuration)
 			time.Sleep(nextWaitDuration)
 			nextWaitDuration = backoffTimer.NextBackOff()
@@ -93,12 +111,14 @@ func (s *S3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 
 		if err := util.ParallelDoWithContextAbort(s.ctx, len(objectList), int(s.srcModel.Concurrency), func(i int, ctx context.Context) error {
 			singleObject := objectList[i]
-			return s.reader.Read(ctx, singleObject.Name, currPusher)
+			return s.reader.Read(ctx, singleObject, currPusher)
 		}); err != nil {
 			return xerrors.Errorf("failed to read and push object: %w", err)
 		}
 
 		// reading did not result in issues but pushing might still fail
+
+		s.waitPusherEmpty()
 	}
 }
 
@@ -115,21 +135,16 @@ func (s *S3Source) ack(chunk pusher.Chunk, pushSt time.Time, err error) {
 		return
 	}
 
-	if done {
+	if done && chunk.FilePath != "" {
 		// commit this file
-		err = s.objectFetcher.Commit(
-			Object{
-				Name:         chunk.FilePath,
-				LastModified: time.Now(),
-			},
-		)
+		err = s.objectFetcher.Commit(chunk.FilePath)
 		if err != nil {
 			util.Send(s.ctx, s.errCh, err)
 			return
 		}
 	}
 
-	s.logger.Info(
+	s.logger.Debug(
 		fmt.Sprintf("Commit read changes done in %v", time.Since(pushSt)),
 		log.Int("committed", len(chunk.Items)),
 	)
@@ -140,41 +155,38 @@ func (s *S3Source) Stop() {
 	s.cancel()
 }
 
-func NewSource(src *s3.S3Source, transferID string, logger log.Logger, registry metrics.Registry, cp coordinator.Coordinator) (abstract.Source, error) {
-	sess, err := s3.NewAWSSession(logger, src.Bucket, src.ConnectionConfig)
+func NewSource(
+	srcModel *s3.S3Source,
+	transferID string,
+	logger log.Logger,
+	registry metrics.Registry,
+	cp coordinator.Coordinator,
+	runtimeParallelism abstract.ShardingTaskRuntime,
+) (abstract.Source, error) {
+	fetcher, ctx, cancel, currReader, currMetrics, err := objectfetcher.NewWrapper(
+		context.Background(),
+		srcModel,
+		transferID,
+		logger,
+		registry,
+		cp,
+		runtimeParallelism,
+		true,
+	)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create aws session: %w", err)
+		return nil, xerrors.Errorf("failed to create object fetcher, err: %w", err)
 	}
-
-	currMetrics := stats.NewSourceStats(registry)
-	currReader, err := reader.New(src, logger, sess, currMetrics)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create reader: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	client := aws_s3.New(sess)
-
-	fetcher, err := NewObjectFetcher(ctx, client, logger, cp, transferID, currReader, sess, src)
-	if err != nil {
-		cancel()
-		return nil, xerrors.Errorf("failed to initialize new object fetcher: %w", err)
-	}
-
 	return &S3Source{
 		ctx:           ctx,
 		cancel:        cancel,
-		srcModel:      src,
-		transferID:    transferID,
-		client:        client,
 		logger:        logger,
+		srcModel:      srcModel,
+		transferID:    transferID,
 		metrics:       currMetrics,
 		reader:        currReader,
-		cp:            cp,
 		objectFetcher: fetcher,
 		errCh:         make(chan error, 1),
 		pusher:        nil,
-		inflightLimit: src.InflightLimit,
+		inflightLimit: srcModel.InflightLimit,
 	}, nil
 }

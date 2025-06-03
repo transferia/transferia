@@ -1,4 +1,4 @@
-package source
+package objectfetcher
 
 import (
 	"context"
@@ -20,23 +20,26 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var _ ObjectFetcher = (*sqsSource)(nil)
+var (
+	creationEvent = "ObjectCreated:"
+	testEvent     = "s3:testEvent"
+)
 
-type sqsSource struct {
-	cfg         *s3.SQS
-	client      *sqs.SQS
+var _ ObjectFetcher = (*ObjectFetcherSQS)(nil)
+
+type ObjectFetcherSQS struct {
 	ctx         context.Context
-	queueURL    *string // string pointer is used here since the aws sdk expects/returns all data types as pointers
-	reader      reader.Reader
+	logger      log.Logger
+	sqsClient   *sqs.SQS
+	queueURL    *string                                        // string pointer is used here since the aws sdk expects/returns all data types as pointers
 	toDelete    []*sqs.DeleteMessageBatchRequestEntry          // unusable messages from the queue (different non-creation events, folder creation events...)
 	inflight    map[string]*sqs.DeleteMessageBatchRequestEntry // inflight messages being processed, key is file name, value is ReceiptHandle of the message
-	logger      log.Logger
 	pathPattern string
 	mu          sync.Mutex
 }
 
 // DTO struct is used for unmarshalling SQS messages in the FetchObjects method.
-type DTO struct {
+type dto struct {
 	Type    string `json:"Type"`
 	Message string `json:"Message"`
 	Records []struct {
@@ -56,8 +59,21 @@ type DTO struct {
 	} `json:"Records"`
 }
 
-func (s *sqsSource) fetchMessages() ([]Object, error) {
-	messages, err := s.client.ReceiveMessageWithContext(s.ctx, &sqs.ReceiveMessageInput{
+type object struct {
+	Name         string    `json:"name"`
+	LastModified time.Time `json:"last_modified"`
+}
+
+func objectsToString(in []object) []string {
+	result := make([]string, 0, len(in))
+	for _, obj := range in {
+		result = append(result, obj.Name)
+	}
+	return result
+}
+
+func (s *ObjectFetcherSQS) fetchMessages(inReader reader.Reader) ([]object, error) {
+	messages, err := s.sqsClient.ReceiveMessageWithContext(s.ctx, &sqs.ReceiveMessageInput{
 		QueueUrl:            s.queueURL,
 		MaxNumberOfMessages: aws.Int64(10),  // maximum is 10, but fewer  msg can be delivered
 		WaitTimeSeconds:     aws.Int64(20),  // reduce cost by switching to long polling, 20s is max wait time
@@ -67,26 +83,26 @@ func (s *sqsSource) fetchMessages() ([]Object, error) {
 		return nil, xerrors.Errorf("failed to fetch new messages from sqs queue: %w", err)
 	}
 
-	var objectList []Object
+	var objectList []object
 	for _, message := range messages.Messages {
 		// all received messages should be deleted once they are processed
 		currentMessage := &sqs.DeleteMessageBatchRequestEntry{
 			Id:            message.MessageId,
 			ReceiptHandle: message.ReceiptHandle,
 		}
-		if !strings.Contains(*message.Body, TestEvent) && strings.Contains(*message.Body, CreationEvent) {
-			var dto DTO
-			if err := json.Unmarshal([]byte(*message.Body), &dto); err != nil {
+		if !strings.Contains(*message.Body, testEvent) && strings.Contains(*message.Body, creationEvent) {
+			var currDTO dto
+			if err := json.Unmarshal([]byte(*message.Body), &currDTO); err != nil {
 				return nil, xerrors.Errorf("failed to unmarshal message records: %w", err)
 			}
-			if len(dto.Records) == 0 && len(dto.Message) > 0 {
+			if len(currDTO.Records) == 0 && len(currDTO.Message) > 0 {
 				// we receive wrapped message, need to unwrap it, actual records are inside `Message` field.
-				if err := json.Unmarshal([]byte(dto.Message), &dto); err != nil {
+				if err := json.Unmarshal([]byte(currDTO.Message), &currDTO); err != nil {
 					return nil, xerrors.Errorf("failed to unmarshal message records: %w", err)
 				}
 			}
-			for _, record := range dto.Records {
-				if strings.Contains(record.EventName, CreationEvent) {
+			for _, record := range currDTO.Records {
+				if strings.Contains(record.EventName, creationEvent) {
 					// SQS escapes path strings, we need to invert the operation here, from simple%3D1234.jsonl to simple=1234.jsonl for example
 					unescapedKey, err := url.QueryUnescape(record.S3.Object.Key)
 					if err != nil {
@@ -95,13 +111,13 @@ func (s *sqsSource) fetchMessages() ([]Object, error) {
 					if reader.SkipObject(&aws_s3.Object{
 						Key:  aws.String(unescapedKey),
 						Size: aws.Int64(record.S3.Object.Size),
-					}, s.pathPattern, "|", s.reader.ObjectsFilter()) {
-						s.logger.Infof("File did not pass type/path check, skipping: file %s, pathPattern: %s", unescapedKey, s.pathPattern)
+					}, s.pathPattern, "|", inReader.ObjectsFilter()) {
+						s.logger.Debugf("ObjectFetcherSQS.fetchMessages - file did not pass type/path check, skipping: file %s, pathPattern: %s", unescapedKey, s.pathPattern)
 						s.toDelete = append(s.toDelete, currentMessage) // most probably a folder creation event message
 						continue
 					}
 
-					objectList = append(objectList, Object{
+					objectList = append(objectList, object{
 						Name:         unescapedKey,
 						LastModified: record.EventTime,
 					})
@@ -125,11 +141,11 @@ func (s *sqsSource) fetchMessages() ([]Object, error) {
 	return objectList, nil
 }
 
-func (s *sqsSource) FetchObjects() ([]Object, error) {
-	var objectList []Object
+func (s *ObjectFetcherSQS) FetchObjects(inReader reader.Reader) ([]string, error) {
+	var objectList []object
 	returnResults := false
 	for {
-		obj, err := s.fetchMessages()
+		obj, err := s.fetchMessages(inReader)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to read new messages form SQS: %w", err)
 		}
@@ -140,7 +156,7 @@ func (s *sqsSource) FetchObjects() ([]Object, error) {
 
 		if len(obj) == 0 && len(s.toDelete) == 0 {
 			// no new SQS messages, return and wait
-			return objectList, nil
+			return objectsToString(objectList), nil
 		}
 
 		if err := s.batchDelete(); err != nil {
@@ -148,12 +164,16 @@ func (s *sqsSource) FetchObjects() ([]Object, error) {
 		}
 
 		if returnResults {
-			return objectList, nil
+			return objectsToString(objectList), nil
 		}
 	}
 }
 
-func (s *sqsSource) visibilityHeartbeat(errChan chan error) {
+func (s *ObjectFetcherSQS) RunBackgroundThreads(errCh chan error) {
+	go s.visibilityHeartbeat(errCh)
+}
+
+func (s *ObjectFetcherSQS) visibilityHeartbeat(errChan chan error) {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -196,8 +216,8 @@ func (s *sqsSource) visibilityHeartbeat(errChan chan error) {
 	}
 }
 
-func (s *sqsSource) sendBatchChangeVisibility(toChange []*sqs.ChangeMessageVisibilityBatchRequestEntry) error {
-	res, err := s.client.ChangeMessageVisibilityBatchWithContext(s.ctx, &sqs.ChangeMessageVisibilityBatchInput{
+func (s *ObjectFetcherSQS) sendBatchChangeVisibility(toChange []*sqs.ChangeMessageVisibilityBatchRequestEntry) error {
+	res, err := s.sqsClient.ChangeMessageVisibilityBatchWithContext(s.ctx, &sqs.ChangeMessageVisibilityBatchInput{
 		Entries:  toChange,
 		QueueUrl: s.queueURL,
 	})
@@ -220,7 +240,7 @@ func (s *sqsSource) sendBatchChangeVisibility(toChange []*sqs.ChangeMessageVisib
 	return nil
 }
 
-func (s *sqsSource) copyInflight() map[string]*sqs.DeleteMessageBatchRequestEntry {
+func (s *ObjectFetcherSQS) copyInflight() map[string]*sqs.DeleteMessageBatchRequestEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -247,30 +267,35 @@ func fetchQueueURL(ctx context.Context, client *sqs.SQS, ownerAccountID, queueNa
 	return queueResult.QueueUrl, nil
 }
 
-func (s *sqsSource) Commit(object Object) error {
+func (s *ObjectFetcherSQS) Commit(fileName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	receiptHandle := s.inflight[object.Name]
+
+	receiptHandle := s.inflight[fileName]
 	if receiptHandle != nil {
-		if _, err := s.client.DeleteMessageWithContext(s.ctx, &sqs.DeleteMessageInput{
+		if _, err := s.sqsClient.DeleteMessageWithContext(s.ctx, &sqs.DeleteMessageInput{
 			ReceiptHandle: receiptHandle.ReceiptHandle,
 			QueueUrl:      s.queueURL,
 		}); err != nil {
-			return xerrors.Errorf("failed to delete processed message for file %s: %w", object.Name, err)
+			return xerrors.Errorf("failed to delete processed message for file %s, err: %w", fileName, err)
 		}
-		delete(s.inflight, object.Name)
+		delete(s.inflight, fileName)
 	}
 
 	return nil
 }
 
-func (s *sqsSource) batchDelete() error {
+func (s *ObjectFetcherSQS) FetchAndCommitAll(_ reader.Reader) error {
+	return nil
+}
+
+func (s *ObjectFetcherSQS) batchDelete() error {
 	if len(s.toDelete) > 0 {
-		if _, err := s.client.DeleteMessageBatchWithContext(s.ctx, &sqs.DeleteMessageBatchInput{
+		if _, err := s.sqsClient.DeleteMessageBatchWithContext(s.ctx, &sqs.DeleteMessageBatchInput{
 			Entries:  s.toDelete,
 			QueueUrl: s.queueURL,
 		}); err != nil {
-			return xerrors.Errorf("failed to batch delete processed messages: %w", err)
+			return xerrors.Errorf("failed to batch delete processed messages, err: %w", err)
 		}
 		s.toDelete = []*sqs.DeleteMessageBatchRequestEntry{}
 	}
@@ -278,17 +303,20 @@ func (s *sqsSource) batchDelete() error {
 	return nil
 }
 
-func NewSQSSource(ctx context.Context, logger log.Logger, reader reader.Reader,
-	sess *session.Session, sourceConfig *s3.S3Source,
-) (*sqsSource, error) {
-	sqsConfig := sourceConfig.EventSource.SQS
+func NewObjectFetcherSQS(
+	ctx context.Context,
+	logger log.Logger,
+	srcModel *s3.S3Source,
+	sess *session.Session,
+) (*ObjectFetcherSQS, error) {
+	sqsConfig := srcModel.EventSource.SQS
 	if sqsConfig == nil {
 		return nil, xerrors.New("missing sqs configuration")
 	}
 	sqsSession := sess
 	if sqsConfig.ConnectionConfig.AccessKey != "" {
 		logger.Info("Using dedicated session for sqs client")
-		s, err := s3.NewAWSSession(logger, sourceConfig.Bucket, sqsConfig.ConnectionConfig)
+		s, err := s3.NewAWSSession(logger, srcModel.Bucket, sqsConfig.ConnectionConfig)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to initialize session for sqs: %w", err)
 		}
@@ -302,18 +330,14 @@ func NewSQSSource(ctx context.Context, logger log.Logger, reader reader.Reader,
 		return nil, xerrors.Errorf("failed to initialize sqs queue url: %w", err)
 	}
 
-	source := &sqsSource{
-		client:      sqs.New(sqsSession),
+	return &ObjectFetcherSQS{
 		ctx:         ctx,
-		cfg:         sqsConfig,
-		queueURL:    queueURL,
-		reader:      reader,
 		logger:      logger,
-		pathPattern: sourceConfig.PathPattern,
+		sqsClient:   sqs.New(sqsSession),
+		queueURL:    queueURL,
 		toDelete:    []*sqs.DeleteMessageBatchRequestEntry{},
 		inflight:    make(map[string]*sqs.DeleteMessageBatchRequestEntry),
+		pathPattern: srcModel.PathPattern,
 		mu:          sync.Mutex{},
-	}
-
-	return source, nil
+	}, nil
 }

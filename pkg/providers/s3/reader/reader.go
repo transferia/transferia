@@ -95,7 +95,7 @@ func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, log
 
 		for _, file := range files.Contents {
 			if SkipObject(file, pathPattern, "|", filter) {
-				logger.Infof("file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, pathPattern)
+				logger.Debugf("ListFiles - file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, pathPattern)
 				continue
 			}
 			res = append(res, file)
@@ -158,7 +158,7 @@ func appendSystemColsTableSchema(cols []abstract.ColSchema) *abstract.TableSchem
 	return abstract.NewTableSchema(cols)
 }
 
-func New(
+func newImpl(
 	src *s3.S3Source,
 	lgr log.Logger,
 	sess *session.Session,
@@ -235,4 +235,17 @@ func New(
 	default:
 		return nil, xerrors.Errorf("unknown format: %s", src.InputFormat)
 	}
+}
+
+func New(
+	src *s3.S3Source,
+	lgr log.Logger,
+	sess *session.Session,
+	metrics *stats.SourceStats,
+) (Reader, error) {
+	result, err := newImpl(src, lgr, sess, metrics)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create new reader: %w", err)
+	}
+	return NewReaderContractor(result), nil
 }

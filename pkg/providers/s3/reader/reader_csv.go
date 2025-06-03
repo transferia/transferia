@@ -179,7 +179,7 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher chunk_push
 
 			chunk := chunk_pusher.Chunk{
 				FilePath:  filePath,
-				Completed: endOfFileReached,
+				Completed: false,
 				Offset:    rowsCounter,
 				Size:      parsedSize,
 				Items:     changeItems,
@@ -237,10 +237,6 @@ func (r *CSVReader) parseCSVRows(csvReader *csv.Reader, filePath string, lastMod
 		if err != nil {
 			return nil, xerrors.Errorf("failed to read row form csv: %w", err)
 		}
-
-		// DEBUG
-		fmt.Println("timmyb32rQQQ", strings.Join(line, ""))
-		// DEBUG
 
 		changeItem, err := r.doParse(line, filePath, lastModified, *rowNumber)
 		if err != nil {

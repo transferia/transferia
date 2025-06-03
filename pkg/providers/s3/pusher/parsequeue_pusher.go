@@ -14,6 +14,10 @@ type ParsequeuePusher struct {
 	State PusherState
 }
 
+func (p *ParsequeuePusher) IsEmpty() bool {
+	return p.State.IsEmpty()
+}
+
 func (p *ParsequeuePusher) Push(ctx context.Context, chunk Chunk) error {
 	p.State.waitLimits(ctx) // slow down pushing if limit is reached
 	p.State.addInflight(chunk.Size)
@@ -39,6 +43,7 @@ func NewParsequeuePusher(queue *parsequeue.ParseQueue[Chunk], logger log.Logger,
 			inflightLimit: inflightLimit,
 			inflightBytes: 0,
 			PushProgress:  map[string]Progress{},
+			counter:       0,
 		},
 	}
 }

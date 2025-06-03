@@ -231,7 +231,7 @@ func (r *ReaderParquet) Read(ctx context.Context, filePath string, pusher chunk_
 				Items:     buff,
 				FilePath:  filePath,
 				Offset:    i,
-				Completed: (i == rowCount-1), // last row of file
+				Completed: false,
 				Size:      currentSize,
 			}); err != nil {
 				return xerrors.Errorf("unable to push: %w", err)
@@ -245,7 +245,7 @@ func (r *ReaderParquet) Read(ctx context.Context, filePath string, pusher chunk_
 			Items:     buff,
 			FilePath:  filePath,
 			Offset:    rowCount,
-			Completed: true,
+			Completed: false,
 			Size:      currentSize,
 		}); err != nil {
 			return xerrors.Errorf("unable to push: %w", err)

@@ -183,7 +183,7 @@ func (r *JSONParserReader) Read(ctx context.Context, filePath string, pusher chu
 					Items:     buff,
 					FilePath:  filePath,
 					Offset:    lineCounter,
-					Completed: lastRound,
+					Completed: false,
 					Size:      currentSize,
 				}); err != nil {
 					return xerrors.Errorf("unable to push: %w", err)
@@ -197,7 +197,7 @@ func (r *JSONParserReader) Read(ctx context.Context, filePath string, pusher chu
 				Items:     buff,
 				FilePath:  filePath,
 				Offset:    lineCounter,
-				Completed: lastRound,
+				Completed: false,
 				Size:      currentSize,
 			}); err != nil {
 				return xerrors.Errorf("unable to push: %w", err)

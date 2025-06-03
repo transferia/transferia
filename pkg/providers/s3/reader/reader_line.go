@@ -167,7 +167,7 @@ func (r *LineReader) Read(ctx context.Context, filePath string, pusher chunk_pus
 					Items:     buff,
 					FilePath:  filePath,
 					Offset:    lineCounter,
-					Completed: lastRound,
+					Completed: false,
 					Size:      currentSize,
 				}); err != nil {
 					return xerrors.Errorf("unable to push: %w", err)
@@ -182,7 +182,7 @@ func (r *LineReader) Read(ctx context.Context, filePath string, pusher chunk_pus
 				Items:     buff,
 				FilePath:  filePath,
 				Offset:    lineCounter,
-				Completed: lastRound,
+				Completed: false,
 				Size:      currentSize,
 			}); err != nil {
 				return xerrors.Errorf("unable to push: %w", err)

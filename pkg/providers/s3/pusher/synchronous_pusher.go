@@ -11,6 +11,10 @@ type SyncPusher struct {
 	pusher abstract.Pusher
 }
 
+func (p *SyncPusher) IsEmpty() bool {
+	return false
+}
+
 func (p *SyncPusher) Push(_ context.Context, chunk Chunk) error {
 	if err := p.pusher(chunk.Items); err != nil {
 		return xerrors.Errorf("failed to push: %w", err)

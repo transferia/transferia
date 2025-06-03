@@ -85,7 +85,7 @@ func (f *s3Fetcher) headObjectInfo(input *s3.HeadObjectInput) error {
 	}
 
 	f.lastModifiedTimestamp = *resp.LastModified
-	logger.Log.Infof("S3 object s3://%s/%s has size %d lastModified timestamp is %v", f.bucket, f.key, f.objectSize, f.lastModifiedTimestamp)
+	logger.Log.Debugf("S3 object s3://%s/%s has size %d lastModified timestamp is %v", f.bucket, f.key, f.objectSize, f.lastModifiedTimestamp)
 
 	return nil
 }
