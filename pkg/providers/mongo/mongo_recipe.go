@@ -64,6 +64,7 @@ func RecipeSource(options ...RecipeOption) *MongoSource {
 	}
 	return &MongoSource{
 		ClusterID:              "",
+		ConnectionID:           "",
 		Hosts:                  []string{"localhost"},
 		Port:                   GetIntFromEnv(opts.prefix + "MONGO_LOCAL_PORT"),
 		ReplicaSet:             os.Getenv(opts.prefix + "MONGO_REPLICA_SET"),
@@ -104,6 +105,7 @@ func RecipeTarget(options ...RecipeOption) *MongoDestination {
 	}
 	return &MongoDestination{
 		ClusterID:         "",
+		ConnectionID:      "",
 		Hosts:             []string{"localhost"},
 		Port:              GetIntFromEnv(opts.prefix + "MONGO_LOCAL_PORT"),
 		Database:          opts.database,

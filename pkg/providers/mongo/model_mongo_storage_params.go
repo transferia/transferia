@@ -15,8 +15,35 @@ type MongoStorageParams struct {
 	Direct            bool
 	RootCAFiles       []string
 	SRVMode           bool
+	ConnectionID      string
 }
 
 func (s *MongoStorageParams) ConnectionOptions(defaultCACertPaths []string) MongoConnectionOptions {
-	return connectionOptionsImpl(s.Hosts, s.Port, s.ReplicaSet, s.User, s.Password, s.ClusterID, s.AuthSource, s.TLSFile, defaultCACertPaths, s.Direct, s.SRVMode)
+	var caCert TrustedCACertificate
+	if s.TLSFile != "" {
+		caCert = InlineCACertificatePEM(s.TLSFile)
+	} else if s.ClusterID != "" {
+		caCert = CACertificatePEMFilePaths(defaultCACertPaths)
+	}
+
+	hosts := make([]HostWithPort, 0, len(s.Hosts))
+	for _, host := range s.Hosts {
+		hosts = append(hosts, HostWithPort{
+			Host: host,
+			Port: s.Port,
+		})
+	}
+
+	return MongoConnectionOptions{
+		ClusterID:     s.ClusterID,
+		HostsWithPort: hosts,
+		ReplicaSet:    s.ReplicaSet,
+		AuthSource:    s.AuthSource,
+		User:          s.User,
+		Password:      s.Password,
+		CACert:        caCert,
+		Direct:        s.Direct,
+		SRVMode:       s.SRVMode,
+		ConnectionID:  s.ConnectionID,
+	}
 }

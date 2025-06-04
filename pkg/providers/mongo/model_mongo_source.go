@@ -47,6 +47,7 @@ type MongoSource struct {
 	BatchingParams         *BatcherParameters // for now this is private params
 	DesiredPartSize        uint64
 	PreventJSONRepack      bool // should not be used, use cases for migration: DTSUPPORT-1596
+	ConnectionID           string
 
 	// FilterOplogWithRegexp is matters when ReplicationSource==MongoReplicationSourceOplog
 	//
@@ -68,6 +69,7 @@ type MongoSource struct {
 }
 
 var _ model.Source = (*MongoSource)(nil)
+var _ model.WithConnectionID = (*MongoSource)(nil)
 
 type BatcherParameters struct {
 	BatchSizeLimit     uint
@@ -246,6 +248,10 @@ func (s *MongoSource) GetProviderType() abstract.ProviderType {
 	return ProviderType
 }
 
+func (s *MongoSource) GetConnectionID() string {
+	return s.ConnectionID
+}
+
 type MongoReplicationSource string
 
 var (
@@ -267,29 +273,8 @@ func (s *MongoSource) Validate() error {
 	return nil
 }
 
-func connectionOptionsImpl(hosts []string, port int, replicaSet, user, password, clusterID, authSource, tlsFile string, defaultCACertPaths []string, direct, srvMode bool) MongoConnectionOptions {
-	var caCert TrustedCACertificate
-	if tlsFile != "" {
-		caCert = InlineCACertificatePEM(tlsFile)
-	} else if clusterID != "" {
-		caCert = CACertificatePEMFilePaths(defaultCACertPaths)
-	}
-	return MongoConnectionOptions{
-		ClusterID:  clusterID,
-		Hosts:      hosts,
-		Port:       port,
-		ReplicaSet: replicaSet,
-		AuthSource: authSource,
-		User:       user,
-		Password:   password,
-		CACert:     caCert,
-		Direct:     direct,
-		SRVMode:    srvMode,
-	}
-}
-
 func (s *MongoSource) ConnectionOptions(defaultCACertPaths []string) MongoConnectionOptions {
-	return connectionOptionsImpl(s.Hosts, s.Port, s.ReplicaSet, s.User, string(s.Password), s.ClusterID, s.AuthSource, s.TLSFile, defaultCACertPaths, s.Direct, s.SRVMode)
+	return s.ToStorageParams().ConnectionOptions(defaultCACertPaths)
 }
 
 func (s *MongoSource) ToStorageParams() *MongoStorageParams {
@@ -308,5 +293,6 @@ func (s *MongoSource) ToStorageParams() *MongoStorageParams {
 		Direct:            s.Direct,
 		RootCAFiles:       s.RootCAFiles,
 		SRVMode:           s.SRVMode,
+		ConnectionID:      s.ConnectionID,
 	}
 }

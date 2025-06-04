@@ -815,6 +815,7 @@
   "pkg/connection/clickhouse/connection.go":"transfer_manager/go/pkg/connection/clickhouse/connection.go",
   "pkg/connection/clickhouse/host.go":"transfer_manager/go/pkg/connection/clickhouse/host.go",
   "pkg/connection/connections.go":"transfer_manager/go/pkg/connection/connections.go",
+  "pkg/connection/mongo/connection.go":"transfer_manager/go/pkg/connection/mongo/connection.go",
   "pkg/connection/resolver.go":"transfer_manager/go/pkg/connection/resolver.go",
   "pkg/connection/stub_resolver.go":"transfer_manager/go/pkg/connection/stub_resolver.go",
   "pkg/container/README.md":"transfer_manager/go/pkg/container/README.md",
