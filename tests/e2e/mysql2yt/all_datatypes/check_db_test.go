@@ -35,11 +35,6 @@ func init() {
 	Source.WithDefaults()
 }
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func TestSnapshot(t *testing.T) {
 	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)

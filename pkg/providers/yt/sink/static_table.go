@@ -187,7 +187,7 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 }
 
 func staticYTSchema(item abstract.ChangeItem) []schema.Column {
-	result := abstract.ToYtSchema(item.TableSchema.Columns(), false)
+	result := yt2.ToYtSchema(item.TableSchema.Columns(), false)
 
 	for i := range result {
 		// Static table should not be ordered

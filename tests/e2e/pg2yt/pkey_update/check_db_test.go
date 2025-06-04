@@ -45,11 +45,6 @@ func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 }
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func makeSource() model.Source {
 	src := &postgres.PgSource{
 		Hosts:    []string{"localhost"},
@@ -205,8 +200,8 @@ func (f *fixture) waitMarker() {
 	}
 }
 
-func (f *fixture) loadAndCheckSnapshot() {
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
+func (f *fixture) loadAndCheckSnapshot(cp coordinator.Coordinator) {
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
 	err := snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(f.t, err)
 
@@ -242,12 +237,13 @@ func TestPkeyUpdate(t *testing.T) {
 
 	defer fixture.teardown()
 
-	fixture.loadAndCheckSnapshot()
+	fakeClient := coordinator.NewStatefulFakeClient()
+	fixture.loadAndCheckSnapshot(fakeClient)
 
 	workerErrChannel := make(chan error)
 	defer func() { require.NoError(t, <-workerErrChannel) }()
 
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), fixture.transfer, helpers.EmptyRegistry(), logger.Log)
+	w := local.NewLocalWorker(fakeClient, fixture.transfer, helpers.EmptyRegistry(), logger.Log)
 	defer func() { require.NoError(t, w.Stop()) }()
 
 	go func() { workerErrChannel <- w.Run() }()
@@ -282,7 +278,7 @@ func TestPkeyUpdateIndex(t *testing.T) {
 
 	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetIndex([]string{"idxcol"})
 
-	fixture.loadAndCheckSnapshot()
+	fixture.loadAndCheckSnapshot(coordinator.NewFakeClient())
 
 	idxTablePath := "//home/cdc/pg2yt_e2e_pkey_change/test__idx_idxcol"
 	if diff := cmp.Diff([]idxRow{{IdxCol: 10, ID: 1}}, fixture.readAllIndex(idxTablePath)); diff != "" {
@@ -328,7 +324,7 @@ func TestPkeyUpdateIndexToast(t *testing.T) {
 
 	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetIndex([]string{"idxcol"})
 
-	fixture.loadAndCheckSnapshot()
+	fixture.loadAndCheckSnapshot(coordinator.NewFakeClient())
 
 	idxTablePath := "//home/cdc/pg2yt_e2e_pkey_change/test__idx_idxcol"
 	if diff := cmp.Diff([]idxRow{{IdxCol: 10, ID: 1}}, fixture.readAllIndex(idxTablePath)); diff != "" {

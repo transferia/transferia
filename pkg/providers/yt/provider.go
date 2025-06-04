@@ -37,12 +37,11 @@ func init() {
 	abstract.RegisterProviderName(StagingType, "Logfeller staging area")
 	abstract.RegisterProviderName(CopyType, "YT Copy")
 
-	abstract.RegisterSystemTables(TableProgressRelativePath, TableWAL)
+	abstract.RegisterSystemTables(TableWAL)
 }
 
 const (
-	TableProgressRelativePath = abstract.TableLSN // "__data_transfer_lsn"
-	TableWAL                  = "__wal"
+	TableWAL = "__wal"
 
 	ProviderType = abstract.ProviderType("yt")
 	StagingType  = abstract.ProviderType("lfstaging")

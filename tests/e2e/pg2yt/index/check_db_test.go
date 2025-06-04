@@ -49,11 +49,6 @@ func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 }
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func makeSource() model.Source {
 	src := &postgres.PgSource{
 		Hosts:    []string{"localhost"},

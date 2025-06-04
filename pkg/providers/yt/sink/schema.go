@@ -118,7 +118,7 @@ func (s *Schema) PivotKeys() (pivots []interface{}) {
 	return pivotKeys(s.Cols(), s.config)
 }
 
-func getCols(s schema.Schema) []abstract.ColSchema {
+func GetCols(s schema.Schema) []abstract.ColSchema {
 	var cols []abstract.ColSchema
 	for _, column := range s.Columns {
 		var col abstract.ColSchema
@@ -131,7 +131,7 @@ func getCols(s schema.Schema) []abstract.ColSchema {
 	return cols
 }
 
-func buildDynamicAttrs(cols []abstract.ColSchema, config yt.YtDestinationModel) map[string]interface{} {
+func BuildDynamicAttrs(cols []abstract.ColSchema, config yt.YtDestinationModel) map[string]interface{} {
 	attrs := map[string]interface{}{
 		"primary_medium":            config.PrimaryMedium(),
 		"optimize_for":              config.OptimizeFor(),
@@ -173,7 +173,7 @@ func buildDynamicAttrs(cols []abstract.ColSchema, config yt.YtDestinationModel) 
 }
 
 func (s *Schema) Attrs() map[string]interface{} {
-	attrs := buildDynamicAttrs(s.Cols(), s.config)
+	attrs := BuildDynamicAttrs(s.Cols(), s.config)
 	attrs["dynamic"] = true
 	return attrs
 }

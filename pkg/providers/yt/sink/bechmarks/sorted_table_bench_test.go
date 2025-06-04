@@ -125,7 +125,7 @@ func BenchmarkSinkWrite(b *testing.B) {
 				CanAlter:            true,
 			})
 			cfg.WithDefaults()
-			table, err := sink.NewSinker(cfg, "some_uniq_transfer_id", 0, logger.LoggerWithLevel(zapcore.WarnLevel), metrics.NewRegistry(), client2.NewFakeClient(), nil)
+			table, err := sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), metrics.NewRegistry(), client2.NewFakeClient(), nil)
 			require.NoError(b, err)
 			if o, ok := table.(overrideable); ok {
 				o.OverrideClient(&fakeYT{cols: []schema.Column{{
@@ -157,7 +157,7 @@ func BenchmarkSinkWrite(b *testing.B) {
 				CanAlter:            true,
 			})
 			cfg.WithDefaults()
-			table, err := sink.NewSinker(cfg, "some_uniq_transfer_id", 0, logger.LoggerWithLevel(zapcore.WarnLevel), metrics.NewRegistry(), client2.NewFakeClient(), nil)
+			table, err := sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), metrics.NewRegistry(), client2.NewFakeClient(), nil)
 			require.NoError(b, err)
 			if o, ok := table.(overrideable); ok {
 				o.OverrideClient(&fakeYT{cols: []schema.Column{{

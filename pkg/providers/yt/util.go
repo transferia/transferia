@@ -2,6 +2,8 @@ package yt
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -18,6 +20,12 @@ import (
 var (
 	defaultHandleParams = NewHandleParams(50)
 )
+
+type ColumnSchema struct {
+	Name    string      `yson:"name" json:"name"`
+	YTType  schema.Type `yson:"type" json:"type"`
+	Primary bool        `json:"primary"`
+}
 
 type nodeHandler func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error
 
@@ -214,4 +222,40 @@ func ResolveMoveOptions(client yt.CypressClient, table ypath.Path, isRecursive b
 		PreserveExpirationTime:    ptr.Bool(preserveExpirationTimeErr == nil),
 	}
 	return result
+}
+
+func ToYtSchema(original []abstract.ColSchema, fixAnyTypeInPrimaryKey bool) []schema.Column {
+	result := make([]schema.Column, len(original))
+	for idx, el := range original {
+		result[idx] = schema.Column{
+			Name:       el.ColumnName,
+			Expression: el.Expression,
+			Type:       schema.Type(el.DataType),
+		}
+		if el.PrimaryKey {
+			result[idx].SortOrder = schema.SortAscending
+			if result[idx].Type == schema.TypeAny && fixAnyTypeInPrimaryKey {
+				result[idx].Type = schema.TypeString // should not use any as keys
+			}
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].SortOrder != schema.SortNone && result[j].SortOrder == schema.SortNone
+	})
+	return result
+}
+
+func MakeTableName(tableID abstract.TableID, altNames map[string]string) string {
+	var name string
+	if tableID.Namespace == "public" || tableID.Namespace == "" {
+		name = tableID.Name
+	} else {
+		name = fmt.Sprintf("%v_%v", tableID.Namespace, tableID.Name)
+	}
+
+	if altName, ok := altNames[name]; ok {
+		name = altName
+	}
+
+	return name
 }

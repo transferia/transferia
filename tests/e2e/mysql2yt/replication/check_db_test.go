@@ -14,7 +14,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/providers/mysql"
-	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
@@ -35,11 +34,6 @@ var (
 
 func init() {
 	source.WithDefaults()
-}
-
-func TestMain(m *testing.M) {
-	ytcommon.InitExe()
-	os.Exit(m.Run())
 }
 
 func makeConnConfig() *mysqlDriver.Config {

@@ -13,7 +13,6 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
@@ -27,7 +26,6 @@ import (
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
-	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yterrors"
@@ -42,39 +40,31 @@ type GenericTable interface {
 }
 
 type sinker struct {
-	ytClient            yt.Client
-	dir                 ypath.Path
-	logger              log.Logger
-	metrics             *stats.SinkerStats
-	cp                  coordinator.Coordinator
-	schemas             map[string][]abstract.ColSchema
-	tables              map[string]GenericTable
-	tableRotations      map[string]map[string]struct{}
-	config              yt2.YtDestinationModel
-	timeout             time.Duration
-	lock                *maplock.Mutex
-	chunkSize           int
-	closed              bool
-	progressInited      bool
-	staticSnapshotState map[string]StaticTableSnapshotState // it's like map: tableName -> in-place finite-state machine
+	ytClient       yt.Client
+	dir            ypath.Path
+	logger         log.Logger
+	metrics        *stats.SinkerStats
+	cp             coordinator.Coordinator
+	schemas        map[string][]abstract.ColSchema
+	tables         map[string]GenericTable
+	config         yt2.YtDestinationModel
+	lock           *maplock.Mutex
+	chunkSize      int
+	closed         bool
+	progressInited bool
 
-	schemaMutex        sync.Mutex
-	tableRotationMutex sync.Mutex
-	lsns               map[string]TableProgress
-	lsnsLock           sync.Mutex
-	transferID         string
-	jobIndex           int
-	pathToBinary       ypath.Path
+	schemaMutex sync.Mutex
+	transferID  string
 }
 
 func (s *sinker) Move(ctx context.Context, src, dst abstract.TableID) error {
-	srcPath := yt2.SafeChild(s.dir, s.makeTableName(src))
+	srcPath := yt2.SafeChild(s.dir, yt2.MakeTableName(src, s.config.AltNames()))
 	err := yt2.UnmountAndWaitRecursive(ctx, s.logger, s.ytClient, srcPath, nil)
 	if err != nil {
 		return xerrors.Errorf("unable to unmount source: %w", err)
 	}
 
-	dstPath := yt2.SafeChild(s.dir, s.makeTableName(dst))
+	dstPath := yt2.SafeChild(s.dir, yt2.MakeTableName(dst, s.config.AltNames()))
 	dstExists, err := s.ytClient.NodeExists(ctx, dstPath, nil)
 	if err != nil {
 		return xerrors.Errorf("unable to check if destination exists: %w", err)
@@ -100,37 +90,6 @@ func (s *sinker) Move(ctx context.Context, src, dst abstract.TableID) error {
 	return err
 }
 
-type BanRow struct {
-	Cluster  string    `yson:"cluster,key"`
-	Path     string    `yson:"part,key"`
-	Table    string    `yson:"table,key"`
-	LastFail time.Time `yson:"last_fail"`
-}
-
-type StaticTableSnapshotState string // it's like in-place finite-state machine
-
-const (
-	StaticTableSnapshotUninitialized StaticTableSnapshotState = ""
-	StaticTableSnapshotInitialized   StaticTableSnapshotState = "StaticTableSnapshotInitialized" // after 'init_table_load'
-	StaticTableSnapshotActivated     StaticTableSnapshotState = "StaticTableSnapshotActivated"   // 'activation' - it's successfully called checkTable
-	StaticTableSnapshotDone          StaticTableSnapshotState = "StaticTableSnapshotDone"        // set in 'commitSnapshot' (on 'done_load_table'), if state is activated
-)
-
-type TableStatus string
-
-const (
-	Snapshot = TableStatus("snapshot")
-	SyncWait = TableStatus("sync_wait")
-	Synced   = TableStatus("synced")
-)
-
-type TableProgress struct {
-	TransferID string      `yson:"transfer_id,key"`
-	Table      string      `yson:"table,key"`
-	LSN        uint64      `yson:"lsn"`
-	Status     TableStatus `yson:"status"`
-}
-
 var (
 	reTypeMismatch          = regexp.MustCompile(`Type mismatch for column .*`)
 	reSortOrderMismatch     = regexp.MustCompile(`Sort order mismatch for column .*`)
@@ -152,10 +111,6 @@ var schemaMismatchRes = []*regexp.Regexp{
 	reChangeOrder,
 	reNonKeyComputed,
 }
-
-var (
-	TableProgressSchema = schema.MustInfer(new(TableProgress))
-)
 
 func (s *sinker) pushWalSlice(input []abstract.ChangeItem) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.config.WriteTimeoutSec())*time.Second)
@@ -207,14 +162,7 @@ func (s *sinker) pushWal(input []abstract.ChangeItem) error {
 
 func (s *sinker) Close() error {
 	s.closed = true
-	var errs error
-
-	for _, table := range s.tables {
-		if sst, ok := table.(*SingleStaticTable); ok {
-			errs = multierr.Append(errs, sst.Abort())
-		}
-	}
-	return errs
+	return nil
 }
 
 func (s *sinker) checkTable(schema []abstract.ColSchema, table string) error {
@@ -227,27 +175,6 @@ func (s *sinker) checkTable(schema []abstract.ColSchema, table string) error {
 	}
 	defer s.lock.Unlock(table)
 
-	if s.staticSnapshotState[table] == StaticTableSnapshotInitialized {
-		s.logger.Info("Try to create snapshot table", log.Any("table", table), log.Any("schema", schema))
-		// special case for InitTableLoad
-		var err error
-		currStaticTable, err := s.newStaticTable(schema, table)
-		if err != nil {
-			return xerrors.Errorf("cannot create static table for pre-store in YT for snapshot upload, table: %s, err: %v", table, err)
-		}
-		s.tables[table] = currStaticTable
-		s.staticSnapshotState[table] = StaticTableSnapshotActivated
-		return nil
-	}
-
-	_, isSst := s.tables[table].(*SingleStaticTable)
-	if isSst {
-		if s.staticSnapshotState[table] == StaticTableSnapshotDone {
-			// recreate writer on snapshot completion
-			s.tables[table] = nil
-		}
-	}
-
 	if s.tables[table] == nil {
 		if schema == nil {
 			s.logger.Error("No schema for table", log.Any("table", table))
@@ -255,7 +182,7 @@ func (s *sinker) checkTable(schema []abstract.ColSchema, table string) error {
 		}
 
 		s.logger.Info("Try to create table", log.Any("table", table), log.Any("schema", schema))
-		genericTable, createTableErr := s.newGenericTable(schema, table)
+		genericTable, createTableErr := s.newGenericTable(yt2.SafeChild(s.dir, table), schema)
 		if createTableErr != nil {
 			s.logger.Error("Create table error", log.Any("table", table), log.Error(createTableErr))
 			if isIncompatibleSchema(createTableErr) {
@@ -309,40 +236,10 @@ func (s *sinker) checkPrimaryKeyChanges(input []abstract.ChangeItem) error {
 	return nil
 }
 
-func (s *sinker) makeTableName(tableID abstract.TableID) string {
-	var name string
-	if tableID.Namespace == "public" || tableID.Namespace == "" {
-		name = tableID.Name
-	} else {
-		name = fmt.Sprintf("%v_%v", tableID.Namespace, tableID.Name)
-	}
-
-	if altName, ok := s.config.AltNames()[name]; ok {
-		name = altName
-	}
-
-	return name
-}
-
 func (s *sinker) isTableSchemaDefined(tableName string) bool {
 	s.schemaMutex.Lock()
 	defer s.schemaMutex.Unlock()
 	return len(s.schemas[tableName]) > 0
-}
-
-func (s *sinker) addTableRotation(tableName string, rotationName string) {
-	s.tableRotationMutex.Lock()
-	defer s.tableRotationMutex.Unlock()
-	if _, ok := s.tableRotations[tableName]; !ok {
-		s.tableRotations[tableName] = make(map[string]struct{})
-	}
-	s.tableRotations[tableName][rotationName] = struct{}{}
-}
-
-func (s *sinker) getTableRotations(name string) map[string]struct{} {
-	s.tableRotationMutex.Lock()
-	defer s.tableRotationMutex.Unlock()
-	return s.tableRotations[name]
 }
 
 // Push processes incoming items.
@@ -360,13 +257,9 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	if err := s.checkPrimaryKeyChanges(input); err != nil {
 		return xerrors.Errorf("unable to check primary key changes: %w", err)
 	}
-	progress, err := s.loadTableStatus()
-	if err != nil {
-		return xerrors.Errorf("unable to load table status: %w", err)
-	}
-	syncQ := map[string]uint64{}
+
 	for _, item := range input {
-		name := s.makeTableName(item.TableID())
+		name := yt2.MakeTableName(item.TableID(), s.config.AltNames())
 		tableYPath := yt2.SafeChild(s.dir, name)
 		if !s.isTableSchemaDefined(name) {
 			s.schemaMutex.Lock()
@@ -375,7 +268,6 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 		}
 		// apply rotation to name
 		rotatedName := s.config.Rotation().AnnotateWithTimeFromColumn(name, item)
-		s.addTableRotation(name, rotatedName)
 
 		switch item.Kind {
 		// Drop and truncate are essentially the same operations
@@ -401,75 +293,7 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			}); err != nil {
 				return xerrors.Errorf("unable to remove node: %w", err)
 			}
-		case abstract.InitShardedTableLoad:
-			if err := s.setTableStatus(item.Fqtn(), item.LSN, Snapshot); err != nil {
-				return xerrors.Errorf("unable to set status %q for table %v: %w", Snapshot, item.Fqtn(), err)
-			}
-			progress, err = s.loadTableStatus()
-			if err != nil {
-				return xerrors.Errorf("unable to load status for table %v: %w", item.Fqtn(), err)
-			}
-		case abstract.InitTableLoad:
-			if s.staticSnapshotState[rotatedName] != StaticTableSnapshotUninitialized {
-				msg := "attempt to initialize snapshot twice in a row"
-				s.logger.Error(msg, log.String("staticSnapshotState", string(s.staticSnapshotState[rotatedName])))
-				return abstract.NewFatalError(xerrors.Errorf(msg))
-			}
-			// if static snapshots are enabled
-			if s.config.UseStaticTableOnSnapshot() {
-				s.logger.Info("static table snapshot is initiated because policy UseStaticTableOnSnapshot is on")
-				// delay handler application until schema is unknown
-				s.staticSnapshotState[rotatedName] = StaticTableSnapshotInitialized
-
-				if s.config.CreateEmptyTables() {
-					s.logger.Info("create empty table", log.String("name", name))
-					if err := s.checkTable(item.TableSchema.Columns(), name); err != nil {
-						return xerrors.Errorf("unable to create table on init table load (CreateEmptyTables is true): %w", err)
-					}
-				}
-			} else {
-				s.logger.Info("static table snapshot is not initiated because policy UseStaticTableOnSnapshot is off")
-			}
-		case abstract.DoneTableLoad:
-			if s.config.UseStaticTableOnSnapshot() {
-				err := s.commitSnapshot(name)
-				if err != nil {
-					return xerrors.Errorf("unable to commit snapshot: %w", err)
-				}
-			}
-		case abstract.DoneShardedTableLoad:
-			if s.config.UseStaticTableOnSnapshot() {
-				var tableWriterSpec interface{}
-				if spec := s.config.Spec(); spec != nil {
-					tableWriterSpec = spec.GetConfig()
-				}
-				err := finishSingleStaticTableLoading(context.TODO(), s.ytClient, s.logger, s.dir, s.transferID, name, s.config.CleanupMode(), s.pathToBinary, tableWriterSpec,
-					func(schema schema.Schema) map[string]interface{} {
-						return buildDynamicAttrs(getCols(schema), s.config)
-					}, s.config.Rotation() != nil)
-				if err != nil {
-					return xerrors.Errorf("unable to finish loading table %q: %w", name, err)
-				}
-			}
-
-			if err := s.setTableStatus(item.Fqtn(), item.LSN, SyncWait); err != nil {
-				return xerrors.Errorf("unable to set status %q for table %v: %w", SyncWait, item.Fqtn(), err)
-			}
-			progress, err = s.loadTableStatus()
-			if err != nil {
-				return xerrors.Errorf("unable to load status for table %v: %w", item.Fqtn(), err)
-			}
 		case abstract.InsertKind, abstract.UpdateKind, abstract.DeleteKind:
-			if progress[item.Fqtn()].Status == SyncWait {
-				if item.LSN < progress[item.Fqtn()].LSN {
-					s.logger.Infof("skip row due to sync wait: %v, Source(%v) -> Synced(%v)", progress[item.Fqtn()].Table, item.LSN, progress[item.Fqtn()].LSN)
-					continue
-				} else {
-					if _, ok := syncQ[item.Fqtn()]; !ok {
-						syncQ[item.Fqtn()] = item.LSN
-					}
-				}
-			}
 			rotationBatches[rotatedName] = append(rotationBatches[rotatedName], item)
 		case abstract.SynchronizeKind:
 			// do nothing
@@ -481,14 +305,6 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	if err := s.pushBatchesParallel(rotationBatches); err != nil {
 		return xerrors.Errorf("unable to push batches: %w", err)
 	}
-
-	for table, lsn := range syncQ {
-		s.logger.Infof("table: %v is synced at LSN %v", table, lsn)
-		if err := s.setTableStatus(table, lsn, Synced); err != nil {
-			return xerrors.Errorf("unable to set table (%v) status: %w", table, err)
-		}
-	}
-
 	s.metrics.Elapsed.RecordDuration(time.Since(start))
 	return nil
 }
@@ -791,148 +607,9 @@ func (s *sinker) runRotator() {
 	}
 }
 
-func (s *sinker) setTableStatus(fqtn string, lsn uint64, status TableStatus) error {
-	tableProgressPath := yt2.SafeChild(s.dir, yt2.TableProgressRelativePath)
-	s.lsnsLock.Lock()
-	defer s.lsnsLock.Unlock()
-	if !s.progressInited {
-		tables := map[ypath.Path]migrate.Table{}
-		tables[tableProgressPath] = migrate.Table{
-			Schema: TableProgressSchema,
-			Attributes: map[string]any{
-				"tablet_cell_bundle": s.config.CellBundle(),
-			},
-		}
-		drop := migrate.OnConflictDrop(context.Background(), s.ytClient)
-		if err := migrate.EnsureTables(context.Background(), s.ytClient, tables, drop); err != nil {
-			s.logger.Warn("Unable to init progress table", log.Error(err))
-			return err
-		}
-		s.progressInited = true
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	err := backoff.Retry(func() error {
-		err := s.ytClient.InsertRows(ctx, tableProgressPath, []interface{}{TableProgress{
-			Table:      fqtn,
-			TransferID: s.transferID,
-			LSN:        lsn,
-			Status:     status,
-		}}, nil)
-		if err != nil {
-			s.logger.Warnf("Cannot update table(%v) status(%v): %v", fqtn, status, err)
-		}
-		return err
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5))
-	if err != nil {
-		s.logger.Errorf("Unable to update table(%v) status(%v) after several retries: %v", fqtn, status, err)
-		return xerrors.Errorf("Unable to update table(%v) status(%v) after several retries: %w", fqtn, status, err)
-	}
-	s.lsns = nil
-	return nil
-}
-
-func (s *sinker) loadTableStatus() (map[string]TableProgress, error) {
-	tableProgressPath := yt2.SafeChild(s.dir, yt2.TableProgressRelativePath)
-	s.lsnsLock.Lock()
-	defer s.lsnsLock.Unlock()
-	if s.lsns != nil {
-		// if no progress table then should do nothing
-		return s.lsns, nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	s.lsns = map[string]TableProgress{}
-	exists, err := s.ytClient.NodeExists(ctx, tableProgressPath, nil)
-	if err != nil {
-		return s.lsns, xerrors.Errorf("Unable check exists %v path: %w", tableProgressPath, err)
-	}
-	if !exists {
-		return s.lsns, nil
-	}
-	if err = yt2.WaitMountingPreloadState(s.ytClient, tableProgressPath); err != nil {
-		return nil, xerrors.Errorf("table is not mounted for reading: %w", err)
-	}
-	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	rows, err := s.ytClient.SelectRows(
-		ctx,
-		fmt.Sprintf("* from [%v] where transfer_id = '%v'", tableProgressPath, s.transferID),
-		nil,
-	)
-	if err != nil {
-		return s.lsns, xerrors.Errorf("Unable select %v: %w", tableProgressPath, err)
-	}
-	s.lsns = map[string]TableProgress{}
-	for rows.Next() {
-		var res TableProgress
-		if err := rows.Scan(&res); err != nil {
-			return s.lsns, xerrors.Errorf("Unable scan %v: %w", tableProgressPath, err)
-		}
-		s.lsns[res.Table] = res
-	}
-	return s.lsns, nil
-}
-
-func (s *sinker) commitSnapshot(tableName string) error {
-	rotations := s.getTableRotations(tableName)
-	for rotation := range rotations {
-		// immediately convert table from static to dynamic (for code simplification)
-		// so, DoneTableLoad assumed to be pushed as separate chunk of data
-		if s.staticSnapshotState[rotation] == StaticTableSnapshotInitialized {
-			s.logger.Info("Received snapshot completion while initialization is not yet launched. Assuming, that initialization is over.",
-				log.String("table", rotation), log.Any("StaticTableSnapshotState", s.staticSnapshotState[rotation]))
-			// Init and Done in the same batch, cancel initialization
-			s.staticSnapshotState[rotation] = StaticTableSnapshotDone
-			continue
-		}
-		if s.staticSnapshotState[rotation] != StaticTableSnapshotActivated {
-			return xerrors.Errorf("Received snapshot completion without activation the snapshot, table:%s, StaticTableSnapshotState:%s", rotation, s.staticSnapshotState[rotation])
-		}
-
-		if sst, ok := s.tables[rotation].(*SingleStaticTable); ok {
-			s.schemaMutex.Lock()
-			sst.UpdateSchema(s.schemas[tableName]) // during snapshot upload we know exact schema
-			s.schemaMutex.Unlock()
-			ctx := context.Background()
-			if err := sst.Commit(ctx); err != nil {
-				s.logger.Error("Snapshot commit error",
-					log.String("table", rotation),
-					log.Error(err))
-				//nolint:descriptiveerrors
-				return err
-			}
-			s.logger.Info("Snapshot initialization done",
-				log.String("table", rotation))
-			s.staticSnapshotState[rotation] = StaticTableSnapshotDone
-		} else {
-			err := fmt.Errorf("static type conversion error: writer is not SingleStaticTable %v", rotation)
-			s.logger.Warn("Couldn't finish snapshot: ", log.Error(err), log.String("table", rotation))
-			//nolint:descriptiveerrors
-			return err
-		}
-	}
-	return nil
-}
-
-// private wrapper function with receiver
-func (s *sinker) newGenericTable(schema []abstract.ColSchema, table string) (GenericTable, error) {
-	return NewGenericTable(s.ytClient, yt2.SafeChild(s.dir, table), schema, s.config, s.metrics, s.logger)
-}
-
-func (s *sinker) newStaticTable(schema []abstract.ColSchema, table string) (GenericTable, error) {
-	return NewSingleStaticTable(s.ytClient, s.dir, table, schema, s.config, s.jobIndex, s.transferID, s.config.CleanupMode(), s.metrics, s.logger, s.pathToBinary)
-}
-
-func (s *sinker) OverrideClient(client yt.Client) {
-	s.ytClient = client
-}
-
 func NewSinker(
 	cfg yt2.YtDestinationModel,
 	transferID string,
-	jobIndex int,
 	logger log.Logger,
 	registry metrics.Registry,
 	cp coordinator.Coordinator,
@@ -940,7 +617,7 @@ func NewSinker(
 ) (abstract.Sinker, error) {
 	var result abstract.Sinker
 
-	uncasted, err := newSinker(cfg, transferID, jobIndex, logger, registry, cp)
+	uncasted, err := newSinker(cfg, transferID, logger, registry, cp)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create pure YT sink: %w", err)
 	}
@@ -954,7 +631,7 @@ func NewSinker(
 	return result, nil
 }
 
-func newSinker(cfg yt2.YtDestinationModel, transferID string, jobIndex int, lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator) (*sinker, error) {
+func newSinker(cfg yt2.YtDestinationModel, transferID string, lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator) (*sinker, error) {
 	ytClient, err := ytclient.FromConnParams(cfg, lgr)
 	if err != nil {
 		return nil, xerrors.Errorf("error getting YT Client: %w", err)
@@ -965,34 +642,21 @@ func newSinker(cfg yt2.YtDestinationModel, transferID string, jobIndex int, lgr 
 		chunkSize = chunkSize / (len(cfg.Index()) + 1)
 	}
 
-	pathToBinary, err := dataplaneExecutablePath(cfg, ytClient, lgr)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to get dataplane executable path: %w", err)
-	}
-
 	s := sinker{
-		ytClient:            ytClient,
-		dir:                 ypath.Path(cfg.Path()),
-		logger:              lgr,
-		metrics:             stats.NewSinkerStats(registry),
-		schemas:             map[string][]abstract.ColSchema{},
-		tables:              map[string]GenericTable{},
-		tableRotations:      map[string]map[string]struct{}{},
-		config:              cfg,
-		timeout:             15 * time.Second,
-		lock:                maplock.NewMapMutex(),
-		chunkSize:           chunkSize,
-		closed:              false,
-		progressInited:      false,
-		staticSnapshotState: map[string]StaticTableSnapshotState{},
-		schemaMutex:         sync.Mutex{},
-		tableRotationMutex:  sync.Mutex{},
-		lsns:                map[string]TableProgress{},
-		lsnsLock:            sync.Mutex{},
-		transferID:          transferID,
-		cp:                  cp,
-		jobIndex:            jobIndex,
-		pathToBinary:        pathToBinary,
+		ytClient:       ytClient,
+		dir:            ypath.Path(cfg.Path()),
+		logger:         lgr,
+		metrics:        stats.NewSinkerStats(registry),
+		schemas:        map[string][]abstract.ColSchema{},
+		tables:         map[string]GenericTable{},
+		config:         cfg,
+		lock:           maplock.NewMapMutex(),
+		chunkSize:      chunkSize,
+		closed:         false,
+		progressInited: false,
+		schemaMutex:    sync.Mutex{},
+		transferID:     transferID,
+		cp:             cp,
 	}
 
 	if cfg.Rotation() != nil {
@@ -1002,35 +666,35 @@ func newSinker(cfg yt2.YtDestinationModel, transferID string, jobIndex int, lgr 
 	return &s, nil
 }
 
-func NewGenericTable(ytClient yt.Client, path ypath.Path, schema []abstract.ColSchema, cfg yt2.YtDestinationModel, metrics *stats.SinkerStats, logger log.Logger) (GenericTable, error) {
-	logger.Info("create generic table", log.Any("name", path), log.Any("schema", schema))
+func (s *sinker) newGenericTable(path ypath.Path, schema []abstract.ColSchema) (GenericTable, error) {
+	s.logger.Info("create generic table", log.Any("name", path), log.Any("schema", schema))
 	originalSchema := schema
-	if !cfg.DisableDatetimeHack() {
+	if !s.config.DisableDatetimeHack() {
 		schema = hackTimestamps(schema)
-		logger.Warn("nasty hack that replace datetime -> int64", log.Any("name", path), log.Any("schema", schema))
+		s.logger.Warn("nasty hack that replace datetime -> int64", log.Any("name", path), log.Any("schema", schema))
 	}
-	if cfg.Ordered() {
-		orderedTable, err := NewOrderedTable(ytClient, path, schema, cfg, metrics, logger)
+	if s.config.Ordered() {
+		orderedTable, err := NewOrderedTable(s.ytClient, path, schema, s.config, s.metrics, s.logger)
 		if err != nil {
 			return nil, xerrors.Errorf("cannot create ordered table: %w", err)
 		}
 		return orderedTable, nil
 	}
-	if cfg.VersionColumn() != "" {
+	if s.config.VersionColumn() != "" {
 		if generic.IsGenericUnparsedSchema(abstract.NewTableSchema(schema)) &&
 			strings.HasSuffix(path.String(), "_unparsed") {
-			logger.Info("Table with unparsed schema and _unparsed postfix detected, creation of versioned table is skipped",
-				log.Any("table", path), log.Any("version_column", cfg.VersionColumn()),
+			s.logger.Info("Table with unparsed schema and _unparsed postfix detected, creation of versioned table is skipped",
+				log.Any("table", path), log.Any("version_column", s.config.VersionColumn()),
 				log.Any("schema", schema))
-		} else if _, ok := abstract.MakeFastTableSchema(schema)[abstract.ColumnName(cfg.VersionColumn())]; !ok {
+		} else if _, ok := abstract.MakeFastTableSchema(schema)[abstract.ColumnName(s.config.VersionColumn())]; !ok {
 			return nil, abstract.NewFatalError(xerrors.Errorf(
 				"config error: detected table '%v' without column specified as version column '%v'",
-				path, cfg.VersionColumn()),
+				path, s.config.VersionColumn()),
 			)
-		} else if cfg.Rotation() != nil {
+		} else if s.config.Rotation() != nil {
 			return nil, abstract.NewFatalError(xerrors.New("rotation is not supported with versioned tables"))
 		} else {
-			versionedTable, err := NewVersionedTable(ytClient, path, schema, cfg, metrics, logger)
+			versionedTable, err := NewVersionedTable(s.ytClient, path, schema, s.config, s.metrics, s.logger)
 			if err != nil {
 				return nil, xerrors.Errorf("cannot create versioned table: %w", err)
 			}
@@ -1038,33 +702,15 @@ func NewGenericTable(ytClient yt.Client, path ypath.Path, schema []abstract.ColS
 		}
 	}
 
-	sortedTable, err := NewSortedTable(ytClient, path, schema, cfg, metrics, logger)
+	sortedTable, err := NewSortedTable(s.ytClient, path, schema, s.config, s.metrics, s.logger)
 	if err != nil {
 		return nil, xerrors.Errorf("cannot create sorted table: %w", err)
 	}
-	if !cfg.DisableDatetimeHack() {
+	if !s.config.DisableDatetimeHack() {
 		// this hack force agly code, if hack is enabled we rebuild EVERY change item schema, which is very costly
 		sortedTable.tableSchema = abstract.NewTableSchema(originalSchema)
 	}
 	return sortedTable, nil
-}
-
-func dataplaneExecutablePath(cfg yt2.YtDestinationModel, ytClient yt.Client, logger log.Logger) (ypath.Path, error) {
-	if dataplaneVersion, ok := yt2.DataplaneVersion(); ok {
-		pathToBinary := yt2.DataplaneExecutablePath(cfg.Cluster(), dataplaneVersion)
-		if exists, err := ytClient.NodeExists(context.TODO(), pathToBinary, nil); err != nil {
-			return "", xerrors.Errorf("unable to check if dataplane executable exists: %w", err)
-		} else if !exists {
-			logger.Warn("dataplane executable path does not exist", log.Any("path", pathToBinary))
-			return "", nil
-		} else {
-			logger.Info("successfully initialized dataplane executable path", log.Any("path", pathToBinary))
-			return pathToBinary, nil
-		}
-	} else {
-		logger.Warn("dataplane version is not specified")
-		return "", nil
-	}
 }
 
 func hackTimestamps(cols []abstract.ColSchema) []abstract.ColSchema {

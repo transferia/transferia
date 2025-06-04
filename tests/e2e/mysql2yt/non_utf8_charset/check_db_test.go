@@ -35,11 +35,6 @@ func init() {
 	source.WithDefaults()
 }
 
-func TestMain(m *testing.M) {
-	ytcommon.InitExe()
-	os.Exit(m.Run())
-}
-
 func makeConnConfig() *mysql.Config {
 	cfg := mysql.NewConfig()
 	cfg.Addr = fmt.Sprintf("%v:%v", source.Host, source.Port)

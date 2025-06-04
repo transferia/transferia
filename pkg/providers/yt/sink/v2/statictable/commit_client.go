@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	ytmerge "github.com/transferia/transferia/pkg/providers/yt/mergejob"
 	"go.ytsaurus.tech/yt/go/mapreduce"
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -18,6 +19,12 @@ const (
 	blockSize         = 256 * (2 << 10)
 	maxFailedJobCount = 5
 )
+
+func init() {
+	mapreduce.Register(&ytmerge.MergeWithDeduplicationJob{
+		Untyped: mapreduce.Untyped{},
+	})
+}
 
 type commitClient struct {
 	Tx     yt.Tx
@@ -109,6 +116,56 @@ func (c *commitClient) mergeTables(currentPath ypath.Path, userPath ypath.Path, 
 	return nil
 }
 
+func (c *commitClient) reduceTables(currentPath, userPath, reducedPath, pathToBinary ypath.Path) (ypath.Path, error) {
+	ok, err := c.Tx.NodeExists(context.Background(), userPath, nil)
+	if err != nil {
+		return "", xerrors.Errorf("unable to check table existence: %w", err)
+	}
+	if !ok {
+		return currentPath, nil
+	}
+
+	if err := c.createTableForOperation(reducedPath, c.Scheme); err != nil {
+		return "", xerrors.Errorf("unable to create table for the reducing operation: %w", err)
+	}
+
+	reduceClient := mapreduce.New(c.Client).WithTx(c.Tx)
+	reduceSpec := spec.Reduce()
+	reduceSpec.Pool = c.Pool
+	reduceSpec.InputTablePaths = []ypath.YPath{userPath, currentPath}
+	reduceSpec.OutputTablePaths = []ypath.YPath{reducedPath}
+	reduceSpec.SortBy = c.Scheme.KeyColumns()
+	reduceSpec.ReduceBy = c.Scheme.KeyColumns()
+	reduceSpec.ReduceJobIO = &spec.JobIO{TableWriter: map[string]any{"block_size": blockSize}}
+	reduceSpec.MaxFailedJobCount = maxFailedJobCount
+	reduceSpec.Reducer = new(spec.UserScript)
+	reduceSpec.Reducer.MemoryLimit = 2147483648
+	reduceSpec.Reducer.Environment = map[string]string{
+		"DT_YT_SKIP_INIT": "1",
+	}
+	var reduceOpts []mapreduce.OperationOption
+	if pathToBinary != "" {
+		reduceSpec.PatchUserBinary(pathToBinary)
+		reduceOpts = append(reduceOpts, mapreduce.SkipSelfUpload())
+	}
+
+	reduceOperation, err := reduceClient.Reduce(ytmerge.NewMergeWithDeduplicationJob(), reduceSpec, reduceOpts...)
+	if err != nil {
+		return "", xerrors.Errorf("unable to start reduce operation: %w", err)
+	}
+
+	if err = reduceOperation.Wait(); err != nil {
+		return "", xerrors.Errorf("unable to reduce: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := c.Tx.RemoveNode(ctx, currentPath, nil); err != nil {
+		return "", xerrors.Errorf("unable to remove reducing tmp table: %w", err)
+	}
+	return reducedPath, nil
+}
+
 func (c *commitClient) moveTables(src ypath.Path, dst ypath.Path) error {
 	if src == dst {
 		return nil
@@ -150,11 +207,15 @@ func (c *commitClient) checkTablesAttrsCompatibility(tmpTable, userTable ypath.P
 	return nil
 }
 
-func newCommitClient(tx yt.Tx, client yt.Client, scheme []abstract.ColSchema, pool string, optimizedFor string, customAttributes map[string]any) *commitClient {
+func newCommitClient(tx yt.Tx, client yt.Client, scheme []abstract.ColSchema, pool string, optimizedFor string, customAttributes map[string]any, useUniqueKeys bool) *commitClient {
+	finalSchema := makeYtSchema(scheme)
+	if useUniqueKeys {
+		finalSchema.UniqueKeys = true
+	}
 	return &commitClient{
 		Tx:               tx,
 		Client:           client,
-		Scheme:           makeYtSchema(scheme),
+		Scheme:           finalSchema,
 		Pool:             pool,
 		OptimizedFor:     optimizedFor,
 		CustomAttributes: customAttributes,

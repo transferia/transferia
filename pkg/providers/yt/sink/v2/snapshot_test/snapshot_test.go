@@ -34,13 +34,12 @@ var (
 	})
 
 	dstSample = yt.YtDestination{
-		Path:                     "//home/cdc/test/mock2yt",
-		Cluster:                  os.Getenv("YT_PROXY"),
-		CellBundle:               "default",
-		PrimaryMedium:            "default",
-		UseStaticTableOnSnapshot: true,
-		Cleanup:                  model.DisabledCleanup,
-		Static:                   true,
+		Path:          "//home/cdc/test/mock2yt",
+		Cluster:       os.Getenv("YT_PROXY"),
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+		Cleanup:       model.DisabledCleanup,
+		Static:        true,
 	}
 
 	trueConst  = true

@@ -34,7 +34,7 @@ func TestSnapshotToReplica(t *testing.T) {
 		PrimaryMedium: "default",
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	require.NoError(t, table.Push([]abstract.ChangeItem{
 		{
@@ -53,14 +53,6 @@ func TestSnapshotToReplica(t *testing.T) {
 			Table:       "bar",
 		},
 	}))
-	stat, err := table.loadTableStatus()
-	require.NoError(t, err)
-	require.Equal(t, TableProgress{
-		TransferID: "some_uniq_transfer_id",
-		Table:      "foo_bar",
-		LSN:        5,
-		Status:     Snapshot,
-	}, stat["foo_bar"])
 	require.NoError(t, table.Push([]abstract.ChangeItem{
 		{
 			TableSchema:  schema_,
@@ -98,24 +90,7 @@ func TestSnapshotToReplica(t *testing.T) {
 			Table:  "bar",
 		},
 	}))
-	stat, err = table.loadTableStatus()
-	require.NoError(t, err)
-	require.Equal(t, TableProgress{
-		TransferID: "some_uniq_transfer_id",
-		Table:      "foo_bar",
-		LSN:        5,
-		Status:     SyncWait,
-	}, stat["foo_bar"])
 	require.NoError(t, table.Push([]abstract.ChangeItem{
-		{
-			TableSchema:  schema_,
-			LSN:          1,
-			Kind:         abstract.InsertKind,
-			Schema:       "foo",
-			Table:        "bar",
-			ColumnNames:  []string{"id", "val"},
-			ColumnValues: []interface{}{int32(1), "new"}, // should be skipped
-		},
 		{
 			TableSchema:  schema_,
 			LSN:          10,
@@ -141,14 +116,6 @@ func TestSnapshotToReplica(t *testing.T) {
 		res = append(res, row)
 	}
 	require.Equal(t, []fooBar{{1, "old"}, {2, "new"}}, res)
-	stat, err = table.loadTableStatus()
-	require.NoError(t, err)
-	require.Equal(t, TableProgress{
-		TransferID: "some_uniq_transfer_id",
-		Table:      "foo_bar",
-		LSN:        10,
-		Status:     Synced,
-	}, stat["foo_bar"])
 }
 
 func TestRotate(t *testing.T) {
@@ -170,7 +137,7 @@ func TestRotate(t *testing.T) {
 		},
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 
 	rowBuilder := func(schema_ *abstract.TableSchema, table string) func(id int32, val interface{}, dt interface{}) abstract.ChangeItem {
@@ -258,7 +225,7 @@ func shardingTestHelper(t *testing.T, hashCol string, uid string, dirPath string
 		UseStaticTableOnSnapshot: false, // TM-4249
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, uid, 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, uid, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	tableSchema := abstract.NewTableSchema([]abstract.ColSchema{
 		{
@@ -345,7 +312,7 @@ func TestLargeRowsWorkWithSpecialSinkOption(t *testing.T) {
 		ytModel.PrimaryMedium = "default"
 		cfg.WithDefaults()
 
-		sink, err := NewSinker(cfg, "dtttm5880", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient(), nil)
+		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry(), client2.NewFakeClient(), nil)
 		require.NoError(t, err)
 		require.NoError(t, sink.Push([]abstract.ChangeItem{makeLargeChangeItem()}))
 		require.NoError(t, sink.Close())
@@ -380,7 +347,7 @@ func TestLargeRowsDontWorkWithoutSpecialSinkOption(t *testing.T) {
 		ytModel.PrimaryMedium = "default"
 		cfg.WithDefaults()
 
-		sink, err := NewSinker(cfg, "dtttm5880", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient(), nil)
+		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry(), client2.NewFakeClient(), nil)
 		require.NoError(t, err)
 		require.Error(t, sink.Push([]abstract.ChangeItem{makeLargeChangeItem()}))
 		require.NoError(t, sink.Close())

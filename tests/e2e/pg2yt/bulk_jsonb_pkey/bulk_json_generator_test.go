@@ -31,11 +31,6 @@ import (
 	"go.ytsaurus.tech/yt/go/yttest"
 )
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func TestRunner(t *testing.T) {
 	t.Run("CheckSimpleValidity", checkSimpleValidity)
 	t.Run("CheckGeneratorSequenceUniqueness", checkGeneratorSequenceUniqueness)

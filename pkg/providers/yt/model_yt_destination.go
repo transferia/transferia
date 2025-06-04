@@ -93,9 +93,6 @@ type YtDestinationModel interface {
 	// with the priority to the latter one
 	// It guarantees to keep unchanged both the argument and custom attributes map in the model
 	MergeAttributes(tableSettings map[string]any) map[string]any
-
-	// If is true, creates empty tables
-	CreateEmptyTables() bool
 }
 
 type YtDestination struct {
@@ -131,7 +128,6 @@ type YtDestination struct {
 	Ordered                  bool
 	TransformerConfig        map[string]string
 	UseStaticTableOnSnapshot bool // optional.Optional[bool] breaks compatibility
-	CreateEmptyTables        bool
 	AltNames                 map[string]string
 	Cleanup                  dp_model.CleanupType
 	Spec                     YTSpec
@@ -516,10 +512,6 @@ func (d *YtDestinationWrapper) SupportSharding() bool {
 // this is kusok govna, it here for purpose - backward compatibility and no reuse without backward compatibility
 func (d *YtDestinationWrapper) LegacyModel() interface{} {
 	return d.Model
-}
-
-func (d *YtDestinationWrapper) CreateEmptyTables() bool {
-	return d.Model.UseStaticTableOnSnapshot && d.Model.CreateEmptyTables && d.Model.Rotation == nil
 }
 
 func NewYtDestinationV1(model YtDestination) YtDestinationModel {

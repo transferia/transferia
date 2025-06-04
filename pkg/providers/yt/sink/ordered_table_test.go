@@ -161,7 +161,7 @@ func TestOrderedTable_CustomAttributes(t *testing.T) {
 		Cluster:          os.Getenv("YT_PROXY"),
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	require.NoError(t, table.Push(generateBullets(2, 10)))
 	var data bool
@@ -186,7 +186,7 @@ func TestOrderedTable_IncludeTimeoutAttribute(t *testing.T) {
 		Cluster: os.Getenv("YT_PROXY"),
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	require.NoError(t, table.Push(generateBullets(2, 10)))
 	var timeout int64

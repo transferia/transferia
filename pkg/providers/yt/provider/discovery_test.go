@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
-	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/base"
 	"github.com/transferia/transferia/pkg/base/filter"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
@@ -18,7 +17,7 @@ import (
 	"go.ytsaurus.tech/yt/go/yttest"
 )
 
-func buildSchema(schema []abstract.ColumnSchema) []map[string]string {
+func buildSchema(schema []yt_provider.ColumnSchema) []map[string]string {
 	res := make([]map[string]string, len(schema))
 	for idx, col := range schema {
 		res[idx] = map[string]string{
@@ -178,7 +177,7 @@ func TestTablesDiscovery(t *testing.T) {
 func createTestTable(env *yttest.Env, ctx context.Context, tablePath ypath.Path) error {
 	_, err := env.YT.CreateNode(ctx, tablePath, yt.NodeTable, &yt.CreateNodeOptions{
 		Attributes: map[string]interface{}{
-			"schema": buildSchema([]abstract.ColumnSchema{
+			"schema": buildSchema([]yt_provider.ColumnSchema{
 				{
 					Name:    "Column_1",
 					YTType:  "int8",

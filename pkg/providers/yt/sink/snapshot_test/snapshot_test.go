@@ -70,7 +70,7 @@ func TestYTSnapshotWithShuffledColumns(t *testing.T) {
 }
 
 func prepareDst(t *testing.T) {
-	currentSink, err := sink.NewSinker(Dst, helpers.TransferID, 0, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
+	currentSink, err := sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
 	require.NoError(t, err)
 
 	require.NoError(t, currentSink.Push([]abstract.ChangeItem{{
@@ -84,7 +84,7 @@ func prepareDst(t *testing.T) {
 }
 
 func fillDestination(t *testing.T) {
-	currentSink, err := sink.NewSinker(Dst, helpers.TransferID, 0, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
+	currentSink, err := sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
 	require.NoError(t, err)
 	defer require.NoError(t, currentSink.Close())
 

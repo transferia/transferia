@@ -14,7 +14,6 @@ import (
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/debezium/testutil"
 	"github.com/transferia/transferia/pkg/providers/postgres"
-	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -78,11 +77,6 @@ func anyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
 
 func TestGroup(t *testing.T) {
 	targetPort, err := helpers.GetPortFromStr(Target.Cluster())

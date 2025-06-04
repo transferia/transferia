@@ -19,11 +19,6 @@ import (
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func TestGroup(t *testing.T) {
 	src := &ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
