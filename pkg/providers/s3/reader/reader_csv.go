@@ -381,12 +381,12 @@ func (r *CSVReader) resolveSchema(ctx context.Context, key string) (*abstract.Ta
 		return nil, xerrors.Errorf("failed to filter column names based on additional reader options: %w", err)
 	}
 
-	schema, err := r.getColumnTypes(filteredColNames, csvReader)
+	currSchema, err := r.getColumnTypes(filteredColNames, csvReader)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to deduce column types based on sample read: %w", err)
 	}
 
-	return abstract.NewTableSchema(schema), nil
+	return abstract.NewTableSchema(currSchema), nil
 }
 
 // getColumnTypes deduces the column types for the provided columns.

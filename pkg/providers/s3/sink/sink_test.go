@@ -45,7 +45,7 @@ func canonFile(t *testing.T, client *s3.S3, bucket, file string) {
 	})
 }
 
-func cleanup(t *testing.T, sinker *sinker, cfg *s3_provider.S3Destination, objects *s3.ListObjectsOutput) {
+func cleanup(t *testing.T, currSink *Sink, cfg *s3_provider.S3Destination, objects *s3.ListObjectsOutput) {
 	if os.Getenv("S3_ACCESS_KEY") == "" {
 		return
 	}
@@ -54,7 +54,7 @@ func cleanup(t *testing.T, sinker *sinker, cfg *s3_provider.S3Destination, objec
 	for _, obj := range objects.Contents {
 		toDelete = append(toDelete, &s3.ObjectIdentifier{Key: obj.Key})
 	}
-	res, err := sinker.client.DeleteObjects(&s3.DeleteObjectsInput{
+	res, err := currSink.client.DeleteObjects(&s3.DeleteObjectsInput{
 		Bucket: aws.String(cfg.Bucket),
 		Delete: &s3.Delete{
 			Objects: toDelete,
@@ -108,24 +108,24 @@ func generateRawMessages(table string, part, from, to int) []abstract.ChangeItem
 // Tests
 //
 
-func TestS3SinkerUploadTable(t *testing.T) {
-	cfg := s3_provider.PrepareS3(t, "TestS3SinkerUploadTable", model.ParsingFormatCSV, s3_provider.GzipEncoding)
+func TestS3SinkUploadTable(t *testing.T) {
+	cfg := s3_provider.PrepareS3(t, "TestS3SinkUploadTable", model.ParsingFormatCSV, s3_provider.GzipEncoding)
 	cfg.Layout = "e2e_test-2006-01-02"
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestS3SinkerUploadTable")
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestS3SinkUploadTable")
 	require.NoError(t, err)
-	require.NoError(t, sinker.Push([]abstract.ChangeItem{
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
 		{Kind: abstract.InitTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))
 
-	require.NoError(t, sinker.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, sinker.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, sinker.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, sinker.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, sinker.Push([]abstract.ChangeItem{
+	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
 		{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))
-	require.NoError(t, sinker.Push([]abstract.ChangeItem{
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
 		{Kind: abstract.DropTableKind, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))
 }
@@ -136,41 +136,41 @@ func TestS3SinkBucketTZ(t *testing.T) {
 	cfg.LayoutTZ = "CET"
 
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestS3SinkBucketTZ")
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestS3SinkBucketTZ")
 	require.NoError(t, err)
-	b := sinker.bucket(abstract.ChangeItem{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Date(2022, time.Month(10), 19, 0, 0, 0, 0, time.UTC).UnixNano()), Table: "test_table"})
+	b := currSink.bucket(abstract.ChangeItem{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Date(2022, time.Month(10), 19, 0, 0, 0, 0, time.UTC).UnixNano()), Table: "test_table"})
 	require.Equal(t, "19 Oct 22 02:00 CEST", b)
 
 	cfg.LayoutTZ = "UTC"
-	b = sinker.bucket(abstract.ChangeItem{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Date(2022, time.Month(10), 19, 0, 0, 0, 0, time.UTC).UnixNano()), Table: "test_table"})
+	b = currSink.bucket(abstract.ChangeItem{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Date(2022, time.Month(10), 19, 0, 0, 0, 0, time.UTC).UnixNano()), Table: "test_table"})
 	require.Equal(t, "19 Oct 22 00:00 UTC", b)
 }
 
-func TestS3SinkerUploadTableGzip(t *testing.T) {
-	cfg := s3_provider.PrepareS3(t, "TestS3SinkerUploadTableGzip", model.ParsingFormatCSV, s3_provider.GzipEncoding)
+func TestS3SinkUploadTableGzip(t *testing.T) {
+	cfg := s3_provider.PrepareS3(t, "TestS3SinkUploadTableGzip", model.ParsingFormatCSV, s3_provider.GzipEncoding)
 	cfg.Layout = "test_gzip"
 
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestS3SinkerUploadTableGzip")
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestS3SinkUploadTableGzip")
 	require.NoError(t, err)
-	require.NoError(t, sinker.Push([]abstract.ChangeItem{
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
 		{Kind: abstract.InitTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))
 
-	require.NoError(t, sinker.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, sinker.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, sinker.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, sinker.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, sinker.Push([]abstract.ChangeItem{
+	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
 		{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))
-	require.NoError(t, sinker.Close())
-	obj, err := sinker.client.GetObject(&s3.GetObjectInput{
+	require.NoError(t, currSink.Close())
+	obj, err := currSink.client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(cfg.Bucket),
 		Key:    aws.String("test_gzip/test_table.csv.gz"),
 	})
 	defer func() {
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{
+		require.NoError(t, currSink.Push([]abstract.ChangeItem{
 			{Kind: abstract.DropTableKind, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 		}))
 	}()
@@ -229,18 +229,18 @@ func TestJsonReplication(t *testing.T) {
 			cfg.AnyAsString = tc.anyAsString
 			table := "test_table"
 
-			sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestJSONReplication")
+			currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestJSONReplication")
 			require.NoError(t, err)
-			defer require.NoError(t, sinker.Close())
+			defer require.NoError(t, currSink.Close())
 
-			require.NoError(t, sinker.Push([]abstract.ChangeItem{
+			require.NoError(t, currSink.Push([]abstract.ChangeItem{
 				{Kind: abstract.InitTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: table},
 			}))
-			defer require.NoError(t, sinker.Push([]abstract.ChangeItem{
+			defer require.NoError(t, currSink.Push([]abstract.ChangeItem{
 				{Kind: abstract.DropTableKind, CommitTime: uint64(time.Now().UnixNano()), Table: table},
 			}))
 
-			require.NoError(t, sinker.Push([]abstract.ChangeItem{
+			require.NoError(t, currSink.Push([]abstract.ChangeItem{
 				{
 					Kind:       abstract.InsertKind,
 					CommitTime: uint64(time.Now().UnixNano()),
@@ -252,11 +252,11 @@ func TestJsonReplication(t *testing.T) {
 					ColumnValues: []any{map[string]string{"key": "value"}},
 				},
 			}))
-			require.NoError(t, sinker.Push([]abstract.ChangeItem{
+			require.NoError(t, currSink.Push([]abstract.ChangeItem{
 				{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: table},
 			}))
 
-			obj, err := sinker.client.GetObject(&s3.GetObjectInput{
+			obj, err := currSink.client.GetObject(&s3.GetObjectInput{
 				Bucket: aws.String(cfg.Bucket),
 				Key:    aws.String(fmt.Sprintf("%v/%v.json", cfg.Layout, table)),
 			})
@@ -273,7 +273,7 @@ func TestRawReplication(t *testing.T) {
 	cfg := s3_provider.PrepareS3(t, "testrawgzip", model.ParsingFormatRaw, s3_provider.GzipEncoding)
 	cfg.Layout = "test_raw_gzip"
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestRawReplication")
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestRawReplication")
 	require.NoError(t, err)
 
 	parts := []int{0, 1, 2, 3}
@@ -282,21 +282,21 @@ func TestRawReplication(t *testing.T) {
 		wg.Add(1)
 		go func(part int) {
 			defer wg.Done()
-			require.NoError(t, sinker.Push(generateRawMessages("test_table", part, 0, 1000)))
+			require.NoError(t, currSink.Push(generateRawMessages("test_table", part, 0, 1000)))
 		}(part)
 	}
 	wg.Wait()
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Close())
 
 	for _, part := range parts {
 		objKey := fmt.Sprintf("test_raw_gzip/test-topic_%v-0_999.raw.gz", part)
 		t.Run(objKey, func(t *testing.T) {
-			obj, err := sinker.client.GetObject(&s3.GetObjectInput{
+			obj, err := currSink.client.GetObject(&s3.GetObjectInput{
 				Bucket: aws.String(cfg.Bucket),
 				Key:    aws.String(objKey),
 			})
 			require.NoError(t, err)
-			defer require.NoError(t, sinker.Push([]abstract.ChangeItem{
+			defer require.NoError(t, currSink.Push([]abstract.ChangeItem{
 				{Kind: abstract.DropTableKind, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 			}))
 			data, err := io.ReadAll(obj.Body)
@@ -316,24 +316,24 @@ func TestRawReplication(t *testing.T) {
 func TestReplicationWithWorkerFailure(t *testing.T) {
 	cfg := s3_provider.PrepareS3(t, "TestReplicationWithWorkerFailure", model.ParsingFormatCSV, s3_provider.GzipEncoding)
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestReplicationWithWorkerFailure")
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestReplicationWithWorkerFailure")
 	require.NoError(t, err)
 
 	// 1 Iteration    1-10
-	require.NoError(t, sinker.Push(generateRawMessages("test_table", 1, 1, 11)))
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Push(generateRawMessages("test_table", 1, 1, 11)))
+	require.NoError(t, currSink.Close())
 
 	// 2 Iteration 1-12 upload does not work
-	// simulate retry by recreating a new sinker
-	sinker, err = NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestReplicationWithWorkerFailure")
+	// simulate retry by recreating a new Sink
+	currSink, err = NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestReplicationWithWorkerFailure")
 	require.NoError(t, err)
 
-	require.NoError(t, sinker.Push(generateRawMessages("test_table", 1, 1, 13)))
+	require.NoError(t, currSink.Push(generateRawMessages("test_table", 1, 1, 13)))
 	time.Sleep(5 * time.Second)
 
 	// simulate upload failure by deleting lastly created object and adding inflight from previous push
 	objKey := "2022/10/19/test-topic_1-11_12.csv.gz"
-	_, err = sinker.client.DeleteObject(&s3.DeleteObjectInput{
+	_, err = currSink.client.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(cfg.Bucket),
 		Key:    aws.String(objKey),
 	})
@@ -341,25 +341,25 @@ func TestReplicationWithWorkerFailure(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
 
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Close())
 
 	// 3 Iteration retry 1-12
-	// simulate retry by recreating a new sinker
-	sinker, err = NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestReplicationWithWorkerFailure")
+	// simulate retry by recreating a new Sink
+	currSink, err = NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestReplicationWithWorkerFailure")
 	require.NoError(t, err)
 
-	require.NoError(t, sinker.Push(generateRawMessages("test_table", 1, 1, 13)))
+	require.NoError(t, currSink.Push(generateRawMessages("test_table", 1, 1, 13)))
 
-	objects, err := sinker.client.ListObjects(&s3.ListObjectsInput{
+	objects, err := currSink.client.ListObjects(&s3.ListObjectsInput{
 		Bucket: aws.String(cfg.Bucket),
 		Prefix: aws.String("2022/10/19/"),
 	})
 	require.NoError(t, err)
-	defer cleanup(t, sinker, cfg, objects)
+	defer cleanup(t, currSink, cfg, objects)
 	require.Equal(t, 2, len(objects.Contents))
 	require.Contains(t, objects.GoString(), "2022/10/19/test-topic_1-1_10.csv.gz")
 	require.Contains(t, objects.GoString(), "2022/10/19/test-topic_1-1_12.csv.gz")
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Close())
 }
 
 func TestCustomColLayautFailures(t *testing.T) {
@@ -367,7 +367,7 @@ func TestCustomColLayautFailures(t *testing.T) {
 	cfg.LayoutColumn = "logical_time"
 
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
 	require.NoError(t, err)
 
 	// initial push 1-10
@@ -381,40 +381,40 @@ func TestCustomColLayautFailures(t *testing.T) {
 	round1 = append(round1, generateTimeBucketBullets(day1, "test_table", 7, 8, partID)...)
 	round1 = append(round1, generateTimeBucketBullets(day2, "test_table", 9, 10, partID)...)
 
-	require.NoError(t, sinker.Push(round1))
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Push(round1))
+	require.NoError(t, currSink.Close())
 
 	// 2 Iteration 1-15 upload does not work
 	// overlapping retry
-	sinker, err = NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
+	currSink, err = NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
 	require.NoError(t, err)
 	round2 := append(round1, generateTimeBucketBullets(day3, "test_table", 11, 13, partID)...)
 	round2 = append(round2, generateTimeBucketBullets(day2, "test_table", 14, 15, partID)...)
-	require.NoError(t, sinker.Push(round2))
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Push(round2))
+	require.NoError(t, currSink.Close())
 
 	// 3 Iteration 11-15 upload does not work
 	// non-overlapping retry
-	sinker, err = NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
+	currSink, err = NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
 	require.NoError(t, err)
 	var round3 []abstract.ChangeItem
 	round3 = append(round3, generateTimeBucketBullets(day3, "test_table", 11, 13, partID)...)
 	round3 = append(round3, generateTimeBucketBullets(day2, "test_table", 14, 15, partID)...)
-	require.NoError(t, sinker.Push(round3))
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Push(round3))
+	require.NoError(t, currSink.Close())
 
-	objects, err := sinker.client.ListObjects(&s3.ListObjectsInput{
+	objects, err := currSink.client.ListObjects(&s3.ListObjectsInput{
 		Bucket: aws.String(cfg.Bucket),
 		Prefix: aws.String("2022/01/"),
 	})
 	require.NoError(t, err)
-	defer cleanup(t, sinker, cfg, objects)
+	defer cleanup(t, currSink, cfg, objects)
 	objKeys := yslices.Map(objects.Contents, func(t *s3.Object) string {
 		return *t.Key
 	})
 	logger.Log.Infof("found: %s", objKeys)
 	require.Len(t, objKeys, 5) // duplicated file
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Close())
 }
 
 func TestParquetReplication(t *testing.T) {
@@ -422,7 +422,7 @@ func TestParquetReplication(t *testing.T) {
 	cfg.LayoutColumn = "logical_time"
 
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
 	require.NoError(t, err)
 
 	var round1 []abstract.ChangeItem
@@ -430,22 +430,22 @@ func TestParquetReplication(t *testing.T) {
 	partID := "part_1"
 	round1 = append(round1, generateTimeBucketBullets(day1, "test_table", 1, 100, partID)...)
 
-	require.NoError(t, sinker.Push(round1))
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Push(round1))
+	require.NoError(t, currSink.Close())
 
-	objects, err := sinker.client.ListObjects(&s3.ListObjectsInput{
+	objects, err := currSink.client.ListObjects(&s3.ListObjectsInput{
 		Bucket: aws.String(cfg.Bucket),
 		Prefix: aws.String("2022/01/"),
 	})
 	require.NoError(t, err)
-	defer cleanup(t, sinker, cfg, objects)
+	defer cleanup(t, currSink, cfg, objects)
 	objKeys := yslices.Map(objects.Contents, func(t *s3.Object) string {
 		return *t.Key
 	})
 	logger.Log.Infof("found: %s", objKeys)
 	require.Len(t, objKeys, 1)
-	canonFile(t, sinker.client, cfg.Bucket, "2022/01/01/test_table_part_1-1_100.parquet.gz")
-	require.NoError(t, sinker.Close())
+	canonFile(t, currSink.client, cfg.Bucket, "2022/01/01/test_table_part_1-1_100.parquet.gz")
+	require.NoError(t, currSink.Close())
 }
 
 func TestParquetReadAfterWrite(t *testing.T) {
@@ -453,7 +453,7 @@ func TestParquetReadAfterWrite(t *testing.T) {
 	cfg.LayoutColumn = "logical_time"
 
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, t.Name())
 	require.NoError(t, err)
 
 	var round1 []abstract.ChangeItem
@@ -461,8 +461,8 @@ func TestParquetReadAfterWrite(t *testing.T) {
 	partID := "part_1"
 	round1 = append(round1, generateTimeBucketBullets(day1, "test_table", 1, 100, partID)...)
 
-	require.NoError(t, sinker.Push(round1))
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Push(round1))
+	require.NoError(t, currSink.Close())
 }
 
 func TestRawReplicationHugeFiles(t *testing.T) {
@@ -471,7 +471,7 @@ func TestRawReplicationHugeFiles(t *testing.T) {
 	cfg.Layout = "huge_repl_files"
 
 	cp := testutil.NewFakeClientWithTransferState()
-	sinker, err := NewSinker(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestRawReplicationHugeFiles")
+	currSink, err := NewSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestRawReplicationHugeFiles")
 	require.NoError(t, err)
 
 	parts := []int{0}
@@ -480,17 +480,17 @@ func TestRawReplicationHugeFiles(t *testing.T) {
 		wg.Add(1)
 		go func(part int) {
 			defer wg.Done()
-			require.NoError(t, sinker.Push(generateRawMessages("test_table", part, 1, 1_000_000)))
+			require.NoError(t, currSink.Push(generateRawMessages("test_table", part, 1, 1_000_000)))
 		}(part)
 	}
 	wg.Wait()
-	require.NoError(t, sinker.Close())
+	require.NoError(t, currSink.Close())
 	t.Run("verify", func(t *testing.T) {
-		objects, err := sinker.client.ListObjects(&s3.ListObjectsInput{
+		objects, err := currSink.client.ListObjects(&s3.ListObjectsInput{
 			Bucket: aws.String(cfg.Bucket),
 		})
 		require.NoError(t, err)
-		defer cleanup(t, sinker, cfg, objects)
+		defer cleanup(t, currSink, cfg, objects)
 		require.Equal(t, 5, len(objects.Contents))
 	})
 }

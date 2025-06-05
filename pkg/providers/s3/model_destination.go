@@ -98,7 +98,7 @@ func (d *S3Destination) CleanupMode() dp_model.CleanupType {
 	return dp_model.DisabledCleanup
 }
 
-func (S3Destination) IsDestination() {
+func (d *S3Destination) IsDestination() {
 }
 
 func (d *S3Destination) GetProviderType() abstract.ProviderType {

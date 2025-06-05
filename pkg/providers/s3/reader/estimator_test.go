@@ -48,7 +48,7 @@ func TestEstimateTotalSize(t *testing.T) {
 		{
 			name: "more than limit files",
 			files: func() []*s3.Object {
-				files := []*s3.Object{}
+				files := make([]*s3.Object, 0)
 				for i := 0; i < EstimateFilesLimit+5; i++ {
 					files = append(files, &s3.Object{Key: aws.String(fmt.Sprintf("file%v", i))})
 				}

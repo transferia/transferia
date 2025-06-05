@@ -70,13 +70,13 @@ func (r *wrappedReader[T]) loadObjectInMemory() error {
 
 	data := buff.Bytes()
 
-	wrapper, err := r.wrapper(bytes.NewReader(data))
+	currWrapper, err := r.wrapper(bytes.NewReader(data))
 	if err != nil {
 		return xerrors.Errorf("failed to initialize wrapper: %w", err)
 	}
-	defer wrapper.Close()
+	defer currWrapper.Close()
 
-	r.fullUncompressedObject, err = io.ReadAll(wrapper)
+	r.fullUncompressedObject, err = io.ReadAll(currWrapper)
 	if err != nil {
 		return xerrors.Errorf("failed to read from wrapper %s: %w", r.fetcher.key, err)
 	}

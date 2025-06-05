@@ -55,24 +55,24 @@ func TestResolveJSONLineSchema(t *testing.T) {
 	require.NotEmpty(t, res.Columns())
 
 	t.Run("simple schema", func(t *testing.T) {
-		schema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/simple.jsonl")
+		currSchema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/simple.jsonl")
 		require.NoError(t, err)
-		require.Equal(t, []string{"Browser", "Cookie_Enabled", "Date", "Gender", "Hit_ID", "Region_ID", "Technology", "Time_Spent", "Traffic_Source"}, schema.Columns().ColumnNames())
-		require.Equal(t, []string{"utf8", "boolean", "timestamp", "utf8", "double", "double", "utf8", "utf8", "utf8"}, dataTypes(schema.Columns()))
+		require.Equal(t, []string{"Browser", "Cookie_Enabled", "Date", "Gender", "Hit_ID", "Region_ID", "Technology", "Time_Spent", "Traffic_Source"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"utf8", "boolean", "timestamp", "utf8", "double", "double", "utf8", "utf8", "utf8"}, dataTypes(currSchema.Columns()))
 	})
 
 	t.Run("array schema", func(t *testing.T) {
-		schema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/array.jsonl")
+		currSchema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/array.jsonl")
 		require.NoError(t, err)
-		require.Equal(t, []string{"Date", "Hit_ID", "Time_Spent"}, schema.Columns().ColumnNames())
-		require.Equal(t, []string{"timestamp", "double", "any"}, dataTypes(schema.Columns()))
+		require.Equal(t, []string{"Date", "Hit_ID", "Time_Spent"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"timestamp", "double", "any"}, dataTypes(currSchema.Columns()))
 	})
 
 	t.Run("object schema", func(t *testing.T) {
-		schema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/object.jsonl")
+		currSchema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/object.jsonl")
 		require.NoError(t, err)
-		require.Equal(t, []string{"Date", "Hit_ID", "Time_Spent"}, schema.Columns().ColumnNames())
-		require.Equal(t, []string{"timestamp", "double", "any"}, dataTypes(schema.Columns()))
+		require.Equal(t, []string{"Date", "Hit_ID", "Time_Spent"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"timestamp", "double", "any"}, dataTypes(currSchema.Columns()))
 	})
 
 	t.Run("invalid schema", func(t *testing.T) {
@@ -84,10 +84,10 @@ func TestResolveJSONLineSchema(t *testing.T) {
 	jsonlineReader.newlinesInValue = true
 
 	t.Run("newline in value", func(t *testing.T) {
-		schema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/newline.jsonl")
+		currSchema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/newline.jsonl")
 		require.NoError(t, err)
-		require.Equal(t, []string{"Cookie_Enabled", "Date", "Gender", "Hit_ID", "Region_ID", "Technology", "Time_Spent"}, schema.Columns().ColumnNames())
-		require.Equal(t, []string{"boolean", "timestamp", "any", "double", "double", "utf8", "any"}, dataTypes(schema.Columns()))
+		require.Equal(t, []string{"Cookie_Enabled", "Date", "Gender", "Hit_ID", "Region_ID", "Technology", "Time_Spent"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"boolean", "timestamp", "any", "double", "double", "utf8", "any"}, dataTypes(currSchema.Columns()))
 	})
 }
 

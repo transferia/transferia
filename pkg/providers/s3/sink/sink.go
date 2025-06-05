@@ -24,7 +24,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-type sinker struct {
+type Sink struct {
 	client              *s3.S3
 	cfg                 *s3_provider.S3Destination
 	snapshots           map[string]map[string]*snapshotHolder
@@ -35,11 +35,11 @@ type sinker struct {
 	mu                  sync.Mutex
 }
 
-func (s *sinker) Close() error {
+func (s *Sink) Close() error {
 	return nil
 }
 
-func (s *sinker) initSnapshotLoaderIfNotInited(fullTableName string, bucket string, bufferFile string, key *string) error {
+func (s *Sink) initSnapshotLoaderIfNotInited(fullTableName string, bucket string, bufferFile string, key *string) error {
 	snapshotHolders, ok := s.snapshots[bufferFile]
 	if !ok {
 		return nil
@@ -74,7 +74,7 @@ func (s *sinker) initSnapshotLoaderIfNotInited(fullTableName string, bucket stri
 //   - snapshots have initial InitTableLoad kind item, then
 //     go items with InsertKind kind following by DoneTableLoads
 //     kind item
-func (s *sinker) Push(input []abstract.ChangeItem) error {
+func (s *Sink) Push(input []abstract.ChangeItem) error {
 	buckets := map[string]map[string]*FileCache{}
 	for i := range input {
 		row := &input[i]
@@ -194,12 +194,12 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 }
 
 // S3 sink deduplication logic is based on three assumptions:
-//  1. sinker is not thread safe, push is called from one thread only
+//  1. Sink is not thread safe, push is called from one thread only
 //  2. for each filepath, for each push this conditions are valid:
 //     - P[i].from >= P[i-1].from (equals for retries or crash)
 //     - P[i].from <= P[i-1].to + 1  (equals if there are no retries)
 //  3. items lsns are coherent for each file
-func (s *sinker) tryUploadWithIntersectionGuard(cache *FileCache, filePath string) error {
+func (s *Sink) tryUploadWithIntersectionGuard(cache *FileCache, filePath string) error {
 	newBaseRange := NewObjectRange(cache.LSNRange())
 
 	intervals := []ObjectRange{newBaseRange}
@@ -246,7 +246,7 @@ func (s *sinker) tryUploadWithIntersectionGuard(cache *FileCache, filePath strin
 	return nil
 }
 
-func (s *sinker) bucket(row abstract.ChangeItem) string {
+func (s *Sink) bucket(row abstract.ChangeItem) string {
 	rowBucketTime := time.Unix(0, int64(row.CommitTime))
 	if s.cfg.LayoutColumn != "" {
 		rowBucketTime = model.ExtractTimeCol(row, s.cfg.LayoutColumn)
@@ -258,7 +258,7 @@ func (s *sinker) bucket(row abstract.ChangeItem) string {
 	return rowBucketTime.Format(s.cfg.Layout)
 }
 
-func (s *sinker) bucketKey(row abstract.ChangeItem) *string {
+func (s *Sink) bucketKey(row abstract.ChangeItem) *string {
 	fileName := s.fqtn(&row)
 	bucketKey := aws.String(fmt.Sprintf("%s/%s.%s", s.bucket(row), fileName, strings.ToLower(string(s.cfg.OutputFormat))))
 
@@ -268,7 +268,7 @@ func (s *sinker) bucketKey(row abstract.ChangeItem) *string {
 	return bucketKey
 }
 
-func (s *sinker) fqtn(row *abstract.ChangeItem) string {
+func (s *Sink) fqtn(row *abstract.ChangeItem) string {
 	res := row.TableID().Name
 	if row.TableID().Namespace != "" {
 		res = fmt.Sprintf("%v_%v", row.TableID().Namespace, row.TableID().Name)
@@ -276,7 +276,7 @@ func (s *sinker) fqtn(row *abstract.ChangeItem) string {
 	return res
 }
 
-func (s *sinker) rowPart(row abstract.ChangeItem) string {
+func (s *Sink) rowPart(row abstract.ChangeItem) string {
 	if row.IsMirror() {
 		return fmt.Sprintf("%v_%v", row.ColumnValues[abstract.RawDataColsIDX[abstract.RawMessageTopic]], row.ColumnValues[abstract.RawDataColsIDX[abstract.RawMessagePartition]])
 	}
@@ -287,11 +287,11 @@ func (s *sinker) rowPart(row abstract.ChangeItem) string {
 	return res
 }
 
-func (s *sinker) UpdateOutputFormat(f model.ParsingFormat) {
+func (s *Sink) UpdateOutputFormat(f model.ParsingFormat) {
 	s.cfg.OutputFormat = f
 }
 
-func (s *sinker) createSnapshotIOHolder() (*snapshotHolder, error) {
+func (s *Sink) createSnapshotIOHolder() (*snapshotHolder, error) {
 	uploadDone := make(chan error)
 	var snapshot Snapshot
 	if s.cfg.OutputEncoding == s3_provider.GzipEncoding {
@@ -349,7 +349,7 @@ func hashLongPart(text string, maxLen int) string {
 	return util.Hash(text)
 }
 
-func NewSinker(lgr log.Logger, cfg *s3_provider.S3Destination, mtrcs metrics.Registry, cp coordinator.Coordinator, transferID string) (*sinker, error) {
+func NewSink(lgr log.Logger, cfg *s3_provider.S3Destination, mtrcs metrics.Registry, cp coordinator.Coordinator, transferID string) (*Sink, error) {
 	sess, err := s3_provider.NewAWSSession(lgr, cfg.Bucket, cfg.ConnectionConfig())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create session to s3 bucket: %w", err)
@@ -365,7 +365,7 @@ func NewSinker(lgr log.Logger, cfg *s3_provider.S3Destination, mtrcs metrics.Reg
 	uploader := s3manager.NewUploader(sess)
 	uploader.PartSize = cfg.PartSize
 
-	return &sinker{
+	return &Sink{
 		client:              s3Client,
 		cfg:                 cfg,
 		logger:              lgr,

@@ -81,26 +81,26 @@ func TestResolveCSVSchema(t *testing.T) {
 	})
 
 	t.Run("first line header schema", func(t *testing.T) {
-		schema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/simple.csv")
+		currSchema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/simple.csv")
 		require.NoError(t, err)
-		require.Equal(t, []string{"name", "surname", "st.", "city", "state", "zip-code"}, schema.Columns().ColumnNames())
-		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(schema.Columns()))
+		require.Equal(t, []string{"name", "surname", "st.", "city", "state", "zip-code"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(currSchema.Columns()))
 	})
 
 	t.Run("autogenerate schema", func(t *testing.T) {
 		csvReader.advancedOptions.AutogenerateColumnNames = true
-		schema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/no_header.csv")
+		currSchema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/no_header.csv")
 		require.NoError(t, err)
-		require.Equal(t, []string{"f0", "f1", "f2", "f3", "f4", "f5"}, schema.Columns().ColumnNames())
-		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(schema.Columns()))
+		require.Equal(t, []string{"f0", "f1", "f2", "f3", "f4", "f5"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(currSchema.Columns()))
 	})
 
 	t.Run("extract schema", func(t *testing.T) {
 		csvReader.advancedOptions.ColumnNames = []string{"name", "surname", "st.", "city", "state", "zip-code"}
-		schema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/no_header.csv")
+		currSchema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/no_header.csv")
 		require.NoError(t, err)
-		require.Equal(t, []string{"name", "surname", "st.", "city", "state", "zip-code"}, schema.Columns().ColumnNames())
-		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(schema.Columns()))
+		require.Equal(t, []string{"name", "surname", "st.", "city", "state", "zip-code"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(currSchema.Columns()))
 	})
 }
 

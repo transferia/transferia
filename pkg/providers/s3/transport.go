@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	XYaCloudTokenHeader string        = "X-YaCloud-SubjectToken"
-	tokenGetTimeout     time.Duration = 10 * time.Second
+	XYaCloudTokenHeader string = "X-YaCloud-SubjectToken"
+	tokenGetTimeout            = 10 * time.Second
 )
 
 type withCredentialsRoundTripper struct {

@@ -51,7 +51,7 @@ func NewAWSSession(lgr log.Logger, bucket string, cfg ConnectionConfig) (*sessio
 	cfg.Region = region
 
 	if cfg.ServiceAccountID != "" {
-		creds, err := creds.NewServiceAccountCreds(lgr, cfg.ServiceAccountID)
+		currCreds, err := creds.NewServiceAccountCreds(lgr, cfg.ServiceAccountID)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to get service account credentials: %w", err)
 		}
@@ -60,7 +60,7 @@ func NewAWSSession(lgr log.Logger, bucket string, cfg ConnectionConfig) (*sessio
 			Region:           aws.String(cfg.Region),
 			S3ForcePathStyle: aws.Bool(cfg.S3ForcePathStyle),
 			Credentials:      credentials.AnonymousCredentials,
-			HTTPClient:       &http.Client{Transport: newCredentialsRoundTripper(creds, http.DefaultTransport)},
+			HTTPClient:       &http.Client{Transport: newCredentialsRoundTripper(currCreds, http.DefaultTransport)},
 		})
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create session: %w", err)

@@ -241,8 +241,8 @@ func (r *LineReader) constructCI(line string, fname string, lastModified time.Ti
 }
 
 func readLines(content []byte) ([]string, int, error) {
-	scanner := scanner.NewLineBreakScanner(content)
-	scannedLines, err := scanner.ScanAll()
+	currScanner := scanner.NewLineBreakScanner(content)
+	scannedLines, err := currScanner.ScanAll()
 	if err != nil {
 		return nil, 0, xerrors.Errorf("failed to split all read lines: %w", err)
 	}

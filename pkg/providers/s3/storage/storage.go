@@ -44,7 +44,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		// With enabled sharding params, common-known cloud filter parser is used.
 		// Unfortunatelly, for default sharding (when ShardingParams == nil) self-written pkg/predicate is used.
 		// Since there are no purposes to use self-written filter parser, it should be refactored in TM-8537.
-		pusher := pusher.New(abstract.Pusher(func(items []abstract.ChangeItem) error {
+		currPusher := pusher.New(func(items []abstract.ChangeItem) error {
 			for i, item := range items {
 				if item.IsRowEvent() {
 					items[i].PartID = table.PartID()
@@ -53,8 +53,8 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 				}
 			}
 			return syncPusher(items)
-		}), nil, s.logger, 0)
-		if err := s.readFiles(ctx, table, pusher); err != nil {
+		}, nil, s.logger, 0)
+		if err := s.readFiles(ctx, table, currPusher); err != nil {
 			return xerrors.Errorf("unable to read many files: %w", err)
 		}
 		return nil
@@ -126,8 +126,8 @@ func (s *Storage) readFile(ctx context.Context, part abstract.TableDescription, 
 	if !ok {
 		return xerrors.Errorf("%s expected to be string, but got: %T", s3FileNameCol, fileOp.Val)
 	}
-	pusher := pusher.New(syncPusher, nil, s.logger, 0)
-	if err := s.reader.Read(ctx, fileName, pusher); err != nil {
+	currPusher := pusher.New(syncPusher, nil, s.logger, 0)
+	if err := s.reader.Read(ctx, fileName, currPusher); err != nil {
 		return xerrors.Errorf("unable to read file: %s: %w", part.Filter, err)
 	}
 	return nil

@@ -203,7 +203,7 @@ func TestCanonCsv(t *testing.T) {
 	// check that row estimation is at most 5 % off
 	require.Less(t, percent, float64(5))
 
-	require.Equal(t, int(500000), int(cntr.Load()))
+	require.Equal(t, 500000, int(cntr.Load()))
 
 	var totalCanon []string
 	for desc, sample := range fileSnippets {

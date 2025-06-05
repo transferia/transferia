@@ -137,27 +137,23 @@ func TestParseBooleanValue(t *testing.T) {
 
 	// Test case 1: Original value is a null value
 	originalValue := "NULL"
-	expected := false
 	result := r.parseBooleanValue(originalValue).(bool)
-	require.Equal(t, expected, result, "Test case 1 failed")
+	require.Equal(t, false, result, "Test case 1 failed")
 
 	// Test case 2: Original value is a true value
 	originalValue = "true"
-	expected = true
 	result = r.parseBooleanValue(originalValue).(bool)
-	require.Equal(t, expected, result, "Test case 2 failed")
+	require.Equal(t, true, result, "Test case 2 failed")
 
 	// Test case 3: Original value is a false value
 	originalValue = "false"
-	expected = false
 	result = r.parseBooleanValue(originalValue).(bool)
-	require.Equal(t, expected, result, "Test case 3 failed")
+	require.Equal(t, false, result, "Test case 3 failed")
 
 	// Test case 4: Original value is not in any of the true/false/null values lists, but can be parsed as boolean
 	originalValue = "TRUE"
-	expected = true
 	result = r.parseBooleanValue(originalValue).(bool)
-	require.Equal(t, expected, result, "Test case 4 failed")
+	require.Equal(t, true, result, "Test case 4 failed")
 
 	// Test case 5: Original value is not in any of the true/false/null values lists and cannot be parsed as boolean
 	originalValue = "random"

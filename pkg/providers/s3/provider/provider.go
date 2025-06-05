@@ -41,7 +41,7 @@ type Provider struct {
 func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, tables abstract.TableMap, callbacks providers.ActivateCallbacks) error {
 	if !p.transfer.IncrementOnly() {
 		if err := callbacks.Cleanup(tables); err != nil {
-			return xerrors.Errorf("Sinker cleanup failed: %w", err)
+			return xerrors.Errorf("Sink cleanup failed: %w", err)
 		}
 		if err := callbacks.CheckIncludes(tables); err != nil {
 			return xerrors.Errorf("Failed in accordance with configuration: %w", err)
@@ -95,7 +95,7 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
-	return s3_sink.NewSinker(p.logger, dst, p.registry, p.cp, p.transfer.ID)
+	return s3_sink.NewSink(p.logger, dst, p.registry, p.cp, p.transfer.ID)
 }
 
 func New(lgr log.Logger, registry metrics.Registry, cp cpclient.Coordinator, transfer *model.Transfer) providers.Provider {
