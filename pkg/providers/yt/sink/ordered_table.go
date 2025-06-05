@@ -149,17 +149,12 @@ func (t *OrderedTable) Init() error {
 	}
 
 	return backoff.Retry(func() error {
+		if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
+			t.logger.Error("Init table error", log.Error(err))
+			return err
+		}
 		if !exist {
-			if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-				t.logger.Error("Init table error", log.Error(err))
-				return err
-			}
 			if err := t.ensureTablets(t.config.InitialTabletCount()); err != nil {
-				return err
-			}
-		} else {
-			if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-				t.logger.Error("Ensure table error", log.Error(err))
 				return err
 			}
 		}
@@ -452,7 +447,7 @@ func (t *OrderedTable) ensureTablets(maxTablet uint32) error {
 
 	t.logger.Infof("Reshard table, newTabletCount: %v, prev tabletsCount: %v", newTabletCount, t.tabletsCount)
 
-	if err := migrate.UnmountAndWait(ctx, t.ytClient, t.path); err != nil {
+	if err := yt2.MountUnmountWrapper(ctx, t.ytClient, t.path, migrate.UnmountAndWait); err != nil {
 		return err
 	}
 
@@ -466,7 +461,7 @@ func (t *OrderedTable) ensureTablets(maxTablet uint32) error {
 
 	t.logger.Infof("table resharded")
 
-	if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
+	if err := yt2.MountUnmountWrapper(ctx, t.ytClient, t.path, migrate.MountAndWait); err != nil {
 		//nolint:descriptiveerrors
 		return err
 	}

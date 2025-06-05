@@ -40,12 +40,7 @@ type VersionedTable struct {
 func (t *VersionedTable) Init() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-
-	exist, err := t.ytClient.NodeExists(ctx, t.path, nil)
-	if err != nil {
-		//nolint:descriptiveerrors
-		return err
-	}
+	var err error
 
 	sc := NewSchema(t.schema, t.config, t.path)
 	vInserted := false
@@ -82,34 +77,11 @@ func (t *VersionedTable) Init() error {
 		}
 	}
 
-	if !exist {
-		if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-			t.logger.Error("Init table error", log.Error(err))
-			//nolint:descriptiveerrors
-			return err
-		}
-
-		t.logger.Info("Try to mount table", log.Any("path", t.path))
-		if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
-			//nolint:descriptiveerrors
-			return err
-		}
-	} else {
-		if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
-			//nolint:descriptiveerrors
-			return err
-		}
-		if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-			t.logger.Error("Ensure table error", log.Error(err))
-			//nolint:descriptiveerrors
-			return err
-		}
-		if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
-			//nolint:descriptiveerrors
-			return err
-		}
+	if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
+		t.logger.Error("Init table error", log.Error(err))
+		//nolint:descriptiveerrors
+		return err
 	}
-
 	return nil
 }
 

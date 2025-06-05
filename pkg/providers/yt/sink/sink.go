@@ -284,7 +284,7 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			if !exists {
 				continue
 			}
-			if err := migrate.UnmountAndWait(context.Background(), s.ytClient, tableYPath); err != nil {
+			if err := yt2.MountUnmountWrapper(context.Background(), s.ytClient, tableYPath, migrate.UnmountAndWait); err != nil {
 				s.logger.Warn("unable to unmount path", log.Any("path", tableYPath), log.Error(err))
 			}
 			if err := s.ytClient.RemoveNode(context.Background(), tableYPath, &yt.RemoveNodeOptions{
@@ -508,7 +508,6 @@ func (s *sinker) rotateTable() error {
 
 	ytListNodeOptions := &yt.ListNodeOptions{Attributes: []string{"type", "path"}}
 	deletedCount := 0
-	unknownCount := 0
 	skipCount := 0
 
 	tableNames := []string{}
@@ -548,7 +547,7 @@ func (s *sinker) rotateTable() error {
 				}
 
 				s.logger.Infof("Delete old table '%v'", path)
-				if err := migrate.UnmountAndWait(ctx, s.ytClient, path); err != nil {
+				if err := yt2.MountUnmountWrapper(ctx, s.ytClient, path, migrate.UnmountAndWait); err != nil {
 					return xerrors.Errorf("unable to unmount table: %w", err)
 				}
 				if err := s.ytClient.RemoveNode(ctx, path, nil); err != nil {
@@ -571,9 +570,7 @@ func (s *sinker) rotateTable() error {
 		}
 	}
 
-	s.logger.Info("Deleted rotation table statistics",
-		log.Int("deletedCount", deletedCount), log.Int("unknownCount", unknownCount), log.Int("skipCount", skipCount))
-
+	s.logger.Info("Deleted rotation table statistics", log.Int("deletedCount", deletedCount), log.Int("skipCount", skipCount))
 	return nil
 }
 

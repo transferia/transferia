@@ -117,7 +117,7 @@ func UnmountAndWaitRecursive(ctx context.Context, logger log.Logger, client yt.C
 		func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error {
 			if attrs.Type == yt.NodeTable && attrs.Dynamic {
 				if attrs.TabletState != yt.TabletUnmounted {
-					err := migrate.UnmountAndWait(ctx, client, path)
+					err := MountUnmountWrapper(ctx, client, path, migrate.UnmountAndWait)
 					if err == nil {
 						logger.Info("successfully unmounted table", log.Any("path", path))
 					}
@@ -137,7 +137,7 @@ func MountAndWaitRecursive(ctx context.Context, logger log.Logger, client yt.Cli
 		func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error {
 			if attrs.Type == yt.NodeTable && attrs.Dynamic {
 				if attrs.TabletState != yt.TabletMounted {
-					err := migrate.MountAndWait(ctx, client, path)
+					err := MountUnmountWrapper(ctx, client, path, migrate.MountAndWait)
 					if err == nil {
 						logger.Info("successfully mounted table", log.Any("path", path))
 					}
@@ -258,4 +258,14 @@ func MakeTableName(tableID abstract.TableID, altNames map[string]string) string 
 	}
 
 	return name
+}
+
+func MountUnmountWrapper(
+	ctx context.Context,
+	ytClient yt.Client,
+	path ypath.Path,
+	f func(context.Context, yt.Client, ypath.Path) error) error {
+	customCtx, cancel := context.WithTimeout(ctx, time.Minute*5)
+	defer cancel()
+	return f(customCtx, ytClient, path)
 }

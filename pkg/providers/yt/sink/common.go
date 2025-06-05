@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
@@ -287,13 +288,13 @@ func onConflictTryAlterWithoutNarrowing(ctx context.Context, ytClient yt.Client)
 		}
 		logger.Log.Info("united schema computed", log.String("path", path.String()), log.Reflect("united_schema", unitedSchema))
 
-		if err := migrate.UnmountAndWait(ctx, ytClient, path); err != nil {
+		if err := yt2.MountUnmountWrapper(ctx, ytClient, path, migrate.UnmountAndWait); err != nil {
 			return xerrors.Errorf("unmount error: %w", err)
 		}
 		if err := ytClient.AlterTable(ctx, path, &yt.AlterTableOptions{Schema: &unitedSchema}); err != nil {
 			return xerrors.Errorf("alter error: %w", err)
 		}
-		if err := migrate.MountAndWait(ctx, ytClient, path); err != nil {
+		if err := yt2.MountUnmountWrapper(ctx, ytClient, path, migrate.MountAndWait); err != nil {
 			return xerrors.Errorf("mount error: %w", err)
 		}
 		// Schema has been altered, no need to retry schema comparison
