@@ -293,6 +293,8 @@ require (
 
 exclude github.com/keybase/go.dbus v0.0.0-20220506165403-5aa21ea2c23a
 
+replace golang.org/x/tools => golang.org/x/tools v0.30.1-0.20250221230316-5055f70f240c
+
 replace github.com/insomniacslk/dhcp => github.com/insomniacslk/dhcp v0.0.0-20210120172423-cc9239ac6294
 
 replace cloud.google.com/go/pubsub => cloud.google.com/go/pubsub v1.30.0
