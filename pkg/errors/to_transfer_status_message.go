@@ -10,9 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/terryid"
 )
 
-var (
-	UnspecifiedCode = coded.Register("unspecified")
-)
+var UnspecifiedCode = coded.Register("unspecified")
 
 type statusMessageError struct {
 	statusMessage *coordinator.StatusMessage

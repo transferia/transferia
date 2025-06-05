@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -46,6 +47,9 @@ func (s *SyncTask) run() {
 		s.task.Params,
 		solomon.NewRegistry(solomon.NewRegistryOpts()),
 	)
+	if err != nil {
+		logger.OtelLog.Error(errors.ExtractShortStackTrace(err), log.Error(err), log.String("transfer_id", s.transfer.ID))
+	}
 	if err := s.cp.FinishOperation(s.task.OperationID, s.task.TaskType.String(), s.transfer.CurrentJobIndex(), err); err != nil {
 		s.logger.Error("unable to call finish operation", log.Error(err))
 	}
