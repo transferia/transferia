@@ -31,11 +31,11 @@ type FileWithStats struct {
 // NOTE: calculateFilesStats stores 0 as result's `Size` fields if `needSizes` is false,
 // otherwise it could go to S3 API and elapsed time will increase.
 func (s *Storage) calculateFilesStats(ctx context.Context, files []*s3.Object, needSizes bool) ([]*FileWithStats, error) {
-	rowCounter, ok := s.reader.(reader.RowCounter)
+	rowCounter, ok := s.reader.(reader.RowsCountEstimator)
 	if !ok {
 		return nil, xerrors.NewSentinel("missing row counter for sharding rows estimation")
 	}
-	etaRows, err := rowCounter.TotalRowCount(ctx)
+	etaRows, err := rowCounter.EstimateRowsCountAllObjects(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to estimate row count: %w", err)
 	}
@@ -44,7 +44,7 @@ func (s *Storage) calculateFilesStats(ctx context.Context, files []*s3.Object, n
 		rows := etaRows / uint64(len(files)) // By default, use average value as rows count.
 		if len(files) <= reader.EstimateFilesLimit {
 			// If number of files is few, count rows exactly.
-			if rows, err = rowCounter.RowCount(ctx, file); err != nil {
+			if rows, err = rowCounter.EstimateRowsCountOneObject(ctx, file); err != nil {
 				return nil, xerrors.Errorf("unable to fetch row count for file '%s': %w", *file.Key, err)
 			}
 		}

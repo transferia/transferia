@@ -26,8 +26,8 @@ import (
 )
 
 var (
-	_ Reader     = (*ReaderParquet)(nil)
-	_ RowCounter = (*ReaderParquet)(nil)
+	_ Reader             = (*ReaderParquet)(nil)
+	_ RowsCountEstimator = (*ReaderParquet)(nil)
 )
 
 type ReaderParquet struct {
@@ -45,7 +45,7 @@ type ReaderParquet struct {
 	s3RawReader    *s3raw.S3RawReader
 }
 
-func (r *ReaderParquet) RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
+func (r *ReaderParquet) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
 	meta, err := r.openReader(ctx, *obj.Key)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to read file meta: %s: %w", *obj.Key, err)
@@ -55,7 +55,7 @@ func (r *ReaderParquet) RowCount(ctx context.Context, obj *aws_s3.Object) (uint6
 	return uint64(meta.NumRows()), nil
 }
 
-func (r *ReaderParquet) TotalRowCount(ctx context.Context) (uint64, error) {
+func (r *ReaderParquet) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
 	res := uint64(0)
 	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {

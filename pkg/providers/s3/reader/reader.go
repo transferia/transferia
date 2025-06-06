@@ -30,6 +30,7 @@ var (
 
 type Reader interface {
 	Read(ctx context.Context, filePath string, pusher pusher.Pusher) error
+
 	// ParsePassthrough is used in the parsqueue pusher for replications.
 	// Since actual parsing in the S3 parsers is a rather complex process, tailored to each format, this methods
 	// is just mean as a simple passthrough to fulfill the parsqueue signature contract and forwards the already parsed CI elements for pushing.
@@ -41,9 +42,9 @@ type Reader interface {
 	ResolveSchema(ctx context.Context) (*abstract.TableSchema, error)
 }
 
-type RowCounter interface {
-	TotalRowCount(ctx context.Context) (uint64, error)
-	RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, error)
+type RowsCountEstimator interface {
+	EstimateRowsCountAllObjects(ctx context.Context) (uint64, error)
+	EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error)
 }
 
 // SkipObject returns true if an object should be skipped.

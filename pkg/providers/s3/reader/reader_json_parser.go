@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	_ Reader     = (*JSONParserReader)(nil)
-	_ RowCounter = (*JSONParserReader)(nil)
+	_ Reader             = (*JSONParserReader)(nil)
+	_ RowsCountEstimator = (*JSONParserReader)(nil)
 )
 
 type JSONParserReader struct {
@@ -85,7 +85,7 @@ func (r *JSONParserReader) estimateRows(ctx context.Context, files []*aws_s3.Obj
 	return res, nil
 }
 
-func (r *JSONParserReader) RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
+func (r *JSONParserReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
 	res, err := r.estimateRows(ctx, []*aws_s3.Object{obj})
 	if err != nil {
 		return 0, xerrors.Errorf("failed to estimate rows of file: %s : %w", *obj.Key, err)
@@ -93,7 +93,7 @@ func (r *JSONParserReader) RowCount(ctx context.Context, obj *aws_s3.Object) (ui
 	return res, nil
 }
 
-func (r *JSONParserReader) TotalRowCount(ctx context.Context) (uint64, error) {
+func (r *JSONParserReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
 	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)

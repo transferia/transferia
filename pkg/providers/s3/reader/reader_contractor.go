@@ -47,20 +47,20 @@ func (c *ReaderContractor) ResolveSchema(ctx context.Context) (*abstract.TableSc
 
 //---
 
-func (c *ReaderContractor) TotalRowCount(ctx context.Context) (uint64, error) {
-	rowCounter, ok := c.impl.(RowCounter)
+func (c *ReaderContractor) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
+	rowCounter, ok := c.impl.(RowsCountEstimator)
 	if !ok {
-		return 0, xerrors.Errorf("unable to cast c.impl to RowCounter, type of c.impl: %T", c.impl)
+		return 0, xerrors.Errorf("unable to cast c.impl to RowsCountEstimator, type of c.impl: %T", c.impl)
 	}
-	return rowCounter.TotalRowCount(ctx)
+	return rowCounter.EstimateRowsCountAllObjects(ctx)
 }
 
-func (c *ReaderContractor) RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
-	rowCounter, ok := c.impl.(RowCounter)
+func (c *ReaderContractor) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
+	rowCounter, ok := c.impl.(RowsCountEstimator)
 	if !ok {
-		return 0, xerrors.Errorf("unable to cast c.impl to RowCounter, type of c.impl: %T", c.impl)
+		return 0, xerrors.Errorf("unable to cast c.impl to RowsCountEstimator, type of c.impl: %T", c.impl)
 	}
-	return rowCounter.RowCount(ctx, obj)
+	return rowCounter.EstimateRowsCountOneObject(ctx, obj)
 }
 
 func NewReaderContractor(in Reader) *ReaderContractor {

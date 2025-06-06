@@ -30,8 +30,8 @@ import (
 const defaultBlockSize = humanize.MiByte
 
 var (
-	_ Reader     = (*GenericParserReader)(nil)
-	_ RowCounter = (*GenericParserReader)(nil)
+	_ Reader             = (*GenericParserReader)(nil)
+	_ RowsCountEstimator = (*GenericParserReader)(nil)
 )
 
 type GenericParserReader struct {
@@ -110,7 +110,7 @@ func (r *GenericParserReader) estimateRows(ctx context.Context, files []*aws_s3.
 	return res, nil
 }
 
-func (r *GenericParserReader) RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
+func (r *GenericParserReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
 	res, err := r.estimateRows(ctx, []*aws_s3.Object{obj})
 	if err != nil {
 		return 0, xerrors.Errorf("failed to estimate rows of file: %s : %w", *obj.Key, err)
@@ -118,7 +118,7 @@ func (r *GenericParserReader) RowCount(ctx context.Context, obj *aws_s3.Object) 
 	return res, nil
 }
 
-func (r *GenericParserReader) TotalRowCount(ctx context.Context) (uint64, error) {
+func (r *GenericParserReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
 	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
