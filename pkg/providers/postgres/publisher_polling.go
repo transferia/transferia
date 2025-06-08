@@ -538,21 +538,21 @@ func (p *poller) monitorStuckQueries() {
 	}
 }
 
-func NewPollingPublisher(
+func newPollingPublisher(
 	version PgVersion,
-	conn *pgxpool.Pool,
+	connConfig *pgx.ConnConfig,
 	slot AbstractSlot,
+	wal2jsonArgs wal2jsonArguments,
 	registry *stats.SourceStats,
 	cfg *PgSource,
 	objects *model.DataObjects,
 	transferID string,
 	lgr log.Logger,
 	cp coordinator.Coordinator,
-	dbLogSnapshot bool,
 ) (abstract.Source, error) {
-	wal2jsonArgs, err := newWal2jsonArguments(cfg, objects, dbLogSnapshot)
+	conn, err := NewPgConnPool(connConfig, lgr)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to build wal2json arguments: %w", err)
+		return nil, xerrors.Errorf("unable to create conn pool: %w", err)
 	}
 	plr := poller{
 		logger:          lgr,

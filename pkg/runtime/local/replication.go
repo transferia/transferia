@@ -132,7 +132,9 @@ waitingForReplicationErr:
 		// status message will be set to error by the error processing code, so the status message is only set below for non-fatal errors
 		return xerrors.Errorf("a fatal error occurred in replication: %w", attemptErr), false
 	}
-	// https://st.yandex-team.ru/TM-2719 hack. Introduced in https://github.com/transferia/transferia/review/2122992/details
+	// This 300 IQ hack is an attempt to mitigate __possible__ connection leak in postgresql connector
+	// The idea is to restart the whole process and drop all existing connections
+	// Possibly the leak itself is already fixed and the hack may be removed but nobody knows
 	if strings.Contains(attemptErr.Error(), "SQLSTATE 53300") {
 		logger.Log.Error("replication failed, will restart the whole dataplane", log.Error(attemptErr))
 		return xerrors.Errorf("replication failed, dataplane must be restarted: %w", attemptErr), false
