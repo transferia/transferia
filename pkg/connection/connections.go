@@ -3,11 +3,13 @@ package connection
 import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/connection/opensearch"
 )
 
 var _ ManagedConnection = (*ConnectionPG)(nil)
 var _ ManagedConnection = (*ConnectionMySQL)(nil)
 var _ ManagedConnection = (*clickhouse.Connection)(nil)
+var _ ManagedConnection = (*opensearch.Connection)(nil)
 
 type ConnectionPG struct {
 	*BaseSQLConnection

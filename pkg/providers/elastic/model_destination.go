@@ -21,6 +21,7 @@ type ElasticSearchDestination struct {
 	SubNetworkID     string
 	SecurityGroupIDs []string
 	Cleanup          model.CleanupType
+	ConnectionID     string
 
 	SanitizeDocKeys bool
 }
