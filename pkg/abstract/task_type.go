@@ -14,12 +14,25 @@ type TaskTypeName = string
 
 var TaskTypeByName map[TaskTypeName]TaskType = makeTaskTypeByNameMap()
 
+//nolint:exhaustivestruct
+var SupportedAsyncOperations = map[string]bool{
+	TaskType{Task: Activate{}}.String():   true,
+	TaskType{Task: Deactivate{}}.String(): true,
+	TaskType{Task: Start{}}.String():      true,
+	TaskType{Task: Stop{}}.String():       true,
+	TaskType{Task: Restart{}}.String():    true,
+}
+
 type TaskType struct {
 	Task
 }
 
 func (t TaskType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
+}
+
+func (t TaskType) AsyncSupported() bool {
+	return SupportedAsyncOperations[t.String()]
 }
 
 func (t *TaskType) UnmarshalJSON(data []byte) error {

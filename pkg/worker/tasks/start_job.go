@@ -17,9 +17,9 @@ func StartJob(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 		return nil
 	}
 
-	// we do not need this for async snaphot operations, currently only async activate is supported
+	// we do not need this for async operations
 	// TODO: TM-8326 remove set status for other async tasks when implemented
-	if transfer.AsyncOperations && task.TaskType.String() == "Activate" {
+	if transfer.AsyncOperations && task.TaskType.AsyncSupported() {
 		return nil
 	}
 
