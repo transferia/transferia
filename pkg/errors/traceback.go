@@ -42,34 +42,37 @@ func extractStackTrace(err error) string {
 	if err == nil {
 		return ""
 	}
-	errStack, traceAble := err.(xerrors.ErrorStackTrace)
-	var currMsg string
-	if traceAble {
-		frames := errStack.StackTrace().Frames()
-		b := strings.Builder{}
-		// frames always consist of a single frame
-		frame := frames[0]
-		_, typ, method := parseQualifiedName(frame.Function)
-		if typ != "" {
-			b.WriteString(typ + ".")
+
+	seen := make(map[error]bool)
+	var result []string
+
+	for err != nil {
+		if seen[err] {
+			break
 		}
-		b.WriteString(method)
-		currMsg = b.String()
-	}
-	unWrapper, unWrapable := err.(interface{ Unwrap() error })
-	if !unWrapable && !traceAble {
-		return currMsg
-	}
-	if unWrapable {
-		err = unWrapper.Unwrap()
+		seen[err] = true
+
+		if errStack, ok := err.(xerrors.ErrorStackTrace); ok {
+			frames := errStack.StackTrace().Frames()
+			if len(frames) > 0 {
+				frame := frames[0]
+				_, typ, method := parseQualifiedName(frame.Function)
+				var currMsg string
+				if typ != "" {
+					currMsg = typ + "." + method
+				} else {
+					currMsg = method
+				}
+				result = append([]string{currMsg}, result...)
+			}
+		}
+
+		if unWrapper, ok := err.(interface{ Unwrap() error }); ok {
+			err = unWrapper.Unwrap()
+		} else {
+			break
+		}
 	}
 
-	prev := extractStackTrace(err)
-	if prev == "" {
-		return currMsg
-	}
-	if currMsg == "" {
-		return prev
-	}
-	return strings.Join([]string{prev, currMsg}, ".")
+	return strings.Join(result, ".")
 }
