@@ -45,7 +45,7 @@ func TestIncrementalShardedStorage(t *testing.T) {
 		_, err = conn.Exec(`create table test_table (id int, created_at DateTime(9)) ENGINE = MergeTree() order by id;`)
 		require.NoError(t, err)
 
-		res, err := incrementalStorage.GetIncrementalState(ctx, []abstract.IncrementalTable{{
+		res, err := incrementalStorage.GetNextIncrementalState(ctx, []abstract.IncrementalTable{{
 			Name:        "test_table",
 			Namespace:   "incrementalns",
 			CursorField: "created_at",
@@ -63,7 +63,7 @@ select number as id, parseDateTime64BestEffort('2020-01-01', 9) + number as crea
 			require.NoError(t, err)
 
 			var incrementRes []abstract.ChangeItem
-			for _, tdesc := range res {
+			for _, tdesc := range abstract.IncrementalStateToTableDescription(res) {
 				require.NoError(t, shard1.LoadTable(context.Background(), tdesc, func(input []abstract.ChangeItem) error {
 					for _, row := range input {
 						if row.IsRowEvent() {
@@ -78,7 +78,7 @@ select number as id, parseDateTime64BestEffort('2020-01-01', 9) + number as crea
 			require.Equal(t, incrementSize, len(incrementRes))
 			tableElementsCount += incrementSize
 
-			res, err = incrementalStorage.GetIncrementalState(ctx, []abstract.IncrementalTable{{
+			res, err = incrementalStorage.GetNextIncrementalState(ctx, []abstract.IncrementalTable{{
 				Name:        "test_table",
 				Namespace:   "incrementalns",
 				CursorField: "created_at",

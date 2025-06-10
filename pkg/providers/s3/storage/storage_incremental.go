@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/araddon/dateparse"
@@ -18,7 +19,7 @@ var (
 	_ abstract.IncrementalStorage = (*Storage)(nil)
 )
 
-func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.TableDescription, error) {
+func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.IncrementalState, error) {
 	if len(incremental) == 0 {
 		return nil, nil // incremental mode is not configured
 	}
@@ -29,12 +30,10 @@ func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstrac
 	if tbl.TableID() != s.cfg.TableID() {
 		return nil, xerrors.Errorf("table ID not matched, expected: %v, got: %v", s.cfg.TableID(), tbl.TableID())
 	}
-	tDesc := abstract.TableDescription{
-		Name:   tbl.Name,
-		Schema: tbl.Namespace,
-		Filter: "",
-		EtaRow: 0,
-		Offset: 0,
+	tDesc := abstract.IncrementalState{
+		Name:    tbl.Name,
+		Schema:  tbl.Namespace,
+		Payload: "",
 	}
 	if tbl.InitialState != "" {
 		var versonTS time.Time
@@ -43,8 +42,8 @@ func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstrac
 			return nil, xerrors.Errorf("unable to parse initial state: %s, must be valid date: %w", tbl.InitialState, err)
 		}
 		versonTS = minDate
-		tDesc.Filter = abstract.FiltersIntersection(tDesc.Filter, abstract.WhereStatement(fmt.Sprintf(`"%s" > '%s'`, s3VersionCol, versonTS.UTC().Format(time.RFC3339))))
-		return []abstract.TableDescription{tDesc}, nil
+		tDesc.Payload = abstract.FiltersIntersection(tDesc.Payload, abstract.WhereStatement(fmt.Sprintf(`"%s" > '%s'`, s3VersionCol, versonTS.UTC().Format(time.RFC3339))))
+		return []abstract.IncrementalState{tDesc}, nil
 	} else {
 		var newest time.Time
 		s.logger.Infof("no initial value, try to find newest file")
@@ -84,13 +83,14 @@ func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstrac
 
 		includeTS := newest.UTC().Format(time.RFC3339)
 		s.logger.Infof("found newest file %s: %s", s3VersionCol, includeTS)
-		tDesc.Filter = abstract.FiltersIntersection(tDesc.Filter, abstract.WhereStatement(fmt.Sprintf(`"%s" > '%s'`, s3VersionCol, includeTS)))
-		return []abstract.TableDescription{tDesc}, nil
+		tDesc.Payload = abstract.FiltersIntersection(tDesc.Payload, abstract.WhereStatement(fmt.Sprintf(`"%s" > '%s'`, s3VersionCol, includeTS)))
+		return []abstract.IncrementalState{tDesc}, nil
 	}
 }
 
-func (s *Storage) SetInitialState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) {
-	for i, table := range tables {
+func (s *Storage) BuildArrTableDescriptionWithIncrementalState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) []abstract.TableDescription {
+	result := slices.Clone(tables)
+	for i, table := range result {
 		if table.Filter != "" || table.Offset != 0 {
 			// table already contains predicate
 			continue
@@ -100,7 +100,7 @@ func (s *Storage) SetInitialState(tables []abstract.TableDescription, incrementa
 				continue
 			}
 			if table.ID() == tbl.TableID() {
-				tables[i] = abstract.TableDescription{
+				result[i] = abstract.TableDescription{
 					Name:   tbl.Name,
 					Schema: tbl.Namespace,
 					Filter: abstract.WhereStatement(fmt.Sprintf(`"%s" < '%s'`, s3VersionCol, tbl.InitialState)),
@@ -110,4 +110,5 @@ func (s *Storage) SetInitialState(tables []abstract.TableDescription, incrementa
 			}
 		}
 	}
+	return result
 }

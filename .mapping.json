@@ -749,6 +749,7 @@
   "pkg/abstract/slot_monitor.go":"transfer_manager/go/pkg/abstract/slot_monitor.go",
   "pkg/abstract/source.go":"transfer_manager/go/pkg/abstract/source.go",
   "pkg/abstract/storage.go":"transfer_manager/go/pkg/abstract/storage.go",
+  "pkg/abstract/storage_incremental.go":"transfer_manager/go/pkg/abstract/storage_incremental.go",
   "pkg/abstract/storage_test.go":"transfer_manager/go/pkg/abstract/storage_test.go",
   "pkg/abstract/strictify.go":"transfer_manager/go/pkg/abstract/strictify.go",
   "pkg/abstract/task_type.go":"transfer_manager/go/pkg/abstract/task_type.go",

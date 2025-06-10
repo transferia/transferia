@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -182,37 +183,40 @@ func (l *SnapshotLoader) prepareIncrementalState(
 	sourceStorage abstract.Storage,
 	tables []abstract.TableDescription,
 	updateIncrementalState bool,
-) ([]abstract.TableDescription, []abstract.TableDescription, error) {
+) ([]abstract.TableDescription, []abstract.IncrementalState, error) {
+	currTables := slices.Clone(tables)
+	var err error
 	if incrementalStorage, ok := sourceStorage.(abstract.IncrementalStorage); ok {
-		if err := l.mergeWithIncrementalState(tables, incrementalStorage); err != nil {
+		currTables, err = l.mergeWithIncrementalState(currTables, incrementalStorage)
+		if err != nil {
 			return nil, nil, xerrors.Errorf("unable to fill table state: %w", err)
 		}
 	}
 
 	logger.Log.Info("Preparing incremental state..")
-	var nextIncrement []abstract.TableDescription
-	var err error
+	var nextIncrement []abstract.IncrementalState
 	if updateIncrementalState {
 		nextIncrement, err = l.getNextIncrementalState(ctx)
 		logger.Log.Infof("Next incremental state: %v", nextIncrement)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("unable to get next incremental state: %w", err)
 		}
-		tables, err = l.mergeWithNextIncrement(tables, nextIncrement)
-		logger.Log.Infof("Merged incremental state: %v", tables)
+		currTables, err = l.mergeWithNextIncrement(currTables, nextIncrement)
+		logger.Log.Infof("Merged incremental state: %v", currTables)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("unable to merge current with next incremental state: %w", err)
 		}
 	}
-	return tables, nextIncrement, err
+	return currTables, nextIncrement, err
 }
 
-func (l *SnapshotLoader) updateIncrementalState(updateIncrementalState bool, nextState []abstract.TableDescription) error {
+func (l *SnapshotLoader) updateIncrementalState(updateIncrementalState bool, nextState []abstract.IncrementalState) error {
 	if !updateIncrementalState {
 		return nil
 	}
 
-	if err := l.setIncrementalState(nextState); err != nil {
+	err := l.setIncrementalState(nextState)
+	if err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to set incremental state: %w", err)
 	}
 	logger.Log.Info("next incremental state uploaded", log.Any("state", nextState))
@@ -398,13 +402,13 @@ func (l *SnapshotLoader) NewServicePusher() (abstract.Pusher, *util.Rollbacks, e
 	return abstract.PusherFromAsyncSink(serviceSink), closeSink, nil
 }
 
-func (l *SnapshotLoader) uploadMain(ctx context.Context, tables []abstract.TableDescription, updateIncrementalState bool) error {
+func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.TableDescription, updateIncrementalState bool) error {
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 	if !ok || runtime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
 	}
 
-	if len(tables) == 0 {
+	if len(inTables) == 0 {
 		return abstract.NewFatalError(xerrors.New("no tables in snapshot"))
 	}
 
@@ -424,7 +428,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, tables []abstract.Table
 
 	l.endpointsPreSnapshotActions(sourceStorage)
 
-	nextIncrementalState, tables, err := l.startSnapshotIncremental(ctx, tables, updateIncrementalState, sourceStorage)
+	tables, nextIncrementalState, err := l.startSnapshotIncremental(ctx, inTables, updateIncrementalState, sourceStorage)
 	if err != nil {
 		return err
 	}
@@ -509,11 +513,14 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, tables []abstract.Table
 }
 
 func (l *SnapshotLoader) startSnapshotIncremental(
-	ctx context.Context, tables []abstract.TableDescription, updateIncrementalState bool, sourceStorage abstract.Storage,
-) ([]abstract.TableDescription, []abstract.TableDescription, error) {
+	ctx context.Context,
+	tables []abstract.TableDescription,
+	updateIncrementalState bool,
+	sourceStorage abstract.Storage,
+) ([]abstract.TableDescription, []abstract.IncrementalState, error) {
 	tables, nextIncrementalState, err := l.prepareIncrementalState(ctx, sourceStorage, tables, updateIncrementalState)
 	if err != nil {
-		return nil, tables, errors.CategorizedErrorf(categories.Internal, "unable to prepare incremental state: %w", err)
+		return nil, nil, errors.CategorizedErrorf(categories.Internal, "unable to prepare incremental state: %w", err)
 	}
 	logger.Log.Infof("Incremental state for load_snapshot: %v", tables)
 	// When using regular incremental snapshot (aka dolivochki) by some cursor field, we assume that this field value
@@ -551,9 +558,9 @@ func (l *SnapshotLoader) startSnapshotIncremental(
 	// Record with id=Z+1 will be lost forever
 	logger.Log.Info("Will begin snapshot now")
 	if err := l.beginSnapshot(ctx, sourceStorage, tables); err != nil {
-		return nil, tables, errors.CategorizedErrorf(categories.Internal, "unable to begin snapshot: %w", err)
+		return nil, nil, errors.CategorizedErrorf(categories.Internal, "unable to begin snapshot: %w", err)
 	}
-	return nextIncrementalState, tables, nil
+	return tables, nextIncrementalState, nil
 }
 
 func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
@@ -638,7 +645,7 @@ func (l *SnapshotLoader) uploadSingle(ctx context.Context, tables []abstract.Tab
 
 	l.endpointsPreSnapshotActions(sourceStorage)
 
-	nextIncrementalState, tables, err := l.startSnapshotIncremental(ctx, tables, updateIncrementalState, sourceStorage)
+	tables, nextIncrementalState, err := l.startSnapshotIncremental(ctx, tables, updateIncrementalState, sourceStorage)
 	if err != nil {
 		return err
 	}

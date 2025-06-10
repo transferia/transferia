@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -14,27 +15,25 @@ var (
 	_ abstract.IncrementalStorage = new(Storage)
 )
 
-func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.TableDescription, error) {
-	var res []abstract.TableDescription
+func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.IncrementalState, error) {
+	var res []abstract.IncrementalState
 	for _, table := range incremental {
 		maxVal, err := getMaxCursorFieldValue(ctx, s.db, table)
 		if err != nil {
 			return nil, err
 		}
 
-		res = append(res, abstract.TableDescription{
-			Name:   table.Name,
-			Schema: table.Namespace,
-			Filter: abstract.WhereStatement(fmt.Sprintf(`"%s" > parseDateTime64BestEffort('%s', 9)`, table.CursorField, maxVal)),
-			EtaRow: 0,
-			Offset: 0,
+		res = append(res, abstract.IncrementalState{
+			Name:    table.Name,
+			Schema:  table.Namespace,
+			Payload: abstract.WhereStatement(fmt.Sprintf(`"%s" > parseDateTime64BestEffort('%s', 9)`, table.CursorField, maxVal)),
 		})
 	}
 	return res, nil
 }
 
-func (s *Storage) SetInitialState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) {
-	setInitialState(tables, incrementalTables)
+func (s *Storage) BuildArrTableDescriptionWithIncrementalState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) []abstract.TableDescription {
+	return setInitialState(tables, incrementalTables)
 }
 
 func getMaxCursorFieldValue(ctx context.Context, db *sql.DB, table abstract.IncrementalTable) (interface{}, error) {
@@ -68,8 +67,9 @@ where table = ? and name = ?`,
 	return maxVal, nil
 }
 
-func setInitialState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) {
-	for i, tdesc := range tables {
+func setInitialState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) []abstract.TableDescription {
+	result := slices.Clone(tables)
+	for i, tdesc := range result {
 		if tdesc.Filter != "" || tdesc.Offset != 0 {
 			// tdesc already contains predicate
 			continue
@@ -79,7 +79,7 @@ func setInitialState(tables []abstract.TableDescription, incrementalTables []abs
 				continue
 			}
 			if tdesc.ID() == incremental.TableID() {
-				tables[i] = abstract.TableDescription{
+				result[i] = abstract.TableDescription{
 					Name:   incremental.Name,
 					Schema: incremental.Namespace,
 					Filter: abstract.WhereStatement(fmt.Sprintf(`"%s" > parseDateTime64BestEffort('%s', 9)`, incremental.CursorField, incremental.InitialState)),
@@ -89,4 +89,5 @@ func setInitialState(tables []abstract.TableDescription, incrementalTables []abs
 			}
 		}
 	}
+	return result
 }

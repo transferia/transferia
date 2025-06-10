@@ -39,12 +39,12 @@ func TestMergeWithIncrementalState(t *testing.T) {
 	}
 	incrementalStorage := newFakeIncrementalStorage()
 	snapshotLoader := NewSnapshotLoader(client, "test-operation", transfer, solomon.NewRegistry(nil))
-	err := snapshotLoader.mergeWithIncrementalState(tables, incrementalStorage)
+	outTables, err := snapshotLoader.mergeWithIncrementalState(tables, incrementalStorage)
 	require.NoError(t, err)
 	require.Equal(t, []abstract.TableDescription{
 		{Name: "table1", Schema: "public", Filter: "\"field1\" > 200500"},
 		{Name: "table2", Schema: "public", Filter: "\"field1\" > 100500"},
-	}, tables)
+	}, outTables)
 }
 
 type fakeIncrementalStorage struct {
@@ -54,11 +54,11 @@ func newFakeIncrementalStorage() *fakeIncrementalStorage {
 	return &fakeIncrementalStorage{}
 }
 
-func (f *fakeIncrementalStorage) GetIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.TableDescription, error) {
+func (f *fakeIncrementalStorage) GetNextIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.IncrementalState, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (f *fakeIncrementalStorage) SetInitialState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) {
-	postgres.SetInitialState(tables, incremental)
+func (f *fakeIncrementalStorage) BuildArrTableDescriptionWithIncrementalState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) []abstract.TableDescription {
+	return postgres.SetInitialState(tables, incremental)
 }

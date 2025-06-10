@@ -14,8 +14,8 @@ import (
 type LoadProgress func(current, progress, total uint64)
 
 type TableDescription struct {
-	Name   string
 	Schema string // for example - for mysql here are database name
+	Name   string
 	Filter WhereStatement
 	EtaRow uint64 // estimated number of rows in the table
 	Offset uint64 // offset (in rows) along the ordering key (not necessary primary key)
@@ -363,8 +363,8 @@ type ShardingContextStorage interface {
 }
 
 type IncrementalStorage interface {
-	GetIncrementalState(ctx context.Context, incremental []IncrementalTable) ([]TableDescription, error)
-	SetInitialState(tables []TableDescription, incremental []IncrementalTable)
+	GetNextIncrementalState(ctx context.Context, incremental []IncrementalTable) ([]IncrementalState, error)
+	BuildArrTableDescriptionWithIncrementalState(tables []TableDescription, incremental []IncrementalTable) []TableDescription
 }
 
 type SnapshotableStorage interface {

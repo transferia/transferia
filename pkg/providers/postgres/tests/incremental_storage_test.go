@@ -35,7 +35,7 @@ func TestShardingStorage_IncrementalTable(t *testing.T) {
 	logger.Log.Infof("create snapshot: %v", storage.ShardedStateLSN)
 
 	t.Run("incremental numeric", func(t *testing.T) {
-		res, err := storage.GetIncrementalState(context.TODO(), []abstract.IncrementalTable{{
+		res, err := storage.GetNextIncrementalState(context.TODO(), []abstract.IncrementalTable{{
 			Name:        "__test_incremental",
 			Namespace:   "public",
 			CursorField: "cursor",
@@ -54,7 +54,7 @@ select md5(random()::text), s.s from generate_Series(
 
 		storage.ShardedStateLSN = ""
 		var incrementRes []abstract.ChangeItem
-		for _, tdesc := range res {
+		for _, tdesc := range abstract.IncrementalStateToTableDescription(res) {
 			require.NoError(t, storage.LoadTable(context.Background(), tdesc, func(input []abstract.ChangeItem) error {
 				for _, row := range input {
 					if row.IsRowEvent() {
@@ -68,7 +68,7 @@ select md5(random()::text), s.s from generate_Series(
 		require.Len(t, incrementRes, 10)
 	})
 	t.Run("incremental timestamp", func(t *testing.T) {
-		res, err := storage.GetIncrementalState(context.TODO(), []abstract.IncrementalTable{{
+		res, err := storage.GetNextIncrementalState(context.TODO(), []abstract.IncrementalTable{{
 			Name:        "__test_incremental_ts",
 			Namespace:   "public",
 			CursorField: "cursor",
@@ -84,7 +84,7 @@ select md5(random()::text), $1 from generate_Series(1,10) as s;
 
 		storage.ShardedStateLSN = ""
 		var incrementRes []abstract.ChangeItem
-		for _, tdesc := range res {
+		for _, tdesc := range abstract.IncrementalStateToTableDescription(res) {
 			require.NoError(t, storage.LoadTable(context.Background(), tdesc, func(input []abstract.ChangeItem) error {
 				for _, row := range input {
 					if row.IsRowEvent() {
@@ -126,8 +126,8 @@ func TestInitialStatePopulate(t *testing.T) {
 			CursorField:  "buzz",
 			InitialState: "'fuzz'",
 		}}
-		storage.SetInitialState(tables, incremental)
-		require.Equal(t, tables[0].Filter, abstract.WhereStatement(`"buzz" > 'fuzz'`))
+		tablesOut := storage.BuildArrTableDescriptionWithIncrementalState(tables, incremental)
+		require.Equal(t, tablesOut[0].Filter, abstract.WhereStatement(`"buzz" > 'fuzz'`))
 	})
 	t.Run("single table not match", func(t *testing.T) {
 		tables := []abstract.TableDescription{{
@@ -143,8 +143,8 @@ func TestInitialStatePopulate(t *testing.T) {
 			CursorField:  "buzz",
 			InitialState: "'fuzz'",
 		}}
-		storage.SetInitialState(tables, incremental)
-		require.Equal(t, tables[0].Filter, abstract.WhereStatement(``))
+		tablesOut := storage.BuildArrTableDescriptionWithIncrementalState(tables, incremental)
+		require.Equal(t, tablesOut[0].Filter, abstract.WhereStatement(``))
 	})
 	t.Run("many tables one match", func(t *testing.T) {
 		tables := []abstract.TableDescription{{
@@ -166,9 +166,9 @@ func TestInitialStatePopulate(t *testing.T) {
 			CursorField:  "buzz",
 			InitialState: "'fuzz'",
 		}}
-		storage.SetInitialState(tables, incremental)
-		require.Equal(t, tables[0].Filter, abstract.WhereStatement(``))
-		require.Equal(t, tables[1].Filter, abstract.WhereStatement(`"buzz" > 'fuzz'`))
+		tablesOut := storage.BuildArrTableDescriptionWithIncrementalState(tables, incremental)
+		require.Equal(t, tablesOut[0].Filter, abstract.WhereStatement(``))
+		require.Equal(t, tablesOut[1].Filter, abstract.WhereStatement(`"buzz" > 'fuzz'`))
 	})
 	t.Run("partial upload", func(t *testing.T) {
 		tables := []abstract.TableDescription{{
@@ -184,7 +184,7 @@ func TestInitialStatePopulate(t *testing.T) {
 			CursorField:  "buzz",
 			InitialState: "'fuzz'",
 		}}
-		storage.SetInitialState(tables, incremental)
-		require.Equal(t, tables[0].Filter, abstract.WhereStatement(`exist-filter`))
+		tablesOut := storage.BuildArrTableDescriptionWithIncrementalState(tables, incremental)
+		require.Equal(t, tablesOut[0].Filter, abstract.WhereStatement(`exist-filter`))
 	})
 }
