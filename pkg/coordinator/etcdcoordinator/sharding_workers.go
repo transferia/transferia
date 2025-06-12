@@ -127,7 +127,7 @@ func (c *EtcdCoordinator) GetOperationWorkersCount(operationID string, completed
 }
 
 // FinishOperation marks a specific worker as completed.
-func (c *EtcdCoordinator) FinishOperation(operationID string, shardIndex int, taskErr error) error {
+func (c *EtcdCoordinator) FinishOperation(operationID string, taskType string, shardIndex int, taskErr error) error {
 	key := workerPath(operationID, shardIndex)
 	c.logger.Info("Finishing operation for worker", log.String("operationID", operationID), log.Int("workerIndex", shardIndex), log.String("key", key), log.Error(taskErr))
 
