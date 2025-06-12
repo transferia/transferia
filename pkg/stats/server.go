@@ -103,7 +103,9 @@ func methodDurations() []time.Duration {
 		2 * time.Second,
 		4 * time.Second,
 		10 * time.Second,
+		20 * time.Second,
 		30 * time.Second,
+		1 * time.Minute,
 	}
 }
 
