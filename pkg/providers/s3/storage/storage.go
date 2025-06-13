@@ -41,6 +41,8 @@ func (s *Storage) TableSchema(ctx context.Context, table abstract.TableID) (*abs
 
 func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription, inPusher abstract.Pusher) error {
 	if s.cfg.ShardingParams != nil { // TODO: Remove that `if` in TM-8537.
+		// @booec branch
+
 		// With enabled sharding params, common-known cloud filter parser is used.
 		// Unfortunatelly, for default sharding (when ShardingParams == nil) self-written pkg/predicate is used.
 		// Since there are no purposes to use self-written filter parser, it should be refactored in TM-8537.
@@ -58,28 +60,31 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 			return xerrors.Errorf("unable to read many files: %w", err)
 		}
 		return nil
-	}
-	fileOps, err := predicate.InclusionOperands(table.Filter, s3FileNameCol)
-	if err != nil {
-		return xerrors.Errorf("unable to extract: %s: filter: %w", s3FileNameCol, err)
-	}
-	if len(fileOps) > 0 {
-		return s.readFile(ctx, table, inPusher)
-	}
-	parts, err := s.ShardTable(ctx, table)
-	if err != nil {
-		return xerrors.Errorf("unable to load files to read: %w", err)
-	}
-	totalRows := uint64(0)
-	for _, part := range parts {
-		totalRows += part.EtaRow
-	}
-	for _, part := range parts {
-		if err := s.readFile(ctx, part, inPusher); err != nil {
-			return xerrors.Errorf("unable to read part: %v: %w", part.String(), err)
+	} else {
+		// @tserakhau branch
+
+		fileOps, err := predicate.InclusionOperands(table.Filter, s3FileNameCol)
+		if err != nil {
+			return xerrors.Errorf("unable to extract: %s: filter: %w", s3FileNameCol, err)
 		}
+		if len(fileOps) > 0 {
+			return s.readFile(ctx, table, inPusher)
+		}
+		parts, err := s.ShardTable(ctx, table)
+		if err != nil {
+			return xerrors.Errorf("unable to load files to read: %w", err)
+		}
+		totalRows := uint64(0)
+		for _, part := range parts {
+			totalRows += part.EtaRow
+		}
+		for _, part := range parts {
+			if err := s.readFile(ctx, part, inPusher); err != nil {
+				return xerrors.Errorf("unable to read part: %v: %w", part.String(), err)
+			}
+		}
+		return nil
 	}
-	return nil
 }
 
 // readFiles read files extracted from IN-operator of part.Filter.

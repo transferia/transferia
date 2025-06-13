@@ -46,7 +46,6 @@ type SnapshotLoader struct {
 	workerIndex       int
 
 	// Snapshot state
-	shardedState           string
 	slotKiller             abstract.SlotKiller
 	slotKillerErrorChannel <-chan error
 
@@ -67,7 +66,6 @@ func NewSnapshotLoader(cp coordinator.Coordinator, operationID string, transfer 
 		parallelismParams: transfer.ParallelismParams(),
 		workerIndex:       transfer.CurrentJobIndex(),
 
-		shardedState:           "",
 		slotKiller:             abstract.MakeStubSlotKiller(),
 		slotKillerErrorChannel: make(<-chan error),
 
@@ -187,7 +185,7 @@ func (l *SnapshotLoader) prepareIncrementalState(
 	currTables := slices.Clone(tables)
 	var err error
 	if incrementalStorage, ok := sourceStorage.(abstract.IncrementalStorage); ok {
-		currTables, err = l.mergeWithIncrementalState(currTables, incrementalStorage)
+		currTables, err = l.getIncrementalStateAndMergeWithTables(currTables, incrementalStorage)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("unable to fill table state: %w", err)
 		}
@@ -196,12 +194,12 @@ func (l *SnapshotLoader) prepareIncrementalState(
 	logger.Log.Info("Preparing incremental state..")
 	var nextIncrement []abstract.IncrementalState
 	if updateIncrementalState {
-		nextIncrement, err = l.getNextIncrementalState(ctx)
+		nextIncrement, err = l.getNextIncrementalState(ctx, sourceStorage)
 		logger.Log.Infof("Next incremental state: %v", nextIncrement)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("unable to get next incremental state: %w", err)
 		}
-		currTables, err = l.mergeWithNextIncrement(currTables, nextIncrement)
+		currTables, err = l.mergeIncrementWithTables(currTables, nextIncrement)
 		logger.Log.Infof("Merged incremental state: %v", currTables)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("unable to merge current with next incremental state: %w", err)
@@ -443,11 +441,12 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
 	}
 
-	if err := l.GetShardedStateFromSource(sourceStorage); err != nil {
+	shardedState, err := l.MainWorkerCreateShardedStateFromSource(sourceStorage)
+	if err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to prepare sharded state for operation '%v': %w", l.operationID, err)
 	}
 
-	if err := l.SetShardedStateToCP(logger.Log); err != nil {
+	if err := l.SetShardedStateToCP(logger.Log, shardedState); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to set sharded state: %w", err)
 	}
 
@@ -514,11 +513,11 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 
 func (l *SnapshotLoader) startSnapshotIncremental(
 	ctx context.Context,
-	tables []abstract.TableDescription,
+	inTables []abstract.TableDescription,
 	updateIncrementalState bool,
 	sourceStorage abstract.Storage,
 ) ([]abstract.TableDescription, []abstract.IncrementalState, error) {
-	tables, nextIncrementalState, err := l.prepareIncrementalState(ctx, sourceStorage, tables, updateIncrementalState)
+	tables, nextIncrementalState, err := l.prepareIncrementalState(ctx, sourceStorage, inTables, updateIncrementalState)
 	if err != nil {
 		return nil, nil, errors.CategorizedErrorf(categories.Internal, "unable to prepare incremental state: %w", err)
 	}
@@ -579,7 +578,8 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 
 	logger.Log.Infof("Sharding upload on worker '%v' started", l.workerIndex)
 
-	if err := l.GetShardState(ctx); err != nil {
+	shardedState, err := l.ReadFromCPShardState(ctx)
+	if err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to get shard state: %w", err)
 	}
 
@@ -603,7 +603,7 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 
 	l.endpointsPreSnapshotActions(sourceStorage)
 
-	if err := l.SetShardedStateToSource(sourceStorage); err != nil {
+	if err := l.SetShardedStateToSource(sourceStorage, shardedState); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "can't set sharded state to storage: %w", err)
 	}
 

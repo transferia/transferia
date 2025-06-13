@@ -83,9 +83,12 @@ func (s *Storage) ShardTable(ctx context.Context, tdesc abstract.TableDescriptio
 	}
 
 	if s.cfg.ShardingParams != nil {
+		// @booec algorithm: batch with max part: sum filesize, sum #rows
 		return s.shardByLimits(files)
+	} else {
+		// @tserakhau algorithm: 1 file == 1 TableDescription
+		return s.shardDefault(tdesc, files), nil
 	}
-	return s.shardDefault(tdesc, files), nil
 }
 
 func (s *Storage) shardDefault(tdesc abstract.TableDescription, files []*FileWithStats) []abstract.TableDescription {

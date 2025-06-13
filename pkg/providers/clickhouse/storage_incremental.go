@@ -67,8 +67,8 @@ where table = ? and name = ?`,
 	return maxVal, nil
 }
 
-func setInitialState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) []abstract.TableDescription {
-	result := slices.Clone(tables)
+func setInitialState(inTables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) []abstract.TableDescription {
+	result := slices.Clone(inTables)
 	for i, tdesc := range result {
 		if tdesc.Filter != "" || tdesc.Offset != 0 {
 			// tdesc already contains predicate

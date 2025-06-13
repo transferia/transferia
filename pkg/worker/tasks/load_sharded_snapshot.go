@@ -43,12 +43,12 @@ func (l *SnapshotLoader) WaitWorkersInitiated(ctx context.Context) error {
 	)
 }
 
-func (l *SnapshotLoader) GetShardState(ctx context.Context) error {
+func (l *SnapshotLoader) ReadFromCPShardState(ctx context.Context) (string, error) {
 	if err := l.WaitWorkersInitiated(ctx); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task metadata initialization: %w", err)
+		return "", errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task metadata initialization: %w", err)
 	}
 
-	res, err := backoff.RetryNotifyWithData(
+	result, err := backoff.RetryNotifyWithData(
 		func() (string, error) {
 			stateMsg, err := l.cp.GetOperationState(l.operationID)
 			if err != nil {
@@ -63,10 +63,9 @@ func (l *SnapshotLoader) GetShardState(ctx context.Context) error {
 		util.BackoffLoggerDebug(logger.Log, "waiting for sharded state"),
 	)
 	if err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task state: %w", err)
+		return "", errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task state: %w", err)
 	}
-	l.shardedState = res
-	return nil
+	return result, nil
 }
 
 // OperationStateExists returns true if the state of the operation of the given task exists (is not nil)
@@ -118,12 +117,9 @@ func (l *SnapshotLoader) SplitTables(
 	} else if isTmpPolicyEnabled {
 		reasonWhyNotSharded = "Sharding is not supported by tmp policy, disabling it"
 	}
-	if reasonWhyNotSharded != "" {
-		logger.Info(reasonWhyNotSharded)
-	}
 
 	for _, table := range tables {
-		if isShardeableDestination && isShardingStorage && !isTmpPolicyEnabled {
+		if reasonWhyNotSharded == "" {
 			tableParts, err := shardingStorage.ShardTable(ctx, table)
 			if err != nil {
 				if abstract.IsNonShardableError(err) {
@@ -158,31 +154,31 @@ func (l *SnapshotLoader) SplitTables(
 	return tablesParts, nil
 }
 
-func (l *SnapshotLoader) GetShardedStateFromSource(source interface{}) error {
+func (l *SnapshotLoader) MainWorkerCreateShardedStateFromSource(source interface{}) (string, error) {
 	if shardingContextStorage, ok := source.(abstract.ShardingContextStorage); ok {
 		shardCtx, err := shardingContextStorage.ShardingContext()
 		if err != nil {
-			return errors.CategorizedErrorf(categories.Internal, "can't get sharded state from source: %w", err)
+			return "", errors.CategorizedErrorf(categories.Internal, "can't get sharded state from source: %w", err)
 		}
-		l.shardedState = string(shardCtx)
+		return string(shardCtx), nil
 	}
-	return nil
+	return "", nil
 }
 
-func (l *SnapshotLoader) SetShardedStateToSource(source interface{}) error {
-	if shardingContextStorage, ok := source.(abstract.ShardingContextStorage); ok && l.shardedState != "" {
-		if err := shardingContextStorage.SetShardingContext([]byte(l.shardedState)); err != nil {
+func (l *SnapshotLoader) SetShardedStateToSource(source interface{}, shardedState string) error {
+	if shardingContextStorage, ok := source.(abstract.ShardingContextStorage); ok && shardedState != "" {
+		if err := shardingContextStorage.SetShardingContext([]byte(shardedState)); err != nil {
 			return errors.CategorizedErrorf(categories.Internal, "can't set sharded state to source: %w", err)
 		}
 	}
 	return nil
 }
 
-func (l *SnapshotLoader) SetShardedStateToCP(logger log.Logger) error {
-	if err := l.cp.SetOperationState(l.operationID, l.shardedState); err != nil {
+func (l *SnapshotLoader) SetShardedStateToCP(logger log.Logger, shardedState string) error {
+	if err := l.cp.SetOperationState(l.operationID, shardedState); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to store upload shards: %w", err)
 	}
-	logger.Info("sharded state uploaded", log.Any("state", string(l.shardedState)))
+	logger.Info("sharded state uploaded", log.Any("state", string(shardedState)))
 	return nil
 }
 

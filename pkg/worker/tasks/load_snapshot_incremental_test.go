@@ -39,7 +39,7 @@ func TestMergeWithIncrementalState(t *testing.T) {
 	}
 	incrementalStorage := newFakeIncrementalStorage()
 	snapshotLoader := NewSnapshotLoader(client, "test-operation", transfer, solomon.NewRegistry(nil))
-	outTables, err := snapshotLoader.mergeWithIncrementalState(tables, incrementalStorage)
+	outTables, err := snapshotLoader.getIncrementalStateAndMergeWithTables(tables, incrementalStorage)
 	require.NoError(t, err)
 	require.Equal(t, []abstract.TableDescription{
 		{Name: "table1", Schema: "public", Filter: "\"field1\" > 200500"},
