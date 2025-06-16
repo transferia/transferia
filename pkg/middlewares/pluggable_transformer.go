@@ -30,3 +30,5 @@ func PlugTransformer(pt PluggableTransformer) {
 func PluggableTransformersChain(t *model.Transfer, r metrics.Registry, cp coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker {
 	return chain(t, r, cp)
 }
+
+var IdentityMiddleware = func(s abstract.Sinker) abstract.Sinker { return s }
