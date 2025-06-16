@@ -98,7 +98,15 @@ func (c *ChStorageParams) ToConnParams() connConfigWrapper {
 }
 
 func (c *ChStorageParams) String() string {
-	return fmt.Sprintf("%v/%v", c.ConnectionParams.Shards, c.ConnectionParams.Database)
+	shardsToString := make(map[string][]string, len(c.ConnectionParams.Shards))
+	for shard, hosts := range c.ConnectionParams.Shards {
+		shardsToString[shard] = make([]string, 0, len(hosts))
+		for _, host := range hosts {
+			shardsToString[shard] = append(shardsToString[shard], host.String())
+		}
+	}
+
+	return fmt.Sprintf("%v/%v", shardsToString, c.ConnectionParams.Database)
 }
 
 func resolveHosts(clucterID, shardGroup string, shardList []ClickHouseShard, nativePort, httpPort int) ([]*clickhouse.Host, map[string][]*clickhouse.Host, error) {

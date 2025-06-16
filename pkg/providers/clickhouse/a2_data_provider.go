@@ -146,7 +146,7 @@ func NewClickhouseProvider(logger log.Logger, registry metrics.Registry, config 
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve storage params")
 	}
-	logger.Infof("init clickhouse provider: %v", shards)
+	logger.Infof("init clickhouse provider: %v", ShardsToString(shards))
 	storage, err := NewStorage(storageParams, transfer, WithHomo(), WithTableFilter(config))
 	if err != nil {
 		return nil, err

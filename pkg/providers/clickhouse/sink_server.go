@@ -275,7 +275,7 @@ ORDER BY
 			size:      size,
 		})
 	}
-	s.logger.Infof("rotator found %v parts for table %v from %v", len(parts), table, *s.config.Host())
+	s.logger.Infof("rotator found %v parts for table %v from %v", len(parts), table, s.config.Host().String())
 	if len(parts) > keepParts {
 		oldParts := parts[keepParts:]
 		s.logger.Infof("prepare to delete %v parts for table %v", len(oldParts), table)
@@ -336,11 +336,7 @@ func NewSinkServerImpl(
 	metrics *stats.ChStats,
 	cluster *sinkCluster,
 ) *SinkServer {
-	host := cfg.Host()
-	hostName := ""
-	if host != nil {
-		hostName = host.Name
-	}
+	hostName := cfg.Host().HostName()
 
 	return &SinkServer{
 		db:            db,

@@ -325,14 +325,14 @@ func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
 		if errors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
-		t.logger.Warn("Commit error", log.Any("ch_host", *t.config.Host()), log.Error(err))
+		t.logger.Warn("Commit error", log.Any("ch_host", t.config.Host().HostName()), log.Error(err))
 		return xerrors.Errorf("failed to commit: %w", err)
 	}
 	txRollbacks.Cancel()
 	t.metrics.Len.Add(int64(len(items)))
 	t.metrics.Count.Inc()
 
-	t.logger.Debugf("Committed %d changeItems (%s) in %v", len(items), t.config.Host().Name, time.Since(start))
+	t.logger.Debugf("Committed %d changeItems (%s) in %v", len(items), t.config.Host().HostName(), time.Since(start))
 	return nil
 }
 

@@ -180,7 +180,7 @@ func (c *sinkCluster) Init() error {
 	st := make([]*SinkServer, 0)
 	var errs util.Errors
 	for _, host := range yslices.Shuffle(c.config.AltHosts(), nil) {
-		c.logger.Debugf("init sinkServer %v", host)
+		c.logger.Debugf("init sinkServer %v", host.String())
 		sinkServer, err := NewSinkServer(
 			c.config.MakeChildServerParams(host),
 			c.logger,

@@ -106,7 +106,7 @@ func (c *HTTPTarget) AsyncPush(input base.EventBatch) chan error {
 					}
 					return err
 				}
-				c.logger.Infof("%v blob %v uploaded to %v in: %v", batch.Part.FullName(), format.SizeInt(len(blob)), host, time.Since(st))
+				c.logger.Infof("%v blob %v uploaded to %v in: %v", batch.Part.FullName(), format.SizeInt(len(blob)), host.String(), time.Since(st))
 				return nil
 			},
 			backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10),
@@ -227,21 +227,21 @@ func (c *HTTPTarget) adjustDDLToTarget(ddl schema.TableDDL, distributed bool) (s
 }
 
 func (c *HTTPTarget) HostByPart(part *TablePartA2) *clickhouse.Host {
-	host := (*clickhouse.Host)(nil)
+	host := new(clickhouse.Host)
 	if c.config.Host() != nil {
 		host = c.config.Host()
 	}
-	if host == nil || host.Name == "" && len(c.config.AltHosts()) > 0 {
+	if host.HostName() == "" && len(c.config.AltHosts()) > 0 {
 		randomIndex := rand.Intn(len(c.config.AltHosts()))
 		host = c.config.AltHosts()[randomIndex]
 	}
 
 	// Choose random host of first shard for cluster DDL
-	if host == nil || host.Name == "" && part == nil && len(c.config.Shards()) > 0 {
+	if host.HostName() == "" && part == nil && len(c.config.Shards()) > 0 {
 		for shardName, hosts := range c.config.Shards() {
 			idx := rand.Intn(len(hosts))
 			host = hosts[idx]
-			c.logger.Debugf("choose random host %s of shard %s for DDL query", host.Name, shardName)
+			c.logger.Debugf("choose random host %s of shard %s for DDL query", host.String(), shardName)
 			return host
 		}
 	}
@@ -255,7 +255,7 @@ func (c *HTTPTarget) HostByPart(part *TablePartA2) *clickhouse.Host {
 			shardHosts := c.cluster.Shards[targetShardNum]
 			randomIndex := rand.Intn(len(shardHosts))
 			host = shardHosts[randomIndex]
-			c.logger.Debugf("choose host: %v from %v, source shard: %v, target shard: %v", host, shardHosts, part.ShardNum, targetShardNum)
+			c.logger.Debugf("choose host: %v from %v, source shard: %v, target shard: %v", host.String(), HostsToString(shardHosts), part.ShardNum, targetShardNum)
 		}
 	}
 	return host
