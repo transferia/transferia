@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -382,7 +384,6 @@ func loadIntoTableMapForTable(ctx context.Context, table tableIDWithInfo, extrac
 
 func (s *Storage) GetInheritedTables(ctx context.Context) (map[abstract.TableID]abstract.TableID, error) {
 	tablesParents, err := MakeChildParentMap(ctx, s.Conn)
-
 	if err != nil {
 		logger.Log.Error("failed query for extraction pg inherits", log.Error(err))
 		return nil, xerrors.Errorf("failed query for extraction pg inherits: %w", err)
@@ -1268,7 +1269,6 @@ func (s *Storage) loadTable(
 	schema *abstract.TableSchema,
 	startTime time.Time,
 ) error {
-
 	if skip, reason := loadMode.SkipLoading(); skip {
 		logger.Log.Infof("Skip load table %v: %v", table.Fqtn(), reason)
 		return nil

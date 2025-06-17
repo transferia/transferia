@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 // Description of ordered_table.go: https://st.yandex-team.ru/TM-887#5fbcddfd5372c4026b073bab
 package sink
 

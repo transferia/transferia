@@ -1,3 +1,5 @@
+//go:build !disable_kafka_provider
+
 package writer
 
 import (

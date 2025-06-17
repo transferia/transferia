@@ -1,3 +1,5 @@
+//go:build !disable_datadog_provider
+
 package datadog
 
 import (
@@ -31,9 +33,7 @@ type Sink struct {
 	tmpl     *template.Template
 }
 
-var (
-	FatalErrors = set.New("403 Forbidden")
-)
+var FatalErrors = set.New("403 Forbidden")
 
 func (s *Sink) Close() error {
 	s.cancel()

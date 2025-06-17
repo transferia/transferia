@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package recipe
 
 import (
@@ -203,8 +205,10 @@ func YtTypesTestData() ([]schema.Column, []map[string]any) {
 		// That test mostly here for YtDictTransformer.
 		// Iteration and transformation over all fields/elements/members of all complex types is tested by it.
 		{Name: "nested1", ComplexType: schema.Struct{Members: []schema.StructMember{
-			{Name: "list", Type: schema.List{
-				Item: schema.Tuple{Elements: []schema.TupleElement{{Type: dictSchema}, {Type: dictSchema}}}},
+			{
+				Name: "list", Type: schema.List{
+					Item: schema.Tuple{Elements: []schema.TupleElement{{Type: dictSchema}, {Type: dictSchema}}},
+				},
 			},
 			{Name: "named", Type: schema.Variant{
 				Members: []schema.StructMember{{Name: "d1", Type: dictSchema}, {Name: "d2", Type: dictSchema}},

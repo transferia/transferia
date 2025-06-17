@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package mysql
 
 import (
@@ -175,7 +177,7 @@ func tryRestoreStringAndBytesTypes(event *RowsEvent, columnIndex int, columnYtTy
 
 func alterUTF16Charset(charsetName string) string {
 	result := strings.ReplaceAll(charsetName, "utf16", "utf-16")
-	//by default mysql utf16 charset is big endian but in golang.org/x/net/html that we use here it is processed as little endian
+	// by default mysql utf16 charset is big endian but in golang.org/x/net/html that we use here it is processed as little endian
 	if !strings.HasSuffix(strings.ToLower(charsetName), "le") {
 		result += "be"
 	}

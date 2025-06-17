@@ -14,8 +14,6 @@ import (
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
-	"github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/pkg/sink"
 	"github.com/transferia/transferia/pkg/storage"
 	"github.com/transferia/transferia/pkg/transformer"
 	"github.com/transferia/transferia/pkg/util"
@@ -225,26 +223,6 @@ func TestEndpoint(ctx context.Context, param *TestEndpointParams, tr *abstract.T
 		tr = TestSourceEndpoint(ctx, param, tr)
 	}
 	return tr
-}
-
-func TestTargetEndpoint(transfer *model.Transfer) error {
-	switch dst := transfer.Dst.(type) {
-	case *postgres.PgDestination:
-		// _ping and other tables created if MaintainTables is set to true
-		dstMaintainTables := dst.MaintainTables
-		dst.MaintainTables = true
-
-		// restoring destination's MaintainTables value
-		defer func() {
-			dst.MaintainTables = dstMaintainTables
-		}()
-	}
-	sink, err := sink.MakeAsyncSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
-	if err != nil {
-		return xerrors.Errorf("unable to make sinker: %w", err)
-	}
-	defer sink.Close()
-	return pingSinker(sink)
 }
 
 func TestDestinationEndpoint(ctx context.Context, param *TestEndpointParams, tr *abstract.TestResult) *abstract.TestResult {

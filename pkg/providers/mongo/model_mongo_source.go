@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo
 
 import (
@@ -68,8 +70,10 @@ type MongoSource struct {
 	SRVMode bool
 }
 
-var _ model.Source = (*MongoSource)(nil)
-var _ model.WithConnectionID = (*MongoSource)(nil)
+var (
+	_ model.Source           = (*MongoSource)(nil)
+	_ model.WithConnectionID = (*MongoSource)(nil)
+)
 
 type BatcherParameters struct {
 	BatchSizeLimit     uint
@@ -179,9 +183,7 @@ func (s *MongoSource) AllIncludes() []string {
 	return result
 }
 
-var (
-	ErrEmptyFilter = xerrors.New("Filters pass empty collection list")
-)
+var ErrEmptyFilter = xerrors.New("Filters pass empty collection list")
 
 // BuildPipeline returns mongo pipeline that should be able
 // to filter the oplog from unwanted changes in database 'forDatabaseName'

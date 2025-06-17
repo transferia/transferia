@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package sink
 
 import (
@@ -8,8 +10,10 @@ import (
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
-type deleteRowsFn = func(ctx context.Context, tx yt.TabletTx, tablePath ypath.Path, keys []interface{}) error
-type ytRow = map[columnName]interface{}
+type (
+	deleteRowsFn = func(ctx context.Context, tx yt.TabletTx, tablePath ypath.Path, keys []interface{}) error
+	ytRow        = map[columnName]interface{}
+)
 
 type ytDataBatch struct {
 	toUpdateKeys  []interface{}

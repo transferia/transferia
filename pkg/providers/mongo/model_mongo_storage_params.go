@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo
 
 type MongoStorageParams struct {

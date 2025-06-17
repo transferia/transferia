@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo
 
 import (
@@ -111,7 +113,6 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 	var cursor *mongo.Cursor
 	if err := backoff.Retry(func() error {
 		cursor, err = coll.Find(ctx, filter, findOptions)
-
 		if err != nil {
 			return xerrors.Errorf("Cannot create document cursor: %w", err)
 		}

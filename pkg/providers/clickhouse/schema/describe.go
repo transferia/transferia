@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package schema
 
 import (
@@ -91,7 +93,7 @@ func DescribeTable(db *sql.DB, database, table string, knownPrimaryKeys []string
 	// clickhouse will return unordered columns, this need to set stable column names order
 	sort.Strings(colNames)
 	schema := make([]abstract.ColSchema, 0)
-	//add primary keys first
+	// add primary keys first
 	for _, pkeyColname := range knownPrimaryKeys {
 		colPrimary[pkeyColname] = true
 		coltype, ok := colTypes[pkeyColname]
@@ -116,7 +118,7 @@ func DescribeTable(db *sql.DB, database, table string, knownPrimaryKeys []string
 		})
 	}
 
-	//add other fields
+	// add other fields
 	for _, colname := range colNames {
 		if colname == "__data_transfer_commit_time" || colname == "__data_transfer_delete_time" || colname == "__data_transfer_is_deleted" {
 			continue

@@ -1,3 +1,5 @@
+//go:build !disable_kinesis_provider
+
 package kinesis
 
 import (
@@ -6,9 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsers"
 )
 
-var (
-	_ model.Source = (*KinesisSource)(nil)
-)
+var _ model.Source = (*KinesisSource)(nil)
 
 type KinesisSource struct {
 	Endpoint              string

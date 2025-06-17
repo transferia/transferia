@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 // Code generated from ./ClickHouseLexer.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package clickhouse_lexer

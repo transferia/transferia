@@ -1,3 +1,5 @@
+//go:build !disable_s3_provider
+
 package fake_s3
 
 import "time"

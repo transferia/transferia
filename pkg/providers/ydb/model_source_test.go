@@ -1,3 +1,5 @@
+//go:build !disable_ydb_provider
+
 package ydb
 
 import (
@@ -71,7 +73,6 @@ func checkYDBTestCase(t *testing.T, useFullPaths bool, tables []string, existing
 }
 
 func TestMakeYDBRelPath(t *testing.T) {
-
 	//-----
 	// root
 

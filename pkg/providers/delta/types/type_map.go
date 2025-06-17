@@ -1,3 +1,5 @@
+//go:build !disable_delta_provider
+
 package types
 
 type MapType struct {

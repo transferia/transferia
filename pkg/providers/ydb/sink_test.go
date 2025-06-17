@@ -1,3 +1,5 @@
+//go:build !disable_ydb_provider
+
 package ydb
 
 import (
@@ -240,7 +242,7 @@ func TestSinker_Push(t *testing.T) {
 	})
 	t.Run("inserts_with_odd_colname", func(t *testing.T) {
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{
-			abstract.ChangeItem{
+			{
 				Kind:         abstract.InsertKind,
 				Schema:       "foo",
 				Table:        "inserts_with_odd_colname",
@@ -250,7 +252,7 @@ func TestSinker_Push(t *testing.T) {
 			},
 		}))
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{
-			abstract.ChangeItem{
+			{
 				Kind:   abstract.DeleteKind,
 				Schema: "foo",
 				Table:  "inserts_with_odd_colname",

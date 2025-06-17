@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package mysql
 
 import (
@@ -58,8 +60,10 @@ type MysqlSource struct {
 	ReplicationFlushInterval time.Duration
 }
 
-var _ model.Source = (*MysqlSource)(nil)
-var _ model.WithConnectionID = (*MysqlSource)(nil)
+var (
+	_ model.Source           = (*MysqlSource)(nil)
+	_ model.WithConnectionID = (*MysqlSource)(nil)
+)
 
 type MysqlDumpSteps struct {
 	View    bool

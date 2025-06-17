@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package mysql
 
 import (
@@ -423,12 +425,11 @@ func columnNameToIndex(tableSchema *[]abstract.ColSchema) map[string]int {
 func buildPartOfQueryDeleteCondition(tableSchema *[]abstract.ColSchema, changeItem *abstract.ChangeItem, colNameToIndexInTableSchema *map[string]int) string {
 	currentConditions := make([]string, len(changeItem.OldKeys.KeyNames))
 	for i, column := range changeItem.OldKeys.KeyNames {
-		currentConditions[i] =
-			fmt.Sprintf(
-				"`%v`=%v",
-				changeItem.OldKeys.KeyNames[i],
-				CastToMySQL(changeItem.OldKeys.KeyValues[i], (*tableSchema)[(*colNameToIndexInTableSchema)[column]]),
-			)
+		currentConditions[i] = fmt.Sprintf(
+			"`%v`=%v",
+			changeItem.OldKeys.KeyNames[i],
+			CastToMySQL(changeItem.OldKeys.KeyValues[i], (*tableSchema)[(*colNameToIndexInTableSchema)[column]]),
+		)
 	}
 	return "(" + strings.Join(currentConditions, " AND ") + ")"
 }

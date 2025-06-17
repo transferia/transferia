@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package types
 
 import (
@@ -13,8 +15,10 @@ type JSON struct {
 	value interface{}
 }
 
-var _ driver.Valuer = (*JSON)(nil)
-var _ sql.Scanner = (*JSON)(nil)
+var (
+	_ driver.Valuer = (*JSON)(nil)
+	_ sql.Scanner   = (*JSON)(nil)
+)
 
 func (j *JSON) Scan(src any) error { // Implements sql.Scanner
 	j.value = nil

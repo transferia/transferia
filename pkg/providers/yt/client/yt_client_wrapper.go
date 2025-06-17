@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package ytclient
 
 import (
@@ -72,22 +74,27 @@ func (y *verboseErrLogger) Trace(msg string, fields ...log.Field) {
 	newFields := y.replaceErrorFieldWithVerboseError(fields)
 	y.internalLogger.Trace(msg, newFields...)
 }
+
 func (y *verboseErrLogger) Debug(msg string, fields ...log.Field) {
 	newFields := y.replaceErrorFieldWithVerboseError(fields)
 	y.internalLogger.Debug(msg, newFields...)
 }
+
 func (y *verboseErrLogger) Info(msg string, fields ...log.Field) {
 	newFields := y.replaceErrorFieldWithVerboseError(fields)
 	y.internalLogger.Info(msg, newFields...)
 }
+
 func (y *verboseErrLogger) Warn(msg string, fields ...log.Field) {
 	newFields := y.replaceErrorFieldWithVerboseError(fields)
 	y.internalLogger.Warn(msg, newFields...)
 }
+
 func (y *verboseErrLogger) Error(msg string, fields ...log.Field) {
 	newFields := y.replaceErrorFieldWithVerboseError(fields)
 	y.internalLogger.Error(msg, newFields...)
 }
+
 func (y *verboseErrLogger) Fatal(msg string, fields ...log.Field) {
 	newFields := y.replaceErrorFieldWithVerboseError(fields)
 	y.internalLogger.Fatal(msg, newFields...)

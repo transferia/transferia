@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package sink
 
 import (
@@ -57,7 +59,6 @@ func TestInsertWithFloat(t *testing.T) {
 			ColumnValues: []interface{}{3.99},
 		},
 	})
-
 	if err != nil {
 		t.Errorf("Unable to write %v", err)
 	}
@@ -84,7 +85,7 @@ func TestOnlyPKTable(t *testing.T) {
 	sink, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 
-	//do insert of only pk row
+	// do insert of only pk row
 	require.NoError(t, sink.Push([]abstract.ChangeItem{
 		{
 			TableSchema:  schema_,
@@ -94,7 +95,7 @@ func TestOnlyPKTable(t *testing.T) {
 			Table:        "test_table",
 		},
 	}))
-	//do update of only pk row
+	// do update of only pk row
 	require.NoError(t, sink.Push([]abstract.ChangeItem{
 		{
 			TableSchema:  schema_,
@@ -173,7 +174,7 @@ func TestNoDataLossOnPKUpdate(t *testing.T) {
 	sink, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 
-	//do insert of only pk row
+	// do insert of only pk row
 	require.NoError(t, sink.Push([]abstract.ChangeItem{
 		{
 			TableSchema:  schema_,
@@ -183,7 +184,7 @@ func TestNoDataLossOnPKUpdate(t *testing.T) {
 			Table:        "test_table",
 		},
 	}))
-	//do update of only pk row
+	// do update of only pk row
 	require.NoError(t, sink.Push([]abstract.ChangeItem{
 		{
 			TableSchema:  schema_,
@@ -245,7 +246,8 @@ func TestCustomAttributes(t *testing.T) {
 		PrimaryMedium:    "default",
 		CustomAttributes: map[string]string{"test": "%true"},
 		Path:             "//home/cdc/test/generic/temp",
-		Cluster:          os.Getenv("YT_PROXY")},
+		Cluster:          os.Getenv("YT_PROXY"),
+	},
 	)
 	cfg.WithDefaults()
 	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
@@ -284,7 +286,8 @@ func TestIncludeTimeoutAttribute(t *testing.T) {
 			"expiration_time":    "\"2200-01-12T03:32:51.298047Z\"",
 		},
 		Path:    "//home/cdc/test/generic/temp",
-		Cluster: os.Getenv("YT_PROXY")},
+		Cluster: os.Getenv("YT_PROXY"),
+	},
 	)
 	cfg.WithDefaults()
 	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())

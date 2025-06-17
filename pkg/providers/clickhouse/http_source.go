@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package clickhouse
 
 import (
@@ -152,7 +154,6 @@ func (s *HTTPSource) rowsByHTTP(ctx context.Context, syncTarget middlewares.Asyn
 			return nil
 		}
 		readBytes, err := validator.ReadAndValidate()
-
 		if err != nil {
 			if xerrors.Is(err, io.EOF) {
 				s.lgr.Info("stop reading cause EOF")

@@ -1,3 +1,5 @@
+//go:build !disable_kinesis_provider
+
 package consumer
 
 import (
@@ -42,7 +44,7 @@ type AllGroup struct {
 // Start is a blocking operation which will loop and attempt to find new
 // shards on a regular cadence.
 func (g *AllGroup) Start(ctx context.Context, shardc chan *kinesis.Shard) {
-	var ticker = time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	g.findNewShards(shardc)
 
 	// Note: while ticker is a rather naive approach to this problem,
@@ -90,7 +92,7 @@ func (g *AllGroup) findNewShards(shardc chan *kinesis.Shard) {
 // listShards pulls a list of shard IDs from the kinesis api
 func listShards(ksis kinesisiface.KinesisAPI, streamName string) ([]*kinesis.Shard, error) {
 	var ss []*kinesis.Shard
-	var listShardsInput = &kinesis.ListShardsInput{
+	listShardsInput := &kinesis.ListShardsInput{
 		StreamName: aws.String(streamName),
 	}
 

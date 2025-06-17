@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package clickhouse
 
 import (
@@ -222,7 +224,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		}
 	}()
 
-	//get tables schema []abstract.ColSchema (as in ListTable)
+	// get tables schema []abstract.ColSchema (as in ListTable)
 	tableAllColumns, tableFilteredColumns, err := s.getTableSchema(table.ID(), s.IsHomo)
 	if err != nil {
 		return xerrors.Errorf("unable to discover table schema in storage: %w", err)
@@ -237,7 +239,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 
 	chunkSize := s.inferDesiredChunkSize(table)
 
-	//build read query with filter and offset
+	// build read query with filter and offset
 	readQ := buildSelectQuery(&table, tableAllColumns.Columns(), s.IsHomo, deletable, "")
 	s.logger.Info("built select query", log.Any("query", readQ))
 
@@ -453,7 +455,7 @@ func (t *table) ToTableID() abstract.TableID {
 }
 
 func (s *Storage) BuildTableQuery(table abstract.TableDescription) (*abstract.TableSchema, string, string, error) {
-	//get tables schema []abstract.ColSchema (as in ListTable)
+	// get tables schema []abstract.ColSchema (as in ListTable)
 	tableAllColumns, readCols, err := s.getTableSchema(table.ID(), s.IsHomo)
 	if err != nil {
 		return nil, "", "", xerrors.Errorf("unable to discover table schema in storage: %w", err)
@@ -462,7 +464,7 @@ func (s *Storage) BuildTableQuery(table abstract.TableDescription) (*abstract.Ta
 	if err != nil {
 		return nil, "", "", xerrors.Errorf("failed to determine deletable table %s: %w", table.Fqtn(), err)
 	}
-	//build read query with filter and offset
+	// build read query with filter and offset
 	readQ := buildSelectQuery(&table, tableAllColumns.Columns(), s.IsHomo, deletable, "")
 	s.logger.Info("built select query", log.Any("query", readQ))
 	countQ := buildCountQuery(&table, deletable, "")

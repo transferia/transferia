@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package sequencer
 
 import (
@@ -42,7 +44,7 @@ func (p *progressInfo) remove(tid uint32, lsns []uint64) error {
 }
 
 func (p *progressInfo) updateCommitted() uint64 {
-	//in case last transaction is not complete yet
+	// in case last transaction is not complete yet
 	if len(p.transactionIDs) <= 1 {
 		return p.lastCommitted
 	}

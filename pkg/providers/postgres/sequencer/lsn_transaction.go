@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package sequencer
 
 import "github.com/transferia/transferia/library/go/core/xerrors"
@@ -38,7 +40,7 @@ func (p *lsnTransaction) removeLsn(pushedLsns []uint64) error {
 		}
 
 		if lsn == pushedLsns[pointer] {
-			pointer++ //found lsn to remove, don't add it to new slice
+			pointer++ // found lsn to remove, don't add it to new slice
 		} else {
 			newLsns = append(newLsns, lsn)
 		}

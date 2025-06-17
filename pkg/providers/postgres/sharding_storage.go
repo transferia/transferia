@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -61,7 +63,6 @@ func (s *Storage) isSequence(table abstract.TableID, col abstract.ColSchema) (bo
 //   - tables with non-empty 'Filter' (dolivochki or ad-hoc upload_table) - sharded
 //   - views where filled explicitKeys - sharded
 func (s *Storage) ShardTable(ctx context.Context, table abstract.TableDescription) ([]abstract.TableDescription, error) {
-
 	// prerequisites
 
 	if table.Offset != 0 {
@@ -111,7 +112,6 @@ func (s *Storage) ShardTable(ctx context.Context, table abstract.TableDescriptio
 	splittedTableMetadata, err := currSharder.Split(ctx, table)
 	// dataSizeInBytes - can be 0 - for example for views, of if statistics for table is empty
 	// dataSizeInRows - can be 0 - for example for views & increments fullscan timeouted
-
 	if err != nil {
 		return nil, xerrors.Errorf("table splitter returned an error, err: %w", err)
 	}

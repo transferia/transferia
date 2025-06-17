@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -170,7 +172,6 @@ func (m *SlotMonitor) validateSlot(ctx context.Context) error {
 		return err
 	}
 	return nil
-
 }
 
 func (m *SlotMonitor) getLag(monitorQ string) (int64, error) {

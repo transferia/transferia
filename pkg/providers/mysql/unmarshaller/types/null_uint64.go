@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package types
 
 import (
@@ -12,8 +14,10 @@ type NullUint64 struct {
 	Valid  bool // Valid is true if Int64 is not NULL
 }
 
-var _ driver.Valuer = (*NullUint64)(nil)
-var _ sql.Scanner = (*NullUint64)(nil)
+var (
+	_ driver.Valuer = (*NullUint64)(nil)
+	_ sql.Scanner   = (*NullUint64)(nil)
+)
 
 func (n *NullUint64) Scan(value interface{}) error {
 	n.UInt64 = uint64(0)

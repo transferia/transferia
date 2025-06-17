@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package mysql
 
 import (
@@ -219,8 +221,8 @@ func readRowsAndPushByChunks(
 	chunkSize uint64,
 	lsn uint64,
 	isHomo bool,
-	pusher abstract.Pusher) error {
-
+	pusher abstract.Pusher,
+) error {
 	colsNames := makeArrColsNames(tableSchema.Columns())
 
 	values, err := prepareArrayWithTypes(rows, colNameToColTypeName, location)

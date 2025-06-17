@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package arr_test_test
 
 import (
@@ -56,9 +58,12 @@ func TestCHArray(t *testing.T) {
 			Kind:        abstract.InsertKind,
 			Table:       "test",
 			ColumnNames: []string{"arr", "arr_n", "arr_arr_int", "arr_arr_str"},
-			ColumnValues: []any{[]uint32{1, 2}, []any{uint32(3), uint32(4)},
+			ColumnValues: []any{
+				[]uint32{1, 2},
+				[]any{uint32(3), uint32(4)},
 				[][]any{{int32(1), int32(2)}, {int32(3)}},
-				[][]any{{[]byte("foo"), "bar"}}},
+				[][]any{{[]byte("foo"), "bar"}},
+			},
 			TableSchema: schema,
 		},
 		{

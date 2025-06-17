@@ -1,3 +1,5 @@
+//go:build !disable_opensearch_provider
+
 package opensearch
 
 import (
@@ -20,8 +22,10 @@ type OpenSearchSource struct {
 	ConnectionID         string
 }
 
-var _ model.Source = (*OpenSearchSource)(nil)
-var _ model.WithConnectionID = (*OpenSearchSource)(nil)
+var (
+	_ model.Source           = (*OpenSearchSource)(nil)
+	_ model.WithConnectionID = (*OpenSearchSource)(nil)
+)
 
 func (s *OpenSearchSource) MDBClusterID() string {
 	return s.ClusterID

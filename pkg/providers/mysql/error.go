@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package mysql
 
 import (
@@ -12,7 +14,7 @@ var (
 )
 
 func IsErrorCode(err error, errNumber uint16) bool {
-	var mErr = new(mysql.MySQLError)
+	mErr := new(mysql.MySQLError)
 	if !xerrors.As(err, &mErr) {
 		return false
 	}
@@ -20,7 +22,7 @@ func IsErrorCode(err error, errNumber uint16) bool {
 }
 
 func IsErrorCodes(err error, codes map[int]bool) bool {
-	var mErr = new(mysql.MySQLError)
+	mErr := new(mysql.MySQLError)
 	if !xerrors.As(err, &mErr) {
 		return false
 	}

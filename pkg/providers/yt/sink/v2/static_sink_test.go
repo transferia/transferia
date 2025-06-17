@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package staticsink
 
 import (
@@ -239,7 +241,8 @@ func wrongOrderOfValuesInChangeItem(t *testing.T) {
 			Table:        tableID.Name,
 			ColumnNames:  bigRowSchema.Columns().ColumnNames(),
 			ColumnValues: values,
-		}})
+		},
+	})
 	require.ErrorContains(t, err, "unaccepted value false for yt type int64")
 	err = statTable.Push([]abstract.ChangeItem{
 		{
@@ -247,7 +250,8 @@ func wrongOrderOfValuesInChangeItem(t *testing.T) {
 			Kind:        abstract.DoneTableLoad,
 			Schema:      tableID.Namespace,
 			Table:       tableID.Name,
-		}})
+		},
+	})
 	require.NoError(t, err)
 	require.NoError(t, statTable.Push([]abstract.ChangeItem{{
 		TableSchema: bigRowSchema,
@@ -398,6 +402,7 @@ func initYt(t *testing.T, path string) (testEnv *yttest.Env, testCfg yt2.YtDesti
 		cancel()
 	}
 }
+
 func teardown(env *yttest.Env, path ypath.Path) {
 	err := env.YT.RemoveNode(
 		env.Ctx,

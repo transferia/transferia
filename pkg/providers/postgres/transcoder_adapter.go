@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -38,19 +40,24 @@ type binaryCoder interface {
 // interfaces are not granular enough, and we also need to implement empty
 // TypeName() method which is actually unused by the pgtype.
 
-type transcoderAdapterText struct{ textCoder }
-type transcoderAdapterBinary struct{ binaryCoder }
+type (
+	transcoderAdapterText   struct{ textCoder }
+	transcoderAdapterBinary struct{ binaryCoder }
+)
 
 func (a *transcoderAdapterText) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) (newBuf []byte, err error) {
 	return nil, xerrors.New("not implemented")
 }
+
 func (a *transcoderAdapterText) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	return xerrors.New("not implemented")
 }
+
 func (a *transcoderAdapterText) NewTypeValue() pgtype.Value {
 	newTextCoder := pgtype.NewValue(a.textCoder)
 	return &transcoderAdapterText{textCoder: newTextCoder.(textCoder)}
 }
+
 func (a *transcoderAdapterText) TypeName() string {
 	return "" // unused anyway
 }
@@ -58,13 +65,16 @@ func (a *transcoderAdapterText) TypeName() string {
 func (a *transcoderAdapterBinary) EncodeText(ci *pgtype.ConnInfo, buf []byte) (newBuf []byte, err error) {
 	return nil, xerrors.New("not implemented")
 }
+
 func (a *transcoderAdapterBinary) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	return xerrors.New("not implemented")
 }
+
 func (a *transcoderAdapterBinary) NewTypeValue() pgtype.Value {
 	newBinaryCoder := pgtype.NewValue(a.binaryCoder)
 	return &transcoderAdapterBinary{binaryCoder: newBinaryCoder.(binaryCoder)}
 }
+
 func (a *transcoderAdapterBinary) TypeName() string {
 	return "" // unused anyway
 }

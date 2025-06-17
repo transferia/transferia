@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package types
 
 import (
@@ -18,9 +20,11 @@ type Temporal struct {
 	raw      string
 }
 
-var _ driver.Valuer = (*Temporal)(nil)
-var _ sql.Scanner = (*Temporal)(nil)
-var _ abstract.HomoValuer = (*Temporal)(nil)
+var (
+	_ driver.Valuer       = (*Temporal)(nil)
+	_ sql.Scanner         = (*Temporal)(nil)
+	_ abstract.HomoValuer = (*Temporal)(nil)
+)
 
 func NewTemporal() *Temporal {
 	return &Temporal{

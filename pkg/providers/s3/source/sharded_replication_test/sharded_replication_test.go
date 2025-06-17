@@ -1,3 +1,5 @@
+//go:build !disable_s3_provider
+
 package source
 
 import (

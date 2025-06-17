@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package sink
 
 import (
@@ -250,7 +252,7 @@ func unionSchemas(current, expected schema.Schema) (schema.Schema, error) {
 		}
 	}
 
-	//preserve order of deleted non key columns to avoid unnecessary alters if old rows would be inserted
+	// preserve order of deleted non key columns to avoid unnecessary alters if old rows would be inserted
 	for _, col := range current.Columns {
 		_, notAdded := currentColumns[col.Name]
 		if notAdded {

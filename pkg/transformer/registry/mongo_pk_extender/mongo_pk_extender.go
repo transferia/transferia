@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo_pk_extender
 
 import (
@@ -192,7 +194,7 @@ func (t *MongoPKExtenderTransformer) createOldKeys(item abstract.ChangeItem) (ab
 			KeyValues: keyValues,
 		}, item.Schema
 	case item.Kind == abstract.DeleteKind || item.Kind == abstract.UpdateKind:
-		var schema = item.Schema
+		schema := item.Schema
 		keyValues := make([]interface{}, len(item.OldKeys.KeyValues))
 		for i, keyValue := range item.OldKeys.KeyValues {
 			if t.expand {

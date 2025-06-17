@@ -1,3 +1,5 @@
+//go:build !disable_coralogix_provider
+
 package coralogix
 
 import (
@@ -28,9 +30,7 @@ type Sink struct {
 	tmpl     *template.Template
 }
 
-var (
-	FatalErrors = set.New("403 Forbidden")
-)
+var FatalErrors = set.New("403 Forbidden")
 
 func (s *Sink) Close() error {
 	s.cancel()

@@ -1,3 +1,5 @@
+//go:build !disable_s3_provider
+
 package sink
 
 import (
@@ -37,7 +39,7 @@ func (f *FileCache) AddCopy(item abstract.ChangeItem) error {
 // and with consecutive LSNs and size that le than maxCacheSize
 // NB intervals range is expected to be sorted
 func (f *FileCache) Split(intervals []ObjectRange, maxCacheSize uint64) []*FileCache {
-	var parts = make([]*FileCache, 0)
+	parts := make([]*FileCache, 0)
 	if len(intervals) == 0 {
 		return parts
 	}

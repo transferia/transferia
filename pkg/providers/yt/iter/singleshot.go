@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package iter
 
 type IteratorBase interface {

@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package async
 
 import (
@@ -47,6 +49,7 @@ type BlockMarshallingError struct {
 func (e BlockMarshallingError) Error() string {
 	return e.err.Error()
 }
+
 func (e BlockMarshallingError) Unwrap() error {
 	return e.err
 }

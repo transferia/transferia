@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package mysql
 
 import (
@@ -140,7 +142,7 @@ func (params *ConnectionParams) ResolveLocation(locationStr string) error {
 func resolveConnection(connectionID string, database string) (*connection.ConnectionMySQL, error) {
 	connCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	//DP agent token here
+	// DP agent token here
 	conn, err := connection.Resolver().ResolveConnection(connCtx, connectionID, ProviderType)
 	if err != nil {
 		return nil, err

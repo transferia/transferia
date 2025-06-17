@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package model
 
 import (
@@ -19,8 +21,10 @@ const (
 //---
 // ch
 
-var _ ChSinkServerParams = (*ChDestinationWrapper)(nil)
-var _ ChSinkServerParams = (*ChSourceWrapper)(nil)
+var (
+	_ ChSinkServerParams = (*ChDestinationWrapper)(nil)
+	_ ChSinkServerParams = (*ChSourceWrapper)(nil)
+)
 
 type ChSinkServerParams interface {
 	MdbClusterID() string
@@ -90,8 +94,10 @@ func (w ChSinkServerParamsWrapper) GetConnectionID() string {
 	return (*w.Model).GetConnectionID()
 }
 
-var _ ChSinkClusterParams = (*ChDestinationWrapper)(nil)
-var _ ChSinkClusterParams = (*ChSourceWrapper)(nil)
+var (
+	_ ChSinkClusterParams = (*ChDestinationWrapper)(nil)
+	_ ChSinkClusterParams = (*ChSourceWrapper)(nil)
+)
 
 type ChSinkClusterParams interface {
 	ChSinkServerParams
@@ -128,8 +134,10 @@ func (w ChSinkClusterParamsWrapper) GetConnectionID() string {
 	return (*w.Model).GetConnectionID()
 }
 
-var _ ChSinkShardParams = (*ChDestinationWrapper)(nil)
-var _ ChSinkShardParams = (*ChSourceWrapper)(nil)
+var (
+	_ ChSinkShardParams = (*ChDestinationWrapper)(nil)
+	_ ChSinkShardParams = (*ChSourceWrapper)(nil)
+)
 
 type ChSinkShardParams interface {
 	ChSinkClusterParams
@@ -156,8 +164,10 @@ func (w ChSinkShardParamsWrapper) GetConnectionID() string {
 	return (*w.Model).GetConnectionID()
 }
 
-var _ ChSinkParams = (*ChDestinationWrapper)(nil)
-var _ ChSinkParams = (*ChSourceWrapper)(nil)
+var (
+	_ ChSinkParams = (*ChDestinationWrapper)(nil)
+	_ ChSinkParams = (*ChSourceWrapper)(nil)
+)
 
 type ChSinkParams interface {
 	ChSinkShardParams

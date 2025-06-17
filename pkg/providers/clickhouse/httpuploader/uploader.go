@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package httpuploader
 
 import (
@@ -65,7 +67,8 @@ func UploadCIBatch(
 	config model.ChSinkServerParams,
 	table string,
 	avgRowSize int,
-	lgr log.Logger) (*UploadStats, error) {
+	lgr log.Logger,
+) (*UploadStats, error) {
 	stats := &UploadStats{
 		Bytes:           0,
 		StartTime:       time.Now(),

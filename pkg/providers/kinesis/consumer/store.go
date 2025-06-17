@@ -1,3 +1,5 @@
+//go:build !disable_kinesis_provider
+
 package consumer
 
 // Store interface used to persist scan progress

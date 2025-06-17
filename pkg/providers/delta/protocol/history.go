@@ -1,3 +1,5 @@
+//go:build !disable_delta_provider
+
 package protocol
 
 import (
@@ -66,8 +68,8 @@ func (h *history) checkVersionExists(versionToCkeck int64, sr *SnapshotReader) e
 }
 
 func (h *history) activeCommitAtTime(sr *SnapshotReader, timestamp int64,
-	canReturnLastCommit bool, mustBeRecreatable bool, canReturnEarliestCommit bool) (*commit, error) {
-
+	canReturnLastCommit bool, mustBeRecreatable bool, canReturnEarliestCommit bool,
+) (*commit, error) {
 	timeInMill := timestamp
 	var earliestVersion int64
 	var err error

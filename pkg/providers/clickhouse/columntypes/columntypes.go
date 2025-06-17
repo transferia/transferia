@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package columntypes
 
 import (
@@ -6,8 +8,10 @@ import (
 	"strings"
 )
 
-var numbersExtractorRe = regexp.MustCompile("[0-9]+")
-var intRe = regexp.MustCompile(`^U?Int(\d{1,3})$`)
+var (
+	numbersExtractorRe = regexp.MustCompile("[0-9]+")
+	intRe              = regexp.MustCompile(`^U?Int(\d{1,3})$`)
+)
 
 type TypeDescription struct {
 	typ                 string

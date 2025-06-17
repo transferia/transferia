@@ -1,3 +1,5 @@
+//go:build !disable_kafka_provider
+
 package kafka
 
 import (
@@ -25,9 +27,7 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var (
-	noDataErr = xerrors.NewSentinel("no data")
-)
+var noDataErr = xerrors.NewSentinel("no data")
 
 type reader interface {
 	CommitMessages(ctx context.Context, msgs ...kgo.Record) error

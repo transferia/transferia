@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -123,8 +125,8 @@ func detectHostsByRoles(lgr log.Logger, conn *connection.ConnectionPG) (master *
 	aliveSyncReplicas = make([]*connection.Host, 0)
 
 	if master = conn.MasterHost(); master != nil {
-		//roles are already detected in connection - this is managed connection for managed pg cluster
-		//however replica type is not always available - seems it is filled only when async is present
+		// roles are already detected in connection - this is managed connection for managed pg cluster
+		// however replica type is not always available - seems it is filled only when async is present
 		for _, host := range conn.Hosts {
 			if host.Role != connection.Replica {
 				continue
@@ -137,7 +139,7 @@ func detectHostsByRoles(lgr log.Logger, conn *connection.ConnectionPG) (master *
 			}
 		}
 	} else {
-		//roles are unknown - this is manual connection or on-premise pg installation
+		// roles are unknown - this is manual connection or on-premise pg installation
 		var clusterHosts []dbaas.ClusterHost
 		clusterHosts, err = dbaas.ResolveClusterHosts(dbaas.ProviderTypePostgresql, conn.ClusterID)
 		lgr.Info("Resolved cluster to hosts via dbaas", log.String("cluster", conn.ClusterID), log.Any("hosts", clusterHosts))
@@ -165,7 +167,7 @@ func detectHostsByRoles(lgr log.Logger, conn *connection.ConnectionPG) (master *
 }
 
 func getHostPortFromMDBHostname(hostname string, connPG *connection.ConnectionPG) (string, uint16, error) {
-	//get from name if available, otherwise getting from connection param (user input)
+	// get from name if available, otherwise getting from connection param (user input)
 	portFromConfig := connPG.GetPort(hostname)
 	if portFromConfig == 0 {
 		logger.Log.Info("No port present in config, using default mdb port")
@@ -219,7 +221,6 @@ func findNonStaleReplica(conn *connection.ConnectionPG, lsn string, aliveReplica
 		logger.Log.Infof("Could not find replica with Lsn greater than %v between hosts %v", lsn, aliveReplicas)
 		return xerrors.Errorf("Could not find replica with Lsn greater than %v", lsn)
 	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5))
-
 	if err != nil {
 		return nil, err
 	}
@@ -247,11 +248,11 @@ func isReplicaUpToDate(connParams *ConnectionParams, lsn string) bool {
 }
 
 func getMasterConnectionParams(lgr log.Logger, connParams *connection.ConnectionPG) (*ConnectionParams, error) {
-	//master was resolved in connection
+	// master was resolved in connection
 	if connParams.MasterHost() != nil {
 		return toConnParams(connParams.MasterHost(), connParams), nil
 	}
-	//find suitable host manually
+	// find suitable host manually
 	masterHost, masterPort, err := resolveMasterHostImpl(connParams)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve master host, err: %w", err)
@@ -271,7 +272,7 @@ func getMasterConnectionParams(lgr log.Logger, connParams *connection.Connection
 
 func resolveMasterHostImpl(conn *connection.ConnectionPG) (string, uint16, error) {
 	if master := conn.MasterHost(); master != nil {
-		//it is resolved connection for cluster
+		// it is resolved connection for cluster
 		return master.Name, uint16(master.Port), nil
 	}
 
@@ -334,7 +335,7 @@ func makeConnConfig(connParams *ConnectionParams, connString string, tryHostCAce
 }
 
 func getTLSConfig(host string, hasTLS bool, tlsFile string, cluster string, tryHostCAcertificates bool) (*tls.Config, error) {
-	//what changes for pg source/dst (but not storage!!) : use custom cert for mdb if present
+	// what changes for pg source/dst (but not storage!!) : use custom cert for mdb if present
 	if hasTLS {
 		rootCertPool := x509.NewCertPool()
 		if len(tlsFile) > 0 {
@@ -648,7 +649,7 @@ func makeConnectionFromSink(dst PgSinkParams) *connection.ConnectionPG {
 func resolveConnection(connectionID string, database string) (*connection.ConnectionPG, error) {
 	connCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	//DP agent token here
+	// DP agent token here
 	conn, err := connection.Resolver().ResolveConnection(connCtx, connectionID, ProviderType)
 	if err != nil {
 		return nil, err

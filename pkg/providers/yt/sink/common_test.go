@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package sink
 
 import (
@@ -56,7 +58,6 @@ func TestTypeInferring(t *testing.T) {
 	var err error
 
 	t.Run("Test no changes", func(t *testing.T) {
-
 		noChanges := schema.Schema{
 			UniqueKeys: true,
 			Columns: []schema.Column{

@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo
 
 import (
@@ -71,12 +73,14 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 		return bson.D{{Key: "_id", Value: time.Now().Add(time.Second * time.Duration(i))}}
 	}, 100000, ExpectMoreThanOnePart)
 	testShardTablePositive(t, "SymbolAsKey", func(i int) bson.D {
-		return bson.D{{Key: "_id",
+		return bson.D{{
+			Key:   "_id",
 			Value: primitive.Symbol(fmt.Sprintf("джуниортварь #%d", i)),
 		}}
 	}, 100000, ExpectMoreThanOnePart)
 	testShardTablePositive(t, "JavaScriptAsKey", func(i int) bson.D {
-		return bson.D{{Key: "_id",
+		return bson.D{{
+			Key:   "_id",
 			Value: primitive.JavaScript(fmt.Sprintf("function() {return \"миддлтварь #%d\"}", i)),
 		}}
 	}, 100000, ExpectMoreThanOnePart)
@@ -111,9 +115,11 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 			case 4:
 				return bson.D{{Key: "_id", Value: fmt.Sprintf("%d", i)}}
 			case 5:
-				return bson.D{{Key: "_id", Value: bson.D{
-					{Key: "a", Value: i},
-					{Key: "b", Value: genRandom(lvl - 1)}}},
+				return bson.D{
+					{Key: "_id", Value: bson.D{
+						{Key: "a", Value: i},
+						{Key: "b", Value: genRandom(lvl - 1)},
+					}},
 				}
 			}
 			return nil
@@ -128,7 +134,8 @@ func testShardTablePositive(
 	testName string,
 	documentFactory MongoDocumentFactory,
 	totalDocuments int,
-	checkParts CheckParts) {
+	checkParts CheckParts,
+) {
 	t.Run(testName, func(t *testing.T) {
 		collectionID := &abstract.TableID{
 			Namespace: "db",

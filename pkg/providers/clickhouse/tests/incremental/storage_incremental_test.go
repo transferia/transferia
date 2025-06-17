@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package incremental
 
 import (
@@ -15,11 +17,9 @@ import (
 )
 
 func TestIncrementalShardedStorage(t *testing.T) {
-	var (
-		incrementalDB = chrecipe.MustSource(
-			chrecipe.WithDatabase("incrementalns"),
-			chrecipe.WithInitFile("incremental.sql"),
-		)
+	incrementalDB := chrecipe.MustSource(
+		chrecipe.WithDatabase("incrementalns"),
+		chrecipe.WithInitFile("incremental.sql"),
 	)
 	storageParams, err := incrementalDB.ToStorageParams()
 	require.NoError(t, err)

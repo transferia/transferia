@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 // Package ch
 // cluster - it's like stand-alone cluster with multimaster
 // []*SinkServer - masters (AltHosts). We don't care in which SinkServer we are writing - it's like multimaster.
