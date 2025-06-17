@@ -1,11 +1,11 @@
 package sink
 
 import (
-	"fmt"
+	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/ptr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/util/set"
@@ -13,8 +13,9 @@ import (
 	"go.ytsaurus.tech/yt/go/migrate"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
-	ytsdk "go.ytsaurus.tech/yt/go/yt"
 )
+
+const shardIndexColumnName = "_shard_key"
 
 type Schema struct {
 	path   ypath.Path
@@ -36,7 +37,7 @@ func (s *Schema) PrimaryKeys() []abstract.ColSchema {
 func (s *Schema) DataKeys() []abstract.ColSchema {
 	res := make([]abstract.ColSchema, 0)
 	for _, col := range s.cols {
-		if col.ColumnName == "_shard_key" {
+		if col.ColumnName == shardIndexColumnName {
 			continue
 		}
 		if !col.PrimaryKey {
@@ -53,10 +54,9 @@ func (s *Schema) DataKeys() []abstract.ColSchema {
 }
 
 func (s *Schema) BuildSchema(schemas []abstract.ColSchema) (*schema.Schema, error) {
-	ss := true
 	target := schema.Schema{
 		UniqueKeys: true,
-		Strict:     &ss,
+		Strict:     ptr.Bool(true),
 		Columns:    make([]schema.Column, len(schemas)),
 	}
 	haveDataColumns := false
@@ -82,7 +82,7 @@ func (s *Schema) BuildSchema(schemas []abstract.ColSchema) (*schema.Schema, erro
 	}
 	if !haveDataColumns {
 		target.Columns = append(target.Columns, schema.Column{
-			Name:     "__dummy",
+			Name:     DummyMainTable,
 			Type:     "any",
 			Required: false,
 		})
@@ -103,7 +103,7 @@ func pivotKeys(cols []abstract.ColSchema, config yt.YtDestinationModel) (pivots 
 		return pivots
 	}
 
-	if cols[0].ColumnName == "_shard_key" {
+	if cols[0].ColumnName == shardIndexColumnName {
 		for i := 0; i < config.TimeShardCount(); i++ {
 			key := make([]interface{}, countK)
 			key[0] = uint64(i)
@@ -138,13 +138,8 @@ func BuildDynamicAttrs(cols []abstract.ColSchema, config yt.YtDestinationModel) 
 		"tablet_cell_bundle":        config.CellBundle(),
 		"chunk_writer":              map[string]interface{}{"prefer_local_host": false},
 		"enable_dynamic_store_read": true,
+		"atomicity":                 string(config.Atomicity()),
 	}
-
-	atomicity := string(ytsdk.AtomicityNone)
-	if config.Atomicity() != "" {
-		atomicity = string(config.Atomicity())
-	}
-	attrs["atomicity"] = atomicity
 
 	if config.TTL() > 0 {
 		attrs["min_data_versions"] = 0
@@ -158,15 +153,6 @@ func BuildDynamicAttrs(cols []abstract.ColSchema, config yt.YtDestinationModel) 
 		attrs["tablet_balancer_config"] = map[string]interface{}{"enable_auto_reshard": false}
 		attrs["pivot_keys"] = pivotKeys(cols, config)
 		attrs["backing_store_retention_time"] = 0
-		if config.AutoFlushPeriod() > 0 {
-			attrs["dynamic_store_auto_flush_period"] = config.AutoFlushPeriod()
-		}
-	}
-
-	if !config.Spec().IsEmpty() {
-		for k, v := range config.Spec().GetConfig() {
-			attrs[k] = v
-		}
 	}
 
 	return config.MergeAttributes(attrs)
@@ -181,43 +167,17 @@ func (s *Schema) Attrs() map[string]interface{} {
 func (s *Schema) ShardCol() (abstract.ColSchema, string) {
 	var defaultVal abstract.ColSchema
 
-	if s.config.TimeShardCount() <= 0 {
+	if s.config.TimeShardCount() <= 0 || s.config.HashColumn() == "" {
 		return defaultVal, ""
 	}
 
-	if s.config.HashColumn() == "" {
+	hashC := s.config.HashColumn()
+	if !slices.ContainsFunc(s.cols, func(c abstract.ColSchema) bool { return c.ColumnName == hashC }) {
 		return defaultVal, ""
 	}
 
-	var hashC string
-	if s.config.HashColumn() != "" {
-		hashC = s.config.HashColumn()
-	}
-
-	found := false
-	for _, c := range s.cols {
-		if c.ColumnName == hashC {
-			found = true
-		}
-	}
-
-	for _, c := range s.DataKeys() {
-		if c.ColumnName == hashC {
-			found = true
-		}
-	}
-
-	if !found {
-		return defaultVal, ""
-	}
-
-	shardCount := s.config.TimeShardCount()
-	if shardCount == 0 {
-		shardCount = 1
-	}
-
-	shardE := "farm_hash(" + hashC + ") % " + strconv.Itoa(shardCount)
-	colSch := abstract.MakeTypedColSchema("_shard_key", string(schema.TypeUint64), true)
+	shardE := "farm_hash(" + hashC + ") % " + strconv.Itoa(s.config.TimeShardCount())
+	colSch := abstract.MakeTypedColSchema(shardIndexColumnName, string(schema.TypeUint64), true)
 	colSch.Expression = shardE
 
 	return colSch, hashC
@@ -305,9 +265,6 @@ func removeDups(slice []abstract.ColSchema) []abstract.ColSchema {
 
 func (s *Schema) IndexTables() map[ypath.Path]migrate.Table {
 	res := make(map[ypath.Path]migrate.Table)
-	if strings.HasSuffix(s.path.String(), "/_ping") {
-		return res
-	}
 	for _, k := range s.config.Index() {
 		if k == s.config.HashColumn() {
 			continue
@@ -328,7 +285,7 @@ func (s *Schema) IndexTables() map[ypath.Path]migrate.Table {
 		}
 
 		pKeys := s.PrimaryKeys()
-		if len(pKeys) > 0 && strings.Contains(pKeys[0].Expression, "farm_hash") {
+		if len(pKeys) > 0 && pKeys[0].ColumnName == shardIndexColumnName {
 			// we should not duplicate sharder
 			pKeys = pKeys[1:]
 		}
@@ -336,36 +293,18 @@ func (s *Schema) IndexTables() map[ypath.Path]migrate.Table {
 		var idxCols []abstract.ColSchema
 		if shardCount > 0 {
 			shardE := "farm_hash(" + k + ") % " + strconv.Itoa(shardCount)
-			shardCol := abstract.MakeTypedColSchema("_shard_key", string(schema.TypeUint64), true)
+			shardCol := abstract.MakeTypedColSchema(shardIndexColumnName, string(schema.TypeUint64), true)
 			shardCol.Expression = shardE
 
 			idxCols = append(idxCols, shardCol)
 		}
 		idxCols = append(idxCols, valCol)
 		idxCols = append(idxCols, pKeys...)
-		idxCols = append(idxCols, abstract.MakeTypedColSchema("_dummy", "any", false))
+		idxCols = append(idxCols, abstract.MakeTypedColSchema(DummyIndexTable, "any", false))
 		idxCols = removeDups(idxCols)
-		idxAttrs := map[string]interface{}{
-			"dynamic":            true,
-			"primary_medium":     s.config.PrimaryMedium(), // "ssd_blobs",
-			"atomicity":          "none",
-			"optimize_for":       "lookup",
-			"tablet_cell_bundle": s.config.CellBundle(),
-			"pivot_keys":         s.PivotKeys(),
-			"chunk_writer":       map[string]interface{}{"prefer_local_host": false},
-		}
-		atomicity := string(s.config.Atomicity())
-		if atomicity != "" {
-			idxAttrs["atomicity"] = atomicity
-		}
-		if s.config.TTL() > 0 {
-			idxAttrs["merge_rows_on_flush"] = true
-			idxAttrs["min_data_ttl"] = 0
-			idxAttrs["auto_compaction_period"] = s.config.TTL()
-			idxAttrs["max_data_ttl"] = s.config.TTL()
-		}
+		idxAttrs := s.Attrs()
 
-		idxPath := ypath.Path(fmt.Sprintf("%v__idx_%v", s.path, k))
+		idxPath := ypath.Path(MakeIndexTableName(s.path.String(), k))
 		schema, err := s.BuildSchema(idxCols)
 		if err != nil {
 			panic(err)

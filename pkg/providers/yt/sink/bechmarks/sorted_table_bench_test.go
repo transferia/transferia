@@ -137,7 +137,7 @@ func BenchmarkSinkWrite(b *testing.B) {
 					Type:      "int64",
 					SortOrder: "ascending",
 				}, {
-					Name: "__dummy",
+					Name: sink.DummyMainTable,
 					Type: "any",
 				}}})
 			}
@@ -169,7 +169,7 @@ func BenchmarkSinkWrite(b *testing.B) {
 					Type:      "datetime",
 					SortOrder: "ascending",
 				}, {
-					Name: "__dummy",
+					Name: sink.DummyMainTable,
 					Type: "any",
 				}}})
 			}

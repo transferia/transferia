@@ -50,7 +50,6 @@ type YtDestinationModel interface {
 	TabletCount() int
 	Rotation() *dp_model.RotatorConfig
 	VersionColumn() string
-	AutoFlushPeriod() int
 	Ordered() bool
 	UseStaticTableOnSnapshot() bool
 	AltNames() map[string]string
@@ -124,7 +123,6 @@ type YtDestination struct {
 	TabletCount              int // DEPRECATED - remove in March
 	Rotation                 *dp_model.RotatorConfig
 	VersionColumn            string
-	AutoFlushPeriod          int
 	Ordered                  bool
 	TransformerConfig        map[string]string
 	UseStaticTableOnSnapshot bool // optional.Optional[bool] breaks compatibility
@@ -310,6 +308,9 @@ func (d *YtDestinationWrapper) Pool() string {
 }
 
 func (d *YtDestinationWrapper) Atomicity() yt.Atomicity {
+	if d.Model.Atomicity == "" {
+		return yt.AtomicityNone
+	}
 	return d.Model.Atomicity
 }
 
@@ -331,10 +332,6 @@ func (d *YtDestinationWrapper) Rotation() *dp_model.RotatorConfig {
 
 func (d *YtDestinationWrapper) VersionColumn() string {
 	return d.Model.VersionColumn
-}
-
-func (d *YtDestinationWrapper) AutoFlushPeriod() int {
-	return d.Model.AutoFlushPeriod
 }
 
 func (d *YtDestinationWrapper) Ordered() bool {

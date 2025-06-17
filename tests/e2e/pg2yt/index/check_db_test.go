@@ -63,14 +63,14 @@ func makeSource() model.Source {
 	return src
 }
 
-func makeTarget() model.Destination {
+func makeTarget(idxs []string) model.Destination {
 	target := yt_provider.NewYtDestinationV1(yt_provider.YtDestination{
 		Path:                     "//home/cdc/pg2yt_e2e_index",
 		Cluster:                  os.Getenv("YT_PROXY"),
 		CellBundle:               "default",
 		PrimaryMedium:            "default",
-		Index:                    []string{"idxcol"},
-		UseStaticTableOnSnapshot: false, // TM-4381
+		Index:                    idxs,
+		UseStaticTableOnSnapshot: true, // TM-4381
 	})
 	target.WithDefaults()
 	return target
@@ -80,12 +80,6 @@ type row struct {
 	ID     int    `yson:"id"`
 	IdxCol string `yson:"idxcol"`
 	Value  string `yson:"value"`
-}
-
-type idxRow struct {
-	IdxCol string      `yson:"idxcol"`
-	ID     int         `yson:"id"`
-	Dummy  interface{} `yson:"_dummy"`
 }
 
 func (f *fixture) exec(query string) {
@@ -120,7 +114,7 @@ func (f *fixture) teardown() {
 	require.NoError(f.t, f.pgConn.Close(context.Background()))
 }
 
-func setup(t *testing.T, markerKey map[string]interface{}) *fixture {
+func setup(t *testing.T, markerKey map[string]interface{}, idxs []string) *fixture {
 	ytEnv, destroyYtEnv := yttest.NewEnv(t)
 
 	var rollbacks util.Rollbacks
@@ -129,8 +123,8 @@ func setup(t *testing.T, markerKey map[string]interface{}) *fixture {
 	require.NoError(t, err)
 	rollbacks.Add(func() { require.NoError(t, pgConn.Close(context.Background())) })
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, makeSource(), makeTarget(), abstract.TransferTypeSnapshotAndIncrement)
-	wrk := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	transfer := helpers.MakeTransfer(helpers.TransferID, makeSource(), makeTarget(idxs), abstract.TransferTypeSnapshotAndIncrement)
+	wrk := local.NewLocalWorker(coordinator.NewStatefulFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
 
 	f := &fixture{
 		t:            t,
@@ -192,13 +186,13 @@ func (f *fixture) readAll() (result []row) {
 	return
 }
 
-func (f *fixture) readAllIndex() (result []idxRow) {
-	reader, err := f.ytEnv.YT.SelectRows(ctx, `* FROM [//home/cdc/pg2yt_e2e_index/test__idx_idxcol] ORDER BY id ASC LIMIT 100`, &yt.SelectRowsOptions{})
+func (f *fixture) readAllIndex(colName string) (result []any) {
+	reader, err := f.ytEnv.YT.SelectRows(ctx, fmt.Sprintf(`* FROM [//home/cdc/pg2yt_e2e_index/test__idx_%s] ORDER BY id ASC LIMIT 100`, colName), &yt.SelectRowsOptions{})
 	require.NoError(f.t, err)
 	defer reader.Close()
 
 	for reader.Next() {
-		var idxRow idxRow
+		var idxRow map[string]any
 		require.NoError(f.t, reader.Scan(&idxRow))
 		result = append(result, idxRow)
 	}
@@ -232,7 +226,7 @@ func (f *fixture) waitMarker() {
 }
 
 func (f *fixture) loadAndCheckSnapshot() {
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
 	err := snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(f.t, err)
 
@@ -259,7 +253,7 @@ func srcAndDstPorts(fxt *fixture) (int, int, error) {
 }
 
 func TestIndexBasic(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID})
+	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -287,18 +281,66 @@ func TestIndexBasic(t *testing.T) {
 		fixture.readAll(),
 	))
 	fixture.requireEmptyDiff(cmp.Diff(
-		[]idxRow{
-			{IdxCol: "TWO", ID: 2, Dummy: nil},
-			{IdxCol: "three", ID: 3, Dummy: nil},
-			{IdxCol: "one", ID: 10, Dummy: nil},
-			{IdxCol: markerIdx, ID: markerID, Dummy: nil},
+		[]any{
+			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": "TWO"},
+			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
+			map[string]any{"_dummy": nil, "id": int64(10), "idxcol": "one"},
+			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex(),
+		fixture.readAllIndex("idxcol"),
+	))
+}
+
+func TestIndexMany(t *testing.T) {
+	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol", "value"})
+
+	sourcePort, targetPort, err := srcAndDstPorts(fixture)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, helpers.CheckConnections(
+			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
+			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		))
+	}()
+
+	defer fixture.teardown()
+
+	fixture.exec(`UPDATE public.test SET id = 10 WHERE id = 1`)
+	fixture.exec(`UPDATE public.test SET idxcol = 'TWO' WHERE idxcol = 'two'`)
+	fixture.insertMarker()
+	fixture.waitMarker()
+
+	fixture.requireEmptyDiff(cmp.Diff(
+		[]row{
+			{ID: 2, IdxCol: "TWO", Value: "The two"},
+			{ID: 3, IdxCol: "three", Value: "The three"},
+			{ID: 10, IdxCol: "one", Value: "The one"},
+			{ID: markerID, IdxCol: markerIdx, Value: markerValue},
+		},
+		fixture.readAll(),
+	))
+	fixture.requireEmptyDiff(cmp.Diff(
+		[]any{
+			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": "TWO"},
+			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
+			map[string]any{"_dummy": nil, "id": int64(10), "idxcol": "one"},
+			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
+		},
+		fixture.readAllIndex("idxcol"),
+	))
+	fixture.requireEmptyDiff(cmp.Diff(
+		[]any{
+			map[string]any{"_dummy": nil, "id": int64(2), "value": "The two"},
+			map[string]any{"_dummy": nil, "id": int64(3), "value": "The three"},
+			map[string]any{"_dummy": nil, "id": int64(10), "value": "The one"},
+			map[string]any{"_dummy": nil, "id": int64(markerID), "value": markerValue},
+		},
+		fixture.readAllIndex("value"),
 	))
 }
 
 func TestIndexToast(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID})
+	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -316,18 +358,18 @@ func TestIndexToast(t *testing.T) {
 	fixture.waitMarker()
 
 	fixture.requireEmptyDiff(cmp.Diff(
-		[]idxRow{
-			{IdxCol: "one", ID: 1, Dummy: nil},
-			{IdxCol: strings.Repeat("x", 64*1024), ID: 2, Dummy: nil},
-			{IdxCol: "three", ID: 3, Dummy: nil},
-			{IdxCol: markerIdx, ID: markerID, Dummy: nil},
+		[]any{
+			map[string]any{"_dummy": nil, "id": int64(1), "idxcol": "one"},
+			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": strings.Repeat("x", 64*1024)},
+			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
+			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex(),
+		fixture.readAllIndex("idxcol"),
 	))
 }
 
 func TestIndexPrimaryKey(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID, "idxcol": markerIdx})
+	fixture := setup(t, map[string]interface{}{"id": markerID, "idxcol": markerIdx}, []string{"idxcol"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -345,18 +387,18 @@ func TestIndexPrimaryKey(t *testing.T) {
 	fixture.waitMarker()
 
 	fixture.requireEmptyDiff(cmp.Diff(
-		[]idxRow{
-			{IdxCol: "ONE", ID: 1, Dummy: nil},
-			{IdxCol: "two", ID: 2, Dummy: nil},
-			{IdxCol: "three", ID: 3, Dummy: nil},
-			{IdxCol: markerIdx, ID: markerID, Dummy: nil},
+		[]any{
+			map[string]any{"_dummy": nil, "id": int64(1), "idxcol": "ONE"},
+			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": "two"},
+			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
+			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex(),
+		fixture.readAllIndex("idxcol"),
 	))
 }
 
 func TestSkipLongStrings(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID})
+	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol"})
 	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.DiscardBigValues = true
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
@@ -375,14 +417,14 @@ func TestSkipLongStrings(t *testing.T) {
 	fixture.waitMarker()
 
 	fixture.requireEmptyDiff(cmp.Diff(
-		[]idxRow{
-			{IdxCol: "one", ID: 1, Dummy: nil},
-			{IdxCol: "two", ID: 2, Dummy: nil},
-			{IdxCol: "three", ID: 3, Dummy: nil},
-			{IdxCol: "four", ID: 4, Dummy: nil},
-			{IdxCol: markerIdx, ID: markerID, Dummy: nil},
+		[]any{
+			map[string]any{"_dummy": nil, "id": int64(1), "idxcol": "one"},
+			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": "two"},
+			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
+			map[string]any{"_dummy": nil, "id": int64(4), "idxcol": "four"},
+			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex(),
+		fixture.readAllIndex("idxcol"),
 	))
 
 	fixture.requireEmptyDiff(cmp.Diff(
@@ -398,7 +440,7 @@ func TestSkipLongStrings(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID})
+	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -416,10 +458,10 @@ func TestDelete(t *testing.T) {
 	fixture.waitMarker()
 
 	fixture.requireEmptyDiff(cmp.Diff(
-		[]idxRow{
-			{IdxCol: "three", ID: 3, Dummy: nil},
-			{IdxCol: markerIdx, ID: markerID, Dummy: nil},
+		[]any{
+			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
+			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex(),
+		fixture.readAllIndex("idxcol"),
 	))
 }

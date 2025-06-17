@@ -116,7 +116,7 @@ func TestOnlyPKTable(t *testing.T) {
 	require.Equal(t, 2, len(outputSchema.Columns))
 	dummyFound := false
 	for _, col := range outputSchema.Columns {
-		if col.Name == "__dummy" {
+		if col.Name == DummyMainTable {
 			dummyFound = true
 			break
 		}

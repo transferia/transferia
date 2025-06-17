@@ -3,6 +3,7 @@ package sink
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -20,6 +21,15 @@ import (
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/exp/constraints"
 )
+
+const (
+	DummyIndexTable = "_dummy" // One day one guy made a huge mistake and now we have to live with it
+	DummyMainTable  = "__dummy"
+)
+
+func MakeIndexTableName(originalName, idxCol string) string {
+	return fmt.Sprintf("%s__idx_%s", originalName, idxCol)
+}
 
 type IncompatibleSchemaErr struct{ error }
 

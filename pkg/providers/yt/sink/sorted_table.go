@@ -153,7 +153,7 @@ func (t *SortedTable) prepareIndexRows(ctx context.Context, input []abstract.Cha
 				}
 			}
 
-			indexTablePath := ypath.Path(fmt.Sprintf("%v__idx_%v", string(t.path), indexColumnName))
+			indexTablePath := ypath.Path(MakeIndexTableName(string(t.path), indexColumnName))
 			batch, ok := index[indexTablePath]
 			if !ok {
 				batch = new(ytDataBatch)
