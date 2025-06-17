@@ -12,7 +12,7 @@ BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 .PHONY: build
 build:
-	go build -ldflags="-X 'main.date=$(BUILD_DATE)'" -o binaries/$(API) ./cmd/trcli/*.go
+	go build -buildvcs=true -ldflags="-X 'main.date=$(BUILD_DATE)'" -o binaries/$(API) ./cmd/trcli
 
 docker: build
 	cp binaries/$(API) . && docker build -t transfer
