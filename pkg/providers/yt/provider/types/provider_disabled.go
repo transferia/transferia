@@ -1,3 +1,3 @@
-//go:build !providers_yt && !providers_all && !all
+//go:build disable_yt_provider
 
 package types

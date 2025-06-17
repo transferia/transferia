@@ -1,3 +1,3 @@
-//go:build !providers_clickhouse && !providers_all && !all
+//go:build disable_clickhouse_provider
 
 package columntypes

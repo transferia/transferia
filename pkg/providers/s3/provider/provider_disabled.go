@@ -1,3 +1,3 @@
-//go:build !providers_s3 && !providers_all && !all
+//go:build disable_s3_provider
 
 package provider
