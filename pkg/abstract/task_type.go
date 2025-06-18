@@ -16,11 +16,12 @@ var TaskTypeByName map[TaskTypeName]TaskType = makeTaskTypeByNameMap()
 
 //nolint:exhaustivestruct
 var SupportedAsyncOperations = map[string]bool{
-	TaskType{Task: Activate{}}.String():   true,
-	TaskType{Task: Deactivate{}}.String(): true,
-	TaskType{Task: Start{}}.String():      true,
-	TaskType{Task: Stop{}}.String():       true,
-	TaskType{Task: Restart{}}.String():    true,
+	TaskType{Task: Activate{}}.String():              true,
+	TaskType{Task: Deactivate{}}.String():            true,
+	TaskType{Task: Start{}}.String():                 true,
+	TaskType{Task: Stop{}}.String():                  true,
+	TaskType{Task: Restart{}}.String():               true,
+	TaskType{Task: TransferVersionUpdate{}}.String(): true,
 }
 
 type TaskType struct {
