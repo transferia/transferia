@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -56,8 +58,6 @@ const (
 	TableConsumerKeeper = abstract.TableConsumerKeeper // "__consumer_keeper"
 	TableLSN            = abstract.TableLSN            // "__data_transfer_lsn"
 )
-
-const ProviderType = abstract.ProviderType("pg")
 
 // To verify providers contract implementation
 var (

@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package mysql
 
 import (
@@ -117,7 +119,8 @@ func Test_buildQueries02(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []sinkQuery{
 			*newSinkQuery("SET FOREIGN_KEY_CHECKS=0;\n", false),
-			*newSinkQuery("INSERT INTO `db`.`myTableName` (`id`,`str`,`str2`) VALUES\n(1,'v','v')\nON DUPLICATE KEY UPDATE \n `str` = VALUES(`str`),\n`str2` = VALUES(`str2`)\n;", true)}, queries)
+			*newSinkQuery("INSERT INTO `db`.`myTableName` (`id`,`str`,`str2`) VALUES\n(1,'v','v')\nON DUPLICATE KEY UPDATE \n `str` = VALUES(`str`),\n`str2` = VALUES(`str2`)\n;", true),
+		}, queries)
 	})
 }
 
@@ -349,7 +352,6 @@ func reverseArr(a []abstract.ColSchema) []abstract.ColSchema {
 }
 
 func Test_buildPartOfQueryDeleteCondition(t *testing.T) {
-
 	t.Run("one column - PrimaryKey", func(t *testing.T) {
 		tableSchema00 := []abstract.ColSchema{{ColumnName: "a", PrimaryKey: true}}
 		changeItem00 := abstract.ChangeItem{
@@ -592,7 +594,6 @@ func Test_buildPartOfQueryDeleteCondition(t *testing.T) {
 }
 
 func Test_buildQueryUpdate(t *testing.T) {
-
 	t.Run("one column - PrimaryKey, changed", func(t *testing.T) {
 		tableSchema00 := []abstract.ColSchema{{ColumnName: "a", PrimaryKey: true}}
 		changeItem00 := abstract.ChangeItem{
@@ -764,7 +765,6 @@ func Test_buildQueryUpdate(t *testing.T) {
 }
 
 func Test_buildPartOfQueryInsert(t *testing.T) {
-
 	t.Run("one column - PrimaryKey, changed", func(t *testing.T) {
 		tableSchema00 := []abstract.ColSchema{{ColumnName: "a", PrimaryKey: true}}
 		changeItem00 := abstract.ChangeItem{
@@ -797,7 +797,6 @@ func Test_breakQueriesIntoBatches(t *testing.T) {
 }
 
 func Test_buildDeleteQueries(t *testing.T) {
-
 	deleteConditions := []string{
 		"(`a`=123 AND `b`=234)",
 		"(`a`=123)",

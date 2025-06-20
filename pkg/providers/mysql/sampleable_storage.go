@@ -1,3 +1,5 @@
+//go:build !disable_mysql_provider
+
 package mysql
 
 import (
@@ -151,8 +153,8 @@ func (s *Storage) loadSample(
 	table abstract.TableDescription,
 	tableSchema *abstract.TableSchema,
 	startTime time.Time,
-	pusher abstract.Pusher) error {
-
+	pusher abstract.Pusher,
+) error {
 	colNameToColTypeName, err := makeMapColNameToColTypeName(context.Background(), tx, table.Name)
 	if err != nil {
 		return xerrors.Errorf("unable to get column types: %w", err)

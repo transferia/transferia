@@ -1,3 +1,5 @@
+//go:build !disable_airbyte_provider
+
 package airbyte
 
 import (
@@ -95,11 +97,11 @@ type ConfiguredStream struct {
 }
 
 func (c *ConfiguredStream) Validate() error {
-	var err = c.Stream.Validate()
+	err := c.Stream.Validate()
 	if err != nil {
 		return fmt.Errorf("stream invalid: %w", err)
 	}
-	var syncTypeValid = false
+	syncTypeValid := false
 	for _, m := range c.Stream.SupportedSyncModes {
 		if m == c.SyncMode {
 			syncTypeValid = true
@@ -184,7 +186,7 @@ type State struct {
 }
 
 func (s *State) UnmarshalJSON(b []byte) error {
-	var tmp = struct {
+	tmp := struct {
 		Data    json.RawMessage `json:"data"`
 		NSMerge bool            `json:"estuary.dev/merge"`
 		Merge   bool            `json:"merge"`

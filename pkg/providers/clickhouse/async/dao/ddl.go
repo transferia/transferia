@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package dao
 
 import (
@@ -74,7 +76,7 @@ func (d *DDLDAO) CreateTable(db, table string, schema []abstract.ColSchema) erro
 		q.WriteString(strings.Join(cols, ", "))
 		q.WriteString(" ) ")
 
-		var engineStr = "MergeTree()"
+		engineStr := "MergeTree()"
 		if distributed {
 			engineStr = fmt.Sprintf("ReplicatedMergeTree(%s, '{replica}')", d.zkPath(db, table))
 		}

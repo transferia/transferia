@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo
 
 import (
@@ -37,7 +39,6 @@ func (f *databaseDocumentKeyWatcher) Close(ctx context.Context) {
 // Watch assumed to run in single thread
 // you should call it exactly once
 func (f *databaseDocumentKeyWatcher) Watch(ctx context.Context, changeEventPusher changeEventPusher) error {
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

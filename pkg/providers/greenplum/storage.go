@@ -1,3 +1,5 @@
+//go:build !disable_greenplum_provider
+
 package greenplum
 
 import (
@@ -20,8 +22,10 @@ import (
 
 const tableIsShardedKey = "Offset column used as worker index"
 
-type checkConnectionFunc func(ctx context.Context, pgs *postgres.Storage, expectedSP GPSegPointer) error
-type newFlavorFunc func(in *Storage) postgres.DBFlavour
+type (
+	checkConnectionFunc func(ctx context.Context, pgs *postgres.Storage, expectedSP GPSegPointer) error
+	newFlavorFunc       func(in *Storage) postgres.DBFlavour
+)
 
 type Storage struct {
 	// config is NOT read-only and can change during execution

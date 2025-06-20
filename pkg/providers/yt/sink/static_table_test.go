@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package sink
 
 import (
@@ -252,7 +254,8 @@ func wrongOrderOfValuesInChangeItem(t *testing.T) {
 			Table:        tableID.Name,
 			ColumnNames:  bigRowSchema.Columns().ColumnNames(),
 			ColumnValues: values,
-		}})
+		},
+	})
 	require.ErrorContains(t, err, "unaccepted value false for yt type int64")
 	err = statTable.Push([]abstract.ChangeItem{{
 		TableSchema: bigRowSchema,

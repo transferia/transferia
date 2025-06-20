@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -6,9 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors/coded"
 )
 
-var (
-	NoPrimaryKeyCode = coded.Register("postgres", "no_primary_key")
-)
+var NoPrimaryKeyCode = coded.Register("postgres", "no_primary_key")
 
 type PgErrorCode string
 

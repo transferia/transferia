@@ -233,38 +233,13 @@ func (l *SnapshotLoader) beginSnapshot(
 			return errors.CategorizedErrorf(categories.Source, "Can't begin %s snapshot: %w", l.transfer.SrcType(), err)
 		}
 	case *postgres.Storage:
-		err := specificStorage.BeginPGSnapshot(ctx)
-		if err != nil {
-			// TODO: change to fatal?
-			logger.Log.Warn("unable to begin snapshot", log.Error(err))
-		} else {
-			logger.Log.Infof("begin postgres snapshot on lsn: %v", specificStorage.SnapshotLSN())
-		}
-		if !l.transfer.SnapshotOnly() {
-			var err error
-			tracker := postgres.NewTracker(l.transfer.ID, l.cp)
-			l.slotKiller, l.slotKillerErrorChannel, err = specificStorage.RunSlotMonitor(ctx, l.transfer.Src, l.registry, tracker)
-			if err != nil {
-				return errors.CategorizedErrorf(categories.Source, "failed to start slot monitor: %w", err)
-			}
+		if err := beginSnapshotPg(ctx, l, specificStorage); err != nil {
+			return err
 		}
 	case *greenplum.Storage:
-		if err := specificStorage.BeginGPSnapshot(ctx, tables); err != nil {
-			return errors.CategorizedErrorf(categories.Source, "failed to initialize a Greenplum snapshot: %w", err)
+		if err := beginSnapshotGreenplum(ctx, l, specificStorage, tables); err != nil {
+			return err
 		}
-		if !l.transfer.SnapshotOnly() {
-			var err error
-			l.slotKiller, l.slotKillerErrorChannel, err = specificStorage.RunSlotMonitor(ctx, l.transfer.Src, l.registry)
-			if err != nil {
-				return errors.CategorizedErrorf(categories.Source, "failed to start liveness monitor for Greenplum storage: %w", err)
-			}
-		}
-		workersGpConfig := specificStorage.WorkersGpConfig()
-		logger.Log.Info(
-			"Greenplum snapshot source runtime configuration",
-			log.Any("cluster", workersGpConfig.GetCluster()),
-			log.Array("sharding", workersGpConfig.GetWtsList()),
-		)
 	}
 	return nil
 }
@@ -279,18 +254,10 @@ func (l *SnapshotLoader) endSnapshot(
 			logger.Log.Error("Failed to end snapshot", log.Error(err))
 		}
 	case *postgres.Storage:
-		if err := specificStorage.EndPGSnapshot(ctx); err != nil {
-			logger.Log.Error("Failed to end snapshot in PostgreSQL", log.Error(err))
-		}
+		endSnapshotPg(ctx, specificStorage)
 	case *greenplum.Storage:
-		esCtx, esCancel := context.WithTimeout(context.Background(), greenplum.PingTimeout)
-		defer esCancel()
-		if err := specificStorage.EndGPSnapshot(esCtx); err != nil {
-			logger.Log.Error("Failed to end snapshot in Greenplum", log.Error(err))
-			// When we are here, snapshot could not be finished on coordinator.
-			// This may be due to various reasons, which include transaction failure (e.g. due to coordinator-standby fallback).
-			// For this reason, we must retry the transfer, as the data obtained from Greenplum segments may be inconsistent.
-			return errors.CategorizedErrorf(categories.Source, "failed to end snapshot in Greenplum (on coordinator): %w", err)
+		if err := endSnapshotGreenplum(ctx, specificStorage); err != nil {
+			return err
 		}
 	}
 	return nil

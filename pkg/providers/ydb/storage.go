@@ -1,3 +1,5 @@
+//go:build !disable_ydb_provider
+
 package ydb
 
 import (
@@ -260,7 +262,6 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 		schema = abstract.NewTableSchema(FromYdbSchema(tableColumns, tableDescription.PrimaryKey))
 		return nil
 	})
-
 	if err != nil {
 		if s.canSkipError(err) {
 			logger.Log.Warn("skip load table", log.String("table", tablePath), log.Error(err))
@@ -363,7 +364,6 @@ func (s *Storage) EstimateTableRowsCount(tid abstract.TableID) (uint64, error) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return 0, xerrors.Errorf("unable to descirbe table: %w", err)
 	}
@@ -392,7 +392,6 @@ func (s *Storage) ExactTableRowsCount(tid abstract.TableID) (uint64, error) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return 0, xerrors.Errorf("unable to descirbe table: %w", err)
 	}

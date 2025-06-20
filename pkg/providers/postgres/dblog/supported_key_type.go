@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package dblog
 
 import (
@@ -119,8 +121,10 @@ var unsupportedTypesArr = []string{
 	"_tstzrange", // failed to execute SELECT: ERROR: malformed range literal: "[2023-01-01 00:00:00Z" (SQLSTATE 22P02). Need to rewrite where statement
 }
 
-var supportedTypesSet = set.New(supportedTypesArr...)
-var unsupportedTypesSet = set.New(unsupportedTypesArr...)
+var (
+	supportedTypesSet   = set.New(supportedTypesArr...)
+	unsupportedTypesSet = set.New(unsupportedTypesArr...)
+)
 
 func CheckTypeCompatibility(keyType string) dblog.TypeSupport {
 	normalKeyType := strings.Split(keyType, "(")[0]

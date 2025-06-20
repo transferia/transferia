@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -13,9 +15,7 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var (
-	SelectLsnForSlot = `select restart_lsn from pg_replication_slots where slot_name = $1;`
-)
+var SelectLsnForSlot = `select restart_lsn from pg_replication_slots where slot_name = $1;`
 
 type LsnTrackedSlot struct {
 	logger    log.Logger
@@ -116,7 +116,6 @@ SET LOCAL lock_timeout = '0';
 select * from pg_create_logical_replication_slot_lsn('%v', 'wal2json', false, pg_lsn('%v'));
 COMMIT;
 `, l.slotID, lsn))
-
 		if err != nil {
 			return xerrors.Errorf("could not create slot from lsn:%v because of error: %w", lsn, err)
 		}

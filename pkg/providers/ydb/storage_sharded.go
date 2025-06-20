@@ -1,3 +1,5 @@
+//go:build !disable_ydb_provider
+
 package ydb
 
 import (
@@ -103,7 +105,6 @@ func (s *Storage) ShardTable(ctx context.Context, tableDesc abstract.TableDescri
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, xerrors.Errorf("unable to schard table %v : %w", copyPath, err)
 	}

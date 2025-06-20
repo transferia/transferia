@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package clickhouse
 
 import (
@@ -150,6 +152,7 @@ func TestMultiShard_Push_ManualMap(t *testing.T) {
 		checker(row, i%3)
 	}
 }
+
 func TestNewSink_shardRoundRobin(t *testing.T) {
 	q := &model.ChDestination{
 		ShardsList: []model.ClickHouseShard{

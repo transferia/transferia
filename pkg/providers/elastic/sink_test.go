@@ -1,3 +1,5 @@
+//go:build !disable_elastic_provider
+
 package elastic
 
 import (
@@ -25,7 +27,7 @@ func makeTestChangeItem(t *testing.T, colNames []string, colValues []interface{}
 var longString = "long_string_H4JFa2uljR6bjOsLHunS6o0EiEAJejS6bPvjOECesY16GX3h4CfOAZsS7DfnDkVW3Z3cdNLmJ9W2ihy4o7RACQjxCkOyf1nnQzzxiZuid536T2c3eTDelTzpYszP21CuRWQYvq6BJs1mceZKk6HXBAeJxypW20mN96HU4LVpTOxDsfh9vL4AxMygEksIPWMjgfXoELOFRFtB2axFHU700ixmvRloVNuyVYPjbK08xbchvpEQQ6hfHM6xqBsn0SZEBmkezStJL4IRdXOosNyyLgwYgyvhU2GgdwzW9baFrr6NaJdUvZg01DEkWqPiiJBgqAtfV8dQf0vJaei0yWdYEzFt0ak23NVrDLK1pFfAiSDdisBiF9FHjbv6f7iRHvGnWeHYWAnnZMXItvjbboKXGabc0AIPrk2Hz1ydDeiAbfWTIXb3FcS0wdgIeWgfGJGFTn9tRiNcpCxoXBBVDLxdprBS7wMDKzFn2WDZnxFcjNubSrdgJjgRG9ln0JMaMhfcy"
 
 func TestMakeIdFromChangeItem(t *testing.T) {
-	var testChangeItems = []abstract.ChangeItem{
+	testChangeItems := []abstract.ChangeItem{
 		makeTestChangeItem(t, []string{"col1", "col2", "col3", "col4"}, []interface{}{"test", 0, "2", "11"}, []bool{false, false, false, false}),
 		makeTestChangeItem(t, []string{"col5", "col1", "col3", "col4"}, []interface{}{"..", 0, "2", ".."}, []bool{true, false, false, false}),
 		makeTestChangeItem(t, []string{"col1", "col2", "col4"}, []interface{}{longString, "", 13.122}, []bool{true, false, true}),
@@ -46,7 +48,7 @@ func TestMakeIdFromChangeItem(t *testing.T) {
 
 func TestSanitizeKeysInRawJSON(t *testing.T) {
 	t.Parallel()
-	var testJSONs = []string{
+	testJSONs := []string{
 		`{"_rest": {
         "find_writer_stat": {
             ".{\"cluster\":\"vla\",\"partition\":180,\"topic\":\"strm-stream/strm-access-log\"}": "4.043µs"

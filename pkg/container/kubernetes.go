@@ -1,3 +1,5 @@
+//go:build !disable_kubernetes
+
 package container
 
 import (
@@ -8,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"go.ytsaurus.tech/library/go/core/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -19,7 +22,8 @@ type K8sWrapper struct {
 	client kubernetes.Interface
 }
 
-func NewK8sWrapper() (*K8sWrapper, error) {
+func NewK8sWrapper(logger log.Logger) (ContainerImpl, error) {
+	logger.Info("Initializing Kubernetes wrapper")
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to load in-cluster config: %w", err)

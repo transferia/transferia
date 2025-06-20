@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -9,10 +11,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/typesystem"
 )
 
-var (
-	//go:embed typesystem.md
-	canonDoc string
-)
+//go:embed typesystem.md
+var canonDoc string
 
 func TestTypeSystem(t *testing.T) {
 	rules := typesystem.RuleFor(ProviderType)

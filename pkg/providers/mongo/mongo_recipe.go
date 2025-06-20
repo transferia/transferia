@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo
 
 import (
@@ -18,11 +20,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const defaultUser = "root"
-const defaultPassword = "password"
-const defaultImage = "mongo:6"
-const defaultRS = "rs01"
-const defaultPort = nat.Port("27017/tcp")
+const (
+	defaultUser     = "root"
+	defaultPassword = "password"
+	defaultImage    = "mongo:6"
+	defaultRS       = "rs01"
+	defaultPort     = nat.Port("27017/tcp")
+)
 
 type recipeOpts struct {
 	prefix     string

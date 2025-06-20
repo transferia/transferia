@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo
 
 import (
@@ -72,8 +74,10 @@ type TrustedCACertificate interface {
 	isTrustedCACertificate()
 }
 
-type InlineCACertificatePEM []byte
-type CACertificatePEMFilePaths []string
+type (
+	InlineCACertificatePEM    []byte
+	CACertificatePEMFilePaths []string
+)
 
 func (InlineCACertificatePEM) isTrustedCACertificate()    {}
 func (CACertificatePEMFilePaths) isTrustedCACertificate() {}

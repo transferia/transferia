@@ -1,3 +1,5 @@
+//go:build !disable_ydb_provider
+
 package ydb
 
 import (
@@ -22,7 +24,6 @@ const (
 )
 
 func TestYdbStorageSharded_TableLoad(t *testing.T) {
-
 	endpoint, ok := os.LookupEnv("YDB_ENDPOINT")
 	if !ok {
 		t.Fail()

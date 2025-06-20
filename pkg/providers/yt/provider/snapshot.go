@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package provider
 
 import (
@@ -285,7 +287,8 @@ func (s *snapshotSource) Progress() (base.EventSourceProgress, error) {
 }
 
 func NewSnapshotSource(cfg *yt2.YtSource, ytc yt.Client, part *dataobjects.Part,
-	lgr log.Logger, metrics *stats.SourceStats) *snapshotSource {
+	lgr log.Logger, metrics *stats.SourceStats,
+) *snapshotSource {
 	return &snapshotSource{
 		cfg:       cfg,
 		yt:        ytc,

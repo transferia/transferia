@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package compositekey
 
 import (

@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package lfstaging
 
 import (
@@ -123,7 +125,6 @@ func (sw *stagingWriter) Rollback() {
 
 func (sw *stagingWriter) Commit(tx yt.Tx) error {
 	err := closeGaps(tx, sw.config, sw.now)
-
 	if err != nil {
 		return xerrors.Errorf("Cannot close table gaps: %w", err)
 	}

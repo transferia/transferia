@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -66,7 +68,6 @@ func createReplicationSlot(src *PgSource, recreateIfExists bool, tracker ...*Tra
 		}
 		return false, nil
 	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 3), util.BackoffLogger(logger.Log, "create replication slot"))
-
 	if err != nil {
 		return false, xerrors.Errorf("failed to create a replication slot: %w", err)
 	}

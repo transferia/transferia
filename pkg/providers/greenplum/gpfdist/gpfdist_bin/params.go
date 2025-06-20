@@ -1,3 +1,5 @@
+//go:build !disable_greenplum_provider
+
 package gpfdistbin
 
 const (

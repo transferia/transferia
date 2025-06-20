@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package topology
 
 import (
@@ -114,7 +116,6 @@ func ResolveTopology(params model.ChSinkParams, lgr log.Logger) (*Topology, erro
 		//nolint:descriptiveerrors
 		return clusterName, err
 	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10), util.BackoffLogger(lgr, "failed to resolve cluster topology"))
-
 	if err != nil {
 		if singleNode {
 			lgr.Warn("Error getting cluster name from single node cluster", log.Error(err))

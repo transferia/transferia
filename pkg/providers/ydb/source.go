@@ -1,3 +1,5 @@
+//go:build !disable_ydb_provider
+
 package ydb
 
 import (
@@ -287,7 +289,6 @@ func discoverChangeFeedMode(ydbClient *ydb.Driver, tablePath, changeFeedName str
 		}
 		return nil
 	}, table.WithIdempotent()) // User already created changefeed and specified its name, so we only try to get it's mode.
-
 	if err != nil {
 		return "", xerrors.Errorf("failed to define ChangeFeed Mode: %w", err)
 	}

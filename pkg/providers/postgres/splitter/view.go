@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package splitter
 
 import (
@@ -16,7 +18,6 @@ type View struct {
 }
 
 func (t *View) Split(ctx context.Context, table abstract.TableDescription) (*SplittedTableMetadata, error) {
-
 	logger.Log.Info("Will calculate exact view rows count", log.String("table", table.String()))
 
 	exactRowsForQuery, err := t.storage.ExactTableDescriptionRowsCount(ctx, table, 15*time.Second)

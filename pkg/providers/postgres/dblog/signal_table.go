@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package dblog
 
 import (
@@ -225,7 +227,6 @@ func (s *signalTable) resolveLowBound(ctx context.Context, tableID abstract.Tabl
 
 		return nil
 	})
-
 	if err != nil {
 		return nil
 	}

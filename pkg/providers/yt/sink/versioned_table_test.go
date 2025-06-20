@@ -1,3 +1,5 @@
+//go:build !disable_yt_provider
+
 package sink
 
 import (
@@ -17,13 +19,11 @@ import (
 	"go.ytsaurus.tech/yt/go/yttest"
 )
 
-var (
-	versionedSchema = abstract.NewTableSchema([]abstract.ColSchema{
-		{ColumnName: "key", DataType: "string", PrimaryKey: true},
-		{ColumnName: "version", DataType: "int32"},
-		{ColumnName: "value", DataType: "string"},
-	})
-)
+var versionedSchema = abstract.NewTableSchema([]abstract.ColSchema{
+	{ColumnName: "key", DataType: "string", PrimaryKey: true},
+	{ColumnName: "version", DataType: "int32"},
+	{ColumnName: "value", DataType: "string"},
+})
 
 const (
 	testVersionedTablePath = "//home/cdc/test/versioned/test_table"
@@ -60,6 +60,7 @@ func TestVersionedTable_Write(t *testing.T) {
 		require.Equal(t, 2, r.Version)
 	}
 }
+
 func TestVersionedTable_Write_Newest_Than_Oldest(t *testing.T) {
 	env, cancel := recipe.NewEnv(t)
 	defer cancel()

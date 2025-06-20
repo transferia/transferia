@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -55,7 +57,7 @@ type replication struct {
 	objects         *model.DataObjects
 	sequencer       *sequencer2.Sequencer
 	parseQ          *parsequeue.ParseQueue[[]abstract.ChangeItem]
-	objectsMap      map[abstract.TableID]bool //tables to include in transfer
+	objectsMap      map[abstract.TableID]bool // tables to include in transfer
 
 	skippedTables map[abstract.TableID]bool
 }
@@ -70,7 +72,7 @@ const BufferLimit = 16 * humanize.MiByte
 
 func (p *replication) Run(sink abstract.AsyncSink) error {
 	var err error
-	//level of parallelism combined with hardcoded buffer size in receiver(16mb) prevent OOM in parsequeue
+	// level of parallelism combined with hardcoded buffer size in receiver(16mb) prevent OOM in parsequeue
 	p.parseQ = parsequeue.New(p.logger, 10, sink, p.WithIncludeFilter, p.ack)
 
 	if err = p.reloadSchema(); err != nil {

@@ -1,3 +1,5 @@
+//go:build !disable_greenplum_provider
+
 package greenplum
 
 import "github.com/transferia/transferia/pkg/abstract"

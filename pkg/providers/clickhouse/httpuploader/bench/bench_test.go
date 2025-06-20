@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package bench
 
 import (
@@ -13,9 +15,7 @@ import (
 	"github.com/transferia/transferia/tests/canon"
 )
 
-var (
-	tables = map[changeitem.TableID][]changeitem.ChangeItem{}
-)
+var tables = map[changeitem.TableID][]changeitem.ChangeItem{}
 
 func init() {
 	for _, tc := range canon.All(postgres.ProviderType) {

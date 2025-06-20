@@ -1,3 +1,5 @@
+//go:build !disable_ydb_provider
+
 package ydb
 
 import (
@@ -25,12 +27,15 @@ var demoYdbColumns = []options.Column{
 		Family: "default",
 	},
 }
-var demoYdbPrimaryKey = []string{"a"}
-var demoYdbTable = options.Description{
-	Name:       "test_table",
-	Columns:    demoYdbColumns,
-	PrimaryKey: demoYdbPrimaryKey,
-}
+
+var (
+	demoYdbPrimaryKey = []string{"a"}
+	demoYdbTable      = options.Description{
+		Name:       "test_table",
+		Columns:    demoYdbColumns,
+		PrimaryKey: demoYdbPrimaryKey,
+	}
+)
 
 func Test_filterYdbTableColumns(t *testing.T) {
 	type args struct {
@@ -48,12 +53,14 @@ func Test_filterYdbTableColumns(t *testing.T) {
 			args:    args{filter: nil, description: demoYdbTable},
 			want:    demoYdbColumns,
 			wantErr: false,
-		}, {
+		},
+		{
 			name:    "tests table name does not match filter regexp",
 			args:    args{filter: []YdbColumnsFilter{{TableNamesRegexp: "cockroachdb"}}, description: demoYdbTable},
 			want:    demoYdbColumns,
 			wantErr: false,
-		}, {
+		},
+		{
 			name: "tests column name does not match filter regexp",
 			args: args{
 				filter: []YdbColumnsFilter{{
@@ -65,7 +72,8 @@ func Test_filterYdbTableColumns(t *testing.T) {
 			},
 			want:    demoYdbColumns,
 			wantErr: false,
-		}, {
+		},
+		{
 			name: "tests blacklist primary key (error)",
 			args: args{
 				filter: []YdbColumnsFilter{{
@@ -77,7 +85,8 @@ func Test_filterYdbTableColumns(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: true,
-		}, {
+		},
+		{
 			name: "tests whitelist does not contains primary key (error)",
 			args: args{
 				filter: []YdbColumnsFilter{{
@@ -89,7 +98,8 @@ func Test_filterYdbTableColumns(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: true,
-		}, {
+		},
+		{
 			name: "tests blacklist all columns (error)",
 			args: args{
 				filter: []YdbColumnsFilter{{
@@ -101,7 +111,8 @@ func Test_filterYdbTableColumns(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: true,
-		}, {
+		},
+		{
 			name: "tests whitelist with no match to any column",
 			args: args{
 				filter: []YdbColumnsFilter{{
@@ -113,7 +124,8 @@ func Test_filterYdbTableColumns(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: true,
-		}, {
+		},
+		{
 			name: "tests blacklist columns",
 			args: args{
 				filter: []YdbColumnsFilter{{
@@ -125,7 +137,8 @@ func Test_filterYdbTableColumns(t *testing.T) {
 			},
 			want:    []options.Column{{Name: "a", Type: types.TypeBool, Family: "default"}},
 			wantErr: false,
-		}, {
+		},
+		{
 			name: "tests whitelist columns",
 			args: args{
 				filter: []YdbColumnsFilter{{
@@ -137,7 +150,8 @@ func Test_filterYdbTableColumns(t *testing.T) {
 			},
 			want:    []options.Column{{Name: "a", Type: types.TypeBool, Family: "default"}},
 			wantErr: false,
-		}, {
+		},
+		{
 			name: "tests multiple filters",
 			args: args{
 				filter: []YdbColumnsFilter{{

@@ -1,3 +1,5 @@
+//go:build !disable_postgres_provider
+
 package postgres
 
 import (
@@ -135,7 +137,6 @@ func formatFqtn(in string) (string, error) {
 }
 
 func PostgresDumpConnString(src *PgSource) (string, model.SecretString, error) {
-
 	config, err := GetConnParamsFromSrc(logger.Log, src)
 	if err != nil {
 		return "", "", err

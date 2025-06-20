@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 // Package ch
 //
 // SinkServer - it's like master (in multi-master system) destination

@@ -1,3 +1,5 @@
+//go:build !disable_clickhouse_provider
+
 package conn
 
 type ConnParams interface {

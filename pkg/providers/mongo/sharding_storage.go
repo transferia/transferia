@@ -1,3 +1,5 @@
+//go:build !disable_mongo_provider
+
 package mongo
 
 import (
@@ -18,10 +20,12 @@ const (
 	maxDelimiters = 31
 )
 
-type ShardingFilter bson.D
-type delimiter interface {
-	isDelimiter()
-}
+type (
+	ShardingFilter bson.D
+	delimiter      interface {
+		isDelimiter()
+	}
+)
 
 func (*regularDelimiter) isDelimiter() {}
 func (*infDelimiter) isDelimiter()     {}
@@ -110,9 +114,9 @@ func getRepresentativeFromEveryTypeBracket(ctx context.Context, collection *mong
 			I: 0,
 		},
 		// primitive.Regex{Pattern: "asdf", Options: "i"}, // TODO(@kry127) how to turn on?
-		//int32(3),                        // the same type bracket as 1.27
-		//int64(293120039813945800),       // the same type bracket as 1.27
-		//primitive.NewDecimal128(1, 1),   // the same type bracket as 1.27
+		// int32(3),                        // the same type bracket as 1.27
+		// int64(293120039813945800),       // the same type bracket as 1.27
+		// primitive.NewDecimal128(1, 1),   // the same type bracket as 1.27
 	}
 	if !isDocDB {
 		objects = append(objects,
