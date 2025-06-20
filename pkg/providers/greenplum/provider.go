@@ -94,6 +94,9 @@ func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected dst type: %T", p.transfer.Dst)
 	}
+	if err := dst.Connection.ResolveCredsFromConnectionID(); err != nil {
+		return nil, xerrors.Errorf("failed to resolve creds from connection ID: %w", err)
+	}
 	isGpfdist, err := p.isGpfdist()
 	if err != nil {
 		return nil, xerrors.Errorf("unable to use gpfdist: %w", err)
@@ -112,6 +115,9 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	src, ok := p.transfer.Src.(*GpSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected src type: %T", p.transfer.Src)
+	}
+	if err := src.Connection.ResolveCredsFromConnectionID(); err != nil {
+		return nil, xerrors.Errorf("failed to resolve creds from connection ID: %w", err)
 	}
 	isGpfdist, err := p.isGpfdist()
 	if err != nil {

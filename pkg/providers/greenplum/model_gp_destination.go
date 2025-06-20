@@ -28,6 +28,11 @@ type GpDestination struct {
 }
 
 var _ dp_model.Destination = (*GpDestination)(nil)
+var _ dp_model.WithConnectionID = (*GpDestination)(nil)
+
+func (d *GpDestination) GetConnectionID() string {
+	return d.Connection.ConnectionID
+}
 
 func (d *GpDestination) MDBClusterID() string {
 	if d.Connection.MDBCluster != nil {
