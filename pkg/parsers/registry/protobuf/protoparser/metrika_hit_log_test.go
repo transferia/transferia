@@ -10,12 +10,12 @@ import (
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoscanner"
 )
 
-func TestDoCloudStreamingExportHits(t *testing.T) {
-	testCases := getCloudStreamingExportHitsTestCases(t)
+func TestMetrikaHitLog(t *testing.T) {
+	testCases := getMetrikaHitsTestCases(t)
 	pMsg := parsers.Message{
 		Offset: 1,
 		SeqNo:  1,
-		Value:  protoSampleContent(t, "metrika-streaming-data/metrika_cloud_export_hit_log_data.bin"),
+		Value:  protoSampleContent(t, "metrika-data/metrika_hit_log_data.bin"),
 	}
 
 	for i, test := range testCases {
@@ -39,7 +39,7 @@ func TestDoCloudStreamingExportHits(t *testing.T) {
 	}
 }
 
-func getCloudStreamingExportHitsTestCases(t *testing.T) []struct {
+func getMetrikaHitsTestCases(t *testing.T) []struct {
 	conf    ProtoParserConfig
 	colsLen int
 } {
@@ -237,7 +237,7 @@ func getCloudStreamingExportHitsTestCases(t *testing.T) []struct {
 	}
 
 	rootMsgDesc, err := extractMessageDesc(
-		protoSampleContent(t, "metrika-streaming-data/metrika_cloud_export_hit_log.desc"),
+		protoSampleContent(t, "metrika-data/metrika_hit_log.desc"),
 		"CloudTransferHitList",
 	)
 	require.NoError(t, err)

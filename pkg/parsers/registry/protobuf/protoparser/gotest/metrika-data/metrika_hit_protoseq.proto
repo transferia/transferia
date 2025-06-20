@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package ru.yandex.metrika.cloud.proto;
+
+option go_package = "github.com/transferia/transferia/metrika/proto/cloud_export";
+
+message CloudTransferHitList {
+    repeated CloudTransferHit Hits = 1;
+}
+
+message CloudTransferHit {
+    uint64 TransferID = 1;
+    uint64 WatchID = 2;
+    uint32 CounterID = 3;
+    int32 Sign = 4;
+    uint32 HitVersion = 5;
+    uint32 SchemaVersion = 6;
+
+    bytes Title = 16;
+    bytes EventDate = 18;
+    uint32 ClientIP = 19;
+    bytes ClientIP6 = 20;
+    uint32 RegionID = 21;
+    fixed64 CounterUserIDHash = 22;
+    uint32 OS = 23;
+    uint32 UserAgent = 24;
+    bytes URL = 25;
+    bytes Referer = 26;
+    uint32 ResolutionWidth = 27;
+    uint32 ResolutionHeight = 28;
+    uint32 ResolutionDepth = 29;
+    uint32 UserAgentMajor = 30;
+    bool CookieEnable = 32;
+    bool JavascriptEnable = 33;
+    bytes UserAgentStr = 34;
+    bytes OSStr = 35;
+    uint32 OSRoot = 36;
+    bytes OSRootStr = 37;
+    bool ThirdPartyCookieEnable = 38;
+
+    bool IsMobile = 44;
+    bool IsTablet = 45;
+    bytes MobilePhoneModel = 46;
+    int32 TrafficSourceID = 47;
+    uint32 SearchEngineID = 48;
+    uint32 AdvEngineID = 49;
+    bool IsArtifical = 50;
+    uint32 WindowClientWidth = 51;
+    uint32 WindowClientHeight = 52;
+    int32 ClientTimeZone = 53;
+    bytes PageCharset = 54;
+    bool IsLink = 55;
+    bool IsDownload = 56;
+    bool IsNotBounce = 57;
+    bool IsParameter = 58;
+    bool IsPageView = 59;
+    uint64 UTCEventTime = 60;
+    bytes BrowserLanguage = 61;
+    bytes BrowserCountry = 62;
+    uint32 HTTPError = 63;
+    uint32 SocialSourceNetworkID = 64;
+    bytes SocialSourcePage = 65;
+    repeated uint32 GoalsReached = 66;
+    bytes OpenstatServiceName = 67;
+    bytes OpenstatCampaignID = 68;
+    bytes OpenstatAdID = 69;
+    bytes OpenstatSourceID = 70;
+    bytes UTMSource = 71;
+    bytes UTMMedium = 72;
+    bytes UTMCampaign = 73;
+    bytes UTMContent = 74;
+    bytes UTMTerm = 75;
+    bytes FromTag = 76;
+    bool HasGCLID = 77;
+    bytes GCLID = 78;
+    uint32 CLID = 79;
+    uint64 DirectCLID = 80;
+    bytes ShareService = 81;
+    bytes ShareURL = 82;
+    bytes ShareTitle = 83;
+    bytes TrafficSourceStrID = 84;
+    bytes AdvEngineStrID = 85;
+    bytes SocialSourceNetworkStrID = 86;
+    bytes SearchEngineStrID = 87;
+    uint32 SearchEngineRootID = 88;
+    bytes SearchEngineRootStrID = 89;
+    uint32 PageViewID = 90;
+    uint64 VisitID = 91;
+
+    repeated bytes ParsedParams_Key1 = 100;
+    repeated bytes ParsedParams_Key2 = 101;
+    repeated bytes ParsedParams_Key3 = 102;
+    repeated bytes ParsedParams_Key4 = 103;
+    repeated bytes ParsedParams_Key5 = 104;
+    repeated bytes ParsedParams_Key6 = 105;
+    repeated bytes ParsedParams_Key7 = 106;
+    repeated bytes ParsedParams_Key8 = 107;
+    repeated bytes ParsedParams_Key9 = 108;
+    repeated bytes ParsedParams_Key10 = 109;
+    repeated uint32 ParsedParams_Quantity = 110;
+
+    bytes Params = 130;
+    bytes Ecommerce = 131;
+
+    float DevicePixelRatio = 141;
+    uint32 BrowserEngineID = 142;
+    uint32 BrowserEngineVersion1 = 143;
+    uint32 BrowserEngineVersion2 = 144;
+    uint32 BrowserEngineVersion3 = 145;
+    uint32 BrowserEngineVersion4 = 146;
+    bool IsTV = 147;
+    bool IsIFrame = 148;
+    uint64 FirstPartyCookie = 149;
+    uint32 MobilePhoneVendor = 150;
+    bytes OriginalURL = 151;
+    uint32 NetworkType = 152;
+    uint32 UserAgentVersion2 = 153;
+    uint32 UserAgentVersion3 = 154;
+    uint32 UserAgentVersion4 = 155;
+    uint32 RecommendationSystemID = 157;
+    uint32 MessengerID = 158;
+    bytes OSFamily = 159;
+    bytes OSName = 160;
+    bytes YQRID = 161;
+    uint32 QRCodeProviderID = 162;
+    bytes BrowserEngineStrID = 163;
+    bytes MobilePhoneVendorStr = 164;
+    bytes NetworkTypeStr = 165;
+    bytes RecommendationSystemStrID = 166;
+    bytes MessengerStrID = 167;
+    bytes QRCodeProviderStrID = 168;
+    uint64 ClientID = 169;
+}

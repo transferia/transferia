@@ -23,6 +23,10 @@ const (
 	s3VersionCol  = "s3_file_version"
 )
 
+func S3FileFilter(filepath string) abstract.WhereStatement {
+	return abstract.WhereStatement(fmt.Sprintf(`"%s" = '%s'`, s3FileNameCol, filepath))
+}
+
 type FileWithStats struct {
 	*s3.Object
 	Rows, Size uint64
@@ -97,10 +101,7 @@ func (s *Storage) shardDefault(tdesc abstract.TableDescription, files []*FileWit
 		res = append(res, abstract.TableDescription{
 			Name:   s.cfg.TableName,
 			Schema: s.cfg.TableNamespace,
-			Filter: abstract.FiltersIntersection(
-				tdesc.Filter,
-				abstract.WhereStatement(fmt.Sprintf(`"%s" = '%s'`, s3FileNameCol, *file.Key)),
-			),
+			Filter: abstract.FiltersIntersection(tdesc.Filter, S3FileFilter(*file.Key)),
 			EtaRow: file.Rows,
 			Offset: 0,
 		})

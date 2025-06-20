@@ -23,8 +23,8 @@ type wrappedReader[T io.ReadCloser] struct {
 	wrapper                wrapper[T]
 }
 
-func (r *wrappedReader[T]) ReadAt(p []byte, off int64) (int, error) {
-	if len(p) == 0 {
+func (r *wrappedReader[T]) ReadAt(buffer []byte, offset int64) (int, error) {
+	if len(buffer) == 0 {
 		return 0, nil
 	}
 	if r.fullUncompressedObject == nil {
@@ -33,19 +33,17 @@ func (r *wrappedReader[T]) ReadAt(p []byte, off int64) (int, error) {
 		}
 	}
 
-	// since we are reading from a sub slice of a slice, the last part of it is obj[:len(obj)]
-	// calcRange retuns ranges though so for an obj len 200 it would return n-199 so we have to increase len by one to cover the last byte
-	start, end, returnErr := calcRange(p, off, int64(len(r.fullUncompressedObject)+1))
+	totalSize := int64(len(r.fullUncompressedObject))
+	start, end, returnErr := calcRange(int64(len(buffer)), offset, totalSize)
 	if returnErr != nil && !xerrors.Is(returnErr, io.EOF) {
 		return 0, xerrors.Errorf("unable to calculate new read range for file %s: %w", r.fetcher.key, returnErr)
 	}
 
-	if end > int64(len(r.fullUncompressedObject)) {
-		// reduce buffer size
-		p = p[:end-start+1]
+	if int64(len(buffer)) > end-start+1 {
+		buffer = buffer[:end-start+1] // Reduce buffer size to match range.
 	}
 
-	n := copy(p, r.fullUncompressedObject[start:end])
+	n := copy(buffer, r.fullUncompressedObject[start:end+1])
 	r.stats.Size.Add(int64(n))
 	if returnErr != nil {
 		return n, xerrors.Errorf("reached EOF: %w", returnErr)

@@ -28,7 +28,7 @@ func (r *chunkedReader) ReadAt(p []byte, off int64) (int, error) {
 		return 0, xerrors.Errorf("unable to fetch size: %w", err)
 	}
 
-	start, end, returnErr := calcRange(p, off, r.fetcher.objectSize)
+	start, end, returnErr := calcRange(int64(len(p)), off, r.fetcher.objectSize)
 	if returnErr != nil && !xerrors.Is(returnErr, io.EOF) {
 		return 0, xerrors.Errorf("unable to calculate new read range for file %s: %w", r.fetcher.key, returnErr)
 	}

@@ -6,32 +6,26 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
-func calcRange(p []byte, off int64, totalSize int64) (int64, int64, error) {
-	var err error
-	if off < 0 {
-		return 0, 0, xerrors.New("negative offset not allowed")
+// calcRange calculates range ([begin, end], inclusive) to iterate over p starting with offset.
+// It is guaranteed that end < totalSize.
+func calcRange(bufferSize, offset, totalSize int64) (int64, int64, error) {
+	if offset < 0 {
+		return 0, 0, xerrors.New("offset is negative")
 	}
-
 	if totalSize <= 0 {
-		return 0, 0, xerrors.New("unable to read form object with no size")
+		return 0, 0, xerrors.New("totalSize is negative or zero")
+	}
+	if offset >= totalSize {
+		return 0, 0, xerrors.New("offset is bigger than totalSize")
+	}
+	if bufferSize == 0 {
+		return 0, 0, xerrors.New("size of p is zero")
 	}
 
-	start := off
-	end := off + int64(len(p)) - 1
-	if end >= totalSize {
-		// Clamp down the requested range.
-		end = totalSize - 1
-		err = io.EOF
-
-		if end < start {
-			// this occurs when offset is bigger than the total size of the object
-			return 0, 0, xerrors.New("offset outside of possible range")
-		}
-		if end-start > int64(len(p)) {
-			// should never occur
-			return 0, 0, xerrors.New("covered range is bigger than full object size")
-		}
+	start := offset
+	end := offset + int64(bufferSize) - 1
+	if end < totalSize {
+		return start, end, nil
 	}
-
-	return start, end, err
+	return start, totalSize - 1, io.EOF
 }
