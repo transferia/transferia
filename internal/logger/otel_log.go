@@ -15,6 +15,13 @@ import (
 	corezap "go.ytsaurus.tech/library/go/core/log/zap"
 )
 
+const (
+	KeyTransferID = "transfer_id"
+	KeyDstType    = "labels.dst_type"
+	KeySrcType    = "labels.src_type"
+	KeyApp        = "labels.app"
+)
+
 var OtelLog log.Logger = &corezap.Logger{L: zap.NewNop()}
 
 type OtelLoggerConfig struct {
@@ -54,7 +61,7 @@ func NewOtelLog(ctx context.Context, cfg OtelLoggerConfig) (lgr log.Logger, clos
 		"",
 		otelzap.WithLoggerProvider(logProvider),
 	)
-	l := log.With(corezap.NewWithCore(core))
+	l := log.With(corezap.NewWithCore(core), log.String(KeyApp, cfg.ServiceName))
 	OtelLog = l
 	return l, func(ctx context.Context) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
