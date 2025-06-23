@@ -229,7 +229,7 @@ func ToYtSchema(original []abstract.ColSchema, fixAnyTypeInPrimaryKey bool) []sc
 	for idx, el := range original {
 		result[idx] = schema.Column{
 			Name:       el.ColumnName,
-			Expression: el.Expression,
+			Expression: "",
 			Type:       schema.Type(el.DataType),
 		}
 		if el.PrimaryKey {

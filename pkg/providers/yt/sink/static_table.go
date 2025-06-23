@@ -192,7 +192,6 @@ func staticYTSchema(item abstract.ChangeItem) []schema.Column {
 	for i := range result {
 		// Static table should not be ordered
 		result[i].SortOrder = ""
-		result[i].Expression = ""
 	}
 	return result
 }

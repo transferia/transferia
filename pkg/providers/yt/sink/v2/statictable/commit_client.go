@@ -43,7 +43,7 @@ func (c *commitClient) sortTable(currentPath ypath.Path, sortedPath ypath.Path) 
 
 	keyCols := c.Scheme.KeyColumns()
 	if err := c.createTableForOperation(sortedPath, c.Scheme); err != nil {
-		return "unable to create table for the sorting operation: %w", err
+		return "", xerrors.Errorf("unable to create table for the sorting operation: %w", err)
 	}
 
 	sortClient := mapreduce.New(c.Client).WithTx(c.Tx)
