@@ -9,13 +9,14 @@ import (
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestSnapshotAndReplicationViewsCompatibility(t *testing.T) {
 	source := *helpers.RecipeMysqlSource()
 	source.PreSteps.View = true
-	target := *helpers.RecipeMysqlTarget()
+	target := *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 	defer require.NoError(t, helpers.CheckConnections(
 		helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
 		helpers.LabeledPort{Label: "Mysql target", Port: target.Port},

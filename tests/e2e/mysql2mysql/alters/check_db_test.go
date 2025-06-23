@@ -30,11 +30,11 @@ var (
 		Port:     helpers.GetIntFromEnv("RECIPE_MYSQL_PORT"),
 	}
 	Target = mysql.MysqlDestination{
-		Host:          os.Getenv("RECIPE_MYSQL_HOST"),
-		User:          os.Getenv("RECIPE_MYSQL_USER"),
-		Password:      model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
-		Database:      os.Getenv("RECIPE_MYSQL_TARGET_DATABASE"),
-		Port:          helpers.GetIntFromEnv("RECIPE_MYSQL_PORT"),
+		Host:          os.Getenv("TARGET_RECIPE_MYSQL_HOST"),
+		User:          os.Getenv("TARGET_RECIPE_MYSQL_USER"),
+		Password:      model.SecretString(os.Getenv("TARGET_RECIPE_MYSQL_PASSWORD")),
+		Database:      os.Getenv("TARGET_RECIPE_MYSQL_TARGET_DATABASE"),
+		Port:          helpers.GetIntFromEnv("TARGET_RECIPE_MYSQL_PORT"),
 		SkipKeyChecks: false,
 	}
 )

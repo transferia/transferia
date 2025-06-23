@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 5.7.40, for linux-glibc2.12 (x86_64)
 --
--- Host: 127.0.0.1    Database: target
+-- Host: 127.0.0.1    Database: source
 -- ------------------------------------------------------
 -- Server version	5.7.40-log
 
@@ -16,12 +16,12 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Current Database: `target`
+-- Current Database: `source`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `target` /*!40100 DEFAULT CHARACTER SET latin1 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `source` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
-USE `target`;
+USE `source`;
 
 --
 -- Table structure for table `test`

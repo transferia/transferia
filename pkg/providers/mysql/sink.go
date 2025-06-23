@@ -110,6 +110,7 @@ type sinker struct {
 	currentTX          *sql.Tx
 	currentTXID        string
 	pendingTableCounts map[abstract.TableID]int
+	database           string
 }
 
 func (s *sinker) fillUniqueConstraints() error {
@@ -763,7 +764,7 @@ func (s *sinker) ensureTableSchema(tableID abstract.TableID, input *abstract.Tab
 	if schema, ok := s.cache[tableID]; ok && schema.Equal(input) {
 		return nil
 	}
-	tables, err := LoadSchema(s.db, false, false)
+	tables, err := LoadSchema(s.db, false, false, s.database)
 	if err != nil {
 		return xerrors.Errorf("failed to load schema: %w", err)
 	}
@@ -889,5 +890,6 @@ func NewSinker(lgr log.Logger, cfg *MysqlDestination, mtrcs metrics.Registry) (a
 		currentTX:          nil,
 		currentTXID:        "",
 		pendingTableCounts: map[abstract.TableID]int{},
+		database:           cfg.Database,
 	}, nil
 }
