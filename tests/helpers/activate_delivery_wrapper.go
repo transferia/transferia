@@ -68,8 +68,11 @@ func Activate(t *testing.T, transfer *model.Transfer, onErrorCallback ...func(er
 }
 
 func ActivateErr(transfer *model.Transfer, onErrorCallback ...func(err error)) (*Worker, error) {
-	cp := &fakeCpErrRepl{Coordinator: coordinator.NewStatefulFakeClient(), onErrorCallback: onErrorCallback}
+	cp := NewFakeCP(onErrorCallback...)
 	return ActivateWithCP(transfer, cp)
+}
+func NewFakeCP(onErrorCallback ...func(err error)) coordinator.Coordinator {
+	return &fakeCpErrRepl{Coordinator: coordinator.NewStatefulFakeClient(), onErrorCallback: onErrorCallback}
 }
 
 func ActivateWithCP(transfer *model.Transfer, cp coordinator.Coordinator) (*Worker, error) {
