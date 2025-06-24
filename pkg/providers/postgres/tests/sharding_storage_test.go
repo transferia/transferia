@@ -116,6 +116,66 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Len(t, tables, 4)
+		require.Contains(t, string(tables[0].Filter), "\"Id\" < '25000'")
+		require.Contains(t, string(tables[1].Filter), "\"Id\" >= '25000' AND \"Id\" < '50000'")
+		require.Contains(t, string(tables[2].Filter), "\"Id\" >= '50000' AND \"Id\" < '75000'")
+		require.Contains(t, string(tables[3].Filter), "\"Id\" >= '75000'")
+		var res []abstract.ChangeItem
+		for _, tbl := range tables {
+			require.NoError(t, storage.LoadTable(ctx, tbl, func(input []abstract.ChangeItem) error {
+				for _, row := range input {
+					if row.IsRowEvent() {
+						res = append(res, row)
+					}
+				}
+				return nil
+			}))
+		}
+		require.Len(t, res, 100_000)
+	})
+	t.Run("all keys are numeric", func(t *testing.T) {
+		tables, err := storage.ShardTable(ctx, abstract.TableDescription{
+			Name:   "__test_all_keys_are_numeric",
+			Schema: "public",
+			Filter: "",
+			EtaRow: 0,
+			Offset: 0,
+		})
+		require.NoError(t, err)
+		require.Len(t, tables, 4)
+		filter := "(abs(\"id\"+\"bigserial_key\"+\"numeric_key\"+\"bigint_key\"+\"float_key\"+\"double_key\"+\"smallint_key\"+\"integer_key\"+\"real_key\")::bigint % 4)"
+		require.Contains(t, string(tables[0].Filter), filter+" = 0")
+		require.Contains(t, string(tables[1].Filter), filter+" = 1")
+		require.Contains(t, string(tables[2].Filter), filter+" = 2")
+		require.Contains(t, string(tables[3].Filter), filter+" = 3")
+		var res []abstract.ChangeItem
+		for _, tbl := range tables {
+			require.NoError(t, storage.LoadTable(ctx, tbl, func(input []abstract.ChangeItem) error {
+				for _, row := range input {
+					if row.IsRowEvent() {
+						res = append(res, row)
+					}
+				}
+				return nil
+			}))
+		}
+		require.Len(t, res, 100_000)
+	})
+	t.Run("text pk", func(t *testing.T) {
+		tables, err := storage.ShardTable(ctx, abstract.TableDescription{
+			Name:   "__test_text_pk",
+			Schema: "public",
+			Filter: "",
+			EtaRow: 0,
+			Offset: 0,
+		})
+		require.NoError(t, err)
+		require.Len(t, tables, 4)
+		filter := "abs(hashtext(row(\"serial_key\",\"txt\")::text)) % 4"
+		require.Contains(t, string(tables[0].Filter), filter+" = 0")
+		require.Contains(t, string(tables[1].Filter), filter+" = 1")
+		require.Contains(t, string(tables[2].Filter), filter+" = 2")
+		require.Contains(t, string(tables[3].Filter), filter+" = 3")
 		var res []abstract.ChangeItem
 		for _, tbl := range tables {
 			require.NoError(t, storage.LoadTable(ctx, tbl, func(input []abstract.ChangeItem) error {
