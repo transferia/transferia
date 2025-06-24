@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/connection/clickhouse"
 )
@@ -189,6 +190,9 @@ func (s *ChSource) ToSinkParams() (ChSourceWrapper, error) {
 	connectionParams, err := ConnectionParamsFromSource(s)
 	if err != nil {
 		return ChSourceWrapper{}, err
+	}
+	if len(connectionParams.Hosts) == 0 {
+		return ChSourceWrapper{}, xerrors.New("No hosts found")
 	}
 	result := ChSourceWrapper{
 		Model:            &copyChSource,
