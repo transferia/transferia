@@ -486,15 +486,17 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 	}
 
 	l.waitErrCh = make(chan error, 1)
+	asyncProviderCtx, cancelAsyncPartsLoading := context.WithCancel(ctx)
 	go func() {
 		defer close(l.waitErrCh)
+		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from asyncLoadParts.
 		logger.Log.Info("Start uploading tables on many workers", log.Int("parallelism", l.parallelismParams.ProcessCount))
 		l.waitErrCh <- l.WaitWorkersCompleted(ctx, runtime.SnapshotWorkersNum())
 		logger.Log.Info("Uploading tables process on many workers finished")
 	}()
 
 	if isAsyncParts {
-		if err := l.asyncLoadParts(ctx, asyncPartsStorage, tables, nil); err != nil {
+		if err := l.asyncLoadParts(asyncProviderCtx, asyncPartsStorage, tables, nil); err != nil {
 			return errors.CategorizedErrorf(categories.Internal, "unable to async load parts: %w", err)
 		}
 		newState, err := addKeyToJson(shardedState, abstract.IsAsyncPartsUploadedStateKey, true)
@@ -755,7 +757,7 @@ func (l *SnapshotLoader) uploadSingle(ctx context.Context, tables []abstract.Tab
 	asyncProviderCtx, cancelAsyncPartsLoading := context.WithCancel(ctx)
 	go func() {
 		defer close(l.waitErrCh)
-		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from localPartProvider.
+		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from asyncLoadParts.
 		logger.Log.Info("Start uploading tables on single worker")
 		l.waitErrCh <- l.DoUploadTables(ctx, sourceStorage, partProvider.TablePartProvider())
 		logger.Log.Info("Uploading tables process on single worker finished")
