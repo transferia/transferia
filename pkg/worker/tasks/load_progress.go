@@ -70,6 +70,6 @@ func (l *loadProgress) reportProgress() {
 		l.lastReport = now
 		logger.Log.Info(
 			fmt.Sprintf("Load table '%v' progress %v / %v (%.2f%%)", l.part, l.part.CompletedRows, l.part.ETARows, l.part.CompletedPercent()),
-			log.Any("table_part", l.part), log.Int("worker_index", l.workerIndex))
+			log.String("table_part", l.part.StringWithoutFilter()), log.Int("worker_index", l.workerIndex))
 	}
 }

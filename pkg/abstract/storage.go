@@ -23,6 +23,8 @@ type TableDescription struct {
 
 var NonExistentTableID TableID = *NewTableID("", "")
 
+const IsAsyncPartsUploadedStateKey = "is-async-parts-uploaded"
+
 func BuildIncludeMap(objects []string) (map[TableID]bool, error) {
 	includeObjects := map[TableID]bool{}
 	var errs util.Errors
@@ -349,6 +351,19 @@ type SampleableStorage interface {
 // ShardingStorage is for in table sharding
 type ShardingStorage interface {
 	ShardTable(ctx context.Context, table TableDescription) ([]TableDescription, error)
+}
+
+type TableDescProvider func(ctx context.Context, limit uint64) ([]TableDescription, error)
+
+// AsyncOperationPartsStorage is like ShardingStorage, but uses TableDescProvider to receive
+// table descriptions during transfer process, not all at once.
+// NOTE: For such storage in sharding context (operation state) could appear value with
+// key IsAsyncPartsUploadedStateKey, which is used by control code and should be not changed by storage.
+type AsyncOperationPartsStorage interface {
+	ShardingContextStorage
+	// NOTE: TableDescProvider should be cancelled with corresponding context.CancelFunc if necessary.
+	AsyncPartsProvider(tables []TableDescription) (TableDescProvider, context.CancelFunc, error)
+	TotalPartsCount(ctx context.Context, tables []TableDescription) (uint64, error)
 }
 
 // Storage has data, that need to be shared with all workers

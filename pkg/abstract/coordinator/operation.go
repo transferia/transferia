@@ -62,9 +62,7 @@ type Sharding interface {
 	// and return the number of table parts for which the assignment was cleared
 	ClearAssignedTablesParts(ctx context.Context, operationID string, workerIndex int) (int64, error)
 	// UpdateOperationTablesParts update tables parts for operation
-	// used to track more granular part progress
-	//
-	// Deprecated: used only in A2
+	// used to track more granular part progress.
 	UpdateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error
 }
 

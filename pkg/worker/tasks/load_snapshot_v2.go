@@ -263,13 +263,10 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ba
 		return xerrors.Errorf("unable to start loading tables: %w", err)
 	}
 
-	metricsTracker, err := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, parts, &l.progressUpdateMutex)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to start metrics tracker: %w", err)
-	}
+	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, parts, &l.progressUpdateMutex)
 	defer metricsTracker.Close()
 
-	if err := l.doUploadTablesV2(ctx, snapshotProvider, l.GetLocalTablePartProvider(parts...)); err != nil {
+	if err := l.doUploadTablesV2(ctx, snapshotProvider, NewLocalTablePartProvider(parts...).TablePartProvider()); err != nil {
 		return xerrors.Errorf("unable to upload data objects: %w", err)
 	}
 
@@ -399,10 +396,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		return errors.CategorizedErrorf(categories.Internal, "unable to set sharded state: %w", err)
 	}
 
-	metricsTracker, err := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operationID, l.cp)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to start metrics tracker: %w", err)
-	}
+	metricsTracker := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operationID, l.cp)
 	defer metricsTracker.Close()
 
 	if err := l.sendCleanupEventV2(dataTarget, parts...); err != nil {
@@ -494,7 +488,8 @@ func (l *SnapshotLoader) uploadV2Secondary(ctx context.Context, snapshotProvider
 
 	logger.Log.Infof("Start uploading tables on worker %v", l.workerIndex)
 
-	if err := l.doUploadTablesV2(ctx, snapshotProvider, l.GetRemoteTablePartProvider()); err != nil {
+	partProvider := NewRemoteTablePartProvider(ctx, l.cp, l.operationID, l.workerIndex)
+	if err := l.doUploadTablesV2(ctx, snapshotProvider, partProvider); err != nil {
 		return xerrors.Errorf("unable to upload data objects: %w", err)
 	}
 
@@ -530,7 +525,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 			continue
 		}
 
-		nextTablePart, err := nextTablePartProvider()
+		nextTablePart, err := nextTablePartProvider(ctx)
 		if err != nil {
 			logger.Log.Error("Unable to get next table to upload", log.Int("worker_index", l.workerIndex), log.Error(ctx.Err()))
 			parallelismSemaphore.Release(1)

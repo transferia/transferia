@@ -2357,6 +2357,8 @@
   "pkg/worker/tasks/load_snapshot_v2.go":"transfer_manager/go/pkg/worker/tasks/load_snapshot_v2.go",
   "pkg/worker/tasks/load_snapshot_v2_test.go":"transfer_manager/go/pkg/worker/tasks/load_snapshot_v2_test.go",
   "pkg/worker/tasks/load_snapshot_with_transformers_test.go":"transfer_manager/go/pkg/worker/tasks/load_snapshot_with_transformers_test.go",
+  "pkg/worker/tasks/local_table_part_provider.go":"transfer_manager/go/pkg/worker/tasks/local_table_part_provider.go",
+  "pkg/worker/tasks/remote_table_part_provider.go":"transfer_manager/go/pkg/worker/tasks/remote_table_part_provider.go",
   "pkg/worker/tasks/remove_tables.go":"transfer_manager/go/pkg/worker/tasks/remove_tables.go",
   "pkg/worker/tasks/reupload.go":"transfer_manager/go/pkg/worker/tasks/reupload.go",
   "pkg/worker/tasks/s3coordinator/load_sharded_snapshot_test.go":"transfer_manager/go/pkg/worker/tasks/s3coordinator/load_sharded_snapshot_test.go",

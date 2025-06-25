@@ -140,6 +140,21 @@ func (t *OperationTablePart) String() string {
 	return fmt.Sprintf("%v [%v/%v]%v", t.TableFQTN(), t.PartIndex+1, t.PartsCount, otherInfoString)
 }
 
+func (t *OperationTablePart) StringWithoutFilter() string {
+	otherInfo := []string{}
+	if t.ETARows != 0 {
+		otherInfo = append(otherInfo, fmt.Sprintf("ETARows: %v", t.ETARows))
+	}
+	if t.Offset != 0 {
+		otherInfo = append(otherInfo, fmt.Sprintf("Offset: %v", t.Offset))
+	}
+	otherInfoString := ""
+	if len(otherInfo) > 0 {
+		otherInfoString = fmt.Sprintf(" (%v)", strings.Join(otherInfo, ", "))
+	}
+	return fmt.Sprintf("%v [%v/%v]%v", t.TableFQTN(), t.PartIndex+1, t.PartsCount, otherInfoString)
+}
+
 func (t *OperationTablePart) Sharded() bool {
 	return t.PartsCount > 1
 }

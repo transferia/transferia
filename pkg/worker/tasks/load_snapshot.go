@@ -2,8 +2,10 @@ package tasks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +25,7 @@ import (
 	"github.com/transferia/transferia/pkg/sink"
 	"github.com/transferia/transferia/pkg/storage"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/semaphore"
@@ -31,15 +34,21 @@ import (
 const (
 	ResolveStorageErrorText string = "failed to resolve storage: %w"
 	TableListErrorText      string = "failed to list tables and their schemas: %w"
+
+	asyncPartsDefaultBatchSize = 1000
+	asyncPartsStateKeyPrefix   = "async-part"
 )
 
-type TablePartProvider func() (*model.OperationTablePart, error)
+type TablePartProvider func(context.Context) (*model.OperationTablePart, error)
 
 type SnapshotLoader struct {
 	cp          coordinator.Coordinator
 	operationID string
 	transfer    *model.Transfer
 	registry    metrics.Registry
+
+	cancelUpload context.CancelFunc
+	waitErrCh    chan error
 
 	// Transfer params
 	parallelismParams *abstract.ShardUploadParams
@@ -62,6 +71,9 @@ func NewSnapshotLoader(cp coordinator.Coordinator, operationID string, transfer 
 		operationID: operationID,
 		transfer:    transfer,
 		registry:    registry,
+
+		cancelUpload: nil,
+		waitErrCh:    make(chan error),
 
 		parallelismParams: transfer.ParallelismParams(),
 		workerIndex:       transfer.CurrentJobIndex(),
@@ -415,8 +427,8 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 			xerrors.Errorf("sharded transfer do not support temporary tables policy, please, turn it off or make transfer not sharded"))
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ctx, l.cancelUpload = context.WithCancel(ctx)
+	defer l.cancelUpload()
 
 	sourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
 	if err != nil {
@@ -431,29 +443,38 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return err
 	}
 
-	parts, err := l.SplitTables(ctx, logger.Log, tables, sourceStorage)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Source, "unable to shard tables for operation '%v': %w", l.operationID, err)
-	}
-	l.dumpTablePartsToLogs(parts)
+	asyncPartsStorage, isAsyncParts := sourceStorage.(abstract.AsyncOperationPartsStorage)
 
-	if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
+	var parts []*model.OperationTablePart
+	if !isAsyncParts {
+		parts, err = l.SplitTables(ctx, logger.Log, tables, sourceStorage)
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Source, "unable to shard tables for operation '%v': %w", l.operationID, err)
+		}
+		l.dumpTablePartsToLogs(parts)
+
+		if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
+		}
 	}
 
 	shardedState, err := l.MainWorkerCreateShardedStateFromSource(sourceStorage)
 	if err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to prepare sharded state for operation '%v': %w", l.operationID, err)
 	}
+	if isAsyncParts {
+		newState, err := addKeyToJson(shardedState, abstract.IsAsyncPartsUploadedStateKey, false)
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to add key to state: %w", err)
+		}
+		shardedState = string(newState)
+	}
 
 	if err := l.SetShardedStateToCP(logger.Log, shardedState); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to set sharded state: %w", err)
 	}
 
-	metricsTracker, err := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operationID, l.cp)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to start metrics tracker: %w", err)
-	}
+	metricsTracker := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operationID, l.cp)
 
 	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, parts...); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to start loading tables: %w", err)
@@ -464,28 +485,29 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to create operation workers for operation '%v': %w", l.operationID, err)
 	}
 
-	waitErrCh := make(chan error)
+	l.waitErrCh = make(chan error, 1)
 	go func() {
-		waitErrCh <- l.WaitWorkersCompleted(ctx, runtime.SnapshotWorkersNum())
+		defer close(l.waitErrCh)
+		logger.Log.Info("Start uploading tables on many workers", log.Int("parallelism", l.parallelismParams.ProcessCount))
+		l.waitErrCh <- l.WaitWorkersCompleted(ctx, runtime.SnapshotWorkersNum())
+		logger.Log.Info("Uploading tables process on many workers finished")
 	}()
-	joinedErr := func() error {
-		select {
-		case err := <-waitErrCh:
-			if err != nil {
-				return xerrors.Errorf("upload failed: %w", err)
-			}
-			return nil
-		case err := <-l.slotKillerErrorChannel:
-			_ = l.slotKiller.KillSlot()
-			cancel()
-			if err != nil {
-				return errors.CategorizedErrorf(categories.Source, "monitor reports error (on main worker): %w", err)
-			}
-			return nil
+
+	if isAsyncParts {
+		if err := l.asyncLoadParts(ctx, asyncPartsStorage, tables, nil); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to async load parts: %w", err)
 		}
-	}()
-	if joinedErr != nil {
-		return xerrors.Errorf("failed to upload %d tables: %w", len(tables), joinedErr)
+		newState, err := addKeyToJson(shardedState, abstract.IsAsyncPartsUploadedStateKey, true)
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to add key to state: %w", err)
+		}
+		if err := l.SetShardedStateToCP(logger.Log, string(newState)); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to set sharded state after upload: %w", err)
+		}
+	}
+
+	if err := l.waitLoaderError(); err != nil {
+		return errors.CategorizedErrorf(categories.Internal, "failed to upload %d tables: %w", len(tables), err)
 	}
 
 	if err := l.endSnapshot(ctx, sourceStorage); err != nil {
@@ -573,8 +595,8 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 			xerrors.Errorf("sharded transfer do not support temporary tables policy, please, turn it off or make transfer not sharded"))
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ctx, l.cancelUpload = context.WithCancel(ctx)
+	defer l.cancelUpload()
 
 	logger.Log.Infof("Sharding upload on worker '%v' started", l.workerIndex)
 
@@ -601,6 +623,8 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 	}
 	defer sourceStorage.Close()
 
+	_, isAsyncParts := sourceStorage.(abstract.AsyncOperationPartsStorage)
+
 	l.endpointsPreSnapshotActions(sourceStorage)
 
 	if err := l.SetShardedStateToSource(sourceStorage, shardedState); err != nil {
@@ -609,8 +633,14 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 
 	logger.Log.Infof("Start uploading tables on worker %v", l.workerIndex)
 
-	err = l.DoUploadTables(ctx, sourceStorage, l.GetRemoteTablePartProvider())
-	if err != nil {
+	var partProvider TablePartProvider
+	if isAsyncParts {
+		partProvider = NewAsyncRemoteTablePartProvider(ctx, l.cp, l.getShardStateNoWait, l.operationID, l.transfer.ID, l.workerIndex)
+	} else {
+		partProvider = NewRemoteTablePartProvider(ctx, l.cp, l.operationID, l.workerIndex)
+	}
+
+	if err := l.DoUploadTables(ctx, sourceStorage, partProvider); err != nil {
 		return xerrors.Errorf("upload of tables failed on worker '%v': %w", l.workerIndex, err)
 	}
 
@@ -621,13 +651,53 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 	return nil
 }
 
+func (l *SnapshotLoader) handleSlotKillerError(err error) error {
+	l.cancelUpload()
+	logger.Log.Info("slot monitor detected an error", log.Error(err))
+	if slotErr := l.slotKiller.KillSlot(); slotErr != nil {
+		logger.Log.Warn("failed to kill slot", log.Error(slotErr))
+	}
+	// the context passed to DoUploadTables has been cancelled, so it is reasonable to wait for the routines to finish
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if uploadErrs := extractErrorsUntil(ctx, l.waitErrCh); uploadErrs != nil {
+		logger.Log.Warn("errors during upload", log.Error(uploadErrs))
+	}
+	return errors.CategorizedErrorf(categories.Source, "slot monitor detected an error: %w", err)
+}
+
+func (l *SnapshotLoader) waitLoaderError() error {
+	var err error
+	select {
+	case err = <-l.waitErrCh:
+	case err = <-l.slotKillerErrorChannel:
+		if err != nil {
+			err = xerrors.Errorf("slot killer error: %w", l.handleSlotKillerError(err))
+		}
+	}
+	return err
+}
+
+func (l *SnapshotLoader) checkLoaderError() error {
+	var err error
+	select {
+	case err = <-l.waitErrCh:
+	case err = <-l.slotKillerErrorChannel:
+		if err != nil {
+			err = xerrors.Errorf("slot killer error: %w", l.handleSlotKillerError(err))
+		}
+	default:
+	}
+	return err
+}
+
 func (l *SnapshotLoader) uploadSingle(ctx context.Context, tables []abstract.TableDescription, updateIncrementalState bool) error {
 	if len(tables) == 0 {
 		return abstract.NewFatalError(xerrors.New("no tables in snapshot"))
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ctx, l.cancelUpload = context.WithCancel(ctx)
+	defer l.cancelUpload()
 
 	sourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
 	if err != nil {
@@ -650,58 +720,55 @@ func (l *SnapshotLoader) uploadSingle(ctx context.Context, tables []abstract.Tab
 		return err
 	}
 
-	parts, err := l.SplitTables(ctx, logger.Log, tables, sourceStorage)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Source, "unable to shard tables for operation '%v': %w", l.operationID, err)
-	}
-	for _, table := range parts {
-		table.WorkerIndex = new(int)
-		*table.WorkerIndex = l.workerIndex // Because we have one worker
-	}
-	l.dumpTablePartsToLogs(parts)
+	asyncPartsStorage, isAsyncParts := sourceStorage.(abstract.AsyncOperationPartsStorage)
 
-	if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
+	var partProvider *localTablePartProvider
+	var parts []*model.OperationTablePart
+
+	if isAsyncParts {
+		logger.Log.Warn("Experimental async parts loading is used")
+		partProvider = NewAsyncLocalTablePartProvider()
+	} else {
+		parts, err = l.SplitTables(ctx, logger.Log, tables, sourceStorage)
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Source, "unable to shard tables for operation '%v': %w", l.operationID, err)
+		}
+		for _, table := range parts {
+			table.WorkerIndex = new(int)
+			*table.WorkerIndex = l.workerIndex // Because we have one worker
+		}
+		l.dumpTablePartsToLogs(parts)
+
+		if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
+		}
+		partProvider = NewLocalTablePartProvider(parts...)
 	}
 
-	metricsTracker, err := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, parts, &l.progressUpdateMutex)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to start metrics tracker: %w", err)
-	}
+	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, parts, &l.progressUpdateMutex)
 
 	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, parts...); err != nil {
 		return errors.CategorizedErrorf(categories.Source, "unable to start loading tables: %w", err)
 	}
 
-	uploadDoneCh := make(chan error)
+	l.waitErrCh = make(chan error, 1)
+	asyncProviderCtx, cancelAsyncPartsLoading := context.WithCancel(ctx)
 	go func() {
-		defer close(uploadDoneCh)
-		logger.Log.Info("Start uploading tables", log.Int("parallelism", l.parallelismParams.ProcessCount))
-		uploadDoneCh <- l.DoUploadTables(ctx, sourceStorage, l.GetLocalTablePartProvider(parts...))
+		defer close(l.waitErrCh)
+		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from localPartProvider.
+		logger.Log.Info("Start uploading tables on single worker")
+		l.waitErrCh <- l.DoUploadTables(ctx, sourceStorage, partProvider.TablePartProvider())
+		logger.Log.Info("Uploading tables process on single worker finished")
 	}()
 
-	select {
-	case err = <-uploadDoneCh:
-		if err == nil {
-			break
+	if isAsyncParts {
+		if err := l.asyncLoadParts(asyncProviderCtx, asyncPartsStorage, tables, partProvider); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to async load parts: %w", err)
 		}
-		return xerrors.Errorf("upload of %d tables failed: %w", len(tables), err)
-	case err = <-l.slotKillerErrorChannel:
-		if err == nil {
-			break
-		}
-		logger.Log.Info("slot monitor detected an error", log.Error(err))
-		cancel()
-		if slotErr := l.slotKiller.KillSlot(); slotErr != nil {
-			logger.Log.Warn("failed to kill slot", log.Error(slotErr))
-		}
-		// the context passed to DoUploadTables has been cancelled, so it is reasonable to wait for the routines to finish
-		uploadWaitCtx, uploadWaitCancel := context.WithTimeout(ctx, 2*time.Minute)
-		defer uploadWaitCancel()
-		if uploadErrs := l.extractErrorsUntil(uploadWaitCtx, uploadDoneCh); uploadErrs != nil {
-			logger.Log.Warn("errors during upload", log.Error(uploadErrs))
-		}
-		return errors.CategorizedErrorf(categories.Source, "slot monitor detected an error: %w", err)
+	}
+
+	if err := l.waitLoaderError(); err != nil {
+		return errors.CategorizedErrorf(categories.Internal, "upload of %d tables failed: %w", len(tables), err)
 	}
 
 	if err := l.endSnapshot(ctx, sourceStorage); err != nil {
@@ -728,9 +795,168 @@ func (l *SnapshotLoader) uploadSingle(ctx context.Context, tables []abstract.Tab
 	return nil
 }
 
+// asyncLoadParts loads parts from sourceProvider to coordinator (CP).
+// If localProvider is used (not nil), all parts are also Appended to it and its Close() method is deferredly called.
+func (l *SnapshotLoader) asyncLoadParts(ctx context.Context, storage abstract.AsyncOperationPartsStorage, tables []abstract.TableDescription, localProvider *localTablePartProvider) error {
+	// Remove all transfer state async parts.
+	state, err := l.cp.GetTransferState(l.transfer.ID)
+	if err != nil {
+		return xerrors.Errorf("unable to get initial transfer state: %w", err)
+	}
+	var keys []string
+	for key := range state {
+		if strings.HasPrefix(key, asyncPartsStateKeyPrefix) {
+			keys = append(keys, key)
+		}
+	}
+	if len(keys) > 0 {
+		logger.Log.Info("Removing initial async parts transfer state", log.Strings("keys", keys))
+		if err := l.cp.RemoveTransferState(l.transfer.ID, keys); err != nil {
+			logger.Log.Error("Unable to remove initial async parts transfer state",
+				log.Strings("keys", keys), log.Error(err))
+		}
+	}
+
+	if localProvider != nil {
+		logger.Log.Info("Starting async load parts with local provider")
+		defer localProvider.Close()
+	} else {
+		logger.Log.Info("Starting async load parts with remote provider")
+	}
+
+	totalParts, err := storage.TotalPartsCount(ctx, tables)
+	if err != nil {
+		return errors.CategorizedErrorf(categories.Internal, "unable to get total parts count: %w", err)
+	}
+	storageProvider, cancel, err := storage.AsyncPartsProvider(tables)
+	if err != nil {
+		return errors.CategorizedErrorf(categories.Internal, "unable to create async parts provider: %w", err)
+	}
+	defer cancel()
+
+	partNumber := uint64(1)
+	for {
+		tables, err := storageProvider(ctx, asyncPartsDefaultBatchSize)
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to async get table desc: %w", err)
+		}
+		if len(tables) == 0 {
+			break
+		}
+
+		parts := make([]*model.OperationTablePart, 0, asyncPartsDefaultBatchSize)
+		for _, table := range tables {
+			part := model.NewOperationTablePartFromDescription(l.operationID, &table)
+			part.PartsCount = totalParts
+			part.PartIndex = partNumber
+			partNumber++
+			parts = append(parts, part)
+		}
+		if parts, err = l.storePartsFiltersInTransferState(parts); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to store filters in transfer state for %d tables: %w", len(tables), err)
+		}
+		l.dumpTablePartsToLogs(parts)
+		if localProvider != nil {
+			if err := localProvider.AppendParts(ctx, parts); err != nil {
+				return errors.CategorizedErrorf(categories.Internal, "unable to append parts: %w", err)
+			}
+		}
+		if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
+		}
+		if err := l.checkLoaderError(); err != nil {
+			return errors.CategorizedErrorf(categories.Internal, "upload of %d tables failed (not all parts published): %w", len(tables), err)
+		}
+	}
+	logger.Log.Info("Async load parts finished successfully")
+	return nil
+}
+
+// storeFiltersInTransferState saves data from part[i].Filter in TransferState and then replaces part[i].Filter with key
+// which can be used to obtain original data in the future. Provided parts not modified, but copied in new slice.
+func (l *SnapshotLoader) storePartsFiltersInTransferState(parts []*model.OperationTablePart) ([]*model.OperationTablePart, error) {
+	res := make([]*model.OperationTablePart, 0, len(parts))
+	state := make(map[string]*coordinator.TransferStateData, len(parts))
+	for _, part := range parts {
+		stateData := new(coordinator.TransferStateData)
+		stateData.Generic = part.Filter
+		stateKey := fmt.Sprintf("%s-%s-%d", asyncPartsStateKeyPrefix, l.operationID, part.PartIndex)
+		state[stateKey] = stateData
+		partCopy := part.Copy()
+		partCopy.Filter = stateKey
+		res = append(res, partCopy)
+	}
+	// TODO: Should be increased after TM-8898.
+	maxPartsInState := 50
+	for { // Wait when state will be less that maxPartsInState.
+		state, err := l.cp.GetTransferState(l.transfer.ID)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to check transfer state: %w", err)
+		}
+		if len(state) < maxPartsInState {
+			break
+		}
+		if err := l.checkLoaderError(); err != nil {
+			return nil, xerrors.Errorf("got upload error when waiting for transfer state clearing: %w", err)
+		}
+		time.Sleep(5 * time.Minute)
+	}
+	if err := l.cp.SetTransferState(l.transfer.ID, state); err != nil {
+		gotErrorAgain := false
+		logger.Log.Error(fmt.Sprintf("Unable to set transfer state of %d keys, logging each and retrying per one", len(state)), log.Error(err))
+		for k, v := range state {
+			if err := l.cp.SetTransferState(l.transfer.ID, map[string]*coordinator.TransferStateData{k: v}); err != nil {
+				logger.Log.Errorf("Still error on key '%s', value (%T) '%v'", k, v.GetGeneric(), v.GetGeneric())
+				gotErrorAgain = true
+			} else {
+				logger.Log.Infof("Pushed key '%s', value (%T) '%v'", k, v.GetGeneric(), v.GetGeneric())
+			}
+		}
+		if gotErrorAgain {
+			return nil, xerrors.Errorf("unable to set transfer state of %d keys: %w", len(state), err)
+		}
+	}
+	return res, nil
+}
+
+func (l *SnapshotLoader) restorePartFilterFromTransferState(part *model.OperationTablePart) (*model.OperationTablePart, error) {
+	res := part.Copy()
+	state, err := l.cp.GetTransferState(l.transfer.ID)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get transfer state: %w", err)
+	}
+	stateKey := res.Filter
+	filter := state[stateKey].GetGeneric()
+	if filter == nil {
+		return nil, xerrors.Errorf("unable to get filter by key %s from state %v", stateKey, state)
+	}
+	filterStr, ok := filter.(string)
+	if !ok {
+		return nil, xerrors.Errorf("filter from state expected to be string, got %T", filter)
+	}
+	res.Filter = filterStr
+	return res, nil
+}
+
+func (l *SnapshotLoader) removePartFilterFromTransferState(part *model.OperationTablePart) error {
+	return l.cp.RemoveTransferState(l.transfer.ID, []string{part.Filter})
+}
+
+// addKeyToJson unmarshals jsonStr to map[string]any, adds key with value and returns marshalled json.
+func addKeyToJson(jsonStr, key string, value any) ([]byte, error) {
+	dict := make(map[string]any)
+	if jsonStr != "" {
+		if err := jsonx.Unmarshal([]byte(jsonStr), &dict); err != nil {
+			return nil, xerrors.Errorf("unable to unmarshal JSON string: %w", err)
+		}
+	}
+	dict[key] = value
+	return json.Marshal(dict)
+}
+
 // extractErrorsUntil extracts errors from the passed channel and places them in a single box
 // until either the context is cancelled (or finished), or the passed channel is closed.
-func (l *SnapshotLoader) extractErrorsUntil(ctx context.Context, ch <-chan error) error {
+func extractErrorsUntil(ctx context.Context, ch <-chan error) error {
 	result := util.NewErrs()
 
 overCh:
@@ -835,29 +1061,6 @@ func (l *SnapshotLoader) sendTablePartControlEvent(event []abstract.ChangeItem, 
 	return nil
 }
 
-func (l *SnapshotLoader) GetLocalTablePartProvider(tables ...*model.OperationTablePart) TablePartProvider {
-	index := 0
-	readMutex := sync.Mutex{}
-	return func() (*model.OperationTablePart, error) {
-		readMutex.Lock()
-		defer readMutex.Unlock()
-
-		if index >= len(tables) {
-			return nil, nil
-		}
-
-		nextTable := tables[index]
-		index++
-		return nextTable, nil
-	}
-}
-
-func (l *SnapshotLoader) GetRemoteTablePartProvider() TablePartProvider {
-	return func() (*model.OperationTablePart, error) {
-		return l.cp.AssignOperationTablePart(l.operationID, l.workerIndex)
-	}
-}
-
 func (l *SnapshotLoader) DoUploadTables(ctx context.Context, source abstract.Storage, nextTablePartProvider TablePartProvider) error {
 	ctx = util.ContextWithTimestamp(ctx, time.Now())
 	ctx, cancel := context.WithCancel(ctx)
@@ -877,7 +1080,7 @@ func (l *SnapshotLoader) DoUploadTables(ctx context.Context, source abstract.Sto
 			continue
 		}
 
-		nextPart, err := nextTablePartProvider()
+		nextPart, err := nextTablePartProvider(ctx)
 		if err != nil {
 			parallelismSemaphore.Release(1)
 			logger.Log.Error("Unable to get next table to upload", log.Int("worker_index", l.workerIndex), log.Error(ctx.Err()))
@@ -965,7 +1168,19 @@ func (l *SnapshotLoader) DoUploadTables(ctx context.Context, source abstract.Sto
 					return errors.CategorizedErrorf(categories.Target, "unable to start loading table: %w", err)
 				}
 
-				if err := source.LoadTable(ctx, *nextPart.ToTableDescription(), pusher); err != nil {
+				var loadTableInput *abstract.TableDescription
+				_, isAsyncParts := source.(abstract.AsyncOperationPartsStorage)
+				if isAsyncParts {
+					fullPart, err := l.restorePartFilterFromTransferState(nextPart)
+					if err != nil {
+						return xerrors.Errorf("unable to restore part '%v' from state: %w", nextPart, err)
+					}
+					loadTableInput = fullPart.ToTableDescription()
+				} else {
+					loadTableInput = nextPart.ToTableDescription()
+				}
+
+				if err := source.LoadTable(ctx, *loadTableInput, pusher); err != nil {
 					logger.Log.Error(
 						fmt.Sprintf("Failed to load table '%v' on worker %v", nextPart, l.workerIndex),
 						log.Any("table_part", nextPart), log.Int("worker_index", l.workerIndex), log.Error(err))
@@ -973,6 +1188,12 @@ func (l *SnapshotLoader) DoUploadTables(ctx context.Context, source abstract.Sto
 						err = backoff.Permanent(err)
 					}
 					return errors.CategorizedErrorf(categories.Source, "failed to load table '%s': %w", nextPart, err)
+				}
+
+				if isAsyncParts {
+					if err := l.removePartFilterFromTransferState(nextPart); err != nil {
+						logger.Log.Error("Unable to remove transfer state", log.String("key", nextPart.Filter), log.Error(err))
+					}
 				}
 
 				doneTableLoad := abstract.MakeDoneTableLoad(logPosition, *nextPart.ToTableDescription(), timestampTz, schema)

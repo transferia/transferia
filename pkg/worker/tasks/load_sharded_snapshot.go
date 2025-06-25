@@ -47,7 +47,11 @@ func (l *SnapshotLoader) ReadFromCPShardState(ctx context.Context) (string, erro
 	if err := l.WaitWorkersInitiated(ctx); err != nil {
 		return "", errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task metadata initialization: %w", err)
 	}
+	return l.getShardStateNoWait(ctx)
+}
 
+// getShardStateNoWait is GetShardState, but do not calls WaitWorkersInitiated.
+func (l *SnapshotLoader) getShardStateNoWait(ctx context.Context) (string, error) {
 	result, err := backoff.RetryNotifyWithData(
 		func() (string, error) {
 			stateMsg, err := l.cp.GetOperationState(l.operationID)

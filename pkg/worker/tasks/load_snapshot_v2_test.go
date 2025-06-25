@@ -21,6 +21,6 @@ func TestSnapshotLoader_doUploadTablesV2(t *testing.T) {
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := snapshotLoader.doUploadTablesV2(ctx, nil, snapshotLoader.GetLocalTablePartProvider())
+	err := snapshotLoader.doUploadTablesV2(ctx, nil, NewLocalTablePartProvider().TablePartProvider())
 	require.NoError(t, err)
 }

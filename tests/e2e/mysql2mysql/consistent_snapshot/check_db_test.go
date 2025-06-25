@@ -137,7 +137,8 @@ func Snapshot(t *testing.T) {
 
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), operationID, transfer, helpers.EmptyRegistry())
 
-	err = snapshotLoader.DoUploadTables(context.TODO(), storage, snapshotLoader.GetLocalTablePartProvider(operationTables...))
+	partProvider := tasks.NewLocalTablePartProvider(operationTables...)
+	err = snapshotLoader.DoUploadTables(context.TODO(), storage, partProvider.TablePartProvider())
 	require.NoError(t, err)
 
 	err = mysqlStorage.EndSnapshot(context.TODO())
