@@ -18,9 +18,12 @@ import (
 )
 
 const (
-	changeItemsBatchSize = 10000
-	readFileBlockSize    = 25 * humanize.MiByte
-	parseQueueCap        = 250 * humanize.MiByte / readFileBlockSize
+	changeItemsBatchSize = 250 * humanize.MiByte // Total amount of RAM used for prepared changeitems.
+	changeItemsBatchCap  = 1000
+
+	// Size of one file block (used when reading pipe). Its not recommended to change that setting.
+	fileBlockSize       = 25 * humanize.MiByte
+	fileBlocksBatchSize = 250 * humanize.MiByte // Total amount of RAM used to store file blocks.
 )
 
 type AsyncSplitter struct {
@@ -34,7 +37,7 @@ func InitAsyncSplitter(input <-chan []byte) *AsyncSplitter {
 	s := &AsyncSplitter{
 		quotesCnt: 0,
 		buffer:    nil,
-		ResCh:     make(chan [][]byte, parseQueueCap),
+		ResCh:     make(chan [][]byte, fileBlocksBatchSize/fileBlockSize),
 		DoneCh:    make(chan error, 1),
 	}
 	go func() {
@@ -92,23 +95,25 @@ type PipeReader struct {
 
 func (r *PipeReader) readFromPipe(file *os.File, pusher abstract.Pusher) (int64, error) {
 	pushedCnt := int64(0)
-	parseQueue := make(chan []byte, parseQueueCap)
+	parseQueue := make(chan []byte, fileBlocksBatchSize/fileBlockSize)
 	splitter := InitAsyncSplitter(parseQueue)
 
 	eg := errgroup.Group{}
 	eg.Go(func() error {
-		batch := make([]abstract.ChangeItem, 0, changeItemsBatchSize)
+		batch := make([]abstract.ChangeItem, 0, changeItemsBatchCap)
+		batchSize := 0
 		for lines := range splitter.ResCh {
 			for _, line := range lines {
 				batch = append(batch, r.itemFromTemplate(line))
-				if len(batch) < changeItemsBatchSize {
+				batchSize += len(line) * humanize.Byte
+				if len(batch) < cap(batch) && batchSize < changeItemsBatchSize {
 					continue
 				}
 				if err := pusher(batch); err != nil {
 					return xerrors.Errorf("unable to push %d-elements batch: %w", len(batch), err)
 				}
 				pushedCnt += int64(len(batch))
-				batch = make([]abstract.ChangeItem, 0, changeItemsBatchSize)
+				batch = make([]abstract.ChangeItem, 0, changeItemsBatchCap)
 			}
 		}
 		if len(batch) > 0 {
@@ -123,7 +128,7 @@ func (r *PipeReader) readFromPipe(file *os.File, pusher abstract.Pusher) (int64,
 	eg.Go(func() error {
 		defer close(parseQueue)
 		for {
-			b := make([]byte, readFileBlockSize)
+			b := make([]byte, fileBlockSize)
 			n, err := io.ReadAtLeast(file, b, len(b))
 			if err == io.EOF {
 				break

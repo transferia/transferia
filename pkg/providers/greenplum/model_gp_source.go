@@ -13,7 +13,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/connection"
 	"github.com/transferia/transferia/pkg/connection/greenplum"
-	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/utils"
 )
@@ -25,7 +24,6 @@ type GpSource struct {
 	AdvancedProps    GpSourceAdvancedProps
 	SubnetID         string
 	SecurityGroupIDs []string
-	GpfdistParams    gpfdistbin.GpfdistParams
 }
 
 var _ model.Source = (*GpSource)(nil)
@@ -54,6 +52,8 @@ type GpSourceAdvancedProps struct {
 	// AllowCoordinatorTxFailure disables coordinator TX monitoring (liveness monitor) and enables the transfer to finish snapshot successfully even if the coordinator TX fails
 	AllowCoordinatorTxFailure    bool
 	LivenessMonitorCheckInterval time.Duration
+	DisableGpfdist               bool
+	GpfdistBinPath               string
 }
 
 func (p *GpSourceAdvancedProps) Validate() error {
@@ -319,7 +319,6 @@ func (s *GpHP) Valid() bool {
 func (s *GpSource) WithDefaults() {
 	s.Connection.WithDefaults()
 	s.AdvancedProps.WithDefaults()
-	s.GpfdistParams.WithDefaults()
 }
 
 func (s *GpSource) GetProviderType() abstract.ProviderType {

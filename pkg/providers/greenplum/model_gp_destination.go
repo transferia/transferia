@@ -7,7 +7,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	ch_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 )
@@ -24,11 +24,18 @@ type GpDestination struct {
 	BufferTriggingInterval time.Duration
 
 	QueryTimeout  time.Duration
-	GpfdistParams gpfdistbin.GpfdistParams
+	gpfdistParams gpfdistbin.GpfdistParams
 }
 
 var _ dp_model.Destination = (*GpDestination)(nil)
 var _ dp_model.WithConnectionID = (*GpDestination)(nil)
+
+func (d *GpDestination) FillDependentFields(transfer *dp_model.Transfer) {
+	if src, ok := transfer.Src.(*GpSource); ok {
+		threads := transfer.ParallelismParams().ProcessCount
+		d.gpfdistParams = gpfdistbin.NewGpfdistParams(src.AdvancedProps.GpfdistBinPath, src.AdvancedProps.ServiceSchema, threads)
+	}
+}
 
 func (d *GpDestination) GetConnectionID() string {
 	return d.Connection.ConnectionID
@@ -45,14 +52,13 @@ func (d *GpDestination) IsDestination() {}
 
 func (d *GpDestination) WithDefaults() {
 	d.Connection.WithDefaults()
-	d.GpfdistParams.WithDefaults()
 
 	if d.CleanupPolicy.IsValid() != nil {
 		d.CleanupPolicy = dp_model.DisabledCleanup
 	}
 
 	if d.BufferTriggingSize == 0 {
-		d.BufferTriggingSize = model.BufferTriggingSizeDefault
+		d.BufferTriggingSize = ch_model.BufferTriggingSizeDefault
 	}
 
 	if d.QueryTimeout == 0 {
@@ -61,7 +67,7 @@ func (d *GpDestination) WithDefaults() {
 }
 
 func (d *GpDestination) BuffererConfig() *bufferer.BuffererConfig {
-	if d.GpfdistParams.IsEnabled {
+	if d.gpfdistParams.IsEnabled {
 		// Since gpfdist is only supported for Greenplum source with gpfdist
 		// enabled, there is no need in custom bufferer at all.
 		return nil
@@ -104,10 +110,10 @@ func (d *GpDestination) ToGpSource() *GpSource {
 		AdvancedProps: *(func() *GpSourceAdvancedProps {
 			result := new(GpSourceAdvancedProps)
 			result.WithDefaults()
+			result.DisableGpfdist = !d.gpfdistParams.IsEnabled
 			return result
 		}()),
 		SubnetID:         "",
 		SecurityGroupIDs: nil,
-		GpfdistParams:    d.GpfdistParams,
 	}
 }

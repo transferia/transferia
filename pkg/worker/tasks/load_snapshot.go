@@ -151,6 +151,9 @@ func (l *SnapshotLoader) endpointsPreSnapshotActions(sourceStorage abstract.Stor
 	switch specificStorage := sourceStorage.(type) {
 	case *greenplum.Storage:
 		specificStorage.SetWorkersCount(l.parallelismParams.JobCount)
+	case *greenplum.GpfdistStorage:
+		specificStorage.SetProcessCount(l.parallelismParams.ProcessCount)
+		l.parallelismParams.ProcessCount = 1
 	}
 
 	if dst, ok := l.transfer.Dst.(model.HackableTarget); ok {

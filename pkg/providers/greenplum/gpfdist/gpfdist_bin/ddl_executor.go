@@ -23,23 +23,25 @@ const (
 )
 
 type GpfdistDDLExecutor struct {
-	conn *pgxpool.Pool
+	conn          *pgxpool.Pool
+	serviceSchema string
 }
 
-func temporaryTable(schema string, name string) (ttSchema string, ttName string) {
-	return schema, "_dt_" + name
+func tmpExtTableName(name string) string {
+	return "_dt_" + name + "__ext"
 }
 
-func (d *GpfdistDDLExecutor) createExternalTableAndInsertRows(
+func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 	ctx context.Context, mode externalTableMode, table abstract.TableID,
-	schema *abstract.TableSchema, serviceSchema string, locations []string,
+	schema *abstract.TableSchema, locations []string,
 ) (int64, error) {
+	serviceSchema := d.serviceSchema
 	if serviceSchema == "" {
 		serviceSchema = table.Namespace
 	}
 	var sourceTableName, targetTableName string
 	tableName := abstract.PgName(table.Namespace, table.Name)
-	externalTableName := abstract.PgName(temporaryTable(serviceSchema, table.Name+"__ext"))
+	externalTableName := abstract.PgName(serviceSchema, tmpExtTableName(table.Name))
 	switch mode {
 	case modeWritable:
 		sourceTableName, targetTableName = tableName, externalTableName
@@ -137,6 +139,6 @@ func (d *GpfdistDDLExecutor) buildSelectAndInsertQuery(sourceTable, targetTable 
 	return fmt.Sprintf("INSERT INTO %s (%s) SELECT %s FROM %s", targetTable, columnsString, columnsString, sourceTable)
 }
 
-func NewGpfdistDDLExecutor(conn *pgxpool.Pool) *GpfdistDDLExecutor {
-	return &GpfdistDDLExecutor{conn: conn}
+func NewGpfdistDDLExecutor(conn *pgxpool.Pool, serviceSchema string) *GpfdistDDLExecutor {
+	return &GpfdistDDLExecutor{conn: conn, serviceSchema: serviceSchema}
 }
