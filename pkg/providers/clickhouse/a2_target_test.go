@@ -48,7 +48,7 @@ func TestTargetPush(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, <-target.AsyncPush(
 		&schema.DDLBatch{
-			DDLs: []schema.TableDDL{
+			DDLs: []*schema.TableDDL{
 				schema.NewTableDDL(
 					tID,
 					"CREATE TABLE mtmobproxy.foo_bar ("+

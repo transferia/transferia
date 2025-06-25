@@ -52,7 +52,7 @@ func (s *ShardStorage) Version() semver.Version {
 	return s.defaultShard().Version()
 }
 
-func (s *ShardStorage) LoadTablesDDL(tables []abstract.TableID) ([]schema.TableDDL, error) {
+func (s *ShardStorage) LoadTablesDDL(tables []abstract.TableID) ([]*schema.TableDDL, error) {
 	return s.defaultShard().LoadTablesDDL(tables)
 }
 

@@ -16,7 +16,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/ptr"
-	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/base"
 	"github.com/transferia/transferia/pkg/base/events"
@@ -182,48 +181,15 @@ func (c *HTTPTarget) Close() error {
 	return nil
 }
 
-func (c *HTTPTarget) adjustDDLToTarget(ddl schema.TableDDL, distributed bool) (string, error) {
-	ddlChangeItem := ddl.ToChangeItem()
-	sqlDDL := ddl.SQL()
-	sqlDDL = schema.SetTargetDatabase(sqlDDL, ddl.TableID().Namespace, c.config.Database())
-	sqlDDL = schema.SetAltName(sqlDDL, c.config.Database(), MakeAltNames(c.config))
-	sqlDDL = schema.SetIfNotExists(sqlDDL)
-	switch ddlChangeItem.Kind {
-	case abstract.ChCreateTableDistributedKind:
-		sqlDDL = schema.ReplaceCluster(sqlDDL, c.cluster.Name())
-	}
-	if distributed {
-		if ddlChangeItem.Kind == abstract.ChCreateTableKind {
-			sqlDDL = schema.MakeDistributedDDL(sqlDDL, c.cluster.Name())
-		}
-		engine := ddlChangeItem.ColumnValues[1].(string)
-		if engine == string(schema.MaterializedView) {
-			underlying, _, err := schema.ParseMergeTreeFamilyEngine(sqlDDL)
-			if err != nil {
-				c.logger.Warnf("unsupported engine in materialized view %v.%v: %v", ddl.TableID().Namespace, ddl.TableID().Name, err)
-				return sqlDDL, nil
-			}
-			engine = string(underlying.Type)
-		}
-
-		if schema.IsSharedEngineType(engine) {
-			replicated, err := schema.GetReplicatedFromSharedEngineType(engine)
-			if err != nil {
-				return "", xerrors.Errorf("unable to get replicated from shared engine: %w", err)
-			}
-
-			sqlDDL = strings.Replace(sqlDDL, engine, replicated, 1)
-		}
-
-		if schema.IsMergeTreeFamily(engine) && !schema.IsReplicatedEngineType(engine) && !schema.IsSharedEngineType(engine) {
-			if query, err := schema.SetReplicatedEngine(sqlDDL, engine, ddl.TableID().Namespace, ddl.TableID().Name); err != nil {
-				return query, xerrors.Errorf("unable to set replicated table engine: %w", err)
-			} else {
-				sqlDDL = query
-			}
-		}
-	} // maybe we also should decrease engine
-	return sqlDDL, nil
+func (c *HTTPTarget) adjustDDLToTarget(ddl *schema.TableDDL, distributed bool) (string, error) {
+	return schema.BuildDDLForSink(
+		c.logger,
+		ddl,
+		distributed,
+		c.cluster.Name(),
+		c.config.Database(),
+		MakeAltNames(c.config),
+	)
 }
 
 func (c *HTTPTarget) HostByPart(part *TablePartA2) *clickhouse.Host {

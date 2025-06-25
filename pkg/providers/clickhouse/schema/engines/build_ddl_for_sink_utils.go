@@ -1,4 +1,4 @@
-package schema
+package engines
 
 import (
 	"fmt"
@@ -30,27 +30,33 @@ func ReplaceCluster(sql, cluster string) string {
 	return strings.Replace(sql, onCluster, fmt.Sprintf(" ON CLUSTER `%s`", cluster), 1)
 }
 
-func SetReplicatedEngine(sql, baseEngine, db, table string) (string, error) {
-	if IsReplicatedEngineType(baseEngine) {
+func parseMergeTreeFamilyEngine(sql string) (*mergeTreeFamilyEngine, string, error) {
+	_, engineStr, found := parser.ExtractNameClusterEngine(sql)
+	if !found {
+		return nil, "", fmt.Errorf("invalid sql: could not parse")
+	}
+
+	return newMergeTreeFamilyEngine(engineStr), engineStr, nil
+}
+
+func setReplicatedEngine(sql, baseEngine, db, table string) (string, error) {
+	if isReplicatedEngineType(baseEngine) {
 		return sql, nil
 	}
 
-	engine, engineStr, err := ParseMergeTreeFamilyEngine(sql)
+	currEngine, engineStr, err := parseMergeTreeFamilyEngine(sql)
 	if err != nil {
 		return "", xerrors.Errorf("unable to parse engine from ddl: %w", err)
 	}
-	if EngineType(baseEngine) != engine.Type {
-		return "", xerrors.Errorf("parsed engine(%v) is not equal with passed engine(%v)", engine.Type, baseEngine)
+	if engineType(baseEngine) != currEngine.Type {
+		return "", xerrors.Errorf("parsed engine(%v) is not equal with passed engine(%v)", currEngine.Type, baseEngine)
 	}
 
-	replicatedEngine, err := NewReplicatedEngine(engine, db, table)
-	if err != nil {
-		return "", xerrors.Errorf("unable to make replicated engine: %w", err)
-	}
+	replicatedEngine := newReplicatedEngine(currEngine, db, table)
 	return strings.Replace(sql, engineStr, replicatedEngine.String(), 1), nil
 }
 
-func SetIfNotExists(sql string) string {
+func setIfNotExists(sql string) string {
 	if !strings.Contains(sql, "IF NOT EXISTS") {
 		switch {
 		case strings.Contains(sql, "CREATE TABLE"):
@@ -62,7 +68,7 @@ func SetIfNotExists(sql string) string {
 	return sql
 }
 
-func MakeDistributedDDL(sql, cluster string) string {
+func makeDistributedDDL(sql, cluster string) string {
 	if IsDistributedDDL(sql) {
 		return ReplaceCluster(sql, cluster)
 	}
@@ -70,7 +76,7 @@ func MakeDistributedDDL(sql, cluster string) string {
 	return strings.Replace(sql, "(", fmt.Sprintf(" ON CLUSTER `%v` (", cluster), 1)
 }
 
-func SetTargetDatabase(ddl string, sourceDB, targetDB string) string {
+func setTargetDatabase(ddl string, sourceDB, targetDB string) string {
 	if targetDB == "" {
 		return ddl
 	}
@@ -83,7 +89,7 @@ func SetTargetDatabase(ddl string, sourceDB, targetDB string) string {
 	return ddl
 }
 
-func SetAltName(ddl string, targetDB string, names map[string]string) string {
+func setAltName(ddl string, targetDB string, names map[string]string) string {
 	for from, to := range names {
 		switch {
 		case strings.Contains(ddl, fmt.Sprintf("CREATE TABLE %v.%v", targetDB, from)):
