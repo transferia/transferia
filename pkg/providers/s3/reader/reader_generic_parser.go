@@ -35,17 +35,18 @@ var (
 )
 
 type GenericParserReader struct {
-	table       abstract.TableID
-	bucket      string
-	client      s3iface.S3API
-	downloader  *s3manager.Downloader
-	logger      log.Logger
-	tableSchema *abstract.TableSchema
-	pathPrefix  string
-	blockSize   int64
-	pathPattern string
-	metrics     *stats.SourceStats
-	parser      parsers.Parser
+	table          abstract.TableID
+	bucket         string
+	client         s3iface.S3API
+	downloader     *s3manager.Downloader
+	logger         log.Logger
+	tableSchema    *abstract.TableSchema
+	pathPrefix     string
+	blockSize      int64
+	pathPattern    string
+	metrics        *stats.SourceStats
+	parser         parsers.Parser
+	unparsedPolicy s3.UnparsedPolicy
 }
 
 func (r *GenericParserReader) newS3RawReader(ctx context.Context, filePath string) (*s3raw.S3RawReader, error) {
@@ -191,7 +192,7 @@ func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, s3
 			break
 		}
 	}
-	return r.parser.Do(parsers.Message{
+	parsed := r.parser.Do(parsers.Message{
 		Offset:     0,
 		SeqNo:      0,
 		Key:        nil,
@@ -199,7 +200,14 @@ func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, s3
 		WriteTime:  s3RawReader.LastModified(),
 		Value:      fullFile,
 		Headers:    nil,
-	}, abstract.NewPartition(filePath, 0)), nil
+	}, abstract.NewPartition(filePath, 0))
+
+	if r.unparsedPolicy == s3.UnparsedPolicyFail {
+		if err := parsers.VerifyUnparsed(parsed); err != nil {
+			return nil, abstract.NewFatalError(xerrors.Errorf("unable to parse: %w", err))
+		}
+	}
+	return parsed, nil
 }
 
 func (r *GenericParserReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, error) {
@@ -266,16 +274,17 @@ func NewGenericParserReader(src *s3.S3Source, lgr log.Logger, sess *session.Sess
 			Namespace: src.TableNamespace,
 			Name:      src.TableName,
 		},
-		bucket:      src.Bucket,
-		client:      aws_s3.New(sess),
-		downloader:  s3manager.NewDownloader(sess),
-		logger:      lgr,
-		tableSchema: abstract.NewTableSchema(src.OutputSchema),
-		pathPrefix:  src.PathPrefix,
-		blockSize:   defaultBlockSize,
-		pathPattern: src.PathPattern,
-		metrics:     metrics,
-		parser:      parser,
+		bucket:         src.Bucket,
+		client:         aws_s3.New(sess),
+		downloader:     s3manager.NewDownloader(sess),
+		logger:         lgr,
+		tableSchema:    abstract.NewTableSchema(src.OutputSchema),
+		pathPrefix:     src.PathPrefix,
+		blockSize:      defaultBlockSize,
+		pathPattern:    src.PathPattern,
+		metrics:        metrics,
+		parser:         parser,
+		unparsedPolicy: src.UnparsedPolicy,
 	}
 
 	if len(reader.tableSchema.Columns()) == 0 {
