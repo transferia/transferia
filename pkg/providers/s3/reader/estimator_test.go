@@ -15,7 +15,7 @@ import (
 
 // Reader function to return dummy S3RawReader with specified sizes
 func dummyReaderF(sizes map[string]int64) readerCtorF {
-	return func(ctx context.Context, filePath string) (s3raw.AbstractS3RawReader, error) {
+	return func(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
 		fileSize, exists := sizes[filePath]
 		if !exists {
 			return nil, xerrors.Errorf("file not found: %s", filePath)

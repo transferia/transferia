@@ -99,8 +99,8 @@ func (r *LineReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (
 	return res, nil
 }
 
-func (r *LineReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.AbstractS3RawReader, error) {
-	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
+func (r *LineReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}

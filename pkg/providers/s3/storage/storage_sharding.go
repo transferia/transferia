@@ -23,8 +23,14 @@ const (
 	s3VersionCol  = "s3_file_version"
 )
 
-func S3FileFilter(filepath string) abstract.WhereStatement {
+// defaultShardingFilter used for shardDefault.
+func defaultShardingFilter(filepath string) abstract.WhereStatement {
 	return abstract.WhereStatement(fmt.Sprintf(`"%s" = '%s'`, s3FileNameCol, filepath))
+}
+
+// ManyFilesShardingFilter used for shardByLimits.
+func ManyFilesShardingFilter(filepaths []string) abstract.WhereStatement {
+	return abstract.WhereStatement(fmt.Sprintf("%s IN ('%s')", s3FileNameCol, strings.Join(filepaths, "','")))
 }
 
 type FileWithStats struct {
@@ -101,7 +107,7 @@ func (s *Storage) shardDefault(tdesc abstract.TableDescription, files []*FileWit
 		res = append(res, abstract.TableDescription{
 			Name:   s.cfg.TableName,
 			Schema: s.cfg.TableNamespace,
-			Filter: abstract.FiltersIntersection(tdesc.Filter, S3FileFilter(*file.Key)),
+			Filter: abstract.FiltersIntersection(tdesc.Filter, defaultShardingFilter(*file.Key)),
 			EtaRow: file.Rows,
 			Offset: 0,
 		})
@@ -128,7 +134,7 @@ func (s *Storage) shardByLimits(files []*FileWithStats) ([]abstract.TableDescrip
 			res = append(res, abstract.TableDescription{
 				Name:   s.cfg.TableName,
 				Schema: s.cfg.TableNamespace,
-				Filter: abstract.WhereStatement(fmt.Sprintf("%s IN ('%s')", s3FileNameCol, strings.Join(partFiles, "','"))),
+				Filter: ManyFilesShardingFilter(partFiles),
 				EtaRow: partRows,
 				Offset: 0,
 			})

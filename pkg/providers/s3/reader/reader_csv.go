@@ -130,8 +130,8 @@ func (r *CSVReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, er
 	return res, nil
 }
 
-func (r *CSVReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.AbstractS3RawReader, error) {
-	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
+func (r *CSVReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
@@ -202,7 +202,7 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher chunk_push
 // It returns a *csv.Reader that should be used for csv rows reading.
 // It returns a boolean flag if the end of the end of the S3 file was reached.
 // It returns any error it encounters during the reading process.
-func (r *CSVReader) readBufferFromS3(s3RawReader s3raw.AbstractS3RawReader, offsetInFile int64) (*csv.Reader, bool, error) {
+func (r *CSVReader) readBufferFromS3(s3RawReader s3raw.S3RawReader, offsetInFile int64) (*csv.Reader, bool, error) {
 	data := make([]byte, r.blockSize)
 	endOfFile := false
 	n, err := s3RawReader.ReadAt(data, offsetInFile)

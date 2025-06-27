@@ -49,7 +49,6 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		syncPusher := pusher.New(func(items []abstract.ChangeItem) error {
 			for i, item := range items {
 				if item.IsRowEvent() {
-					items[i].PartID = table.PartID()
 					items[i].Schema = s.cfg.TableNamespace
 					items[i].Table = s.cfg.TableName
 				}

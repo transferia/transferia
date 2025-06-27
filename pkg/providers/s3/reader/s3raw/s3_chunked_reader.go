@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -70,7 +71,15 @@ func (r *chunkedReader) ReadAt(p []byte, off int64) (int, error) {
 	return n, err
 }
 
-func newChunkedReader(fetcher *s3Fetcher, stats *stats.SourceStats) (io.ReaderAt, error) {
+func (r *chunkedReader) LastModified() time.Time {
+	return r.fetcher.lastModified()
+}
+
+func (r *chunkedReader) Size() int64 {
+	return r.fetcher.size()
+}
+
+func newChunkedReader(fetcher *s3Fetcher, stats *stats.SourceStats) (S3RawReader, error) {
 	if fetcher == nil {
 		return nil, xerrors.New("missing s3 fetcher for chunked reader")
 	}

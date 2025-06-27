@@ -42,7 +42,7 @@ type ReaderParquet struct {
 	pathPrefix     string
 	pathPattern    string
 	metrics        *stats.SourceStats
-	s3RawReader    *s3raw.S3RawReader
+	s3RawReader    s3raw.S3RawReader
 }
 
 func (r *ReaderParquet) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
@@ -183,7 +183,7 @@ func (r *ReaderParquet) resolveSchema(ctx context.Context, filePath string) (*ab
 }
 
 func (r *ReaderParquet) openReader(ctx context.Context, filePath string) (*parquet.Reader, error) {
-	sr, err := s3raw.NewS3RawReader(ctx, r.client, nil, r.bucket, filePath, r.metrics)
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}

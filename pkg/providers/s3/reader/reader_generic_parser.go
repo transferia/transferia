@@ -49,8 +49,8 @@ type GenericParserReader struct {
 	unparsedPolicy s3.UnparsedPolicy
 }
 
-func (r *GenericParserReader) newS3RawReader(ctx context.Context, filePath string) (*s3raw.S3RawReader, error) {
-	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
+func (r *GenericParserReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
@@ -65,7 +65,7 @@ func (r *GenericParserReader) newS3RawReader(ctx context.Context, filePath strin
 // 3. Divide size of all files by average line size to get result (total rows count).
 func (r *GenericParserReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	totalSize := atomic.Int64{}
-	var randomReader *s3raw.S3RawReader
+	var randomReader s3raw.S3RawReader
 
 	// 1. Open readers for all files to obtain their sizes.
 	eg := errgroup.Group{}
@@ -163,41 +163,18 @@ func (r *GenericParserReader) ParsePassthrough(chunk chunk_pusher.Chunk) []abstr
 	return chunk.Items
 }
 
-func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, s3RawReader *s3raw.S3RawReader) ([]abstract.ChangeItem, error) {
-	offset := 0
-
-	var fullFile []byte
-	for {
-		select {
-		case <-ctx.Done():
-			r.logger.Info("Read canceled")
-			return nil, nil
-		default:
-		}
-		data := make([]byte, r.blockSize)
-		lastRound := false
-		n, err := s3RawReader.ReadAt(data, int64(offset))
-		if err != nil {
-			if xerrors.Is(err, io.EOF) && n > 0 {
-				data = data[0:n]
-				lastRound = true
-			} else {
-				return nil, xerrors.Errorf("failed to read from file: %w", err)
-			}
-		}
-		offset += n
-
-		fullFile = append(fullFile, data...)
-		if lastRound {
-			break
-		}
+func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, reader s3raw.S3RawReader) ([]abstract.ChangeItem, error) {
+	fullFile, err := s3raw.ReadWholeFile(ctx, reader, r.blockSize)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to read whole file: %w", err)
 	}
+
 	parsed := r.parser.Do(parsers.Message{
 		Offset:     0,
 		SeqNo:      0,
 		Key:        nil,
-		CreateTime: s3RawReader.LastModified(),
-		WriteTime:  s3RawReader.LastModified(),
+		CreateTime: reader.LastModified(),
+		WriteTime:  reader.LastModified(),
 		Value:      fullFile,
 		Headers:    nil,
 	}, abstract.NewPartition(filePath, 0))
@@ -207,6 +184,7 @@ func (r *GenericParserReader) ParseFile(ctx context.Context, filePath string, s3
 			return nil, abstract.NewFatalError(xerrors.Errorf("unable to parse: %w", err))
 		}
 	}
+
 	return parsed, nil
 }
 
