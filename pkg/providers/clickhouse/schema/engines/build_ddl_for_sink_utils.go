@@ -8,7 +8,7 @@ import (
 	parser "github.com/transferia/transferia/pkg/providers/clickhouse/schema/ddl_parser"
 )
 
-func IsDistributedDDL(sql string) bool {
+func isDistributedDDL(sql string) bool {
 	onCluster, _, found := parser.ExtractNameClusterEngine(sql)
 	if !found {
 		return false
@@ -17,7 +17,7 @@ func IsDistributedDDL(sql string) bool {
 	return strings.Trim(onCluster, " \t\n\r") != ""
 }
 
-func ReplaceCluster(sql, cluster string) string {
+func replaceCluster(sql, cluster string) string {
 	onCluster, _, found := parser.ExtractNameClusterEngine(sql)
 	if !found {
 		return sql
@@ -30,13 +30,13 @@ func ReplaceCluster(sql, cluster string) string {
 	return strings.Replace(sql, onCluster, fmt.Sprintf(" ON CLUSTER `%s`", cluster), 1)
 }
 
-func parseMergeTreeFamilyEngine(sql string) (*mergeTreeFamilyEngine, string, error) {
+func parseMergeTreeFamilyEngine(sql string) (*anyEngine, string, error) {
 	_, engineStr, found := parser.ExtractNameClusterEngine(sql)
 	if !found {
 		return nil, "", fmt.Errorf("invalid sql: could not parse")
 	}
 
-	return newMergeTreeFamilyEngine(engineStr), engineStr, nil
+	return newAnyEngine(engineStr), engineStr, nil
 }
 
 func setReplicatedEngine(sql, baseEngine, db, table string) (string, error) {
@@ -48,12 +48,12 @@ func setReplicatedEngine(sql, baseEngine, db, table string) (string, error) {
 	if err != nil {
 		return "", xerrors.Errorf("unable to parse engine from ddl: %w", err)
 	}
-	if engineType(baseEngine) != currEngine.Type {
-		return "", xerrors.Errorf("parsed engine(%v) is not equal with passed engine(%v)", currEngine.Type, baseEngine)
+	if engineType(baseEngine) != currEngine.engineType {
+		return "", xerrors.Errorf("parsed engine(%v) is not equal with passed engine(%v)", currEngine.engineType, baseEngine)
 	}
 
-	replicatedEngine := newReplicatedEngine(currEngine, db, table)
-	return strings.Replace(sql, engineStr, replicatedEngine.String(), 1), nil
+	currReplicatedEngine := newReplicatedEngine(currEngine, db, table)
+	return strings.Replace(sql, engineStr, currReplicatedEngine.String(), 1), nil
 }
 
 func setIfNotExists(sql string) string {
@@ -68,9 +68,9 @@ func setIfNotExists(sql string) string {
 	return sql
 }
 
-func makeDistributedDDL(sql, cluster string) string {
-	if IsDistributedDDL(sql) {
-		return ReplaceCluster(sql, cluster)
+func makeOnClusterClusterName(sql, cluster string) string {
+	if isDistributedDDL(sql) {
+		return replaceCluster(sql, cluster)
 	}
 
 	return strings.Replace(sql, "(", fmt.Sprintf(" ON CLUSTER `%v` (", cluster), 1)

@@ -95,6 +95,22 @@ func (d *DDLDAO) CreateTable(db, table string, schema []abstract.ColSchema) erro
 	})
 }
 
+// DDLDAO is universal mechanism, which can be used over cluster/shard/host
+//
+// Let's me remind you - 'pkg/clickhouse/async' mechanism works with temporary tables in clickhouse.
+// So, we have created dst table, and should create new tmp parts and merge them into dst table.
+//
+// So, method 'CreateTableAs':
+//     * takes engine (with parameters) from dst_table (which is called here 'base')
+//     * takes flag 'distributed', which is filled by some another component
+//     * creates
+//
+// glossary:
+//     * baseDB      - database of 'dst' table
+//     * baseTable   - tableName of 'dst' table
+//     * targetDB    - database of 'tmp' table
+//     * targetTable - tableName of 'tmp' table
+
 func (d *DDLDAO) CreateTableAs(baseDB, baseTable, targetDB, targetTable string) error {
 	var baseEngine string
 	if err := d.db.QueryRowContext(
@@ -113,20 +129,26 @@ func (d *DDLDAO) CreateTableAs(baseDB, baseTable, targetDB, targetTable string) 
 
 		d.lgr.Infof("Creating table %s.%s as %s.%s with engine %s", targetDB, targetTable, baseDB, baseTable, engineStr)
 
+		result := ""
 		if distributed {
-			return fmt.Sprintf(`
+			result = fmt.Sprintf(`
 				CREATE TABLE IF NOT EXISTS "%s"."%s" ON CLUSTER %s AS "%s"."%s"
 				ENGINE = %s`,
-				targetDB, targetTable, cluster, baseDB, baseTable, engineStr), nil
-		}
-		return fmt.Sprintf(`
+				targetDB, targetTable, cluster, baseDB, baseTable, engineStr)
+		} else {
+			result = fmt.Sprintf(`
 			CREATE TABLE IF NOT EXISTS "%s"."%s" AS "%s"."%s"
-			ENGINE = %s`, targetDB, targetTable, baseDB, baseTable, engineStr), nil
+			ENGINE = %s`, targetDB, targetTable, baseDB, baseTable, engineStr)
+		}
+
+		d.lgr.Infof("build query: %s", result)
+
+		return result, nil
 	})
 }
 
 func (d *DDLDAO) inferEngine(rawEngine string, needReplicated bool, db, table string) (string, error) {
-	return engines.InferEngineForDAO(rawEngine, needReplicated, db, table, d.zkPath(db, table))
+	return engines.FixEngine(rawEngine, needReplicated, db, table, d.zkPath(db, table))
 }
 
 func (d *DDLDAO) zkPath(db, table string) string {

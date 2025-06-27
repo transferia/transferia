@@ -208,7 +208,7 @@ func TestAdjustDDLToTarget(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "CREATE TABLE IF NOT EXISTS `distribution_ch_test`.test_distr  ON CLUSTER `179f2d18-5c22-4e2b-9558-55f605a410ca` "+
 			"(dt Date, data String) "+
-			"ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/db.test_distributed_ddl_cdc', '{replica}') "+
+			"ENGINE = ReplicatedMergeTree() "+
 			"PARTITION BY dt ORDER BY tuple()", res)
 	})
 

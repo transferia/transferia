@@ -207,7 +207,7 @@ func (s *sinkShard) pushBatch(input []abstract.ChangeItem) error {
 			if err := s.cluster.TruncateTable(targetTable); err != nil {
 				return xerrors.Errorf("unable to truncate: %v:%w", targetTable, err)
 			}
-		case abstract.ChCreateTableKind, abstract.ChCreateTableDistributedKind:
+		case abstract.ChCreateTableKind:
 			if len(row.ColumnValues) < 2 {
 				return abstract.NewFatalError(xerrors.Errorf("to small event packet: %v", len(row.ColumnValues)))
 			}

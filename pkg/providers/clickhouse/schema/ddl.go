@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/schema/engines"
 )
 
 type TableDDL struct {
@@ -14,19 +13,13 @@ type TableDDL struct {
 }
 
 func (t *TableDDL) ToChangeItem() abstract.ChangeItem {
-	sql := t.sql
-	kind := abstract.ChCreateTableKind
-	if engines.IsDistributedDDL(sql) {
-		sql = engines.ReplaceCluster(sql, "{cluster}")
-		kind = abstract.ChCreateTableDistributedKind
-	}
 	return abstract.ChangeItem{
 		Schema:       t.tableID.Namespace,
 		Table:        t.tableID.Name,
 		PartID:       "",
-		Kind:         kind,
+		Kind:         abstract.ChCreateTableKind,
 		CommitTime:   uint64(time.Now().UnixNano()),
-		ColumnValues: []interface{}{sql, t.engine},
+		ColumnValues: []interface{}{t.sql, t.engine},
 		ID:           0,
 		LSN:          0,
 		Counter:      0,
