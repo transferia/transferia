@@ -2234,6 +2234,8 @@
   "pkg/transformer/transformation_test.go":"transfer_manager/go/pkg/transformer/transformation_test.go",
   "pkg/util/backoff.go":"transfer_manager/go/pkg/util/backoff.go",
   "pkg/util/backoff_test.go":"transfer_manager/go/pkg/util/backoff_test.go",
+  "pkg/util/batcher/batcher.go":"transfer_manager/go/pkg/util/batcher/batcher.go",
+  "pkg/util/batcher/batcher_test.go":"transfer_manager/go/pkg/util/batcher/batcher_test.go",
   "pkg/util/bool.go":"transfer_manager/go/pkg/util/bool.go",
   "pkg/util/castx/caste.go":"transfer_manager/go/pkg/util/castx/caste.go",
   "pkg/util/castx/caste_test.go":"transfer_manager/go/pkg/util/castx/caste_test.go",
