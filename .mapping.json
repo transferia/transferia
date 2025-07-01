@@ -992,6 +992,7 @@
   "pkg/errors/coded/registry.go":"transfer_manager/go/pkg/errors/coded/registry.go",
   "pkg/errors/equal_causes.go":"transfer_manager/go/pkg/errors/equal_causes.go",
   "pkg/errors/equal_causes_test.go":"transfer_manager/go/pkg/errors/equal_causes_test.go",
+  "pkg/errors/fatal_errors.go":"transfer_manager/go/pkg/errors/fatal_errors.go",
   "pkg/errors/to_transfer_status_message.go":"transfer_manager/go/pkg/errors/to_transfer_status_message.go",
   "pkg/errors/to_transfer_status_message_test.go":"transfer_manager/go/pkg/errors/to_transfer_status_message_test.go",
   "pkg/errors/traceback.go":"transfer_manager/go/pkg/errors/traceback.go",

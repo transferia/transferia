@@ -48,13 +48,7 @@ func (s *SyncTask) run() {
 		solomon.NewRegistry(solomon.NewRegistryOpts()),
 	)
 	if err != nil {
-		logger.OtelLog.Error(
-			errors.ExtractShortStackTrace(err),
-			log.Error(err),
-			log.String(logger.KeyTransferID, s.transfer.ID),
-			log.String(logger.KeyDstType, s.transfer.DstType().Name()),
-			log.String(logger.KeySrcType, s.transfer.SrcType().Name()),
-		)
+		errors.LogFatalError(err, s.transfer.ID, s.transfer.DstType(), s.transfer.SrcType())
 	}
 	if err := s.cp.FinishOperation(s.task.OperationID, s.task.TaskType.String(), s.transfer.CurrentJobIndex(), err); err != nil {
 		s.logger.Error("unable to call finish operation", log.Error(err))
