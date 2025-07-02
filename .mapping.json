@@ -2246,6 +2246,8 @@
   "pkg/util/coalesce.go":"transfer_manager/go/pkg/util/coalesce.go",
   "pkg/util/comparison.go":"transfer_manager/go/pkg/util/comparison.go",
   "pkg/util/comparison_test.go":"transfer_manager/go/pkg/util/comparison_test.go",
+  "pkg/util/concurrent_map.go":"transfer_manager/go/pkg/util/concurrent_map.go",
+  "pkg/util/concurrent_map_test.go":"transfer_manager/go/pkg/util/concurrent_map_test.go",
   "pkg/util/context.go":"transfer_manager/go/pkg/util/context.go",
   "pkg/util/crc32.go":"transfer_manager/go/pkg/util/crc32.go",
   "pkg/util/delayed_func.go":"transfer_manager/go/pkg/util/delayed_func.go",
