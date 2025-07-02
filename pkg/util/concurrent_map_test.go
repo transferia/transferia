@@ -13,6 +13,9 @@ func TestConcurrentMapSetGetDelete(t *testing.T) {
 	m.Set("a", 1)
 	m.Set("b", 2)
 
+	keys := m.ListKeys()
+	require.Equal(t, 2, len(keys))
+
 	v, ok := m.Get("a")
 	require.True(t, ok)
 	require.Equal(t, 1, v)

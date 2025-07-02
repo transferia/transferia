@@ -417,7 +417,6 @@ func (t *SortedTable) spawnArchive(ctx context.Context) error {
 		ytDestination.CanAlter = t.config.CanAlter()
 		ytDestination.DisableDatetimeHack = t.config.DisableDatetimeHack()
 		ytDestination.PrimaryMedium = t.config.PrimaryMedium()
-		ytDestination.LoseDataOnError = t.config.LoseDataOnError()
 		_, err := NewSortedTable(
 			t.ytClient,
 			t.archivePath,

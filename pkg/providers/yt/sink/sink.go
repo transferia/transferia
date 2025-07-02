@@ -7,7 +7,6 @@ import (
 	"math"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -17,7 +16,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/maplock"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/parsers/generic"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
@@ -45,16 +43,13 @@ type sinker struct {
 	logger         log.Logger
 	metrics        *stats.SinkerStats
 	cp             coordinator.Coordinator
-	schemas        map[string][]abstract.ColSchema
-	tables         map[string]GenericTable
+	schemas        *util.ConcurrentMap[string, []abstract.ColSchema]
+	tables         *util.ConcurrentMap[string, GenericTable]
 	config         yt2.YtDestinationModel
-	lock           *maplock.Mutex
 	chunkSize      int
 	closed         bool
 	progressInited bool
-
-	schemaMutex sync.Mutex
-	transferID  string
+	transferID     string
 }
 
 func (s *sinker) Move(ctx context.Context, src, dst abstract.TableID) error {
@@ -166,16 +161,7 @@ func (s *sinker) Close() error {
 }
 
 func (s *sinker) checkTable(schema []abstract.ColSchema, table string) error {
-	for {
-		if s.lock.TryLock(table) {
-			break
-		}
-		time.Sleep(time.Second)
-		s.logger.Debugf("Unable to lock table checker %v", table)
-	}
-	defer s.lock.Unlock(table)
-
-	if s.tables[table] == nil {
+	if _, ok := s.tables.Get(table); !ok {
 		if schema == nil {
 			s.logger.Error("No schema for table", log.Any("table", table))
 			return xerrors.New("no schema for table")
@@ -191,7 +177,7 @@ func (s *sinker) checkTable(schema []abstract.ColSchema, table string) error {
 			return xerrors.Errorf("failed to create table in YT: %w", createTableErr)
 		}
 		s.logger.Info("Table created", log.Any("table", table), log.Any("schema", schema))
-		s.tables[table] = genericTable
+		s.tables.Set(table, genericTable)
 	}
 
 	return nil
@@ -236,12 +222,6 @@ func (s *sinker) checkPrimaryKeyChanges(input []abstract.ChangeItem) error {
 	return nil
 }
 
-func (s *sinker) isTableSchemaDefined(tableName string) bool {
-	s.schemaMutex.Lock()
-	defer s.schemaMutex.Unlock()
-	return len(s.schemas[tableName]) > 0
-}
-
 // Push processes incoming items.
 //
 // WARNING: All non-row items must be pushed in a DISTINCT CALL to this function - separately from row items.
@@ -261,10 +241,8 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	for _, item := range input {
 		name := yt2.MakeTableName(item.TableID(), s.config.AltNames())
 		tableYPath := yt2.SafeChild(s.dir, name)
-		if !s.isTableSchemaDefined(name) {
-			s.schemaMutex.Lock()
-			s.schemas[name] = item.TableSchema.Columns()
-			s.schemaMutex.Unlock()
+		if _, ok := s.schemas.Get(name); !ok {
+			s.schemas.Set(name, item.TableSchema.Columns())
 		}
 		// apply rotation to name
 		rotatedName := s.config.Rotation().AnnotateWithTimeFromColumn(name, item)
@@ -334,12 +312,6 @@ func (s *sinker) pushOneBatch(table string, batch []abstract.ChangeItem) error {
 		if len(e.TableSchema.Columns()) > 0 {
 			scm = e.TableSchema.Columns()
 			break
-		}
-	}
-
-	if len(scm) == 0 && s.tables[table] == nil {
-		if !s.config.LoseDataOnError() {
-			return xerrors.Errorf("unable to find schema for %v", table)
 		}
 	}
 
@@ -462,7 +434,8 @@ func (s *sinker) pushSlice(batch []abstract.ChangeItem, table string) error {
 		s.metrics.Inflight.Inc()
 		if err := backoff.Retry(func() error {
 			chunk := batch[i:end]
-			err := s.tables[table].Write(chunk)
+			genericT, _ := s.tables.Get(table) // checked presence on previous step
+			err := genericT.Write(chunk)
 			if err != nil {
 				s.logger.Warn(
 					fmt.Sprintf("Write returned error. i: %v, iterations: %v, err: %v", i, iterations, err),
@@ -510,12 +483,7 @@ func (s *sinker) rotateTable() error {
 	deletedCount := 0
 	skipCount := 0
 
-	tableNames := []string{}
-	s.schemaMutex.Lock()
-	for tableName := range s.schemas {
-		tableNames = append(tableNames, tableName)
-	}
-	s.schemaMutex.Unlock()
+	tableNames := s.schemas.ListKeys()
 	for _, tableName := range tableNames {
 		nodePath := yt2.SafeChild(s.dir, tableName)
 		var childNodes []YtRotationNode
@@ -557,13 +525,7 @@ func (s *sinker) rotateTable() error {
 			}
 
 			tablePath := s.config.Rotation().Next(tableName)
-			if !s.isTableSchemaDefined(tableName) {
-				s.logger.Warnf("Unable to init clone of %v: no schema in cache", tableName)
-				continue
-			}
-			s.schemaMutex.Lock()
-			tSchema := s.schemas[tableName]
-			s.schemaMutex.Unlock()
+			tSchema, _ := s.schemas.Get(tableName)
 			if err := s.checkTable(tSchema, tablePath); err != nil {
 				s.logger.Warn("Unable to init clone", log.Error(err))
 			}
@@ -644,14 +606,12 @@ func newSinker(cfg yt2.YtDestinationModel, transferID string, lgr log.Logger, re
 		dir:            ypath.Path(cfg.Path()),
 		logger:         lgr,
 		metrics:        stats.NewSinkerStats(registry),
-		schemas:        map[string][]abstract.ColSchema{},
-		tables:         map[string]GenericTable{},
+		schemas:        util.NewConcurrentMap[string, []abstract.ColSchema](),
+		tables:         util.NewConcurrentMap[string, GenericTable](),
 		config:         cfg,
-		lock:           maplock.NewMapMutex(),
 		chunkSize:      chunkSize,
 		closed:         false,
 		progressInited: false,
-		schemaMutex:    sync.Mutex{},
 		transferID:     transferID,
 		cp:             cp,
 	}

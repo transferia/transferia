@@ -43,6 +43,16 @@ func (m *ConcurrentMap[K, V]) Len() int {
 	return len(m.mp)
 }
 
+func (m *ConcurrentMap[K, V]) ListKeys() []K {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	var res []K
+	for k := range m.mp {
+		res = append(res, k)
+	}
+	return res
+}
+
 // Clear clears the map and calls the function with the map
 // If argument is nil, the map will be cleared without calling the function
 func (m *ConcurrentMap[K, V]) Clear(f func(map[K]V)) {

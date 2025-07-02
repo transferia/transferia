@@ -1004,8 +1004,6 @@
   "pkg/instanceutil/metadata_service.go":"transfer_manager/go/pkg/instanceutil/metadata_service.go",
   "pkg/kv/yt_dyn_table_kv_wrapper.go":"transfer_manager/go/pkg/kv/yt_dyn_table_kv_wrapper.go",
   "pkg/kv/yt_dyn_table_kv_wrapper_test.go":"transfer_manager/go/pkg/kv/yt_dyn_table_kv_wrapper_test.go",
-  "pkg/maplock/mutex.go":"transfer_manager/go/pkg/maplock/mutex.go",
-  "pkg/maplock/mutex_test.go":"transfer_manager/go/pkg/maplock/mutex_test.go",
   "pkg/metering/agent.go":"transfer_manager/go/pkg/metering/agent.go",
   "pkg/metering/agent_stub.go":"transfer_manager/go/pkg/metering/agent_stub.go",
   "pkg/metering/initializer_os.go":"transfer_manager/go/pkg/metering/initializer_os.go",

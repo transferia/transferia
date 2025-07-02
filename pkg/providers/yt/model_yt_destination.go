@@ -45,7 +45,6 @@ type YtDestinationModel interface {
 	PrimaryMedium() string
 	Pool() string
 	Atomicity() yt.Atomicity
-	LoseDataOnError() bool
 	DiscardBigValues() bool
 	TabletCount() int
 	Rotation() *dp_model.RotatorConfig
@@ -112,12 +111,6 @@ type YtDestination struct {
 	Pool                      string       // pool for running merge and sort operations for static tables
 	Strict                    bool         // DEPRECATED, UNUSED IN NEW DATA PLANE - use LoseDataOnError and Atomicity
 	Atomicity                 yt.Atomicity // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
-
-	// If true, some errors on data insertion to YT will be skipped, and a warning will be written to the log.
-	// Among such errors are:
-	// * we were unable to find table schema in cache for some reason: https://github.com/transferia/transferia/arcadia/transfer_manager/go/pkg/providers/yt/sink/sink.go?rev=11063561#L482-484
-	// * a row (or a value inside a row) being inserted into the YT table has exceeded YT limits (16 MB by default).
-	LoseDataOnError bool
 
 	DiscardBigValues         bool
 	TabletCount              int // DEPRECATED - remove in March
@@ -312,10 +305,6 @@ func (d *YtDestinationWrapper) Atomicity() yt.Atomicity {
 		return yt.AtomicityNone
 	}
 	return d.Model.Atomicity
-}
-
-func (d *YtDestinationWrapper) LoseDataOnError() bool {
-	return d.Model.LoseDataOnError
 }
 
 func (d *YtDestinationWrapper) DiscardBigValues() bool {

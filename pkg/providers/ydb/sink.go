@@ -20,7 +20,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/maplock"
 	"github.com/transferia/transferia/pkg/providers/ydb/decimal"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -221,7 +220,7 @@ type sinker struct {
 	config  *YdbDestination
 	logger  log.Logger
 	metrics *stats.SinkerStats
-	locks   *maplock.Mutex
+	locks   sync.Mutex
 	lock    sync.Mutex
 	cache   map[ydbPath]*abstract.TableSchema
 	once    sync.Once
@@ -277,12 +276,8 @@ func (s *sinker) checkTable(tablePath ydbPath, schema *abstract.TableSchema) err
 	if existingSchema, ok := s.cache[tablePath]; ok && existingSchema.Equal(schema) {
 		return nil
 	}
-	for {
-		if s.locks.TryLock(tablePath) {
-			break
-		}
-	}
-	defer s.locks.Unlock(tablePath)
+	s.locks.Lock()
+	defer s.locks.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -1493,7 +1488,7 @@ func NewSinker(lgr log.Logger, cfg *YdbDestination, mtrcs metrics.Registry) (abs
 		config:  cfg,
 		logger:  lgr,
 		metrics: stats.NewSinkerStats(mtrcs),
-		locks:   maplock.NewMapMutex(),
+		locks:   sync.Mutex{},
 		lock:    sync.Mutex{},
 		cache:   make(map[ydbPath]*abstract.TableSchema),
 		once:    sync.Once{},
