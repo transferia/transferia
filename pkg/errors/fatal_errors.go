@@ -28,8 +28,12 @@ func LogFatalError(err error, transferID string, dstType abstract.ProviderType, 
 	if xerrors.As(err, &codeErr) {
 		code = codeErr.Code()
 	}
+	msg := ExtractShortStackTrace(err)
+	if code != UnspecifiedCode {
+		msg = code.ID()
+	}
 	logger.OtelLog.Error(
-		ExtractShortStackTrace(err),
+		msg,
 		log.Error(err),
 		log.String(KeyTransferID, transferID),
 		log.String(KeyDstType, dstType.Name()),
