@@ -114,7 +114,11 @@ func (p *ConfluentSrImpl) DoBuf(partition abstract.Partition, buf []byte, offset
 }
 
 func (p *ConfluentSrImpl) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
-	return p.DoBuf(partition, msg.Value, msg.Offset, msg.WriteTime)
+	result := p.DoBuf(partition, msg.Value, msg.Offset, msg.WriteTime)
+	for i := range result {
+		result[i].FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
+	}
+	return result
 }
 
 func (p *ConfluentSrImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem {

@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -300,21 +301,22 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 			}
 
 			changes = append(changes, abstract.ChangeItem{
-				CommitTime:   uint64(st.UnixNano()),
-				Kind:         abstract.InsertKind,
-				Table:        tableDescr.Name,
-				ColumnNames:  cols,
-				ColumnValues: vals,
-				TableSchema:  schema,
-				PartID:       partID,
-				ID:           0,
-				LSN:          0,
-				Counter:      0,
-				Schema:       "",
-				OldKeys:      abstract.EmptyOldKeys(),
-				TxID:         "",
-				Query:        "",
-				Size:         abstract.RawEventSize(util.DeepSizeof(vals)),
+				ID:               0,
+				LSN:              0,
+				CommitTime:       uint64(st.UnixNano()),
+				Counter:          0,
+				Kind:             abstract.InsertKind,
+				Schema:           "",
+				Table:            tableDescr.Name,
+				PartID:           partID,
+				ColumnNames:      cols,
+				ColumnValues:     vals,
+				TableSchema:      schema,
+				OldKeys:          abstract.EmptyOldKeys(),
+				Size:             abstract.RawEventSize(util.DeepSizeof(vals)),
+				TxID:             "",
+				Query:            "",
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			})
 			s.metrics.ChangeItems.Inc()
 			s.metrics.Size.Add(int64(changes[len(changes)-1].Size.Read))

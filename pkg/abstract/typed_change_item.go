@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/valyala/fastjson"
 )
@@ -196,6 +197,18 @@ func unpackTypedValue(item *fastjson.Value) (any, error) {
 			return nil, xerrors.Errorf("errors: %w", errs)
 		}
 		return res, nil
+	case typeName[changeitem.QueueMessageMeta]():
+		var s string
+		err = json.Unmarshal(rawValue, &s)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to unmarshal queue message meta: %w", err)
+		}
+		var result changeitem.QueueMessageMeta
+		err = json.Unmarshal([]byte(s), &result)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to unmarshal queue message meta: %w", err)
+		}
+		return result, nil
 	default:
 		return nil, xerrors.Errorf("unexpected type: %s", goTyp)
 	}
@@ -264,6 +277,12 @@ func packTypedValue(val any) (TypedValue, error) {
 		return TypedValue{Value: data, Type: typeNameFromValue(val)}, nil
 	case *TableSchema:
 		return TypedValue{Value: []ColSchema(castedV.Columns()), Type: typeNameFromValue([]ColSchema(castedV.Columns()))}, nil
+	case changeitem.QueueMessageMeta:
+		bytes, err := json.Marshal(castedV)
+		if err != nil {
+			return *new(TypedValue), xerrors.Errorf("unable to marshal: %w", err)
+		}
+		return TypedValue{Value: string(bytes), Type: typeNameFromValue(castedV)}, nil
 	default:
 		if reflect.TypeOf(val).Kind() == reflect.Pointer {
 			var unpackedVal interface{}

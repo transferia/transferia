@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/parsers"
 	genericparser "github.com/transferia/transferia/pkg/parsers/generic"
 	confluentschemaregistryengine "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine"
@@ -82,11 +83,12 @@ func buildChangeItem(
 			fields.time,
 			changeItem.AsMap(),
 		},
-		TableSchema: tableSchema,
-		OldKeys:     abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		TxID:        "",
-		Query:       "",
-		Size:        abstract.RawEventSize(uint64(len(msg.Value))),
+		TableSchema:      tableSchema,
+		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+		Size:             abstract.RawEventSize(uint64(len(msg.Value))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 
@@ -161,17 +163,20 @@ func (p *CloudEventsImpl) Do(msg parsers.Message, partition abstract.Partition) 
 	_, leastChangeItems := confluentSRParser.DoWithSchemaID(partition, schemaID, protoPath, body, msg.Offset, msg.WriteTime, true)
 
 	result := make([]abstract.ChangeItem, 0, len(leastChangeItems))
-	for _, currChangeItem := range leastChangeItems {
+	for i, currChangeItem := range leastChangeItems {
+		var finalChangeItem abstract.ChangeItem
 		if strings.HasSuffix(currChangeItem.Table, "_unparsed") {
-			result = append(result, currChangeItem)
+			finalChangeItem = currChangeItem
 		} else {
-			result = append(result, buildChangeItem(
+			finalChangeItem = buildChangeItem(
 				&currChangeItem,
 				cloudEventsFields,
 				msg,
 				partition,
-			))
+			)
 		}
+		finalChangeItem.FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
+		result = append(result, finalChangeItem)
 	}
 	return result
 }

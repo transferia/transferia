@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
@@ -282,21 +283,22 @@ func (r *ReaderParquet) constructCI(parquetSchema map[string]parquet.Field, row 
 	}
 
 	return abstract.ChangeItem{
-		CommitTime:   uint64(lModified.UnixNano()),
-		Kind:         abstract.InsertKind,
-		Table:        r.table.Name,
-		Schema:       r.table.Namespace,
-		ColumnNames:  r.colNames,
-		ColumnValues: vals,
-		TableSchema:  r.tableSchema,
-		PartID:       fname,
-		ID:           0,
-		LSN:          0,
-		Counter:      int(idx),
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.RawEventSize(util.DeepSizeof(vals)),
+		ID:               0,
+		LSN:              0,
+		CommitTime:       uint64(lModified.UnixNano()),
+		Counter:          int(idx),
+		Kind:             abstract.InsertKind,
+		Schema:           r.table.Namespace,
+		Table:            r.table.Name,
+		PartID:           fname,
+		ColumnNames:      r.colNames,
+		ColumnValues:     vals,
+		TableSchema:      r.tableSchema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.RawEventSize(util.DeepSizeof(vals)),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, nil
 }
 

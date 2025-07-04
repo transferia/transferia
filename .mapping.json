@@ -674,6 +674,7 @@
   "pkg/abstract/changeitem/mirror.go":"transfer_manager/go/pkg/abstract/changeitem/mirror.go",
   "pkg/abstract/changeitem/old_keys.go":"transfer_manager/go/pkg/abstract/changeitem/old_keys.go",
   "pkg/abstract/changeitem/partition.go":"transfer_manager/go/pkg/abstract/changeitem/partition.go",
+  "pkg/abstract/changeitem/queue_meta.go":"transfer_manager/go/pkg/abstract/changeitem/queue_meta.go",
   "pkg/abstract/changeitem/strictify/strictify.go":"transfer_manager/go/pkg/abstract/changeitem/strictify/strictify.go",
   "pkg/abstract/changeitem/strictify/strictify_errors.go":"transfer_manager/go/pkg/abstract/changeitem/strictify/strictify_errors.go",
   "pkg/abstract/changeitem/strictify/strictify_test.go":"transfer_manager/go/pkg/abstract/changeitem/strictify/strictify_test.go",

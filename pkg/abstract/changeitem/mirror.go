@@ -32,18 +32,14 @@ var (
 func MakeRawMessage(table string, commitTime time.Time, topic string, shard int, offset int64, data []byte) ChangeItem {
 	return ChangeItem{
 		ID:          0,
-		Kind:        InsertKind,
-		Counter:     0,
-		CommitTime:  uint64(commitTime.UnixNano()),
 		LSN:         uint64(offset),
-		TableSchema: RawDataSchema,
-		ColumnNames: RawDataColumns,
+		CommitTime:  uint64(commitTime.UnixNano()),
+		Counter:     0,
+		Kind:        InsertKind,
 		Schema:      "",
-		OldKeys:     EmptyOldKeys(),
-		TxID:        "",
-		Query:       "",
 		Table:       table,
 		PartID:      "",
+		ColumnNames: RawDataColumns,
 		ColumnValues: []interface{}{
 			topic,
 			shard,
@@ -51,7 +47,12 @@ func MakeRawMessage(table string, commitTime time.Time, topic string, shard int,
 			commitTime,
 			string(data),
 		},
-		Size: RawEventSize(uint64(len(data))),
+		TableSchema:      RawDataSchema,
+		OldKeys:          EmptyOldKeys(),
+		Size:             RawEventSize(uint64(len(data))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 

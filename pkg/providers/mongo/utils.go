@@ -6,6 +6,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -37,21 +38,22 @@ func (s Storage) readRowsAndPushByChunks(
 		}
 		val := extItem.Value(s.IsHomo, s.preventJSONRepack)
 		changeItem := abstract.ChangeItem{
-			CommitTime:   uint64(st.UnixNano()),
-			Kind:         abstract.InsertKind,
-			Schema:       table.Schema,
-			Table:        table.Name,
-			PartID:       partID,
-			ColumnNames:  DocumentSchema.ColumnsNames,
-			ColumnValues: []interface{}{id, val},
-			TableSchema:  DocumentSchema.Columns,
-			OldKeys:      abstract.EmptyOldKeys(),
-			Counter:      0,
-			ID:           0,
-			LSN:          0,
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(uint64(len(cursor.Current))),
+			ID:               0,
+			LSN:              0,
+			CommitTime:       uint64(st.UnixNano()),
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           table.Schema,
+			Table:            table.Name,
+			PartID:           partID,
+			ColumnNames:      DocumentSchema.ColumnsNames,
+			ColumnValues:     []interface{}{id, val},
+			TableSchema:      DocumentSchema.Columns,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.RawEventSize(uint64(len(cursor.Current))),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}
 		if !s.IsHomo {
 			err := strictify.Strictify(&changeItem, DocumentSchema.Columns.FastColumns())

@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
@@ -302,21 +303,22 @@ func (s *Storage) readRowsAndPushByChunks(reader *rowsReader, pusher abstract.Pu
 		values, bytes := MarshalFields(rowValues, reader.tableFilteredColumns.Columns())
 
 		inflight = append(inflight, abstract.ChangeItem{
-			CommitTime:   reader.ts,
-			Kind:         abstract.InsertKind,
-			Schema:       reader.table.Schema,
-			Table:        reader.table.Name,
-			PartID:       partID,
-			ColumnNames:  colsNames,
-			ColumnValues: values,
-			TableSchema:  reader.tableAllColumns,
-			ID:           0,
-			LSN:          0,
-			Counter:      0,
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(bytes),
+			ID:               0,
+			LSN:              0,
+			CommitTime:       reader.ts,
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           reader.table.Schema,
+			Table:            reader.table.Name,
+			PartID:           partID,
+			ColumnNames:      colsNames,
+			ColumnValues:     values,
+			TableSchema:      reader.tableAllColumns,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.RawEventSize(bytes),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		})
 		rowsCount++
 		inflightBytes += bytes

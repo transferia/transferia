@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
 	"github.com/transferia/transferia/pkg/csv"
 	"github.com/transferia/transferia/pkg/providers/s3"
@@ -333,21 +334,22 @@ func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time,
 	}
 
 	return &abstract.ChangeItem{
-		CommitTime:   uint64(lModified.UnixNano()),
-		Kind:         abstract.InsertKind,
-		Table:        r.table.Name,
-		Schema:       r.table.Namespace,
-		ColumnNames:  r.colNames,
-		ColumnValues: vals,
-		TableSchema:  r.tableSchema,
-		PartID:       fname,
-		ID:           0,
-		LSN:          0,
-		Counter:      0,
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.RawEventSize(util.DeepSizeof(vals)),
+		ID:               0,
+		LSN:              0,
+		CommitTime:       uint64(lModified.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           r.table.Namespace,
+		Table:            r.table.Name,
+		PartID:           fname,
+		ColumnNames:      r.colNames,
+		ColumnValues:     vals,
+		TableSchema:      r.tableSchema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.RawEventSize(util.DeepSizeof(vals)),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, nil
 }
 

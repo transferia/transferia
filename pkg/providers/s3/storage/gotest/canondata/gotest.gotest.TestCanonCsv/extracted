@@ -97,6 +97,10 @@ file: "s3_file_name" = 'test_csv_large/people-500000.csv'
         "type": "string",
         "value": ""
     },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+    },
     "Schema": {
         "type": "string",
         "value": "test_namespace"

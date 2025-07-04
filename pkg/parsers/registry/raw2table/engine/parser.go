@@ -4,6 +4,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/parsers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -73,7 +74,7 @@ func (p *RawToTableImpl) Do(msg parsers.Message, partition abstract.Partition) [
 	if p.cfg.isTopicAsName {
 		table = partition.Topic
 	}
-	return []abstract.ChangeItem{{
+	result := abstract.ChangeItem{
 		ID:           0,
 		LSN:          msg.Offset,
 		CommitTime:   uint64(msg.WriteTime.UnixNano()),
@@ -90,10 +91,13 @@ func (p *RawToTableImpl) Do(msg parsers.Message, partition abstract.Partition) [
 			KeyTypes:  []string{"", "", ""},
 			KeyValues: []interface{}{partition.Topic, partition.Partition, msg.Offset},
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.RawEventSize(uint64(len(msg.Value))),
-	}}
+		Size:             abstract.RawEventSize(uint64(len(msg.Value))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
+	}
+	result.FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, 0)
+	return []abstract.ChangeItem{result}
 }
 
 func (p *RawToTableImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem {
