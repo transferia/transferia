@@ -491,6 +491,14 @@ func (d *YtDestinationWrapper) Proxy() string {
 	return d.Cluster()
 }
 
+func (d *YtDestinationWrapper) UseTLS() bool {
+	return d.GetConnectionData().UseTLS
+}
+
+func (d *YtDestinationWrapper) TLSFile() string {
+	return d.GetConnectionData().TLSFile
+}
+
 func (d *YtDestinationWrapper) SupportSharding() bool {
 	return !(d.Model.Static && d.Rotation() != nil)
 }

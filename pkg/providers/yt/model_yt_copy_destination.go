@@ -79,3 +79,11 @@ func (y *YtCopyDestination) DisableProxyDiscovery() bool {
 func (y *YtCopyDestination) CompressionCodec() yt.ClientCompressionCodec {
 	return yt.ClientCodecBrotliFastest
 }
+
+func (y *YtCopyDestination) UseTLS() bool {
+	return false
+}
+
+func (y *YtCopyDestination) TLSFile() string {
+	return ""
+}
