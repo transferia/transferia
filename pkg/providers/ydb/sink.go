@@ -47,14 +47,14 @@ const (
 
 var rowTooLargeRegexp = regexp.MustCompile(`Row cell size of [0-9]+ bytes is larger than the allowed threshold [0-9]+`)
 
-type TemplateCol struct{ Name, Typ, Comma string }
+type TemplateCol struct{ Name, Typ, Optional, Comma string }
 
 var insertTemplate, _ = template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 --!syntax_v1
 DECLARE $batch AS List<
 	Struct<{{ range .Cols }}
-		` + "`{{ .Name }}`" + `:{{ .Typ }}?{{ .Comma }}{{ end }}
+		` + "`{{ .Name }}`" + `:{{ .Typ }}{{ .Optional }}{{ .Comma }}{{ end }}
 	>
 >;
 UPSERT INTO ` + "`{{ .Path }}`" + ` ({{ range .Cols }}
@@ -69,7 +69,7 @@ var deleteTemplate, _ = template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 --!syntax_v1
 DECLARE $batch AS Struct<{{ range .Cols }}
-	` + "`{{ .Name }}`" + `:{{ .Typ }}?{{ .Comma }}{{ end }}
+	` + "`{{ .Name }}`" + `:{{ .Typ }}{{ .Optional }}{{ .Comma }}{{ end }}
 >;
 DELETE FROM ` + "`{{ .Path }}`" + `
 WHERE 1=1
@@ -715,13 +715,19 @@ func (s *sinker) deleteQuery(tablePath ydbPath, keySchemas []abstract.ColSchema)
 		if i != len(keySchemas)-1 {
 			cols[i].Comma = ","
 		}
+		if c.Required {
+			cols[i].Optional = ""
+		} else {
+			cols[i].Optional = "?"
+		}
 	}
 	if s.config.ShardCount > 0 {
 		cols[len(cols)-1].Comma = ","
 		cols = append(cols, TemplateCol{
-			Name:  "_shard_key",
-			Typ:   "Uint64",
-			Comma: "",
+			Name:     "_shard_key",
+			Typ:      "Uint64",
+			Optional: "?",
+			Comma:    "",
 		})
 	}
 	buf := new(bytes.Buffer)
@@ -737,13 +743,19 @@ func (s *sinker) insertQuery(tablePath ydbPath, colSchemas []abstract.ColSchema)
 		if i != len(colSchemas)-1 {
 			cols[i].Comma = ","
 		}
+		if c.Required {
+			cols[i].Optional = ""
+		} else {
+			cols[i].Optional = "?"
+		}
 	}
 	if s.config.ShardCount > 0 {
 		cols[len(cols)-1].Comma = ","
 		cols = append(cols, TemplateCol{
-			Name:  "_shard_key",
-			Typ:   "Uint64",
-			Comma: "",
+			Name:     "_shard_key",
+			Typ:      "Uint64",
+			Optional: "?",
+			Comma:    "",
 		})
 	}
 	buf := new(bytes.Buffer)
@@ -774,7 +786,7 @@ func (s *sinker) insert(tablePath ydbPath, batch []abstract.ChangeItem) error {
 			if err != nil {
 				return xerrors.Errorf("%s: unable to build val: %w", c, err)
 			}
-			if !opt {
+			if !colSchemas[rev[c]].Required && !opt {
 				val = types.OptionalValue(val)
 			}
 			fields = append(fields, types.StructFieldValue(c, val))
@@ -1408,7 +1420,7 @@ func (s *sinker) delete(tablePath ydbPath, item abstract.ChangeItem) error {
 		if err != nil {
 			return xerrors.Errorf("unable to build ydb val: %w", err)
 		}
-		if !opt {
+		if !colSchemas[rev[c]].Required && !opt {
 			val = types.OptionalValue(val)
 		}
 		fields = append(fields, types.StructFieldValue(c, val))
