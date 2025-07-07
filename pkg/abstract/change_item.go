@@ -87,3 +87,4 @@ var MakeOriginallyTypedColSchema = changeitem.MakeOriginallyTypedColSchema
 var ColIDX = changeitem.ColIDX
 var RawDataSchema = changeitem.RawDataSchema
 var ChangeItemFromMap = changeitem.ChangeItemFromMap
+var SystemTables = changeitem.SystemTables

@@ -96,6 +96,10 @@ func TestIncrementalSnapshot(t *testing.T) {
 	var output []abstract.ChangeItem
 
 	pusher := func(items []abstract.ChangeItem) error {
+		for _, item := range items {
+			require.False(t, abstract.IsSystemTable(item.Table))
+		}
+
 		output = append(output, items...)
 
 		return nil

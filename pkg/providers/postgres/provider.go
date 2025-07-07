@@ -356,7 +356,7 @@ func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abst
 	}
 	var tables []abstract.TableDescription
 	for tID, tInfo := range all {
-		if tID.Name == TableConsumerKeeper || tID.Name == dblog.SignalTableName {
+		if abstract.IsSystemTable(tID.Name) {
 			continue
 		}
 		if src.Include(tID) {
@@ -425,6 +425,9 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap) er
 
 	tableDescs := tables.ConvertToTableDescriptions()
 	for _, table := range tableDescs {
+		if abstract.IsSystemTable(table.Name) {
+			continue
+		}
 		asyncSink, err := abstract_sink.MakeAsyncSink(
 			p.transfer,
 			logger.Log,
