@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/sink"
 )
@@ -129,7 +130,7 @@ func checkRestrictedColumnTypes(transfer *model.Transfer, tables abstract.TableM
 	for tableID, table := range tables {
 		for _, column := range table.Schema.Columns() {
 			if strings.HasPrefix(strings.ToLower(column.OriginalType), "mysql:decimal") {
-				return xerrors.Errorf("table %s contains column %q of type %s. Columns of decimal types currently are not supported. Please exclude the table from the transfer", tableID.Fqtn(), column.ColumnName, column.OriginalType)
+				return coded.Errorf(CodeDecimalNotAllowed, "table %s contains column %q of type %s. Columns of decimal types currently are not supported. Please exclude the table from the transfer", tableID.Fqtn(), column.ColumnName, column.OriginalType)
 			}
 		}
 	}

@@ -1759,6 +1759,7 @@
   "pkg/providers/postgres/table_information.go":"transfer_manager/go/pkg/providers/postgres/table_information.go",
   "pkg/providers/postgres/testdata/hits_binary_data.json":"transfer_manager/go/pkg/providers/postgres/testdata/hits_binary_data.json",
   "pkg/providers/postgres/testdata/hits_data.json":"transfer_manager/go/pkg/providers/postgres/testdata/hits_data.json",
+  "pkg/providers/postgres/tests/coded_errors_test.go":"transfer_manager/go/pkg/providers/postgres/tests/coded_errors_test.go",
   "pkg/providers/postgres/tests/incremental_storage_test.go":"transfer_manager/go/pkg/providers/postgres/tests/incremental_storage_test.go",
   "pkg/providers/postgres/tests/sequence_test.go":"transfer_manager/go/pkg/providers/postgres/tests/sequence_test.go",
   "pkg/providers/postgres/tests/sharding_storage_test.go":"transfer_manager/go/pkg/providers/postgres/tests/sharding_storage_test.go",
