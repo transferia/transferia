@@ -66,7 +66,6 @@ func addTransformationToTransfer(transfer *model.Transfer, config dbt.Config) {
 	if transfer.Transformation == nil {
 		transfer.Transformation = &model.Transformation{
 			ExtraTransformers: nil,
-			Executor:          nil,
 		}
 	}
 	if transfer.Transformation.Transformers == nil {

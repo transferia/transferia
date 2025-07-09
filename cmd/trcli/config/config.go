@@ -57,7 +57,6 @@ func ParseTransfer(yaml []byte) (*model.Transfer, error) {
 		transfer.Transformation = &model.Transformation{
 			Transformers:      tr.Transformation,
 			ExtraTransformers: nil,
-			Executor:          nil,
 			RuntimeJobIndex:   0,
 		}
 	}

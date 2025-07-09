@@ -13,7 +13,6 @@ import (
 type Transformation struct {
 	Transformers      *transformer.Transformers
 	ExtraTransformers []abstract.Transformer
-	Executor          abstract.Transformation
 	RuntimeJobIndex   int
 }
 
@@ -34,15 +33,17 @@ func (t Transformation) Validate() error {
 	return nil
 }
 
-func MakeTransformationFromJSON(value string) (*Transformation, error) {
-	if value != "{}" && value != "null" {
-		result := new(Transformation)
-		trs := new(transformer.Transformers)
-		if err := json.Unmarshal([]byte(value), &trs); err != nil {
+func NewTransformationFromJSON(inJSON string) (*Transformation, error) {
+	if inJSON != "{}" && inJSON != "null" {
+		transformers := new(transformer.Transformers)
+		if err := json.Unmarshal([]byte(inJSON), &transformers); err != nil {
 			return nil, xerrors.Errorf("unable to unmarshal transformers: %w", err)
 		}
-		result.Transformers = trs
-		return result, nil
+		return &Transformation{
+			Transformers:      transformers,
+			ExtraTransformers: nil,
+			RuntimeJobIndex:   0,
+		}, nil
 	}
 	return nil, nil
 }

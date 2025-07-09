@@ -1,7 +1,9 @@
 package tasks
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -41,6 +43,15 @@ func TestMergeWithIncrementalState(t *testing.T) {
 	snapshotLoader := NewSnapshotLoader(client, "test-operation", transfer, solomon.NewRegistry(nil))
 	outTables, err := snapshotLoader.getIncrementalStateAndMergeWithTables(tables, incrementalStorage)
 	require.NoError(t, err)
+	slices.SortFunc(outTables, func(a, b abstract.TableDescription) int {
+		return cmp.Or(
+			cmp.Compare(a.Schema, b.Schema),
+			cmp.Compare(a.Name, b.Name),
+			cmp.Compare(a.Filter, b.Filter),
+			cmp.Compare(a.EtaRow, b.EtaRow),
+			cmp.Compare(a.Offset, b.Offset),
+		)
+	})
 	require.Equal(t, []abstract.TableDescription{
 		{Name: "table1", Schema: "public", Filter: "\"field1\" > 200500"},
 		{Name: "table2", Schema: "public", Filter: "\"field1\" > 100500"},
