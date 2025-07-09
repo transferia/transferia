@@ -17,9 +17,9 @@ func StartJob(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 		return nil
 	}
 
-	// we do not need this for async operations
-	// TODO: TM-8326 remove set status for other async tasks when implemented
-	if transfer.AsyncOperations && task.TaskType.AsyncSupported() {
+	// check if current transfer operation is async - this flag is recalculated and passed by control plane
+	if transfer.AsyncOperations {
+		logger.Log.Infof("Transfer is async, will not start job")
 		return nil
 	}
 

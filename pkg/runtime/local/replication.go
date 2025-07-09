@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"encoding/json"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -31,6 +32,34 @@ type Spec struct {
 	FolderID       string
 
 	TypeSystemVersion int
+}
+
+func NewSpec(transfer *model.Transfer) *Spec {
+	return &Spec{
+		ID:   transfer.ID,
+		Src:  transfer.Src,
+		Dst:  transfer.Dst,
+		Type: transfer.Type,
+
+		Transformation: transfer.Transformation,
+		DataObjects:    transfer.DataObjects,
+		FolderID:       transfer.FolderID,
+
+		TypeSystemVersion: transfer.TypeSystemVersion,
+	}
+}
+
+func (s *Spec) Differs(another *Spec) (bool, error) {
+	this, err := json.Marshal(s)
+	if err != nil {
+		return false, xerrors.Errorf("cannot marshal spec: %w", err)
+	}
+	that, err := json.Marshal(another)
+	if err != nil {
+		return false, xerrors.Errorf("cannot marshal another spec: %w", err)
+	}
+
+	return string(this) != string(that), nil
 }
 
 const ReplicationStatusMessagesCategory string = "replication"
