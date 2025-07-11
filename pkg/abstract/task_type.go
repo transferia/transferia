@@ -23,6 +23,7 @@ var SupportedAsyncOperations = map[string]bool{
 	TaskType{Task: Restart{}}.String():               true,
 	TaskType{Task: TransferVersionUpdate{}}.String(): true,
 	TaskType{Task: UpdateTransfer{}}.String():        true,
+	TaskType{Task: Termination{}}.String():           true,
 }
 
 type TaskType struct {
