@@ -30,7 +30,6 @@ var (
 		Password: model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("PG_LOCAL_DATABASE"),
 		Port:     helpers.GetIntFromEnv("PG_LOCAL_PORT"),
-		SlotID:   "testslot",
 	}
 )
 
@@ -331,7 +330,8 @@ func TestReplication(t *testing.T) {
 	require.NoError(t, err)
 
 	target := model.MockDestination{SinkerFactory: func() abstract.Sinker { return sink }}
-	transfer := helpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeIncrementOnly)
+	helpers.InitSrcDst(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

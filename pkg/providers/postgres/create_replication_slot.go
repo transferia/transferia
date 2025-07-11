@@ -18,6 +18,8 @@ func CreateReplicationSlotIfNotExists(src *PgSource, tracker ...*Tracker) (bool,
 }
 
 func createReplicationSlot(src *PgSource, recreateIfExists bool, tracker ...*Tracker) (bool, error) {
+	logger.Log.Infof("createReplicationSlot - will create replication slot: %s", src.SlotID)
+
 	result, err := backoff.RetryNotifyWithData(func() (bool, error) {
 		defer func() {
 			if r := recover(); r != nil {

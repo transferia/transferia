@@ -11,14 +11,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
-	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	yt_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
-	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
@@ -57,7 +55,6 @@ func makeSource() model.Source {
 		Database: os.Getenv("SOURCE_PG_LOCAL_DATABASE"),
 		Port:     helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
 		DBTables: []string{"public.test"},
-		SlotID:   "testslot",
 	}
 	src.WithDefaults()
 	return src
@@ -93,13 +90,13 @@ type fixture struct {
 	ytEnv        *yttest.Env
 	pgConn       *pgx.Conn
 	destroyYtEnv func()
-	wrk          *local.LocalWorker
+	wrk          *helpers.Worker
 	workerCh     chan error
 	markerKey    map[string]interface{}
 }
 
 func (f *fixture) teardown() {
-	require.NoError(f.t, f.wrk.Stop())
+	f.wrk.Close(f.t)
 	require.NoError(f.t, <-f.workerCh)
 
 	forceRemove := &yt.RemoveNodeOptions{Force: true}
@@ -110,11 +107,10 @@ func (f *fixture) teardown() {
 	f.destroyYtEnv()
 
 	f.exec(`DROP TABLE public.test`)
-	f.exec(`SELECT pg_drop_replication_slot('testslot')`)
 	require.NoError(f.t, f.pgConn.Close(context.Background()))
 }
 
-func setup(t *testing.T, markerKey map[string]interface{}, idxs []string) *fixture {
+func setup(t *testing.T, name string, markerKey map[string]interface{}, idxs []string) *fixture {
 	ytEnv, destroyYtEnv := yttest.NewEnv(t)
 
 	var rollbacks util.Rollbacks
@@ -123,8 +119,10 @@ func setup(t *testing.T, markerKey map[string]interface{}, idxs []string) *fixtu
 	require.NoError(t, err)
 	rollbacks.Add(func() { require.NoError(t, pgConn.Close(context.Background())) })
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, makeSource(), makeTarget(idxs), abstract.TransferTypeSnapshotAndIncrement)
-	wrk := local.NewLocalWorker(coordinator.NewStatefulFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	src := makeSource()
+	dst := makeTarget(idxs)
+	helpers.InitSrcDst(helpers.GenerateTransferID(name), src, dst, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotAndIncrement)
 
 	f := &fixture{
 		t:            t,
@@ -133,7 +131,7 @@ func setup(t *testing.T, markerKey map[string]interface{}, idxs []string) *fixtu
 		destroyYtEnv: destroyYtEnv,
 		pgConn:       pgConn,
 		workerCh:     make(chan error),
-		wrk:          wrk,
+		wrk:          nil,
 		markerKey:    markerKey,
 	}
 
@@ -151,8 +149,11 @@ func setup(t *testing.T, markerKey map[string]interface{}, idxs []string) *fixtu
 	f.exec(fmt.Sprintf(`ALTER TABLE public.test ADD PRIMARY KEY (%s)`, strings.Join(primaryKeys, ", ")))
 	f.exec(`ALTER TABLE public.test ALTER COLUMN idxcol SET STORAGE EXTERNAL`)
 	f.exec(`ALTER TABLE public.test ALTER COLUMN value SET STORAGE EXTERNAL`)
+
+	worker := helpers.ActivateWithoutStart(t, transfer)
+	f.wrk = worker
+
 	f.exec(insertInitialContent)
-	f.exec(`SELECT pg_create_logical_replication_slot('testslot', 'wal2json')`)
 
 	f.loadAndCheckSnapshot()
 
@@ -253,7 +254,7 @@ func srcAndDstPorts(fxt *fixture) (int, int, error) {
 }
 
 func TestIndexBasic(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	fixture := setup(t, "TestIndexBasic", map[string]interface{}{"id": markerID}, []string{"idxcol"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -292,7 +293,7 @@ func TestIndexBasic(t *testing.T) {
 }
 
 func TestIndexMany(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol", "value"})
+	fixture := setup(t, "TestIndexMany", map[string]interface{}{"id": markerID}, []string{"idxcol", "value"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -340,7 +341,7 @@ func TestIndexMany(t *testing.T) {
 }
 
 func TestIndexToast(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	fixture := setup(t, "TestIndexToast", map[string]interface{}{"id": markerID}, []string{"idxcol"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -369,7 +370,7 @@ func TestIndexToast(t *testing.T) {
 }
 
 func TestIndexPrimaryKey(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID, "idxcol": markerIdx}, []string{"idxcol"})
+	fixture := setup(t, "TestIndexPrimaryKey", map[string]interface{}{"id": markerID, "idxcol": markerIdx}, []string{"idxcol"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -398,7 +399,7 @@ func TestIndexPrimaryKey(t *testing.T) {
 }
 
 func TestSkipLongStrings(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	fixture := setup(t, "TestSkipLongStrings", map[string]interface{}{"id": markerID}, []string{"idxcol"})
 	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.DiscardBigValues = true
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
@@ -440,7 +441,7 @@ func TestSkipLongStrings(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	fixture := setup(t, map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	fixture := setup(t, "TestDelete", map[string]interface{}{"id": markerID}, []string{"idxcol"})
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
