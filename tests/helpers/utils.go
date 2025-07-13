@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -18,6 +19,10 @@ import (
 )
 
 var TransferID = "dtt"
+
+func GenerateTransferID(testName string) string {
+	return fmt.Sprintf("%s_%s", TransferID, strings.ToLower(testName))
+}
 
 func EmptyRegistry() metrics.Registry {
 	return solomon.NewRegistry(nil).WithTags(map[string]string{"ts": time.Now().String()})

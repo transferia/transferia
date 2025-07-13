@@ -143,7 +143,7 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Len(t, tables, 4)
-		filter := "(abs(\"id\"+\"bigserial_key\"+\"numeric_key\"+\"bigint_key\"+\"float_key\"+\"double_key\"+\"smallint_key\"+\"integer_key\"+\"real_key\")::bigint % 4)"
+		filter := "abs((\"id\"+\"bigserial_key\"+\"numeric_key\"+\"bigint_key\"+\"float_key\"+\"double_key\"+\"smallint_key\"+\"integer_key\"+\"real_key\")::bigint % 4)"
 		require.Contains(t, string(tables[0].Filter), filter+" = 0")
 		require.Contains(t, string(tables[1].Filter), filter+" = 1")
 		require.Contains(t, string(tables[2].Filter), filter+" = 2")
@@ -171,7 +171,7 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Len(t, tables, 4)
-		filter := "abs(hashtext(row(\"serial_key\",\"txt\")::text)) % 4"
+		filter := "abs(hashtext(row(\"serial_key\",\"txt\")::text) % 4)"
 		require.Contains(t, string(tables[0].Filter), filter+" = 0")
 		require.Contains(t, string(tables[1].Filter), filter+" = 1")
 		require.Contains(t, string(tables[2].Filter), filter+" = 2")

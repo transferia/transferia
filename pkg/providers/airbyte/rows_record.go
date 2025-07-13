@@ -7,6 +7,7 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/base"
 	"github.com/transferia/transferia/pkg/base/adapter"
 	"github.com/transferia/transferia/pkg/base/events"
@@ -45,21 +46,22 @@ func (s *RowsRecord) ToOldChangeItem() (*abstract.ChangeItem, error) {
 		return nil, xerrors.Errorf("unable to convert change: %w", errs)
 	}
 	return &abstract.ChangeItem{
-		ID:           uint32(s.Record.EmittedAt),
-		LSN:          0,
-		CommitTime:   uint64(time.Unix(s.Record.EmittedAt/1000, s.Record.EmittedAt*int64(time.Millisecond)).UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       s.Stream.Namespace,
-		Table:        s.Stream.Name,
-		PartID:       "",
-		ColumnNames:  s.cols,
-		ColumnValues: values,
-		TableSchema:  s.TableSchema,
-		OldKeys:      *new(abstract.OldKeysType),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		ID:               uint32(s.Record.EmittedAt),
+		LSN:              0,
+		CommitTime:       uint64(time.Unix(s.Record.EmittedAt/1000, s.Record.EmittedAt*int64(time.Millisecond)).UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           s.Stream.Namespace,
+		Table:            s.Stream.Name,
+		PartID:           "",
+		ColumnNames:      s.cols,
+		ColumnValues:     values,
+		TableSchema:      s.TableSchema,
+		OldKeys:          *new(abstract.OldKeysType),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, nil
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/dblog/tablequery"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -720,21 +721,22 @@ func (s *Storage) loadSample(
 	defer rows.Close()
 
 	ciFetcher := NewChangeItemsFetcher(rows, tx.Conn(), abstract.ChangeItem{
-		ID:           uint32(0),
-		LSN:          0,
-		CommitTime:   uint64(startTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       table.Schema,
-		Table:        table.Name,
-		PartID:       table.PartID(),
-		ColumnNames:  tableSchema.Columns().ColumnNames(),
-		ColumnValues: nil,
-		TableSchema:  tableSchema,
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		ID:               uint32(0),
+		LSN:              0,
+		CommitTime:       uint64(startTime.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           table.Schema,
+		Table:            table.Name,
+		PartID:           table.PartID(),
+		ColumnNames:      tableSchema.Columns().ColumnNames(),
+		ColumnValues:     nil,
+		TableSchema:      tableSchema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, s.metrics).WithUnmarshallerData(MakeUnmarshallerData(s.IsHomo, tx.Conn())).WithLimitCount(2000)
 
 	logger.Log.Info("extracting data from the source table...", log.String("fqtn", table.Fqtn()))
@@ -1286,21 +1288,22 @@ func (s *Storage) loadTable(
 	defer rows.Close()
 
 	ciFetcher := NewChangeItemsFetcher(rows, conn, abstract.ChangeItem{
-		ID:           uint32(0),
-		LSN:          0,
-		CommitTime:   uint64(startTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       table.Schema,
-		Table:        table.Name,
-		PartID:       table.PartID(),
-		ColumnNames:  schema.Columns().ColumnNames(),
-		ColumnValues: nil,
-		TableSchema:  schema,
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		ID:               uint32(0),
+		LSN:              0,
+		CommitTime:       uint64(startTime.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           table.Schema,
+		Table:            table.Name,
+		PartID:           table.PartID(),
+		ColumnNames:      schema.Columns().ColumnNames(),
+		ColumnValues:     nil,
+		TableSchema:      schema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, s.metrics).WithUnmarshallerData(MakeUnmarshallerData(s.IsHomo, conn))
 
 	totalRowsRead := uint64(0)

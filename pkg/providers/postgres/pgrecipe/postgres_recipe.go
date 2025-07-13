@@ -199,7 +199,7 @@ func RecipeSource(opts ...RecipeOption) *postgres.PgSource {
 
 	v.Database = os.Getenv(params.prefix + "PG_LOCAL_DATABASE")
 	v.PgDumpCommand = []string{os.Getenv(params.prefix+"PG_LOCAL_BIN_PATH") + "/pg_dump"}
-	v.SlotID = "testslot"
+	v.SlotID = ""
 	v.BatchSize = 10
 	v.WithDefaults()
 	for _, f := range params.endpointOptions {

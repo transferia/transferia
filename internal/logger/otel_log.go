@@ -16,10 +16,7 @@ import (
 )
 
 const (
-	KeyTransferID = "transfer_id"
-	KeyDstType    = "labels.dst_type"
-	KeySrcType    = "labels.src_type"
-	KeyApp        = "labels.app"
+	KeyApp = "labels.app"
 )
 
 var OtelLog log.Logger = &corezap.Logger{L: zap.NewNop()}

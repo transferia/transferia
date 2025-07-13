@@ -3,6 +3,7 @@ package blank
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -87,11 +88,12 @@ func NewRawMessage(msg parsers.Message, partition abstract.Partition) abstract.C
 			msg.Value,
 			msg.Headers,
 		},
-		TableSchema: BlankSchema,
-		OldKeys:     abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		TxID:        "",
-		Query:       "",
-		Size:        abstract.RawEventSize(uint64(len(msg.Value))),
+		TableSchema:      BlankSchema,
+		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+		Size:             abstract.RawEventSize(uint64(len(msg.Value))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 

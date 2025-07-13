@@ -341,7 +341,6 @@ func TestLargeRowsDontWorkWithoutSpecialSinkOption(t *testing.T) {
 	for _, cfg := range configs {
 		ytModel := cfg.(*yt2.YtDestinationWrapper).Model
 		ytModel.UseStaticTableOnSnapshot = false
-		ytModel.LoseDataOnError = false
 		ytModel.Cluster = os.Getenv("YT_PROXY")
 		ytModel.CellBundle = "default"
 		ytModel.PrimaryMedium = "default"

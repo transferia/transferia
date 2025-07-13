@@ -6,6 +6,7 @@ var (
 	NetworkUnreachable = coded.Register("generic", "network", "unreachable")
 	UnknownCluster     = coded.Register("generic", "unknown_cluster")
 	InvalidCredential  = coded.Register("generic", "invalid_credentials")
+	Dial               = coded.Register("generic", "dial_error")
 
 	// MissingData means that user asked for a table / topic / object wich is not exists on a source side
 	MissingData = coded.Register("generic", "missing_data")

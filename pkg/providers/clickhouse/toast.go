@@ -9,6 +9,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
@@ -241,9 +242,10 @@ func fetchToastedRows(t *sinkTable, changeItems []abstract.ChangeItem) ([]abstra
 				KeyTypes:  nil,
 				KeyValues: nil,
 			},
-			TxID:  "",
-			Query: "",
-			Size:  abstract.RawEventSize(util.DeepSizeof(rowValues)),
+			Size:             abstract.RawEventSize(util.DeepSizeof(rowValues)),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}
 
 		hashK := pKHash(t, changeItem, keyCols)

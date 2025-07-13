@@ -9,11 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	pg_provider "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/tests/helpers"
 )
@@ -24,11 +22,11 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                                                            // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1") // to not go to vanga
 }
 
 func loadSnapshot(t *testing.T) {
+	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
 	_ = helpers.Activate(t, transfer)
@@ -37,20 +35,15 @@ func loadSnapshot(t *testing.T) {
 }
 
 func checkReplicationWorks(t *testing.T) {
-	transfer := model.Transfer{
-		ID:   "test_id",
-		Src:  &Source,
-		Dst:  &Target,
-		Type: abstract.TransferTypeSnapshotAndIncrement,
-	}
+	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
+
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
 
 	srcConn, err := pg_provider.MakeConnPoolFromSrc(&Source, logger.Log)
 	require.NoError(t, err)
 	defer srcConn.Close()
-
-	worker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, helpers.EmptyRegistry(), logger.Log)
-	worker.Start()
-	defer worker.Stop()
 
 	_, err = srcConn.Exec(context.Background(), `INSERT INTO "testschema".test VALUES (2, 'choovuck', 'Value2')`)
 	require.NoError(t, err)

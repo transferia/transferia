@@ -287,7 +287,7 @@ func shardByPKHash(table abstract.TableDescription, keys []abstract.ColSchema, s
 
 	shards := make([]abstract.TableDescription, shardCount)
 	for i := int32(0); i < shardCount; i++ {
-		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs(hashtext(row(%v)::text)) %% %v = %v", cols, shardCount, i))
+		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs(hashtext(row(%v)::text) %% %v) = %v", cols, shardCount, i))
 		shards[i] = abstract.TableDescription{
 			Name:   table.Name,
 			Schema: table.ID().Namespace,
@@ -306,7 +306,7 @@ func shardByNumberSum(table abstract.TableDescription, keys []abstract.ColSchema
 	shardEtaSize := etaRows / uint64(shardCount)
 	shards := make([]abstract.TableDescription, shardCount)
 	for i := int32(0); i < shardCount; i++ {
-		shardFilter := abstract.WhereStatement(fmt.Sprintf("(abs(%v)::bigint %% %v) = %v", colsSum, shardCount, i))
+		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs((%v)::bigint %% %v) = %v", colsSum, shardCount, i))
 		shards[i] = abstract.TableDescription{
 			Name:   table.Name,
 			Schema: table.ID().Namespace,

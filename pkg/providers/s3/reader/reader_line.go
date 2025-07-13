@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
 	"github.com/transferia/transferia/pkg/parsers/scanner"
 	"github.com/transferia/transferia/pkg/providers/s3"
@@ -99,8 +100,8 @@ func (r *LineReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (
 	return res, nil
 }
 
-func (r *LineReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.AbstractS3RawReader, error) {
-	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.downloader, r.bucket, filePath, r.metrics)
+func (r *LineReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
@@ -222,21 +223,22 @@ func (r *LineReader) constructCI(line string, fname string, lastModified time.Ti
 	values[columnIndex] = line
 
 	return &abstract.ChangeItem{
-		ID:           0,
-		LSN:          0,
-		CommitTime:   uint64(lastModified.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       r.table.Namespace,
-		Table:        r.table.Name,
-		PartID:       fname,
-		ColumnNames:  r.ColumnNames,
-		ColumnValues: values,
-		TableSchema:  r.tableSchema,
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.RawEventSize(util.DeepSizeof(values)),
+		ID:               0,
+		LSN:              0,
+		CommitTime:       uint64(lastModified.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           r.table.Namespace,
+		Table:            r.table.Name,
+		PartID:           fname,
+		ColumnNames:      r.ColumnNames,
+		ColumnValues:     values,
+		TableSchema:      r.tableSchema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.RawEventSize(util.DeepSizeof(values)),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, nil
 }
 

@@ -14,6 +14,8 @@ type ConnectionData struct {
 	Subnet                string
 	SecurityGroups        []string
 	DisableProxyDiscovery bool
+	UseTLS                bool
+	TLSFile               string
 }
 
 type YtSource struct {
@@ -82,4 +84,12 @@ func (y ytSrcWrapper) DisableProxyDiscovery() bool {
 
 func (y ytSrcWrapper) CompressionCodec() yt.ClientCompressionCodec {
 	return yt.ClientCodecBrotliFastest
+}
+
+func (y ytSrcWrapper) UseTLS() bool {
+	return y.Connection.UseTLS
+}
+
+func (y ytSrcWrapper) TLSFile() string {
+	return y.Connection.TLSFile
 }

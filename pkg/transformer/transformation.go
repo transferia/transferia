@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -244,12 +245,13 @@ func errorChangeItems(errors []abstract.TransformerError) []abstract.ChangeItem 
 				Properties:   nil,
 			})),
 			OldKeys: errRow.Input.OldKeys,
-			TxID:    errRow.Input.TxID,
-			Query:   errRow.Input.Query,
 			Size: abstract.EventSize{
 				Read:   0,
 				Values: 0,
 			},
+			TxID:             errRow.Input.TxID,
+			Query:            errRow.Input.Query,
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}
 	}
 	return res

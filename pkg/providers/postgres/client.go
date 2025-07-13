@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"net"
 	"strconv"
 	"time"
 
@@ -527,6 +528,10 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	if err != nil {
 		if IsPgError(err, ErrcInvalidPassword) || IsPgError(err, ErrcInvalidAuthSpec) {
 			return nil, coded.Errorf(providers.InvalidCredential, "failed to connect to a PostgreSQL instance: %w", err)
+		}
+		var opErr *net.OpError
+		if xerrors.As(err, &opErr) && opErr.Op == "dial" {
+			return nil, coded.Errorf(providers.Dial, "failed to dial a PostgreSQL instance: %w", err)
 		}
 		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance: %w", err)
 	}

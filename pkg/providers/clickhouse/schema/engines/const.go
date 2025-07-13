@@ -1,5 +1,7 @@
 package engines
 
+type engineType string
+
 const (
 	mergeTree                    = engineType("MergeTree")
 	replacingMergeTree           = engineType("ReplacingMergeTree")

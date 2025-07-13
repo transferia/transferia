@@ -130,6 +130,11 @@ func (s *IncrementalAsyncSink) AsyncPush(items []abstract.ChangeItem) chan error
 			}
 
 		} else {
+			if abstract.IsSystemTable(item.Table) {
+				s.logger.Infof("skipping push of system table event: %s", item.Table)
+				continue
+			}
+
 			items[lastUnfilledItemIdx] = items[idx]
 			lastUnfilledItemIdx++
 
@@ -173,7 +178,7 @@ func (s *IncrementalAsyncSink) pushChunk() error {
 func (s *IncrementalAsyncSink) shiftRemainingItems(items []abstract.ChangeItem, lastFilledIdx, curIdx int) error {
 	for ; curIdx < len(items); curIdx++ {
 		curTableName := items[curIdx].Table
-		if curTableName == "__consumer_keeper" || curTableName == "__data_transfer_signal_table" {
+		if abstract.IsSystemTable(curTableName) {
 			continue
 		}
 

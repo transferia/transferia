@@ -1,15 +1,22 @@
 package s3raw
 
 import (
+	"io"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
-type AbstractS3RawReader interface {
-	ReadAt(p []byte, off int64) (int, error)
+type S3RawReader interface {
+	io.ReaderAt
 	Size() int64
 	LastModified() time.Time
+}
+
+// ReaderAll returns whole file per one call. Used (if implemented) by some parsers.
+// If not implemented, util.readAllByBlocks is used (which is for-loopo calls of ReadAt).
+type ReaderAll interface {
+	ReadAll() ([]byte, error)
 }
 
 //---

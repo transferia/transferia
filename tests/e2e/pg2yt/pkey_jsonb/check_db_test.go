@@ -10,11 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -127,22 +124,8 @@ func Load(t *testing.T) {
 	srcConn, err := postgres.NewPgConnPool(srcConnConfig, nil)
 	require.NoError(t, err)
 
-	//------------------------------------------------------------------------------
-
-	err = postgres.CreateReplicationSlot(&Source)
-	require.NoError(t, err)
-
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
-
-	//------------------------------------------------------------------------------
-
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
-	localWorker.Start()
-	defer localWorker.Stop() //nolint
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
 
 	//------------------------------------------------------------------------------
 

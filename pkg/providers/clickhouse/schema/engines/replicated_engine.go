@@ -7,51 +7,52 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
-type replicatedEngineParams struct {
-	ZooPath   string
-	Replica   string
-	TableName string
-}
-
 type replicatedEngine struct {
-	BaseEngine *mergeTreeFamilyEngine
-	Type       engineType
-	Params     *replicatedEngineParams
+	baseEngine           *anyEngine // 'base' engine object - not replicated engine - for example: 'MergeTree'
+	replicatedEngineType engineType // 'replicated' engine name - for example: 'ReplicatedMergeTree'
+	replicatingParams    *replicatedEngineParams
 }
-
-func (e *replicatedEngine) IsEngine() {}
 
 func (e *replicatedEngine) String() string {
-	if len(e.BaseEngine.Params) == 0 {
-		return fmt.Sprintf("%v(%v, %v)", e.Type, e.Params.ZooPath, e.Params.Replica)
+	if e.replicatingParams == nil {
+		return fmt.Sprintf("%s()", e.replicatedEngineType)
+	} else if len(e.baseEngine.params) == 0 {
+		return fmt.Sprintf("%v(%v, %v)", e.replicatedEngineType, e.replicatingParams.ZkPath, e.replicatingParams.Replica)
+	} else {
+		return fmt.Sprintf("%v(%v, %v, %v)", e.replicatedEngineType, e.replicatingParams.ZkPath, e.replicatingParams.Replica, strings.Join(e.baseEngine.params, ", "))
 	}
-	return fmt.Sprintf("%v(%v, %v, %v)", e.Type, e.Params.ZooPath, e.Params.Replica, strings.Join(e.BaseEngine.Params, ", "))
 }
 
-func newReplicatedEngine(baseEngine *mergeTreeFamilyEngine, db, table string) *replicatedEngine {
-	replicatedType, _ := getReplicatedEngineType(string(baseEngine.Type))
-	tableName := fmt.Sprintf("%v.%v_cdc", db, table)
+func newReplicatedEngine(baseEngine *anyEngine, db, table string) *replicatedEngine { // makes replicated version of any engine
+	replicatedType, _ := getReplicatedEngineType(string(baseEngine.EngineType()))
+
+	var replicatingParams *replicatedEngineParams = nil
+	if baseEngine.EngineType() != mergeTree { // TM-8875 - for 'MergeTree' we should't set zookeeper path explicitly
+		tableName := fmt.Sprintf("%v.%v_cdc", db, table)
+		replicatingParams, _ = newReplicatedEngineParams(
+			fmt.Sprintf("'/clickhouse/tables/{shard}/%v'", tableName),
+			"'{replica}'",
+		)
+	}
+
 	return &replicatedEngine{
-		BaseEngine: baseEngine,
-		Type:       engineType(replicatedType),
-		Params: &replicatedEngineParams{
-			ZooPath:   fmt.Sprintf("'/clickhouse/tables/{shard}/%v'", tableName),
-			Replica:   "'{replica}'",
-			TableName: tableName,
-		},
+		baseEngine:           baseEngine,
+		replicatedEngineType: engineType(replicatedType),
+		replicatingParams:    replicatingParams,
 	}
 }
 
-//---
+func newReplicatedEngineFromReplicated(inReplicatedEngine *anyEngine) (*replicatedEngine, error) { // for DAO
+	baseEngine := inReplicatedEngine.Clone()
+	baseEngine.UpdateToNotReplicatedEngine()
 
-func parseReplicatedEngineParams(zkPathArg, replicaArg string) (*replicatedEngineParams, error) {
-	zkPathTokens := strings.Split(zkPathArg, "/")
-	if len(zkPathTokens) < 2 {
-		return nil, xerrors.Errorf("zk path doesn`t seem to be a path: %v", zkPathArg)
+	replicatedParams, err := newReplicatedEngineParams(inReplicatedEngine.params[0], inReplicatedEngine.params[1])
+	if err != nil {
+		return nil, xerrors.Errorf("invalid params: %w", err)
 	}
-	return &replicatedEngineParams{
-		ZooPath:   zkPathArg,
-		Replica:   replicaArg,
-		TableName: zkPathTokens[len(zkPathTokens)-1],
+	return &replicatedEngine{
+		baseEngine:           baseEngine,
+		replicatedEngineType: inReplicatedEngine.EngineType(),
+		replicatingParams:    replicatedParams,
 	}, nil
 }

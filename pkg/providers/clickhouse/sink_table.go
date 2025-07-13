@@ -511,21 +511,22 @@ func normalizeColumnNamesOrder(changeItems []abstract.ChangeItem) ([]abstract.Ch
 				vals[colNameToIdx[colName]] = el.ColumnValues[i]
 			}
 			res[i] = abstract.ChangeItem{
-				ID:           changeItems[i].ID,
-				LSN:          changeItems[i].LSN,
-				CommitTime:   changeItems[i].CommitTime,
-				Counter:      changeItems[i].Counter,
-				Kind:         changeItems[i].Kind,
-				Schema:       changeItems[i].Schema,
-				Table:        changeItems[i].Table,
-				PartID:       changeItems[i].PartID,
-				ColumnNames:  masterChangeItem.ColumnNames,
-				ColumnValues: vals,
-				TableSchema:  masterChangeItem.TableSchema,
-				OldKeys:      changeItems[i].OldKeys,
-				TxID:         changeItems[i].TxID,
-				Query:        changeItems[i].Query,
-				Size:         changeItems[i].Size,
+				ID:               changeItems[i].ID,
+				LSN:              changeItems[i].LSN,
+				CommitTime:       changeItems[i].CommitTime,
+				Counter:          changeItems[i].Counter,
+				Kind:             changeItems[i].Kind,
+				Schema:           changeItems[i].Schema,
+				Table:            changeItems[i].Table,
+				PartID:           changeItems[i].PartID,
+				ColumnNames:      masterChangeItem.ColumnNames,
+				ColumnValues:     vals,
+				TableSchema:      masterChangeItem.TableSchema,
+				OldKeys:          changeItems[i].OldKeys,
+				Size:             changeItems[i].Size,
+				TxID:             changeItems[i].TxID,
+				Query:            changeItems[i].Query,
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			}
 		}
 	}

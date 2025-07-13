@@ -23,7 +23,7 @@ func TestMetrikaHitProtoseq(t *testing.T) {
 		require.FailNow(t, "unexpected unparsed items", unparsed)
 	}
 	checkColsEqual(t, actual)
-	require.Equal(t, 8639, len(actual))
+	require.Equal(t, 7740, len(actual))
 	for _, item := range actual {
 		require.Equal(t, 112, len(item.ColumnNames))
 	}

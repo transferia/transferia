@@ -6,6 +6,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/debezium/unpacker"
@@ -195,9 +196,10 @@ func (r *Receiver) receive(schema, payload []byte) (*abstract.ChangeItem, error)
 			KeyTypes:  nil,
 			KeyValues: nil,
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.RawEventSize(util.DeepSizeof(payload)),
+		Size:             abstract.RawEventSize(util.DeepSizeof(payload)),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	for i := range currDebeziumSchema.Fields {
 		if val, ok := currValuesMap[currDebeziumSchema.Fields[i].Field]; ok {

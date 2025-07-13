@@ -96,7 +96,11 @@ func (p *DebeziumImpl) doMultiThread(batch parsers.MessageBatch) []abstract.Chan
 }
 
 func (p *DebeziumImpl) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
-	return p.DoBuf(partition, msg.Value, msg.Offset, msg.WriteTime)
+	result := p.DoBuf(partition, msg.Value, msg.Offset, msg.WriteTime)
+	for i := range result {
+		result[i].FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
+	}
+	return result
 }
 
 // It's important to warn-up Schema-Registry cache single-thread, to not to DDoS Schema-Registry

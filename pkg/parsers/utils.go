@@ -163,3 +163,15 @@ func ExtractErrorFromUnparsed(unparsed abstract.ChangeItem) string {
 	}
 	return ""
 }
+
+func VerifyUnparsed(items []abstract.ChangeItem) error {
+	for _, item := range items {
+		if !IsUnparsed(item) {
+			continue
+		}
+		partID := item.TablePartID()
+		cause := ExtractErrorFromUnparsed(item)
+		return xerrors.Errorf("'%s' has unparsed, cause: '%s'", partID.FqtnWithPartID(), cause)
+	}
+	return nil
+}

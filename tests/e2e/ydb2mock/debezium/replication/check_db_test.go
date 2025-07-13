@@ -133,7 +133,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 	// wait when all events goes thought sink
 
 	for {
-		if index == 5 {
+		if len(result) == 5 {
 			break
 		}
 		time.Sleep(time.Second)

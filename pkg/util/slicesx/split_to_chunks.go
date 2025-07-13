@@ -3,8 +3,6 @@ package slicesx
 // SplitToChunks splits `slice` to `n` chunks of `math.Ceil(len(slice)/n)` length.
 // Tailing chunks could be shorter (even `nil` if n > len(slice)/2). Also, just `nil` is returned if n < 0.
 // Values of result slice are not copied and could be changed through original `slice`.
-//
-//	SplitToChunks([1, 2, 3, 4, 5], 4) -->
 func SplitToChunks[T any](slice []T, n int) [][]T {
 	if n < 0 {
 		return nil

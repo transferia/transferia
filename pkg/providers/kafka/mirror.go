@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -39,18 +40,14 @@ func IsKafkaRawMessage(items []abstract.ChangeItem) bool {
 func MakeKafkaRawMessage(table string, commitTime time.Time, topic string, shard int, offset int64, key, data []byte) abstract.ChangeItem {
 	return abstract.ChangeItem{
 		ID:          0,
-		Kind:        abstract.InsertKind,
-		Counter:     0,
-		CommitTime:  uint64(commitTime.UnixNano()),
 		LSN:         uint64(offset),
-		TableSchema: kafkaRawDataSchema,
-		ColumnNames: kafkaRawDataColumns,
+		CommitTime:  uint64(commitTime.UnixNano()),
+		Counter:     0,
+		Kind:        abstract.InsertKind,
 		Schema:      "",
-		OldKeys:     abstract.EmptyOldKeys(),
-		TxID:        "",
-		Query:       "",
 		Table:       table,
 		PartID:      "",
+		ColumnNames: kafkaRawDataColumns,
 		ColumnValues: []interface{}{
 			topic,
 			shard,
@@ -59,7 +56,12 @@ func MakeKafkaRawMessage(table string, commitTime time.Time, topic string, shard
 			key,
 			data,
 		},
-		Size: abstract.RawEventSize(uint64(len(data))),
+		TableSchema:      kafkaRawDataSchema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.RawEventSize(uint64(len(data))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -258,21 +259,22 @@ func (s *Storage) segmentLoadTable(ctx context.Context, storage *postgres.Storag
 		defer rows.Close()
 
 		ciFetcher := postgres.NewChangeItemsFetcher(rows, conn, abstract.ChangeItem{
-			ID:           uint32(0),
-			LSN:          uint64(0),
-			CommitTime:   uint64(time.Now().UTC().UnixNano()),
-			Counter:      0,
-			Kind:         abstract.InsertKind,
-			Schema:       table.Schema,
-			Table:        table.Name,
-			PartID:       table.PartID(),
-			ColumnNames:  schema.Columns().ColumnNames(),
-			ColumnValues: nil,
-			TableSchema:  schema,
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.EmptyEventSize(),
+			ID:               uint32(0),
+			LSN:              uint64(0),
+			CommitTime:       uint64(time.Now().UTC().UnixNano()),
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           table.Schema,
+			Table:            table.Name,
+			PartID:           table.PartID(),
+			ColumnNames:      schema.Columns().ColumnNames(),
+			ColumnValues:     nil,
+			TableSchema:      schema,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.EmptyEventSize(),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, s.sourceStats)
 
 		totalRowsRead := uint64(0)

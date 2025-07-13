@@ -5,53 +5,62 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"go.ytsaurus.tech/library/go/core/log"
+	parser "github.com/transferia/transferia/pkg/providers/clickhouse/schema/ddl_parser"
 )
 
-func BuildDDLForSink(
-	lgr log.Logger,
+func BuildDDLForHomoSink(
+	inSqlDDL string,
 	isDstDistributed bool,
 	clusterName string,
-	database string,
+	targetDatabase string,
 	altNames map[string]string,
-	inSqlDDL string,
-	isChCreateTableDistributed bool,
-	tableID abstract.TableID,
-	inEngine string,
+	sourceTableID abstract.TableID,
 ) (string, error) {
 	sqlDDL := inSqlDDL
-	sqlDDL = setTargetDatabase(sqlDDL, tableID.Namespace, database)
-	sqlDDL = setAltName(sqlDDL, database, altNames)
+	sqlDDL = setTargetDatabase(sqlDDL, sourceTableID.Namespace, targetDatabase)
+	sqlDDL = setAltName(sqlDDL, targetDatabase, altNames)
 	sqlDDL = setIfNotExists(sqlDDL)
-	if isChCreateTableDistributed {
-		sqlDDL = ReplaceCluster(sqlDDL, clusterName)
+	isDistributedInSqlDDL := isDistributedDDL(inSqlDDL)
+	if isDistributedInSqlDDL {
+		sqlDDL = replaceCluster(sqlDDL, clusterName)
 	}
+
+	currEngineStr, currEngineName, _, _ := parser.ExtractEngineStrEngineParams(sqlDDL)
+	currEngineObject := newAnyEngine(currEngineStr)
+
 	if isDstDistributed {
-		if !isChCreateTableDistributed {
-			sqlDDL = makeDistributedDDL(sqlDDL, clusterName)
-		}
-		currEngine := inEngine
-		if currEngine == "MaterializedView" {
-			underlying := newMergeTreeFamilyEngine(sqlDDL)
-			currEngine = string(underlying.Type)
+		// add 'ON CLUSTER'
+		if !isDistributedInSqlDDL {
+			sqlDDL = makeOnClusterClusterName(sqlDDL, clusterName)
 		}
 
-		if isSharedEngineType(currEngine) {
-			replicated, err := getReplicatedFromSharedEngineType(currEngine)
+		// handle ENGINE
+		if currEngineName == "MaterializedView" {
+			currEngineName = string(currEngineObject.EngineType())
+		}
+		if isSharedEngineType(currEngineName) { // 'Shared*' -> 'Replicated*'
+			replicated, err := getReplicatedFromSharedEngineType(currEngineName)
 			if err != nil {
 				return "", xerrors.Errorf("unable to get replicated from shared engine: %w", err)
 			}
-
-			sqlDDL = strings.Replace(sqlDDL, currEngine, replicated, 1)
+			sqlDDL = strings.Replace(sqlDDL, currEngineName, replicated, 1)
 		}
-
-		if isMergeTreeFamily(currEngine) && !isReplicatedEngineType(currEngine) && !isSharedEngineType(currEngine) {
-			if query, err := setReplicatedEngine(sqlDDL, currEngine, tableID.Namespace, tableID.Name); err != nil {
-				return query, xerrors.Errorf("unable to set replicated table engine: %w", err)
+		if isMergeTreeFamily(currEngineName) && !isReplicatedEngineType(currEngineName) && !isSharedEngineType(currEngineName) {
+			if query, err := setReplicatedEngine(sqlDDL, currEngineName, sourceTableID.Namespace, sourceTableID.Name); err != nil {
+				return "", xerrors.Errorf("unable to set replicated table engine: %w", err)
 			} else {
 				sqlDDL = query
 			}
 		}
-	} // maybe we also should decrease engine
-	return sqlDDL, nil
+		return sqlDDL, nil
+	} else {
+		if currEngineObject.IsReplicated() {
+			// REPLICATED->NOT_REPLICATED - trim replicated parameters
+			currEngineObject.UpdateToNotReplicatedEngine()
+			return strings.Replace(sqlDDL, currEngineStr, currEngineObject.String(), 1), nil
+		} else {
+			// NOT_REPLICATED->NOT_REPLICATED - leave engine as is
+			return sqlDDL, nil
+		}
+	}
 }

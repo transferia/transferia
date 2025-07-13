@@ -7,6 +7,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoscanner"
 	"github.com/transferia/transferia/pkg/stats"
@@ -77,12 +78,14 @@ func (p *ProtoParser) DoBatch(batch parsers.MessageBatch) (res []abstract.Change
 	return res
 }
 
-func (p *ProtoParser) Do(msg parsers.Message, partition abstract.Partition) (res []abstract.ChangeItem) {
+func (p *ProtoParser) do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
+	var result []abstract.ChangeItem
+
 	iterSt := NewIterState(msg, partition)
 
 	defer func() {
 		if err := recover(); err != nil {
-			res = []abstract.ChangeItem{
+			result = []abstract.ChangeItem{
 				unparsedChangeItem(iterSt, msg.Value, xerrors.Errorf("Do: panic recovered: %v", err)),
 			}
 		}
@@ -91,8 +94,8 @@ func (p *ProtoParser) Do(msg parsers.Message, partition abstract.Partition) (res
 	sc, err := protoscanner.NewProtoScanner(p.cfg.ProtoScannerType, p.cfg.LineSplitter, msg.Value, p.cfg.ScannerMessageDesc)
 	if err != nil {
 		iterSt.IncrementCounter()
-		res = append(res, unparsedChangeItem(iterSt, msg.Value, xerrors.Errorf("error creating scanner: %v", err)))
-		return res
+		result = append(result, unparsedChangeItem(iterSt, msg.Value, xerrors.Errorf("error creating scanner: %v", err)))
+		return result
 	}
 
 	for sc.Scan() {
@@ -101,44 +104,53 @@ func (p *ProtoParser) Do(msg parsers.Message, partition abstract.Partition) (res
 
 		protoMsg, err := sc.Message()
 		if err != nil {
-			res = append(res, unparsedChangeItem(iterSt, sc.RawData(), err))
+			result = append(result, unparsedChangeItem(iterSt, sc.RawData(), err))
 			continue
 		}
 
 		changeItem := abstract.ChangeItem{
-			ID:           0,
-			LSN:          iterSt.Offset,
-			CommitTime:   uint64(msg.WriteTime.UnixNano()),
-			Counter:      iterSt.Counter(),
-			Kind:         abstract.InsertKind,
-			Schema:       "",
-			Table:        tableName(iterSt.Partition),
-			PartID:       "",
-			ColumnNames:  p.columns,
-			ColumnValues: nil,
-			TableSchema:  p.schemas,
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(uint64(sc.ApxDataLen())),
+			ID:               0,
+			LSN:              iterSt.Offset,
+			CommitTime:       uint64(msg.WriteTime.UnixNano()),
+			Counter:          iterSt.Counter(),
+			Kind:             abstract.InsertKind,
+			Schema:           "",
+			Table:            tableName(iterSt.Partition),
+			PartID:           "",
+			ColumnNames:      p.columns,
+			ColumnValues:     nil,
+			TableSchema:      p.schemas,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.RawEventSize(uint64(sc.ApxDataLen())),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}
 
 		values, err := p.makeValues(iterSt, protoMsg)
 		if err != nil {
-			res = append(res, unparsedChangeItem(iterSt, sc.RawData(), err))
+			result = append(result, unparsedChangeItem(iterSt, sc.RawData(), err))
 			continue
 		}
 		changeItem.ColumnValues = values
 
-		res = append(res, changeItem)
+		result = append(result, changeItem)
 	}
 
 	if err := sc.Err(); err != nil {
 		iterSt.IncrementCounter()
-		res = append(res, unparsedChangeItem(iterSt, msg.Value, err))
+		result = append(result, unparsedChangeItem(iterSt, msg.Value, err))
 	}
 
-	return res
+	return result
+}
+
+func (p *ProtoParser) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
+	result := p.do(msg, partition)
+	for i := range result {
+		result[i].FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
+	}
+	return result
 }
 
 func tableName(part abstract.Partition) string {
@@ -152,24 +164,25 @@ func unparsedChangeItem(iterSt *iterState, data []byte, err error) abstract.Chan
 	return abstract.ChangeItem{
 		ID:          0,
 		LSN:         iterSt.Offset,
-		Counter:     iterSt.Counter(),
-		Schema:      "",
-		PartID:      "",
-		OldKeys:     abstract.EmptyOldKeys(),
-		TxID:        "",
-		Query:       "",
-		Kind:        abstract.InsertKind,
 		CommitTime:  uint64(iterSt.CreateTime.UnixNano()),
+		Counter:     iterSt.Counter(),
+		Kind:        abstract.InsertKind,
+		Schema:      "",
 		Table:       fmt.Sprintf("%v_unparsed", tableName(iterSt.Partition)),
+		PartID:      "",
 		ColumnNames: parsers.ErrParserColumns,
-		TableSchema: parsers.ErrParserSchema,
 		ColumnValues: []interface{}{
 			iterSt.Partition.String(),
 			iterSt.Offset,
 			err.Error(),
 			util.Sample(string(data), 1000),
 		},
-		Size: abstract.RawEventSize(uint64(len(data))),
+		TableSchema:      parsers.ErrParserSchema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.RawEventSize(uint64(len(data))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 
@@ -235,11 +248,12 @@ func extractValueRecursive(fd protoreflect.FieldDescriptor, val protoreflect.Val
 	}
 
 	if fd.IsList() {
-		size := val.List().Len()
+		list := val.List()
+		size := list.Len()
 		items := make([]interface{}, size)
 
 		for i := 0; i < size; i++ {
-			val, err := extractValueExceptListRecursive(fd, val.List().Get(i), maxDepth-1)
+			val, err := extractValueExceptListRecursive(fd, list.Get(i), maxDepth-1)
 			if err != nil {
 				return nil, xerrors.New(err.Error())
 			}

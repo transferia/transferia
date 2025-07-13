@@ -147,6 +147,10 @@ file: yellow_taxi/yellow_tripdata_2022-07.parquet
         "type": "string",
         "value": ""
     },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+    },
     "Schema": {
         "type": "string",
         "value": "test_namespace"
@@ -572,6 +576,10 @@ file: yellow_taxi/yellow_tripdata_2022-12.parquet
     "Query": {
         "type": "string",
         "value": ""
+    },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
     },
     "Schema": {
         "type": "string",
@@ -999,6 +1007,10 @@ file: yellow_taxi/yellow_tripdata_2023-01.parquet
         "type": "string",
         "value": ""
     },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+    },
     "Schema": {
         "type": "string",
         "value": "test_namespace"
@@ -1424,6 +1436,10 @@ file: yellow_taxi/yellow_tripdata_2023-02.parquet
     "Query": {
         "type": "string",
         "value": ""
+    },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
     },
     "Schema": {
         "type": "string",

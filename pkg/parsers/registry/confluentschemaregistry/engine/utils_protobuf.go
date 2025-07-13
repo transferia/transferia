@@ -8,6 +8,7 @@ import (
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -100,21 +101,22 @@ func makeChangeItemsFromMessageWithProtobuf(inMDBuilder *mdBuilder, schema *conf
 		return nil, xerrors.Errorf("Can't process payload:%w", err)
 	}
 	changeItem := abstract.ChangeItem{
-		ID:           0,
-		LSN:          offset,
-		CommitTime:   uint64(writeTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       schemaName,
-		Table:        tableName,
-		PartID:       "",
-		ColumnNames:  names,
-		ColumnValues: values,
-		TableSchema:  tableColumns,
-		OldKeys:      abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.RawEventSize(uint64(len(buf))),
+		ID:               0,
+		LSN:              offset,
+		CommitTime:       uint64(writeTime.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           schemaName,
+		Table:            tableName,
+		PartID:           "",
+		ColumnNames:      names,
+		ColumnValues:     values,
+		TableSchema:      tableColumns,
+		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+		Size:             abstract.RawEventSize(uint64(len(buf))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	return []abstract.ChangeItem{changeItem}, nil
 }

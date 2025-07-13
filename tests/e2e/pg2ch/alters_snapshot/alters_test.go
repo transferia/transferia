@@ -51,8 +51,8 @@ func TestAlter(t *testing.T) {
 		AddNewColumns: true,
 	}
 	transfer := helpers.MakeTransferForIncrementalSnapshot(helpers.TransferID, &Source, &Target, TransferType, "public", "__test", "id", "0", 1)
-	cp := helpers.NewFakeCP()
-	_, err = helpers.ActivateWithCP(transfer, cp)
+	cp := helpers.NewFakeCPErrRepl()
+	_, err = helpers.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)
 	require.NoError(t, helpers.WaitEqualRowsCount(t, databaseName, "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
 	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams().WithEqualDataTypes(pg2ch.PG2CHDataTypesComparator)))
@@ -72,7 +72,7 @@ func TestAlter(t *testing.T) {
 		rows.Close()
 
 		t.Log("activating transfer after alter")
-		_, err = helpers.ActivateWithCP(transfer, cp)
+		_, err = helpers.ActivateWithCP(transfer, cp, true)
 		require.NoError(t, err)
 		t.Log("activation is done")
 		require.NoError(t, helpers.WaitEqualRowsCount(t, databaseName, "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))

@@ -187,6 +187,10 @@
             "type": "string",
             "value": ""
         },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"mdb/porto/test/perf_diag/pg_stat_activity\",\"PartitionNum\":0,\"Offset\":123,\"Index\":0}"
+        },
         "Schema": {
             "type": "string",
             "value": ""

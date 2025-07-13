@@ -11,13 +11,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
-	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -53,7 +51,6 @@ func makeSource() model.Source {
 		Database: os.Getenv("SOURCE_PG_LOCAL_DATABASE"),
 		Port:     helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
 		DBTables: []string{"public.test"},
-		SlotID:   "testslot",
 	}
 	src.WithDefaults()
 	return src
@@ -102,10 +99,9 @@ func (f *fixture) teardown() {
 	defer conn.Close(context.Background())
 
 	exec(f.t, conn, `DROP TABLE public.test`)
-	exec(f.t, conn, `SELECT pg_drop_replication_slot('testslot')`)
 }
 
-func setup(t *testing.T, useStaticTableOnSnapshot bool) *fixture {
+func setup(t *testing.T, name string, useStaticTableOnSnapshot bool) *fixture {
 	ytEnv, destroyYtEnv := yttest.NewEnv(t)
 
 	conn, err := pgx.Connect(context.Background(), sourceConnString)
@@ -115,12 +111,15 @@ func setup(t *testing.T, useStaticTableOnSnapshot bool) *fixture {
 	exec(t, conn, `CREATE TABLE public.test (id INTEGER PRIMARY KEY, idxcol INTEGER NOT NULL, value TEXT)`)
 	exec(t, conn, `ALTER TABLE public.test ALTER COLUMN value SET STORAGE EXTERNAL`)
 	exec(t, conn, `INSERT INTO public.test VALUES (1, 10, 'kek')`)
-	exec(t, conn, `SELECT pg_create_logical_replication_slot('testslot', 'wal2json')`)
 
-	target := makeTarget(useStaticTableOnSnapshot)
+	src := makeSource()
+	dst := makeTarget(useStaticTableOnSnapshot)
+	transferID := helpers.GenerateTransferID(name)
+	helpers.InitSrcDst(transferID, src, dst, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := helpers.MakeTransfer(transferID, src, dst, abstract.TransferTypeSnapshotAndIncrement)
 	return &fixture{
 		t:            t,
-		transfer:     helpers.MakeTransfer(helpers.TransferID, makeSource(), target, abstract.TransferTypeSnapshotAndIncrement),
+		transfer:     transfer,
 		ytEnv:        ytEnv,
 		destroyYtEnv: destroyYtEnv,
 	}
@@ -159,6 +158,12 @@ func (f *fixture) readAll(tablePath string) (result []row) {
 	}
 	require.NoError(f.t, reader.Err())
 	return
+}
+
+type idxRow struct {
+	IdxCol int         `yson:"idxcol"`
+	ID     int         `yson:"id"`
+	Dummy  interface{} `yson:"_dummy"`
 }
 
 func (f *fixture) readAllIndex(tablePath string) (result []idxRow) {
@@ -224,7 +229,7 @@ func srcAndDstPorts(fxt *fixture) (int, int, error) {
 }
 
 func TestPkeyUpdate(t *testing.T) {
-	fixture := setup(t, true)
+	fixture := setup(t, "TestPkeyUpdate", true)
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -237,31 +242,20 @@ func TestPkeyUpdate(t *testing.T) {
 
 	defer fixture.teardown()
 
-	fakeClient := coordinator.NewStatefulFakeClient()
 	fixture.loadAndCheckSnapshot()
 
-	workerErrChannel := make(chan error)
-	defer func() { require.NoError(t, <-workerErrChannel) }()
-
-	w := local.NewLocalWorker(fakeClient, fixture.transfer, helpers.EmptyRegistry(), logger.Log)
-	defer func() { require.NoError(t, w.Stop()) }()
-
-	go func() { workerErrChannel <- w.Run() }()
+	worker := helpers.Activate(t, fixture.transfer)
+	defer worker.Close(t)
 
 	fixture.update("lel")
 	fixture.waitMarker()
 	fixture.checkTableAfterUpdate("lel")
 }
 
-type idxRow struct {
-	IdxCol int         `yson:"idxcol"`
-	ID     int         `yson:"id"`
-	Dummy  interface{} `yson:"_dummy"`
-}
-
 func TestPkeyUpdateIndex(t *testing.T) {
 	fixture := setup(
 		t,
+		"TestPkeyUpdateIndex",
 		true, // TM-4381
 	)
 
@@ -285,13 +279,8 @@ func TestPkeyUpdateIndex(t *testing.T) {
 		require.Fail(t, "Tables do not match", "Diff:\n%s", diff)
 	}
 
-	workerErrChannel := make(chan error)
-	defer func() { require.NoError(t, <-workerErrChannel) }()
-
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), fixture.transfer, helpers.EmptyRegistry(), logger.Log)
-	defer func() { require.NoError(t, w.Stop()) }()
-
-	go func() { workerErrChannel <- w.Run() }()
+	worker := helpers.Activate(t, fixture.transfer)
+	defer worker.Close(t)
 
 	fixture.update("lel")
 	fixture.waitMarker()
@@ -308,6 +297,7 @@ func TestPkeyUpdateIndex(t *testing.T) {
 func TestPkeyUpdateIndexToast(t *testing.T) {
 	fixture := setup(
 		t,
+		"TestPkeyUpdateIndex",
 		true, // TM-4381
 	)
 
@@ -331,13 +321,8 @@ func TestPkeyUpdateIndexToast(t *testing.T) {
 		require.Fail(t, "Tables do not match", "Diff:\n%s", diff)
 	}
 
-	workerErrChannel := make(chan error)
-	defer func() { require.NoError(t, <-workerErrChannel) }()
-
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), fixture.transfer, helpers.EmptyRegistry(), logger.Log)
-	defer func() { require.NoError(t, w.Stop()) }()
-
-	go func() { workerErrChannel <- w.Run() }()
+	worker := helpers.Activate(t, fixture.transfer)
+	defer worker.Close(t)
 
 	longString := strings.Repeat("x", 32000)
 	fixture.update(longString)

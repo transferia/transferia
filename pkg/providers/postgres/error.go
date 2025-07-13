@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	NoPrimaryKeyCode = coded.Register("postgres", "no_primary_key")
+	NoPrimaryKeyCode              = coded.Register("postgres", "no_primary_key")
+	DropTableWithDependenciesCode = coded.Register("postgres", "drop_table_with_dependencies")
 )
 
 type PgErrorCode string
@@ -21,6 +22,7 @@ const (
 	ErrcObjectNotInPrerequisiteState PgErrorCode = "55000"
 	ErrcInvalidPassword              PgErrorCode = "28P01"
 	ErrcInvalidAuthSpec              PgErrorCode = "28000"
+	ErrcDropTableWithDependencies    PgErrorCode = "2BP01"
 )
 
 func IsPgError(err error, code PgErrorCode) bool {

@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/format"
@@ -210,7 +211,6 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 			if event.IsAllColumnsPresent1() && event.IsAllColumnsPresent2() {
 				res = append(res, abstract.ChangeItem{
 					ID:           txSequence,
-					TxID:         gtidStr,
 					LSN:          lsn,
 					CommitTime:   uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
 					Counter:      i,
@@ -226,26 +226,29 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 						KeyTypes:  nil,
 						KeyValues: schEvent.GetRowValues(i - 1), // it's contract of mysql; even line - old values for full line. odd line - new values
 					},
-					Query: event.Query,
-					Size:  abstract.RawEventSize(rawItemEtaSize),
+					Size:             abstract.RawEventSize(rawItemEtaSize),
+					TxID:             gtidStr,
+					Query:            event.Query,
+					QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 				})
 			} else {
 				cs := abstract.ChangeItem{
-					ID:           txSequence,
-					LSN:          lsn,
-					CommitTime:   uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
-					Counter:      i,
-					Kind:         abstract.UpdateKind,
-					Schema:       event.Table.Schema,
-					Table:        event.Table.Name,
-					PartID:       "",
-					ColumnNames:  nil,
-					ColumnValues: nil,
-					TableSchema:  sch,
-					OldKeys:      *new(abstract.OldKeysType),
-					TxID:         gtidStr,
-					Query:        event.Query,
-					Size:         abstract.RawEventSize(rawItemEtaSize),
+					ID:               txSequence,
+					LSN:              lsn,
+					CommitTime:       uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
+					Counter:          i,
+					Kind:             abstract.UpdateKind,
+					Schema:           event.Table.Schema,
+					Table:            event.Table.Name,
+					PartID:           "",
+					ColumnNames:      nil,
+					ColumnValues:     nil,
+					TableSchema:      sch,
+					OldKeys:          *new(abstract.OldKeysType),
+					Size:             abstract.RawEventSize(rawItemEtaSize),
+					TxID:             gtidStr,
+					Query:            event.Query,
+					QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 				}
 				cols := make([]string, 0)
 				vals := make([]interface{}, 0)
@@ -281,7 +284,6 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 			c := &abstract.ChangeItem{
 				ID:           txSequence,
 				LSN:          lsn,
-				TxID:         gtidStr,
 				CommitTime:   uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
 				Counter:      i,
 				Kind:         abstract.DeleteKind,
@@ -296,8 +298,10 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 					KeyTypes:  nil,
 					KeyValues: vals,
 				},
-				Query: event.Query,
-				Size:  abstract.RawEventSize(rawItemEtaSize),
+				Size:             abstract.RawEventSize(rawItemEtaSize),
+				Query:            event.Query,
+				TxID:             gtidStr,
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			}
 			keys := make([]string, 0)
 			keyTypes := make([]string, 0)
@@ -319,21 +323,22 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 	case InsertAction:
 		for i := n; i < len(event.Data.Rows); i += k {
 			res = append(res, abstract.ChangeItem{
-				ID:           txSequence,
-				LSN:          lsn,
-				CommitTime:   uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
-				Counter:      i,
-				Kind:         abstract.InsertKind,
-				Schema:       event.Table.Schema,
-				Table:        event.Table.Name,
-				PartID:       "",
-				ColumnNames:  colNames,
-				ColumnValues: schEvent.GetRowValues(i),
-				TableSchema:  sch,
-				OldKeys:      *new(abstract.OldKeysType),
-				TxID:         gtidStr,
-				Query:        event.Query,
-				Size:         abstract.RawEventSize(rawItemEtaSize),
+				ID:               txSequence,
+				LSN:              lsn,
+				CommitTime:       uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
+				Counter:          i,
+				Kind:             abstract.InsertKind,
+				Schema:           event.Table.Schema,
+				Table:            event.Table.Name,
+				PartID:           "",
+				ColumnNames:      colNames,
+				ColumnValues:     schEvent.GetRowValues(i),
+				TableSchema:      sch,
+				OldKeys:          *new(abstract.OldKeysType),
+				Size:             abstract.RawEventSize(rawItemEtaSize),
+				TxID:             gtidStr,
+				Query:            event.Query,
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			})
 		}
 	default:

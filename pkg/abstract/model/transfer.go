@@ -224,21 +224,7 @@ func (f *Transfer) AddExtraTransformer(transformer abstract.Transformer) error {
 		f.Transformation = new(Transformation)
 	}
 	f.Transformation.ExtraTransformers = append(f.Transformation.ExtraTransformers, transformer)
-	if f.Transformation.Executor != nil {
-		// add new transformer to transformation executor plan
-		return f.Transformation.Executor.AddTransformer(transformer)
-	}
 	return nil
-}
-
-func (f *Transfer) TransformationMiddleware() (abstract.SinkOption, error) {
-	if f.Transformation != nil {
-		if f.Transformation.Executor == nil {
-			return nil, xerrors.New("Transformation executor is not inited")
-		}
-		return f.Transformation.Executor.MakeSinkMiddleware(), nil
-	}
-	return nil, nil
 }
 
 func (f *Transfer) TransformationJSON() ([]byte, error) {
@@ -250,7 +236,7 @@ func (f *Transfer) TransformationJSON() ([]byte, error) {
 }
 
 func (f *Transfer) TransformationFromJSON(value string) error {
-	transformation, err := MakeTransformationFromJSON(value)
+	transformation, err := NewTransformationFromJSON(value)
 	if err != nil {
 		return xerrors.Errorf("cannot make transformation from JSON string: %w", err)
 	}

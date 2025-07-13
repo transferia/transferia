@@ -2,15 +2,17 @@ package sharder
 
 import (
 	"fmt"
-	"hash/crc32"
+	"math/rand"
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/transformer"
 	"github.com/transferia/transferia/pkg/transformer/registry/filter"
 	tostring "github.com/transferia/transferia/pkg/transformer/registry/to_string"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -22,9 +24,16 @@ func init() {
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create tables filter: %w", err)
 		}
-		cols, err := filter.NewFilter(cfg.Columns.IncludeColumns, cfg.Columns.ExcludeColumns)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to create columns filter: %w", err)
+
+		var columns filter.Filter
+		isRandom := false
+		if cfg.IsRandom {
+			isRandom = true
+		} else {
+			columns, err = filter.NewFilter(cfg.Columns.IncludeColumns, cfg.Columns.ExcludeColumns)
+			if err != nil {
+				return nil, xerrors.Errorf("unable to create columns filter: %w", err)
+			}
 		}
 
 		shardsNum, err := strconv.ParseInt(cfg.ShardsCount, 10, 64)
@@ -32,25 +41,39 @@ func init() {
 			return nil, xerrors.Errorf("cannot parse param as int: %w", err)
 		}
 		return &SharderTransformer{
-			Columns:   cols,
+			Logger: lgr,
+
+			// config part
 			Tables:    tbls,
+			Columns:   columns,
+			IsRandom:  isRandom,
 			ShardsNum: shardsNum,
-			Logger:    lgr,
+
+			uuidForRandom: uuid.New().String(),
 		}, nil
 	})
 }
 
 type Config struct {
-	Columns     filter.Columns `json:"columns"`
-	Tables      filter.Tables  `json:"tables"`
-	ShardsCount string         `json:"shardsCount"`
+	Tables filter.Tables `json:"tables"`
+
+	// 'Columns' and 'IsRandom' is mutually exclusive
+	Columns  filter.Columns `json:"columns"`
+	IsRandom bool           `json:"is_random"`
+
+	ShardsCount string `json:"shardsCount"` // it's string type, bcs of compatibility - long long time ago it was string
 }
 
 type SharderTransformer struct {
-	Columns   filter.Filter
+	Logger log.Logger
+
+	// config part
 	Tables    filter.Filter
+	Columns   filter.Filter
+	IsRandom  bool
 	ShardsNum int64
-	Logger    log.Logger
+
+	uuidForRandom string
 }
 
 func (f *SharderTransformer) Type() abstract.TransformerType {
@@ -104,20 +127,19 @@ func trimStr(value string, maxLength int) string {
 	return value
 }
 
-func intFromString(in string) uint32 {
-	table := crc32.MakeTable(crc32.IEEE)
-	return crc32.Checksum([]byte(in), table)
-}
-
 func (f *SharderTransformer) generatePartID(item *abstract.ChangeItem) string {
-	arrValues := make([]string, 0)
-	fieldNameToVal := item.AsMap()
-	for i := range item.TableSchema.Columns() {
-		currColumnName := item.TableSchema.Columns()[i].ColumnName
-		if f.Columns.Match(currColumnName) {
-			arrValues = append(arrValues, tostring.SerializeToString(fieldNameToVal[currColumnName], item.TableSchema.Columns()[i].DataType))
+	if f.IsRandom {
+		return fmt.Sprintf("%s_%d", f.uuidForRandom, rand.Intn(int(f.ShardsNum)))
+	} else {
+		arrValues := make([]string, 0)
+		fieldNameToVal := item.AsMap()
+		for i := range item.TableSchema.Columns() {
+			currColumnName := item.TableSchema.Columns()[i].ColumnName
+			if f.Columns.Match(currColumnName) {
+				arrValues = append(arrValues, tostring.SerializeToString(fieldNameToVal[currColumnName], item.TableSchema.Columns()[i].DataType))
+			}
 		}
+		summaryStr := strings.Join(arrValues, ".") // we're not afraid of cases {'a.b', 'c'} vs {'a', 'b.c'} here - they just will get into same shard
+		return fmt.Sprintf("%d", util.CRC32FromString(summaryStr)%uint32(f.ShardsNum))
 	}
-	summaryStr := strings.Join(arrValues, ".") // we're not afraid of cases {'a.b', 'c'} vs {'a', 'b.c'} here - they just will get into same shard
-	return fmt.Sprintf("%d", intFromString(summaryStr)%uint32(f.ShardsNum))
 }

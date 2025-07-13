@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	CodeSyntax   = coded.Register("mysql", "incorrect_syntax")
-	CodeDeadlock = coded.Register("mysql", "deadlock")
+	CodeSyntax            = coded.Register("mysql", "incorrect_syntax")
+	CodeDeadlock          = coded.Register("mysql", "deadlock")
+	CodeDecimalNotAllowed = coded.Register("mysql", "decimal_not_allowed")
 )
 
 func IsErrorCode(err error, errNumber uint16) bool {

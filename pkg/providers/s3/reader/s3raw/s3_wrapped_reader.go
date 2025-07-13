@@ -2,22 +2,30 @@ package s3raw
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"strconv"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/stats"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type wrapper[T io.ReadCloser] func(io.Reader) (T, error)
 
-var _ io.ReaderAt = (*wrappedReader[io.ReadCloser])(nil)
+var (
+	_ io.ReaderAt = (*wrappedReader[io.ReadCloser])(nil)
+	_ ReaderAll   = (*wrappedReader[io.ReadCloser])(nil)
+)
 
 type wrappedReader[T io.ReadCloser] struct {
 	fetcher                *s3Fetcher
-	downloader             *s3manager.Downloader
+	client                 s3iface.S3API
 	stats                  *stats.SourceStats
 	fullUncompressedObject []byte
 	wrapper                wrapper[T]
@@ -51,51 +59,72 @@ func (r *wrappedReader[T]) ReadAt(buffer []byte, offset int64) (int, error) {
 	return n, nil
 }
 
-func (r *wrappedReader[T]) loadObjectInMemory() error {
-	_, err := r.fetcher.fetchSize()
-	if err != nil {
-		return xerrors.Errorf("unable to fetch object size %s: %w", r.fetcher.key, err)
-	}
-
-	buff := aws.NewWriteAtBuffer(make([]byte, r.fetcher.objectSize))
-	_, err = r.downloader.DownloadWithContext(r.fetcher.ctx, buff, &s3.GetObjectInput{
+func (r *wrappedReader[T]) ReadAll() ([]byte, error) {
+	file, err := r.client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(r.fetcher.bucket),
 		Key:    aws.String(r.fetcher.key),
 	})
 	if err != nil {
-		return xerrors.Errorf("failed to download object %s: %w", r.fetcher.key, err)
+		return nil, xerrors.Errorf("failed to get object %s: %w", r.fetcher.key, err)
+	}
+	defer func() {
+		if err := file.Body.Close(); err != nil {
+			logger.Log.Warnf("Unable to close body of %s: %s", r.fetcher.key, err.Error())
+		}
+	}()
+	compressedSize := int64(0)
+	if file.ContentLength != nil {
+		compressedSize = *file.ContentLength
 	}
 
-	data := buff.Bytes()
-
-	currWrapper, err := r.wrapper(bytes.NewReader(data))
+	currWrapper, err := r.wrapper(file.Body)
 	if err != nil {
-		return xerrors.Errorf("failed to initialize wrapper: %w", err)
+		return nil, xerrors.Errorf("failed to initialize wrapper: %w", err)
 	}
 	defer currWrapper.Close()
 
-	r.fullUncompressedObject, err = io.ReadAll(currWrapper)
-	if err != nil {
-		return xerrors.Errorf("failed to read from wrapper %s: %w", r.fetcher.key, err)
+	uncompressedSize := int64(0)
+	if meta, ok := file.Metadata["uncompressed-size"]; ok && meta != nil {
+		if uncompressedSize, err = strconv.ParseInt(*meta, 10, 64); err != nil {
+			uncompressedSize = 0
+			logger.Log.Warn(fmt.Sprintf("Unable to parse size '%s' from metadata", *meta), log.Error(err))
+		}
 	}
-	return nil
+
+	res := bytes.NewBuffer(make([]byte, 0, max(uncompressedSize, compressedSize)))
+	_, err = io.Copy(res, currWrapper)
+	return res.Bytes(), err
+}
+
+func (r *wrappedReader[T]) loadObjectInMemory() error {
+	var err error
+	r.fullUncompressedObject, err = r.ReadAll()
+	return err
+}
+
+func (r *wrappedReader[T]) LastModified() time.Time {
+	return r.fetcher.lastModified()
+}
+
+func (r *wrappedReader[T]) Size() int64 {
+	return r.fetcher.size()
 }
 
 func newWrappedReader[T io.ReadCloser](
-	fetcher *s3Fetcher, downloader *s3manager.Downloader, stats *stats.SourceStats, wrapper wrapper[T],
-) (io.ReaderAt, error) {
+	fetcher *s3Fetcher, client s3iface.S3API, stats *stats.SourceStats, wrapper wrapper[T],
+) (S3RawReader, error) {
 	if fetcher == nil {
-		return nil, xerrors.New("missing s3 fetcher for gzip reader")
+		return nil, xerrors.New("missing s3 fetcher for wrapped reader")
 	}
-	if downloader == nil {
-		return nil, xerrors.New("missing s3 downloader for gzip reader")
+	if client == nil {
+		return nil, xerrors.New("missing s3 client for wrapped reader")
 	}
 	if stats == nil {
-		return nil, xerrors.New("missing stats for gzip reader")
+		return nil, xerrors.New("missing stats for wrapped reader")
 	}
 	return &wrappedReader[T]{
 		fetcher:                fetcher,
-		downloader:             downloader,
+		client:                 client,
 		stats:                  stats,
 		fullUncompressedObject: nil,
 		wrapper:                wrapper,
