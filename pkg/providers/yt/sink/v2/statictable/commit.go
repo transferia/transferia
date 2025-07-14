@@ -68,13 +68,15 @@ func commit(client yt.Client, opts *CommitOptions) error {
 				if err != nil {
 					return xerrors.Errorf("reducing static table error: %w", err)
 				}
+				opts.Logger.Info("successfully completed commit step: static table reducing",
+					log.Any("table_path", opts.Path), log.Duration("elapsed_time", time.Since(startMoment)))
 			} else {
 				if err := commitCl.mergeTables(currentStageTablePath, opts.Path, sortedMerge); err != nil {
 					return xerrors.Errorf("merging static table error: %w", err)
 				}
+				opts.Logger.Info("successfully completed commit step: static table merging",
+					log.Any("table_path", opts.Path), log.Duration("elapsed_time", time.Since(startMoment)))
 			}
-			opts.Logger.Info("successfully completed commit step: static table merging",
-				log.Any("table_path", opts.Path), log.Duration("elapsed_time", time.Since(startMoment)))
 		}
 
 		if err := commitCl.moveTables(currentStageTablePath, opts.Path); err != nil {
