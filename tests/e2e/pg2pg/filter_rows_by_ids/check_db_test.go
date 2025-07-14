@@ -56,7 +56,7 @@ func runTransfer(t *testing.T, source *pgcommon.PgSource, target *pgcommon.PgDes
 			AllowedIDs: []string{
 				// should match with `id` value during initial copying
 				"ID1",
-				// should match with `id2` value during initial copying
+				// should match with prefix of `id2` value during initial copying
 				"ID2_2",
 				// should match with `id` value during replicating
 				"ID4",
@@ -100,7 +100,7 @@ func Replication(t *testing.T) {
 			`update testtable set val = 4 where id = 'ID3'`)
 		require.NoError(t, err)
 		_, err = srcConn.Exec(context.Background(),
-			`insert into testtable (id, id2, val) values ('ID4', 'ID2_4', 4)`)
+			`insert into testtable (id, id2, val) values ('ID4', 'ID2_4_suffix', 4)`)
 		require.NoError(t, err)
 	}
 

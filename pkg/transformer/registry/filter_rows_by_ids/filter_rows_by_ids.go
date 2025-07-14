@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/transformer"
 	"github.com/transferia/transferia/pkg/transformer/registry/filter"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -13,6 +14,8 @@ import (
 )
 
 const Type = abstract.TransformerType("filter_rows_by_ids")
+
+const document = "document"
 
 func init() {
 	transformer.Register[Config](Type, func(cfg Config, lgr log.Logger, runtime abstract.TransformationRuntimeOpts) (abstract.Transformer, error) {
@@ -27,10 +30,15 @@ type Config struct {
 }
 
 type FilterRowsByIDsTransformer struct {
-	Tables     filter.Filter
-	Columns    filter.Filter
-	AllowedIDs map[string]struct{}
-	Logger     log.Logger
+	Tables  filter.Filter
+	Columns filter.Filter
+	// prefixes length -> set of prefixes
+	// Optimized specifically for use by Taxi team, where we want to check
+	// whether column values start with allowed IDs.
+	// Since most IDs have the same length, it's efficient to group them by
+	// length in maps and then check substrings of column values.
+	AllowedIDPrefixesByLength map[int]map[string]struct{}
+	Logger                    log.Logger
 }
 
 func NewFilterRowsByIDsTransformer(cfg Config, lgr log.Logger) (*FilterRowsByIDsTransformer, error) {
@@ -46,16 +54,22 @@ func NewFilterRowsByIDsTransformer(cfg Config, lgr log.Logger) (*FilterRowsByIDs
 		return nil, errors.New("list of allowed IDs shouldn't be empty")
 	}
 
-	allowedIDsSet := make(map[string]struct{}, len(cfg.AllowedIDs))
+	allowedIDPrefixesByLength := make(map[int]map[string]struct{})
 	for _, allowedID := range cfg.AllowedIDs {
-		allowedIDsSet[allowedID] = struct{}{}
+		allowedIDPrefixes, ok := allowedIDPrefixesByLength[len(allowedID)]
+		if !ok {
+			allowedIDPrefixes = make(map[string]struct{})
+			allowedIDPrefixesByLength[len(allowedID)] = allowedIDPrefixes
+		}
+
+		allowedIDPrefixes[allowedID] = struct{}{}
 	}
 
 	return &FilterRowsByIDsTransformer{
-		Tables:     tbls,
-		Columns:    cols,
-		AllowedIDs: allowedIDsSet,
-		Logger:     lgr,
+		Tables:                    tbls,
+		Columns:                   cols,
+		AllowedIDPrefixesByLength: allowedIDPrefixesByLength,
+		Logger:                    lgr,
 	}, nil
 }
 
@@ -80,6 +94,14 @@ func (t *FilterRowsByIDsTransformer) Apply(input []abstract.ChangeItem) abstract
 func (t *FilterRowsByIDsTransformer) shouldKeep(item abstract.ChangeItem) bool {
 	item_as_map := item.AsMap()
 	for _, colSchema := range item.TableSchema.Columns() {
+		if t.isMongoDocumentColumn(colSchema) {
+			if t.processMongoDocument(item_as_map[document]) {
+				return true
+			}
+
+			continue
+		}
+
 		if !t.checkColumnSuitable(colSchema) {
 			continue
 		}
@@ -99,7 +121,45 @@ func (t *FilterRowsByIDsTransformer) shouldKeep(item abstract.ChangeItem) bool {
 			continue
 		}
 
-		if _, ok := t.AllowedIDs[asString]; ok {
+		if t.isIDAllowed(asString) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (t *FilterRowsByIDsTransformer) processMongoDocument(value interface{}) bool {
+	dValue, ok := value.(mongo.DValue)
+	if !ok {
+		return false
+	}
+
+	for _, elem := range dValue.D {
+		if !t.Columns.Match(elem.Key) {
+			continue
+		}
+
+		asString, ok := elem.Value.(string)
+		if !ok {
+			continue
+		}
+
+		if t.isIDAllowed(asString) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (t *FilterRowsByIDsTransformer) isIDAllowed(ID string) bool {
+	for prefixesLength, prefixes := range t.AllowedIDPrefixesByLength {
+		if prefixesLength > len(ID) {
+			continue
+		}
+
+		if _, ok := prefixes[ID[0:prefixesLength]]; ok {
 			return true
 		}
 	}
@@ -113,7 +173,9 @@ func (t *FilterRowsByIDsTransformer) Suitable(table abstract.TableID, schema *ab
 	}
 
 	for _, colSchema := range schema.Columns() {
-		if t.checkColumnSuitable(colSchema) {
+		// To filter rows by nested fields in BSON document, we always consider
+		// `document` column in Mongo collections as suitable.
+		if t.checkColumnSuitable(colSchema) || t.isMongoDocumentColumn(colSchema) {
 			return true
 		}
 	}
@@ -121,13 +183,13 @@ func (t *FilterRowsByIDsTransformer) Suitable(table abstract.TableID, schema *ab
 	return false
 }
 
+func (t *FilterRowsByIDsTransformer) isMongoDocumentColumn(colSchema abstract.ColSchema) bool {
+	return colSchema.ColumnName == document && colSchema.DataType == yts.TypeAny.String()
+}
+
 func (t *FilterRowsByIDsTransformer) checkColumnSuitable(colSchema abstract.ColSchema) bool {
 	if colSchema.DataType != yts.TypeString.String() && colSchema.DataType != yts.TypeBytes.String() && colSchema.DataType != yts.TypeAny.String() {
 		return false
-	}
-
-	if t.Columns.Empty() {
-		return true
 	}
 
 	return t.Columns.Match(colSchema.ColumnName)

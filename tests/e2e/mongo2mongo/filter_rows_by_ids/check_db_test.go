@@ -53,9 +53,18 @@ func runTransfer(t *testing.T, source *mongodataagent.MongoSource, target *mongo
 				IncludeTables: []string{"source.collection"},
 			},
 			Columns: filter.Columns{
-				IncludeColumns: []string{"_id"},
+				IncludeColumns: []string{"_id", "nested_id"},
 			},
-			AllowedIDs: []string{"ID1", "ID2", "ID4"},
+			AllowedIDs: []string{
+				// should match with `_id` value during initial copying
+				"ID1",
+				// should match with prefix of `nested_id` value during initial copying
+				"N_ID_2",
+				// should match with prefix of `nested_id` value during initial copying
+				"N_ID_3",
+				// should match with `_id` value during replicating
+				"ID4",
+			},
 		},
 		logger.Log,
 	)
@@ -104,16 +113,16 @@ func FilterRowsByIDs(t *testing.T) {
 		err = sourceDb.CreateCollection(context.Background(), CollectionName)
 		require.NoError(t, err)
 
-		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID0", "column2": 0})
+		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID0", "nested_id": "N_ID_0_suffix", "column2": 0})
 		require.NoError(t, err)
 
-		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID1", "column2": 1})
+		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID1", "nested_id": "N_ID_1_suffix", "column2": 1})
 		require.NoError(t, err)
 
-		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID2", "column2": 2})
+		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID2", "nested_id": "N_ID_2_suffix", "column2": 2})
 		require.NoError(t, err)
 
-		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID3", "column2": 3})
+		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID3", "nested_id": "N_ID_3_suffix", "column2": 3})
 		require.NoError(t, err)
 	}
 
@@ -136,13 +145,13 @@ func FilterRowsByIDs(t *testing.T) {
 		_, err = sourceCollection.UpdateOne(context.Background(), bson.M{"_id": "ID3", "column2": 3}, bson.M{"$set": bson.M{"column2": 4}})
 		require.NoError(t, err)
 
-		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID4", "column2": 4})
+		_, err = sourceCollection.InsertOne(context.Background(), bson.M{"_id": "ID4", "nested_id": "N_ID_4_suffix", "column2": 4})
 		require.NoError(t, err)
 	}
 
 	// check
 	{
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(TargetDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), 2*time.Minute, 3))
+		require.NoError(t, helpers.WaitDestinationEqualRowsCount(TargetDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), 2*time.Minute, 4))
 
 		targetCollection := targetClient.Database(TargetDbName).Collection(CollectionName)
 		defer func() {
@@ -151,14 +160,16 @@ func FilterRowsByIDs(t *testing.T) {
 
 		db1rowsCount, err := targetCollection.CountDocuments(context.Background(), bson.M{})
 		require.NoError(t, err)
-		require.Equal(t, int64(3), db1rowsCount)
+		require.Equal(t, int64(4), db1rowsCount)
 
 		var docResult bson.M
-		err = targetCollection.FindOne(context.Background(), bson.M{"_id": "ID1", "column2": 2}).Decode(&docResult)
+		err = targetCollection.FindOne(context.Background(), bson.M{"_id": "ID1", "nested_id": "N_ID_1_suffix", "column2": 2}).Decode(&docResult)
 		require.NoError(t, err)
-		err = targetCollection.FindOne(context.Background(), bson.M{"_id": "ID2", "column2": 3}).Decode(&docResult)
+		err = targetCollection.FindOne(context.Background(), bson.M{"_id": "ID2", "nested_id": "N_ID_2_suffix", "column2": 3}).Decode(&docResult)
 		require.NoError(t, err)
-		err = targetCollection.FindOne(context.Background(), bson.M{"_id": "ID4", "column2": 4}).Decode(&docResult)
+		err = targetCollection.FindOne(context.Background(), bson.M{"_id": "ID3", "nested_id": "N_ID_3_suffix", "column2": 4}).Decode(&docResult)
+		require.NoError(t, err)
+		err = targetCollection.FindOne(context.Background(), bson.M{"_id": "ID4", "nested_id": "N_ID_4_suffix", "column2": 4}).Decode(&docResult)
 		require.NoError(t, err)
 	}
 }
