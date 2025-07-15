@@ -267,7 +267,6 @@ require (
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.21 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.21 // indirect
-	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
