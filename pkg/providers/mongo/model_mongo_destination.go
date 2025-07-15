@@ -21,6 +21,7 @@ type MongoDestination struct {
 	SubNetworkID      string
 	SecurityGroupIDs  []string
 	TLSFile           string
+	ConnectionID      string
 	// make a `direct` connection to mongo, see: https://www.mongodb.com/docs/drivers/go/current/fundamentals/connections/connection-guide/
 	Direct bool
 
@@ -30,6 +31,7 @@ type MongoDestination struct {
 }
 
 var _ model.Destination = (*MongoDestination)(nil)
+var _ model.WithConnectionID = (*MongoDestination)(nil)
 
 func (d *MongoDestination) MDBClusterID() string {
 	return d.ClusterID
@@ -67,28 +69,15 @@ func (d *MongoDestination) HasTLS() bool {
 }
 
 func (d *MongoDestination) ConnectionOptions(caCertPaths []string) MongoConnectionOptions {
-	var caCert TrustedCACertificate
-	if d.TLSFile != "" {
-		caCert = InlineCACertificatePEM(d.TLSFile)
-	} else if d.ClusterID != "" {
-		caCert = CACertificatePEMFilePaths(caCertPaths)
-	}
-	return MongoConnectionOptions{
-		ClusterID:  d.ClusterID,
-		Hosts:      d.Hosts,
-		Port:       d.Port,
-		ReplicaSet: d.ReplicaSet,
-		AuthSource: d.AuthSource,
-		User:       d.User,
-		Password:   string(d.Password),
-		CACert:     caCert,
-		Direct:     d.Direct,
-		SRVMode:    d.SRVMode,
-	}
+	return d.ToStorageParams().ConnectionOptions(caCertPaths)
 }
 
 func (d *MongoDestination) Validate() error {
 	return nil
+}
+
+func (d *MongoDestination) GetConnectionID() string {
+	return d.ConnectionID
 }
 
 func (d *MongoDestination) ToStorageParams() *MongoStorageParams {
@@ -107,5 +96,6 @@ func (d *MongoDestination) ToStorageParams() *MongoStorageParams {
 		Direct:            d.Direct,
 		RootCAFiles:       d.RootCAFiles,
 		SRVMode:           d.SRVMode,
+		ConnectionID:      d.ConnectionID,
 	}
 }

@@ -54,30 +54,29 @@ func TestNativeS3(t *testing.T) {
 	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
 	helpers.Activate(t, transfer)
 
-	err := helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 12)
-	require.NoError(t, err)
+	var err error
 
 	s3.UploadOne(t, src, "test_csv_replication_gzip/test_2.csv.gz")
 	time.Sleep(time.Second)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 24)
+	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 12)
 	require.NoError(t, err)
 
 	s3.UploadOne(t, src, "test_csv_replication_gzip/test_3.csv.gz")
 	time.Sleep(time.Second)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 36)
+	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 24)
 	require.NoError(t, err)
 
 	s3.UploadOne(t, src, "test_csv_replication_gzip/test_4.csv.gz")
 	time.Sleep(time.Second)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 48)
+	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 36)
 	require.NoError(t, err)
 
 	s3.UploadOne(t, src, "test_csv_replication_gzip/test_5.csv.gz")
 	time.Sleep(time.Second)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 60)
+	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 48)
 	require.NoError(t, err)
 }

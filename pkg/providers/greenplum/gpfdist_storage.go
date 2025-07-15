@@ -2,6 +2,8 @@ package greenplum
 
 import (
 	"context"
+	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -12,15 +14,29 @@ import (
 	"github.com/transferia/transferia/pkg/providers/greenplum/gpfdist"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/sync/errgroup"
 )
 
-const pushBatchSize = 1000
+const pushBatchSize = 10000
 
 var _ abstract.Storage = (*GpfdistStorage)(nil)
 
 type GpfdistStorage struct {
-	*Storage
-	src *GpSource
+	storage *Storage
+	src     *GpSource
+	params  gpfdistbin.GpfdistParams
+}
+
+func NewGpfdistStorage(config *GpSource, mRegistry metrics.Registry) (*GpfdistStorage, error) {
+	return &GpfdistStorage{
+		storage: NewStorage(config, mRegistry),
+		src:     config,
+		params:  gpfdistbin.NewGpfdistParams(config.AdvancedProps.GpfdistBinPath, config.AdvancedProps.ServiceSchema, 0),
+	}, nil
+}
+
+func (s *GpfdistStorage) SetProcessCount(threads int) {
+	s.params.ThreadsCount = threads
 }
 
 func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
@@ -29,42 +45,72 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 		return xerrors.Errorf("unable to retrive table schema: %w", err)
 	}
 
-	conn, err := coordinatorConnFromStorage(s.Storage)
+	conn, err := coordinatorConnFromStorage(s.storage)
 	if err != nil {
 		return xerrors.Errorf("unable to init coordinator conn: %w", err)
 	}
-	gpfd, err := gpfdistbin.InitGpfdist(s.src.GpfdistParams, gpfdistbin.ExportTable, conn)
+	localAddr, err := localAddrFromStorage(s.storage)
 	if err != nil {
-		return xerrors.Errorf("unable to init gpfdist: %w", err)
+		return xerrors.Errorf("unable to get local address: %w", err)
 	}
-	logger.Log.Debugf("Gpfdist for storage initialized")
+	mode := gpfdistbin.ExportTable
+
+	// Step 1. Run gpfdists and PipeReaders.
+	if s.params.ThreadsCount <= 0 {
+		return xerrors.Errorf("gpfdist parallel setting (%d) should be positive", s.params.ThreadsCount)
+	}
+	gpfdists := make([]*gpfdistbin.Gpfdist, s.params.ThreadsCount)
+	locations := make([]string, s.params.ThreadsCount)
+	pipeReaders := make([]*gpfdist.PipeReader, s.params.ThreadsCount)
+	for i := range gpfdists {
+		gpfdists[i], err = gpfdistbin.InitGpfdist(s.params, localAddr, mode, i)
+		if err != nil {
+			return xerrors.Errorf("unable to init gpfdist #%d: %w", i, err)
+		}
+		locations[i] = gpfdists[i].Location()
+		// Async run PipesReader which will parse data from pipes and push it.
+		pipeReaders[i] = gpfdist.NewPipeReader(gpfdists[i], itemTemplate(table, schema), pushBatchSize)
+		go pipeReaders[i].Run(pusher)
+	}
+	logger.Log.Debugf("%d gpfdists for storage initialized", len(gpfdists))
+
 	defer func() {
-		if err := gpfd.Stop(); err != nil {
-			logger.Log.Error("Unable to stop gpfdist", log.Error(err))
+		for _, gpfd := range gpfdists {
+			if err := gpfd.Stop(); err != nil {
+				logger.Log.Error("Unable to stop gpfdist", log.Error(err))
+			}
 		}
 	}()
 
-	// Async run PipesReader which will parse data from pipes and push it.
-	pipeReader := gpfdist.NewPipeReader(gpfd, s.itemTemplate(table, schema), pushBatchSize)
-	go pipeReader.Run(pusher)
-
-	// Run gpfdist export through external table.
-	extTableRows, err := gpfd.RunExternalTableTransaction(ctx, table.ID(), schema)
+	// Step 2. Run gpfdist export through external table.
+	ddlExecutor := gpfdistbin.NewGpfdistDDLExecutor(conn, s.params.ServiceSchema)
+	extRows, err := ddlExecutor.RunExternalTableTransaction(
+		ctx, mode.ToExternalTableMode(), table.ID(), schema, locations,
+	)
 	if err != nil {
 		return xerrors.Errorf("unable to create external table and insert rows: %w", err)
 	}
 
-	pipeReaderRows, pipeReaderErr := pipeReader.Stop(10 * time.Minute)
-	if pipeReaderErr != nil {
-		return xerrors.Errorf("unable to read pipes and push rows: %w", pipeReaderErr)
+	// Step 3. Close PipeReaders and check that their rows count is equal to external table rows count.
+	pipeRows := atomic.Int64{}
+	eg := errgroup.Group{}
+	for _, pipeReader := range pipeReaders {
+		eg.Go(func() error {
+			rows, err := pipeReader.Stop(10 * time.Minute)
+			pipeRows.Add(rows)
+			return err
+		})
 	}
-	if extTableRows != pipeReaderRows {
-		return xerrors.Errorf("to pipe pushed %d rows, while to external table - %d", pipeReaderRows, extTableRows)
+	if err := eg.Wait(); err != nil {
+		return xerrors.Errorf("unable to read pipes and push rows: %w", err)
+	}
+	if extRows != pipeRows.Load() {
+		return xerrors.Errorf("to pipe pushed %d rows, to external table - %d", pipeRows.Load(), extRows)
 	}
 	return nil
 }
 
-func (s *GpfdistStorage) itemTemplate(table abstract.TableDescription, schema *abstract.TableSchema) abstract.ChangeItem {
+func itemTemplate(table abstract.TableDescription, schema *abstract.TableSchema) abstract.ChangeItem {
 	return abstract.ChangeItem{
 		ID:           uint32(0),
 		LSN:          uint64(0),
@@ -89,9 +135,54 @@ func coordinatorConnFromStorage(storage *Storage) (*pgxpool.Pool, error) {
 	return coordinator.Conn, err
 }
 
-func NewGpfdistStorage(config *GpSource, mRegistry metrics.Registry) (*GpfdistStorage, error) {
-	return &GpfdistStorage{
-		Storage: NewStorage(config, mRegistry),
-		src:     config,
-	}, nil
+// localAddrFromStorage returns host for external connections (from GreenPlum VMs to Transfer VMs).
+func localAddrFromStorage(storage *Storage) (net.IP, error) {
+	var gpAddr *GpHP
+	var err error
+	if storage.config.MDBClusterID() != "" {
+		if gpAddr, _, err = storage.ResolveDbaasMasterHosts(); err != nil {
+			return nil, xerrors.Errorf("unable to resolve dbaas master host: %w", err)
+		}
+	} else {
+		if gpAddr, err = storage.config.Connection.OnPremises.Coordinator.AnyAvailable(); err != nil {
+			return nil, xerrors.Errorf("unable to get coordinator host: %w", err)
+		}
+	}
+
+	conn, err := net.Dial("tcp", gpAddr.String())
+	if err != nil {
+		return nil, xerrors.Errorf("unable to dial GP address %s: %w", gpAddr, err)
+	}
+	defer conn.Close()
+
+	addr := conn.LocalAddr()
+	tcpAddr, ok := addr.(*net.TCPAddr)
+	if !ok {
+		return nil, xerrors.Errorf("expected LocalAddr to be *net.TCPAddr, got %T", addr)
+	}
+	return tcpAddr.IP, nil
+}
+
+func (s *GpfdistStorage) Close() { s.storage.Close() }
+
+func (s *GpfdistStorage) Ping() error { return s.storage.Ping() }
+
+func (s *GpfdistStorage) TableSchema(ctx context.Context, table abstract.TableID) (*abstract.TableSchema, error) {
+	return s.storage.TableSchema(ctx, table)
+}
+
+func (s *GpfdistStorage) TableList(filter abstract.IncludeTableList) (abstract.TableMap, error) {
+	return s.storage.TableList(filter)
+}
+
+func (s *GpfdistStorage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
+	return s.storage.ExactTableRowsCount(table)
+}
+
+func (s *GpfdistStorage) EstimateTableRowsCount(table abstract.TableID) (uint64, error) {
+	return s.storage.EstimateTableRowsCount(table)
+}
+
+func (s *GpfdistStorage) TableExists(table abstract.TableID) (bool, error) {
+	return s.storage.TableExists(table)
 }

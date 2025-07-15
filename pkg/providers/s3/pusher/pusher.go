@@ -9,6 +9,7 @@ import (
 )
 
 type Pusher interface {
+	IsEmpty() bool
 	Push(ctx context.Context, chunk Chunk) error
 	// Ack is used in the parsqueue pusher as a way of keeping the state of files currently being processed clean.
 	// Ack has no effect in the sync pusher, here files are processed from start to finish before new ones are fetched so no state is needed.

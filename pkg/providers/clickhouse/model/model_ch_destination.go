@@ -6,10 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	chConn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 )
 
@@ -26,25 +28,30 @@ type ClickHouseColumnValueToShardName struct {
 }
 
 var (
-	_ model.Destination = (*ChDestination)(nil)
-	_ model.Describable = (*ChDestination)(nil)
+	_ model.Destination          = (*ChDestination)(nil)
+	_ model.Describable          = (*ChDestination)(nil)
+	_ model.WithConnectionID     = (*ChDestination)(nil)
+	_ model.AlterableDestination = (*ChDestination)(nil)
 )
 
 // ChDestination - see description of fields in sink_params.go
 type ChDestination struct {
 	// ChSinkServerParams
-	MdbClusterID     string `json:"Cluster"`
-	ChClusterName    string // CH cluster to which data will be transfered. Other clusters would be ignored.
-	User             string
-	Password         model.SecretString
-	Database         string
-	Partition        string
-	SSLEnabled       bool
-	HTTPPort         int
-	NativePort       int
-	TTL              string
-	InferSchema      bool
-	MigrationOptions *ChSinkMigrationOptions
+	MdbClusterID  string `json:"Cluster"`
+	ChClusterName string // CH cluster to which data will be transfered. Other clusters would be ignored.
+	User          string
+	Password      model.SecretString
+	Database      string
+	Partition     string
+	SSLEnabled    bool
+	HTTPPort      int
+	NativePort    int
+	TTL           string
+	InferSchema   bool
+	// MigrationOptions deprecated
+	MigrationOptions          *ChSinkMigrationOptions
+	ConnectionID              string
+	IsSchemaMigrationDisabled bool
 	// ForceJSONMode forces JSON protocol at sink:
 	// - allows upload records without 'required'-fields, clickhouse fills them via defaults.
 	//         BUT IF THEY ARE 'REQUIRED' - WHAT THE POINT?
@@ -98,16 +105,25 @@ type InsertParams struct {
 }
 
 func (p InsertParams) AsQueryPart() string {
-	settingsQ := ""
 	var settings []string
 	if p.MaterializedViewsIgnoreErrors {
 		settings = append(settings, "materialized_views_ignore_errors = '1'")
 	}
 	if len(settings) > 0 {
-		settingsQ = fmt.Sprintf("SETTINGS %s", strings.Join(settings, ","))
+		return fmt.Sprintf("SETTINGS %s", strings.Join(settings, ","))
 	}
-	return settingsQ
+	return ""
 }
+
+func (p InsertParams) ToQueryOption() clickhouse.QueryOption {
+	settings := make(clickhouse.Settings)
+	if p.MaterializedViewsIgnoreErrors {
+		settings["materialized_views_ignore_errors"] = "1"
+	}
+	return clickhouse.WithSettings(settings)
+}
+
+func (d *ChDestination) IsAlterable() {}
 
 func (d *ChDestination) Describe() model.Doc {
 	return model.Doc{
@@ -210,10 +226,15 @@ func (d *ChDestination) shallUseJSON(transfer *model.Transfer) bool {
 }
 
 // ToSinkParams converts the model into sink properties object, which contains extra information which depends on transfer type
-func (d *ChDestination) ToSinkParams(transfer *model.Transfer) ChDestinationWrapper {
+func (d *ChDestination) ToSinkParams(transfer *model.Transfer) (ChDestinationWrapper, error) {
 	wrapper := newChDestinationWrapper(*d)
 	wrapper.useJSON = d.shallUseJSON(transfer)
-	return *wrapper
+	connectionParams, err := ConnectionParamsFromDestination(d)
+	if err != nil {
+		return ChDestinationWrapper{}, xerrors.Errorf("unable to resolve connection params from destination: %w", err)
+	}
+	wrapper.connectionParams = *connectionParams
+	return *wrapper, nil
 }
 
 // ToReplicationFromPGSinkParams converts the model into sink properties object that would be constructed for a replication from PostgreSQL
@@ -234,10 +255,12 @@ func (d *ChDestination) FillDependentFields(transfer *model.Transfer) {
 // ChDestinationWrapper implements ChSinkParams
 type ChDestinationWrapper struct {
 	Model *ChDestination
-	host  string // host is here, bcs it needed only in SinkServer/SinkTable
+	host  *chConn.Host // host is here, bcs it needed only in SinkServer/SinkTable
 	// useJSON is calculated in runtime, not by the model
-	useJSON       bool
-	migrationOpts ChSinkMigrationOptions
+	connectionParams connectionParams
+	hosts            []*chConn.Host
+	useJSON          bool
+	migrationOpts    ChSinkMigrationOptions
 }
 
 func (d ChDestinationWrapper) InsertSettings() InsertParams {
@@ -246,11 +269,33 @@ func (d ChDestinationWrapper) InsertSettings() InsertParams {
 
 // newChDestinationWrapper copies the model provided to it in order to be able to modify the fields in it
 func newChDestinationWrapper(model ChDestination) *ChDestinationWrapper {
+	migrationOpts := ChSinkMigrationOptions{
+		AddNewColumns: false,
+	}
+	if model.MigrationOptions != nil {
+		migrationOpts = *model.MigrationOptions
+	}
 	return &ChDestinationWrapper{
-		Model:         &model,
-		host:          "",
+		Model: &model,
+		host: &chConn.Host{
+			Name:       "",
+			HTTPPort:   model.HTTPPort,
+			NativePort: model.NativePort,
+			ShardName:  "",
+		},
+		connectionParams: connectionParams{
+			User:           model.User,
+			Password:       string(model.Password),
+			Database:       model.Database,
+			Hosts:          make([]*chConn.Host, 0),
+			Shards:         make(map[string][]*chConn.Host),
+			Secure:         model.SSLEnabled || model.MdbClusterID != "",
+			PemFileContent: model.PemFileContent,
+			ClusterID:      model.MdbClusterID,
+		},
+		hosts:         make([]*chConn.Host, 0),
 		useJSON:       false,
-		migrationOpts: *model.MigrationOptions,
+		migrationOpts: migrationOpts,
 	}
 }
 
@@ -271,7 +316,7 @@ func (d ChDestinationWrapper) ChClusterName() string {
 }
 
 func (d ChDestinationWrapper) User() string {
-	return d.Model.User
+	return d.connectionParams.User
 }
 
 func (d ChDestinationWrapper) Password() string {
@@ -291,20 +336,12 @@ func (d ChDestinationWrapper) Partition() string {
 	return d.Model.Partition
 }
 
-func (d ChDestinationWrapper) Host() *string {
-	return &d.host
+func (d ChDestinationWrapper) Host() *chConn.Host {
+	return d.host
 }
 
 func (d ChDestinationWrapper) SSLEnabled() bool {
 	return d.Model.SSLEnabled || d.MdbClusterID() != ""
-}
-
-func (d ChDestinationWrapper) HTTPPort() int {
-	return d.Model.HTTPPort
-}
-
-func (d ChDestinationWrapper) NativePort() int {
-	return d.Model.NativePort
 }
 
 func (d ChDestinationWrapper) TTL() string {
@@ -327,6 +364,10 @@ func (d ChDestinationWrapper) MigrationOptions() ChSinkMigrationOptions {
 	return d.migrationOpts
 }
 
+func (d ChDestinationWrapper) GetIsSchemaMigrationDisabled() bool {
+	return d.Model.IsSchemaMigrationDisabled
+}
+
 func (d ChDestinationWrapper) UploadAsJSON() bool {
 	return d.useJSON
 }
@@ -339,8 +380,8 @@ func (d ChDestinationWrapper) SystemColumnsFirst() bool {
 	return d.Model.SystemColumnsFirst
 }
 
-func (d ChDestinationWrapper) AltHosts() []string {
-	return d.Model.Hosts
+func (d ChDestinationWrapper) AltHosts() []*chConn.Host {
+	return d.connectionParams.Hosts
 }
 
 func (d ChDestinationWrapper) UseSchemaInTableName() bool {
@@ -375,8 +416,8 @@ func (d ChDestinationWrapper) Rotation() *model.RotatorConfig {
 	return d.Model.Rotation
 }
 
-func (d ChDestinationWrapper) Shards() map[string][]string {
-	return d.Model.Shards()
+func (d ChDestinationWrapper) Shards() map[string][]*chConn.Host {
+	return d.connectionParams.Shards
 }
 
 func (d ChDestinationWrapper) ColumnToShardName() map[string]string {
@@ -391,37 +432,45 @@ func (d ChDestinationWrapper) PemFileContent() string {
 	return d.Model.PemFileContent
 }
 
-func (d ChDestinationWrapper) MakeChildServerParams(host string) ChSinkServerParams {
+func (d ChDestinationWrapper) MakeChildServerParams(host *chConn.Host) ChSinkServerParams {
 	newChDestination := *d.Model
 	newChDestinationWrapper := ChDestinationWrapper{
-		Model:         &newChDestination,
-		host:          host,
-		useJSON:       d.useJSON,
-		migrationOpts: d.MigrationOptions(),
+		Model:            &newChDestination,
+		host:             host,
+		connectionParams: d.connectionParams,
+		hosts:            d.hosts,
+		useJSON:          d.useJSON,
+		migrationOpts:    d.MigrationOptions(),
 	}
 	return newChDestinationWrapper
 }
 
-func (d ChDestinationWrapper) MakeChildShardParams(altHosts []string) ChSinkShardParams {
+func (d ChDestinationWrapper) MakeChildShardParams(altHosts []*chConn.Host) ChSinkShardParams {
 	newChDestination := *d.Model
 	newChDestinationWrapper := ChDestinationWrapper{
-		Model:         &newChDestination,
-		host:          "",
-		useJSON:       d.useJSON,
-		migrationOpts: d.MigrationOptions(),
+		Model:            &newChDestination,
+		host:             new(chConn.Host),
+		connectionParams: d.connectionParams,
+		hosts:            altHosts,
+		useJSON:          d.useJSON,
+		migrationOpts:    d.MigrationOptions(),
 	}
-	newChDestination.Hosts = altHosts
+	newChDestinationWrapper.connectionParams.Hosts = altHosts
+
 	return newChDestinationWrapper
 }
 
 // SetShards
 // we can set model variables, bcs we make copy of ChDestination in NewChDestinationV1
-func (d ChDestinationWrapper) SetShards(shards map[string][]string) {
-	d.Model.ShardsList = []ClickHouseShard{}
-	for shardName, hosts := range shards {
-		d.Model.ShardsList = append(d.Model.ShardsList, ClickHouseShard{
-			Name:  shardName,
-			Hosts: hosts,
-		})
-	}
+func (d ChDestinationWrapper) SetShards(shards map[string][]*chConn.Host) {
+	d.connectionParams.Shards = make(map[string][]*chConn.Host)
+	d.connectionParams.SetShards(shards)
+}
+
+func (d *ChDestination) GetConnectionID() string {
+	return d.ConnectionID
+}
+
+func (d ChDestinationWrapper) GetConnectionID() string {
+	return d.Model.GetConnectionID()
 }

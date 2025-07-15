@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/middlewares"
 	ch_async "github.com/transferia/transferia/pkg/providers/clickhouse/async"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
@@ -46,7 +47,14 @@ func TestTransformerTypeInference(t *testing.T) {
 	transfer.Labels = `{"dt-async-ch": "on"}`
 	sink, err := sink.MakeAsyncSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig())
 	require.NoError(t, err)
-	conn, err := conn.ConnectNative("localhost", target.ToSinkParams(transfer))
+	host := &chconn.Host{
+		Name:       "localhost",
+		HTTPPort:   target.HTTPPort,
+		NativePort: target.NativePort,
+	}
+	params, err := target.ToSinkParams(transfer)
+	require.NoError(t, err)
+	conn, err := conn.ConnectNative(host, params)
 	require.NoError(t, err)
 	defer conn.Close()
 

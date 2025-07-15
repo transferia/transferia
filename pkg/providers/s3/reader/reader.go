@@ -30,6 +30,7 @@ var (
 
 type Reader interface {
 	Read(ctx context.Context, filePath string, pusher pusher.Pusher) error
+
 	// ParsePassthrough is used in the parsqueue pusher for replications.
 	// Since actual parsing in the S3 parsers is a rather complex process, tailored to each format, this methods
 	// is just mean as a simple passthrough to fulfill the parsqueue signature contract and forwards the already parsed CI elements for pushing.
@@ -41,9 +42,9 @@ type Reader interface {
 	ResolveSchema(ctx context.Context) (*abstract.TableSchema, error)
 }
 
-type RowCounter interface {
-	TotalRowCount(ctx context.Context) (uint64, error)
-	RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, error)
+type RowsCountEstimator interface {
+	EstimateRowsCountAllObjects(ctx context.Context) (uint64, error)
+	EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error)
 }
 
 // SkipObject returns true if an object should be skipped.
@@ -95,7 +96,7 @@ func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, log
 
 		for _, file := range files.Contents {
 			if SkipObject(file, pathPattern, "|", filter) {
-				logger.Infof("file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, pathPattern)
+				logger.Debugf("ListFiles - file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, pathPattern)
 				continue
 			}
 			res = append(res, file)
@@ -158,7 +159,7 @@ func appendSystemColsTableSchema(cols []abstract.ColSchema) *abstract.TableSchem
 	return abstract.NewTableSchema(cols)
 }
 
-func New(
+func newImpl(
 	src *s3.S3Source,
 	lgr log.Logger,
 	sess *session.Session,
@@ -235,4 +236,17 @@ func New(
 	default:
 		return nil, xerrors.Errorf("unknown format: %s", src.InputFormat)
 	}
+}
+
+func New(
+	src *s3.S3Source,
+	lgr log.Logger,
+	sess *session.Session,
+	metrics *stats.SourceStats,
+) (Reader, error) {
+	result, err := newImpl(src, lgr, sess, metrics)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create new reader: %w", err)
+	}
+	return NewReaderContractor(result), nil
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	pgrecipe "github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -30,11 +29,6 @@ const (
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 	Source.WithDefaults()
-}
-
-func TestMain(m *testing.M) {
-	ytcommon.InitExe()
-	os.Exit(m.Run())
 }
 
 func TestGroup(t *testing.T) {

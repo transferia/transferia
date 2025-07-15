@@ -13,11 +13,9 @@ import (
 )
 
 type SnapshotTableProgressTracker struct {
-	ctx             context.Context
-	cancel          context.CancelFunc
-	pushTicker      *time.Ticker
-	waitForComplete sync.WaitGroup
-	closeOnce       *sync.Once
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
+	closeOnce *sync.Once
 
 	operationID         string
 	cpClient            coordinator.Coordinator
@@ -26,39 +24,33 @@ type SnapshotTableProgressTracker struct {
 }
 
 func NewSnapshotTableProgressTracker(
-	ctx context.Context,
-	operationID string,
-	cpClient coordinator.Coordinator,
-	progressUpdateMutex *sync.Mutex,
+	ctx context.Context, operationID string, cpClient coordinator.Coordinator, progressUpdateMutex *sync.Mutex,
 ) *SnapshotTableProgressTracker {
 	ctx, cancel := context.WithCancel(ctx)
 	tracker := &SnapshotTableProgressTracker{
-		ctx:             ctx,
-		cancel:          cancel,
-		pushTicker:      nil,
-		waitForComplete: sync.WaitGroup{},
-		closeOnce:       &sync.Once{},
+		cancel:    cancel,
+		wg:        sync.WaitGroup{},
+		closeOnce: &sync.Once{},
 
 		operationID:         operationID,
 		cpClient:            cpClient,
 		parts:               map[string]*model.OperationTablePart{},
 		progressUpdateMutex: progressUpdateMutex,
 	}
-
-	tracker.waitForComplete.Add(1)
-	tracker.pushTicker = time.NewTicker(time.Second * 15)
-	go tracker.run()
-
+	tracker.wg.Add(1)
+	go tracker.run(ctx)
 	return tracker
 }
 
-func (t *SnapshotTableProgressTracker) run() {
-	defer t.waitForComplete.Done()
+func (t *SnapshotTableProgressTracker) run(ctx context.Context) {
+	defer t.wg.Done()
+	pushTicker := time.NewTicker(time.Minute)
+	defer pushTicker.Stop()
 	for {
 		select {
-		case <-t.ctx.Done():
+		case <-ctx.Done():
 			return
-		case <-t.pushTicker.C:
+		case <-pushTicker.C:
 			t.Flush()
 		}
 	}
@@ -67,9 +59,8 @@ func (t *SnapshotTableProgressTracker) run() {
 // Close is thread-safe. Only first call will make sense.
 func (t *SnapshotTableProgressTracker) Close() {
 	t.closeOnce.Do(func() {
-		t.pushTicker.Stop()
 		t.cancel()
-		t.waitForComplete.Wait()
+		t.wg.Wait()
 		t.Flush()
 	})
 }

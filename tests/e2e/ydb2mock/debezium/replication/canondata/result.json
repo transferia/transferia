@@ -24,10 +24,12 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     3,
+                    null,
                     null,
                     null,
                     null,
@@ -290,6 +292,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -361,7 +375,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -385,7 +400,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -627,6 +643,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -698,7 +726,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -722,7 +751,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -964,6 +994,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -1035,7 +1077,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -1059,7 +1102,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -1296,6 +1340,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",
@@ -1591,6 +1647,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -1664,10 +1732,12 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     3,
+                    null,
                     null,
                     null,
                     null,
@@ -1930,6 +2000,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -2001,7 +2083,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -2025,7 +2108,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -2267,6 +2351,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -2338,7 +2434,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -2362,7 +2459,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -2391,9 +2489,11 @@
                         "Uint32_",
                         "Uint64_",
                         "Uint8_",
-                        "Utf8_"
+                        "Utf8_",
+                        "Uuid_"
                     ],
                     "keytypes": [
+                        "stub",
                         "stub",
                         "stub",
                         "stub",
@@ -2439,7 +2539,8 @@
                         7,
                         8,
                         5,
-                        "my_utf8_string"
+                        "my_utf8_string",
+                        "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                     ]
                 },
                 "part": "0",
@@ -2662,6 +2763,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",
@@ -2738,7 +2851,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -2762,7 +2876,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -2791,9 +2906,11 @@
                         "Uint32_",
                         "Uint64_",
                         "Uint8_",
-                        "Utf8_"
+                        "Utf8_",
+                        "Uuid_"
                     ],
                     "keytypes": [
+                        "stub",
                         "stub",
                         "stub",
                         "stub",
@@ -2839,7 +2956,8 @@
                         7,
                         8,
                         5,
-                        "my_utf8_string"
+                        "my_utf8_string",
+                        "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                     ]
                 },
                 "part": "0",
@@ -3062,6 +3180,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",
@@ -3144,9 +3274,11 @@
                         "Uint32_",
                         "Uint64_",
                         "Uint8_",
-                        "Utf8_"
+                        "Utf8_",
+                        "Uuid_"
                     ],
                     "keytypes": [
+                        "stub",
                         "stub",
                         "stub",
                         "stub",
@@ -3192,7 +3324,8 @@
                         7,
                         8,
                         5,
-                        "my_utf8_string"
+                        "my_utf8_string",
+                        "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                     ]
                 },
                 "part": "0",
@@ -3415,6 +3548,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",

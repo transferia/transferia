@@ -178,7 +178,7 @@ func TestDataplaneServiceShardedTasks(t *testing.T) {
 	})
 
 	t.Run("ValidateWorkerCompletion", func(t *testing.T) {
-		require.NoError(t, dp.FinishOperation(operationID, 1, nil))
+		require.NoError(t, dp.FinishOperation(operationID, "", 1, nil))
 		workers, err := dp.GetOperationWorkers(operationID)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(workers))

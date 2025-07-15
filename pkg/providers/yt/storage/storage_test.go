@@ -24,7 +24,7 @@ func emptyRegistry() metrics.Registry {
 	return solomon.NewRegistry(nil).WithTags(map[string]string{"ts": time.Now().String()})
 }
 
-func buildDynamicSchema(schema []abstract.ColumnSchema) []map[string]string {
+func buildDynamicSchema(schema []yt_provider.ColumnSchema) []map[string]string {
 	res := make([]map[string]string, len(schema))
 	for idx, col := range schema {
 		res[idx] = map[string]string{
@@ -55,7 +55,7 @@ func TestYtStorage_TableList(t *testing.T) {
 
 	_, err = env.YT.CreateNode(ctx, ypath.Path("//home/cdc/test/yt_storage_test/__test"), yt.NodeTable, &yt.CreateNodeOptions{
 		Attributes: map[string]interface{}{
-			"schema": buildDynamicSchema([]abstract.ColumnSchema{
+			"schema": buildDynamicSchema([]yt_provider.ColumnSchema{
 				{
 					Name:    "Column_1",
 					YTType:  "int8",
@@ -84,7 +84,7 @@ func TestYtStorage_TableList(t *testing.T) {
 
 	Target.WithDefaults()
 
-	sinker, err := ytsink.NewSinker(Target, "", 0, logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
+	sinker, err := ytsink.NewSinker(Target, "", logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
 	require.NoError(t, err)
 
 	err = sinker.Push([]abstract.ChangeItem{

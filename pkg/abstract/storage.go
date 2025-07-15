@@ -14,14 +14,16 @@ import (
 type LoadProgress func(current, progress, total uint64)
 
 type TableDescription struct {
-	Name   string
 	Schema string // for example - for mysql here are database name
+	Name   string
 	Filter WhereStatement
 	EtaRow uint64 // estimated number of rows in the table
 	Offset uint64 // offset (in rows) along the ordering key (not necessary primary key)
 }
 
 var NonExistentTableID TableID = *NewTableID("", "")
+
+const IsAsyncPartsUploadedStateKey = "is-async-parts-uploaded"
 
 func BuildIncludeMap(objects []string) (map[TableID]bool, error) {
 	includeObjects := map[TableID]bool{}
@@ -351,6 +353,19 @@ type ShardingStorage interface {
 	ShardTable(ctx context.Context, table TableDescription) ([]TableDescription, error)
 }
 
+type TableDescProvider func(ctx context.Context, limit uint64) ([]TableDescription, error)
+
+// AsyncOperationPartsStorage is like ShardingStorage, but uses TableDescProvider to receive
+// table descriptions during transfer process, not all at once.
+// NOTE: For such storage in sharding context (operation state) could appear value with
+// key IsAsyncPartsUploadedStateKey, which is used by control code and should be not changed by storage.
+type AsyncOperationPartsStorage interface {
+	ShardingContextStorage
+	// NOTE: TableDescProvider should be cancelled with corresponding context.CancelFunc if necessary.
+	AsyncPartsProvider(tables []TableDescription) (TableDescProvider, context.CancelFunc, error)
+	TotalPartsCount(ctx context.Context, tables []TableDescription) (uint64, error)
+}
+
 // Storage has data, that need to be shared with all workers
 type ShardingContextStorage interface {
 	// ShardingContext Return shared data, used on *MAIN* worker;
@@ -363,8 +378,8 @@ type ShardingContextStorage interface {
 }
 
 type IncrementalStorage interface {
-	GetIncrementalState(ctx context.Context, incremental []IncrementalTable) ([]TableDescription, error)
-	SetInitialState(tables []TableDescription, incremental []IncrementalTable)
+	GetNextIncrementalState(ctx context.Context, incremental []IncrementalTable) ([]IncrementalState, error)
+	BuildArrTableDescriptionWithIncrementalState(tables []TableDescription, incremental []IncrementalTable) []TableDescription
 }
 
 type SnapshotableStorage interface {

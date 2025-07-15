@@ -28,11 +28,6 @@ var (
 	expectedTableContent = makeExpectedTableContent()
 )
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func makeExpectedTableContent() (result []string) {
 	for i := 1; i <= 20; i++ {
 		result = append(result, fmt.Sprintf("%d", i))

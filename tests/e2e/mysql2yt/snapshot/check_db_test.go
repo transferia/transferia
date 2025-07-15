@@ -10,7 +10,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/mysql"
-	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
@@ -33,11 +32,6 @@ var (
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 	source.WithDefaults()
-}
-
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
 }
 
 func TestGroup(t *testing.T) {

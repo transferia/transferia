@@ -18,6 +18,10 @@ const (
 	Creating     = TransferStatus("Creating")
 	Deactivating = TransferStatus("Deactivating")
 	Failing      = TransferStatus("Failing")
+
+	// tmp statuses for async transfers
+	Paused    = TransferStatus("Paused")    // replication is paused manually
+	Preparing = TransferStatus("Preparing") // replication is being started
 )
 
 var statusActivityMap = map[TransferStatus]bool{
@@ -33,6 +37,9 @@ var statusActivityMap = map[TransferStatus]bool{
 	Deactivating: true,
 	Failing:      true,
 	Stopping:     true,
+	Preparing:    true,
+
+	Paused: false,
 }
 
 var ActiveStatuses []TransferStatus

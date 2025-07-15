@@ -34,7 +34,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		Cluster:                  os.Getenv("YT_PROXY"),
 		CellBundle:               "default",
 		PrimaryMedium:            "default",
-		UseStaticTableOnSnapshot: false, // TM-4444
+		UseStaticTableOnSnapshot: true, // TM-4444
 	})
 	transferType := abstract.TransferTypeSnapshotAndIncrement
 	helpers.InitSrcDst(helpers.TransferID, source, target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable

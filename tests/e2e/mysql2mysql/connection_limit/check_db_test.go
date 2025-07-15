@@ -11,13 +11,14 @@ import (
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotOnly
 	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget()
+	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {

@@ -38,11 +38,6 @@ func execQuery(t *testing.T, ydbConn *ydb3.Driver, query string) {
 	require.NoError(t, ydbConn.Table().Do(context.Background(), foo))
 }
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func TestGroup(t *testing.T) {
 	src := &ydb.YdbSource{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),

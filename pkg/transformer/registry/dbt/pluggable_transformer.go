@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/transformer"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -20,23 +21,21 @@ import (
 func PluggableTransformer(transfer *model.Transfer, _ metrics.Registry, cp coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker {
 	supportedDestination, err := ToSupportedDestination(transfer.Dst)
 	if err != nil {
-		return IdentityMiddleware
+		return middlewares.IdentityMiddleware
 	}
 
 	if transfer.Transformation == nil || transfer.Transformation.Transformers == nil {
-		return IdentityMiddleware
+		return middlewares.IdentityMiddleware
 	}
 	dbtConfigurations, _ := dbConfigs(transfer.Transformation.Transformers)
 	if dbtConfigurations == nil {
-		return IdentityMiddleware
+		return middlewares.IdentityMiddleware
 	}
 
 	return func(s abstract.Sinker) abstract.Sinker {
 		return newPluggableTransformer(s, cp, transfer, supportedDestination, dbtConfigurations)
 	}
 }
-
-var IdentityMiddleware = func(s abstract.Sinker) abstract.Sinker { return s }
 
 func dbConfigs(transformers *transformer.Transformers) ([]*Config, error) {
 	result := make([]*Config, 0)

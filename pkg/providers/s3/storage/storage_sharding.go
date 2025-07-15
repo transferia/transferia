@@ -23,6 +23,16 @@ const (
 	s3VersionCol  = "s3_file_version"
 )
 
+// defaultShardingFilter used for shardDefault.
+func defaultShardingFilter(filepath string) abstract.WhereStatement {
+	return abstract.WhereStatement(fmt.Sprintf(`"%s" = '%s'`, s3FileNameCol, filepath))
+}
+
+// ManyFilesShardingFilter used for shardByLimits.
+func ManyFilesShardingFilter(filepaths []string) abstract.WhereStatement {
+	return abstract.WhereStatement(fmt.Sprintf("%s IN ('%s')", s3FileNameCol, strings.Join(filepaths, "','")))
+}
+
 type FileWithStats struct {
 	*s3.Object
 	Rows, Size uint64
@@ -31,11 +41,11 @@ type FileWithStats struct {
 // NOTE: calculateFilesStats stores 0 as result's `Size` fields if `needSizes` is false,
 // otherwise it could go to S3 API and elapsed time will increase.
 func (s *Storage) calculateFilesStats(ctx context.Context, files []*s3.Object, needSizes bool) ([]*FileWithStats, error) {
-	rowCounter, ok := s.reader.(reader.RowCounter)
+	rowCounter, ok := s.reader.(reader.RowsCountEstimator)
 	if !ok {
 		return nil, xerrors.NewSentinel("missing row counter for sharding rows estimation")
 	}
-	etaRows, err := rowCounter.TotalRowCount(ctx)
+	etaRows, err := rowCounter.EstimateRowsCountAllObjects(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to estimate row count: %w", err)
 	}
@@ -44,7 +54,7 @@ func (s *Storage) calculateFilesStats(ctx context.Context, files []*s3.Object, n
 		rows := etaRows / uint64(len(files)) // By default, use average value as rows count.
 		if len(files) <= reader.EstimateFilesLimit {
 			// If number of files is few, count rows exactly.
-			if rows, err = rowCounter.RowCount(ctx, file); err != nil {
+			if rows, err = rowCounter.EstimateRowsCountOneObject(ctx, file); err != nil {
 				return nil, xerrors.Errorf("unable to fetch row count for file '%s': %w", *file.Key, err)
 			}
 		}
@@ -83,9 +93,12 @@ func (s *Storage) ShardTable(ctx context.Context, tdesc abstract.TableDescriptio
 	}
 
 	if s.cfg.ShardingParams != nil {
+		// @booec algorithm: batch with max part: sum filesize, sum #rows
 		return s.shardByLimits(files)
+	} else {
+		// @tserakhau algorithm: 1 file == 1 TableDescription
+		return s.shardDefault(tdesc, files), nil
 	}
-	return s.shardDefault(tdesc, files), nil
 }
 
 func (s *Storage) shardDefault(tdesc abstract.TableDescription, files []*FileWithStats) []abstract.TableDescription {
@@ -94,10 +107,7 @@ func (s *Storage) shardDefault(tdesc abstract.TableDescription, files []*FileWit
 		res = append(res, abstract.TableDescription{
 			Name:   s.cfg.TableName,
 			Schema: s.cfg.TableNamespace,
-			Filter: abstract.FiltersIntersection(
-				tdesc.Filter,
-				abstract.WhereStatement(fmt.Sprintf(`"%s" = '%s'`, s3FileNameCol, *file.Key)),
-			),
+			Filter: abstract.FiltersIntersection(tdesc.Filter, defaultShardingFilter(*file.Key)),
 			EtaRow: file.Rows,
 			Offset: 0,
 		})
@@ -124,7 +134,7 @@ func (s *Storage) shardByLimits(files []*FileWithStats) ([]abstract.TableDescrip
 			res = append(res, abstract.TableDescription{
 				Name:   s.cfg.TableName,
 				Schema: s.cfg.TableNamespace,
-				Filter: abstract.WhereStatement(fmt.Sprintf("%s IN ('%s')", s3FileNameCol, strings.Join(partFiles, "','"))),
+				Filter: ManyFilesShardingFilter(partFiles),
 				EtaRow: partRows,
 				Offset: 0,
 			})

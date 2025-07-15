@@ -13,7 +13,6 @@ import (
 	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	mongodataagent "github.com/transferia/transferia/pkg/providers/mongo"
-	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
@@ -36,11 +35,6 @@ var (
 
 func init() {
 	helpers.InitSrcDst(helpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-}
-
-func TestMain(m *testing.M) {
-	ytcommon.InitExe()
-	os.Exit(m.Run())
 }
 
 //---------------------------------------------------------------------------------------------------------------------

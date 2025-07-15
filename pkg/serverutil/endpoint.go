@@ -3,11 +3,10 @@ package serverutil
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
-	"net/http/pprof"
 	"time"
 
+	"github.com/transferia/transferia/cloud/dataplatform/lib/debugtools"
 	"github.com/transferia/transferia/internal/logger"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -36,23 +35,18 @@ func RunHealthCheckOnPort(port int) {
 }
 
 func RunPprof() {
-	rootMux := http.NewServeMux()
-	rootMux.HandleFunc("/debug/pprof/", pprof.Index)
-	rootMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	rootMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	rootMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	rootMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	logger.Log.Infof("init pprof on port 8080") // on 8080, bcs YT-vanilla forbid listen 80 port
-	if err := http.ListenAndServe(":8080", rootMux); err != nil {
+	server, err := debugtools.NewServer("tcp", ":8080", logger.Log)
+	if err != nil {
 		logger.Log.Info("failed to serve pprof on 8080, try random port", log.Error(err))
-		listener, err := net.Listen("tcp", ":0")
+		server, err = debugtools.NewServer("tcp", ":0", logger.Log)
 		if err != nil {
 			logger.Log.Error("failed to add listener for pprof", log.Error(err))
 			return
 		}
-		logger.Log.Infof("pprof listen on: %v", listener.Addr().String())
-		if err := http.Serve(listener, rootMux); err != nil {
-			logger.Log.Error("failed to serve pprof", log.Error(err))
-		}
+		logger.Log.Infof("pprof listen on: %v", server.Addr().String())
+	}
+	if err := server.Serve(); err != nil {
+		logger.Log.Error("failed to serve pprof", log.Error(err))
 	}
 }

@@ -26,16 +26,48 @@ func RecipeMysqlSource() *mysql.MysqlSource {
 	return src
 }
 
-func RecipeMysqlTarget() *mysql.MysqlDestination {
+type RecipeParams struct {
+	prefix       string
+	connectionID string
+}
+
+func newRecipeParams() *RecipeParams {
+	return &RecipeParams{
+		prefix:       "",
+		connectionID: "",
+	}
+}
+
+type RecipeOption func(pg *RecipeParams)
+
+func WithPrefix(prefix string) RecipeOption {
+	return func(pg *RecipeParams) {
+		pg.prefix = prefix
+	}
+}
+
+func WithConnectionID(connID string) RecipeOption {
+	return func(pg *RecipeParams) {
+		pg.connectionID = connID
+	}
+}
+
+func RecipeMysqlTarget(options ...RecipeOption) *mysql.MysqlDestination {
+	params := newRecipeParams()
+	for _, option := range options {
+		option(params)
+	}
+
 	PrepareContainer(context.Background())
-	port, _ := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
+	port, _ := strconv.Atoi(os.Getenv(params.prefix + "RECIPE_MYSQL_PORT"))
 	v := new(mysql.MysqlDestination)
-	v.Host = os.Getenv("RECIPE_MYSQL_HOST")
-	v.User = os.Getenv("RECIPE_MYSQL_USER")
-	v.Password = model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD"))
-	v.Database = os.Getenv("RECIPE_MYSQL_TARGET_DATABASE")
+	v.Host = os.Getenv(params.prefix + "RECIPE_MYSQL_HOST")
+	v.User = os.Getenv(params.prefix + "RECIPE_MYSQL_USER")
+	v.Password = model.SecretString(os.Getenv(params.prefix + "RECIPE_MYSQL_PASSWORD"))
+	v.Database = os.Getenv(params.prefix + "RECIPE_MYSQL_TARGET_DATABASE")
 	v.Port = port
 	v.SkipKeyChecks = false
+	v.ConnectionID = params.connectionID
 	v.WithDefaults()
 	return v
 }
@@ -53,9 +85,13 @@ func RecipeMysqlSourceWithConnection(connID string) (*mysql.MysqlSource, *connec
 	return src, managedConnection
 }
 
-func RecipeMysqlTargetWithConnection(connID string) (*mysql.MysqlDestination, *connection.ConnectionMySQL) {
-	port, _ := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
-	database := os.Getenv("RECIPE_MYSQL_TARGET_DATABASE")
+func RecipeMysqlTargetWithConnection(connID string, options ...RecipeOption) (*mysql.MysqlDestination, *connection.ConnectionMySQL) {
+	params := newRecipeParams()
+	for _, option := range options {
+		option(params)
+	}
+	port, _ := strconv.Atoi(os.Getenv(params.prefix + "RECIPE_MYSQL_PORT"))
+	database := os.Getenv(params.prefix + "RECIPE_MYSQL_TARGET_DATABASE")
 	v := new(mysql.MysqlDestination)
 	v.SkipKeyChecks = false
 	v.Database = database

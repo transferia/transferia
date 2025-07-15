@@ -15,11 +15,6 @@ import (
 	"github.com/transferia/transferia/tests/helpers"
 )
 
-func TestMain(m *testing.M) {
-	ytcommon.InitExe()
-	os.Exit(m.Run())
-}
-
 func TestClickhouseToYtStatic(t *testing.T) {
 	src := &model.ChSource{
 		ShardsList: []model.ClickHouseShard{

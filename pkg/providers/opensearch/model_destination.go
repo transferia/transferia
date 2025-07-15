@@ -22,11 +22,13 @@ type OpenSearchDestination struct {
 	SubNetworkID     string
 	SecurityGroupIDs []string
 	Cleanup          model.CleanupType
+	ConnectionID     string
 
 	SanitizeDocKeys bool
 }
 
 var _ model.Destination = (*OpenSearchDestination)(nil)
+var _ model.WithConnectionID = (*OpenSearchDestination)(nil)
 
 func (d *OpenSearchDestination) MDBClusterID() string {
 	return d.ClusterID
@@ -48,6 +50,7 @@ func (d *OpenSearchDestination) ToElasticSearchDestination() (*elastic.ElasticSe
 		SecurityGroupIDs: d.SecurityGroupIDs,
 		Cleanup:          d.Cleanup,
 		SanitizeDocKeys:  d.SanitizeDocKeys,
+		ConnectionID:     d.ConnectionID,
 	}, elastic.OpenSearch
 }
 
@@ -64,6 +67,9 @@ func (d *OpenSearchDestination) GetProviderType() abstract.ProviderType {
 }
 
 func (d *OpenSearchDestination) Validate() error {
+	if d.ConnectionID != "" {
+		return nil
+	}
 	if d.ClusterID == "" &&
 		len(d.DataNodes) == 0 {
 		return xerrors.Errorf("no host specified")
@@ -72,6 +78,10 @@ func (d *OpenSearchDestination) Validate() error {
 		return xerrors.Errorf("can't use CA certificate with disabled SSL")
 	}
 	return nil
+}
+
+func (d *OpenSearchDestination) GetConnectionID() string {
+	return d.ConnectionID
 }
 
 func (d *OpenSearchDestination) WithDefaults() {

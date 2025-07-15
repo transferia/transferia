@@ -293,11 +293,11 @@ func (f *Transfer) ParallelismParams() *abstract.ShardUploadParams {
 	parallelismParams := abstract.DefaultShardUploadParams()
 
 	if paralleledRuntime, ok := f.Runtime.(abstract.ShardingTaskRuntime); ok {
-		if paralleledRuntime.WorkersNum() > 0 {
-			parallelismParams.JobCount = paralleledRuntime.WorkersNum()
+		if paralleledRuntime.SnapshotWorkersNum() > 0 {
+			parallelismParams.JobCount = paralleledRuntime.SnapshotWorkersNum()
 		}
-		if paralleledRuntime.ThreadsNumPerWorker() > 0 {
-			parallelismParams.ProcessCount = paralleledRuntime.ThreadsNumPerWorker()
+		if paralleledRuntime.SnapshotThreadsNumPerWorker() > 0 {
+			parallelismParams.ProcessCount = paralleledRuntime.SnapshotThreadsNumPerWorker()
 		}
 	}
 
@@ -313,14 +313,14 @@ func (f *Transfer) ParallelismParams() *abstract.ShardUploadParams {
 
 func (f *Transfer) IsSharded() bool {
 	if rt, ok := f.Runtime.(abstract.ShardingTaskRuntime); ok {
-		return rt.WorkersNum() > 1
+		return rt.SnapshotWorkersNum() > 1
 	}
 	return false
 }
 
 func (f *Transfer) IsMain() bool {
 	if rt, ok := f.Runtime.(abstract.ShardingTaskRuntime); ok {
-		return rt.IsMain()
+		return rt.SnapshotIsMain()
 	}
 	return true
 }

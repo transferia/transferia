@@ -3,14 +3,12 @@ package decimal
 import (
 	_ "embed"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/mysql"
-	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -55,11 +53,6 @@ var (
 	//go:embed replication_increment_only.sql
 	incrementOnlySQL string
 )
-
-func TestMain(m *testing.M) {
-	ytcommon.InitExe()
-	os.Exit(m.Run())
-}
 
 // Helpers
 

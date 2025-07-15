@@ -2,6 +2,7 @@ package sink
 
 import (
 	"context"
+	"os"
 	"sort"
 	"testing"
 	"time"
@@ -13,10 +14,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
+	"go.ytsaurus.tech/yt/go/yt"
 )
 
 var bigRowSchema = abstract.NewTableSchema([]abstract.ColSchema{
@@ -76,6 +79,27 @@ func (b *bigRow) toValues() []interface{} {
 		b.MyBoolean,
 		b.MyAny,
 	}
+}
+
+// initializes YT client and sinker config
+func initYt(t *testing.T, path string) (testCfg yt2.YtDestinationModel, client yt.Client) {
+	cfg := yt2.NewYtDestinationV1(yt2.YtDestination{
+		Path:          path,
+		Cluster:       os.Getenv("YT_PROXY"),
+		PrimaryMedium: "default",
+		CellBundle:    "default",
+		Spec:          *yt2.NewYTSpec(map[string]interface{}{"max_row_weight": 128 * 1024 * 1024}),
+		CustomAttributes: map[string]string{
+			"test":               "%true",
+			"expiration_timeout": "604800000",
+			"expiration_time":    "\"2200-01-12T03:32:51.298047Z\"",
+		},
+	})
+	cfg.WithDefaults()
+
+	cl, err := ytclient.FromConnParams(cfg, logger.Log)
+	require.NoError(t, err)
+	return cfg, cl
 }
 
 func (b *bigRow) toChangeItem(namespace, name string) abstract.ChangeItem {
@@ -229,14 +253,14 @@ func wrongOrderOfValuesInChangeItem(t *testing.T) {
 			ColumnNames:  bigRowSchema.Columns().ColumnNames(),
 			ColumnValues: values,
 		}})
-	require.NoError(t, err)
+	require.ErrorContains(t, err, "unaccepted value false for yt type int64")
 	err = statTable.Push([]abstract.ChangeItem{{
 		TableSchema: bigRowSchema,
 		Kind:        abstract.DoneTableLoad,
 		Schema:      tableID.Namespace,
 		Table:       tableID.Name,
 	}})
-	require.ErrorContains(t, err, "invalid type: expected \"int64\", actual \"boolean\"")
+	require.NoError(t, err)
 }
 
 func TestCustomAttributesStaticTable(t *testing.T) {

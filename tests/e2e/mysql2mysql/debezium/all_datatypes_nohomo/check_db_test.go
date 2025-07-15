@@ -8,12 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
 	Source = *helpers.RecipeMysqlSource()
-	Target = *helpers.RecipeMysqlTarget()
+	Target = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 var insertStmt = `

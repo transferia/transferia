@@ -11,7 +11,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	pg_provider "github.com/transferia/transferia/pkg/providers/postgres"
-	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -34,11 +33,6 @@ func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 	Source.WithDefaults()
 	Target.WithDefaults()
-}
-
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
 }
 
 //---------------------------------------------------------------------------------------------------------------------

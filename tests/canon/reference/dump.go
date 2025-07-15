@@ -20,6 +20,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/mongo"
@@ -182,13 +183,20 @@ func FromClickhouse(t *testing.T, src *model.ChSource, noTimeCols bool) string {
 		}
 	}
 	var tables tableListResponse
-	sinkParams := src.ToSinkParams()
+	sinkParams, err := src.ToSinkParams()
+	require.NoError(t, err)
 	httpClient, err := httpclient.NewHTTPClientImpl(sinkParams)
 	require.NoError(t, err)
+	connHost := &chconn.Host{
+		Name:       "localhost",
+		HTTPPort:   src.HTTPPort,
+		NativePort: src.NativePort,
+	}
+
 	require.NoError(t, httpClient.Query(
 		context.Background(),
 		logger.Log,
-		"localhost",
+		connHost,
 		`select '"' || database || '"."' || name || '"' as FullName from system.tables where database not like '%system%' FORMAT JSON`,
 		&tables,
 	))
@@ -205,14 +213,14 @@ func FromClickhouse(t *testing.T, src *model.ChSource, noTimeCols bool) string {
 		require.NoError(t, httpClient.Exec(
 			context.Background(),
 			logger.Log,
-			"localhost",
+			connHost,
 			fmt.Sprintf(`OPTIMIZE TABLE %s FINAL`, table.FullName),
 		))
 
 		reader, err := httpClient.QueryStream(
 			context.Background(),
 			logger.Log,
-			"localhost",
+			connHost,
 			fmt.Sprintf(`select * %s from %s order by 1 FORMAT JSON`, excludeList, table.FullName),
 		)
 		require.NoError(t, err)

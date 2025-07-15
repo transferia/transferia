@@ -45,11 +45,6 @@ func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 }
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func makeSource() model.Source {
 	src := &postgres.PgSource{
 		Hosts:    []string{"localhost"},
@@ -206,7 +201,7 @@ func (f *fixture) waitMarker() {
 }
 
 func (f *fixture) loadAndCheckSnapshot() {
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
 	err := snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(f.t, err)
 
@@ -242,12 +237,13 @@ func TestPkeyUpdate(t *testing.T) {
 
 	defer fixture.teardown()
 
+	fakeClient := coordinator.NewStatefulFakeClient()
 	fixture.loadAndCheckSnapshot()
 
 	workerErrChannel := make(chan error)
 	defer func() { require.NoError(t, <-workerErrChannel) }()
 
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), fixture.transfer, helpers.EmptyRegistry(), logger.Log)
+	w := local.NewLocalWorker(fakeClient, fixture.transfer, helpers.EmptyRegistry(), logger.Log)
 	defer func() { require.NoError(t, w.Stop()) }()
 
 	go func() { workerErrChannel <- w.Run() }()
@@ -266,7 +262,7 @@ type idxRow struct {
 func TestPkeyUpdateIndex(t *testing.T) {
 	fixture := setup(
 		t,
-		false, // TM-4381
+		true, // TM-4381
 	)
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
@@ -312,7 +308,7 @@ func TestPkeyUpdateIndex(t *testing.T) {
 func TestPkeyUpdateIndexToast(t *testing.T) {
 	fixture := setup(
 		t,
-		false, // TM-4381
+		true, // TM-4381
 	)
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)

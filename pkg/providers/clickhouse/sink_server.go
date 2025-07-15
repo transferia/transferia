@@ -275,7 +275,7 @@ ORDER BY
 			size:      size,
 		})
 	}
-	s.logger.Infof("rotator found %v parts for table %v from %v", len(parts), table, *s.config.Host())
+	s.logger.Infof("rotator found %v parts for table %v from %v", len(parts), table, s.config.Host().String())
 	if len(parts) > keepParts {
 		oldParts := parts[keepParts:]
 		s.logger.Infof("prepare to delete %v parts for table %v", len(oldParts), table)
@@ -336,11 +336,12 @@ func NewSinkServerImpl(
 	metrics *stats.ChStats,
 	cluster *sinkCluster,
 ) *SinkServer {
-	host := *cfg.Host()
+	hostName := cfg.Host().HostName()
+
 	return &SinkServer{
 		db:            db,
-		logger:        log.With(lgr, log.String("ch_host", host)),
-		host:          host,
+		logger:        log.With(lgr, log.String("ch_host", hostName)),
+		host:          hostName,
 		metrics:       metrics,
 		config:        cfg,
 		getTableMutex: sync.Mutex{},
@@ -360,7 +361,7 @@ func (s *SinkServer) RunGoroutines() {
 }
 
 func NewSinkServer(cfg model.ChSinkServerParams, lgr log.Logger, metrics *stats.ChStats, cluster *sinkCluster) (*SinkServer, error) {
-	host := *cfg.Host()
+	host := cfg.Host()
 	db, err := conn.ConnectNative(host, cfg)
 	if err != nil {
 		return nil, xerrors.Errorf("native connection error: %w", err)

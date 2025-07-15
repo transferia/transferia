@@ -40,12 +40,7 @@ type VersionedTable struct {
 func (t *VersionedTable) Init() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-
-	exist, err := t.ytClient.NodeExists(ctx, t.path, nil)
-	if err != nil {
-		//nolint:descriptiveerrors
-		return err
-	}
+	var err error
 
 	sc := NewSchema(t.schema, t.config, t.path)
 	vInserted := false
@@ -82,34 +77,11 @@ func (t *VersionedTable) Init() error {
 		}
 	}
 
-	if !exist {
-		if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-			t.logger.Error("Init table error", log.Error(err))
-			//nolint:descriptiveerrors
-			return err
-		}
-
-		t.logger.Info("Try to mount table", log.Any("path", t.path))
-		if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
-			//nolint:descriptiveerrors
-			return err
-		}
-	} else {
-		if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
-			//nolint:descriptiveerrors
-			return err
-		}
-		if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-			t.logger.Error("Ensure table error", log.Error(err))
-			//nolint:descriptiveerrors
-			return err
-		}
-		if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
-			//nolint:descriptiveerrors
-			return err
-		}
+	if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
+		t.logger.Error("Init table error", log.Error(err))
+		//nolint:descriptiveerrors
+		return err
 	}
-
 	return nil
 }
 
@@ -130,7 +102,6 @@ func (t *VersionedTable) Write(input []abstract.ChangeItem) error {
 	lookupKeys := make([]interface{}, 0)
 	insertRows := make([]map[string]interface{}, 0)
 
-ROWS:
 	for _, item := range input {
 		schemaCompatible, err := t.ensureSchema(item.TableSchema.Columns())
 		if err != nil {
@@ -153,28 +124,22 @@ ROWS:
 		switch item.Kind {
 		case "update", "insert":
 			for idx, col := range item.ColumnNames {
-				if typeMap[col].DataType == "string" {
-					if s, ok := item.ColumnValues[idx].(string); ok && len(s) > 16777216 && t.config.LoseDataOnError() {
-						t.logger.Warn("Skip row limit", log.Any("col", col), log.Any("size", len(s)))
-						continue ROWS
-					}
-				}
 				if len(item.ColumnValues) <= idx || !t.props[col] {
 					continue
 				}
 				if t.keys[col] {
-					keys[col], err = Restore(typeMap[col], item.ColumnValues[idx])
+					keys[col], err = RestoreWithLengthLimitCheck(typeMap[col], item.ColumnValues[idx], t.config.DiscardBigValues(), YtDynMaxStringLength)
 					if err != nil {
 						return xerrors.Errorf("unable to restore value for key column '%s': %w", col, err)
 					}
 				}
-				row[col], err = Restore(typeMap[col], item.ColumnValues[idx])
+				row[col], err = RestoreWithLengthLimitCheck(typeMap[col], item.ColumnValues[idx], t.config.DiscardBigValues(), YtDynMaxStringLength)
 				if err != nil {
 					return xerrors.Errorf("unable to restore value for column '%s': %w", col, err)
 				}
 			}
 			if t.hasOnlyPKey() {
-				row["__dummy"] = nil
+				row[DummyMainTable] = nil
 			}
 			lookupKeys = append(lookupKeys, keys)
 			insertRows = append(insertRows, row)
@@ -265,9 +230,6 @@ func (t *VersionedTable) updateIndexes(ctx context.Context, tx yt.TabletTx, rows
 			continue
 		}
 
-		if strings.HasSuffix(t.path.String(), "/_ping") {
-			continue
-		}
 		wg.Add(1)
 		go func(k string, n int) {
 			defer wg.Done()
@@ -279,7 +241,7 @@ func (t *VersionedTable) updateIndexes(ctx context.Context, tx yt.TabletTx, rows
 				}
 				idxRow := map[string]interface{}{}
 				idxRow[k] = r[k]
-				idxRow["_dummy"] = nil
+				idxRow[DummyIndexTable] = nil
 				for _, col := range t.schema {
 					if col.PrimaryKey {
 						idxRow[col.ColumnName] = r[col.ColumnName]
@@ -288,7 +250,7 @@ func (t *VersionedTable) updateIndexes(ctx context.Context, tx yt.TabletTx, rows
 				idxRows = append(idxRows, idxRow)
 			}
 
-			idxPath := ypath.Path(fmt.Sprintf("%v__idx_%v", string(t.path), k))
+			idxPath := ypath.Path(MakeIndexTableName(string(t.path), k))
 			t.metrics.Table(string(idxPath), "rows", len(idxRows))
 			t.logger.Infof("prepare idx %v %v rows", idxPath, len(idxRows))
 			if err := tx.InsertRows(ctx, idxPath, idxRows, nil); err != nil {
@@ -380,7 +342,7 @@ func (t *VersionedTable) splitOldNewRows(insertRows []map[string]interface{}, ve
 }
 
 func (t *VersionedTable) ensureSchema(schemas []abstract.ColSchema) (schemaCompatible bool, err error) {
-	if !t.config.CanAlter() {
+	if t.config.IsSchemaMigrationDisabled() || !t.config.CanAlter() {
 		return true, nil
 	}
 	if !t.config.DisableDatetimeHack() {

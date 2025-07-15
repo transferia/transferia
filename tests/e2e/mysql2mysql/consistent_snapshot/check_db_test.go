@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/storage"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
@@ -20,7 +21,7 @@ import (
 var (
 	TransferType = abstract.TransferTypeSnapshotOnly
 	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget()
+	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
@@ -136,7 +137,8 @@ func Snapshot(t *testing.T) {
 
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), operationID, transfer, helpers.EmptyRegistry())
 
-	err = snapshotLoader.DoUploadTables(context.TODO(), storage, snapshotLoader.GetLocalTablePartProvider(operationTables...))
+	partProvider := tasks.NewLocalTablePartProvider(operationTables...)
+	err = snapshotLoader.DoUploadTables(context.TODO(), storage, partProvider.TablePartProvider())
 	require.NoError(t, err)
 
 	err = mysqlStorage.EndSnapshot(context.TODO())

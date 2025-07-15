@@ -2,7 +2,6 @@ package yt
 
 import (
 	"context"
-	"sort"
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -29,78 +28,6 @@ type NodeInfo struct {
 
 func NewNodeInfo(name string, path ypath.Path, attrs *NodeAttrs) *NodeInfo {
 	return &NodeInfo{Name: name, Path: path, Attrs: attrs}
-}
-
-// ListNodesWithAttrs returns name-sorted list of nodes with attributes based on specified arguments
-func ListNodesWithAttrs(ctx context.Context, client yt.CypressClient, path ypath.Path, prefix string, recursive bool) ([]*NodeInfo, error) {
-	var nodes []string
-	var err error
-	if recursive {
-		nodes, err = listNodesRecursive(ctx, client, path)
-	} else {
-		nodes, err = listNodes(ctx, client, path)
-	}
-	if err != nil {
-		return nil, xerrors.Errorf("unable to list nodes(recurive=%v): %w", recursive, err)
-	}
-
-	var result []*NodeInfo
-	for _, node := range nodes {
-		if strings.HasPrefix(node, prefix) {
-			nodePath := SafeChild(path, node)
-			attrs, err := GetNodeAttrs(ctx, client, nodePath)
-			if err != nil {
-				return nil, xerrors.Errorf("unable to get node attributes: %w", err)
-			}
-			result = append(result, NewNodeInfo(node, nodePath, attrs))
-		}
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Name < result[j].Name
-	})
-	return result, nil
-}
-
-func listNodes(ctx context.Context, client yt.CypressClient, path ypath.Path) ([]string, error) {
-	var nodes []struct {
-		Name string `yson:",value"`
-	}
-	if err := client.ListNode(ctx, path, &nodes, nil); err != nil {
-		return nil, err
-	}
-	res := make([]string, len(nodes))
-	for i, n := range nodes {
-		res[i] = n.Name
-	}
-	return res, nil
-}
-
-func listNodesRecursive(ctx context.Context, client yt.CypressClient, basePath ypath.Path) ([]string, error) {
-	res := []string{}
-	var nodes []struct {
-		Name string      `yson:",value"`
-		Type yt.NodeType `yson:"type,attr"`
-	}
-	nestedMapNodes := []string{""}
-	for len(nestedMapNodes) > 0 {
-		next := []string{}
-		for _, m := range nestedMapNodes {
-			if err := client.ListNode(ctx, SafeChild(basePath, m), &nodes, &yt.ListNodeOptions{Attributes: []string{"type"}}); err != nil {
-				return nil, xerrors.Errorf("unable to list nodes of %v/%v: %w", basePath, m, err)
-			}
-			for _, node := range nodes {
-				relativePath := SafeChild(ypath.Path(m), node.Name)
-				if node.Type == yt.NodeMap {
-					next = append(next, string(relativePath))
-				} else {
-					res = append(res, string(relativePath))
-				}
-			}
-		}
-		nodes = nil
-		nestedMapNodes = next
-	}
-	return res, nil
 }
 
 func GetNodeInfo(ctx context.Context, client yt.CypressClient, path ypath.Path) (*NodeInfo, error) {

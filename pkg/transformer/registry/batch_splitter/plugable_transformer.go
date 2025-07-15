@@ -56,6 +56,7 @@ func (d *pluggableTransformer) Close() error {
 }
 
 func (d *pluggableTransformer) Push(items []abstract.ChangeItem) error {
+	logger.Log.Debugf("Batch splitter got %d items, making %d-length batches", len(items), d.config.MaxItemsPerBatch)
 	for start := 0; start < len(items); start += d.config.MaxItemsPerBatch {
 		end := start + d.config.MaxItemsPerBatch
 		if end > len(items) {

@@ -27,7 +27,7 @@ func TestPushReferenceTable(t *testing.T) {
 	cfg := yt.NewYtDestinationV1(*Destination)
 	cfg.WithDefaults()
 	t.Run("static", func(t *testing.T) {
-		sinker, err := sink.NewSinker(cfg, "", 0, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), nil)
+		sinker, err := sink.NewSinker(cfg, "", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), nil)
 		require.NoError(t, err)
 
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{

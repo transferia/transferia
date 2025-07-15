@@ -12435,6 +12435,10 @@
                         "GoType": "string",
                         "Val": "my_utf8_string"
                     },
+                    "Uuid_": {
+                        "GoType": "string",
+                        "Val": "6af014ea-29dd-401c-a7e3-68a58305f4fb"
+                    },
                     "id": {
                         "GoType": "uint64",
                         "Val": 1
@@ -12524,6 +12528,10 @@
                         "Val": null
                     },
                     "Utf8_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "Uuid_": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -12754,6 +12762,18 @@
                 "table_name": "",
                 "table_schema": "",
                 "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "Uuid_",
+                "original_type": "ydb:Uuid",
+                "path": "",
+                "required": false,
+                "table_name": "",
+                "table_schema": "",
+                "type": "utf8"
             },
             {
                 "expression": "",

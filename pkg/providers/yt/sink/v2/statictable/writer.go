@@ -14,13 +14,15 @@ import (
 )
 
 type WriterConfig struct {
-	TransferID string
-	TxClient   yt.Tx
-	Path       ypath.Path
-	Spec       map[string]interface{}
-	ChunkSize  int
-	Logger     log.Logger
-	Metrics    *stats.SinkerStats
+	TransferID       string
+	TxClient         yt.Tx
+	Path             ypath.Path
+	Spec             map[string]interface{}
+	ChunkSize        int
+	Logger           log.Logger
+	Metrics          *stats.SinkerStats
+	StringLimit      int
+	DiscardBigValues bool
 }
 
 type Writer struct {
@@ -30,6 +32,9 @@ type Writer struct {
 
 	logger     log.Logger
 	rowsMetric func(rowCount int)
+
+	stringLimit      int
+	discardBigValues bool
 }
 
 func (w *Writer) Write(items []changeitem.ChangeItem) error {
@@ -46,7 +51,7 @@ func (w *Writer) Write(items []changeitem.ChangeItem) error {
 				return abstract.NewFatalError(xerrors.Errorf("unknown column name: %s", col))
 			}
 			var err error
-			row[col], err = sink.Restore(colScheme, item.ColumnValues[idx])
+			row[col], err = sink.RestoreWithLengthLimitCheck(colScheme, item.ColumnValues[idx], w.discardBigValues, w.stringLimit)
 			if err != nil {
 				return xerrors.Errorf("cannot restore value for column '%s': %w", col, err)
 			}
@@ -86,5 +91,7 @@ func NewWriter(cfg WriterConfig) (*Writer, error) {
 		rowsMetric: func(rowCount int) {
 			cfg.Metrics.Table(cfg.Path.String(), "rows", rowCount)
 		},
+		stringLimit:      cfg.StringLimit,
+		discardBigValues: cfg.DiscardBigValues,
 	}, nil
 }

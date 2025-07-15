@@ -16,20 +16,18 @@ import (
 
 func PluggableProblemItemTransformer(transfer *model.Transfer, _ metrics.Registry, _ coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker {
 	if transfer.Transformation == nil || transfer.Transformation.Transformers == nil {
-		return IdentityMiddleware
+		return middlewares.IdentityMiddleware
 	}
 
 	lgr := transferNeedDetector(transfer.Transformation.Transformers)
 	if lgr == nil {
-		return IdentityMiddleware
+		return middlewares.IdentityMiddleware
 	}
 
 	return func(s abstract.Sinker) abstract.Sinker {
 		return newPluggableTransformer(s, lgr)
 	}
 }
-
-var IdentityMiddleware = func(s abstract.Sinker) abstract.Sinker { return s }
 
 func transferNeedDetector(transformers *transformer.Transformers) log.Logger {
 	for _, t := range transformers.Transformers {

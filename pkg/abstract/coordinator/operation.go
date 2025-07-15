@@ -30,7 +30,7 @@ type OperationStatus interface {
 	OperationHealth(ctx context.Context, operationID string, workerIndex int, workerTime time.Time) error
 	// FinishOperation used by *main* and *secondary* workers to signal completeness of work
 	// if worker had a failure `taskErr` will be filled up with this error
-	FinishOperation(taskID string, shardIndex int, taskErr error) error
+	FinishOperation(taskID, taskType string, shardIndex int, taskErr error) error
 }
 
 // Sharding coordinate multiple worker for transfer operations
@@ -62,9 +62,7 @@ type Sharding interface {
 	// and return the number of table parts for which the assignment was cleared
 	ClearAssignedTablesParts(ctx context.Context, operationID string, workerIndex int) (int64, error)
 	// UpdateOperationTablesParts update tables parts for operation
-	// used to track more granular part progress
-	//
-	// Deprecated: used only in A2
+	// used to track more granular part progress.
 	UpdateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error
 }
 

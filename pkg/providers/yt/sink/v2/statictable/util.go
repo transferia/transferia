@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/pkg/abstract"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yson"
@@ -13,14 +15,14 @@ import (
 )
 
 const (
-	tmpNamePostfix    = "tmp"
-	sortedNamePostfix = "sorted"
+	tmpNamePostfix     = "tmp"
+	sortedNamePostfix  = "sorted"
+	reducedNamePostfix = "reduced"
 
 	retriesCount = 5
 )
 
 var (
-	trueConst    = true
 	subTxTimeout = yson.Duration(time.Minute * 5)
 )
 
@@ -52,10 +54,10 @@ func transactionOptions(id yt.TxID) *yt.TransactionOptions {
 }
 
 func makeYtSchema(scheme []abstract.ColSchema) schema.Schema {
-	ytCols := abstract.ToYtSchema(scheme, false)
+	ytCols := yt2.ToYtSchema(scheme, false)
 	return schema.Schema{
 		Columns: ytCols,
-		Strict:  &trueConst,
+		Strict:  util.TruePtr(),
 	}
 }
 

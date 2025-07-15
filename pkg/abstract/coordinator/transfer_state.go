@@ -77,9 +77,9 @@ func (s *TransferStateData) GetGeneric() any {
 	return s.Generic
 }
 
-func (s *TransferStateData) GetIncrementalTables() []abstract.TableDescription {
+func (s *TransferStateData) GetIncrementalTables() []abstract.IncrementalState {
 	if s == nil {
 		return nil
 	}
-	return s.IncrementalTables
+	return abstract.TableDescriptionToIncrementalState(s.IncrementalTables)
 }

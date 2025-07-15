@@ -3,13 +3,16 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/dustin/go-humanize"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pglogrepl"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -264,12 +267,15 @@ func (p *replication) standbyStatus() {
 		} else {
 			p.logger.Infof("Heartbeat send %v", copiedMaxLsn)
 		}
-		cancel()
 		if tracker, ok := p.slot.(*LsnTrackedSlot); ok && copiedMaxLsn > 0 {
-			if err := tracker.Move(pglogrepl.LSN(copiedMaxLsn).String()); err != nil {
+			var restartLsn string
+			if err := p.conn.QueryRow(ctx, SelectLsnForSlot, p.transferID).Scan(&restartLsn); err != nil {
+				logger.Log.Warn("Unable to get restart lsn", log.Error(err))
+			} else if err := tracker.Move(restartLsn); err != nil {
 				logger.Log.Warn("Unable to move lsn", log.Error(err))
 			}
 		}
+		cancel()
 	}
 }
 
@@ -481,8 +487,35 @@ func (p *replication) parseWal2JsonChanges(cp *changeProcessor, xld *pglogrepl.X
 	return changes, nil
 }
 
-func NewReplicationPublisher(version PgVersion, replConn *mutexedPgConn, connPool *pgxpool.Pool, slot AbstractSlot, stats *stats.SourceStats, source *PgSource, transferID string, lgr log.Logger, cp coordinator.Coordinator, objects *model.DataObjects) (abstract.Source, error) {
-	mutex := &sync.Mutex{}
+func newReplicationPublisher(
+	version PgVersion,
+	connConfig *pgx.ConnConfig,
+	slot AbstractSlot,
+	wal2jsonArgs wal2jsonArguments,
+	stats *stats.SourceStats,
+	source *PgSource,
+	transferID string,
+	lgr log.Logger,
+	cp coordinator.Coordinator,
+	objects *model.DataObjects,
+) (abstract.Source, error) {
+	var rb util.Rollbacks
+	defer rb.Do()
+	replConn, err := startReplication(connConfig, version, source.SlotID, wal2jsonArgs, lgr)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to start replication: %w", err)
+	}
+	rb.Add(func() {
+		if err := replConn.Close(context.Background()); err != nil {
+			lgr.Error("Cannot close replication connection", log.Error(err))
+		}
+	})
+	connPool, err := NewPgConnPool(connConfig, lgr)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create conn pool: %w", err)
+	}
+
+	rb.Cancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	return &replication{
 		logger:          lgr,
@@ -499,7 +532,7 @@ func NewReplicationPublisher(version PgVersion, replConn *mutexedPgConn, connPoo
 		wg:              sync.WaitGroup{},
 		slotMonitor:     NewSlotMonitor(connPool, source.SlotID, source.Database, stats, lgr),
 		stopCh:          make(chan struct{}),
-		mutex:           mutex,
+		mutex:           new(sync.Mutex),
 		maxLsn:          0,
 		slot:            slot,
 		pgVersion:       version,
@@ -516,4 +549,90 @@ func NewReplicationPublisher(version PgVersion, replConn *mutexedPgConn, connPoo
 
 		skippedTables: make(map[abstract.TableID]bool),
 	}, nil
+}
+
+func startReplication(
+	connConfig *pgx.ConnConfig,
+	version PgVersion,
+	slotName string,
+	wal2jsonArgs wal2jsonArguments,
+	lgr log.Logger,
+) (*mutexedPgConn, error) {
+	return backoff.RetryNotifyWithData(func() (*mutexedPgConn, error) {
+		var rb util.Rollbacks
+		defer rb.Do()
+		rConnConfig := makeReplicationConnConfig(connConfig.Config, version)
+		rConn, err := newReplicationConnection(rConnConfig)
+		if err != nil {
+			// Protocol violation, means that database do not accept replication protocol. Do not retry this case.
+			if strings.Contains(err.Error(), "08P01") {
+				//nolint:descriptiveerrors
+				return nil, backoff.Permanent(err)
+			}
+			return nil, xerrors.Errorf("error establishing replication connection: %w", err)
+		}
+		rb.Add(func() {
+			if err := rConn.Close(context.Background()); err != nil {
+				lgr.Error("Cannot close replication connection", log.Error(err))
+			}
+		})
+
+		lgr.Infof("Start replication process with args: %v", wal2jsonArgs)
+		err = rConn.StartReplication(context.Background(), slotName, 0, pglogrepl.StartReplicationOptions{
+			Timeline:   -1,
+			Mode:       pglogrepl.LogicalReplication,
+			PluginArgs: wal2jsonArgs.toReplicationFormat(),
+		})
+		if err != nil {
+			defer lgr.Warn("Cannot start replication via replication connection", log.Error(err))
+			// usually that means slot has been invalidated by some condition (e.g. max_wal_slot_keep_size setting or smth)
+			if strings.Contains(err.Error(), "SQLSTATE 55000") {
+				//nolint:descriptiveerrors
+				return nil, backoff.Permanent(abstract.NewFatalError(
+					xerrors.Errorf("Cannot start replication via replication connection: %w", err)))
+			}
+			// object_in_use code means some other process is reading the slot
+			// nobody is expected to read transfer slot so most common case of this error is stale transfer process
+			if strings.Contains(err.Error(), "SQLSTATE 55006") {
+				tryKillSlotReader(rConn, slotName, lgr)
+			}
+			//nolint:descriptiveerrors
+			return nil, err
+		}
+		rb.Cancel()
+		return rConn, nil
+	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5), util.BackoffLoggerWarn(lgr, "cannot start replication"))
+}
+
+func makeReplicationConnConfig(srcConfig pgconn.Config, version PgVersion) *pgconn.Config {
+	// It's important to copy config before mutating RuntimeParams
+	// otherwise those params may accidentaly be shared among different connection (pools)
+	rConnConfig := srcConfig.Copy()
+	if rConnConfig.RuntimeParams == nil {
+		rConnConfig.RuntimeParams = make(map[string]string)
+	}
+	if !version.Is9x && !version.Is10x && !version.Is11x {
+		rConnConfig.RuntimeParams["options"] = "-c wal_sender_timeout=3600000"
+	}
+	rConnConfig.RuntimeParams["replication"] = "database"
+	return rConnConfig
+}
+
+func newReplicationConnection(rConnConfig *pgconn.Config) (*mutexedPgConn, error) {
+	rConnRaw, err := pgconn.ConnectConfig(context.TODO(), rConnConfig)
+	if err != nil {
+		return nil, err
+	}
+	return newMutexedPgConn(rConnRaw), nil
+}
+
+func tryKillSlotReader(conn *mutexedPgConn, slotName string, lgr log.Logger) {
+	sql := fmt.Sprintf(`SELECT PG_TERMINATE_BACKEND(active_pid) FROM pg_replication_slots
+WHERE slot_name = '%v' AND active_pid IS NOT NULL;`, slotName)
+	reader := conn.Exec(context.Background(), sql)
+	if _, readerErr := reader.ReadAll(); readerErr != nil {
+		lgr.Warn(fmt.Sprintf("Unable to terminate reader for slot %s", slotName), log.Error(readerErr))
+	} else {
+		lgr.Infof("Reader for slot %s has been terminated", slotName)
+	}
 }

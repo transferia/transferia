@@ -1,15 +1,19 @@
 package elastic
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"reflect"
+	"slices"
 	"unsafe"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/connection/opensearch"
 	"github.com/transferia/transferia/pkg/dbaas"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -36,6 +40,49 @@ func openSearchResolveHosts(clusterID string) ([]string, error) {
 	return result, nil
 }
 
+func configFromConnection(logger log.Logger, connectionID string) (*elasticsearch.Config, error) {
+	connmanConnection, err := connection.Resolver().ResolveConnection(context.Background(), connectionID, "opensearch")
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection from connection ID: %s, err: %w", connectionID, err)
+	}
+	openSearchConnection, ok := connmanConnection.(*opensearch.Connection)
+	if !ok {
+		return nil, xerrors.Errorf("unable to cast connection to OpenSearchConnection, err: %w", err)
+	}
+	isMDBConnection := openSearchConnection.ClusterID != ""
+	protocol := "http"
+	if openSearchConnection.HasTLS || isMDBConnection {
+		protocol = "https"
+	}
+	addresses := make([]string, 0)
+	for _, currHost := range openSearchConnection.Hosts {
+		// If it's not mdb connection, we need to add all hosts, for mdb connection we need to add only data nodes
+		if !isMDBConnection || slices.Contains(currHost.Roles, opensearch.GroupRoleData) {
+			addresses = append(addresses, fmt.Sprintf("%s://%s", protocol, net.JoinHostPort(currHost.Name, fmt.Sprintf("%d", currHost.Port))))
+		}
+	}
+	if len(addresses) == 0 && isMDBConnection {
+		return nil, xerrors.Errorf("no data nodes found in connection %s", connectionID)
+	}
+	if len(addresses) == 0 && !isMDBConnection {
+		return nil, xerrors.Errorf("no hosts found in connection %s", connectionID)
+	}
+	logger.Info("Resolved OpenSearch hosts", log.String("connectionID", connectionID), log.Any("hosts", addresses))
+
+	var caCert []byte
+	if len(openSearchConnection.CACertificates) > 0 {
+		caCert = []byte(openSearchConnection.CACertificates)
+	}
+
+	return &elasticsearch.Config{
+		Addresses:            addresses,
+		Username:             openSearchConnection.User,
+		Password:             string(openSearchConnection.Password),
+		CACert:               caCert,
+		UseResponseCheckOnly: true,
+	}, nil
+}
+
 func elasticSearchResolveHosts(clusterID string) ([]string, error) {
 	hosts, err := dbaas.ResolveClusterHosts(dbaas.ProviderTypeElasticSearch, clusterID)
 	if err != nil {
@@ -58,6 +105,9 @@ func ConfigFromDestination(logger log.Logger, cfg *ElasticSearchDestination, ser
 	switch serverType {
 	case OpenSearch:
 		useResponseCheckOnly = true
+		if cfg.ConnectionID != "" {
+			return configFromConnection(logger, cfg.ConnectionID)
+		}
 		if cfg.ClusterID != "" {
 			addresses, err = openSearchResolveHosts(cfg.ClusterID)
 			if err != nil {

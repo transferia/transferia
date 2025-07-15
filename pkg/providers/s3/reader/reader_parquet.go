@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -25,8 +26,8 @@ import (
 )
 
 var (
-	_ Reader     = (*ReaderParquet)(nil)
-	_ RowCounter = (*ReaderParquet)(nil)
+	_ Reader             = (*ReaderParquet)(nil)
+	_ RowsCountEstimator = (*ReaderParquet)(nil)
 )
 
 type ReaderParquet struct {
@@ -41,10 +42,10 @@ type ReaderParquet struct {
 	pathPrefix     string
 	pathPattern    string
 	metrics        *stats.SourceStats
-	s3reader       *S3Reader
+	s3RawReader    s3raw.S3RawReader
 }
 
-func (r *ReaderParquet) RowCount(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
+func (r *ReaderParquet) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
 	meta, err := r.openReader(ctx, *obj.Key)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to read file meta: %s: %w", *obj.Key, err)
@@ -54,7 +55,7 @@ func (r *ReaderParquet) RowCount(ctx context.Context, obj *aws_s3.Object) (uint6
 	return uint64(meta.NumRows()), nil
 }
 
-func (r *ReaderParquet) TotalRowCount(ctx context.Context) (uint64, error) {
+func (r *ReaderParquet) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
 	res := uint64(0)
 	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
@@ -182,11 +183,11 @@ func (r *ReaderParquet) resolveSchema(ctx context.Context, filePath string) (*ab
 }
 
 func (r *ReaderParquet) openReader(ctx context.Context, filePath string) (*parquet.Reader, error) {
-	sr, err := NewS3Reader(ctx, r.client, nil, r.bucket, filePath, r.metrics)
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
-	r.s3reader = sr
+	r.s3RawReader = sr
 	return parquet.NewReader(sr), nil
 }
 
@@ -219,7 +220,7 @@ func (r *ReaderParquet) Read(ctx context.Context, filePath string, pusher chunk_
 			return xerrors.Errorf("unable to read row: %w", err)
 		}
 		i += 1
-		ci, err := r.constructCI(rowFields, row, filePath, r.s3reader.LastModified(), i)
+		ci, err := r.constructCI(rowFields, row, filePath, r.s3RawReader.LastModified(), i)
 		if err != nil {
 			return xerrors.Errorf("unable to construct change item: %w", err)
 		}
@@ -230,7 +231,7 @@ func (r *ReaderParquet) Read(ctx context.Context, filePath string, pusher chunk_
 				Items:     buff,
 				FilePath:  filePath,
 				Offset:    i,
-				Completed: (i == rowCount-1), // last row of file
+				Completed: false,
 				Size:      currentSize,
 			}); err != nil {
 				return xerrors.Errorf("unable to push: %w", err)
@@ -244,7 +245,7 @@ func (r *ReaderParquet) Read(ctx context.Context, filePath string, pusher chunk_
 			Items:     buff,
 			FilePath:  filePath,
 			Offset:    rowCount,
-			Completed: true,
+			Completed: false,
 			Size:      currentSize,
 		}); err != nil {
 			return xerrors.Errorf("unable to push: %w", err)
@@ -359,7 +360,7 @@ func NewParquet(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics
 		tableSchema: abstract.NewTableSchema(src.OutputSchema),
 		colNames:    nil,
 		metrics:     metrics,
-		s3reader:    nil,
+		s3RawReader: nil,
 	}
 
 	if len(reader.tableSchema.Columns()) == 0 {

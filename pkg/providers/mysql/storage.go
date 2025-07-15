@@ -43,6 +43,7 @@ type Storage struct {
 	DB                      *sql.DB
 	preSteps                *MysqlDumpSteps
 	consistentSnapshot      bool
+	database                string
 }
 
 func (s *Storage) Close() {
@@ -488,7 +489,7 @@ func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstr
 }
 
 func (s *Storage) LoadSchema() (schema abstract.DBSchema, err error) {
-	return LoadSchema(s.DB, s.useFakePrimaryKey, true)
+	return LoadSchema(s.DB, s.useFakePrimaryKey, true, s.database)
 }
 
 func (s *Storage) getGtid(ctx context.Context, tx Queryable) (string, error) {
@@ -570,7 +571,7 @@ func NewStorage(config *MysqlStorageParams) (*Storage, error) {
 	}
 	rollbacks.AddCloser(db, logger.Log, "cannot close database")
 
-	fqtnToSchema, err := LoadSchema(db, config.UseFakePrimaryKey, true)
+	fqtnToSchema, err := LoadSchema(db, config.UseFakePrimaryKey, true, config.Database)
 	if err != nil {
 		return nil, xerrors.Errorf("Can't load schema: %w", err)
 	}
@@ -587,6 +588,7 @@ func NewStorage(config *MysqlStorageParams) (*Storage, error) {
 		DB:                      db,
 		snapshotConnectionsPool: nil,
 		IsHomo:                  false,
+		database:                config.Database,
 	}
 
 	return storage, nil

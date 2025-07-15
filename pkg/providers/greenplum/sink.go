@@ -107,7 +107,7 @@ func (s *Sink) processSingleChangeItem(ctx context.Context, changeItem *abstract
 		if err := s.processInitTableLoad(ctx, changeItem); err != nil {
 			return xerrors.Errorf("sinker failed to initialize table load for table %s: %w", changeItem.PgName(), err)
 		}
-	case abstract.InitTableLoad:
+	case abstract.InitTableLoad, abstract.SynchronizeKind:
 		return nil // do nothing
 	case abstract.DoneShardedTableLoad:
 		if err := s.processDoneTableLoad(ctx, changeItem); err != nil {

@@ -5,7 +5,6 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	basetypes "github.com/transferia/transferia/pkg/base/types"
-	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/provider/table"
 	"github.com/transferia/transferia/pkg/providers/yt/provider/types"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -26,7 +25,7 @@ func AddRowIdxColumn(tbl table.YtTable, colName string) {
 func Load(ctx context.Context, ytc yt.Client, txID yt.TxID, nodeID yt.NodeID, origName string) (table.YtTable, error) {
 	var sch schema.Schema
 	if err := ytc.GetNode(ctx, nodeID.YPath().Attr("schema"), &sch, &yt.GetNodeOptions{
-		TransactionOptions: ytcommon.TXOptions(txID),
+		TransactionOptions: &yt.TransactionOptions{TransactionID: txID},
 	}); err != nil {
 		return nil, xerrors.Errorf("unable to get table %s (%s) schema: %w", origName, nodeID.String(), err)
 	}

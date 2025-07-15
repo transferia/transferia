@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 )
@@ -15,7 +16,7 @@ import (
 var (
 	TransferType = abstract.TransferTypeSnapshotOnly
 	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget()
+	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {

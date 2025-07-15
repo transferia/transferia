@@ -11,7 +11,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	pg_provider "github.com/transferia/transferia/pkg/providers/postgres"
-	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -32,11 +31,6 @@ var (
 
 func init() {
 	Source.WithDefaults()
-}
-
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
 }
 
 func TestGroup(t *testing.T) {

@@ -468,6 +468,8 @@ func (s *scanner) UnmarshalYDB(raw types.RawValue) error {
 			}
 		}
 		s.resultVal = unmarshalled
+	} else if s.originalType == "ydb:Uuid" {
+		s.resultVal = raw.UUIDTyped().String()
 	} else {
 		switch schema.Type(s.dataType) {
 		case schema.TypeDate:

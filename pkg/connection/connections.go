@@ -2,11 +2,16 @@ package connection
 
 import (
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/connection/greenplum"
+	"github.com/transferia/transferia/pkg/connection/opensearch"
 )
 
 var _ ManagedConnection = (*ConnectionPG)(nil)
 var _ ManagedConnection = (*ConnectionMySQL)(nil)
-var _ ManagedConnection = (*ConnectionCH)(nil)
+var _ ManagedConnection = (*clickhouse.Connection)(nil)
+var _ ManagedConnection = (*opensearch.Connection)(nil)
+var _ ManagedConnection = (*greenplum.Connection)(nil)
 
 type ConnectionPG struct {
 	*BaseSQLConnection
@@ -28,18 +33,6 @@ type ConnectionMySQL struct {
 
 func (m *ConnectionMySQL) GetDatabases() []string {
 	return m.DatabaseNames
-}
-
-type ConnectionCH struct {
-	// TODO: add shard params
-	*BaseSQLConnection
-	// field in manage connection with applicable databases, currently used for info only.
-	// in the future we may want to check that DatabaseNames if defined includes Database from user input
-	DatabaseNames []string
-}
-
-func (ch *ConnectionCH) GetDatabases() []string {
-	return ch.DatabaseNames
 }
 
 type BaseSQLConnection struct {

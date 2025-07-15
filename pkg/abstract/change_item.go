@@ -46,7 +46,6 @@ var MongoDropKind = changeitem.MongoDropKind
 var MongoRenameKind = changeitem.MongoRenameKind
 var MongoDropDatabaseKind = changeitem.MongoDropDatabaseKind
 var MongoNoop = changeitem.MongoNoop
-var ChCreateTableDistributedKind = changeitem.ChCreateTableDistributedKind
 var ChCreateTableKind = changeitem.ChCreateTableKind
 var ClickhouseDDLBuilderKind = changeitem.ClickhouseDDLBuilderKind
 var ElasticsearchDumpIndexKind = changeitem.ElasticsearchDumpIndexKind

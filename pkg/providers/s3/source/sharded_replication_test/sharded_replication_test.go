@@ -84,14 +84,18 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 		},
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Endpoint:         aws.String(sqsEndpoint),
-		Region:           aws.String(sqsRegion),
-		S3ForcePathStyle: aws.Bool(src.ConnectionConfig.S3ForcePathStyle),
-		Credentials: credentials.NewStaticCredentials(
-			sqsUser, string(sqsQueueName), "",
-		),
-	})
+	sess, err := session.NewSession(
+		&aws.Config{
+			Endpoint:         aws.String(sqsEndpoint),
+			Region:           aws.String(sqsRegion),
+			S3ForcePathStyle: aws.Bool(src.ConnectionConfig.S3ForcePathStyle),
+			Credentials: credentials.NewStaticCredentials(
+				sqsUser,
+				sqsQueueName,
+				"",
+			),
+		},
+	)
 	require.NoError(t, err)
 
 	sqsClient := sqs.New(sess)
@@ -103,9 +107,10 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	cp := testutil.NewFakeClientWithTransferState()
 
-	sourceOne, err := source.NewSource(src, "test-1", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp)
+	parallelism := abstract.NewFakeShardingTaskRuntime(0, 1, 1, 1)
+	sourceOne, err := source.NewSource(src, "test-1", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, parallelism)
 	require.NoError(t, err)
-	sourceTwo, err := source.NewSource(src, "test-2", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp)
+	sourceTwo, err := source.NewSource(src, "test-2", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, parallelism)
 	require.NoError(t, err)
 
 	sink1 := mockAsyncSink{}

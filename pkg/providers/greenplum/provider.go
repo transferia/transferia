@@ -94,16 +94,16 @@ func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected dst type: %T", p.transfer.Dst)
 	}
-	isGpfdist, err := p.isGpfdist()
-	if err != nil {
-		return nil, xerrors.Errorf("unable to use gpfdist: %w", err)
+	if err := dst.Connection.ResolveCredsFromConnectionID(); err != nil {
+		return nil, xerrors.Errorf("failed to resolve creds from connection ID: %w", err)
 	}
-	if isGpfdist {
+	if p.isGpfdist() {
 		sink, err := NewGpfdistSink(dst, p.registry, p.logger, p.transfer.ID)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to create gpfidst sink: %w", err)
+		if err == nil {
+			p.logger.Warn("Using experimental gfpdist sink")
+			return sink, nil
 		}
-		return sink, nil
+		p.logger.Warn("Cannot use experimental gfpdist sink", log.Error(err))
 	}
 	return NewSink(p.transfer, p.registry, p.logger, config)
 }
@@ -113,28 +113,27 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected src type: %T", p.transfer.Src)
 	}
-	isGpfdist, err := p.isGpfdist()
-	if err != nil {
-		return nil, xerrors.Errorf("unable to use gpfdist: %w", err)
+	if err := src.Connection.ResolveCredsFromConnectionID(); err != nil {
+		return nil, xerrors.Errorf("failed to resolve creds from connection ID: %w", err)
 	}
-	if isGpfdist {
-		return NewGpfdistStorage(src, p.registry)
+	if p.isGpfdist() {
+		storage, err := NewGpfdistStorage(src, p.registry)
+		if err == nil {
+			p.logger.Warn("Using experimental gfpdist storage")
+			return storage, nil
+		}
+		p.logger.Warn("Cannot use experimental gfpdist storage", log.Error(err))
 	}
 	return NewStorage(src, p.registry), nil
 }
 
-func (p *Provider) isGpfdist() (bool, error) {
-	var isSrcGpfdist, isDstGpfdist bool
-	if src, ok := p.transfer.Src.(*GpSource); ok {
-		isSrcGpfdist = src.GpfdistParams.IsEnabled
+func (p *Provider) isGpfdist() bool {
+	var isGpfdist bool
+	_, isGpDestination := p.transfer.Dst.(*GpDestination)
+	if src, ok := p.transfer.Src.(*GpSource); ok && isGpDestination {
+		isGpfdist = !src.AdvancedProps.DisableGpfdist
 	}
-	if dst, ok := p.transfer.Dst.(*GpDestination); ok {
-		isDstGpfdist = dst.GpfdistParams.IsEnabled
-	}
-	if isSrcGpfdist != isDstGpfdist { // TODO: TM-8222: Support gpfdist for hetero transfers.
-		return false, xerrors.New("Gpfdist is supported only for gp->gp and should be enabled on both endpoints")
-	}
-	return isSrcGpfdist, nil
+	return isGpfdist
 }
 
 func (p *Provider) Type() abstract.ProviderType {

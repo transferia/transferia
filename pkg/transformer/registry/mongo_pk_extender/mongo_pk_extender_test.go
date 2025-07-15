@@ -18,9 +18,9 @@ func TestMongoPKExtenderTransformer(t *testing.T) {
 
 	t.Run("Expand PK", func(t *testing.T) {
 		config := Config{
-			Expand:          true,
-			ExtraFieldName:  "orgId",
-			ExtraFieldValue: "42",
+			Expand:              true,
+			DiscriminatorField:  "orgId",
+			DiscriminatorValues: []SchemaDiscriminator{{Schema: "db", Value: "42"}},
 		}
 		transformer, err := NewMongoPKExtenderTransformer(config, logger.Log)
 		require.NoError(t, err)
@@ -61,9 +61,9 @@ func TestMongoPKExtenderTransformer(t *testing.T) {
 
 	t.Run("Collapse PK", func(t *testing.T) {
 		config := Config{
-			Expand:          false,
-			ExtraFieldName:  "orgId",
-			ExtraFieldValue: "42",
+			Expand:              false,
+			DiscriminatorField:  "orgId",
+			DiscriminatorValues: []SchemaDiscriminator{{Schema: "org42", Value: "42"}},
 		}
 		transformer, err := NewMongoPKExtenderTransformer(config, logger.Log)
 		require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestMongoPKExtenderTransformer(t *testing.T) {
 			Table:        "table",
 			TableSchema:  tableSchema,
 			ColumnNames:  []string{"_id", "document"},
-			ColumnValues: []interface{}{bson.D{{Key: "orgId", Value: int64(42)}, {Key: "id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "test"}}}}, bson.D{{Key: "name", Value: "John"}, {Key: "age", Value: 30}}},
+			ColumnValues: []interface{}{bson.D{{Key: "orgId", Value: 42}, {Key: "id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "test"}}}}, bson.D{{Key: "name", Value: "John"}, {Key: "age", Value: 30}}},
 		}
 
 		insertOtherField := abstract.ChangeItem{
@@ -92,7 +92,7 @@ func TestMongoPKExtenderTransformer(t *testing.T) {
 			Table:        "table",
 			TableSchema:  tableSchema,
 			ColumnNames:  []string{"_id", "document"},
-			ColumnValues: []interface{}{bson.D{{Key: "departmentId", Value: int64(42)}, {Key: "id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "test"}}}}, bson.D{{Key: "name", Value: "John"}, {Key: "age", Value: 30}}},
+			ColumnValues: []interface{}{bson.D{{Key: "departmentId", Value: 42}, {Key: "id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "test"}}}}, bson.D{{Key: "name", Value: "John"}, {Key: "age", Value: 30}}},
 		}
 
 		insertOtherValue := abstract.ChangeItem{
@@ -101,7 +101,7 @@ func TestMongoPKExtenderTransformer(t *testing.T) {
 			Table:        "table",
 			TableSchema:  tableSchema,
 			ColumnNames:  []string{"_id", "document"},
-			ColumnValues: []interface{}{bson.D{{Key: "orgId", Value: int64(125)}, {Key: "id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "test"}}}}, bson.D{{Key: "name", Value: "John"}, {Key: "age", Value: 30}}},
+			ColumnValues: []interface{}{bson.D{{Key: "orgId", Value: 125}, {Key: "id", Value: bson.D{{Key: "id", Value: 1}, {Key: "category", Value: "test"}}}}, bson.D{{Key: "name", Value: "John"}, {Key: "age", Value: 30}}},
 		}
 
 		changeItems := []abstract.ChangeItem{

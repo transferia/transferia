@@ -2,6 +2,8 @@ package greenplum
 
 import (
 	"context"
+	"errors"
+	"net"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -10,13 +12,15 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/greenplum/gpfdist"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
+	"github.com/transferia/transferia/pkg/util/slicesx"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/sync/errgroup"
 )
 
 type GpfdistTableSink struct {
-	// pipesWriter used to push data by its `.Write()` method.
-	pipesWriter *gpfdist.PipeWriter
-	gpfdist     *gpfdistbin.Gpfdist
+	// pipesWriters used to push data by theirs `.Write()` method.
+	pipesWriters []*gpfdist.PipeWriter
+	gpfdists     []*gpfdistbin.Gpfdist
 
 	// stopExtWriter waits for ExtWriter self-stop, and forcely cancels it if `timeout` expires.
 	// Expected that ExtWriter will stop by itself after `PipeWriter` stopped and won't be forcely cancelled.
@@ -24,13 +28,17 @@ type GpfdistTableSink struct {
 }
 
 func (s *GpfdistTableSink) Close() error {
-	logger.Log.Info("Stopping pipes writer")
-	pipesRows, err := s.pipesWriter.Stop()
-	if err != nil {
-		logger.Log.Error("Lines writer stopped with error", log.Error(err))
+	pipesRows := int64(0)
+	logger.Log.Info("Stopping pipes writers")
+	for _, writer := range s.pipesWriters {
+		rows, err := writer.Stop()
+		if err != nil {
+			logger.Log.Error("Lines writer stopped with error", log.Error(err))
+		}
+		pipesRows += rows
 	}
 
-	logger.Log.Info("Pipes writer stopped, stopping external table writer")
+	logger.Log.Info("Pipes writers stopped, stopping external table writer")
 	tableRows, err := s.stopExtWriter(time.Minute)
 	if err != nil {
 		logger.Log.Error("External table writer stopped with error", log.Error(err))
@@ -39,8 +47,16 @@ func (s *GpfdistTableSink) Close() error {
 	if pipesRows != tableRows {
 		logger.Log.Errorf("Lines writer wrote %d lines, while external table writer – %d", pipesRows, tableRows)
 	}
-	logger.Log.Info("External table writer stopped, stopping gpfdist")
-	return s.gpfdist.Stop()
+	logger.Log.Info("External table writer stopped, stopping gpfdists")
+
+	err = nil
+	for _, gpfd := range s.gpfdists {
+		err = errors.Join(err, gpfd.Stop())
+	}
+	if err != nil {
+		return xerrors.Errorf("unable to stop gpfdists: %w", err)
+	}
+	return nil
 }
 
 func (s *GpfdistTableSink) Push(items []*abstract.ChangeItem) error {
@@ -58,28 +74,40 @@ func (s *GpfdistTableSink) Push(items []*abstract.ChangeItem) error {
 		}
 		lines[i] = line
 	}
-	if err := s.pipesWriter.Write(lines); err != nil {
-		return xerrors.Errorf("unable to push %d lines to pipe: %w", len(lines), err)
+	chunks := slicesx.SplitToChunks(lines, len(s.pipesWriters))
+	eg := errgroup.Group{}
+	for i, writer := range s.pipesWriters {
+		eg.Go(func() error {
+			return writer.Write(chunks[i])
+		})
 	}
-	return nil
+	return eg.Wait()
 }
 
 func InitGpfdistTableSink(
-	table abstract.TableID, tableSchema *abstract.TableSchema, conn *pgxpool.Pool, dst *GpDestination,
+	table abstract.TableID, tableSchema *abstract.TableSchema, localAddr net.IP, conn *pgxpool.Pool, dst *GpDestination, threads int, params gpfdistbin.GpfdistParams,
 ) (*GpfdistTableSink, error) {
-	// Init gpfdist binary.
-	gpfd, err := gpfdistbin.InitGpfdist(dst.GpfdistParams, gpfdistbin.ImportTable, conn)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to init gpfdist: %w", err)
+	var err error
+	mode := gpfdistbin.ImportTable
+
+	// Step 1. Init gpfdist binaries.
+	gpfdists := make([]*gpfdistbin.Gpfdist, threads)
+	locations := make([]string, threads)
+	for i := range gpfdists {
+		gpfdists[i], err = gpfdistbin.InitGpfdist(params, localAddr, mode, i)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to init gpfdist: %w", err)
+		}
+		locations[i] = gpfdists[i].Location()
+		logger.Log.Debugf("Gpfdist for sink initialized")
 	}
-	logger.Log.Debugf("Gpfdist for sink initialized")
 
 	type workerResult struct {
 		rows int64
 		err  error
 	}
 
-	// Run background export through external table.
+	// Step 2. Run background export through external table.
 	ctx, cancel := context.WithCancel(context.Background())
 	extWriterCh := make(chan workerResult, 1)
 	stopExtWriter := func(timeout time.Duration) (int64, error) {
@@ -96,20 +124,26 @@ func InitGpfdistTableSink(
 	}
 	go func() {
 		defer close(extWriterCh)
-		rows, err := gpfd.RunExternalTableTransaction(ctx, table, tableSchema)
+		ddlExecutor := gpfdistbin.NewGpfdistDDLExecutor(conn, params.ServiceSchema)
+		rows, err := ddlExecutor.RunExternalTableTransaction(
+			ctx, mode.ToExternalTableMode(), table, tableSchema, locations,
+		)
 		extWriterCh <- workerResult{rows: rows, err: err}
 		logger.Log.Info("External table writer goroutine stopped")
 	}()
 
-	// Run PipesWriter that would asyncly serve its `.Write()` method calls.
-	pipesWriter, err := gpfdist.InitPipeWriter(gpfd)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to init pipes writer: %w", err)
+	// Step3. Run PipesWriters which would asyncly serve theirs `.Write()` method calls.
+	pipesWriters := make([]*gpfdist.PipeWriter, threads)
+	for i := range gpfdists {
+		pipesWriters[i], err = gpfdist.InitPipeWriter(gpfdists[i])
+		if err != nil {
+			return nil, xerrors.Errorf("unable to init pipes writer: %w", err)
+		}
 	}
 
 	return &GpfdistTableSink{
-		pipesWriter:   pipesWriter,
-		gpfdist:       gpfd,
+		pipesWriters:  pipesWriters,
+		gpfdists:      gpfdists,
 		stopExtWriter: stopExtWriter,
 	}, nil
 }

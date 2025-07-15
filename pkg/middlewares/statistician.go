@@ -54,7 +54,7 @@ func (s *statistician) Close() error {
 
 func (s *statistician) Push(input []abstract.ChangeItem) error {
 	startTime := time.Now()
-	s.stats.LogMaxReadLag(input)
+	s.stats.LogMaxReadLag(s.logger, input)
 	err := s.sink.Push(input)
 	s.ticker.Reset(s.NoLagForTooLongThreshold)
 	if err == nil {

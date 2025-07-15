@@ -27,6 +27,7 @@ const defaultPort = nat.Port("27017/tcp")
 type recipeOpts struct {
 	prefix     string
 	collection []MongoCollection
+	database   string
 }
 
 type RecipeOption func(opts *recipeOpts)
@@ -40,6 +41,12 @@ func WithPrefix(prefix string) RecipeOption {
 func WithCollections(collections ...MongoCollection) RecipeOption {
 	return func(opts *recipeOpts) {
 		opts.collection = collections
+	}
+}
+
+func WithDatabase(database string) RecipeOption {
+	return func(opts *recipeOpts) {
+		opts.database = database
 	}
 }
 
@@ -57,6 +64,7 @@ func RecipeSource(options ...RecipeOption) *MongoSource {
 	}
 	return &MongoSource{
 		ClusterID:              "",
+		ConnectionID:           "",
 		Hosts:                  []string{"localhost"},
 		Port:                   GetIntFromEnv(opts.prefix + "MONGO_LOCAL_PORT"),
 		ReplicaSet:             os.Getenv(opts.prefix + "MONGO_REPLICA_SET"),
@@ -97,9 +105,10 @@ func RecipeTarget(options ...RecipeOption) *MongoDestination {
 	}
 	return &MongoDestination{
 		ClusterID:         "",
+		ConnectionID:      "",
 		Hosts:             []string{"localhost"},
 		Port:              GetIntFromEnv(opts.prefix + "MONGO_LOCAL_PORT"),
-		Database:          "",
+		Database:          opts.database,
 		ReplicaSet:        os.Getenv(opts.prefix + "MONGO_REPLICA_SET"),
 		AuthSource:        "",
 		User:              os.Getenv(opts.prefix + "MONGO_LOCAL_USER"),

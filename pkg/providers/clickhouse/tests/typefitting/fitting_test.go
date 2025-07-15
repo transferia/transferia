@@ -53,7 +53,7 @@ func TestTypeFitting(t *testing.T) {
 	}
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, &source, &target, abstract.TransferTypeSnapshotOnly)
-	sinker, err := clickhouse.NewSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), new(abstract.LocalRuntime), middlewares.MakeConfig())
+	sinker, err := clickhouse.NewSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), middlewares.MakeConfig())
 	require.NoError(t, err)
 	require.NoError(t, sinker.Push(items))
 }

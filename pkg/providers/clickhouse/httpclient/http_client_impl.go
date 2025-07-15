@@ -16,6 +16,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/klauspost/compress/zstd"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/providers"
@@ -28,12 +29,12 @@ type httpClientImpl struct {
 	httpClient *http.Client
 }
 
-func (c *httpClientImpl) buildConnString(host, database string) string {
+func (c *httpClientImpl) buildConnString(host *chconn.Host, database string) string {
 	proto := "http"
 	if c.config.SSLEnabled() {
 		proto = "https"
 	}
-	return fmt.Sprintf("%s://%s:%d/?database=%s&output_format_write_statistics=0", proto, host, c.config.HTTPPort(), url.QueryEscape(database))
+	return fmt.Sprintf("%s://%s:%d/?database=%s&output_format_write_statistics=0", proto, host.Name, host.HTTPPort, url.QueryEscape(database))
 }
 
 func (c *httpClientImpl) prepareQuery(query interface{}) (io.Reader, error) {
@@ -49,7 +50,7 @@ func (c *httpClientImpl) prepareQuery(query interface{}) (io.Reader, error) {
 	}
 }
 
-func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host string, query interface{}) (io.ReadCloser, error) {
+func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *chconn.Host, query interface{}) (io.ReadCloser, error) {
 	preparedQuery, err := c.prepareQuery(query)
 	if err != nil {
 		return nil, xerrors.Errorf("error preparing query: %w", err)
@@ -102,7 +103,7 @@ func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host s
 	return resp.Body, nil
 }
 
-func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host string, query interface{}, res interface{}) error {
+func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host *chconn.Host, query interface{}, res interface{}) error {
 	body, err := c.QueryStream(ctx, lgr, host, query)
 	if err != nil {
 		return err
@@ -117,7 +118,7 @@ func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host string,
 	return nil
 }
 
-func (c *httpClientImpl) Exec(ctx context.Context, lgr log.Logger, host string, query interface{}) error {
+func (c *httpClientImpl) Exec(ctx context.Context, lgr log.Logger, host *chconn.Host, query interface{}) error {
 	return c.Query(ctx, lgr, host, query, nil)
 }
 

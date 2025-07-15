@@ -404,7 +404,7 @@ type publisher struct {
 }
 
 func (p *publisher) Run(sink abstract.AsyncSink) error {
-	sch, err := LoadSchema(p.storage.DB, p.config.UseFakePrimaryKey, false)
+	sch, err := LoadSchema(p.storage.DB, p.config.UseFakePrimaryKey, false, p.storage.database)
 	if err != nil {
 		return xerrors.Errorf("failed to load schema: %w", err)
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -24,8 +25,9 @@ type SyncTask struct {
 	cp       coordinator.Coordinator
 }
 
-func (s *SyncTask) Stop() {
+func (s *SyncTask) Stop() error {
 	s.wg.Wait()
+	return nil
 }
 
 func (s *SyncTask) Runtime() abstract.Runtime {
@@ -45,7 +47,10 @@ func (s *SyncTask) run() {
 		s.task.Params,
 		solomon.NewRegistry(solomon.NewRegistryOpts()),
 	)
-	if err := s.cp.FinishOperation(s.task.OperationID, s.transfer.CurrentJobIndex(), err); err != nil {
+	if err != nil {
+		errors.LogFatalError(err, s.transfer.ID, s.transfer.DstType(), s.transfer.SrcType())
+	}
+	if err := s.cp.FinishOperation(s.task.OperationID, s.task.TaskType.String(), s.transfer.CurrentJobIndex(), err); err != nil {
 		s.logger.Error("unable to call finish operation", log.Error(err))
 	}
 }
@@ -70,12 +75,14 @@ func NewSyncTask(
 
 	if task.Status == model.NewTask {
 		if err := workflow.OnStart(task); err != nil {
-			st.Stop()
+			if err := st.Stop(); err != nil {
+				logger.Log.Error("stop task failed", log.Error(err))
+			}
 			return nil, xerrors.Errorf("unable to start task workflow: %w", err)
 		}
 		rt, ok := transfer.Runtime.(*abstract.LocalRuntime)
-		if ok && rt.WorkersNum() > 1 {
-			for i := 1; i <= rt.WorkersNum(); i++ {
+		if ok && rt.SnapshotWorkersNum() > 1 {
+			for i := 1; i <= rt.SnapshotWorkersNum(); i++ {
 				subTr := st.transfer
 				subTr.Runtime = &abstract.LocalRuntime{
 					Host:       rt.Host,

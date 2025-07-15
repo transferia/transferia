@@ -11,20 +11,20 @@ import (
 type CoordinatorInMemory struct {
 	*CoordinatorNoOp
 
-	mu    sync.Mutex
-	state map[string]map[string]*TransferStateData
-
-	progress []*model.OperationTablePart
+	mu        sync.Mutex
+	state     map[string]map[string]*TransferStateData
+	taskState map[string]string
+	progress  []*model.OperationTablePart
 }
 
 func NewStatefulFakeClient() *CoordinatorInMemory {
 	return &CoordinatorInMemory{
 		CoordinatorNoOp: NewFakeClient(),
 
-		mu:    sync.Mutex{},
-		state: map[string]map[string]*TransferStateData{},
-
-		progress: nil,
+		mu:        sync.Mutex{},
+		state:     map[string]map[string]*TransferStateData{},
+		taskState: map[string]string{},
+		progress:  nil,
 	}
 }
 
@@ -68,4 +68,21 @@ func (f *CoordinatorInMemory) RemoveTransferState(transferID string, stateKeys [
 		delete(f.state[transferID], stateKey)
 	}
 	return nil
+}
+
+func (f *CoordinatorInMemory) SetOperationState(taskID string, state string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.taskState[taskID] = state
+	return nil
+}
+
+func (f *CoordinatorInMemory) GetOperationState(taskID string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	state, ok := f.taskState[taskID]
+	if !ok {
+		return "", OperationStateNotFoundError
+	}
+	return state, nil
 }

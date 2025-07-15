@@ -41,7 +41,8 @@ func TestNativeS3(t *testing.T) {
 	src := s3.PrepareCfg(t, "data4", "")
 	src.PathPrefix = testCasePath
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3.UploadOne(t, src, "thousands_of_csv_files/data0.csv")
+		//s3.PrepareTestCase(t, src, src.PathPrefix)
 	}
 
 	time.Sleep(5 * time.Second)
@@ -59,7 +60,11 @@ func TestNativeS3(t *testing.T) {
 	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
 	helpers.Activate(t, transfer)
 
-	err := helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 500*time.Second, 426560)
+	for i := 1; i < 1240; i++ {
+		s3.UploadOne(t, src, fmt.Sprintf("thousands_of_csv_files/data%d.csv", i))
+	}
+
+	err := helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 500*time.Second, 426216)
 	require.NoError(t, err)
 	finish := time.Now()
 

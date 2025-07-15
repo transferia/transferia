@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v4"
@@ -17,7 +18,7 @@ var _ abstract.IncrementalStorage = new(Storage)
 
 var repeatableReadReadOnlyTxOptions pgx.TxOptions = pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly, DeferrableMode: pgx.NotDeferrable}
 
-func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.TableDescription, error) {
+func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.IncrementalState, error) {
 	conn, err := s.Conn.Acquire(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to acquire a connection: %w", err)
@@ -30,7 +31,7 @@ func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstrac
 	}
 	defer txRollbacks.Do()
 
-	var res []abstract.TableDescription
+	var res []abstract.IncrementalState
 	for _, table := range incremental {
 		var maxVal interface{}
 		var cursorType string
@@ -77,12 +78,10 @@ func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstrac
 		if err != nil {
 			return nil, xerrors.Errorf("unable to represent value: %w", err)
 		}
-		res = append(res, abstract.TableDescription{
-			Name:   table.Name,
-			Schema: table.Namespace,
-			Filter: abstract.WhereStatement(fmt.Sprintf(`"%s" > %s`, table.CursorField, repr)),
-			EtaRow: 0,
-			Offset: 0,
+		res = append(res, abstract.IncrementalState{
+			Name:    table.Name,
+			Schema:  table.Namespace,
+			Payload: abstract.WhereStatement(fmt.Sprintf(`"%s" > %s`, table.CursorField, repr)),
 		})
 
 		logger.Log.Infof(
@@ -102,8 +101,9 @@ func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstrac
 	return res, nil
 }
 
-func SetInitialState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) {
-	for i, table := range tables {
+func SetInitialState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) []abstract.TableDescription {
+	result := slices.Clone(tables)
+	for i, table := range result {
 		if table.Filter != "" || table.Offset != 0 {
 			// table already contains predicate
 			continue
@@ -113,7 +113,7 @@ func SetInitialState(tables []abstract.TableDescription, incrementalTables []abs
 				continue
 			}
 			if table.ID() == incremental.TableID() {
-				tables[i] = abstract.TableDescription{
+				result[i] = abstract.TableDescription{
 					Name:   incremental.Name,
 					Schema: incremental.Namespace,
 					Filter: abstract.WhereStatement(fmt.Sprintf(`"%s" > %s`, incremental.CursorField, incremental.InitialState)),
@@ -123,8 +123,9 @@ func SetInitialState(tables []abstract.TableDescription, incrementalTables []abs
 			}
 		}
 	}
+	return result
 }
 
-func (s *Storage) SetInitialState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) {
-	SetInitialState(tables, incrementalTables)
+func (s *Storage) BuildArrTableDescriptionWithIncrementalState(tables []abstract.TableDescription, incrementalTables []abstract.IncrementalTable) []abstract.TableDescription {
+	return SetInitialState(tables, incrementalTables)
 }

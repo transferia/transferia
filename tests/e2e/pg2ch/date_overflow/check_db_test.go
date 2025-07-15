@@ -42,8 +42,7 @@ func testSnapshot(t *testing.T, source *postgres.PgSource, target model.ChDestin
 	require.NoError(t, err)
 	snapshotLoader := tasks.NewSnapshotLoader(client2.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
 	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
-	require.Error(t, err)
-	require.True(t, abstract.IsFatal(err))
+	require.NoError(t, err)
 }
 
 func TestSnapshot(t *testing.T) {

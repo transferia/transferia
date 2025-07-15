@@ -14,8 +14,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -23,7 +23,7 @@ import (
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget()
+	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
@@ -55,11 +55,8 @@ func Existence(t *testing.T) {
 func Snapshot(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
 
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.TODO(), tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
 	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
 
 	targetCfg := mysql_client.NewConfig()
@@ -79,8 +76,8 @@ func Snapshot(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Info("replication progress", log.Any("progress", state))
 	require.Equal(t, 1, len(state))
-	require.Equal(t, mysql.SyncWait, state[`"target"."products"`].Status)
-	require.True(t, state[`"target"."products"`].LSN > 0)
+	require.Equal(t, mysql.SyncWait, state[`"source"."products"`].Status)
+	require.True(t, state[`"source"."products"`].LSN > 0)
 }
 
 func Load(t *testing.T) {
@@ -160,6 +157,6 @@ func Load(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Info("replication progress", log.Any("progress", state))
 	require.Equal(t, 1, len(state))
-	require.Equal(t, mysql.InSync, state[`"target"."products"`].Status)
-	require.True(t, state[`"target"."products"`].LSN > 0)
+	require.Equal(t, mysql.InSync, state[`"source"."products"`].Status)
+	require.True(t, state[`"source"."products"`].LSN > 0)
 }

@@ -39,17 +39,23 @@ type MysqlDestination struct {
 	RootCAFiles []string
 
 	// Used for snapshot in runtime only
-	prevSkipKeyChecks      bool
-	prevPerTransactionPush bool
-	ConnectionID           string
+	prevSkipKeyChecks         bool
+	prevPerTransactionPush    bool
+	ConnectionID              string
+	IsSchemaMigrationDisabled bool
 }
 
-var _ model.Destination = (*MysqlDestination)(nil)
-var _ model.WithConnectionID = (*MysqlDestination)(nil)
+var (
+	_ model.Destination          = (*MysqlDestination)(nil)
+	_ model.WithConnectionID     = (*MysqlDestination)(nil)
+	_ model.AlterableDestination = (*MysqlDestination)(nil)
+)
 
 func (d *MysqlDestination) MDBClusterID() string {
 	return d.ClusterID
 }
+
+func (d *MysqlDestination) IsAlterable() {}
 
 func (d *MysqlDestination) GetConnectionID() string {
 	return d.ConnectionID

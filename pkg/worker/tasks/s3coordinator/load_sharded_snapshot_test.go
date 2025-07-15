@@ -94,7 +94,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 	}
 	terminateSlave := func(taskID string, slaveID int, err error) error {
 		logger.Log.Infof("%v: fake slave: %v finish", taskID, slaveID)
-		return cp.FinishOperation(taskID, slaveID, err)
+		return cp.FinishOperation(taskID, "", slaveID, err)
 	}
 	fakeSlaveProgress := func(taskID string, slaveID int, progress float64) (err error) {
 		logger.Log.Infof("%v: fake slave: %v progress to %v", taskID, slaveID, progress)

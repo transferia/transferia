@@ -14,7 +14,9 @@ import (
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
+
 	log "go.ytsaurus.tech/library/go/core/log"
+	clickhouse "github.com/transferia/transferia/pkg/connection/clickhouse"
 )
 
 // MockHTTPClient is a mock of HTTPClient interface.
@@ -41,7 +43,7 @@ func (m *MockHTTPClient) EXPECT() *MockHTTPClientMockRecorder {
 }
 
 // Exec mocks base method.
-func (m *MockHTTPClient) Exec(ctx context.Context, lgr log.Logger, host string, query any) error {
+func (m *MockHTTPClient) Exec(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query any) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Exec", ctx, lgr, host, query)
 	ret0, _ := ret[0].(error)
@@ -55,7 +57,7 @@ func (mr *MockHTTPClientMockRecorder) Exec(ctx, lgr, host, query any) *gomock.Ca
 }
 
 // Query mocks base method.
-func (m *MockHTTPClient) Query(ctx context.Context, lgr log.Logger, host string, query, res any) error {
+func (m *MockHTTPClient) Query(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query, res any) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Query", ctx, lgr, host, query, res)
 	ret0, _ := ret[0].(error)
@@ -69,7 +71,7 @@ func (mr *MockHTTPClientMockRecorder) Query(ctx, lgr, host, query, res any) *gom
 }
 
 // QueryStream mocks base method.
-func (m *MockHTTPClient) QueryStream(ctx context.Context, lgr log.Logger, host string, query any) (io.ReadCloser, error) {
+func (m *MockHTTPClient) QueryStream(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query any) (io.ReadCloser, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryStream", ctx, lgr, host, query)
 	ret0, _ := ret[0].(io.ReadCloser)

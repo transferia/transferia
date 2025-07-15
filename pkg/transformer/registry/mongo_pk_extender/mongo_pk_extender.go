@@ -17,19 +17,24 @@ const Type = abstract.TransformerType("mongo_pk_extender")
 
 const ID = "id"
 
+type SchemaDiscriminator struct {
+	Schema string
+	Value  string
+}
+
 type Config struct {
-	Tables          filter.Tables `json:"tables"`
-	Expand          bool
-	ExtraFieldName  string
-	ExtraFieldValue string
+	Tables              filter.Tables `json:"tables"`
+	Expand              bool
+	DiscriminatorField  string
+	DiscriminatorValues []SchemaDiscriminator
 }
 
 type MongoPKExtenderTransformer struct {
-	tables          filter.Filter
-	expand          bool
-	extraFieldName  string
-	extraFieldValue interface{}
-	logger          log.Logger
+	tables              filter.Filter
+	expand              bool
+	discriminatorField  string
+	discriminatorValues map[string]interface{}
+	logger              log.Logger
 }
 
 func init() {
@@ -63,8 +68,11 @@ func NewMongoPKExtenderTransformer(config Config, lgr log.Logger) (*MongoPKExten
 	if err != nil {
 		return nil, xerrors.Errorf("Unable to init table filter: %w", err)
 	}
-	extraFieldValue := parseValue(config.ExtraFieldValue)
-	return &MongoPKExtenderTransformer{tables: tables, expand: config.Expand, extraFieldName: config.ExtraFieldName, extraFieldValue: extraFieldValue, logger: lgr}, nil
+	discriminatorValuesMap := make(map[string]interface{}, len(config.DiscriminatorValues))
+	for _, item := range config.DiscriminatorValues {
+		discriminatorValuesMap[item.Schema] = parseValue(item.Value)
+	}
+	return &MongoPKExtenderTransformer{tables: tables, expand: config.Expand, discriminatorField: config.DiscriminatorField, discriminatorValues: discriminatorValuesMap, logger: lgr}, nil
 }
 
 func (t *MongoPKExtenderTransformer) Type() abstract.TransformerType {
@@ -104,14 +112,21 @@ func (t *MongoPKExtenderTransformer) processItem(item abstract.ChangeItem) (abst
 			}
 		}
 
-		if transformed, err := t.processValue(item.ColumnValues[i]); err == nil {
-			item.ColumnValues[i] = transformed
+		if t.expand {
+			item.ColumnValues[i] = t.expandValue(item.ColumnValues[i], item)
 		} else {
-			return item, err
+			if idValue, schema, err := t.collapseValue(item.ColumnValues[i]); err == nil {
+				item.ColumnValues[i] = idValue
+				item.Schema = schema
+			} else {
+				return item, err
+			}
 		}
 	}
 
-	item.OldKeys = t.createOldKeys(item)
+	oldKeys, schema := t.createOldKeys(item)
+	item.OldKeys = oldKeys
+	item.Schema = schema
 	return item, nil
 }
 
@@ -125,31 +140,36 @@ func equals(x, y interface{}) bool {
 	}
 }
 
-func (t *MongoPKExtenderTransformer) processValue(value interface{}) (interface{}, error) {
-	if t.expand {
-		return bson.D{{Key: t.extraFieldName, Value: t.extraFieldValue}, {Key: ID, Value: value}}, nil
-	} else {
-		doc, ok := value.(bson.D)
-		if ok {
-			var extraFieldFound bool
-			var idValue interface{}
-			for _, elem := range doc {
-				if elem.Key == t.extraFieldName && equals(elem.Value, t.extraFieldValue) {
-					extraFieldFound = true
-				}
-				if elem.Key == ID {
-					idValue = elem.Value
-				}
-			}
-			if extraFieldFound && idValue != nil {
-				return idValue, nil
-			}
-		}
-		return nil, xerrors.Errorf("Not supported %v", value)
-	}
+func (t *MongoPKExtenderTransformer) expandValue(value interface{}, item abstract.ChangeItem) interface{} {
+	discriminator := t.discriminatorValues[item.Schema]
+	return bson.D{{Key: t.discriminatorField, Value: discriminator}, {Key: ID, Value: value}}
 }
 
-func (t *MongoPKExtenderTransformer) createOldKeys(item abstract.ChangeItem) abstract.OldKeysType {
+func (t *MongoPKExtenderTransformer) collapseValue(value interface{}) (interface{}, string, error) {
+	doc, ok := value.(bson.D)
+	if ok {
+		var idValue interface{}
+		var discriminatorValue interface{}
+		for _, elem := range doc {
+			if elem.Key == t.discriminatorField {
+				discriminatorValue = elem.Value
+			}
+			if elem.Key == ID {
+				idValue = elem.Value
+			}
+		}
+		if idValue != nil && discriminatorValue != nil {
+			for k, v := range t.discriminatorValues {
+				if equals(discriminatorValue, v) {
+					return idValue, k, nil
+				}
+			}
+		}
+	}
+	return nil, "", xerrors.Errorf("Not supported %v", value)
+}
+
+func (t *MongoPKExtenderTransformer) createOldKeys(item abstract.ChangeItem) (abstract.OldKeysType, string) {
 	switch {
 	case item.Kind == abstract.InsertKind:
 		keyNames := make([]string, 0, 1)
@@ -170,23 +190,29 @@ func (t *MongoPKExtenderTransformer) createOldKeys(item abstract.ChangeItem) abs
 			KeyNames:  keyNames,
 			KeyTypes:  keyTypes,
 			KeyValues: keyValues,
-		}
+		}, item.Schema
 	case item.Kind == abstract.DeleteKind || item.Kind == abstract.UpdateKind:
+		var schema = item.Schema
 		keyValues := make([]interface{}, len(item.OldKeys.KeyValues))
 		for i, keyValue := range item.OldKeys.KeyValues {
-			if transformed, err := t.processValue(keyValue); err == nil {
-				keyValues[i] = transformed
+			if t.expand {
+				keyValues[i] = t.expandValue(keyValue, item)
 			} else {
-				keyValues[i] = keyValue
+				if transformed, newSchema, err := t.collapseValue(keyValue); err == nil {
+					keyValues[i] = transformed
+					schema = newSchema
+				} else {
+					keyValues[i] = keyValue
+				}
 			}
 		}
 		return abstract.OldKeysType{
 			KeyNames:  item.OldKeys.KeyNames,
 			KeyTypes:  item.OldKeys.KeyTypes,
 			KeyValues: keyValues,
-		}
+		}, schema
 	default:
-		return item.OldKeys
+		return item.OldKeys, item.Schema
 	}
 }
 
@@ -199,5 +225,5 @@ func (t *MongoPKExtenderTransformer) ResultSchema(original *abstract.TableSchema
 }
 
 func (t *MongoPKExtenderTransformer) Description() string {
-	return "Extend Mongo PK with extra value"
+	return "Extend Mongo PK with discriminator value"
 }

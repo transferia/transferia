@@ -12,6 +12,7 @@ import (
 	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 	"github.com/transferia/transferia/tests/helpers/serde"
 	simple_transformer "github.com/transferia/transferia/tests/helpers/transformer"
@@ -19,7 +20,7 @@ import (
 
 var (
 	Source = *helpers.RecipeMysqlSource()
-	Target = *helpers.RecipeMysqlTarget()
+	Target = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 var insertStmt = `

@@ -61,7 +61,9 @@ var mapYDBTypeToKafkaType = map[string]*debeziumcommon.KafkaTypeDescr{
 	"ydb:JsonDocument": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return string(debeziumcommon.KafkaTypeString), "io.debezium.data.Json", nil
 	}},
-
+	"ydb:Uuid": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
+		return string(debeziumcommon.KafkaTypeString), "", nil
+	}},
 	"ydb:Date": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return string(debeziumcommon.KafkaTypeInt32), "io.debezium.time.Date", nil
 	}},
@@ -196,6 +198,8 @@ func AddYDB(v *debeziumcommon.Values, colName string, colVal interface{}, colTyp
 			return xerrors.Errorf("ydb - JsonDocument - marshal returned error, err: %w", err)
 		}
 		v.AddVal(colName, string(str))
+	case "ydb:Uuid":
+		v.AddVal(colName, colVal.(string))
 
 	case "ydb:Date": //
 		switch vv := colVal.(type) {

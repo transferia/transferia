@@ -3,6 +3,7 @@ package sink
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -59,7 +60,8 @@ func (u *replicationUploader) Upload(name string, lsns []uint64, data []byte) er
 	})
 	if err != nil {
 		u.logger.Error("upload: "+fileName, log.Any("res", res), log.Error(err))
-		if awsErr, ok := err.(awserr.Error); ok {
+		var awsErr awserr.Error
+		if errors.As(err, &awsErr) {
 			if FatalAWSCodes.Contains(awsErr.Code()) {
 				return abstract.NewFatalError(xerrors.Errorf("upload fatal error: %w", err))
 			}

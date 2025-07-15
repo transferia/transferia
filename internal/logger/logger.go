@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
+	_ "go.opentelemetry.io/contrib/bridges/otelzap"
 	zp "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -18,8 +19,10 @@ import (
 // В ыте будет консольный.
 // В nanny будет json-ый.
 // В дев тачке будет прекрасный.
-var Log log.Logger
-var NullLog *zap.Logger
+var (
+	Log     log.Logger
+	NullLog *zap.Logger
+)
 
 type Factory func(context.Context) log.Logger
 

@@ -235,11 +235,12 @@ func extractValueRecursive(fd protoreflect.FieldDescriptor, val protoreflect.Val
 	}
 
 	if fd.IsList() {
-		size := val.List().Len()
+		list := val.List()
+		size := list.Len()
 		items := make([]interface{}, size)
 
 		for i := 0; i < size; i++ {
-			val, err := extractValueExceptListRecursive(fd, val.List().Get(i), maxDepth-1)
+			val, err := extractValueExceptListRecursive(fd, list.Get(i), maxDepth-1)
 			if err != nil {
 				return nil, xerrors.New(err.Error())
 			}

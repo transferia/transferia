@@ -16,33 +16,37 @@ type PgDestination struct {
 	Host      string // legacy field for back compatibility; for now, we are using only 'Hosts' field
 	Hosts     []string
 
-	Database               string `json:"Name"`
-	User                   string
-	Password               dp_model.SecretString
-	Port                   int
-	TLSFile                string
-	EnableTLS              bool
-	MaintainTables         bool
-	AllowDuplicates        bool
-	LoozeMode              bool
-	IgnoreUniqueConstraint bool
-	Tables                 map[string]string
-	TransformerConfig      map[string]string
-	SubNetworkID           string
-	SecurityGroupIDs       []string
-	CopyUpload             bool // THIS IS NOT PARAMETER. If you set it on endpoint into true/false - nothing happened. It's workaround, this flag is set by common code (Activate/UploadTable) automatically. You have not options to turn-off CopyUpload behaviour.
-	PerTransactionPush     bool
-	Cleanup                dp_model.CleanupType
-	BatchSize              int // deprecated: use BufferTriggingSize instead
-	BufferTriggingSize     uint64
-	BufferTriggingInterval time.Duration
-	QueryTimeout           time.Duration
-	DisableSQLFallback     bool
-	ConnectionID           string
+	Database                  string `json:"Name"`
+	User                      string
+	Password                  dp_model.SecretString
+	Port                      int
+	TLSFile                   string
+	EnableTLS                 bool
+	MaintainTables            bool
+	IsSchemaMigrationDisabled bool
+	AllowDuplicates           bool
+	LoozeMode                 bool
+	IgnoreUniqueConstraint    bool
+	Tables                    map[string]string
+	TransformerConfig         map[string]string
+	SubNetworkID              string
+	SecurityGroupIDs          []string
+	CopyUpload                bool // THIS IS NOT PARAMETER. If you set it on endpoint into true/false - nothing happened. It's workaround, this flag is set by common code (Activate/UploadTable) automatically. You have not options to turn-off CopyUpload behaviour.
+	PerTransactionPush        bool
+	Cleanup                   dp_model.CleanupType
+	BatchSize                 int // deprecated: use BufferTriggingSize instead
+	BufferTriggingSize        uint64
+	BufferTriggingInterval    time.Duration
+	QueryTimeout              time.Duration
+	DisableSQLFallback        bool
+	ConnectionID              string
 }
 
-var _ dp_model.Destination = (*PgDestination)(nil)
-var _ dp_model.WithConnectionID = (*PgDestination)(nil)
+var (
+	_ dp_model.Destination          = (*PgDestination)(nil)
+	_ dp_model.WithConnectionID     = (*PgDestination)(nil)
+	_ dp_model.AlterableDestination = (*PgDestination)(nil)
+)
 
 const PGDefaultQueryTimeout time.Duration = 30 * time.Minute
 
@@ -54,12 +58,7 @@ func (d *PgDestination) GetConnectionID() string {
 	return d.ConnectionID
 }
 
-func (d *PgDestination) FillDependentFields(transfer *dp_model.Transfer) {
-	_, isHomo := transfer.Src.(*PgSource)
-	if !isHomo && !d.MaintainTables {
-		d.MaintainTables = true
-	}
-}
+func (d *PgDestination) IsAlterable() {}
 
 // AllHosts - function to move from legacy 'Host' into modern 'Hosts'
 func (d *PgDestination) AllHosts() []string {
@@ -125,6 +124,10 @@ func (d *PgDestination) Validate() error {
 
 type PgDestinationWrapper struct {
 	Model *PgDestination
+}
+
+func (d PgDestinationWrapper) GetIsSchemaMigrationDisabled() bool {
+	return d.Model.IsSchemaMigrationDisabled
 }
 
 func (d PgDestinationWrapper) ClusterID() string {

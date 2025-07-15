@@ -60,6 +60,8 @@ func buildColumnDescription(col *column, isPkey bool) abstract.ColSchema {
 		dataType = schema.TypeTimestamp
 	case "Interval":
 		dataType = schema.TypeInterval
+	case "Uuid":
+		dataType = schema.TypeString
 	default:
 		dataType = schema.TypeAny
 	}

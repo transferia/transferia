@@ -16,12 +16,11 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/ptr"
-	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/base"
 	"github.com/transferia/transferia/pkg/base/events"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/format"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
@@ -106,7 +105,7 @@ func (c *HTTPTarget) AsyncPush(input base.EventBatch) chan error {
 					}
 					return err
 				}
-				c.logger.Infof("%v blob %v uploaded to %v in: %v", batch.Part.FullName(), format.SizeInt(len(blob)), host, time.Since(st))
+				c.logger.Infof("%v blob %v uploaded to %v in: %v", batch.Part.FullName(), format.SizeInt(len(blob)), host.String(), time.Since(st))
 				return nil
 			},
 			backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10),
@@ -182,66 +181,32 @@ func (c *HTTPTarget) Close() error {
 	return nil
 }
 
-func (c *HTTPTarget) adjustDDLToTarget(ddl schema.TableDDL, distributed bool) (string, error) {
-	ddlChangeItem := ddl.ToChangeItem()
-	sqlDDL := ddl.SQL()
-	sqlDDL = schema.SetTargetDatabase(sqlDDL, ddl.TableID().Namespace, c.config.Database())
-	sqlDDL = schema.SetAltName(sqlDDL, c.config.Database(), MakeAltNames(c.config))
-	sqlDDL = schema.SetIfNotExists(sqlDDL)
-	switch ddlChangeItem.Kind {
-	case abstract.ChCreateTableDistributedKind:
-		sqlDDL = schema.ReplaceCluster(sqlDDL, c.cluster.Name())
-	}
-	if distributed {
-		if ddlChangeItem.Kind == abstract.ChCreateTableKind {
-			sqlDDL = schema.MakeDistributedDDL(sqlDDL, c.cluster.Name())
-		}
-		engine := ddlChangeItem.ColumnValues[1].(string)
-		if engine == string(schema.MaterializedView) {
-			underlying, _, err := schema.ParseMergeTreeFamilyEngine(sqlDDL)
-			if err != nil {
-				c.logger.Warnf("unsupported engine in materialized view %v.%v: %v", ddl.TableID().Namespace, ddl.TableID().Name, err)
-				return sqlDDL, nil
-			}
-			engine = string(underlying.Type)
-		}
-
-		if schema.IsSharedEngineType(engine) {
-			replicated, err := schema.GetReplicatedFromSharedEngineType(engine)
-			if err != nil {
-				return "", xerrors.Errorf("unable to get replicated from shared engine: %w", err)
-			}
-
-			sqlDDL = strings.Replace(sqlDDL, engine, replicated, 1)
-		}
-
-		if schema.IsMergeTreeFamily(engine) && !schema.IsReplicatedEngineType(engine) && !schema.IsSharedEngineType(engine) {
-			if query, err := schema.SetReplicatedEngine(sqlDDL, engine, ddl.TableID().Namespace, ddl.TableID().Name); err != nil {
-				return query, xerrors.Errorf("unable to set replicated table engine: %w", err)
-			} else {
-				sqlDDL = query
-			}
-		}
-	} // maybe we also should decrease engine
-	return sqlDDL, nil
+func (c *HTTPTarget) adjustDDLToTarget(ddl *schema.TableDDL, distributed bool) (string, error) {
+	return schema.BuildDDLForHomoSink(
+		ddl,
+		distributed,
+		c.cluster.Name(),
+		c.config.Database(),
+		MakeAltNames(c.config),
+	)
 }
 
-func (c *HTTPTarget) HostByPart(part *TablePartA2) string {
-	host := ""
+func (c *HTTPTarget) HostByPart(part *TablePartA2) *clickhouse.Host {
+	host := new(clickhouse.Host)
 	if c.config.Host() != nil {
-		host = *c.config.Host()
+		host = c.config.Host()
 	}
-	if host == "" && len(c.config.AltHosts()) > 0 {
+	if host.HostName() == "" && len(c.config.AltHosts()) > 0 {
 		randomIndex := rand.Intn(len(c.config.AltHosts()))
 		host = c.config.AltHosts()[randomIndex]
 	}
 
 	// Choose random host of first shard for cluster DDL
-	if host == "" && part == nil && len(c.config.Shards()) > 0 {
+	if host.HostName() == "" && part == nil && len(c.config.Shards()) > 0 {
 		for shardName, hosts := range c.config.Shards() {
 			idx := rand.Intn(len(hosts))
 			host = hosts[idx]
-			c.logger.Debugf("choose random host %s of shard %s for DDL query", host, shardName)
+			c.logger.Debugf("choose random host %s of shard %s for DDL query", host.String(), shardName)
 			return host
 		}
 	}
@@ -255,7 +220,7 @@ func (c *HTTPTarget) HostByPart(part *TablePartA2) string {
 			shardHosts := c.cluster.Shards[targetShardNum]
 			randomIndex := rand.Intn(len(shardHosts))
 			host = shardHosts[randomIndex]
-			c.logger.Debugf("choose host: %v from %v, source shard: %v, target shard: %v", host, shardHosts, part.ShardNum, targetShardNum)
+			c.logger.Debugf("choose host: %v from %v, source shard: %v, target shard: %v", host.String(), HostsToString(shardHosts), part.ShardNum, targetShardNum)
 		}
 	}
 	return host
@@ -335,9 +300,6 @@ func (c *HTTPTarget) execDDL(executor func(distributed bool) error) error {
 }
 
 func newHTTPTargetImpl(transfer *dp_model.Transfer, config model.ChSinkParams, mtrc metrics.Registry, logger log.Logger) (*HTTPTarget, error) {
-	if err := conn.ResolveShards(config, transfer); err != nil {
-		return nil, xerrors.Errorf("Can't resolve shards: %w", err)
-	}
 	client, err := httpclient.NewHTTPClientImpl(config)
 	if err != nil {
 		return nil, xerrors.Errorf("error creating CH HTTP client: %w", err)
@@ -369,5 +331,10 @@ func NewHTTPTarget(transfer *dp_model.Transfer, mtrc metrics.Registry, logger lo
 		panic("expected ClickHouse destination in ClickHouse sink constructor")
 	}
 
-	return newHTTPTargetImpl(transfer, dst.ToSinkParams(transfer), mtrc, logger)
+	sinkParams, err := dst.ToSinkParams(transfer)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to resolve sink params: %w", err)
+	}
+
+	return newHTTPTargetImpl(transfer, sinkParams, mtrc, logger)
 }

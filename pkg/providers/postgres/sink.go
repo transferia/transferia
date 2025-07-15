@@ -167,7 +167,7 @@ func CreateSchemaQueryOptional(fullTableName string) string {
 }
 
 func (s *sink) checkTable(ctx context.Context, in abstract.TableSchema) error {
-	if !s.config.MaintainTables() {
+	if s.config.GetIsSchemaMigrationDisabled() || !s.config.MaintainTables() {
 		return nil
 	}
 	fqtn := in.TableID().Fqtn()
@@ -554,7 +554,7 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 					return err
 				}
 			}
-		case abstract.InitShardedTableLoad:
+		case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad, abstract.SynchronizeKind:
 			// not needed for now
 		case abstract.InitTableLoad, abstract.DoneTableLoad:
 			if s.config.PerTransactionPush() {
@@ -568,8 +568,6 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 					return err
 				}
 			}
-		case abstract.DoneShardedTableLoad:
-			// not needed for now
 		case abstract.InsertKind, abstract.UpdateKind, abstract.DeleteKind:
 			batches[item.PgName()] = append(batches[item.PgName()], item)
 		default:
@@ -875,7 +873,19 @@ func (s *sink) buildInsertQuery(
 	if err != nil {
 		return "", xerrors.Errorf("unable to get unchanged values: %w", err)
 	}
-	colsToUpdate := len(row.ColumnNames) - len(generatedCols) - len(unchangedCols)
+
+	totalColNumber := len(row.ColumnNames)
+	generatedColNumber := len(generatedCols)
+	unchangedColNumber := len(unchangedCols)
+	colsToUpdate := totalColNumber - generatedColNumber - unchangedColNumber
+
+	// This may happen if postgresql update doesn't actually change anything (it is still present in WAL though) and per transaction push is enabled
+	if colsToUpdate == 0 {
+		return "", nil
+	} else if colsToUpdate < 0 {
+		return "", xerrors.Errorf("unexpected negative number of columns to update for table %s, got %d total columns, %d is generated and %d unchanged",
+			table, totalColNumber, generatedColNumber, unchangedColNumber)
+	}
 	values := make([]string, colsToUpdate)
 	colNames := make([]string, colsToUpdate)
 	iEC := 0

@@ -34,13 +34,12 @@ var (
 	})
 
 	dstSample = yt.YtDestination{
-		Path:                     "//home/cdc/test/mock2yt",
-		Cluster:                  os.Getenv("YT_PROXY"),
-		CellBundle:               "default",
-		PrimaryMedium:            "default",
-		UseStaticTableOnSnapshot: true,
-		Cleanup:                  model.DisabledCleanup,
-		Static:                   true,
+		Path:          "//home/cdc/test/mock2yt",
+		Cluster:       os.Getenv("YT_PROXY"),
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+		Cleanup:       model.DisabledCleanup,
+		Static:        true,
 	}
 
 	trueConst  = true
@@ -234,8 +233,8 @@ func retryingParts(t *testing.T) {
 	currentSink, err = staticsink.NewStaticSink(dst, cp, helpers.TransferID, helpers.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 	require.NoError(t, currentSink.Push(itemsBuilder.InitTableLoad()))
-	require.NoError(t, currentSink.Push(itemsBuilder.Inserts(t, []map[string]interface{}{{"author_id": 123, "is_deleted": 15}})))
-	require.Error(t, currentSink.Push(itemsBuilder.DoneTableLoad()))
+	require.Error(t, currentSink.Push(itemsBuilder.Inserts(t, []map[string]interface{}{{"author_id": 123, "is_deleted": 15}})))
+	require.NoError(t, currentSink.Push(itemsBuilder.DoneTableLoad()))
 
 	currentSink, err = staticsink.NewStaticSink(dst, cp, helpers.TransferID, helpers.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)

@@ -1,6 +1,7 @@
 package greenplum
 
 import (
+	"context"
 	"regexp"
 	"strconv"
 	"strings"
@@ -10,7 +11,8 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/connection/greenplum"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/utils"
 )
@@ -22,10 +24,14 @@ type GpSource struct {
 	AdvancedProps    GpSourceAdvancedProps
 	SubnetID         string
 	SecurityGroupIDs []string
-	GpfdistParams    gpfdistbin.GpfdistParams
 }
 
 var _ model.Source = (*GpSource)(nil)
+var _ model.WithConnectionID = (*GpSource)(nil)
+
+func (s *GpSource) GetConnectionID() string {
+	return s.Connection.ConnectionID
+}
 
 func (s *GpSource) MDBClusterID() string {
 	if s.Connection.MDBCluster != nil {
@@ -46,6 +52,8 @@ type GpSourceAdvancedProps struct {
 	// AllowCoordinatorTxFailure disables coordinator TX monitoring (liveness monitor) and enables the transfer to finish snapshot successfully even if the coordinator TX fails
 	AllowCoordinatorTxFailure    bool
 	LivenessMonitorCheckInterval time.Duration
+	DisableGpfdist               bool
+	GpfdistBinPath               string
 }
 
 func (p *GpSourceAdvancedProps) Validate() error {
@@ -61,12 +69,14 @@ func (p *GpSourceAdvancedProps) WithDefaults() {
 	}
 }
 
+// fields can be empty if connectionID is set
 type GpConnection struct {
-	MDBCluster *MDBClusterCreds
-	OnPremises *GpCluster
-	Database   string
-	User       string
-	AuthProps  PgAuthProps
+	MDBCluster   *MDBClusterCreds
+	OnPremises   *GpCluster
+	Database     string
+	User         string
+	AuthProps    PgAuthProps
+	ConnectionID string
 }
 
 type PgAuthProps struct {
@@ -104,8 +114,17 @@ func (s *GpHAP) Validate() error {
 }
 
 func (c *GpConnection) Validate() error {
+	if len(c.User) == 0 {
+		return xerrors.New("missing user for database access")
+	}
+	if len(c.Database) == 0 {
+		return xerrors.New("missing database name")
+	}
+	if c.ConnectionID != "" {
+		return nil
+	}
 	if c.MDBCluster == nil && c.OnPremises == nil {
-		return xerrors.New("missing either MDB cluster ID or on-premises connection properties")
+		return xerrors.New("missing either MDB cluster ID or on-premises connection properties or connection manager connection ID")
 	}
 	if c.OnPremises != nil {
 		if c.OnPremises.Coordinator == nil {
@@ -123,12 +142,6 @@ func (c *GpConnection) Validate() error {
 			}
 		}
 	}
-	if len(c.User) == 0 {
-		return xerrors.New("missing user for database access")
-	}
-	if len(c.Database) == 0 {
-		return xerrors.New("missing database name")
-	}
 	return nil
 }
 
@@ -142,6 +155,49 @@ func (c *GpConnection) WithDefaults() {
 	if len(c.Database) == 0 {
 		c.Database = "postgres"
 	}
+}
+
+func (c *GpConnection) ResolveCredsFromConnectionID() error {
+	if c.ConnectionID == "" {
+		return nil
+	}
+
+	connmanConnection, err := connection.Resolver().ResolveConnection(context.Background(), c.ConnectionID, ProviderType)
+	if err != nil {
+		return xerrors.Errorf("failed to resolve greenplum connection %s: %w", c.ConnectionID, err)
+	}
+	greenplumConnection, ok := connmanConnection.(*greenplum.Connection)
+	if !ok {
+		return xerrors.Errorf("unable to cast connection to GreenplumConnection, err: %w", err)
+	}
+	c.User = greenplumConnection.User
+	c.AuthProps.Password = model.SecretString(greenplumConnection.Password)
+	c.AuthProps.CACertificate = greenplumConnection.CACertificates
+	masterHost := greenplumConnection.ResolveMasterHost()
+	if masterHost == nil {
+		return xerrors.New("no master host found in connection")
+	}
+	var mirror *GpHP
+	replicaHost := greenplumConnection.ResolveReplicaHost()
+	if replicaHost != nil {
+		mirror = &GpHP{
+			Host: replicaHost.Name,
+			Port: replicaHost.Port,
+		}
+	}
+	c.OnPremises = &GpCluster{
+		Coordinator: &GpHAP{
+			Primary: &GpHP{
+				Host: masterHost.Name,
+				Port: masterHost.Port,
+			},
+			Mirror: mirror,
+		},
+		// connection manager doesn't provide segments
+		Segments: make([]*GpHAP, 0),
+	}
+
+	return nil
 }
 
 type GpCluster struct {
@@ -164,6 +220,16 @@ func (s *GpCluster) SegByID(id int) *GpHAP {
 type GpHAP struct {
 	Primary *GpHP
 	Mirror  *GpHP
+}
+
+func (s *GpHAP) AnyAvailable() (*GpHP, error) {
+	if s.Primary != nil && s.Primary.Valid() {
+		return s.Primary, nil
+	}
+	if s.Mirror != nil && s.Mirror.Valid() {
+		return s.Mirror, nil
+	}
+	return nil, xerrors.New("Neither primary nor mirror are available")
 }
 
 func (s *GpHAP) String() string {
@@ -253,7 +319,6 @@ func (s *GpHP) Valid() bool {
 func (s *GpSource) WithDefaults() {
 	s.Connection.WithDefaults()
 	s.AdvancedProps.WithDefaults()
-	s.GpfdistParams.WithDefaults()
 }
 
 func (s *GpSource) GetProviderType() abstract.ProviderType {

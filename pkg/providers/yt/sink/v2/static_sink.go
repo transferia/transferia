@@ -1,6 +1,7 @@
 package staticsink
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -8,8 +9,10 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	dyn_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
 	"github.com/transferia/transferia/pkg/providers/yt/sink/v2/statictable"
 	"github.com/transferia/transferia/pkg/providers/yt/sink/v2/transactions"
 	"github.com/transferia/transferia/pkg/stats"
@@ -157,14 +160,20 @@ func (s *sink) beginPartTx() error {
 }
 
 func (s *sink) createWriter(tablePath ypath.Path) (staticTableWriter, error) {
+	stringLimit := dyn_sink.YtStatMaxStringLength
+	if s.config.UseStaticTableOnSnapshot() {
+		stringLimit = dyn_sink.YtDynMaxStringLength
+	}
 	return statictable.NewWriter(statictable.WriterConfig{
-		TransferID: s.transferID,
-		TxClient:   s.partTx,
-		Path:       tablePath,
-		Spec:       s.config.Spec().GetConfig(),
-		ChunkSize:  s.config.StaticChunkSize(),
-		Logger:     s.logger,
-		Metrics:    s.metrics,
+		TransferID:       s.transferID,
+		TxClient:         s.partTx,
+		Path:             tablePath,
+		Spec:             s.config.Spec().GetConfig(),
+		ChunkSize:        s.config.StaticChunkSize(),
+		Logger:           s.logger,
+		Metrics:          s.metrics,
+		StringLimit:      stringLimit,
+		DiscardBigValues: s.config.DiscardBigValues(),
 	})
 }
 
@@ -182,6 +191,15 @@ func (s *sink) commitPartTx() error {
 func (s *sink) commitTable(tablePath ypath.Path, scheme abstract.TableColumns) error {
 	fn := func(mainTxID yt.TxID) error {
 		startMoment := time.Now()
+		isDynamicSorted := s.config.UseStaticTableOnSnapshot() && !s.config.Ordered()
+		var reduceBinaryPath ypath.Path
+		if isDynamicSorted && s.config.CleanupMode() != model.Drop {
+			binaryPath, err := dataplaneExecutablePath(s.config, s.ytClient, s.logger)
+			if err != nil {
+				return xerrors.Errorf("unable to get binary path for reduce operation: %w", err)
+			}
+			reduceBinaryPath = binaryPath
+		}
 		if err := statictable.Commit(s.ytClient, &statictable.CommitOptions{
 			MainTxID:         mainTxID,
 			TransferID:       s.transferID,
@@ -193,6 +211,8 @@ func (s *sink) commitTable(tablePath ypath.Path, scheme abstract.TableColumns) e
 			OptimizeFor:      s.config.OptimizeFor(),
 			CustomAttributes: s.config.CustomAttributes(),
 			Logger:           s.logger,
+			IsDynamicSorted:  isDynamicSorted,
+			ReduceBinaryPath: reduceBinaryPath,
 		}); err != nil {
 			return err
 		}
@@ -218,6 +238,25 @@ func getNameFromTableID(id abstract.TableID) string {
 		return id.Name
 	}
 	return fmt.Sprintf("%s_%s", id.Namespace, id.Name)
+}
+
+func dataplaneExecutablePath(cfg yt2.YtDestinationModel, ytClient yt.Client, logger log.Logger) (ypath.Path, error) {
+	ctx := context.Background()
+	if dataplaneVersion, ok := yt2.DataplaneVersion(); ok {
+		pathToBinary := yt2.DataplaneExecutablePath(cfg.Cluster(), dataplaneVersion)
+		if exists, err := ytClient.NodeExists(ctx, pathToBinary, nil); err != nil {
+			return "", xerrors.Errorf("unable to check if dataplane executable exists: %w", err)
+		} else if !exists {
+			logger.Warn("dataplane executable path does not exist", log.Any("path", pathToBinary))
+			return "", nil
+		} else {
+			logger.Info("successfully initialized dataplane executable path", log.Any("path", pathToBinary))
+			return pathToBinary, nil
+		}
+	} else {
+		logger.Warn("dataplane version is not specified")
+		return "", nil
+	}
 }
 
 func NewStaticSink(cfg yt2.YtDestinationModel, cp coordinator.Coordinator, transferID string, registry metrics.Registry, logger log.Logger) (abstract.Sinker, error) {

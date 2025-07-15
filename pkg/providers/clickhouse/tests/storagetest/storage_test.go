@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 )
 
@@ -31,11 +32,11 @@ func TestShardedStorage(t *testing.T) {
 			chrecipe.WithInitFile("dump/src_shard3.sql"),
 		)
 	)
-	shard1, err := clickhouse.NewStorage(Shard1.ToStorageParams(), nil)
+	shard1, err := clickhouse.NewStorage(storageParams(t, Shard1), nil)
 	require.NoError(t, err)
-	shard2, err := clickhouse.NewStorage(Shard2.ToStorageParams(), nil)
+	shard2, err := clickhouse.NewStorage(storageParams(t, Shard2), nil)
 	require.NoError(t, err)
-	shard3, err := clickhouse.NewStorage(Shard3.ToStorageParams(), nil)
+	shard3, err := clickhouse.NewStorage(storageParams(t, Shard3), nil)
 	require.NoError(t, err)
 	shardedStorage := clickhouse.NewShardedStorage(map[string]*clickhouse.Storage{
 		"shard1": shard1.(*clickhouse.Storage),
@@ -69,4 +70,11 @@ func TestShardedStorage(t *testing.T) {
 	require.Equal(t, abstract.InsertKind, items[0].Kind)
 	require.Equal(t, abstract.InsertKind, items[len(items)-1].Kind) // no more init/done in storage
 	abstract.Dump(items)
+}
+
+func storageParams(t *testing.T, source *model.ChSource) *model.ChStorageParams {
+	params, err := source.ToStorageParams()
+	require.NoError(t, err)
+
+	return params
 }

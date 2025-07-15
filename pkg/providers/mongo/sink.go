@@ -110,10 +110,17 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 func (s *sinker) isDDLItem(item *abstract.ChangeItem) bool {
 	switch item.Kind {
 	case
-		abstract.InitShardedTableLoad, abstract.InitTableLoad, abstract.DoneTableLoad, abstract.DoneShardedTableLoad,
-		abstract.DropTableKind, abstract.TruncateTableKind,
-		abstract.MongoCreateKind, abstract.MongoDropKind,
-		abstract.MongoRenameKind, abstract.MongoDropDatabaseKind:
+		abstract.InitShardedTableLoad,
+		abstract.InitTableLoad,
+		abstract.DoneTableLoad,
+		abstract.DoneShardedTableLoad,
+		abstract.DropTableKind,
+		abstract.TruncateTableKind,
+		abstract.SynchronizeKind,
+		abstract.MongoCreateKind,
+		abstract.MongoDropKind,
+		abstract.MongoRenameKind,
+		abstract.MongoDropDatabaseKind:
 		return true
 	default:
 		return false
@@ -167,16 +174,12 @@ func (s *sinker) splitByDDLAndCollection(items []abstract.ChangeItem, index *int
 
 func (s *sinker) processDDL(ctx context.Context, item *abstract.ChangeItem) error {
 	switch item.Kind {
-	case abstract.InitShardedTableLoad:
+	case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad, abstract.DoneTableLoad, abstract.SynchronizeKind:
 		// not needed for now
 	case abstract.InitTableLoad:
 		if err := s.createCollectionIfNotExists(ctx, s.mongoCollection(item.TableID())); err != nil {
 			return xerrors.Errorf("unable to create collection on init table load: %w", err)
 		}
-	case abstract.DoneTableLoad:
-		// not needed for now
-	case abstract.DoneShardedTableLoad:
-		// not needed for now
 	case abstract.DropTableKind:
 		if s.config.Cleanup != model.Drop {
 			s.logger.Infof("Skipped dropping collection '%v.%v' due cleanup policy", item.Schema, item.Table)

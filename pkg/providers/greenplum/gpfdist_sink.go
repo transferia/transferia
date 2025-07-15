@@ -2,6 +2,7 @@ package greenplum
 
 import (
 	"context"
+	"net"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
+	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -19,12 +21,14 @@ import (
 var _ abstract.Sinker = (*GpfdistSink)(nil)
 
 type GpfdistSink struct {
-	dst  *GpDestination
-	conn *pgxpool.Pool
+	dst    *GpDestination
+	conn   *pgxpool.Pool
+	params gpfdistbin.GpfdistParams
 
 	tableSinks   map[abstract.TableID]*GpfdistTableSink
 	tableSinksMu sync.RWMutex
 	pgCoordSink  abstract.Sinker
+	localAddr    net.IP
 }
 
 // Close closes and removes all tableSinks.
@@ -42,13 +46,6 @@ func (s *GpfdistSink) Close() error {
 		return xerrors.Errorf("unable to stop %d/%d gpfdist tableSinks: %w", len(errors), len(s.tableSinks), multierr.Combine(errors...))
 	}
 	return nil
-}
-
-func (s *GpfdistSink) getTableSink(table abstract.TableID) (*GpfdistTableSink, bool) {
-	s.tableSinksMu.RLock()
-	defer s.tableSinksMu.RUnlock()
-	tableSink, ok := s.tableSinks[table]
-	return tableSink, ok
 }
 
 func (s *GpfdistSink) removeTableSink(table abstract.TableID) error {
@@ -70,7 +67,7 @@ func (s *GpfdistSink) getOrCreateTableSink(table abstract.TableID, schema *abstr
 		return nil
 	}
 
-	tableSink, err := InitGpfdistTableSink(table, schema, s.conn, s.dst)
+	tableSink, err := InitGpfdistTableSink(table, schema, s.localAddr, s.conn, s.dst, s.params.ThreadsCount, s.params)
 	if err != nil {
 		return xerrors.Errorf("unable to init sink for table %s: %w", table, err)
 	}
@@ -115,7 +112,8 @@ func (s *GpfdistSink) Push(items []abstract.ChangeItem) error {
 			if err := s.processInitTableLoad(systemKindCtx, &item); err != nil {
 				return xerrors.Errorf("sinker failed to initialize table load for table %s: %w", item.PgName(), err)
 			}
-		case abstract.DoneShardedTableLoad:
+		case abstract.DoneShardedTableLoad, abstract.SynchronizeKind:
+			// do nothing
 		default:
 			return xerrors.Errorf("item kind %s is not supported", item.Kind)
 		}
@@ -166,7 +164,7 @@ func (s *GpfdistSink) pushChangeItemsToPgCoordinator(changeItems []abstract.Chan
 	return nil
 }
 
-func (s *GpfdistSink) processCleanupChangeItem(ctx context.Context, changeItem *abstract.ChangeItem) error {
+func (s *GpfdistSink) processCleanupChangeItem(_ context.Context, changeItem *abstract.ChangeItem) error {
 	if err := s.pushChangeItemsToPgCoordinator([]abstract.ChangeItem{*changeItem}); err != nil {
 		return xerrors.Errorf("failed to execute single push on sinker %s: %w", Coordinator().String(), err)
 	}
@@ -179,6 +177,10 @@ func NewGpfdistSink(dst *GpDestination, registry metrics.Registry, lgr log.Logge
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init coordinator conn: %w", err)
 	}
+	localAddr, err := localAddrFromStorage(storage)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get local address: %w", err)
+	}
 	sinkParams := GpDestinationToPgSinkParamsRegulated(dst)
 	sinks := newPgSinks(storage, lgr, transferID, registry)
 	ctx := context.Background()
@@ -190,8 +192,10 @@ func NewGpfdistSink(dst *GpDestination, registry metrics.Registry, lgr log.Logge
 	return &GpfdistSink{
 		dst:          dst,
 		conn:         conn,
+		params:       dst.gpfdistParams,
 		tableSinks:   make(map[abstract.TableID]*GpfdistTableSink),
 		tableSinksMu: sync.RWMutex{},
 		pgCoordSink:  pgCoordSinker,
+		localAddr:    localAddr,
 	}, nil
 }

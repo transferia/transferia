@@ -129,6 +129,9 @@ func makeVal(originalType string, val interface{}) (interface{}, error) {
 			return nil, xerrors.Errorf("unable to convert json.Number into int64, val:%s, err:%w", v.String(), err)
 		}
 		return time.Duration(result) * time.Microsecond, nil
+	case "ydb:Uuid":
+		v := val.(string)
+		return v, nil
 	default:
 		return nil, xerrors.Errorf("unknown originalType: %s", originalType)
 	}

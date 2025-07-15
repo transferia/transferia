@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
-	chsink "github.com/transferia/transferia/pkg/providers/clickhouse/schema"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/schema/engines"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -95,6 +95,22 @@ func (d *DDLDAO) CreateTable(db, table string, schema []abstract.ColSchema) erro
 	})
 }
 
+// DDLDAO is universal mechanism, which can be used over cluster/shard/host
+//
+// Let's me remind you - 'pkg/clickhouse/async' mechanism works with temporary tables in clickhouse.
+// So, we have created dst table, and should create new tmp parts and merge them into dst table.
+//
+// So, method 'CreateTableAs':
+//     * takes engine (with parameters) from dst_table (which is called here 'base')
+//     * takes flag 'distributed', which is filled by some another component
+//     * creates
+//
+// glossary:
+//     * baseDB      - database of 'dst' table
+//     * baseTable   - tableName of 'dst' table
+//     * targetDB    - database of 'tmp' table
+//     * targetTable - tableName of 'tmp' table
+
 func (d *DDLDAO) CreateTableAs(baseDB, baseTable, targetDB, targetTable string) error {
 	var baseEngine string
 	if err := d.db.QueryRowContext(
@@ -108,54 +124,31 @@ func (d *DDLDAO) CreateTableAs(baseDB, baseTable, targetDB, targetTable string) 
 	return d.db.ExecDDL(func(distributed bool, cluster string) (string, error) {
 		engineStr, err := d.inferEngine(baseEngine, distributed, targetDB, targetTable)
 		if err != nil {
-			return "", xerrors.Errorf("error getting table engine: %w", err)
+			return "", xerrors.Errorf("error inferring base engine %s: %w", baseEngine, err)
 		}
-		d.lgr.Infof("Creating table %s.%s as %s.%s with engine %s",
-			targetDB, targetTable, baseDB, baseTable, engineStr)
 
+		d.lgr.Infof("Creating table %s.%s as %s.%s with engine %s", targetDB, targetTable, baseDB, baseTable, engineStr)
+
+		result := ""
 		if distributed {
-			return fmt.Sprintf(`
+			result = fmt.Sprintf(`
 				CREATE TABLE IF NOT EXISTS "%s"."%s" ON CLUSTER %s AS "%s"."%s"
 				ENGINE = %s`,
-				targetDB, targetTable, cluster, baseDB, baseTable, engineStr), nil
-		}
-		return fmt.Sprintf(`
+				targetDB, targetTable, cluster, baseDB, baseTable, engineStr)
+		} else {
+			result = fmt.Sprintf(`
 			CREATE TABLE IF NOT EXISTS "%s"."%s" AS "%s"."%s"
-			ENGINE = %s`, targetDB, targetTable, baseDB, baseTable, engineStr), nil
+			ENGINE = %s`, targetDB, targetTable, baseDB, baseTable, engineStr)
+		}
+
+		d.lgr.Infof("build query: %s", result)
+
+		return result, nil
 	})
 }
 
 func (d *DDLDAO) inferEngine(rawEngine string, needReplicated bool, db, table string) (string, error) {
-	engineSpec := rawEngine
-	idx := chsink.TryFindNextStatement(engineSpec, 0)
-	if idx != -1 {
-		engineSpec = rawEngine[:idx]
-	}
-	eng, _, err := chsink.GetEngine(engineSpec) // parsed part of engine, may contain or may not contain params
-	if err != nil {
-		return "", xerrors.Errorf("error parsing table engine: %w", err)
-	}
-	engStr := eng.String()
-	baseIsReplicated := chsink.IsReplicatedEngineType(string(eng.Type))
-
-	if needReplicated {
-		replEng, err := chsink.NewReplicatedEngine(eng, db, table)
-		if err != nil {
-			return "", xerrors.Errorf(": %w", err)
-		}
-		if baseIsReplicated {
-			return strings.Replace(rawEngine, replEng.Params.ZooPath, d.zkPath(db, table), 1), nil
-		} else {
-			return strings.Replace(rawEngine, engStr, replEng.String(), 1), nil
-		}
-	}
-
-	if baseIsReplicated {
-		eng.Type = chsink.EngineType(strings.Replace(string(eng.Type), "Replicated", "", 1))
-		eng.Params = eng.Params[2:]
-		return strings.Replace(rawEngine, engStr, eng.String(), 1), nil
-	}
-	return rawEngine, nil
+	return engines.FixEngine(rawEngine, needReplicated, db, table, d.zkPath(db, table))
 }
 
 func (d *DDLDAO) zkPath(db, table string) string {

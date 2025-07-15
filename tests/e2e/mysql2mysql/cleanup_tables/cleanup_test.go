@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/sink"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/pkg/worker/tasks/cleanup"
@@ -19,7 +20,7 @@ import (
 var (
 	Source              = *helpers.RecipeMysqlSource()
 	SourceWithBlackList = *helpers.WithMysqlInclude(helpers.RecipeMysqlSource(), []string{"items_.*"})
-	Target              = *helpers.RecipeMysqlTarget()
+	Target              = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {

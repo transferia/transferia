@@ -56,7 +56,7 @@ var (
 
 type ClickhouseStorage interface {
 	abstract.SampleableStorage
-	LoadTablesDDL(tables []abstract.TableID) ([]schema.TableDDL, error)
+	LoadTablesDDL(tables []abstract.TableID) ([]*schema.TableDDL, error)
 	BuildTableQuery(table abstract.TableDescription) (*abstract.TableSchema, string, string, error)
 	GetRowsCount(tableID abstract.TableID) (uint64, error)
 	TableParts(ctx context.Context, table abstract.TableID) ([]TablePart, error)
@@ -661,10 +661,10 @@ func makeFilters(tables []abstract.TableID) (string, string) {
 	return dbs, names
 }
 
-func (s *Storage) LoadTablesDDL(tables []abstract.TableID) ([]schema.TableDDL, error) {
+func (s *Storage) LoadTablesDDL(tables []abstract.TableID) ([]*schema.TableDDL, error) {
 	dbFilter, nameFilter := makeFilters(tables)
 	q := fmt.Sprintf("select database, name, create_table_query, engine from system.tables where database in %v and name in %v", dbFilter, nameFilter)
-	foundDdls := make(map[abstract.TableID]schema.TableDDL)
+	foundDdls := make(map[abstract.TableID]*schema.TableDDL)
 	if err := backoff.Retry(func() error {
 		tablesRes, err := s.db.Query(q)
 		if err != nil {
@@ -695,9 +695,9 @@ func (s *Storage) LoadTablesDDL(tables []abstract.TableID) ([]schema.TableDDL, e
 		return nil, xerrors.Errorf("unable to load table DDL: %w", err)
 	}
 
-	ddls := make([]schema.TableDDL, 0)
+	ddls := make([]*schema.TableDDL, 0)
 	missedTables := make([]string, 0)
-	materializedViews := make([]schema.TableDDL, 0)
+	materializedViews := make([]*schema.TableDDL, 0)
 	for _, tID := range tables {
 		ddl, ok := foundDdls[tID]
 		if !ok {
@@ -868,29 +868,15 @@ func parseSemver(version string) (*semver.Version, error) {
 
 func NewStorage(config *model.ChStorageParams, transfer *dp_model.Transfer, opts ...StorageOpt) (ClickhouseStorage, error) {
 	singleHost := false
-	if config.IsManaged() {
-		shards, err := model.ShardFromCluster(config.MdbClusterID, config.ChClusterName)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve cluster from shards: %w", err)
-		}
-		if len(shards) > 1 {
-			res, err := NewShardedFromUrls(shards, config, transfer, opts...)
-			if err != nil {
-				return nil, xerrors.Errorf("unable to create sharded storage from urls: %w", err)
-			}
-			return res, nil
-		}
-		singleHost = topology.IsSingleNode(shards)
-	}
-	if len(config.Shards) > 1 {
-		res, err := NewShardedFromUrls(config.Shards, config, transfer, opts...)
+	if len(config.ConnectionParams.Shards) > 1 {
+		res, err := NewShardedFromUrls(config, transfer, opts...)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create sharded storage from urls: %w", err)
 		}
 		return res, nil
 	}
 
-	singleHost = singleHost || topology.IsSingleNode(config.Shards) || len(config.Hosts) > 1
+	singleHost = singleHost || topology.IsSingleNode(config.ConnectionParams.Shards) || len(config.ConnectionParams.Hosts) > 1
 
 	db, err := MakeConnection(config)
 	if err != nil {
@@ -917,7 +903,7 @@ func NewStorage(config *model.ChStorageParams, transfer *dp_model.Transfer, opts
 	}
 	return WithOpts(&Storage{
 		db:        db,
-		database:  config.Database,
+		database:  config.ConnectionParams.Database,
 		cluster:   config.ChClusterName,
 		bufSize:   config.BufferSize,
 		logger:    logger.Log,

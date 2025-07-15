@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/column"
 	"github.com/blang/semver/v4"
 	"github.com/dustin/go-humanize"
@@ -41,10 +42,8 @@ type sinkTable struct {
 	version    semver.Version
 }
 
-var (
-	// see: https://github.com/Altinity/clickhouse-sink-connector/issues/206#issuecomment-1529968850
-	deleteableVersion = semver.MustParse("23.2.0")
-)
+// see: https://github.com/Altinity/clickhouse-sink-connector/issues/206#issuecomment-1529968850
+var deleteableVersion = semver.MustParse("23.2.0")
 
 func normalizeTableName(table string) string {
 	res := strings.ReplaceAll(table, "-", "_")
@@ -59,7 +58,7 @@ func (t *sinkTable) Init(cols *abstract.TableSchema) error {
 		return xerrors.Errorf("failed to check existing of table %s: %w", t.tableName, err)
 	}
 	if t.config.InferSchema() || exist {
-		if t.config.MigrationOptions().AddNewColumns {
+		if !t.config.GetIsSchemaMigrationDisabled() && t.config.MigrationOptions().AddNewColumns {
 			targetCols, err := schema.DescribeTable(t.server.db, t.config.Database(), t.tableName, nil)
 			if err != nil {
 				return xerrors.Errorf("failed to discover existing schema of %s: %w", t.tableName, err)
@@ -281,7 +280,7 @@ func (t *sinkTable) ApplyChangeItems(rows []abstract.ChangeItem) error {
 }
 
 func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
-	if t.config.MigrationOptions().AddNewColumns {
+	if !t.config.GetIsSchemaMigrationDisabled() && t.config.MigrationOptions().AddNewColumns {
 		if err := t.ApplySchemaDiffToDB(t.cols.Columns(), items[0].TableSchema.Columns()); err != nil {
 			return xerrors.Errorf("fail to alter table schema for new batch: %w", err)
 		}
@@ -326,14 +325,14 @@ func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
 		if errors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
-		t.logger.Warn("Commit error", log.Any("ch_host", *t.config.Host()), log.Error(err))
+		t.logger.Warn("Commit error", log.Any("ch_host", t.config.Host().HostName()), log.Error(err))
 		return xerrors.Errorf("failed to commit: %w", err)
 	}
 	txRollbacks.Cancel()
 	t.metrics.Len.Add(int64(len(items)))
 	t.metrics.Count.Inc()
 
-	t.logger.Debugf("Committed %d changeItems (%s) in %v", len(items), *t.config.Host(), time.Since(start))
+	t.logger.Debugf("Committed %d changeItems (%s) in %v", len(items), t.config.Host().HostName(), time.Since(start))
 	return nil
 }
 
@@ -641,14 +640,15 @@ func doOperation(t *sinkTable, tx *sql.Tx, items []abstract.ChangeItem) (err err
 	}
 
 	q := fmt.Sprintf(
-		"INSERT INTO `%s`.`%s` (%s) %s VALUES (%s)",
+		"INSERT INTO `%s`.`%s` (%s) VALUES (%s)",
 		t.config.Database(),
 		t.tableName,
 		strings.Join(colNames, ","),
-		t.config.InsertSettings().AsQueryPart(),
 		strings.Join(colVals, ","),
 	)
-	insertQuery, err := tx.Prepare(q)
+
+	insertCtx := clickhouse.Context(context.Background(), t.config.InsertSettings().ToQueryOption())
+	insertQuery, err := tx.PrepareContext(insertCtx, q)
 	if err != nil {
 		if err.Error() == "Decimal128 is not supported" {
 			return abstract.NewFatalError(xerrors.New("Decimal128 is not supported by native clickhouse-go driver. try to switch on HTTP/JSON protocol in dst endpoint settings"))

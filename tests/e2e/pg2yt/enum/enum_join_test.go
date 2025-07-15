@@ -34,11 +34,6 @@ var Source = pg_provider.PgSource{
 	DBTables:  []string{"public.__fullnames", "public.__food_expenditure"},
 }
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func TestRunner(t *testing.T) {
 	t.Run("TestUploadToYt", testUploadToYt)
 }

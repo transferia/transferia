@@ -9,7 +9,6 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/dao"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/parts"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	sharding "github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
@@ -251,10 +250,9 @@ func NewSink(
 	transfer *dp_model.Transfer, dst *model.ChDestination, lgr log.Logger, mtrcs metrics.Registry, mw abstract.Middleware,
 ) (abstract.AsyncSink, error) {
 	lgr.Infof("Using async clickhouse sink with parts")
-	params := dst.ToSinkParams(transfer)
-	err := conn.ResolveShards(params, transfer)
+	params, err := dst.ToSinkParams(transfer)
 	if err != nil {
-		return nil, xerrors.Errorf("error resolving shards: %w", err)
+		return nil, xerrors.Errorf("failed to resolve sink params: %w", err)
 	}
 	topology, err := topology.ResolveTopology(params, lgr)
 	if err != nil {

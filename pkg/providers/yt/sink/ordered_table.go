@@ -149,17 +149,12 @@ func (t *OrderedTable) Init() error {
 	}
 
 	return backoff.Retry(func() error {
+		if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
+			t.logger.Error("Init table error", log.Error(err))
+			return err
+		}
 		if !exist {
-			if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-				t.logger.Error("Init table error", log.Error(err))
-				return err
-			}
 			if err := t.ensureTablets(t.config.InitialTabletCount()); err != nil {
-				return err
-			}
-		} else {
-			if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-				t.logger.Error("Ensure table error", log.Error(err))
 				return err
 			}
 		}
@@ -298,15 +293,16 @@ func (t *OrderedTable) Write(input []abstract.ChangeItem) error {
 }
 
 type InsertChangeItem struct {
-	TabletIndex uint32
-	ChangeItem  abstract.ChangeItem
+	DiscardBigValues bool
+	TabletIndex      uint32
+	ChangeItem       abstract.ChangeItem
 }
 
 func (i *InsertChangeItem) MarshalYSON(w *yson.Writer) error {
 	w.BeginMap()
 	for idx, colName := range i.ChangeItem.ColumnNames {
 		w.MapKeyString(colName)
-		value, err := Restore(i.ChangeItem.TableSchema.Columns()[idx], i.ChangeItem.ColumnValues[idx])
+		value, err := RestoreWithLengthLimitCheck(i.ChangeItem.TableSchema.Columns()[idx], i.ChangeItem.ColumnValues[idx], i.DiscardBigValues, YtDynMaxStringLength)
 		if err != nil {
 			return xerrors.Errorf("Unable to restore value for column '%s': %w", colName, err)
 		}
@@ -350,7 +346,7 @@ func (t *OrderedTable) insertToSpecificTablet(tabletIndex uint32, changeItems []
 			continue
 		}
 
-		insertChangeItems = append(insertChangeItems, &InsertChangeItem{TabletIndex: tabletIndex, ChangeItem: changeItem})
+		insertChangeItems = append(insertChangeItems, &InsertChangeItem{TabletIndex: tabletIndex, ChangeItem: changeItem, DiscardBigValues: t.config.DiscardBigValues()})
 	}
 
 	if skippedCount != 0 {
@@ -451,7 +447,7 @@ func (t *OrderedTable) ensureTablets(maxTablet uint32) error {
 
 	t.logger.Infof("Reshard table, newTabletCount: %v, prev tabletsCount: %v", newTabletCount, t.tabletsCount)
 
-	if err := migrate.UnmountAndWait(ctx, t.ytClient, t.path); err != nil {
+	if err := yt2.MountUnmountWrapper(ctx, t.ytClient, t.path, migrate.UnmountAndWait); err != nil {
 		return err
 	}
 
@@ -465,7 +461,7 @@ func (t *OrderedTable) ensureTablets(maxTablet uint32) error {
 
 	t.logger.Infof("table resharded")
 
-	if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
+	if err := yt2.MountUnmountWrapper(ctx, t.ytClient, t.path, migrate.MountAndWait); err != nil {
 		//nolint:descriptiveerrors
 		return err
 	}

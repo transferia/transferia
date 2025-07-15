@@ -64,7 +64,7 @@ func (p *Provider) Target(options ...abstract.SinkOption) (base.EventTarget, err
 }
 
 func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
-	s, err := NewSink(p.transfer, p.logger, p.registry, p.transfer.Runtime, config)
+	s, err := NewSink(p.transfer, p.logger, p.registry, config)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create ClickHouse sinker: %w", err)
 	}
@@ -92,7 +92,12 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	if _, ok := p.transfer.Dst.(*model.ChDestination); ok {
 		chOpts = append(chOpts, WithHomo())
 	}
-	storage, err := NewStorage(src.ToStorageParams(), p.transfer, chOpts...)
+	storageParams, err := src.ToStorageParams()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resole storage params: %w", err)
+	}
+
+	storage, err := NewStorage(storageParams, p.transfer, chOpts...)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create a ClickHouse storage: %w", err)
 	}
@@ -151,7 +156,11 @@ func (p *Provider) Test(ctx context.Context) *abstract.TestResult {
 
 	tr := abstract.NewTestResult(p.TestChecks()...)
 	// Native connect
-	db, err := MakeConnection(src.ToStorageParams())
+	storageParams, err := src.ToStorageParams()
+	if err != nil {
+		return tr.NotOk(ConnectivityNative, xerrors.Errorf("unable to resolve storage params: %w", err))
+	}
+	db, err := MakeConnection(storageParams)
 	if err != nil {
 		return tr.NotOk(ConnectivityNative, xerrors.Errorf("unable to init a CH storage: %w", err))
 	}
@@ -191,20 +200,24 @@ func (p *Provider) Test(ctx context.Context) *abstract.TestResult {
 	tr.Ok(ConnectivityNative)
 
 	// HTTP connect
-	cl, err := httpclient.NewHTTPClientImpl(src.ToStorageParams().ToConnParams())
+	storageParams, err = src.ToStorageParams()
+	if err != nil {
+		return tr.NotOk(ConnectivityNative, xerrors.Errorf("unable to resolve storage params: %w", err))
+	}
+	cl, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	if err != nil {
 		return tr.NotOk(ConnectivityHTTP, xerrors.Errorf("unable to create ClickHouse client: %w", err))
 	}
 	var res uint64
-	shards := src.ToSinkParams().Shards()
+	shards := storageParams.ConnectionParams.Shards
 
 	for _, shardHosts := range shards {
 		for _, host := range shardHosts {
 			err = cl.Query(context.Background(), p.logger, host, "SELECT 1;", &res)
 			if err != nil {
-				return tr.NotOk(ConnectivityHTTP, xerrors.Errorf("unable to query ClickHouse host: %s err: %w", host, err))
+				return tr.NotOk(ConnectivityHTTP, xerrors.Errorf("unable to query ClickHouse host: %s err: %w", host.Name, err))
 			}
-			p.logger.Infof("host is reachable! host: %s", host)
+			p.logger.Infof("host is reachable! host: %s", host.Name)
 		}
 	}
 

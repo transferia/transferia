@@ -167,14 +167,9 @@ func (r *CdcHistoryGroupTransformer) collectParsedData(changeItem abstract.Chang
 		}
 	}
 
-	// Adding key colmuns that were absent in original changeItem
+	// Adding key columns that were absent in original changeItem
 	for _, colSchema := range changeItem.TableSchema.Columns() {
 		if !r.keySet.Contains(colSchema.ColumnName) {
-			continue
-		}
-		if colSchema.Required {
-			// Never suppose to happen, adding this check just in case
-			logger.Log.Errorf("Required field is missing in change item! Field: %s, Change: %v", colSchema.ColumnName, changeItem)
 			continue
 		}
 		if _, ok := docData[colSchema.ColumnName]; !ok {

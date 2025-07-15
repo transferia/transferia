@@ -54,8 +54,6 @@ type S3Source struct {
 	AirbyteFormat string // this is for backward compatibility with airbyte. we store raw format for later parsing.
 	PathPattern   string
 
-	Concurrency int64
-
 	Format         Format
 	EventSource    EventSource
 	UnparsedPolicy UnparsedPolicy
@@ -64,6 +62,10 @@ type S3Source struct {
 	// 	When nil, each file is a separate table part.
 	// 	When enabled, each part grows depending on configuration.
 	ShardingParams *ShardingParams
+
+	// Concurrency - amount of parallel goroutines into one worker on REPLICATION
+	Concurrency            int64
+	SyntheticPartitionsNum int
 }
 
 // TODO: Add sharding of one file to bytes ranges.
@@ -189,6 +191,9 @@ func (s *S3Source) WithDefaults() {
 	}
 	if s.Concurrency == 0 {
 		s.Concurrency = 10
+	}
+	if s.SyntheticPartitionsNum == 0 {
+		s.SyntheticPartitionsNum = 128
 	}
 	s.ConnectionConfig.S3ForcePathStyle = true
 

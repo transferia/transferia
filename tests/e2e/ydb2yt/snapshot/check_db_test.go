@@ -20,11 +20,6 @@ import (
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func TestGroup(t *testing.T) {
 	src := &ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
@@ -41,7 +36,7 @@ func TestGroup(t *testing.T) {
 		Cluster:                  os.Getenv("YT_PROXY"),
 		CellBundle:               "default",
 		PrimaryMedium:            "default",
-		UseStaticTableOnSnapshot: false, // TM-4444
+		UseStaticTableOnSnapshot: true, // TM-4444
 	})
 
 	sourcePort, err := helpers.GetPortFromStr(src.Instance)

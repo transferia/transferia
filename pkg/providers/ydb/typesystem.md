@@ -16,7 +16,7 @@
 |Float|float|
 |Double|double|
 |String|string|
-|Decimal<br/>DyNumber<br/>Utf8|utf8|
+|Decimal<br/>DyNumber<br/>Utf8<br/>Uuid|utf8|
 |Bool|boolean|
 |Date|date|
 |Datetime|datetime|

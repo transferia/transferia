@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"sync"
 	"time"
 
@@ -186,12 +187,11 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 }
 
 func staticYTSchema(item abstract.ChangeItem) []schema.Column {
-	result := abstract.ToYtSchema(item.TableSchema.Columns(), false)
+	result := yt2.ToYtSchema(item.TableSchema.Columns(), false)
 
 	for i := range result {
 		// Static table should not be ordered
 		result[i].SortOrder = ""
-		result[i].Expression = ""
 	}
 	return result
 }
@@ -260,7 +260,7 @@ func (t *StaticTable) Push(items []abstract.ChangeItem) error {
 					return xerrors.Errorf("unknown column to get schema: %s", columnName)
 				}
 				var err error
-				row[columnName], err = Restore(colSchema, item.ColumnValues[i])
+				row[columnName], err = RestoreWithLengthLimitCheck(colSchema, item.ColumnValues[i], false, YtStatMaxStringLength)
 				if err != nil {
 					return xerrors.Errorf("failed to restore value for column '%s': %w", columnName, err)
 				}
@@ -315,6 +315,21 @@ func (t *StaticTable) getTableName(tID abstract.TableID, item abstract.ChangeIte
 
 func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, item abstract.ChangeItem) error {
 	ytSchema := staticYTSchema(item)
+	if ytSchema == nil {
+		return nil // or we should return error?
+	}
+
+	target := t.getTableName(tID, item)
+	tmpTablePath := ypath.Path(fmt.Sprintf("%v_%v", target, getRandomPostfix()))
+
+	tmpTableDirPath := getDirPath(tmpTablePath)
+	if _, err := t.ytClient.CreateNode(ctx, tmpTableDirPath, yt.NodeMap, &yt.CreateNodeOptions{
+		IgnoreExisting: true,
+		Recursive:      true,
+	}); err != nil {
+		return xerrors.Errorf("cannot create directory node for table %s: %w", tmpTablePath, err)
+	}
+
 	t.wrMutex.Lock()
 	defer t.wrMutex.Unlock()
 	if _, ok := t.tablesWriters[tID]; !ok {
@@ -324,12 +339,6 @@ func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, item 
 			return abstract.NewFatalError(xerrors.Errorf("cannot create table writer for table %v: transaction was not started", tID))
 		}
 
-		if ytSchema == nil {
-			return nil // or we should return error?
-		}
-		target := t.getTableName(tID, item)
-
-		tmp := ypath.Path(fmt.Sprintf("%v_%v", target, getRandomPostfix()))
 		createOptions := yt.CreateNodeOptions{
 			Attributes: map[string]interface{}{
 				"schema":      ytSchema,
@@ -346,29 +355,32 @@ func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, item 
 		}
 		logger.Log.Info(
 			"Creating YT table  with options",
-			log.String("tmpPath", tmp.String()),
+			log.String("tmpPath", tmpTablePath.String()),
 			log.Any("options", createOptions),
 		)
 
-		if _, err := tx.CreateNode(ctx, tmp, yt.NodeTable, &createOptions); err != nil {
+		if _, err := tx.CreateNode(ctx, tmpTablePath, yt.NodeTable, &createOptions); err != nil {
 			//nolint:descriptiveerrors
 			return err
 		}
 		opts := &yt.WriteTableOptions{TableWriter: t.spec}
-		w, err := tx.WriteTable(ctx, tmp, opts)
+		w, err := tx.WriteTable(ctx, tmpTablePath, opts)
 		if err != nil {
-			//nolint:descriptiveerrors
-			return err
+			return xerrors.Errorf("unable to create table writer: %w", err)
 		}
 		t.logger.Info("add new writer", log.Any("table", tID), log.Any("transaction", tx.ID()))
 		t.tablesWriters[tID] = &tableWriter{
 			runningTx: tx,
 			target:    target,
-			tmp:       tmp,
+			tmp:       tmpTablePath,
 			wr:        w,
 		}
 	}
 	return nil
+}
+
+func getDirPath(tablePath ypath.Path) ypath.Path {
+	return ypath.Path(ypath.Root.String() + path.Dir(tablePath.String()))
 }
 
 func getRandomPostfix() string {

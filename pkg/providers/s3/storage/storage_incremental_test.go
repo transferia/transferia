@@ -27,7 +27,7 @@ func TestIncremental(t *testing.T) {
 	storage, err := New(cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	t.Run("no cursor", func(t *testing.T) {
-		tables, err := storage.GetIncrementalState(context.Background(), []abstract.IncrementalTable{{
+		tables, err := storage.GetNextIncrementalState(context.Background(), []abstract.IncrementalTable{{
 			Name:         cfg.TableName,
 			Namespace:    cfg.TableNamespace,
 			CursorField:  s3VersionCol,
@@ -35,12 +35,13 @@ func TestIncremental(t *testing.T) {
 		}})
 		require.NoError(t, err)
 		require.Len(t, tables, 1)
-		files, err := storage.ShardTable(context.Background(), tables[0])
+		incrementState := abstract.IncrementalStateToTableDescription(tables)
+		files, err := storage.ShardTable(context.Background(), incrementState[0])
 		require.NoError(t, err)
 		require.Equal(t, 0, len(files)) // no new files
 	})
 	t.Run("cursor in future", func(t *testing.T) {
-		tables, err := storage.GetIncrementalState(context.Background(), []abstract.IncrementalTable{{
+		tables, err := storage.GetNextIncrementalState(context.Background(), []abstract.IncrementalTable{{
 			Name:         cfg.TableName,
 			Namespace:    cfg.TableNamespace,
 			CursorField:  s3VersionCol,
@@ -48,12 +49,13 @@ func TestIncremental(t *testing.T) {
 		}})
 		require.NoError(t, err)
 		require.Len(t, tables, 1)
-		files, err := storage.ShardTable(context.Background(), tables[0])
+		incrementState := abstract.IncrementalStateToTableDescription(tables)
+		files, err := storage.ShardTable(context.Background(), incrementState[0])
 		require.NoError(t, err)
 		require.Equal(t, 0, len(files))
 	})
 	t.Run("cursor in past", func(t *testing.T) {
-		tables, err := storage.GetIncrementalState(context.Background(), []abstract.IncrementalTable{{
+		tables, err := storage.GetNextIncrementalState(context.Background(), []abstract.IncrementalTable{{
 			Name:         cfg.TableName,
 			Namespace:    cfg.TableNamespace,
 			CursorField:  s3VersionCol,
@@ -61,12 +63,13 @@ func TestIncremental(t *testing.T) {
 		}})
 		require.NoError(t, err)
 		require.Len(t, tables, 1)
-		files, err := storage.ShardTable(context.Background(), tables[0])
+		incrementState := abstract.IncrementalStateToTableDescription(tables)
+		files, err := storage.ShardTable(context.Background(), incrementState[0])
 		require.NoError(t, err)
 		require.Equal(t, 2, len(files))
 	})
 	t.Run("cursor in between", func(t *testing.T) {
-		tables, err := storage.GetIncrementalState(context.Background(), []abstract.IncrementalTable{{
+		tables, err := storage.GetNextIncrementalState(context.Background(), []abstract.IncrementalTable{{
 			Name:         cfg.TableName,
 			Namespace:    cfg.TableNamespace,
 			CursorField:  s3VersionCol,
@@ -74,7 +77,8 @@ func TestIncremental(t *testing.T) {
 		}})
 		require.NoError(t, err)
 		require.Len(t, tables, 1)
-		files, err := storage.ShardTable(context.Background(), tables[0])
+		incrementState := abstract.IncrementalStateToTableDescription(tables)
+		files, err := storage.ShardTable(context.Background(), incrementState[0])
 		require.NoError(t, err)
 		require.Equal(t, 1, len(files))
 	})

@@ -11,11 +11,19 @@ import (
 )
 
 type PusherState struct {
-	PushProgress  map[string]Progress
 	mu            sync.Mutex
+	logger        log.Logger
 	inflightLimit int64
 	inflightBytes int64
-	logger        log.Logger
+	PushProgress  map[string]Progress
+	counter       int
+}
+
+func (s *PusherState) IsEmpty() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.counter == 0
 }
 
 type Progress struct {
@@ -30,6 +38,8 @@ type Progress struct {
 func (s *PusherState) setPushProgress(filePath string, offset any, isLast bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	s.counter++
 
 	progress, ok := s.PushProgress[filePath]
 	if ok {
@@ -50,6 +60,9 @@ func (s *PusherState) setPushProgress(filePath string, offset any, isLast bool) 
 func (s *PusherState) ackPushProgress(filePath string, offset any, isLast bool) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	s.counter--
+
 	progress, ok := s.PushProgress[filePath]
 	if ok {
 		newState := s.removeOffset(offset, progress.ReadOffsets)

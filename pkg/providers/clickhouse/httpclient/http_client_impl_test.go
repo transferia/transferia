@@ -13,6 +13,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 )
 
@@ -40,14 +41,6 @@ func (s stubParams) ResolvePassword() (string, error) {
 
 func (s stubParams) Database() string {
 	return "default"
-}
-
-func (s stubParams) HTTPPort() int {
-	return s.port
-}
-
-func (s stubParams) NativePort() int {
-	return 0
 }
 
 func (s stubParams) SSLEnabled() bool {
@@ -82,7 +75,12 @@ func TestCompression(t *testing.T) {
 		require.True(t, ok)
 		cl, err := NewHTTPClientImpl(&stubParams{port: tcpAddr.Port})
 		require.NoError(t, err)
-		_, err = cl.QueryStream(context.Background(), logger.Log, "localhost", bytes.NewReader(expectedData))
+		connHost := &chconn.Host{
+			Name:       "localhost",
+			HTTPPort:   tcpAddr.Port,
+			NativePort: tcpAddr.Port,
+		}
+		_, err = cl.QueryStream(context.Background(), logger.Log, connHost, bytes.NewReader(expectedData))
 		require.NoError(t, err)
 	}
 	t.Run("one-json", func(t *testing.T) {

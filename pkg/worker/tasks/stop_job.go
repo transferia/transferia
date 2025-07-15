@@ -13,6 +13,11 @@ func StopJob(cp coordinator.Coordinator, transfer model.Transfer) error {
 	if transfer.SnapshotOnly() {
 		return nil
 	}
+
+	if transfer.AsyncOperations {
+		return nil
+	}
+
 	if err := stopRuntime(cp, transfer); err != nil {
 		return xerrors.Errorf("unable to stop runtime hook: %w", err)
 	}

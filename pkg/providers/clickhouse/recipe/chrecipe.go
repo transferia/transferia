@@ -120,6 +120,7 @@ func Source(opts ...Option) (*model.ChSource, error) {
 		BufferSize:       0,
 		IOHomoFormat:     model.ClickhouseIOFormatCSV,
 		RootCACertPaths:  nil,
+		ConnectionID:     "",
 	}
 	res.WithDefaults()
 	return res, nil
@@ -206,6 +207,8 @@ func Target(opts ...Option) (*model.ChDestination, error) {
 		InflightBuffer:             0,
 		BufferTriggingSize:         0,
 		RootCACertPaths:            nil,
+		ConnectionID:               "",
+		IsSchemaMigrationDisabled:  false,
 	}
 	res.WithDefaults()
 	return res, nil

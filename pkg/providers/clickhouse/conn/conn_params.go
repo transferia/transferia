@@ -5,8 +5,6 @@ type ConnParams interface {
 	Password() string
 	ResolvePassword() (string, error)
 	Database() string
-	HTTPPort() int
-	NativePort() int
 	SSLEnabled() bool
 	PemFileContent() string
 	RootCertPaths() []string
