@@ -215,12 +215,12 @@ func (d *ChDestination) shallUseJSON(transfer *model.Transfer) bool {
 	if d.ForceJSONMode || !d.ProtocolUnspecified {
 		return d.ForceJSONMode
 	}
-	if transfer.Type == abstract.TransferTypeSnapshotOnly {
-		return true
-	}
 	// kostyl while HTTP pusher writes bytes as base64 strings
 	if transfer.Src != nil && transfer.Src.GetProviderType() == "metrika" {
 		return false
+	}
+	if transfer.Type == abstract.TransferTypeSnapshotOnly {
+		return true
 	}
 	return model.IsAppendOnlySource(transfer.Src)
 }
@@ -254,12 +254,11 @@ func (d *ChDestination) FillDependentFields(transfer *model.Transfer) {
 
 // ChDestinationWrapper implements ChSinkParams
 type ChDestinationWrapper struct {
-	Model *ChDestination
-	host  *chConn.Host // host is here, bcs it needed only in SinkServer/SinkTable
-	// useJSON is calculated in runtime, not by the model
+	Model            *ChDestination
+	host             *chConn.Host // host is here, bcs it needed only in SinkServer/SinkTable
 	connectionParams connectionParams
 	hosts            []*chConn.Host
-	useJSON          bool
+	useJSON          bool // useJSON is calculated in runtime, not by the model
 	migrationOpts    ChSinkMigrationOptions
 }
 
