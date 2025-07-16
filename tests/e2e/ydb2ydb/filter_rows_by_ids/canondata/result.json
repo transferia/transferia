@@ -1,0 +1,154 @@
+{
+    "filter_rows_by_ids.filter_rows_by_ids.TestSnapshotAndReplication/simple_table": [
+        {
+            "columnnames": [
+                "id",
+                "id2",
+                "id3",
+                "value"
+            ],
+            "columnvalues": [
+                2,
+                "SUQxX3N1ZmZpeA==",
+                "ID2_1",
+                3
+            ],
+            "commitTime": 0,
+            "id": 0,
+            "kind": "insert",
+            "nextlsn": 0,
+            "oldkeys": {},
+            "part": "",
+            "query": "",
+            "schema": "",
+            "table": "dectest/test-dst",
+            "table_schema": [
+                {
+                    "expression": "",
+                    "fake_key": false,
+                    "key": true,
+                    "name": "id",
+                    "original_type": "ydb:Uint64",
+                    "path": "",
+                    "required": false,
+                    "table_name": "",
+                    "table_schema": "",
+                    "type": "uint64"
+                },
+                {
+                    "expression": "",
+                    "fake_key": false,
+                    "key": false,
+                    "name": "id2",
+                    "original_type": "ydb:String",
+                    "path": "",
+                    "required": false,
+                    "table_name": "",
+                    "table_schema": "",
+                    "type": "string"
+                },
+                {
+                    "expression": "",
+                    "fake_key": false,
+                    "key": false,
+                    "name": "id3",
+                    "original_type": "ydb:Utf8",
+                    "path": "",
+                    "required": false,
+                    "table_name": "",
+                    "table_schema": "",
+                    "type": "utf8"
+                },
+                {
+                    "expression": "",
+                    "fake_key": false,
+                    "key": false,
+                    "name": "value",
+                    "original_type": "ydb:Int32",
+                    "path": "",
+                    "required": false,
+                    "table_name": "",
+                    "table_schema": "",
+                    "type": "int32"
+                }
+            ],
+            "txPosition": 0,
+            "tx_id": ""
+        },
+        {
+            "columnnames": [
+                "id",
+                "id2",
+                "id3",
+                "value"
+            ],
+            "columnvalues": [
+                3,
+                "SUQyX3N1ZmZpeA==",
+                "ID2_2",
+                4
+            ],
+            "commitTime": 0,
+            "id": 0,
+            "kind": "insert",
+            "nextlsn": 0,
+            "oldkeys": {},
+            "part": "",
+            "query": "",
+            "schema": "",
+            "table": "dectest/test-dst",
+            "table_schema": [
+                {
+                    "expression": "",
+                    "fake_key": false,
+                    "key": true,
+                    "name": "id",
+                    "original_type": "ydb:Uint64",
+                    "path": "",
+                    "required": false,
+                    "table_name": "",
+                    "table_schema": "",
+                    "type": "uint64"
+                },
+                {
+                    "expression": "",
+                    "fake_key": false,
+                    "key": false,
+                    "name": "id2",
+                    "original_type": "ydb:String",
+                    "path": "",
+                    "required": false,
+                    "table_name": "",
+                    "table_schema": "",
+                    "type": "string"
+                },
+                {
+                    "expression": "",
+                    "fake_key": false,
+                    "key": false,
+                    "name": "id3",
+                    "original_type": "ydb:Utf8",
+                    "path": "",
+                    "required": false,
+                    "table_name": "",
+                    "table_schema": "",
+                    "type": "utf8"
+                },
+                {
+                    "expression": "",
+                    "fake_key": false,
+                    "key": false,
+                    "name": "value",
+                    "original_type": "ydb:Int32",
+                    "path": "",
+                    "required": false,
+                    "table_name": "",
+                    "table_schema": "",
+                    "type": "int32"
+                }
+            ],
+            "txPosition": 0,
+            "tx_id": ""
+        }
+    ]
+}

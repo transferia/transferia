@@ -92,10 +92,10 @@ func (t *FilterRowsByIDsTransformer) Apply(input []abstract.ChangeItem) abstract
 }
 
 func (t *FilterRowsByIDsTransformer) shouldKeep(item abstract.ChangeItem) bool {
-	item_as_map := item.AsMap()
+	itemAsMap := item.AsMap()
 	for _, colSchema := range item.TableSchema.Columns() {
 		if t.isMongoDocumentColumn(colSchema) {
-			if t.processMongoDocument(item_as_map[document]) {
+			if t.processMongoDocument(itemAsMap[document]) {
 				return true
 			}
 
@@ -108,9 +108,11 @@ func (t *FilterRowsByIDsTransformer) shouldKeep(item abstract.ChangeItem) bool {
 
 		var asString string
 
-		switch castedValue := item_as_map[colSchema.ColumnName].(type) {
+		switch castedValue := itemAsMap[colSchema.ColumnName].(type) {
 		case string:
 			asString = castedValue
+		case []byte:
+			asString = string(castedValue)
 		case *pgtype.GenericText:
 			asString = castedValue.String
 		case *pgtype.Text:

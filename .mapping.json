@@ -3309,6 +3309,8 @@
   "tests/e2e/ydb2ydb/debezium/snapshot_serde_via_debezium_embedded/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2ydb/debezium/snapshot_serde_via_debezium_embedded/check_db_test.go",
   "tests/e2e/ydb2ydb/debezium/snapshot_serde_via_debezium_embedded_nulls/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2ydb/debezium/snapshot_serde_via_debezium_embedded_nulls/check_db_test.go",
   "tests/e2e/ydb2ydb/debezium/snapshot_serde_via_debezium_embedded_olap/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2ydb/debezium/snapshot_serde_via_debezium_embedded_olap/check_db_test.go",
+  "tests/e2e/ydb2ydb/filter_rows_by_ids/canondata/result.json":"transfer_manager/go/tests/e2e/ydb2ydb/filter_rows_by_ids/canondata/result.json",
+  "tests/e2e/ydb2ydb/filter_rows_by_ids/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2ydb/filter_rows_by_ids/check_db_test.go",
   "tests/e2e/ydb2ydb/sharded_snapshot/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2ydb/sharded_snapshot/check_db_test.go",
   "tests/e2e/ydb2ydb/snapshot/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2ydb/snapshot/check_db_test.go",
   "tests/e2e/ydb2ydb/snapshot_and_replication/canondata/result.json":"transfer_manager/go/tests/e2e/ydb2ydb/snapshot_and_replication/canondata/result.json",
