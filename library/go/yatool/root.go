@@ -38,6 +38,11 @@ func FindArcadiaRoot(arcPath string) (string, error) {
 		return "", err
 	}
 
+	arcPath, err = filepath.EvalSymlinks(arcPath)
+	if err != nil {
+		return "", err
+	}
+
 	current := filepath.Clean(arcPath)
 	for {
 		if isRoot(current) {
