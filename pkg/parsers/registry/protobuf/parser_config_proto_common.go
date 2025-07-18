@@ -16,7 +16,8 @@ type ParserConfigProtoCommon struct {
 	PrimaryKeys    []string
 	PackageType    protoparser.MessagePackageType
 
-	NullKeysAllowed bool
+	NullKeysAllowed    bool
+	NotFillEmptyFields bool
 }
 
 func (c *ParserConfigProtoCommon) IsNewParserConfig() {}
@@ -59,6 +60,7 @@ func (c *ParserConfigProtoCommon) ToProtoParserConfig(logger log.Logger) (*proto
 		TableSplitter:      nil,
 		TimeField:          nil,
 		NullKeysAllowed:    c.NullKeysAllowed,
+		NotFillEmptyFields: c.NotFillEmptyFields,
 		AddSyntheticKeys:   false,
 		AddSystemColumns:   false,
 		SkipDedupKeys:      false,

@@ -204,7 +204,11 @@ func (p *ProtoParser) makeValues(iterSt *iterState, protoMsg protoreflect.Messag
 			return nil, xerrors.Errorf("required field '%s' was not populated", sc.ColumnName)
 		}
 
-		val, err := extractValueRecursive(fd, protoMsg.Get(fd), maxEmbeddedStructDepth)
+		if !protoMsg.Has(fd) && p.cfg.NotFillEmptyFields {
+			continue
+		}
+
+		val, err := extractValueRecursive(fd, protoMsg.Get(fd), maxEmbeddedStructDepth, p.cfg.NotFillEmptyFields)
 		if err != nil {
 			return nil, xerrors.Errorf("error extracting value with column name '%s'", sc.ColumnName)
 		}
@@ -224,7 +228,7 @@ func (p *ProtoParser) makeValues(iterSt *iterState, protoMsg protoreflect.Messag
 			return nil, xerrors.Errorf("can't find field descriptor for field '%s'", name)
 		}
 
-		val, err := extractValueRecursive(fd, protoMsg.Get(fd), maxEmbeddedStructDepth)
+		val, err := extractValueRecursive(fd, protoMsg.Get(fd), maxEmbeddedStructDepth, p.cfg.NotFillEmptyFields)
 		if err != nil {
 			return nil, xerrors.Errorf("error extracting value with column name '%s'", sc.ColumnName)
 		}
@@ -242,7 +246,7 @@ func (p *ProtoParser) makeValues(iterSt *iterState, protoMsg protoreflect.Messag
 	return res, nil
 }
 
-func extractValueRecursive(fd protoreflect.FieldDescriptor, val protoreflect.Value, maxDepth int) (interface{}, error) {
+func extractValueRecursive(fd protoreflect.FieldDescriptor, val protoreflect.Value, maxDepth int, notFillEmptyFields bool) (interface{}, error) {
 	if maxDepth <= 0 {
 		return nil, xerrors.Errorf("max recursion depth is reached")
 	}
@@ -253,9 +257,13 @@ func extractValueRecursive(fd protoreflect.FieldDescriptor, val protoreflect.Val
 		items := make([]interface{}, size)
 
 		for i := 0; i < size; i++ {
-			val, err := extractValueExceptListRecursive(fd, list.Get(i), maxDepth-1)
+			val, err := extractValueExceptListRecursive(fd, list.Get(i), maxDepth-1, notFillEmptyFields)
 			if err != nil {
 				return nil, xerrors.New(err.Error())
+			}
+
+			if val == nil && notFillEmptyFields {
+				continue
 			}
 
 			items[i] = val
@@ -264,10 +272,10 @@ func extractValueRecursive(fd protoreflect.FieldDescriptor, val protoreflect.Val
 		return items, nil
 	}
 
-	return extractValueExceptListRecursive(fd, val, maxDepth)
+	return extractValueExceptListRecursive(fd, val, maxDepth, notFillEmptyFields)
 }
 
-func extractValueExceptListRecursive(fd protoreflect.FieldDescriptor, val protoreflect.Value, maxDepth int) (interface{}, error) {
+func extractValueExceptListRecursive(fd protoreflect.FieldDescriptor, val protoreflect.Value, maxDepth int, notFillEmptyFields bool) (interface{}, error) {
 	if maxDepth <= 0 {
 		return nil, xerrors.Errorf("max recursion depth is reached")
 	}
@@ -277,14 +285,23 @@ func extractValueExceptListRecursive(fd protoreflect.FieldDescriptor, val protor
 		msgDesc := fd.Message()
 		msgVal := val.Message()
 
+		cntEmpty := 0
 		for i := 0; i < msgDesc.Fields().Len(); i++ {
+			if !msgVal.Has(msgDesc.Fields().Get(i)) && notFillEmptyFields {
+				cntEmpty++
+				continue
+			}
 			fieldDesc := msgDesc.Fields().Get(i)
-			val, err := extractValueRecursive(fieldDesc, msgVal.Get(fieldDesc), maxDepth-1)
+			val, err := extractValueRecursive(fieldDesc, msgVal.Get(fieldDesc), maxDepth-1, notFillEmptyFields)
 			if err != nil {
 				return nil, xerrors.New(err.Error())
 			}
 
 			items[fieldDesc.TextName()] = val
+		}
+
+		if cntEmpty == msgDesc.Fields().Len() {
+			return nil, nil
 		}
 
 		return items, nil
@@ -297,16 +314,20 @@ func extractValueExceptListRecursive(fd protoreflect.FieldDescriptor, val protor
 
 		var rangeError error
 		val.Map().Range(func(mk protoreflect.MapKey, v protoreflect.Value) bool {
-			keyVal, err := extractValueRecursive(keyDesc, mk.Value(), maxDepth-1)
+			keyVal, err := extractValueRecursive(keyDesc, mk.Value(), maxDepth-1, notFillEmptyFields)
 			if err != nil {
 				rangeError = err
 				return false
 			}
 
-			valVal, err := extractValueRecursive(valDesc, v, maxDepth-1)
+			valVal, err := extractValueRecursive(valDesc, v, maxDepth-1, notFillEmptyFields)
 			if err != nil {
 				rangeError = err
 				return false
+			}
+
+			if valVal == nil {
+				return true
 			}
 
 			items[fmt.Sprint(keyVal)] = valVal

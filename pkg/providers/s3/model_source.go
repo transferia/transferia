@@ -102,7 +102,8 @@ type ProtoSetting struct {
 	PrimaryKeys    []string
 	PackageType    protoparser.MessagePackageType
 
-	NullKeysAllowed bool
+	NullKeysAllowed    bool
+	NotFillEmptyFields bool
 }
 
 type Format struct {

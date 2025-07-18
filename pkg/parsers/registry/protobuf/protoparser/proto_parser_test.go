@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/core/metrics/mock"
+	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser/gotest/prototest"
@@ -15,6 +16,7 @@ import (
 	"go.ytsaurus.tech/yt/go/schema"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var stdDataTypesFilled = &prototest.StdDataTypesMsg{
@@ -42,6 +44,21 @@ var stdDataTypesFilled = &prototest.StdDataTypesMsg{
 		StringField: "stringField",
 		Int32Field:  2,
 		EnumField:   prototest.EmbeddedEnum_ITEM_2,
+	},
+	StructField: &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"key1": {
+				Kind: &structpb.Value_StringValue{StringValue: "value1"},
+			},
+			"key2": {
+				Kind: &structpb.Value_NumberValue{NumberValue: 2.2},
+			},
+		},
+	},
+	One: &prototest.OneOfs{
+		One: &prototest.OneOfs_Int32Field{
+			Int32Field: 52,
+		},
 	},
 }
 
@@ -492,4 +509,48 @@ func TestDoRequiredNotSet(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckNotFillEmptyFields(t *testing.T) {
+	data, err := proto.Marshal(stdDataTypesFilled)
+	require.NoError(t, err)
+
+	pMsg := parsers.Message{
+		Offset:     1,
+		SeqNo:      1,
+		Key:        nil,
+		CreateTime: time.Time{},
+		WriteTime:  time.Time{},
+		Value:      data,
+		Headers:    nil,
+	}
+
+	desc := stdDataTypesFilled.ProtoReflect().Descriptor()
+	config := ProtoParserConfig{
+		ProtoMessageDesc:   desc,
+		ScannerMessageDesc: desc,
+		ProtoScannerType:   protoscanner.ScannerTypeLineSplitter,
+		LineSplitter:       abstract.LfLineSplitterDoNotSplit,
+		IncludeColumns:     fieldList(desc, true),
+	}
+
+	t.Run("not fill empty fields", func(t *testing.T) {
+		config.NotFillEmptyFields = true
+		par, err := NewProtoParser(&config, getSourceStatsMock())
+		require.NoError(t, err)
+
+		got := par.Do(pMsg, abstract.NewPartition("", 0))
+		require.Len(t, got, 1)
+		canon.SaveJSON(t, got[0].ToJSONString())
+	})
+
+	t.Run("fill empty fields", func(t *testing.T) {
+		config.NotFillEmptyFields = false
+		par, err := NewProtoParser(&config, getSourceStatsMock())
+		require.NoError(t, err)
+
+		got := par.Do(pMsg, abstract.NewPartition("", 0))
+		require.Len(t, got, 1)
+		canon.SaveJSON(t, got[0].ToJSONString())
+	})
 }
