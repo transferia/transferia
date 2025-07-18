@@ -19,6 +19,9 @@ func checkReuploadAllowed(src model.Source) error {
 
 func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task model.TransferOperation, registry metrics.Registry) error {
 	if transfer.IsTransitional() {
+		if transfer.AsyncOperations {
+			return xerrors.New("Transitional reupload is not supported")
+		}
 		// there is no code to change, if you need to change it - think twice.
 		return TransitReupload(ctx, cp, transfer, task, registry)
 	}
@@ -38,7 +41,7 @@ func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 		return xerrors.Errorf("stop job: %w", err)
 	}
 
-	if !transfer.IncrementOnly() {
+	if !transfer.IncrementOnly() && !transfer.AsyncOperations {
 		err := cp.SetStatus(transfer.ID, model.Started)
 		if err != nil {
 			return xerrors.Errorf("Cannot update transfer status: %w", err)

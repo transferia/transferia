@@ -24,6 +24,10 @@ var SupportedAsyncOperations = map[string]bool{
 	TaskType{Task: TransferVersionUpdate{}}.String(): true,
 	TaskType{Task: UpdateTransfer{}}.String():        true,
 	TaskType{Task: Termination{}}.String():           true,
+	TaskType{Task: AddTables{}}.String():             true,
+	TaskType{Task: RemoveTables{}}.String():          true,
+	TaskType{Task: Upload{}}.String():                true,
+	TaskType{Task: ReUpload{}}.String():              true,
 }
 
 type TaskType struct {

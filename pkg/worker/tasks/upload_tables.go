@@ -61,6 +61,9 @@ func Upload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tran
 		taskID = task.OperationID
 	}
 	if transfer.IsTransitional() {
+		if transfer.AsyncOperations {
+			return xerrors.New("Transitional upload is not supported")
+		}
 		// there is no code to change, if you need to change it - think twice.
 		return TransitUpload(ctx, cp, transfer, task, spec, registry)
 	}
@@ -74,16 +77,19 @@ func Upload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tran
 		}
 		return nil
 	}
-	rollbacks.Add(func() {
-		if err := cp.SetStatus(transfer.ID, model.Failed); err != nil {
-			logger.Log.Error("Unable to change status", log.Any("id", transfer.ID), log.Any("task_id", taskID))
+
+	if !transfer.AsyncOperations {
+		rollbacks.Add(func() {
+			if err := cp.SetStatus(transfer.ID, model.Failed); err != nil {
+				logger.Log.Error("Unable to change status", log.Any("id", transfer.ID), log.Any("task_id", taskID))
+			}
+		})
+		if err := StopJob(cp, transfer); err != nil {
+			return xerrors.Errorf("stop job: %w", err)
 		}
-	})
-	if err := StopJob(cp, transfer); err != nil {
-		return xerrors.Errorf("stop job: %w", err)
-	}
-	if err := cp.SetStatus(transfer.ID, model.Scheduled); err != nil {
-		return xerrors.Errorf("unable to set controlplane status: %w", err)
+		if err := cp.SetStatus(transfer.ID, model.Scheduled); err != nil {
+			return xerrors.Errorf("unable to set controlplane status: %w", err)
+		}
 	}
 
 	if transfer.IsAbstract2() {
@@ -117,10 +123,12 @@ func Upload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tran
 		}
 	}
 
-	if err := StartJob(ctx, cp, transfer, task); err != nil {
-		return xerrors.Errorf("unable to start job: %w", err)
+	if !transfer.AsyncOperations {
+		if err := StartJob(ctx, cp, transfer, task); err != nil {
+			return xerrors.Errorf("unable to start job: %w", err)
+		}
 	}
-	rollbacks.Cancel()
 
+	rollbacks.Cancel()
 	return nil
 }
