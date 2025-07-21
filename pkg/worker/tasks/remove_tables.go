@@ -36,7 +36,7 @@ func RemoveTables(ctx context.Context, cp coordinator.Coordinator, transfer mode
 		return xerrors.New("RemoveTable supports maximum one-lb-in-the-middle case")
 	}
 	isRunning := transfer.Status == model.Running
-	if isRunning && !transfer.AsyncOperations {
+	if isRunning {
 		if err := StopJob(cp, transfer); err != nil {
 			return xerrors.Errorf("stop job: %w", err)
 		}
@@ -70,7 +70,7 @@ func RemoveTables(ctx context.Context, cp coordinator.Coordinator, transfer mode
 			}
 		}
 	}
-	if !isRunning || transfer.AsyncOperations {
+	if !isRunning {
 		return nil
 	}
 	if err := StartJob(ctx, cp, transfer, &task); err != nil {
