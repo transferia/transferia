@@ -385,9 +385,13 @@ func loadPgDumpSchema(ctx context.Context, src *PgSource, transfer *model.Transf
 		return nil, xerrors.Errorf("failed to compose arguments for pg_dump: %w", err)
 	}
 	dump, err := execPgDump(src.PgDumpCommand, connString, secretPass, pgDumpArgs)
-	result = append(result, filterDump(dump, src.DBTables)...)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to execute pg_dump to get schema: %w", err)
+	}
+	if len(src.DBTables) == 0 {
+		result = append(result, dump...)
+	} else {
+		result = append(result, filterDump(dump, abstract.NewIntersectionIncludeable(src, transfer))...)
 	}
 
 	if (src.PreSteps.SequenceSet == nil || *src.PreSteps.SequenceSet) || (src.PostSteps.SequenceSet == nil || *src.PostSteps.SequenceSet) {
@@ -651,10 +655,7 @@ func dumpCasts(definedCasts []*pgDumpItem, src *PgSource, excludedTypes *set.Set
 	return result
 }
 
-func filterDump(dump []*pgDumpItem, DBTables []string) []*pgDumpItem {
-	if len(DBTables) == 0 {
-		return dump
-	}
+func filterDump(dump []*pgDumpItem, filter abstract.Includeable) []*pgDumpItem {
 	result := make([]*pgDumpItem, 0, len(dump))
 	createdIndexes := set.New[string]()
 
@@ -665,7 +666,14 @@ func filterDump(dump []*pgDumpItem, DBTables []string) []*pgDumpItem {
 			splitSQL := splitSQLBySeparator(catSQL, " ATTACH")
 			parentTable := splitSQL[0]
 
-			if !slices.Contains(DBTables, parentTable) {
+			tableID, err := abstract.NewTableIDFromStringPg(parentTable, false)
+			if err != nil {
+				logger.Log.Warnf("unable to parse table id from %s: %s", parentTable, err.Error())
+				continue
+			}
+
+			if !filter.Include(*tableID) {
+				logger.Log.Infof("table attachment for %s skipped", parentTable)
 				continue
 			}
 		case "INDEX":
