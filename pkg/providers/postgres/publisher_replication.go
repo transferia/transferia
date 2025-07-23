@@ -73,6 +73,8 @@ func (p *replication) Run(sink abstract.AsyncSink) error {
 	//level of parallelism combined with hardcoded buffer size in receiver(16mb) prevent OOM in parsequeue
 	p.parseQ = parsequeue.New(p.logger, 10, sink, p.WithIncludeFilter, p.ack)
 
+	p.wg.Add(1)
+	go p.standbyStatus()
 	if err = p.reloadSchema(); err != nil {
 		return xerrors.Errorf("failed to load schema: %w", err)
 	}
@@ -88,9 +90,8 @@ func (p *replication) Run(sink abstract.AsyncSink) error {
 
 	slotTroubleCh := p.slotMonitor.StartSlotMonitoring(int64(p.config.SlotByteLagLimit))
 
-	p.wg.Add(2)
+	p.wg.Add(1)
 	go p.receiver(slotTroubleCh)
-	go p.standbyStatus()
 	select {
 	case err := <-p.error:
 		return err
