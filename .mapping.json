@@ -3384,7 +3384,7 @@
   "tests/helpers/ydb_recipe/recipe.go":"transfer_manager/go/tests/helpers/ydb_recipe/recipe.go",
   "tests/helpers/yt/yt_helpers.go":"transfer_manager/go/tests/helpers/yt/yt_helpers.go",
   "tests/large/docker-compose/README.md":"transfer_manager/go/tests/large/docker-compose/README.md",
-  "tests/large/docker-compose/canondata/docker-compose.docker-compose.TestElasticToPgSnapshot/extracted":"transfer_manager/go/tests/large/docker-compose/canondata/docker-compose.docker-compose.TestElasticToPgSnapshot/extracted",
+  "tests/large/docker-compose/canondata/docker-compose.docker-compose.TestAllElasticSearchToPg/extracted":"transfer_manager/go/tests/large/docker-compose/canondata/docker-compose.docker-compose.TestAllElasticSearchToPg/extracted",
   "tests/large/docker-compose/canondata/docker-compose.docker-compose.TestOldPostgresPg2Pg/extracted":"transfer_manager/go/tests/large/docker-compose/canondata/docker-compose.docker-compose.TestOldPostgresPg2Pg/extracted",
   "tests/large/docker-compose/canondata/docker-compose.docker-compose.TestPg2Kafka2PgSchemaRegistry_srRecordNameStrategy/extracted":"transfer_manager/go/tests/large/docker-compose/canondata/docker-compose.docker-compose.TestPg2Kafka2PgSchemaRegistry_srRecordNameStrategy/extracted",
   "tests/large/docker-compose/canondata/docker-compose.docker-compose.TestPg2Kafka2PgSchemaRegistry_srTopicRecordNameStrategy/extracted":"transfer_manager/go/tests/large/docker-compose/canondata/docker-compose.docker-compose.TestPg2Kafka2PgSchemaRegistry_srTopicRecordNameStrategy/extracted",
