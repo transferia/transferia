@@ -12,7 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	"github.com/transferia/transferia/tests/helpers"
-	proxy "github.com/transferia/transferia/tests/helpers/http_proxy"
+	proxy "github.com/transferia/transferia/tests/helpers/proxies/http_proxy"
 )
 
 var (

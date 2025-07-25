@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -14,19 +15,25 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	proxy "github.com/transferia/transferia/tests/helpers/proxies/pg_proxy"
 )
 
 func TestShardingStorage_ShardTable(t *testing.T) {
 	_ = pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("test_scripts"))
 	srcPort, _ := strconv.Atoi(os.Getenv("PG_LOCAL_PORT"))
 	v := &postgres.PgSource{
-		Hosts:    []string{"localhost"},
+		Hosts:    []string{"127.0.0.1"},
 		User:     os.Getenv("PG_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("PG_LOCAL_DATABASE"),
 		Port:     srcPort,
 		SlotID:   "testslot",
 	}
+	listenAddr := net.JoinHostPort(v.Hosts[0], strconv.Itoa(srcPort+1))
+	postgresAddr := net.JoinHostPort(v.Hosts[0], strconv.Itoa(srcPort))
+	v.Port = srcPort + 1
+	proxy := proxy.NewProxy(listenAddr, postgresAddr)
+	go proxy.Start()
 	v.WithDefaults()
 	require.NotEqual(t, 0, v.DesiredTableSize)
 	storage, err := postgres.NewStorage(v.ToStorageParams(nil))
@@ -188,6 +195,30 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 			}))
 		}
 		require.Len(t, res, 100_000)
+	})
+
+	t.Run("test sharding by sequence column min/max", func(t *testing.T) {
+		counter_percentile_disc := 0
+		proxy.AddCounterHandler("percentile_disc", &counter_percentile_disc)
+		counter_min := 0
+		proxy.AddCounterHandler("select min", &counter_min)
+
+		proxy.AddErrorHandler("percentile_disc", nil)
+		tables, err := storage.ShardTable(ctx, abstract.TableDescription{
+			Name:   "__test_to_shard_int32",
+			Schema: "public",
+			Filter: "",
+			EtaRow: 0,
+			Offset: 0,
+		})
+		require.NoError(t, err)
+		require.Len(t, tables, 4)
+		require.Contains(t, string(tables[0].Filter), "\"Id\" < '25001'")
+		require.Contains(t, string(tables[1].Filter), "\"Id\" >= '25001' AND \"Id\" < '50001'")
+		require.Contains(t, string(tables[2].Filter), "\"Id\" >= '50001' AND \"Id\" < '75001'")
+		require.Contains(t, string(tables[3].Filter), "\"Id\" >= '75001'")
+		require.Equal(t, counter_percentile_disc, 1)
+		require.Equal(t, counter_min, 1)
 	})
 }
 
