@@ -54,7 +54,7 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 	}))
 	// replication
 	sinkMock := &helpers.MockSink{}
-	sinkMock.PushCallback = func(input []abstract.ChangeItem) {
+	sinkMock.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, currItem := range input {
 			if currItem.Kind == abstract.UpdateKind {
 				require.NotZero(t, len(currItem.KeyCols()))
@@ -64,6 +64,7 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 				extractedFromSnapshot = append(extractedFromSnapshot, currItem)
 			}
 		}
+		return nil
 	}
 	targetMock := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkMock },

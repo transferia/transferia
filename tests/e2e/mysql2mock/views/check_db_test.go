@@ -72,7 +72,7 @@ func TestMySQLHeteroViewsInteraction(t *testing.T) {
 						helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
 					))
 				}()
-				sinker := &helpers.MockSink{PushCallback: func(items []abstract.ChangeItem) {
+				sinker := &helpers.MockSink{PushCallback: func(items []abstract.ChangeItem) error {
 					for _, item := range items {
 						if item.IsRowEvent() {
 							mutex.Lock()
@@ -80,6 +80,7 @@ func TestMySQLHeteroViewsInteraction(t *testing.T) {
 							mutex.Unlock()
 						}
 					}
+					return nil
 				}}
 				target := model.MockDestination{
 					SinkerFactory: func() abstract.Sinker { return sinker },

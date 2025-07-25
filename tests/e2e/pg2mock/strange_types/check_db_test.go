@@ -39,7 +39,7 @@ func TestSnapshot(t *testing.T) {
 	transfer := helpers.MakeTransfer("fake", Source, &target, abstract.TransferTypeSnapshotOnly)
 	checksTriggered := 0
 
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, changeItem := range input {
 			tableSchema := helpers.MakeTableSchema(&changeItem)
 			fmt.Printf("changeItem=%s\n", changeItem.ToJSONString())
@@ -54,6 +54,7 @@ func TestSnapshot(t *testing.T) {
 				require.Equal(t, "pg:currency", tableSchema.NameToTableSchema(t, "mycurrency").OriginalType)
 			}
 		}
+		return nil
 	}
 
 	_ = helpers.Activate(t, transfer)

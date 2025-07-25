@@ -56,9 +56,10 @@ func TestReplication(t *testing.T) {
 
 	result := make([]abstract.ChangeItem, 0)
 	mockSink := &helpers.MockSink{
-		PushCallback: func(in []abstract.ChangeItem) {
+		PushCallback: func(in []abstract.ChangeItem) error {
 			abstract.Dump(in)
 			result = append(result, in...)
+			return nil
 		},
 	}
 	mockTarget := model.MockDestination{

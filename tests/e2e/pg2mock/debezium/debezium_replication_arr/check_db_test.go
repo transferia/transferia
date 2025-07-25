@@ -152,7 +152,7 @@ func TestReplication(t *testing.T) {
 
 	mutex := sync.Mutex{}
 	var changeItems []abstract.ChangeItem
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		found := false
 		for _, el := range input {
 			if el.Table == "basic_types" {
@@ -160,7 +160,7 @@ func TestReplication(t *testing.T) {
 			}
 		}
 		if !found {
-			return
+			return nil
 		}
 		//---
 		mutex.Lock()
@@ -172,6 +172,8 @@ func TestReplication(t *testing.T) {
 			}
 			changeItems = append(changeItems, el)
 		}
+
+		return nil
 	}
 
 	worker := helpers.Activate(t, transfer)

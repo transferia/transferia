@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
 )
@@ -23,11 +24,11 @@ func TestUnsopportedData(t *testing.T) {
 	require.NoError(t, err)
 	files, err := os.ReadDir(absPath)
 	require.NoError(t, err)
-	src := s3.PrepareCfg(t, "canon-parquet-bad", "")
+	src := s3recipe.PrepareCfg(t, "canon-parquet-bad", "")
 	testCasePath := "data"
 	src.PathPrefix = testCasePath
-	s3.CreateBucket(t, src)
-	s3.PrepareTestCase(t, src, "data")
+	s3recipe.CreateBucket(t, src)
+	s3recipe.PrepareTestCase(t, src, "data")
 	for _, file := range files {
 		t.Run(file.Name(), func(t *testing.T) {
 			src.TableNamespace = "s3_source_parquet"
@@ -87,11 +88,11 @@ func TestCanonSource(t *testing.T) {
 	require.NoError(t, err)
 	files, err := os.ReadDir(absPath)
 	require.NoError(t, err)
-	src := s3.PrepareCfg(t, "canon-parquet", "")
+	src := s3recipe.PrepareCfg(t, "canon-parquet", "")
 	testCasePath := "data"
 	src.PathPrefix = testCasePath
-	s3.CreateBucket(t, src)
-	s3.PrepareTestCase(t, src, "data")
+	s3recipe.CreateBucket(t, src)
+	s3recipe.PrepareTestCase(t, src, "data")
 
 	for _, file := range files {
 		t.Run(file.Name(), func(t *testing.T) {

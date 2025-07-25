@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/tests/helpers"
@@ -54,7 +55,7 @@ func init() {
 }
 
 func TestBigTable(t *testing.T) {
-	target := s3.PrepareS3(t, t.Name(), dp_model.ParsingFormatJSON, s3.NoEncoding)
+	target := s3recipe.PrepareS3(t, t.Name(), dp_model.ParsingFormatJSON, s3.NoEncoding)
 	helpers.InitSrcDst(helpers.TransferID, source, target, transferType)
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
@@ -97,7 +98,7 @@ func TestBigTable(t *testing.T) {
 	maxVal := int64(math.MinInt64)
 	var someItem changeitem.ChangeItem
 	sinkMock := &helpers.MockSink{
-		PushCallback: func(items []changeitem.ChangeItem) {
+		PushCallback: func(items []changeitem.ChangeItem) error {
 			mu.Lock()
 			defer mu.Unlock()
 			for _, item := range items {
@@ -115,6 +116,7 @@ func TestBigTable(t *testing.T) {
 				someItem = item
 				totalCnt++
 			}
+			return nil
 		},
 	}
 	targetMock := &dp_model.MockDestination{

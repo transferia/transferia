@@ -1,4 +1,4 @@
-package s3
+package s3recipe
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	s4 "github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/tests/tcrecipes"
 	"github.com/transferia/transferia/tests/tcrecipes/objectstorage"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -28,7 +29,7 @@ var (
 	testSecret    = EnvOrDefault("TEST_SECRET_ACCESS_KEY", "abcdefabcdef")
 )
 
-func createBucket(t *testing.T, cfg *S3Destination) {
+func createBucket(t *testing.T, cfg *s4.S3Destination) {
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         aws.String(cfg.Endpoint),
 		Region:           aws.String(cfg.Region),
@@ -46,12 +47,12 @@ func createBucket(t *testing.T, cfg *S3Destination) {
 	logger.Log.Info("create bucket result", log.Any("res", res))
 }
 
-func PrepareS3(t *testing.T, bucket string, format model.ParsingFormat, encoding Encoding) *S3Destination {
+func PrepareS3(t *testing.T, bucket string, format model.ParsingFormat, encoding s4.Encoding) *s4.S3Destination {
 	if tcrecipes.Enabled() {
 		_, err := objectstorage.Prepare(context.Background())
 		require.NoError(t, err)
 	}
-	cfg := &S3Destination{
+	cfg := &s4.S3Destination{
 		OutputFormat:     format,
 		OutputEncoding:   encoding,
 		BufferSize:       1 * 1024 * 1024,
@@ -96,12 +97,12 @@ func EnvOrDefault(key string, def string) string {
 	return def
 }
 
-func PrepareCfg(t *testing.T, bucket string, format model.ParsingFormat) *S3Source {
+func PrepareCfg(t *testing.T, bucket string, format model.ParsingFormat) *s4.S3Source {
 	if tcrecipes.Enabled() {
 		_, err := objectstorage.Prepare(context.Background())
 		require.NoError(t, err)
 	}
-	cfg := new(S3Source)
+	cfg := new(s4.S3Source)
 	if bucket != "" {
 		cfg.Bucket = bucket
 	} else {
@@ -137,7 +138,7 @@ func PrepareCfg(t *testing.T, bucket string, format model.ParsingFormat) *S3Sour
 	return cfg
 }
 
-func PrepareTestCase(t *testing.T, cfg *S3Source, casePath string) {
+func PrepareTestCase(t *testing.T, cfg *s4.S3Source, casePath string) {
 	absPath, err := filepath.Abs(casePath)
 	require.NoError(t, err)
 	files, err := os.ReadDir(absPath)
@@ -146,7 +147,7 @@ func PrepareTestCase(t *testing.T, cfg *S3Source, casePath string) {
 	uploadDir(t, cfg, cfg.PathPrefix, files)
 }
 
-func uploadDir(t *testing.T, cfg *S3Source, prefix string, files []os.DirEntry) {
+func uploadDir(t *testing.T, cfg *s4.S3Source, prefix string, files []os.DirEntry) {
 	for _, file := range files {
 		fullName := fmt.Sprintf("%s/%s", prefix, file.Name())
 		if file.IsDir() {
@@ -161,7 +162,7 @@ func uploadDir(t *testing.T, cfg *S3Source, prefix string, files []os.DirEntry) 
 	}
 }
 
-func UploadOne(t *testing.T, cfg *S3Source, fname string) {
+func UploadOne(t *testing.T, cfg *s4.S3Source, fname string) {
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         aws.String(cfg.ConnectionConfig.Endpoint),
 		Region:           aws.String(cfg.ConnectionConfig.Region),
@@ -186,7 +187,7 @@ func UploadOne(t *testing.T, cfg *S3Source, fname string) {
 	require.NoError(t, err)
 }
 
-func CreateBucket(t *testing.T, cfg *S3Source) {
+func CreateBucket(t *testing.T, cfg *s4.S3Source) {
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         aws.String(cfg.ConnectionConfig.Endpoint),
 		Region:           aws.String(cfg.ConnectionConfig.Region),

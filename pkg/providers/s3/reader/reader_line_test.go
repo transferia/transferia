@@ -16,7 +16,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/pkg/stats"
 )
 
@@ -27,7 +27,7 @@ var (
 )
 
 func TestResolveLineSchema(t *testing.T) {
-	src := s3.PrepareCfg(t, "barrel", model.ParsingFormatLine)
+	src := s3recipe.PrepareCfg(t, "barrel", model.ParsingFormatLine)
 
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         aws.String(src.ConnectionConfig.Endpoint),

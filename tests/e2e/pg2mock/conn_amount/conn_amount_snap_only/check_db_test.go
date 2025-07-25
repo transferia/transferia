@@ -79,7 +79,7 @@ func TestConnLimitPg2MockSnapOnly(t *testing.T) {
 				}
 				source.WithDefaults()
 				mutex := sync.Mutex{}
-				pushCallback := func(items []abstract.ChangeItem) {
+				pushCallback := func(items []abstract.ChangeItem) error {
 					for _, changeItem := range items {
 						if changeItem.IsRowEvent() {
 							mutex.Lock()
@@ -87,6 +87,7 @@ func TestConnLimitPg2MockSnapOnly(t *testing.T) {
 							mutex.Unlock()
 						}
 					}
+					return nil
 				}
 
 				sinker := &helpers.MockSink{PushCallback: pushCallback}

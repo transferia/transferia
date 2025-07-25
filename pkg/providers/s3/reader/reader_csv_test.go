@@ -14,18 +14,18 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
 func TestResolveCSVSchema(t *testing.T) {
-	src := s3.PrepareCfg(t, "data4", "")
+	src := s3recipe.PrepareCfg(t, "data4", "")
 
 	if os.Getenv("S3MDS_PORT") != "" {
 		// for local recipe we need to upload test case to internet
 		src.PathPrefix = "test_csv_schemas"
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3recipe.PrepareTestCase(t, src, src.PathPrefix)
 		logger.Log.Info("dir uploaded")
 	}
 
@@ -157,7 +157,7 @@ func TestConstructCI(t *testing.T) {
 
 	t.Run("schema contains sys cols", func(t *testing.T) {
 		csvReader.additionalReaderOptions.IncludeMissingColumns = false
-		csvReader.tableSchema = appendSystemColsTableSchema(csvReader.tableSchema.Columns())
+		csvReader.tableSchema = appendSystemColsTableSchema(csvReader.tableSchema.Columns(), true)
 		row := []string{"true", "this is a test string"} // 2 elements in row from csv for 4 cols, but 2 are sys cols
 		ci, err := csvReader.constructCI(row, "test_file", time.Now(), 1)
 		require.NoError(t, err)

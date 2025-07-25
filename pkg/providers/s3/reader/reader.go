@@ -152,9 +152,9 @@ func FileSize(bucket string, file *aws_s3.Object, client s3iface.S3API, logger l
 	return uint64(*resp.ObjectSize), nil
 }
 
-func appendSystemColsTableSchema(cols []abstract.ColSchema) *abstract.TableSchema {
-	fileName := abstract.NewColSchema(FileNameSystemCol, schema.TypeString, true)
-	rowIndex := abstract.NewColSchema(RowIndexSystemCol, schema.TypeUint64, true)
+func appendSystemColsTableSchema(cols []abstract.ColSchema, isPkey bool) *abstract.TableSchema {
+	fileName := abstract.NewColSchema(FileNameSystemCol, schema.TypeString, isPkey)
+	rowIndex := abstract.NewColSchema(RowIndexSystemCol, schema.TypeUint64, isPkey)
 	cols = append([]abstract.ColSchema{fileName, rowIndex}, cols...)
 	return abstract.NewTableSchema(cols)
 }

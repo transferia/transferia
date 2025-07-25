@@ -16,14 +16,15 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 )
 
 func TestDefaultShardingWithBlob(t *testing.T) {
 	testCasePath := "yellow_taxi"
-	cfg := s3.PrepareCfg(t, "blobiki_bobiki", model.ParsingFormatPARQUET)
+	cfg := s3recipe.PrepareCfg(t, "blobiki_bobiki", model.ParsingFormatPARQUET)
 	cfg.PathPrefix = testCasePath
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
-		s3.PrepareTestCase(t, cfg, cfg.PathPrefix)
+		s3recipe.PrepareTestCase(t, cfg, cfg.PathPrefix)
 		logger.Log.Info("dir uploaded")
 	}
 	tid := *abstract.NewTableID(cfg.TableNamespace, cfg.TableName)
@@ -73,12 +74,12 @@ func TestCustomSharding(t *testing.T) {
 	filesNumber := 100
 	fileSize := 100 * humanize.Byte
 
-	cfg := s3.PrepareCfg(t, "data3", model.ParsingFormatLine)
+	cfg := s3recipe.PrepareCfg(t, "data3", model.ParsingFormatLine)
 	cfg.PathPattern = "*"
 	cfg.PathPrefix = createFiles(t, filesNumber, fileSize)
 	if os.Getenv("S3MDS_PORT") != "" {
 		logger.Log.Infof("dir %s uploading...", cfg.PathPrefix)
-		s3.PrepareTestCase(t, cfg, cfg.PathPrefix)
+		s3recipe.PrepareTestCase(t, cfg, cfg.PathPrefix)
 		logger.Log.Infof("dir %s uploaded", cfg.PathPrefix)
 	}
 	cfg.PathPrefix = strings.TrimLeft(cfg.PathPrefix, "/")

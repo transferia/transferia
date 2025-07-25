@@ -15,17 +15,17 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
 func TestResolveJSONLineSchema(t *testing.T) {
-	src := s3.PrepareCfg(t, "data3", model.ParsingFormatJSONLine)
+	src := s3recipe.PrepareCfg(t, "data3", model.ParsingFormatJSONLine)
 
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
 		src.PathPrefix = "test_jsonline_schemas"
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3recipe.PrepareTestCase(t, src, src.PathPrefix)
 		logger.Log.Info("dir uploaded")
 	}
 

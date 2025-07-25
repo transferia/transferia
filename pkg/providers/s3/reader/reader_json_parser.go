@@ -345,7 +345,8 @@ func NewJSONParserReader(src *s3.S3Source, lgr log.Logger, sess *session.Session
 	// append system columns at the end if necessary
 	if !reader.hideSystemCols {
 		cols := reader.tableSchema.Columns()
-		reader.tableSchema = appendSystemColsTableSchema(cols)
+		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
+		reader.tableSchema = appendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
 	}
 
 	cfg := new(jsonparser.ParserConfigJSONCommon)

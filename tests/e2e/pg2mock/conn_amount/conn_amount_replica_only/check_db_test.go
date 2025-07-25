@@ -34,7 +34,7 @@ func TestConnLimitReplication(t *testing.T) {
 
 	tableRowCounts := make(map[string]int)
 	rwMutex := sync.RWMutex{}
-	pushCallback := func(items []abstract.ChangeItem) {
+	pushCallback := func(items []abstract.ChangeItem) error {
 		for _, changeItem := range items {
 			if changeItem.IsRowEvent() {
 				rwMutex.Lock()
@@ -42,6 +42,7 @@ func TestConnLimitReplication(t *testing.T) {
 				rwMutex.Unlock()
 			}
 		}
+		return nil
 	}
 	sinker := &helpers.MockSink{PushCallback: pushCallback}
 	target := model.MockDestination{

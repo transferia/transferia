@@ -81,7 +81,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}
 
 	var result []abstract.ChangeItem
-	sinkerNoCollapse.PushCallback = func(input []abstract.ChangeItem) {
+	sinkerNoCollapse.PushCallback = func(input []abstract.ChangeItem) error {
 		sinkerNoCollapseMutex.Lock()
 		defer sinkerNoCollapseMutex.Unlock()
 		for _, i := range input {
@@ -93,6 +93,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 			}
 			result = append(result, i)
 		}
+		return nil
 	}
 
 	transfer := helpers.MakeTransfer("data-objects", &SourceCollapse, &targetNoCollapse, abstract.TransferTypeSnapshotOnly)

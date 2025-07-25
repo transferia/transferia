@@ -243,20 +243,31 @@ func (r *JSONLineReader) constructCI(row map[string]any, fname string, lastModif
 		}
 	}
 	// TODO: add support for col.Path
+
+	isSystemCol := func(colName string) bool {
+		switch colName {
+		case FileNameSystemCol:
+			return true
+		case RowIndexSystemCol:
+			return true
+		default:
+			return false
+		}
+	}
+
 	for i, col := range r.tableSchema.Columns() {
-		if col.PrimaryKey {
+		if isSystemCol(col.ColumnName) {
 			if r.hideSystemCols {
 				continue
 			}
 			switch col.ColumnName {
 			case FileNameSystemCol:
 				vals[i] = fname
+				continue
 			case RowIndexSystemCol:
 				vals[i] = idx
-			default:
 				continue
 			}
-			continue
 		}
 		val, ok := row[col.ColumnName]
 		if !ok {
@@ -524,7 +535,8 @@ func NewJSONLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, 
 	// append system columns at the end if necessary
 	if !reader.hideSystemCols {
 		cols := reader.tableSchema.Columns()
-		reader.tableSchema = appendSystemColsTableSchema(cols)
+		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
+		reader.tableSchema = appendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
 	}
 
 	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })

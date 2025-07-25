@@ -278,13 +278,14 @@ func YDBPullDataFromTable(t *testing.T, token, database, instance, table string)
 
 	var extracted []abstract.ChangeItem
 
-	sinkMock.PushCallback = func(input []abstract.ChangeItem) {
+	sinkMock.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, currItem := range input {
 			if currItem.Kind == abstract.InsertKind {
 				require.NotZero(t, len(currItem.KeyCols()))
 				extracted = append(extracted, currItem)
 			}
 		}
+		return nil
 	}
 	Activate(t, transferMock)
 	return extracted

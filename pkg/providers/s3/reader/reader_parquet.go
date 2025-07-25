@@ -376,7 +376,8 @@ func NewParquet(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics
 	// append system columns at the end if necessary
 	if !reader.hideSystemCols {
 		cols := reader.tableSchema.Columns()
-		reader.tableSchema = appendSystemColsTableSchema(cols)
+		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
+		reader.tableSchema = appendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
 	}
 
 	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })

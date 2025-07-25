@@ -45,10 +45,11 @@ func TestSnapshotAndReplication(t *testing.T) {
 	}
 	transfer := helpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeSnapshotAndIncrement)
 
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, el := range input {
 			container.AddChangeItem(t, &el)
 		}
+		return nil
 	}
 
 	worker := helpers.Activate(t, transfer)

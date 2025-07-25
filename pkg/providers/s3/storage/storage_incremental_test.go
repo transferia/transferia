@@ -9,19 +9,19 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 )
 
 func TestIncremental(t *testing.T) {
 	testCasePath := "userdata"
-	cfg := s3.PrepareCfg(t, "data4", "")
+	cfg := s3recipe.PrepareCfg(t, "data4", "")
 	cfg.PathPrefix = testCasePath
 	// upload 2 files
-	s3.UploadOne(t, cfg, "userdata/userdata1.parquet")
+	s3recipe.UploadOne(t, cfg, "userdata/userdata1.parquet")
 	time.Sleep(time.Second)
 	betweenTime := time.Now()
 	time.Sleep(time.Second)
-	s3.UploadOne(t, cfg, "userdata/userdata2.parquet")
+	s3recipe.UploadOne(t, cfg, "userdata/userdata2.parquet")
 	logger.Log.Info("file uploaded")
 
 	storage, err := New(cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
