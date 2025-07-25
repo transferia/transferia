@@ -93,6 +93,7 @@ type Metric interface {
 	getTimestamp() *time.Time
 	isMemOnly() bool
 
+	getID() string
 	Snapshot() Metric
 }
 
