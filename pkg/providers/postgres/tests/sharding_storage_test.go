@@ -33,7 +33,16 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 	postgresAddr := net.JoinHostPort(v.Hosts[0], strconv.Itoa(srcPort))
 	v.Port = srcPort + 1
 	proxy := proxy.NewProxy(listenAddr, postgresAddr)
-	go proxy.Start()
+	defer proxy.Close()
+	proxy.Start()
+	for range 5 {
+		conn, err := net.Dial("tcp", listenAddr)
+		if err == nil {
+			_ = conn.Close()
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 	v.WithDefaults()
 	require.NotEqual(t, 0, v.DesiredTableSize)
 	storage, err := postgres.NewStorage(v.ToStorageParams(nil))

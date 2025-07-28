@@ -23,6 +23,8 @@ type Proxy struct {
 	mainAddr   string
 
 	messageHandlers []MessageHandler
+	listener        net.Listener
+	done            chan struct{}
 }
 
 func NewProxy(listenAddr, mainAddr string, messageHandlers ...MessageHandler) *Proxy {
@@ -30,6 +32,7 @@ func NewProxy(listenAddr, mainAddr string, messageHandlers ...MessageHandler) *P
 		listenAddr:      listenAddr,
 		mainAddr:        mainAddr,
 		messageHandlers: messageHandlers,
+		done:            make(chan struct{}),
 	}
 }
 
@@ -44,16 +47,33 @@ func (p *Proxy) Start() {
 		logger.Log.Fatalf("Error starting proxy: %v", err)
 	}
 
-	defer ln.Close()
+	p.listener = ln
 	logger.Log.Infof("Proxy for PostgreSQL started on %s", ln.Addr())
 
-	for {
-		clientConn, err := ln.Accept()
-		if err != nil {
-			logger.Log.Errorf("Unable to accept connection: %v", err)
-			continue
+	go func() {
+		for {
+			select {
+			case <-p.done:
+				return
+			default:
+			}
+			clientConn, err := ln.Accept()
+			if err != nil {
+				logger.Log.Errorf("Unable to accept connection: %v", err)
+				continue
+			}
+			go p.handleConnection(clientConn)
 		}
-		go p.handleConnection(clientConn)
+	}()
+}
+
+func (p *Proxy) Close() {
+	close(p.done)
+	if p.listener != nil {
+		if err := p.listener.Close(); err != nil {
+			logger.Log.Errorf("Unable to close listener: %v", err)
+		}
+		logger.Log.Infof("Proxy for PostgreSQL closed")
 	}
 }
 
