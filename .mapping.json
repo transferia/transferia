@@ -3362,6 +3362,7 @@
   "tests/helpers/gp_helpers.go":"transfer_manager/go/tests/helpers/gp_helpers.go",
   "tests/helpers/load_table.go":"transfer_manager/go/tests/helpers/load_table.go",
   "tests/helpers/load_table_test.go":"transfer_manager/go/tests/helpers/load_table_test.go",
+  "tests/helpers/metering_test.go":"transfer_manager/go/tests/helpers/metering_test.go",
   "tests/helpers/mock_sink.go":"transfer_manager/go/tests/helpers/mock_sink.go",
   "tests/helpers/mock_storage/mock_storage.go":"transfer_manager/go/tests/helpers/mock_storage/mock_storage.go",
   "tests/helpers/mysql_helpers.go":"transfer_manager/go/tests/helpers/mysql_helpers.go",
