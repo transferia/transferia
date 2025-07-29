@@ -70,6 +70,7 @@ func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 		}
 	})
 
+	logger.Log.Info("Creating external table", log.String("sql", createExtTableQuery))
 	if _, err := tx.Exec(ctx, createExtTableQuery); err != nil {
 		msg := "Unable to create external table"
 		logger.Log.Error(msg, log.Error(err), log.String("sql", createExtTableQuery))
