@@ -21,9 +21,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/csv"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -33,9 +35,13 @@ import (
 )
 
 var (
-	_ Reader             = (*CSVReader)(nil)
-	_ RowsCountEstimator = (*CSVReader)(nil)
+	_ abstract_reader.Reader             = (*CSVReader)(nil)
+	_ abstract_reader.RowsCountEstimator = (*CSVReader)(nil)
 )
+
+func init() {
+	abstract_reader.RegisterReader(model.ParsingFormatCSV, NewCSVReader)
+}
 
 type CSVReader struct {
 	table                   abstract.TableID
@@ -70,7 +76,7 @@ func (r *CSVReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, e
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -85,7 +91,7 @@ func (r *CSVReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, e
 func (r *CSVReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	totalRows := float64(0)
 
-	totalSize, sampleReader, err := estimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
+	totalSize, sampleReader, err := abstract_reader.EstimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
 	}
@@ -119,7 +125,7 @@ func (r *CSVReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.
 }
 
 func (r *CSVReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -241,7 +247,7 @@ func (r *CSVReader) parseCSVRows(csvReader *csv.Reader, filePath string, lastMod
 
 		changeItem, err := r.doParse(line, filePath, lastModified, *rowNumber)
 		if err != nil {
-			unparsedChangeItem, err := handleParseError(r.table, r.unparsedPolicy, filePath, int(*rowNumber), err)
+			unparsedChangeItem, err := abstract_reader.HandleParseError(r.table, r.unparsedPolicy, filePath, int(*rowNumber), err)
 			if err != nil {
 				return nil, xerrors.Errorf("failed to parse row: %w", err)
 			}
@@ -295,14 +301,14 @@ func (r *CSVReader) skipUnnecessaryLines(csvReader *csv.Reader) error {
 func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time, rowNumber uint64) (*abstract.ChangeItem, error) {
 	vals := make([]interface{}, len(r.tableSchema.Columns()))
 	for i, col := range r.tableSchema.Columns() {
-		if systemColumnNames[col.ColumnName] {
+		if abstract_reader.SystemColumnNames[col.ColumnName] {
 			if r.hideSystemCols {
 				continue
 			}
 			switch col.ColumnName {
-			case FileNameSystemCol:
+			case abstract_reader.FileNameSystemCol:
 				vals[i] = fname
-			case RowIndexSystemCol:
+			case abstract_reader.RowIndexSystemCol:
 				vals[i] = rowNumber
 			default:
 				continue
@@ -353,7 +359,7 @@ func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time,
 	}, nil
 }
 
-func (r *CSVReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
+func (r *CSVReader) ObjectsFilter() abstract_reader.ObjectsFilter { return abstract_reader.IsNotEmpty }
 
 func (r *CSVReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
 	s3RawReader, err := r.newS3RawReader(ctx, key)
@@ -599,7 +605,7 @@ func (r *CSVReader) newCSVReaderFromReader(reader io.Reader) *csv.Reader {
 	return csvReader
 }
 
-func NewCSVReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (*CSVReader, error) {
+func NewCSVReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (abstract_reader.Reader, error) {
 	if src == nil || src.Format.CSVSetting == nil {
 		return nil, xerrors.New("uninitialized settings for csv reader")
 	}
@@ -683,7 +689,7 @@ func NewCSVReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metri
 	if !reader.hideSystemCols {
 		cols := reader.tableSchema.Columns()
 		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
-		reader.tableSchema = appendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
+		reader.tableSchema = abstract_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
 	}
 
 	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })

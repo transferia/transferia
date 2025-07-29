@@ -17,8 +17,10 @@ import (
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -27,9 +29,13 @@ import (
 )
 
 var (
-	_ Reader             = (*ReaderParquet)(nil)
-	_ RowsCountEstimator = (*ReaderParquet)(nil)
+	_ abstract_reader.Reader             = (*ReaderParquet)(nil)
+	_ abstract_reader.RowsCountEstimator = (*ReaderParquet)(nil)
 )
+
+func init() {
+	abstract_reader.RegisterReader(model.ParsingFormatPARQUET, NewParquet)
+}
 
 type ReaderParquet struct {
 	table          abstract.TableID
@@ -58,7 +64,7 @@ func (r *ReaderParquet) EstimateRowsCountOneObject(ctx context.Context, obj *aws
 
 func (r *ReaderParquet) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
 	res := uint64(0)
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -70,12 +76,12 @@ func (r *ReaderParquet) EstimateRowsCountAllObjects(ctx context.Context) (uint64
 		res += uint64(meta.NumRows())
 		_ = meta.Close()
 		// once we reach limit of files to estimate - stop and approximate
-		if i > EstimateFilesLimit {
+		if i > abstract_reader.EstimateFilesLimit {
 			break
 		}
 	}
-	if len(files) > EstimateFilesLimit {
-		multiplier := float64(len(files)) / float64(EstimateFilesLimit)
+	if len(files) > abstract_reader.EstimateFilesLimit {
+		multiplier := float64(len(files)) / float64(abstract_reader.EstimateFilesLimit)
 		return uint64(float64(res) * multiplier), nil
 	}
 	return res, nil
@@ -86,7 +92,7 @@ func (r *ReaderParquet) ResolveSchema(ctx context.Context) (*abstract.TableSchem
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -98,9 +104,9 @@ func (r *ReaderParquet) ResolveSchema(ctx context.Context) (*abstract.TableSchem
 	return r.resolveSchema(ctx, *files[0].Key)
 }
 
-func (r *ReaderParquet) ObjectsFilter() ObjectsFilter {
+func (r *ReaderParquet) ObjectsFilter() abstract_reader.ObjectsFilter {
 	return func(file *aws_s3.Object) bool {
-		if !IsNotEmpty(file) {
+		if !abstract_reader.IsNotEmpty(file) {
 			return false
 		}
 		return strings.HasSuffix(*file.Key, ".parquet")
@@ -260,14 +266,14 @@ func (r *ReaderParquet) constructCI(parquetSchema map[string]parquet.Field, row 
 ) (abstract.ChangeItem, error) {
 	vals := make([]interface{}, len(r.tableSchema.Columns()))
 	for i, col := range r.tableSchema.Columns() {
-		if systemColumnNames[col.ColumnName] {
+		if abstract_reader.SystemColumnNames[col.ColumnName] {
 			if r.hideSystemCols {
 				continue
 			}
 			switch col.ColumnName {
-			case FileNameSystemCol:
+			case abstract_reader.FileNameSystemCol:
 				vals[i] = fname
-			case RowIndexSystemCol:
+			case abstract_reader.RowIndexSystemCol:
 				vals[i] = idx
 			default:
 				continue
@@ -343,7 +349,7 @@ func (r *ReaderParquet) ParsePassthrough(chunk chunk_pusher.Chunk) []abstract.Ch
 	return chunk.Items
 }
 
-func NewParquet(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (*ReaderParquet, error) {
+func NewParquet(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (abstract_reader.Reader, error) {
 	if src == nil {
 		return nil, xerrors.New("uninitialized settings for parquet reader")
 	}
@@ -377,7 +383,7 @@ func NewParquet(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics
 	if !reader.hideSystemCols {
 		cols := reader.tableSchema.Columns()
 		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
-		reader.tableSchema = appendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
+		reader.tableSchema = abstract_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
 	}
 
 	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })

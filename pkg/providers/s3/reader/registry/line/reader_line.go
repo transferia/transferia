@@ -17,9 +17,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers/scanner"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -28,9 +30,13 @@ import (
 )
 
 var (
-	_ Reader             = (*LineReader)(nil)
-	_ RowsCountEstimator = (*LineReader)(nil)
+	_ abstract_reader.Reader             = (*LineReader)(nil)
+	_ abstract_reader.RowsCountEstimator = (*LineReader)(nil)
 )
+
+func init() {
+	abstract_reader.RegisterReader(model.ParsingFormatLine, NewLineReader)
+}
 
 type LineReader struct {
 	table          abstract.TableID
@@ -50,7 +56,7 @@ type LineReader struct {
 }
 
 func (r *LineReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -74,7 +80,7 @@ func (r *LineReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3
 func (r *LineReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	res := uint64(0)
 
-	totalSize, sampleReader, err := estimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
+	totalSize, sampleReader, err := abstract_reader.EstimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
 	}
@@ -261,14 +267,14 @@ func (r *LineReader) ParsePassthrough(chunk chunk_pusher.Chunk) []abstract.Chang
 	return chunk.Items
 }
 
-func (r *LineReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
+func (r *LineReader) ObjectsFilter() abstract_reader.ObjectsFilter { return abstract_reader.IsNotEmpty }
 
 func (r *LineReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, error) {
 	if r.tableSchema != nil && len(r.tableSchema.Columns()) != 0 {
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -280,7 +286,7 @@ func (r *LineReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, 
 	return abstract.NewTableSchema([]abstract.ColSchema{abstract.NewColSchema("row", schema.TypeBytes, false)}), nil
 }
 
-func NewLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (*LineReader, error) {
+func NewLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (abstract_reader.Reader, error) {
 	reader := &LineReader{
 		table: abstract.TableID{
 			Namespace: src.TableNamespace,
@@ -313,7 +319,7 @@ func NewLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metr
 	if !reader.hideSystemCols {
 		cols := reader.tableSchema.Columns()
 		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
-		reader.tableSchema = appendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
+		reader.tableSchema = abstract_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
 	}
 
 	reader.ColumnNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })

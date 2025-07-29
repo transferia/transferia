@@ -10,7 +10,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/stats"
@@ -25,8 +24,25 @@ var (
 
 	EstimateFilesLimit = 10
 
-	systemColumnNames = map[string]bool{FileNameSystemCol: true, RowIndexSystemCol: true}
+	SystemColumnNames = map[string]bool{FileNameSystemCol: true, RowIndexSystemCol: true}
+
+	// registred reader implementations by model.ParsingFormat
+	readerImpls = map[model.ParsingFormat]func(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (Reader, error){}
 )
+
+type NewReader func(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (Reader, error)
+
+func RegisterReader(format model.ParsingFormat, ctor NewReader) {
+	wrappedCtor := func(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (Reader, error) {
+		reader, err := ctor(src, lgr, sess, metrics)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to initialize new reader for format %s: %w", format, err)
+		}
+		return reader, nil
+	}
+
+	readerImpls[format] = wrappedCtor
+}
 
 type Reader interface {
 	Read(ctx context.Context, filePath string, pusher pusher.Pusher) error
@@ -152,7 +168,7 @@ func FileSize(bucket string, file *aws_s3.Object, client s3iface.S3API, logger l
 	return uint64(*resp.ObjectSize), nil
 }
 
-func appendSystemColsTableSchema(cols []abstract.ColSchema, isPkey bool) *abstract.TableSchema {
+func AppendSystemColsTableSchema(cols []abstract.ColSchema, isPkey bool) *abstract.TableSchema {
 	fileName := abstract.NewColSchema(FileNameSystemCol, schema.TypeString, isPkey)
 	rowIndex := abstract.NewColSchema(RowIndexSystemCol, schema.TypeUint64, isPkey)
 	cols = append([]abstract.ColSchema{fileName, rowIndex}, cols...)
@@ -165,77 +181,11 @@ func newImpl(
 	sess *session.Session,
 	metrics *stats.SourceStats,
 ) (Reader, error) {
-	switch src.InputFormat {
-	case model.ParsingFormatPARQUET:
-		reader, err := NewParquet(src, lgr, sess, metrics)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to initialize new parquet reader: %w", err)
-		}
-		return reader, nil
-	case model.ParsingFormatJSON:
-		reader, err := NewJSONParserReader(src, lgr, sess, metrics)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to initialize new json reader: %w", err)
-		}
-		return reader, nil
-	case model.ParsingFormatJSONLine:
-		reader, err := NewJSONLineReader(src, lgr, sess, metrics)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to initialize new jsonline reader: %w", err)
-		}
-		return reader, nil
-	case model.ParsingFormatCSV:
-		reader, err := NewCSVReader(src, lgr, sess, metrics)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to initialize new csv reader: %w", err)
-		}
-		return reader, nil
-	case model.ParsingFormatPROTO:
-		if len(src.Format.ProtoParser.DescFile) == 0 {
-			return nil, xerrors.New("desc file required")
-		}
-		// this is magic field to get descriptor from YT
-		if len(src.Format.ProtoParser.DescResourceName) != 0 {
-			return nil, xerrors.New("desc resource name is not supported by S3 source")
-		}
-		cfg := new(protoparser.ProtoParserConfig)
-		cfg.IncludeColumns = src.Format.ProtoParser.IncludeColumns
-		cfg.PrimaryKeys = src.Format.ProtoParser.PrimaryKeys
-		cfg.NullKeysAllowed = src.Format.ProtoParser.NullKeysAllowed
-		if err := cfg.SetDescriptors(
-			src.Format.ProtoParser.DescFile,
-			src.Format.ProtoParser.MessageName,
-			src.Format.ProtoParser.PackageType,
-		); err != nil {
-			return nil, xerrors.Errorf("SetDescriptors error: %v", err)
-		}
-		cfg.SetLineSplitter(src.Format.ProtoParser.PackageType)
-		cfg.SetScannerType(src.Format.ProtoParser.PackageType)
-
-		parser, err := protoparser.NewProtoParser(cfg, metrics)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to construct proto parser: %w", err)
-		}
-		reader, err := NewGenericParserReader(
-			src,
-			lgr,
-			sess,
-			metrics,
-			parser,
-		)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to initialize new generic reader: %w", err)
-		}
-		return reader, nil
-	case model.ParsingFormatLine:
-		reader, err := NewLineReader(src, lgr, sess, metrics)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to initialize new line reader: %w", err)
-		}
-		return reader, nil
-	default:
+	ctor, ok := readerImpls[src.InputFormat]
+	if !ok {
 		return nil, xerrors.Errorf("unknown format: %s", src.InputFormat)
 	}
+	return ctor(src, lgr, sess, metrics)
 }
 
 func New(

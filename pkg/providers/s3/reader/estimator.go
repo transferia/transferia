@@ -13,7 +13,7 @@ import (
 
 type readerCtorF = func(ctx context.Context, filePath string) (s3raw.S3RawReader, error)
 
-func estimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Object, readerCtor readerCtorF) (uint64, s3raw.S3RawReader, error) {
+func EstimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Object, readerCtor readerCtorF) (uint64, s3raw.S3RawReader, error) {
 	var sampleReader s3raw.S3RawReader
 	multiplier := float64(1)
 	sniffFiles := files

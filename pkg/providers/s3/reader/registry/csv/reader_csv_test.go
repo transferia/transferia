@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -84,7 +85,7 @@ func TestResolveCSVSchema(t *testing.T) {
 		currSchema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/simple.csv")
 		require.NoError(t, err)
 		require.Equal(t, []string{"name", "surname", "st.", "city", "state", "zip-code"}, currSchema.Columns().ColumnNames())
-		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(currSchema.Columns()))
+		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, abstract_reader.DataTypes(currSchema.Columns()))
 	})
 
 	t.Run("autogenerate schema", func(t *testing.T) {
@@ -92,7 +93,7 @@ func TestResolveCSVSchema(t *testing.T) {
 		currSchema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/no_header.csv")
 		require.NoError(t, err)
 		require.Equal(t, []string{"f0", "f1", "f2", "f3", "f4", "f5"}, currSchema.Columns().ColumnNames())
-		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(currSchema.Columns()))
+		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, abstract_reader.DataTypes(currSchema.Columns()))
 	})
 
 	t.Run("extract schema", func(t *testing.T) {
@@ -100,7 +101,7 @@ func TestResolveCSVSchema(t *testing.T) {
 		currSchema, err := csvReader.resolveSchema(context.Background(), "test_csv_schemas/no_header.csv")
 		require.NoError(t, err)
 		require.Equal(t, []string{"name", "surname", "st.", "city", "state", "zip-code"}, currSchema.Columns().ColumnNames())
-		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, dataTypes(currSchema.Columns()))
+		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, abstract_reader.DataTypes(currSchema.Columns()))
 	})
 }
 
@@ -157,7 +158,7 @@ func TestConstructCI(t *testing.T) {
 
 	t.Run("schema contains sys cols", func(t *testing.T) {
 		csvReader.additionalReaderOptions.IncludeMissingColumns = false
-		csvReader.tableSchema = appendSystemColsTableSchema(csvReader.tableSchema.Columns(), true)
+		csvReader.tableSchema = abstract_reader.AppendSystemColsTableSchema(csvReader.tableSchema.Columns(), true)
 		row := []string{"true", "this is a test string"} // 2 elements in row from csv for 4 cols, but 2 are sys cols
 		ci, err := csvReader.constructCI(row, "test_file", time.Now(), 1)
 		require.NoError(t, err)

@@ -77,7 +77,7 @@ func TestEstimateTotalSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			size, _, err := estimateTotalSize(context.Background(), logger.Log, tt.files, dummyReaderF(tt.fileSizes))
+			size, _, err := EstimateTotalSize(context.Background(), logger.Log, tt.files, dummyReaderF(tt.fileSizes))
 
 			require.Equal(t, tt.expectedSize, size)
 

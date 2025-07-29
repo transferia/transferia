@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/pkg/stats"
 )
@@ -72,6 +73,6 @@ func TestResolveLineSchema(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, schema.Columns(), 1)
 		require.Equal(t, []string{"row"}, schema.Columns().ColumnNames())
-		require.Equal(t, []string{"string"}, dataTypes(schema.Columns()))
+		require.Equal(t, []string{"string"}, abstract_reader.DataTypes(schema.Columns()))
 	})
 }

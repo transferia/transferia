@@ -16,10 +16,12 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -29,9 +31,13 @@ import (
 )
 
 var (
-	_ Reader             = (*JSONParserReader)(nil)
-	_ RowsCountEstimator = (*JSONParserReader)(nil)
+	_ abstract_reader.Reader             = (*JSONParserReader)(nil)
+	_ abstract_reader.RowsCountEstimator = (*JSONParserReader)(nil)
 )
+
+func init() {
+	abstract_reader.RegisterReader(model.ParsingFormatJSON, NewJSONParserReader)
+}
 
 type JSONParserReader struct {
 	table                   abstract.TableID
@@ -64,7 +70,7 @@ func (r *JSONParserReader) newS3RawReader(ctx context.Context, filePath string) 
 func (r *JSONParserReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	res := uint64(0)
 
-	totalSize, sampleReader, err := estimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
+	totalSize, sampleReader, err := abstract_reader.EstimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
 	}
@@ -94,7 +100,7 @@ func (r *JSONParserReader) EstimateRowsCountOneObject(ctx context.Context, obj *
 }
 
 func (r *JSONParserReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -221,7 +227,7 @@ func (r *JSONParserReader) ResolveSchema(ctx context.Context) (*abstract.TableSc
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -233,7 +239,9 @@ func (r *JSONParserReader) ResolveSchema(ctx context.Context) (*abstract.TableSc
 	return r.resolveSchema(ctx, *files[0].Key)
 }
 
-func (r *JSONParserReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
+func (r *JSONParserReader) ObjectsFilter() abstract_reader.ObjectsFilter {
+	return abstract_reader.IsNotEmpty
+}
 
 func (r *JSONParserReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
 	s3RawReader, err := r.newS3RawReader(ctx, key)
@@ -305,7 +313,7 @@ func (r *JSONParserReader) resolveSchema(ctx context.Context, key string) (*abst
 	return abstract.NewTableSchema(cols), nil
 }
 
-func NewJSONParserReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (*JSONParserReader, error) {
+func NewJSONParserReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (abstract_reader.Reader, error) {
 	if src == nil || src.Format.JSONLSetting == nil {
 		return nil, xerrors.New("uninitialized settings for jsonline reader")
 	}
@@ -346,7 +354,7 @@ func NewJSONParserReader(src *s3.S3Source, lgr log.Logger, sess *session.Session
 	if !reader.hideSystemCols {
 		cols := reader.tableSchema.Columns()
 		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
-		reader.tableSchema = appendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
+		reader.tableSchema = abstract_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
 	}
 
 	cfg := new(jsonparser.ParserConfigJSONCommon)

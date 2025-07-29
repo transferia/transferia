@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/s3"
-	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	reader_factory "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
 	"github.com/transferia/transferia/pkg/providers/s3/sink/testutil"
 	"github.com/transferia/transferia/pkg/providers/s3/source/object_fetcher/fake_s3"
 	"github.com/transferia/transferia/pkg/providers/s3/source/object_fetcher/poller/dispatcher"
@@ -44,7 +44,7 @@ func TestObjectFetcherPoller(t *testing.T) {
 	poller1 := NewObjectFetcherContractor(poller1Impl)
 
 	sess := fake_s3.NewSess()
-	currReader, err := reader.New(srcModel, logger.Log, sess, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
+	currReader, err := reader_factory.NewReader(srcModel, logger.Log, sess, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.NoError(t, err)
 
 	//------------------------------------------------------------------

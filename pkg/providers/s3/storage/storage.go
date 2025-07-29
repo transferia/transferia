@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	reader_factory "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -178,7 +179,7 @@ func New(src *s3.S3Source, lgr log.Logger, registry metrics.Registry) (*Storage,
 		return nil, xerrors.Errorf("failed to create aws session: %w", err)
 	}
 
-	currReader, err := reader.New(src, lgr, sess, stats.NewSourceStats(registry))
+	currReader, err := reader_factory.NewReader(src, lgr, sess, stats.NewSourceStats(registry))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader: %w", err)
 	}

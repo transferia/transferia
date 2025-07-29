@@ -21,9 +21,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers/scanner"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -33,11 +35,15 @@ import (
 )
 
 var (
-	_ Reader             = (*JSONLineReader)(nil)
-	_ RowsCountEstimator = (*JSONLineReader)(nil)
+	_ abstract_reader.Reader             = (*JSONLineReader)(nil)
+	_ abstract_reader.RowsCountEstimator = (*JSONLineReader)(nil)
 
 	RestColumnName = "rest"
 )
+
+func init() {
+	abstract_reader.RegisterReader(model.ParsingFormatJSONLine, NewJSONLineReader)
+}
 
 type JSONLineReader struct {
 	table                   abstract.TableID
@@ -70,7 +76,7 @@ func (r *JSONLineReader) newS3RawReader(ctx context.Context, filePath string) (s
 func (r *JSONLineReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	res := uint64(0)
 
-	totalSize, sampleReader, err := estimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
+	totalSize, sampleReader, err := abstract_reader.EstimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
 	}
@@ -100,7 +106,7 @@ func (r *JSONLineReader) EstimateRowsCountOneObject(ctx context.Context, obj *aw
 }
 
 func (r *JSONLineReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -156,7 +162,7 @@ func (r *JSONLineReader) Read(ctx context.Context, filePath string, pusher chunk
 		for _, line := range lines {
 			ci, err := r.doParse(line, filePath, s3RawReader.LastModified(), lineCounter)
 			if err != nil {
-				unparsedCI, err := handleParseError(r.table, r.unparsedPolicy, filePath, int(lineCounter), err)
+				unparsedCI, err := abstract_reader.HandleParseError(r.table, r.unparsedPolicy, filePath, int(lineCounter), err)
 				if err != nil {
 					return err
 				}
@@ -246,9 +252,9 @@ func (r *JSONLineReader) constructCI(row map[string]any, fname string, lastModif
 
 	isSystemCol := func(colName string) bool {
 		switch colName {
-		case FileNameSystemCol:
+		case abstract_reader.FileNameSystemCol:
 			return true
-		case RowIndexSystemCol:
+		case abstract_reader.RowIndexSystemCol:
 			return true
 		default:
 			return false
@@ -261,10 +267,10 @@ func (r *JSONLineReader) constructCI(row map[string]any, fname string, lastModif
 				continue
 			}
 			switch col.ColumnName {
-			case FileNameSystemCol:
+			case abstract_reader.FileNameSystemCol:
 				vals[i] = fname
 				continue
-			case RowIndexSystemCol:
+			case abstract_reader.RowIndexSystemCol:
 				vals[i] = idx
 				continue
 			}
@@ -306,7 +312,7 @@ func (r *JSONLineReader) ResolveSchema(ctx context.Context) (*abstract.TableSche
 		return r.tableSchema, nil
 	}
 
-	files, err := ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -318,7 +324,9 @@ func (r *JSONLineReader) ResolveSchema(ctx context.Context) (*abstract.TableSche
 	return r.resolveSchema(ctx, *files[0].Key)
 }
 
-func (r *JSONLineReader) ObjectsFilter() ObjectsFilter { return IsNotEmpty }
+func (r *JSONLineReader) ObjectsFilter() abstract_reader.ObjectsFilter {
+	return abstract_reader.IsNotEmpty
+}
 
 func (r *JSONLineReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
 	s3RawReader, err := r.newS3RawReader(ctx, key)
@@ -494,7 +502,7 @@ func readSingleJSONObject(reader *bufio.Reader) (string, error) {
 	return string(extractedLine), nil
 }
 
-func NewJSONLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (*JSONLineReader, error) {
+func NewJSONLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (abstract_reader.Reader, error) {
 	if src == nil || src.Format.JSONLSetting == nil {
 		return nil, xerrors.New("uninitialized settings for jsonline reader")
 	}
@@ -536,7 +544,7 @@ func NewJSONLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, 
 	if !reader.hideSystemCols {
 		cols := reader.tableSchema.Columns()
 		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
-		reader.tableSchema = appendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
+		reader.tableSchema = abstract_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
 	}
 
 	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })

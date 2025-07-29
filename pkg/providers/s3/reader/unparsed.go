@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3"
 )
 
-func handleParseError(
+func HandleParseError(
 	tableID abstract.TableID,
 	unparsedPolicy s3.UnparsedPolicy,
 	filePath string,
