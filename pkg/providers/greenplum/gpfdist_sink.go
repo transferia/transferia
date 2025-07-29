@@ -67,7 +67,7 @@ func (s *GpfdistSink) getOrCreateTableSink(table abstract.TableID, schema *abstr
 		return nil
 	}
 
-	tableSink, err := InitGpfdistTableSink(table, schema, s.localAddr, s.conn, s.dst, s.params.ThreadsCount, s.params)
+	tableSink, err := InitGpfdistTableSink(table, schema, s.localAddr, s.conn, s.params)
 	if err != nil {
 		return xerrors.Errorf("unable to init sink for table %s: %w", table, err)
 	}
@@ -171,7 +171,7 @@ func (s *GpfdistSink) processCleanupChangeItem(_ context.Context, changeItem *ab
 	return nil
 }
 
-func NewGpfdistSink(dst *GpDestination, registry metrics.Registry, lgr log.Logger, transferID string) (*GpfdistSink, error) {
+func NewGpfdistSink(dst *GpDestination, registry metrics.Registry, lgr log.Logger, transferID string, params gpfdistbin.GpfdistParams) (*GpfdistSink, error) {
 	storage := NewStorage(dst.ToGpSource(), registry)
 	conn, err := coordinatorConnFromStorage(storage)
 	if err != nil {
@@ -192,7 +192,7 @@ func NewGpfdistSink(dst *GpDestination, registry metrics.Registry, lgr log.Logge
 	return &GpfdistSink{
 		dst:          dst,
 		conn:         conn,
-		params:       dst.gpfdistParams,
+		params:       params,
 		tableSinks:   make(map[abstract.TableID]*GpfdistTableSink),
 		tableSinksMu: sync.RWMutex{},
 		pgCoordSink:  pgCoordSinker,

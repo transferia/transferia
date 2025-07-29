@@ -35,6 +35,9 @@ func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 	ctx context.Context, mode externalTableMode, table abstract.TableID,
 	schema *abstract.TableSchema, locations []string,
 ) (int64, error) {
+	if len(locations) == 0 {
+		return 0, xerrors.New("locations is empty")
+	}
 	serviceSchema := d.serviceSchema
 	if serviceSchema == "" {
 		serviceSchema = table.Namespace

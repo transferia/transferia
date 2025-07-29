@@ -152,7 +152,7 @@ func (l *SnapshotLoader) endpointsPreSnapshotActions(sourceStorage abstract.Stor
 	case *greenplum.Storage:
 		specificStorage.SetWorkersCount(l.parallelismParams.JobCount)
 	case *greenplum.GpfdistStorage:
-		specificStorage.SetProcessCount(l.parallelismParams.ProcessCount)
+		// Gpfdist storage and sink handles multi-threading by themselves.
 		l.parallelismParams.ProcessCount = 1
 	}
 

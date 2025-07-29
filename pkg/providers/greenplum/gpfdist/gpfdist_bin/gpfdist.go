@@ -116,7 +116,7 @@ func (g *Gpfdist) fullPath(relativePath string) string {
 }
 
 func (g *Gpfdist) Location() string {
-	return fmt.Sprintf("gpfdist://%s:%d/%s", g.localAddr.String(), g.port, g.pipeName)
+	return fmt.Sprintf("gpfdist://[%s]:%d/%s", g.localAddr.String(), g.port, g.pipeName)
 }
 
 func (g *Gpfdist) removePipe() error {

@@ -28,16 +28,12 @@ type GpfdistStorage struct {
 	params  gpfdistbin.GpfdistParams
 }
 
-func NewGpfdistStorage(config *GpSource, mRegistry metrics.Registry) (*GpfdistStorage, error) {
+func NewGpfdistStorage(src *GpSource, mRegistry metrics.Registry, params gpfdistbin.GpfdistParams) *GpfdistStorage {
 	return &GpfdistStorage{
-		storage: NewStorage(config, mRegistry),
-		src:     config,
-		params:  gpfdistbin.NewGpfdistParams(config.AdvancedProps.GpfdistBinPath, config.AdvancedProps.ServiceSchema, 0),
-	}, nil
-}
-
-func (s *GpfdistStorage) SetProcessCount(threads int) {
-	s.params.ThreadsCount = threads
+		storage: NewStorage(src, mRegistry),
+		src:     src,
+		params:  params,
+	}
 }
 
 func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
@@ -134,7 +130,10 @@ func itemTemplate(table abstract.TableDescription, schema *abstract.TableSchema)
 
 func coordinatorConnFromStorage(storage *Storage) (*pgxpool.Pool, error) {
 	coordinator, err := storage.PGStorage(context.Background(), Coordinator())
-	return coordinator.Conn, err
+	if err != nil {
+		return nil, err
+	}
+	return coordinator.Conn, nil
 }
 
 // localAddrFromStorage returns host for external connections (from GreenPlum VMs to Transfer VMs).

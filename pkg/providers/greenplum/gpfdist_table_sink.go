@@ -85,14 +85,19 @@ func (s *GpfdistTableSink) Push(items []*abstract.ChangeItem) error {
 }
 
 func InitGpfdistTableSink(
-	table abstract.TableID, tableSchema *abstract.TableSchema, localAddr net.IP, conn *pgxpool.Pool, dst *GpDestination, threads int, params gpfdistbin.GpfdistParams,
+	table abstract.TableID, tableSchema *abstract.TableSchema, localAddr net.IP, conn *pgxpool.Pool, params gpfdistbin.GpfdistParams,
 ) (*GpfdistTableSink, error) {
+	if params.ThreadsCount <= 0 {
+		return nil, xerrors.Errorf("number of threads is not positive (%d)", params.ThreadsCount)
+	}
+	logger.Log.Infof("Creating %d-threaded gpfdist table sink", params.ThreadsCount)
+
 	var err error
 	mode := gpfdistbin.ImportTable
 
 	// Step 1. Init gpfdist binaries.
-	gpfdists := make([]*gpfdistbin.Gpfdist, threads)
-	locations := make([]string, threads)
+	gpfdists := make([]*gpfdistbin.Gpfdist, params.ThreadsCount)
+	locations := make([]string, params.ThreadsCount)
 	for i := range gpfdists {
 		gpfdists[i], err = gpfdistbin.InitGpfdist(params, localAddr, mode, i)
 		if err != nil {
@@ -133,7 +138,7 @@ func InitGpfdistTableSink(
 	}()
 
 	// Step3. Run PipesWriters which would asyncly serve theirs `.Write()` method calls.
-	pipesWriters := make([]*gpfdist.PipeWriter, threads)
+	pipesWriters := make([]*gpfdist.PipeWriter, params.ThreadsCount)
 	for i := range gpfdists {
 		pipesWriters[i], err = gpfdist.InitPipeWriter(gpfdists[i])
 		if err != nil {
