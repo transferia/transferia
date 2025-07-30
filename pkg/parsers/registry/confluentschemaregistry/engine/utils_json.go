@@ -22,7 +22,7 @@ type JSONProperties struct {
 	Title      string                     `json:"title"`
 }
 
-func makeChangeItemsFromMessageWithJSON(schema *confluent.Schema, buf []byte, offset uint64, writeTime time.Time) ([]abstract.ChangeItem, int, error) {
+func makeChangeItemsFromMessageWithJSON(schema *confluent.Schema, buf []byte, offset uint64, writeTime time.Time, isGenerateUpdates bool) ([]abstract.ChangeItem, int, error) {
 	var jsonProperties JSONProperties
 	err := json.Unmarshal([]byte(schema.Schema), &jsonProperties)
 	if err != nil {
@@ -46,12 +46,16 @@ func makeChangeItemsFromMessageWithJSON(schema *confluent.Schema, buf []byte, of
 	if err != nil {
 		return nil, 0, xerrors.Errorf("Can't process payload:%w", err)
 	}
+	kind := abstract.InsertKind
+	if isGenerateUpdates {
+		kind = abstract.UpdateKind
+	}
 	changeItem := abstract.ChangeItem{
 		ID:               0,
 		LSN:              offset,
 		CommitTime:       uint64(writeTime.UnixNano()),
 		Counter:          0,
-		Kind:             abstract.UpdateKind,
+		Kind:             kind,
 		Schema:           schemaName,
 		Table:            tableName,
 		PartID:           "",

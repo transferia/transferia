@@ -10,9 +10,9 @@ import (
 func NewParserConfluentSchemaRegistry(inWrapped interface{}, _ bool, logger log.Logger, _ *stats.SourceStats) (parsers.Parser, error) {
 	switch in := inWrapped.(type) {
 	case *ParserConfigConfluentSchemaRegistryCommon:
-		return conflueentschemaregistryengine.NewConfluentSchemaRegistryImpl(in.SchemaRegistryURL, in.TLSFile, in.Username, in.Password, false, logger), nil
+		return conflueentschemaregistryengine.NewConfluentSchemaRegistryImpl(in.SchemaRegistryURL, in.TLSFile, in.Username, in.Password, in.IsGenerateUpdates, false, logger), nil
 	case *ParserConfigConfluentSchemaRegistryLb:
-		return conflueentschemaregistryengine.NewConfluentSchemaRegistryImpl(in.SchemaRegistryURL, in.TLSFile, in.Username, in.Password, false, logger), nil
+		return conflueentschemaregistryengine.NewConfluentSchemaRegistryImpl(in.SchemaRegistryURL, in.TLSFile, in.Username, in.Password, in.IsGenerateUpdates, false, logger), nil
 	}
 	return nil, nil
 }

@@ -63,7 +63,17 @@ func dirtyPatch(in string) string {
 	return strings.Join(result, "\n")
 }
 
-func makeChangeItemsFromMessageWithProtobuf(inMDBuilder *mdBuilder, schema *confluent.Schema, refs map[string]confluent.Schema, messageName string, buf []byte, offset uint64, writeTime time.Time, isCloudevents bool) ([]abstract.ChangeItem, error) {
+func makeChangeItemsFromMessageWithProtobuf(
+	inMDBuilder *mdBuilder,
+	schema *confluent.Schema,
+	refs map[string]confluent.Schema,
+	messageName string,
+	buf []byte,
+	offset uint64,
+	writeTime time.Time,
+	isCloudevents bool,
+	isGenerateUpdates bool,
+) ([]abstract.ChangeItem, error) {
 	currBuf := buf
 	if !isCloudevents {
 		arrayIndexesFirstByte := buf[0]
@@ -100,12 +110,16 @@ func makeChangeItemsFromMessageWithProtobuf(inMDBuilder *mdBuilder, schema *conf
 	if err != nil {
 		return nil, xerrors.Errorf("Can't process payload:%w", err)
 	}
+	kind := abstract.InsertKind
+	if isGenerateUpdates {
+		kind = abstract.UpdateKind
+	}
 	changeItem := abstract.ChangeItem{
 		ID:               0,
 		LSN:              offset,
 		CommitTime:       uint64(writeTime.UnixNano()),
 		Counter:          0,
-		Kind:             abstract.InsertKind,
+		Kind:             kind,
 		Schema:           schemaName,
 		Table:            tableName,
 		PartID:           "",

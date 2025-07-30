@@ -73,7 +73,7 @@ func TestClient(t *testing.T) {
 	schemaRegistryMock := confluentsrmock.NewConfluentSRMock(idToBuf, nil)
 	defer schemaRegistryMock.Close()
 
-	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, logger.Log)
+	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
 	var canonArr []abstract.ChangeItem
 	for i, data := range messagesData {
 		if len(data) == 0 {

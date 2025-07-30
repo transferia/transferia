@@ -72,6 +72,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 	parserConfigMap, err := parsers.ParserConfigStructToMap(&confluentschemaregistry.ParserConfigConfluentSchemaRegistryCommon{
 		SchemaRegistryURL: schemaRegistryMock.URL(),
 		SkipAuth:          true,
+		IsGenerateUpdates: true,
 	})
 	require.NoError(t, err)
 	currSource.ParserConfig = parserConfigMap
