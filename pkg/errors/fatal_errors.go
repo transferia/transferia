@@ -3,6 +3,7 @@ package errors
 import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/errors/coded"
@@ -18,6 +19,13 @@ const (
 )
 
 func LogFatalError(err error, transferID string, dstType abstract.ProviderType, srcType abstract.ProviderType) {
+	errs := multierr.Errors(err)
+	for _, err := range errs {
+		logFatalError(err, transferID, dstType, srcType)
+	}
+}
+
+func logFatalError(err error, transferID string, dstType abstract.ProviderType, srcType abstract.ProviderType) {
 	cat := categories.Internal
 	var categorized Categorized = nil
 	if xerrors.As(err, &categorized) {
