@@ -122,7 +122,6 @@ func BenchmarkSinkWrite(b *testing.B) {
 				CellBundle:          "default",
 				PrimaryMedium:       "default",
 				DisableDatetimeHack: false,
-				CanAlter:            true,
 			})
 			cfg.WithDefaults()
 			table, err := sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), metrics.NewRegistry(), client2.NewFakeClient(), nil)
@@ -154,7 +153,6 @@ func BenchmarkSinkWrite(b *testing.B) {
 				CellBundle:          "default",
 				PrimaryMedium:       "default",
 				DisableDatetimeHack: true,
-				CanAlter:            true,
 			})
 			cfg.WithDefaults()
 			table, err := sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), metrics.NewRegistry(), client2.NewFakeClient(), nil)

@@ -37,7 +37,6 @@ type YtDestinationModel interface {
 	CellBundle() string
 	TTL() int64
 	OptimizeFor() string
-	CanAlter() bool
 	IsSchemaMigrationDisabled() bool
 	TimeShardCount() int
 	Index() []string
@@ -46,7 +45,6 @@ type YtDestinationModel interface {
 	Pool() string
 	Atomicity() yt.Atomicity
 	DiscardBigValues() bool
-	TabletCount() int
 	Rotation() *dp_model.RotatorConfig
 	VersionColumn() string
 	Ordered() bool
@@ -102,7 +100,6 @@ type YtDestination struct {
 	CellBundle                string
 	TTL                       int64 // it's in milliseconds
 	OptimizeFor               string
-	CanAlter                  bool
 	IsSchemaMigrationDisabled bool
 	TimeShardCount            int
 	Index                     []string
@@ -113,7 +110,6 @@ type YtDestination struct {
 	Atomicity                 yt.Atomicity // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
 
 	DiscardBigValues         bool
-	TabletCount              int // DEPRECATED - remove in March
 	Rotation                 *dp_model.RotatorConfig
 	VersionColumn            string
 	Ordered                  bool
@@ -216,7 +212,6 @@ func (d *YtDestinationWrapper) SetStaticTable() {
 }
 
 func (d *YtDestinationWrapper) AllowAlter() {
-	d.Model.CanAlter = true
 	d.Model.IsSchemaMigrationDisabled = false
 }
 
@@ -269,10 +264,6 @@ func (d *YtDestinationWrapper) OptimizeFor() string {
 	return d.Model.OptimizeFor
 }
 
-func (d *YtDestinationWrapper) CanAlter() bool {
-	return d.Model.CanAlter
-}
-
 func (d *YtDestinationWrapper) IsSchemaMigrationDisabled() bool {
 	return d.Model.IsSchemaMigrationDisabled
 }
@@ -309,10 +300,6 @@ func (d *YtDestinationWrapper) Atomicity() yt.Atomicity {
 
 func (d *YtDestinationWrapper) DiscardBigValues() bool {
 	return d.Model.DiscardBigValues
-}
-
-func (d *YtDestinationWrapper) TabletCount() int {
-	return d.Model.TabletCount
 }
 
 func (d *YtDestinationWrapper) Rotation() *dp_model.RotatorConfig {

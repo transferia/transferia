@@ -295,7 +295,7 @@ func (t *SortedTable) Write(input []abstract.ChangeItem) error {
 }
 
 func (t *SortedTable) ensureSchema(schemas []abstract.ColSchema) (schemaCompatible bool, err error) {
-	if t.config.IsSchemaMigrationDisabled() || !t.config.CanAlter() {
+	if t.config.IsSchemaMigrationDisabled() {
 		return true, nil
 	}
 	if !t.config.DisableDatetimeHack() {
@@ -414,7 +414,6 @@ func (t *SortedTable) spawnArchive(ctx context.Context) error {
 		ytDestination.Cluster = t.config.Cluster()
 		ytDestination.CellBundle = t.config.CellBundle()
 		ytDestination.OptimizeFor = t.config.OptimizeFor()
-		ytDestination.CanAlter = t.config.CanAlter()
 		ytDestination.DisableDatetimeHack = t.config.DisableDatetimeHack()
 		ytDestination.PrimaryMedium = t.config.PrimaryMedium()
 		_, err := NewSortedTable(
