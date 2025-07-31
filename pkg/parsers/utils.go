@@ -164,7 +164,7 @@ func ExtractErrorFromUnparsed(unparsed abstract.ChangeItem) string {
 	return ""
 }
 
-func VerifyUnparsed(items []abstract.ChangeItem) error {
+func VerifyUnparsed(items ...abstract.ChangeItem) error {
 	for _, item := range items {
 		if !IsUnparsed(item) {
 			continue

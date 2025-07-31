@@ -29,6 +29,30 @@ func TestMetrikaHitProtoseq(t *testing.T) {
 	}
 }
 
+func TestMetrikaHitProtoseqNextable(t *testing.T) {
+	msg := parsers.Message{
+		Value: protoSampleContent(t, "metrika-data/metrika_hit_protoseq_data.bin"),
+	}
+	builder, err := NewLazyProtoParserBuilder(metrikaHitProtoseqConfig(), getSourceStatsMock())
+	require.NoError(t, err)
+	parser, err := builder.BuildLazyParser(msg, abstract.NewPartition("", 0))
+	require.NoError(t, err)
+
+	var items []abstract.ChangeItem
+
+	for {
+		item := parser.Next()
+		if item == nil {
+			break
+		}
+		require.Equal(t, 112, len(item.ColumnNames))
+		items = append(items, *item)
+	}
+
+	checkColsEqual(t, items)
+	require.Equal(t, 7740, len(items))
+}
+
 func metrikaHitProtoseqConfig() *ProtoParserConfig {
 	requiredHitsV2Columns := []string{
 		"CounterID", "EventDate", "CounterUserIDHash", "UTCEventTime", "WatchID", "Sign", "HitVersion",

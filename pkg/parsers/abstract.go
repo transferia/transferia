@@ -49,3 +49,15 @@ type AbstractParserConfig interface {
 	IsAppendOnly() bool
 	Validate() error
 }
+
+type LazyParserBuilder interface {
+	// BuildLazyParser prepares instance of LazyParser for provided data.
+	BuildLazyParser(msg Message, partition abstract.Partition) (LazyParser, error)
+}
+
+// LazyParser is a parser that can be used to parse messages in a streaming manner.
+type LazyParser interface {
+	// Next reads messages set by `Set` and returns next ChangeItem
+	// in sequence, or nil if all items were already returned.
+	Next() *abstract.ChangeItem
+}

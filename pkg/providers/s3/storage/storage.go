@@ -108,9 +108,11 @@ func (s *Storage) readFiles(ctx context.Context, part abstract.TableDescription,
 		return xerrors.Errorf("expected []string value, got '%s' in filter '%s'", term.Value.Type(), part.Filter)
 	}
 	for _, filePath := range term.Value.AsStringList() {
+		s.logger.Infof("Start loading file %s", filePath)
 		if err := s.reader.Read(ctx, filePath, syncPusher); err != nil {
 			return xerrors.Errorf("unable to read file %s: %w", filePath, err)
 		}
+		s.logger.Infof("Done loading file %s", filePath)
 	}
 	return nil
 }

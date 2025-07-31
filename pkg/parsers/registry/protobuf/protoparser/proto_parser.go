@@ -99,42 +99,7 @@ func (p *ProtoParser) do(msg parsers.Message, partition abstract.Partition) []ab
 	}
 
 	for sc.Scan() {
-		// start with 1
-		iterSt.IncrementCounter()
-
-		protoMsg, err := sc.Message()
-		if err != nil {
-			result = append(result, unparsedChangeItem(iterSt, sc.RawData(), err))
-			continue
-		}
-
-		changeItem := abstract.ChangeItem{
-			ID:               0,
-			LSN:              iterSt.Offset,
-			CommitTime:       uint64(msg.WriteTime.UnixNano()),
-			Counter:          iterSt.Counter(),
-			Kind:             abstract.InsertKind,
-			Schema:           "",
-			Table:            tableName(iterSt.Partition),
-			PartID:           "",
-			ColumnNames:      p.columns,
-			ColumnValues:     nil,
-			TableSchema:      p.schemas,
-			OldKeys:          abstract.EmptyOldKeys(),
-			Size:             abstract.RawEventSize(uint64(sc.ApxDataLen())),
-			TxID:             "",
-			Query:            "",
-			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
-		}
-
-		values, err := p.makeValues(iterSt, protoMsg)
-		if err != nil {
-			result = append(result, unparsedChangeItem(iterSt, sc.RawData(), err))
-			continue
-		}
-		changeItem.ColumnValues = values
-
-		result = append(result, changeItem)
+		result = append(result, p.processScanned(iterSt, sc, uint64(msg.WriteTime.UnixNano())))
 	}
 
 	if err := sc.Err(); err != nil {
@@ -143,6 +108,41 @@ func (p *ProtoParser) do(msg parsers.Message, partition abstract.Partition) []ab
 	}
 
 	return result
+}
+
+func (p *ProtoParser) processScanned(iterSt *iterState, sc protoscanner.ProtoScanner, commitTime uint64) abstract.ChangeItem {
+	iterSt.IncrementCounter() // Starts with 1.
+
+	protoMsg, err := sc.Message()
+	if err != nil {
+		return unparsedChangeItem(iterSt, sc.RawData(), err)
+	}
+
+	changeItem := abstract.ChangeItem{
+		ID:               0,
+		LSN:              iterSt.Offset,
+		CommitTime:       commitTime,
+		Counter:          iterSt.Counter(),
+		Kind:             abstract.InsertKind,
+		Schema:           "",
+		Table:            tableName(iterSt.Partition),
+		PartID:           "",
+		ColumnNames:      p.columns,
+		ColumnValues:     nil,
+		TableSchema:      p.schemas,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.RawEventSize(uint64(sc.ApxDataLen())),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
+	}
+
+	values, err := p.makeValues(iterSt, protoMsg)
+	if err != nil {
+		return unparsedChangeItem(iterSt, sc.RawData(), err)
+	}
+	changeItem.ColumnValues = values
+	return changeItem
 }
 
 func (p *ProtoParser) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
