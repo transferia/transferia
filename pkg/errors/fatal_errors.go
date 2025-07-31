@@ -40,7 +40,7 @@ func logFatalError(err error, transferID string, dstType abstract.ProviderType, 
 	if code != UnspecifiedCode {
 		msg = code.ID()
 	}
-	logger.OtelLog.Error(
+	logger.FatalErrorLog.Error(
 		msg,
 		log.Error(err),
 		log.String(KeyTransferID, transferID),
