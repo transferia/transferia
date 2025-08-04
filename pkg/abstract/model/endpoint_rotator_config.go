@@ -246,6 +246,12 @@ func ExtractTimeCol(item abstract.ChangeItem, timeColumn string) time.Time {
 					}
 					partKey = t
 				}
+			case int, int32, int64, uint, uint32, uint64:
+				t, err := dateparse.ParseAny(fmt.Sprintf("%v", v))
+				if err != nil {
+					break
+				}
+				partKey = t
 			}
 			break
 		}
