@@ -12,13 +12,11 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	yt_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -135,12 +133,6 @@ func setup(t *testing.T, name string, markerKey map[string]interface{}, idxs []s
 		markerKey:    markerKey,
 	}
 
-	insertInitialContent := `
-		INSERT INTO public.test VALUES
-			(1, 'one', 'The one'),
-			(2, 'two', 'The two'),
-			(3, 'three', 'The three')`
-
 	primaryKeys := []string{}
 	for k := range markerKey {
 		primaryKeys = append(primaryKeys, k)
@@ -153,9 +145,12 @@ func setup(t *testing.T, name string, markerKey map[string]interface{}, idxs []s
 	worker := helpers.ActivateWithoutStart(t, transfer)
 	f.wrk = worker
 
+	insertInitialContent := `
+		INSERT INTO public.test VALUES
+			(1, 'one', 'The one'),
+			(2, 'two', 'The two'),
+			(3, 'three', 'The three')`
 	f.exec(insertInitialContent)
-
-	f.loadAndCheckSnapshot()
 
 	go func() { f.workerCh <- f.wrk.Run() }()
 
@@ -226,23 +221,6 @@ func (f *fixture) waitMarker() {
 	}
 }
 
-func (f *fixture) loadAndCheckSnapshot() {
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
-	err := snapshotLoader.LoadSnapshot(ctx)
-	require.NoError(f.t, err)
-
-	if diff := cmp.Diff(
-		f.readAll(),
-		[]row{
-			{ID: 1, IdxCol: "one", Value: "The one"},
-			{ID: 2, IdxCol: "two", Value: "The two"},
-			{ID: 3, IdxCol: "three", Value: "The three"},
-		},
-	); diff != "" {
-		require.Fail(f.t, "Tables do not match", "Diff:\n%s", diff)
-	}
-}
-
 func srcAndDstPorts(fxt *fixture) (int, int, error) {
 	sourcePort := fxt.transfer.Src.(*postgres.PgSource).Port
 	ytCluster := fxt.transfer.Dst.(yt_provider.YtDestinationModel).Cluster()
@@ -254,9 +232,10 @@ func srcAndDstPorts(fxt *fixture) (int, int, error) {
 }
 
 func TestIndexBasic(t *testing.T) {
-	fixture := setup(t, "TestIndexBasic", map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	currFixture := setup(t, "TestIndexBasic", map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	defer currFixture.teardown()
 
-	sourcePort, targetPort, err := srcAndDstPorts(fixture)
+	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
@@ -265,37 +244,36 @@ func TestIndexBasic(t *testing.T) {
 		))
 	}()
 
-	defer fixture.teardown()
+	currFixture.exec(`UPDATE public.test SET id = 10 WHERE id = 1`)
+	currFixture.exec(`UPDATE public.test SET idxcol = 'TWO' WHERE idxcol = 'two'`)
+	currFixture.insertMarker()
+	currFixture.waitMarker()
 
-	fixture.exec(`UPDATE public.test SET id = 10 WHERE id = 1`)
-	fixture.exec(`UPDATE public.test SET idxcol = 'TWO' WHERE idxcol = 'two'`)
-	fixture.insertMarker()
-	fixture.waitMarker()
-
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]row{
 			{ID: 2, IdxCol: "TWO", Value: "The two"},
 			{ID: 3, IdxCol: "three", Value: "The three"},
 			{ID: 10, IdxCol: "one", Value: "The one"},
 			{ID: markerID, IdxCol: markerIdx, Value: markerValue},
 		},
-		fixture.readAll(),
+		currFixture.readAll(),
 	))
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]any{
 			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": "TWO"},
 			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
 			map[string]any{"_dummy": nil, "id": int64(10), "idxcol": "one"},
 			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex("idxcol"),
+		currFixture.readAllIndex("idxcol"),
 	))
 }
 
 func TestIndexMany(t *testing.T) {
-	fixture := setup(t, "TestIndexMany", map[string]interface{}{"id": markerID}, []string{"idxcol", "value"})
+	currFixture := setup(t, "TestIndexMany", map[string]interface{}{"id": markerID}, []string{"idxcol", "value"})
+	defer currFixture.teardown()
 
-	sourcePort, targetPort, err := srcAndDstPorts(fixture)
+	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
@@ -304,46 +282,46 @@ func TestIndexMany(t *testing.T) {
 		))
 	}()
 
-	defer fixture.teardown()
+	currFixture.exec(`UPDATE public.test SET id = 10 WHERE id = 1`)
+	currFixture.exec(`UPDATE public.test SET idxcol = 'TWO' WHERE idxcol = 'two'`)
+	currFixture.insertMarker()
+	currFixture.waitMarker()
 
-	fixture.exec(`UPDATE public.test SET id = 10 WHERE id = 1`)
-	fixture.exec(`UPDATE public.test SET idxcol = 'TWO' WHERE idxcol = 'two'`)
-	fixture.insertMarker()
-	fixture.waitMarker()
-
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]row{
 			{ID: 2, IdxCol: "TWO", Value: "The two"},
 			{ID: 3, IdxCol: "three", Value: "The three"},
 			{ID: 10, IdxCol: "one", Value: "The one"},
 			{ID: markerID, IdxCol: markerIdx, Value: markerValue},
 		},
-		fixture.readAll(),
+		currFixture.readAll(),
 	))
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]any{
 			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": "TWO"},
 			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
 			map[string]any{"_dummy": nil, "id": int64(10), "idxcol": "one"},
 			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex("idxcol"),
+		currFixture.readAllIndex("idxcol"),
 	))
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]any{
 			map[string]any{"_dummy": nil, "id": int64(2), "value": "The two"},
 			map[string]any{"_dummy": nil, "id": int64(3), "value": "The three"},
 			map[string]any{"_dummy": nil, "id": int64(10), "value": "The one"},
 			map[string]any{"_dummy": nil, "id": int64(markerID), "value": markerValue},
 		},
-		fixture.readAllIndex("value"),
+		currFixture.readAllIndex("value"),
 	))
 }
 
+// timmyb32r: actually there is no TOASTed values - just usual updates
 func TestIndexToast(t *testing.T) {
-	fixture := setup(t, "TestIndexToast", map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	currFixture := setup(t, "TestIndexToast", map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	defer currFixture.teardown()
 
-	sourcePort, targetPort, err := srcAndDstPorts(fixture)
+	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
@@ -352,27 +330,40 @@ func TestIndexToast(t *testing.T) {
 		))
 	}()
 
-	defer fixture.teardown()
+	currFixture.exec(fmt.Sprintf(`UPDATE public.test SET idxcol = '%s' WHERE id = 2`, strings.Repeat("x", 64*1024)))
+	currFixture.insertMarker()
+	currFixture.waitMarker()
 
-	fixture.exec(fmt.Sprintf(`UPDATE public.test SET idxcol = '%s' WHERE id = 2`, strings.Repeat("x", 64*1024)))
-	fixture.insertMarker()
-	fixture.waitMarker()
+	// WE NEED THIS WAIT, BCS OTHERWISE WE WILL HAVE RACE_CONDITION - `waitMarker` works over target-table, readAllIndex works over index-table
+	// there is possible case, when target_table already written, but index_table still not
+	require.NoError(
+		t,
+		helpers.WaitDestinationEqualRowsCount(
+			"",
+			"test__idx_idxcol",
+			helpers.GetSampleableStorageByModel(t, currFixture.transfer.Dst.(yt_provider.YtDestinationModel).LegacyModel()),
+			60*time.Second,
+			4, // 3 rows + MARKER
+		),
+		"somewhy index table not reached desired rows count",
+	)
 
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]any{
 			map[string]any{"_dummy": nil, "id": int64(1), "idxcol": "one"},
 			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": strings.Repeat("x", 64*1024)},
 			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
 			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex("idxcol"),
+		currFixture.readAllIndex("idxcol"),
 	))
 }
 
 func TestIndexPrimaryKey(t *testing.T) {
-	fixture := setup(t, "TestIndexPrimaryKey", map[string]interface{}{"id": markerID, "idxcol": markerIdx}, []string{"idxcol"})
+	currFixture := setup(t, "TestIndexPrimaryKey", map[string]interface{}{"id": markerID, "idxcol": markerIdx}, []string{"idxcol"})
+	defer currFixture.teardown()
 
-	sourcePort, targetPort, err := srcAndDstPorts(fixture)
+	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
@@ -381,28 +372,28 @@ func TestIndexPrimaryKey(t *testing.T) {
 		))
 	}()
 
-	defer fixture.teardown()
+	currFixture.exec(`UPDATE public.test SET idxcol = 'ONE' WHERE id = 1`)
+	currFixture.insertMarker()
+	currFixture.waitMarker()
 
-	fixture.exec(`UPDATE public.test SET idxcol = 'ONE' WHERE id = 1`)
-	fixture.insertMarker()
-	fixture.waitMarker()
-
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]any{
 			map[string]any{"_dummy": nil, "id": int64(1), "idxcol": "ONE"},
 			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": "two"},
 			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
 			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex("idxcol"),
+		currFixture.readAllIndex("idxcol"),
 	))
 }
 
 func TestSkipLongStrings(t *testing.T) {
-	fixture := setup(t, "TestSkipLongStrings", map[string]interface{}{"id": markerID}, []string{"idxcol"})
-	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.DiscardBigValues = true
+	currFixture := setup(t, "TestSkipLongStrings", map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	defer currFixture.teardown()
 
-	sourcePort, targetPort, err := srcAndDstPorts(fixture)
+	currFixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.DiscardBigValues = true
+
+	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
@@ -411,13 +402,11 @@ func TestSkipLongStrings(t *testing.T) {
 		))
 	}()
 
-	defer fixture.teardown()
+	currFixture.exec(fmt.Sprintf(`INSERT INTO public.test VALUES (4, 'four', '%s')`, strings.Repeat("x", 16*1024*1024+1)))
+	currFixture.insertMarker()
+	currFixture.waitMarker()
 
-	fixture.exec(fmt.Sprintf(`INSERT INTO public.test VALUES (4, 'four', '%s')`, strings.Repeat("x", 16*1024*1024+1)))
-	fixture.insertMarker()
-	fixture.waitMarker()
-
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]any{
 			map[string]any{"_dummy": nil, "id": int64(1), "idxcol": "one"},
 			map[string]any{"_dummy": nil, "id": int64(2), "idxcol": "two"},
@@ -425,10 +414,10 @@ func TestSkipLongStrings(t *testing.T) {
 			map[string]any{"_dummy": nil, "id": int64(4), "idxcol": "four"},
 			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex("idxcol"),
+		currFixture.readAllIndex("idxcol"),
 	))
 
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]row{
 			{IdxCol: "one", ID: 1, Value: "The one"},
 			{IdxCol: "two", ID: 2, Value: "The two"},
@@ -436,14 +425,15 @@ func TestSkipLongStrings(t *testing.T) {
 			{IdxCol: "four", ID: 4, Value: yt_sink.MagicString},
 			{IdxCol: markerIdx, ID: markerID, Value: markerValue},
 		},
-		fixture.readAll(),
+		currFixture.readAll(),
 	))
 }
 
 func TestDelete(t *testing.T) {
-	fixture := setup(t, "TestDelete", map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	currFixture := setup(t, "TestDelete", map[string]interface{}{"id": markerID}, []string{"idxcol"})
+	defer currFixture.teardown()
 
-	sourcePort, targetPort, err := srcAndDstPorts(fixture)
+	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
@@ -452,17 +442,15 @@ func TestDelete(t *testing.T) {
 		))
 	}()
 
-	defer fixture.teardown()
+	currFixture.exec(`DELETE FROM public.test WHERE id < 3`)
+	currFixture.insertMarker()
+	currFixture.waitMarker()
 
-	fixture.exec(`DELETE FROM public.test WHERE id < 3`)
-	fixture.insertMarker()
-	fixture.waitMarker()
-
-	fixture.requireEmptyDiff(cmp.Diff(
+	currFixture.requireEmptyDiff(cmp.Diff(
 		[]any{
 			map[string]any{"_dummy": nil, "id": int64(3), "idxcol": "three"},
 			map[string]any{"_dummy": nil, "id": int64(markerID), "idxcol": markerIdx},
 		},
-		fixture.readAllIndex("idxcol"),
+		currFixture.readAllIndex("idxcol"),
 	))
 }
