@@ -61,7 +61,7 @@ require (
 	github.com/prometheus/common v0.63.0
 	github.com/prometheus/procfs v0.16.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
-	github.com/segmentio/kafka-go v0.4.47
+	github.com/segmentio/kafka-go v0.4.48
 	github.com/shirou/gopsutil/v3 v3.24.2
 	github.com/shopspring/decimal v1.4.0
 	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed
