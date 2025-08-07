@@ -83,7 +83,7 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	shardingRuntime, ok := p.transfer.Runtime.(abstract.ShardingTaskRuntime)
+	shardingRuntime, ok := p.transfer.RuntimeForReplication().(abstract.ShardingTaskRuntime)
 	if !ok {
 		return nil, xerrors.Errorf("s3 source not supported non-sharding runtime: %T", p.transfer.Runtime)
 	}

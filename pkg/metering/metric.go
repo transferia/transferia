@@ -161,6 +161,10 @@ func NewMeteringOptsWithTags(transfer *model.Transfer, task *model.TransferOpera
 		runtime = task.Runtime
 	}
 	if runtime == nil {
+		// suposedly this is a billing of replication without task
+		runtime = transfer.ReplicationRuntime
+	}
+	if runtime == nil {
 		runtime = transfer.Runtime
 	}
 	if runtime == nil {

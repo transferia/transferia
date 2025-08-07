@@ -69,13 +69,13 @@ const replicationRetryInterval time.Duration = 10 * time.Second
 
 func RunReplicationWithMeteringTags(ctx context.Context, cp coordinator.Coordinator, transfer *model.Transfer, registry metrics.Registry, runtimeTags map[string]interface{}) error {
 	metering.InitializeWithTags(transfer, nil, runtimeTags)
-	shared.ApplyRuntimeLimits(transfer.Runtime)
+	shared.ApplyRuntimeLimits(transfer.RuntimeForReplication())
 	return runReplication(ctx, cp, transfer, registry, logger.Log)
 }
 
 func RunReplication(ctx context.Context, cp coordinator.Coordinator, transfer *model.Transfer, registry metrics.Registry) error {
 	metering.Initialize(transfer, nil)
-	shared.ApplyRuntimeLimits(transfer.Runtime)
+	shared.ApplyRuntimeLimits(transfer.RuntimeForReplication())
 	return runReplication(ctx, cp, transfer, registry, logger.Log)
 }
 
