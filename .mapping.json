@@ -3077,6 +3077,8 @@
   "tests/e2e/pg2mock/json/init_source/dump.sql":"transfer_manager/go/tests/e2e/pg2mock/json/init_source/dump.sql",
   "tests/e2e/pg2mock/list_tables/check_db_test.go":"transfer_manager/go/tests/e2e/pg2mock/list_tables/check_db_test.go",
   "tests/e2e/pg2mock/list_tables/dump/dump.sql":"transfer_manager/go/tests/e2e/pg2mock/list_tables/dump/dump.sql",
+  "tests/e2e/pg2mock/replica_identity_full/check_db_test.go":"transfer_manager/go/tests/e2e/pg2mock/replica_identity_full/check_db_test.go",
+  "tests/e2e/pg2mock/replica_identity_full/init_source/dump.sql":"transfer_manager/go/tests/e2e/pg2mock/replica_identity_full/init_source/dump.sql",
   "tests/e2e/pg2mock/retry_conn_leak/check_db_test.go":"transfer_manager/go/tests/e2e/pg2mock/retry_conn_leak/check_db_test.go",
   "tests/e2e/pg2mock/retry_conn_leak/init_source/dump.sql":"transfer_manager/go/tests/e2e/pg2mock/retry_conn_leak/init_source/dump.sql",
   "tests/e2e/pg2mock/slot_monitor/check_db_test.go":"transfer_manager/go/tests/e2e/pg2mock/slot_monitor/check_db_test.go",

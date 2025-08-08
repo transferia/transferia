@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pglogrepl"
@@ -121,6 +122,19 @@ func (c *changeProcessor) fixupChange(
 	if len(change.OldKeys.KeyNames) != len(change.OldKeys.KeyValues) {
 		msg := fmt.Sprintf("len(OldKeys.ColumnNames) != len(OldKeys.ColumnValues) (%d != %d)", len(change.OldKeys.KeyNames), len(change.OldKeys.KeyValues))
 		return makeChangeItemError(msg, change)
+	}
+
+	// If change is UPDATE or DELETE and number of oldKeys != number of primary keys in schema => we process table with REPLICA IDENTITY FULL
+	if len(change.OldKeys.KeyNames) > 0 &&
+		emissionSchema.Columns().KeysNum() > len(change.OldKeys.KeyNames) {
+		for _, col := range emissionSchema.Columns() {
+			if col.PrimaryKey && !slices.Contains(change.OldKeys.KeyNames, col.ColumnName) {
+				change.OldKeys.KeyNames = append(change.OldKeys.KeyNames, col.ColumnName)
+				change.OldKeys.KeyTypes = append(change.OldKeys.KeyTypes, col.DataType)
+				change.OldKeys.KeyValues = append(change.OldKeys.KeyValues, nil)
+				oldKeyTypeOIDs = append(oldKeyTypeOIDs, pgtype.OID(0))
+			}
+		}
 	}
 
 	errs := util.NewErrs()
