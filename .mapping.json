@@ -927,6 +927,7 @@
   "pkg/debezium/packer/util_test.go":"transfer_manager/go/pkg/debezium/packer/util_test.go",
   "pkg/debezium/parameters/parameters.go":"transfer_manager/go/pkg/debezium/parameters/parameters.go",
   "pkg/debezium/parameters/readme.md":"transfer_manager/go/pkg/debezium/parameters/readme.md",
+  "pkg/debezium/parameters/validate.go":"transfer_manager/go/pkg/debezium/parameters/validate.go",
   "pkg/debezium/pg/emitter.go":"transfer_manager/go/pkg/debezium/pg/emitter.go",
   "pkg/debezium/pg/receiver.go":"transfer_manager/go/pkg/debezium/pg/receiver.go",
   "pkg/debezium/pg/tests/canondata/result.json":"transfer_manager/go/pkg/debezium/pg/tests/canondata/result.json",

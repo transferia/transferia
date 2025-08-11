@@ -79,7 +79,10 @@ func emitAndValidate(connectorParameters map[string]string, changeItem *abstract
 	for k, v := range additionalParams {
 		params[k] = v
 	}
-	emitter, err := NewMessagesEmitter(params, "1.1.2.Final", false, logger.Log)
+
+	dropKeys := debeziumparameters.GetBatchingMaxSize(params) != 0
+
+	emitter, err := NewMessagesEmitter(params, "1.1.2.Final", dropKeys, logger.Log)
 	panicOnError(err)
 	emitter.TestSetIgnoreUnknownSources(true)
 	currDebeziumKV, err := emitter.emitKV(changeItem, time.Time{}, true, nil)
@@ -109,7 +112,9 @@ func emitAndValidate(connectorParameters map[string]string, changeItem *abstract
 	}
 
 	for _, el := range currDebeziumKV {
-		check(el.DebeziumKey)
+		if !dropKeys {
+			check(el.DebeziumKey)
+		}
 		if el.DebeziumVal != nil {
 			check(*el.DebeziumVal)
 		}

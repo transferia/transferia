@@ -707,6 +707,9 @@ func NewMessagesEmitter(connectorParameters map[string]string, version string, d
 	if err != nil {
 		return nil, xerrors.Errorf("can't create value message processor: %w", err)
 	}
+	if debeziumparameters.Validate(connectorParameters, dropKeys) != nil {
+		return nil, xerrors.Errorf("invalid debezium parameters - %w", err)
+	}
 	return &Emitter{
 		database:             debeziumparameters.GetDBName(connectorParameters),
 		databaseServerName:   debeziumparameters.GetTopicPrefix(connectorParameters),
