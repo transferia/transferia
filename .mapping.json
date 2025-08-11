@@ -1157,8 +1157,6 @@
   "pkg/parsers/registry/protobuf/protoparser/gotest/prototest":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/prototest",
   "pkg/parsers/registry/protobuf/protoparser/gotest/prototest/std_data_types.pb.go":"",
   "pkg/parsers/registry/protobuf/protoparser/gotest/prototest/std_data_types.proto":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/prototest/std_data_types.proto",
-  "pkg/parsers/registry/protobuf/protoparser/metrika_hit_log_test.go":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/metrika_hit_log_test.go",
-  "pkg/parsers/registry/protobuf/protoparser/metrika_hit_protoseq_test.go":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/metrika_hit_protoseq_test.go",
   "pkg/parsers/registry/protobuf/protoparser/proto_parser.go":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/proto_parser.go",
   "pkg/parsers/registry/protobuf/protoparser/proto_parser_config.go":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/proto_parser_config.go",
   "pkg/parsers/registry/protobuf/protoparser/proto_parser_config_test.go":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/proto_parser_config_test.go",
