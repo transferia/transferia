@@ -10,7 +10,7 @@ import (
 
 func TestTransformer(t *testing.T) {
 	transformer := &problemItemDetector{Config{}, logger.Log}
-	require.False(t, transformer.Suitable(abstract.TableID{}, nil))
+	require.True(t, transformer.Suitable(abstract.TableID{}, nil))
 	require.Equal(t, "problem item detector", transformer.Description())
 
 	changeItems := []abstract.ChangeItem{{}, {Table: "table"}}
