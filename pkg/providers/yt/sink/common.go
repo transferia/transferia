@@ -353,8 +353,8 @@ func newAnyWrapper(val any) (*rpcAnyWrapper, error) {
 	return &rpcAnyWrapper{ysonVal: res}, nil
 }
 
-func RestoreWithLengthLimitCheck(colSchema abstract.ColSchema, val interface{}, ignoreBigVals bool, lengthLimit int) (interface{}, error) {
-	res, err := restore(colSchema, val)
+func RestoreWithLengthLimitCheck(colSchema abstract.ColSchema, val any, ignoreBigVals bool, lengthLimit int) (any, error) {
+	res, err := restore(colSchema, val, lengthLimit == YtStatMaxStringLength)
 	if err != nil {
 		//nolint:descriptiveerrors
 		return res, err
@@ -382,16 +382,18 @@ func RestoreWithLengthLimitCheck(colSchema abstract.ColSchema, val interface{}, 
 			}
 			return res, xerrors.Errorf("string of type %v is larger than allowed for dynamic table size", colSchema.DataType)
 		}
+	default:
+		logger.Log.Debugf("variable of type %T is detected, skip length assertion (it is okay if target is a static table)", res)
 	}
 	return res, nil
 }
 
-func restore(colSchema abstract.ColSchema, val interface{}) (interface{}, error) {
+func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) {
 	if val == nil {
 		return val, nil
 	}
 	if reflect.ValueOf(val).Kind() == reflect.Pointer {
-		restored, err := restore(colSchema, reflect.ValueOf(val).Elem().Interface())
+		restored, err := restore(colSchema, reflect.ValueOf(val).Elem().Interface(), isStatic)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to restore from ptr: %w", err)
 		}
@@ -446,7 +448,7 @@ func restore(colSchema abstract.ColSchema, val interface{}) (interface{}, error)
 				return nil, xerrors.Errorf("unable to parse float64 from json number: %w", err)
 			}
 		}
-		if colSchema.DataType == schema.TypeAny.String() {
+		if colSchema.DataType == schema.TypeAny.String() && !isStatic {
 			//nolint:descriptiveerrors
 			return newAnyWrapper(res)
 		}
@@ -509,7 +511,7 @@ func restore(colSchema abstract.ColSchema, val interface{}) (interface{}, error)
 	}
 
 	res := abstract.Restore(colSchema, val)
-	if colSchema.DataType == schema.TypeAny.String() {
+	if colSchema.DataType == schema.TypeAny.String() && !isStatic {
 		//nolint:descriptiveerrors
 		return newAnyWrapper(res)
 	}
