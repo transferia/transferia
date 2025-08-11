@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/transferia/transferia/cloud/dataplatform/lib/debugtools"
 	"github.com/transferia/transferia/internal/logger"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -36,10 +35,10 @@ func RunHealthCheckOnPort(port int) {
 
 func RunPprof() {
 	logger.Log.Infof("init pprof on port 8080") // on 8080, bcs YT-vanilla forbid listen 80 port
-	server, err := debugtools.NewServer("tcp", ":8080", logger.Log)
+	server, err := NewServer("tcp", ":8080", logger.Log)
 	if err != nil {
 		logger.Log.Info("failed to serve pprof on 8080, try random port", log.Error(err))
-		server, err = debugtools.NewServer("tcp", ":0", logger.Log)
+		server, err = NewServer("tcp", ":0", logger.Log)
 		if err != nil {
 			logger.Log.Error("failed to add listener for pprof", log.Error(err))
 			return
