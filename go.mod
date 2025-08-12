@@ -394,3 +394,5 @@ replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.14.6
 replace buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go => buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.4-20250130201111-63bb56e20495.1
 
 replace github.com/bufbuild/protoyaml-go => buf.build/go/protoyaml v0.3.2
+
+replace github.com/segmentio/kafka-go => ./vendor_patched/github.com/segmentio/kafka-go
