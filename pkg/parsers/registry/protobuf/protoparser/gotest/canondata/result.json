@@ -2,6 +2,9 @@
     "gotest.gotest.TestCheckNotFillEmptyFields/fill_empty_fields": {
         "uri": "file://gotest.gotest.TestCheckNotFillEmptyFields_fill_empty_fields/extracted"
     },
+    "gotest.gotest.TestCheckNotFillEmptyFields/not_fill_column_with_nil_value": {
+        "uri": "file://gotest.gotest.TestCheckNotFillEmptyFields_not_fill_column_with_nil_value/extracted"
+    },
     "gotest.gotest.TestCheckNotFillEmptyFields/not_fill_empty_fields": {
         "uri": "file://gotest.gotest.TestCheckNotFillEmptyFields_not_fill_empty_fields/extracted"
     }

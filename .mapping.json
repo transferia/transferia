@@ -1144,6 +1144,7 @@
   "pkg/parsers/registry/protobuf/parser_config_proto_lb.go":"transfer_manager/go/pkg/parsers/registry/protobuf/parser_config_proto_lb.go",
   "pkg/parsers/registry/protobuf/parser_proto.go":"transfer_manager/go/pkg/parsers/registry/protobuf/parser_proto.go",
   "pkg/parsers/registry/protobuf/protoparser/gotest/canondata/gotest.gotest.TestCheckNotFillEmptyFields_fill_empty_fields/extracted":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/canondata/gotest.gotest.TestCheckNotFillEmptyFields_fill_empty_fields/extracted",
+  "pkg/parsers/registry/protobuf/protoparser/gotest/canondata/gotest.gotest.TestCheckNotFillEmptyFields_not_fill_column_with_nil_value/extracted":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/canondata/gotest.gotest.TestCheckNotFillEmptyFields_not_fill_column_with_nil_value/extracted",
   "pkg/parsers/registry/protobuf/protoparser/gotest/canondata/gotest.gotest.TestCheckNotFillEmptyFields_not_fill_empty_fields/extracted":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/canondata/gotest.gotest.TestCheckNotFillEmptyFields_not_fill_empty_fields/extracted",
   "pkg/parsers/registry/protobuf/protoparser/gotest/canondata/result.json":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/canondata/result.json",
   "pkg/parsers/registry/protobuf/protoparser/gotest/extract_message.desc":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/extract_message.desc",

@@ -205,6 +205,7 @@ func (p *ProtoParser) makeValues(iterSt *iterState, protoMsg protoreflect.Messag
 		}
 
 		if !protoMsg.Has(fd) && p.cfg.NotFillEmptyFields {
+			res = append(res, nil)
 			continue
 		}
 

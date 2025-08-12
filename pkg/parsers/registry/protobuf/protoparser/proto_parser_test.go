@@ -553,4 +553,20 @@ func TestCheckNotFillEmptyFields(t *testing.T) {
 		require.Len(t, got, 1)
 		canon.SaveJSON(t, got[0].ToJSONString())
 	})
+
+	t.Run("not fill column with nil value", func(t *testing.T) {
+		config.NotFillEmptyFields = true
+		config.IncludeColumns = fieldList(desc, false)
+		par, err := NewProtoParser(&config, getSourceStatsMock())
+		require.NoError(t, err)
+
+		data, err := proto.Marshal(stdDataTypesEmpty)
+		require.NoError(t, err)
+
+		pMsg.Value = data
+
+		got := par.Do(pMsg, abstract.NewPartition("", 0))
+		require.Len(t, got, 1)
+		canon.SaveJSON(t, got[0].ToJSONString())
+	})
 }
