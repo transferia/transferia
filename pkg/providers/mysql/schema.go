@@ -143,6 +143,10 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, dat
 		}
 		tableCols[col.TableID()] = append(tableCols[col.TableID()], col)
 	}
+	hasPrimaryKey := make(map[abstract.TableID]bool)
+	tmpConstraintNames := make(map[abstract.TableID][]string)
+	tmpColumnNames := make(map[abstract.TableID][]string)
+	tmpColumnPositions := make(map[abstract.TableID][]int)
 	pKeys := make(map[abstract.TableID][]string)
 	uKeys := make(map[abstract.TableID][]string)
 	query = fmt.Sprintf(constraintList, "")
@@ -173,10 +177,24 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, dat
 		}
 		if constraintName.Valid && constraintName.String == "PRIMARY" {
 			pKeys[col.TableID()] = append(pKeys[col.TableID()], col.ColumnName)
+			hasPrimaryKey[col.TableID()] = true
 		} else {
 			uKeys[col.TableID()] = append(uKeys[col.TableID()], col.ColumnName)
+			tmpConstraintNames[col.TableID()] = append(tmpConstraintNames[col.TableID()], constraintName.String)
+			tmpColumnNames[col.TableID()] = append(tmpColumnNames[col.TableID()], col.ColumnName)
+			tmpColumnPositions[col.TableID()] = append(tmpColumnPositions[col.TableID()], pos)
 		}
 	}
+
+	// TODO remove after TM-9031
+	for tableID, ok := range hasPrimaryKey {
+		if !ok {
+			continue
+		}
+
+		logger.Log.Infof("DEBUG TM-9031: table %s.%s has no primary key on SNAPSHOT, constraints: %v, columns: %v, postitions: %v", tableID.Namespace, tableID.Name, tmpConstraintNames[tableID], tmpColumnNames[tableID], tmpColumnPositions[tableID])
+	}
+
 	for tID, currSchema := range tableCols {
 		keys := pKeys[tID]
 		if len(keys) == 0 {
@@ -200,6 +218,11 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, dat
 }
 
 func LoadTableConstraints(tx queryExecutor, table abstract.TableID) (map[string][]string, error) {
+	hasPrimaryKey := false
+	tmpConstraintNames := make([]string, 0)
+	tmpColumnNames := make([]string, 0)
+	tmpColumnPositions := make([]int, 0)
+
 	constraints := make(map[string][]string)
 	cRows, err := tx.Query(tableConstraintList, table.Namespace, table.Name)
 	if err != nil {
@@ -227,7 +250,21 @@ func LoadTableConstraints(tx queryExecutor, table abstract.TableID) (map[string]
 			cName := constraintName.String
 			constraints[cName] = append(constraints[cName], col.ColumnName)
 		}
+
+		if constraintName.Valid && constraintName.String == "PRIMARY" {
+			hasPrimaryKey = true
+		} else {
+			tmpConstraintNames = append(tmpConstraintNames, constraintName.String)
+			tmpColumnNames = append(tmpColumnNames, col.ColumnName)
+			tmpColumnPositions = append(tmpColumnPositions, pos)
+		}
 	}
+
+	// TODO remove after TM-9031
+	if !hasPrimaryKey {
+		logger.Log.Infof("DEBUG TM-9031: table %s.%s has no primary key on REPLICATION, constraints: %v, columns: %v, postitions: %v", table.Namespace, table.Name, tmpConstraintNames, tmpColumnNames, tmpColumnPositions)
+	}
+
 	return constraints, nil
 }
 
