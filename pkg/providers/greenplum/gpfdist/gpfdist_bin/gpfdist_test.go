@@ -1,13 +1,14 @@
 package gpfdistbin
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
-func TestErrorInterface(t *testing.T) {
+func TestTryFunction(t *testing.T) {
 	err := newCancelFailedError(xerrors.New("error"))
 	require.True(t, xerrors.As(err, new(CancelFailedError)))
 
@@ -21,4 +22,12 @@ func TestErrorInterface(t *testing.T) {
 	var cancelErr2 CancelFailedError
 	require.True(t, xerrors.As(wrappedErr, &cancelErr2))
 	require.Equal(t, err, cancelErr2)
+}
+
+func TestLocationBrackets(t *testing.T) {
+	g := &Gpfdist{localAddr: net.ParseIP("192.168.1.5"), port: 6500, pipeName: "data"}
+	require.Equal(t, "gpfdist://192.168.1.5:6500/data", g.Location())
+
+	g = &Gpfdist{localAddr: net.ParseIP("fe80::1234"), port: 6501, pipeName: "data"}
+	require.Equal(t, "gpfdist://[fe80::1234]:6501/data", g.Location())
 }

@@ -116,7 +116,8 @@ func (g *Gpfdist) fullPath(relativePath string) string {
 }
 
 func (g *Gpfdist) Location() string {
-	return fmt.Sprintf("gpfdist://[%s]:%d/%s", g.localAddr.String(), g.port, g.pipeName)
+	hostPort := net.JoinHostPort(g.localAddr.String(), strconv.Itoa(g.port))
+	return fmt.Sprintf("gpfdist://%s/%s", hostPort, g.pipeName)
 }
 
 func (g *Gpfdist) removePipe() error {
