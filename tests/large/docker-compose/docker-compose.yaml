@@ -6,8 +6,8 @@ services:
   base:
     # Base image for external cloud see at transfer_manager/ci/teamcity/build_docker_image
     # Corresponding Teamcity task:
-    # https://teamcity.aw.cloud.yandex.net/buildConfiguration/DataTransfer_BaseDockerImage/15838649
-    image: registry.yandex.net/cdc/base:c05141606196551e8c520cbaee13a274b240ae5a@sha256:b6bbbc8ee1c0d395c94efb89b96cb4d4907215617d1533be66257ed2aa73eb72
+    # https://teamcity.aw.cloud.yandex.net/viewLog.html?buildId=22974362
+    image: registry.yandex.net/cdc/base:fb7e96846d835630ba97f12d11a8549cbf42b544@sha256:b047a1cb1147c84de5d71f521bd9c1fc582e00259be76d1bd7487d4e3d544d3e
   tricky-types-pg2pg-source1:
     build:
       context: data/tricky_types_pg2pg/source1/
