@@ -52,7 +52,7 @@ func dropChangeFeedIfExistsOneTable(ctx context.Context, ydbClient *ydb.Driver, 
 }
 
 func createChangeFeedOneTable(ctx context.Context, ydbClient *ydb.Driver, tablePath, transferID string, cfg *YdbSource) error {
-	queryParams := fmt.Sprintf("FORMAT = 'JSON', MODE = '%s'", string(cfg.ChangeFeedMode))
+	queryParams := fmt.Sprintf("FORMAT = 'JSON', MODE = '%s', TOPIC_AUTO_PARTITIONING = 'ENABLED'", string(cfg.ChangeFeedMode))
 
 	if period := cfg.ChangeFeedRetentionPeriod; period != nil {
 		asIso, err := castx.DurationToIso8601(*period)
