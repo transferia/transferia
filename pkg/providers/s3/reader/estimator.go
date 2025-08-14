@@ -41,7 +41,15 @@ func EstimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Obje
 		return 0, sampleReader, xerrors.Errorf("unable to estimate size: %w", err)
 	}
 	var totalSize uint64
-	for _, s := range sizes {
+	for i, s := range sizes {
+		if s < 0 {
+			var fileName string
+			if sniffFiles[i].Key != nil {
+				fileName = *sniffFiles[i].Key
+			}
+			lgr.Infof("file %s has negative size, skipping", fileName)
+			continue
+		}
 		totalSize += uint64(s)
 	}
 	totalSize = uint64(float64(totalSize) * multiplier)

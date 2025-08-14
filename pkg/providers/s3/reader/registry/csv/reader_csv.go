@@ -109,6 +109,9 @@ func (r *CSVReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (u
 				return 0, xerrors.Errorf("failed to read sample lines for row count estimation: %w", err)
 			}
 			bytesRead := csvReader.GetOffset()
+			if bytesRead == 0 || len(lines) == 0 {
+				return 0, nil
+			}
 			bytesPerRow := float64(bytesRead) / float64(len(lines))
 			totalRows = math.Ceil(float64(totalSize) / bytesPerRow)
 		}
@@ -381,7 +384,7 @@ func (r *CSVReader) resolveSchema(ctx context.Context, key string) (*abstract.Ta
 
 	allColNames, err := r.getColumnNames(csvReader)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to extract column names from csv file: %w", err)
+		return nil, xerrors.Errorf("failed to extract column names from csv file '%s': %w", key, err)
 	}
 
 	filteredColNames, err := r.filterColNames(allColNames)
@@ -391,7 +394,7 @@ func (r *CSVReader) resolveSchema(ctx context.Context, key string) (*abstract.Ta
 
 	currSchema, err := r.getColumnTypes(filteredColNames, csvReader)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to deduce column types based on sample read: %w", err)
+		return nil, xerrors.Errorf("failed to deduce column types based on sample read for file '%s': %w", key, err)
 	}
 
 	return abstract.NewTableSchema(currSchema), nil

@@ -3,6 +3,7 @@ package reader
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -103,6 +104,52 @@ func TestResolveCSVSchema(t *testing.T) {
 		require.Equal(t, []string{"name", "surname", "st.", "city", "state", "zip-code"}, currSchema.Columns().ColumnNames())
 		require.Equal(t, []string{"utf8", "utf8", "utf8", "utf8", "utf8", "double"}, abstract_reader.DataTypes(currSchema.Columns()))
 	})
+}
+
+func TestEstimateRows_NoCompleteLinesReturnsZero(t *testing.T) {
+	src := s3recipe.PrepareCfg(t, "estimate_rows", "")
+
+	key := "estimate_rows/no_newline.csv"
+	abs, err := os.Getwd()
+	require.NoError(t, err)
+	localPath := abs + "/" + key
+	require.NoError(t, os.MkdirAll(filepath.Dir(localPath), 0o755))
+	f, err := os.Create(localPath)
+	require.NoError(t, err)
+	_, err = f.WriteString("col1,col2")
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	s3recipe.UploadOne(t, src, key)
+
+	sess, err := session.NewSession(&aws.Config{
+		Endpoint:         aws.String(src.ConnectionConfig.Endpoint),
+		Region:           aws.String(src.ConnectionConfig.Region),
+		S3ForcePathStyle: aws.Bool(src.ConnectionConfig.S3ForcePathStyle),
+		Credentials: credentials.NewStaticCredentials(
+			src.ConnectionConfig.AccessKey, string(src.ConnectionConfig.SecretKey), "",
+		),
+	})
+	require.NoError(t, err)
+
+	r := &CSVReader{
+		client:          aws_s3.New(sess),
+		bucket:          src.Bucket,
+		pathPrefix:      "estimate_rows",
+		maxBatchSize:    128,
+		blockSize:       1 * 1024,
+		logger:          logger.Log,
+		delimiter:       ',',
+		quoteChar:       '"',
+		doubleQuote:     true,
+		newlinesInValue: true,
+		escapeChar:      '\\',
+		metrics:         stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())),
+	}
+
+	rows, err := r.EstimateRowsCountAllObjects(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), rows)
 }
 
 func TestConstructCI(t *testing.T) {

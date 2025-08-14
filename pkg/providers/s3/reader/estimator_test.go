@@ -90,3 +90,36 @@ func TestEstimateTotalSize(t *testing.T) {
 		})
 	}
 }
+
+func TestEstimateTotalSize_SkipNegativeSizes(t *testing.T) {
+	files := []*s3.Object{
+		{Key: aws.String("neg")},
+		{Key: aws.String("pos")},
+	}
+	sizes := map[string]int64{
+		"neg": -1,
+		"pos": 200,
+	}
+
+	total, sample, err := EstimateTotalSize(context.Background(), logger.Log, files, dummyReaderF(sizes))
+	require.NoError(t, err)
+	require.Equal(t, uint64(200), total)
+	require.NotNil(t, sample)
+	require.Equal(t, int64(200), sample.Size())
+}
+
+func TestEstimateTotalSize_AllNonPositiveSizes(t *testing.T) {
+	files := []*s3.Object{
+		{Key: aws.String("zero")},
+		{Key: aws.String("neg")},
+	}
+	sizes := map[string]int64{
+		"zero": 0,
+		"neg":  -1,
+	}
+
+	total, sample, err := EstimateTotalSize(context.Background(), logger.Log, files, dummyReaderF(sizes))
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), total)
+	require.Nil(t, sample)
+}
