@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"sync/atomic"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -22,8 +23,9 @@ import (
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
-	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -31,7 +33,7 @@ import (
 )
 
 func init() {
-	reader.RegisterReader(model.ParsingFormatPROTO, NewProtoReader)
+	abstract_reader.RegisterReader(model.ParsingFormatPROTO, NewProtoReader)
 }
 
 const (
@@ -40,8 +42,8 @@ const (
 )
 
 var (
-	_ reader.Reader             = (*ProtoReader)(nil)
-	_ reader.RowsCountEstimator = (*ProtoReader)(nil)
+	_ abstract_reader.Reader             = (*ProtoReader)(nil)
+	_ abstract_reader.RowsCountEstimator = (*ProtoReader)(nil)
 )
 
 type ProtoReader struct {
@@ -55,11 +57,11 @@ type ProtoReader struct {
 	blockSize      int64
 	pathPattern    string
 	metrics        *stats.SourceStats
-	parserBuilder  parsers.LazyParserBuilder
+	parserBuilder  parsers.ParserBuilder
 	unparsedPolicy s3.UnparsedPolicy
 }
 
-func NewProtoReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (reader.Reader, error) {
+func NewProtoReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (abstract_reader.Reader, error) {
 	if len(src.Format.ProtoParser.DescFile) == 0 {
 		return nil, xerrors.New("desc file required")
 	}
@@ -81,11 +83,11 @@ func NewProtoReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, met
 	cfg.SetLineSplitter(src.Format.ProtoParser.PackageType)
 	cfg.SetScannerType(src.Format.ProtoParser.PackageType)
 
-	parser, err := protoparser.NewLazyProtoParserBuilder(cfg, metrics)
+	parserBuilder, err := protoparser.NewLazyProtoParserBuilder(cfg, metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to construct proto parser: %w", err)
 	}
-	return newReaderImpl(src, lgr, sess, metrics, parser)
+	return newReaderImpl(src, lgr, sess, metrics, parserBuilder)
 }
 
 func (r *ProtoReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
@@ -105,6 +107,7 @@ func (r *ProtoReader) newS3RawReader(ctx context.Context, filePath string) (s3ra
 func (r *ProtoReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
 	totalSize := atomic.Int64{}
 	var randomReader s3raw.S3RawReader
+	var randomKey *string
 
 	// 1. Open readers for all files to obtain their sizes.
 	eg := errgroup.Group{}
@@ -124,6 +127,7 @@ func (r *ProtoReader) estimateRows(ctx context.Context, files []*aws_s3.Object) 
 				if randomReader == nil && size > 0 {
 					// Since we need just one random s3RawReader, race here is not a problem.
 					randomReader = s3RawReader
+					randomKey = file.Key
 				}
 			}
 			totalSize.Add(size)
@@ -137,7 +141,7 @@ func (r *ProtoReader) estimateRows(ctx context.Context, files []*aws_s3.Object) 
 	res := uint64(0)
 	if total := totalSize.Load(); total > 0 && randomReader != nil {
 		// 2. Take one random reader, calculate its average line size.
-		linesCount, err := r.countLines(ctx, randomReader)
+		linesCount, err := r.countLines(ctx, randomReader, randomKey)
 		if err != nil {
 			return 0, xerrors.Errorf("unable to parse: %w", err)
 		}
@@ -150,27 +154,23 @@ func (r *ProtoReader) estimateRows(ctx context.Context, files []*aws_s3.Object) 
 	return res, nil
 }
 
-func (r *ProtoReader) countLines(ctx context.Context, reader s3raw.S3RawReader) (int, error) {
-	fullFile, err := s3raw.ReadWholeFile(ctx, reader, r.blockSize)
-	if err != nil {
-		return 0, xerrors.Errorf("unable to read whole file: %w", err)
-	}
-	parser, err := r.parserBuilder.BuildLazyParser(parsers.Message{
-		Offset:     0,
-		SeqNo:      0,
-		Key:        nil,
-		CreateTime: reader.LastModified(),
-		WriteTime:  reader.LastModified(),
-		Value:      fullFile,
-		Headers:    nil,
-	}, abstract.NewPartition("", 0))
-	if err != nil {
-		return 0, xerrors.Errorf("unable to prepare parser: %w", err)
-	}
+func (r *ProtoReader) countLines(ctx context.Context, reader s3raw.S3RawReader, key *string) (int, error) {
 	res := 0
-	for parser.Next() != nil {
-		res++
+
+	counter := func(items []abstract.ChangeItem) error {
+		res += len(items)
+		return nil
 	}
+
+	var keyStr string
+	if key != nil {
+		keyStr = *key
+	}
+
+	if err := r.Read(context.Background(), keyStr, chunk_pusher.NewSyncPusher(counter)); err != nil {
+		return 0, xerrors.Errorf("unable to read file '%s': %w", keyStr, err)
+	}
+
 	return res, nil
 }
 
@@ -183,7 +183,7 @@ func (r *ProtoReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s
 }
 
 func (r *ProtoReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -196,24 +196,22 @@ func (r *ProtoReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, 
 }
 
 func (r *ProtoReader) Read(ctx context.Context, filePath string, pusher chunk_pusher.Pusher) error {
-	reader, err := r.newS3RawReader(ctx, filePath)
+	s3RawReader, err := r.newS3RawReader(ctx, filePath)
 	if err != nil {
 		return xerrors.Errorf("unable to open reader: %w", err)
 	}
-	fullFile, err := s3raw.ReadWholeFile(ctx, reader, r.blockSize)
+
+	if s3RawReader.Size() > defaultBlockSize {
+		chunkReader := abstract_reader.NewChunkReader(s3RawReader, abstract_reader.DefaultChunkReaderBlockSize, r.logger)
+		defer chunkReader.Close()
+		return r.streamParseFile(ctx, filePath, chunkReader, pusher, s3RawReader.LastModified())
+	}
+
+	fullFile, err := s3raw.ReadWholeFile(ctx, s3RawReader, r.blockSize)
 	if err != nil {
 		return xerrors.Errorf("unable to read whole file: %w", err)
 	}
-	msg := parsers.Message{
-		Offset:     0,
-		SeqNo:      0,
-		Key:        nil,
-		CreateTime: reader.LastModified(),
-		WriteTime:  reader.LastModified(),
-		Value:      fullFile,
-		Headers:    nil,
-	}
-
+	msg := constructMessage(s3RawReader.LastModified(), fullFile, []byte(filePath))
 	parser, err := r.parserBuilder.BuildLazyParser(msg, abstract.NewPartition(filePath, 0))
 	if err != nil {
 		return xerrors.Errorf("unable to prepare parser: %w", err)
@@ -273,7 +271,7 @@ func (r *ProtoReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema,
 		return r.tableSchema, nil
 	}
 
-	files, err := reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -285,7 +283,9 @@ func (r *ProtoReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema,
 	return r.resolveSchema(ctx, *files[0].Key)
 }
 
-func (r *ProtoReader) ObjectsFilter() reader.ObjectsFilter { return reader.IsNotEmpty }
+func (r *ProtoReader) ObjectsFilter() abstract_reader.ObjectsFilter {
+	return abstract_reader.IsNotEmpty
+}
 
 func (r *ProtoReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
 	s3RawReader, err := r.newS3RawReader(ctx, key)
@@ -293,30 +293,23 @@ func (r *ProtoReader) resolveSchema(ctx context.Context, key string) (*abstract.
 		return nil, xerrors.Errorf("unable to open reader for file: %s: %w", key, err)
 	}
 
-	buff := make([]byte, r.blockSize)
-	read, err := s3RawReader.ReadAt(buff, 0)
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	defer chunkReader.Close()
+	err = chunkReader.ReadNextChunk()
 	if err != nil && !xerrors.Is(err, io.EOF) {
 		return nil, xerrors.Errorf("failed to read sample from file: %s: %w", key, err)
 	}
-	if read == 0 {
+	if len(chunkReader.Data()) == 0 {
 		// read nothing, file was empty
 		return nil, xerrors.New(fmt.Sprintf("could not read sample data from file: %s", key))
 	}
 
-	reader := bufio.NewReader(bytes.NewReader(buff))
+	reader := bufio.NewReader(bytes.NewReader(chunkReader.Data()))
 	content, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to read sample content for schema deduction: %w", err)
 	}
-	parser, err := r.parserBuilder.BuildLazyParser(parsers.Message{
-		Offset:     0,
-		SeqNo:      0,
-		Key:        []byte(key),
-		CreateTime: s3RawReader.LastModified(),
-		WriteTime:  s3RawReader.LastModified(),
-		Value:      content,
-		Headers:    nil,
-	}, abstract.NewPartition(key, 0))
+	parser, err := r.parserBuilder.BuildLazyParser(constructMessage(s3RawReader.LastModified(), content, []byte(key)), abstract.NewPartition(key, 0))
 	if err != nil {
 		return nil, xerrors.Errorf("failed to prepare parser: %w", err)
 	}
@@ -328,7 +321,68 @@ func (r *ProtoReader) resolveSchema(ctx context.Context, key string) (*abstract.
 	return r.tableSchema, nil
 }
 
-func newReaderImpl(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats, parserBuilder parsers.LazyParserBuilder) (*ProtoReader, error) {
+func (r *ProtoReader) streamParseFile(ctx context.Context, filePath string, chunkReader *abstract_reader.ChunkReader, pusher chunk_pusher.Pusher, lastModified time.Time) error {
+	lastUnparsedData := make([]byte, 0)
+	parser := r.parserBuilder.BuildBaseParser()
+	for !chunkReader.IsEOF() {
+		if ctx.Err() != nil {
+			r.logger.Infof("stream parse file %s canceled", filePath)
+			break
+		}
+		if err := chunkReader.ReadNextChunk(); err != nil {
+			return xerrors.Errorf("failed to read sample from file: %s: %w", filePath, err)
+		}
+		data := chunkReader.Data()
+		parsed := parser.Do(constructMessage(lastModified, data, []byte(filePath)), abstract.NewPartition(filePath, 0))
+		if len(parsed) == 0 {
+			continue
+		}
+		if unparsed := parsed[len(parsed)-1]; parsers.IsUnparsed(unparsed) {
+			lastUnparsedData = data[len(data)-int(unparsed.Size.Read):]
+			parsed = parsed[:len(parsed)-1]
+		} else {
+			lastUnparsedData = nil
+		}
+		parsedDataSize := int64(len(data) - len(lastUnparsedData))
+		if r.unparsedPolicy == s3.UnparsedPolicyFail {
+			if err := parsers.VerifyUnparsed(parsed...); err != nil {
+				return abstract.NewFatalError(xerrors.Errorf("unable to parse: %w", err))
+			}
+		}
+		if err := abstract_reader.FlushChunk(ctx, filePath, uint64(chunkReader.Offset()), parsedDataSize, parsed, pusher); err != nil {
+			return xerrors.Errorf("unable to push: %w", err)
+		}
+		chunkReader.FillBuffer(lastUnparsedData)
+	}
+
+	if len(lastUnparsedData) > 0 && r.unparsedPolicy == s3.UnparsedPolicyFail {
+		return abstract.NewFatalError(xerrors.Errorf("unparsed data found in the end of file: %s", filePath))
+	}
+
+	if len(lastUnparsedData) > 0 {
+		data := chunkReader.Data()
+		parsed := parser.Do(constructMessage(lastModified, data, []byte(filePath)), abstract.NewPartition(filePath, 0))
+		if err := abstract_reader.FlushChunk(ctx, filePath, uint64(chunkReader.Offset()), int64(len(data)), parsed, pusher); err != nil {
+			return xerrors.Errorf("unable to push: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func constructMessage(curTime time.Time, buff []byte, key []byte) parsers.Message {
+	return parsers.Message{
+		Offset:     0,
+		SeqNo:      0,
+		Key:        key,
+		CreateTime: curTime,
+		WriteTime:  curTime,
+		Value:      buff,
+		Headers:    nil,
+	}
+}
+
+func newReaderImpl(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats, parserBuilder parsers.ParserBuilder) (*ProtoReader, error) {
 	reader := &ProtoReader{
 		table: abstract.TableID{
 			Namespace: src.TableNamespace,

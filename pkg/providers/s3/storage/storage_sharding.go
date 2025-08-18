@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/predicate"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 )
 
 // To verify providers contract implementation
@@ -60,7 +61,7 @@ func (s *Storage) calculateFilesStats(ctx context.Context, files []*s3.Object, n
 		}
 		size := uint64(0)
 		if needSizes {
-			if size, err = reader.FileSize(s.cfg.Bucket, file, s.client, s.logger); err != nil {
+			if size, err = s3util.FileSize(s.cfg.Bucket, file, s.client, s.logger); err != nil {
 				return nil, xerrors.Errorf("unable to get file size: %w", err)
 			}
 		}
@@ -81,7 +82,7 @@ func (s *Storage) ShardTable(ctx context.Context, tdesc abstract.TableDescriptio
 		}
 		return s.matchOperands(operands, file)
 	})
-	listedFiles, err := reader.ListFiles(s.cfg.Bucket, s.cfg.PathPrefix, s.cfg.PathPattern, s.client, s.logger, nil, filesFilter)
+	listedFiles, err := s3util.ListFiles(s.cfg.Bucket, s.cfg.PathPrefix, s.cfg.PathPattern, s.client, s.logger, nil, filesFilter)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}

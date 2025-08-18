@@ -23,6 +23,7 @@ import (
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/valyala/fastjson"
@@ -76,13 +77,14 @@ func (r *JSONParserReader) estimateRows(ctx context.Context, files []*aws_s3.Obj
 	}
 
 	if totalSize > 0 && sampleReader != nil {
-		data := make([]byte, r.blockSize)
-		bytesRead, err := sampleReader.ReadAt(data, 0)
+		chunkReader := abstract_reader.NewChunkReader(sampleReader, int(r.blockSize), r.logger)
+		defer chunkReader.Close()
+		err = chunkReader.ReadNextChunk()
 		if err != nil && !xerrors.Is(err, io.EOF) {
 			return uint64(0), xerrors.Errorf("failed to estimate row count: %w", err)
 		}
-		if bytesRead > 0 {
-			lines, bytesRead := readAllMultilineLines(data)
+		if len(chunkReader.Data()) > 0 {
+			lines, bytesRead := readAllMultilineLines(chunkReader.Data())
 			bytesPerLine := float64(bytesRead) / float64(len(lines))
 			totalLines := math.Ceil(float64(totalSize) / bytesPerLine)
 			res = uint64(totalLines)
@@ -100,7 +102,7 @@ func (r *JSONParserReader) EstimateRowsCountOneObject(ctx context.Context, obj *
 }
 
 func (r *JSONParserReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -122,34 +124,30 @@ func (r *JSONParserReader) Read(ctx context.Context, filePath string, pusher chu
 	lineCounter := uint64(1)
 	var readBytes int
 	var lines []string
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	defer chunkReader.Close()
 
-	for {
-		select {
-		case <-ctx.Done():
+	for lastRound := false; !lastRound; {
+		if ctx.Err() != nil {
 			r.logger.Info("Read canceled")
 			return nil
-		default:
 		}
-		data := make([]byte, r.blockSize)
-		lastRound := false
-		n, err := s3RawReader.ReadAt(data, int64(offset))
-		if err != nil {
-			if xerrors.Is(err, io.EOF) && n > 0 {
-				data = data[0:n]
-				lastRound = true
-			} else {
-				return xerrors.Errorf("failed to read from file: %w", err)
-			}
+		if err := chunkReader.ReadNextChunk(); err != nil {
+			return xerrors.Errorf("failed to read from file: %w", err)
+		}
+		if chunkReader.IsEOF() && len(chunkReader.Data()) > 0 {
+			lastRound = true
 		}
 		if r.newlinesInValue {
-			lines, readBytes = readAllMultilineLines(data)
+			lines, readBytes = readAllMultilineLines(chunkReader.Data())
 		} else {
-			lines, readBytes, err = readAllLines(data)
+			lines, readBytes, err = readAllLines(chunkReader.Data())
 			if err != nil {
 				return xerrors.Errorf("failed to read lines from file: %w", err)
 			}
 		}
 
+		chunkReader.FillBuffer(chunkReader.Data()[readBytes:])
 		offset += readBytes
 		var buff []abstract.ChangeItem
 		var currentSize int64
@@ -185,32 +183,15 @@ func (r *JSONParserReader) Read(ctx context.Context, filePath string, pusher chu
 			lineCounter++
 
 			if len(buff) > r.batchSize {
-				if err := pusher.Push(ctx, chunk_pusher.Chunk{
-					Items:     buff,
-					FilePath:  filePath,
-					Offset:    lineCounter,
-					Completed: false,
-					Size:      currentSize,
-				}); err != nil {
+				if err := abstract_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
 					return xerrors.Errorf("unable to push: %w", err)
 				}
 				currentSize = 0
 				buff = []abstract.ChangeItem{}
 			}
 		}
-		if len(buff) > 0 {
-			if err := pusher.Push(ctx, chunk_pusher.Chunk{
-				Items:     buff,
-				FilePath:  filePath,
-				Offset:    lineCounter,
-				Completed: false,
-				Size:      currentSize,
-			}); err != nil {
-				return xerrors.Errorf("unable to push: %w", err)
-			}
-		}
-		if lastRound {
-			break
+		if err := abstract_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
+			return xerrors.Errorf("unable to push last batch: %w", err)
 		}
 	}
 
@@ -227,7 +208,7 @@ func (r *JSONParserReader) ResolveSchema(ctx context.Context) (*abstract.TableSc
 		return r.tableSchema, nil
 	}
 
-	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -249,17 +230,18 @@ func (r *JSONParserReader) resolveSchema(ctx context.Context, key string) (*abst
 		return nil, xerrors.Errorf("unable to open reader for file: %s: %w", key, err)
 	}
 
-	buff := make([]byte, r.blockSize)
-	read, err := s3RawReader.ReadAt(buff, 0)
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	defer chunkReader.Close()
+	err = chunkReader.ReadNextChunk()
 	if err != nil && !xerrors.Is(err, io.EOF) {
 		return nil, xerrors.Errorf("failed to read sample from file: %s: %w", key, err)
 	}
-	if read == 0 {
+	if len(chunkReader.Data()) == 0 {
 		// read nothing, file was empty
 		return nil, xerrors.New(fmt.Sprintf("could not read sample data from file: %s", key))
 	}
 
-	reader := bufio.NewReader(bytes.NewReader(buff))
+	reader := bufio.NewReader(bytes.NewReader(chunkReader.Data()))
 	var line string
 	if r.newlinesInValue {
 		line, err = readSingleJSONObject(reader)

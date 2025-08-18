@@ -27,6 +27,7 @@ import (
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/valyala/fastjson"
@@ -76,7 +77,7 @@ func (r *CSVReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, e
 		return r.tableSchema, nil
 	}
 
-	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -97,12 +98,14 @@ func (r *CSVReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (u
 	}
 
 	if totalSize > 0 && sampleReader != nil {
-		data := make([]byte, r.blockSize)
-		bytesRead, err := sampleReader.ReadAt(data, 0)
+		chunkReader := abstract_reader.NewChunkReader(sampleReader, int(r.blockSize), r.logger)
+		defer chunkReader.Close()
+		err = chunkReader.ReadNextChunk()
 		if err != nil && !xerrors.Is(err, io.EOF) {
 			return 0, xerrors.Errorf("failed to estimate row count: %w", err)
 		}
-		if bytesRead > 0 {
+		data := chunkReader.Data()
+		if len(data) > 0 {
 			csvReader := r.newCSVReaderFromReader(bufio.NewReader(bytes.NewReader(data)))
 			lines, err := csvReader.ReadAll()
 			if err != nil {
@@ -128,7 +131,7 @@ func (r *CSVReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.
 }
 
 func (r *CSVReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -156,15 +159,16 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher chunk_push
 
 	offsetInFile := int64(0) // offset from beginning of file!
 	rowsCounter := uint64(1)
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, abstract_reader.DefaultChunkReaderBlockSize, r.logger)
+	defer chunkReader.Close()
+
 	for { // this loop - over one file, read buffer-by-buffer
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			r.logger.Info("Read canceled")
 			return nil
-		default:
 		}
 
-		csvReader, endOfFileReached, err := r.readBufferFromS3(s3RawReader, offsetInFile)
+		csvReader, endOfFileReached, err := r.readBufferFromChunkReader(chunkReader, offsetInFile)
 		if err != nil {
 			return xerrors.Errorf("failed to read fom S3 file, err: %w", err)
 		}
@@ -178,28 +182,19 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher chunk_push
 				return xerrors.Errorf("failed to parse lines from csv file %s, err: %w", filePath, err)
 			}
 
-			offsetInBufAfter := csvReader.GetOffset()
-
-			parsedSize := offsetInBufAfter - offsetInBufBefore
-			offsetInBuf = offsetInBufAfter
+			offsetInBuf = csvReader.GetOffset()
+			parsedSize := offsetInBuf - offsetInBufBefore
 
 			if len(changeItems) == 0 {
 				break
 			}
 
-			chunk := chunk_pusher.Chunk{
-				FilePath:  filePath,
-				Completed: false,
-				Offset:    rowsCounter,
-				Size:      parsedSize,
-				Items:     changeItems,
-			}
-			err = pusher.Push(ctx, chunk)
-			if err != nil {
+			if err := abstract_reader.FlushChunk(ctx, filePath, rowsCounter, parsedSize, changeItems, pusher); err != nil {
 				return xerrors.Errorf("unable to push, err: %w", err)
 			}
 		}
 
+		chunkReader.FillBuffer(chunkReader.Data()[offsetInBuf:])
 		offsetInFile += offsetInBuf
 		if endOfFileReached {
 			break
@@ -208,31 +203,25 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher chunk_push
 	return nil
 }
 
-// readBufferFromS3 reads range [offset + blockSize] from S3 bucket.
+// readBufferFromChunkReader reads range [offset + blockSize] from S3 bucket.
 // It returns a *csv.Reader that should be used for csv rows reading.
 // It returns a boolean flag if the end of the end of the S3 file was reached.
 // It returns any error it encounters during the reading process.
-func (r *CSVReader) readBufferFromS3(s3RawReader s3raw.S3RawReader, offsetInFile int64) (*csv.Reader, bool, error) {
-	data := make([]byte, r.blockSize)
-	endOfFile := false
-	n, err := s3RawReader.ReadAt(data, offsetInFile)
-	if err != nil {
-		if xerrors.Is(err, io.EOF) && n > 0 {
-			data = data[0:n]
-			endOfFile = true
-		} else {
-			return nil, endOfFile, xerrors.Errorf("failed to read from file: %w", err)
+func (r *CSVReader) readBufferFromChunkReader(chunkReader *abstract_reader.ChunkReader, offsetInFile int64) (*csv.Reader, bool, error) {
+	if err := chunkReader.ReadNextChunk(); err != nil {
+		if !xerrors.Is(err, io.EOF) {
+			return nil, false, xerrors.Errorf("failed to read from file: %w", err)
 		}
 	}
 
-	csvReader := r.newCSVReaderFromReader(bufio.NewReaderSize(bytes.NewReader(data), 1024))
+	csvReader := r.newCSVReaderFromReader(bytes.NewReader(chunkReader.Data()))
 	if offsetInFile == 0 {
 		if err := r.skipUnnecessaryLines(csvReader); err != nil {
-			return nil, endOfFile, xerrors.Errorf("failed to skip unnecessary rows: %w", err)
+			return nil, chunkReader.IsEOF(), xerrors.Errorf("failed to skip unnecessary rows: %w", err)
 		}
 	}
 
-	return csvReader, endOfFile, nil
+	return csvReader, chunkReader.IsEOF(), nil
 }
 
 // parseCSVRows reads and parses line by line the fetched data block from S3.
@@ -370,12 +359,15 @@ func (r *CSVReader) resolveSchema(ctx context.Context, key string) (*abstract.Ta
 		return nil, xerrors.Errorf("unable to open reader for file: %s: %w", key, err)
 	}
 
-	buff := make([]byte, r.blockSize)
-	read, err := s3RawReader.ReadAt(buff, 0)
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	defer chunkReader.Close()
+
+	err = chunkReader.ReadNextChunk()
 	if err != nil && !xerrors.Is(err, io.EOF) {
 		return nil, xerrors.Errorf("failed to read sample from file: %s: %w", key, err)
 	}
-	if read == 0 {
+	buff := chunkReader.Data()
+	if len(buff) == 0 {
 		// read nothing, file was empty
 		return nil, xerrors.New(fmt.Sprintf("could not read sample data from file: %s", key))
 	}
@@ -451,7 +443,7 @@ func (r *CSVReader) deduceDataType(val string) schema.Type {
 	if strings.Contains(val, string('`')) || strings.Contains(val, string('"')) {
 		// default of QuotedStringsCanBeNull is true so we need to check that it was not explicitly set to false
 		if r.additionalReaderOptions.QuotedStringsCanBeNull {
-			if contains(r.additionalReaderOptions.NullValues, val) {
+			if yslices.Contains(r.additionalReaderOptions.NullValues, val) {
 				return schema.TypeString
 			}
 		}
@@ -463,10 +455,10 @@ func (r *CSVReader) deduceDataType(val string) schema.Type {
 		}
 
 	} else {
-		if r.additionalReaderOptions.StringsCanBeNull && contains(r.additionalReaderOptions.NullValues, val) {
+		if r.additionalReaderOptions.StringsCanBeNull && yslices.Contains(r.additionalReaderOptions.NullValues, val) {
 			return schema.TypeString
 		}
-		if contains(r.additionalReaderOptions.FalseValues, val) || contains(r.additionalReaderOptions.TrueValues, val) {
+		if yslices.Contains(r.additionalReaderOptions.FalseValues, val) || yslices.Contains(r.additionalReaderOptions.TrueValues, val) {
 			// is boolean
 			return schema.TypeBoolean
 		}
@@ -583,16 +575,6 @@ func readAfterNRows(nrOfRowsToSkip int64, csvReader *csv.Reader) ([]string, erro
 		return nil, xerrors.Errorf("failed to read csv line after %d: %w", nrOfRowsToSkip, err)
 	}
 	return elements, nil
-}
-
-func contains(list []string, element string) bool {
-	for _, val := range list {
-		if val == element {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (r *CSVReader) newCSVReaderFromReader(reader io.Reader) *csv.Reader {

@@ -67,7 +67,7 @@ func (c *ParserConfigProtoCommon) ToProtoParserConfig(logger log.Logger) (*proto
 	}
 
 	if err := cfg.SetDescriptors(descFileContent, c.MessageName, c.PackageType); err != nil {
-		return nil, xerrors.Errorf("SetDescriptors error: %v", err)
+		return nil, xerrors.Errorf("SetDescriptors error: %w", err)
 	}
 
 	cfg.SetLineSplitter(c.PackageType)

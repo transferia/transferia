@@ -48,6 +48,11 @@ func NewIterState(msg parsers.Message, partition abstract.Partition) *iterState 
 	}
 }
 
+type schemaWithFieldDescriptor struct {
+	schema abstract.ColSchema
+	fd     protoreflect.FieldDescriptor
+}
+
 type ProtoParser struct {
 	metrics *stats.SourceStats
 
@@ -55,8 +60,8 @@ type ProtoParser struct {
 	columns []string
 	schemas *abstract.TableSchema
 
-	includedSchemas   []abstract.ColSchema
-	lbExtraSchemes    []abstract.ColSchema
+	includedSchemas   []schemaWithFieldDescriptor
+	lbExtraSchemas    []schemaWithFieldDescriptor
 	auxFieldsIndexMap map[string]int
 }
 
@@ -100,11 +105,6 @@ func (p *ProtoParser) do(msg parsers.Message, partition abstract.Partition) []ab
 
 	for sc.Scan() {
 		result = append(result, p.processScanned(iterSt, sc, uint64(msg.WriteTime.UnixNano())))
-	}
-
-	if err := sc.Err(); err != nil {
-		iterSt.IncrementCounter()
-		result = append(result, unparsedChangeItem(iterSt, msg.Value, err))
 	}
 
 	return result
@@ -193,45 +193,28 @@ func (p *ProtoParser) makeValues(iterSt *iterState, protoMsg protoreflect.Messag
 
 	res := make([]interface{}, 0, len(p.columns))
 
-	msgDesc := p.cfg.ProtoMessageDesc
 	for _, sc := range p.includedSchemas {
-		fd := msgDesc.Fields().ByTextName(sc.ColumnName)
-		if fd == nil {
-			return nil, xerrors.Errorf("can't find field descripter for field '%s'", sc.ColumnName)
+		if sc.schema.Required && sc.fd.HasPresence() && !protoMsg.Has(sc.fd) {
+			return nil, xerrors.Errorf("required field '%s' was not populated", sc.schema.ColumnName)
 		}
 
-		if sc.Required && fd.HasPresence() && !protoMsg.Has(fd) {
-			return nil, xerrors.Errorf("required field '%s' was not populated", sc.ColumnName)
-		}
-
-		if !protoMsg.Has(fd) && p.cfg.NotFillEmptyFields {
+		if !protoMsg.Has(sc.fd) && p.cfg.NotFillEmptyFields {
 			res = append(res, nil)
 			continue
 		}
 
-		val, err := extractValueRecursive(fd, protoMsg.Get(fd), maxEmbeddedStructDepth, p.cfg.NotFillEmptyFields)
+		val, err := extractValueRecursive(sc.fd, protoMsg.Get(sc.fd), maxEmbeddedStructDepth, p.cfg.NotFillEmptyFields)
 		if err != nil {
-			return nil, xerrors.Errorf("error extracting value with column name '%s'", sc.ColumnName)
+			return nil, xerrors.Errorf("error extracting value with column name '%s'", sc.schema.ColumnName)
 		}
 
 		res = append(res, val)
 	}
 
-	for _, sc := range p.lbExtraSchemes {
-		if !strings.HasPrefix(sc.ColumnName, parsers.SystemLbExtraColPrefix) {
-			return nil, xerrors.Errorf("extra column field '%s' has no '%s' prefix", sc.ColumnName, parsers.SystemLbExtraColPrefix)
-		}
-
-		name := strings.TrimPrefix(sc.ColumnName, parsers.SystemLbExtraColPrefix)
-
-		fd := msgDesc.Fields().ByTextName(name)
-		if fd == nil {
-			return nil, xerrors.Errorf("can't find field descriptor for field '%s'", name)
-		}
-
-		val, err := extractValueRecursive(fd, protoMsg.Get(fd), maxEmbeddedStructDepth, p.cfg.NotFillEmptyFields)
+	for _, sc := range p.lbExtraSchemas {
+		val, err := extractValueRecursive(sc.fd, protoMsg.Get(sc.fd), maxEmbeddedStructDepth, p.cfg.NotFillEmptyFields)
 		if err != nil {
-			return nil, xerrors.Errorf("error extracting value with column name '%s'", sc.ColumnName)
+			return nil, xerrors.Errorf("error extracting value with column name '%s'", sc.schema.ColumnName)
 		}
 
 		res = append(res, val)
@@ -499,13 +482,19 @@ func NewProtoParser(cfg *ProtoParserConfig, metrics *stats.SourceStats) (*ProtoP
 		columns[i] = val.ColumnName
 	}
 
+	// save field descriptors for fast access without ambiguous name lookups
+	includedSchemas, lbExtraSchemas, err := prepareFieldDescriptors(msgDesc, schemas, includedFieldsEndIdx, lbExtraFieldsEndIdx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ProtoParser{
 		metrics:           metrics,
 		cfg:               *cfg,
 		schemas:           abstract.NewTableSchema(schemas),
 		columns:           columns,
-		includedSchemas:   schemas[:includedFieldsEndIdx],
-		lbExtraSchemes:    schemas[includedFieldsEndIdx:lbExtraFieldsEndIdx],
+		includedSchemas:   includedSchemas,
+		lbExtraSchemas:    lbExtraSchemas,
 		auxFieldsIndexMap: makeStringIndexMap(auxSchemas),
 	}, nil
 }
@@ -570,6 +559,48 @@ func makeAuxSchemas(cfg *ProtoParserConfig) (res []abstract.ColSchema) {
 	}
 
 	return res
+}
+
+// prepareFieldDescriptors prepares field descriptors for included and lbExtra schemas to avoid ambiguous name lookups.
+// It returns two slices of schemaWithFieldDescriptor: includedSchemas and lbExtraSchemas.
+// includedSchemas contains field descriptors for included fields and their schemas.
+// lbExtraSchemas contains field descriptors for lbExtra fields and their schemas.
+// The order of the slices is the same as the order of the schemas in the input.
+func prepareFieldDescriptors(
+	msgDesc protoreflect.MessageDescriptor,
+	schemas []abstract.ColSchema,
+	includedFieldsEndIdx int,
+	lbExtraFieldsEndIdx int,
+) ([]schemaWithFieldDescriptor, []schemaWithFieldDescriptor, error) {
+	includedSchemas := make([]schemaWithFieldDescriptor, 0, includedFieldsEndIdx)
+	for i := 0; i < includedFieldsEndIdx; i++ {
+		fd := msgDesc.Fields().ByTextName(schemas[i].ColumnName)
+		if fd == nil {
+			return nil, nil, xerrors.Errorf("can't find field descriptor for '%s'", schemas[i].ColumnName)
+		}
+		includedSchemas = append(includedSchemas, schemaWithFieldDescriptor{
+			schema: schemas[i],
+			fd:     fd,
+		})
+	}
+
+	lbExtraSchemas := make([]schemaWithFieldDescriptor, 0, lbExtraFieldsEndIdx-includedFieldsEndIdx)
+	for i := includedFieldsEndIdx; i < lbExtraFieldsEndIdx; i++ {
+		if !strings.HasPrefix(schemas[i].ColumnName, parsers.SystemLbExtraColPrefix) {
+			return nil, nil, xerrors.Errorf("extra column field '%s' has no '%s' prefix", schemas[i].ColumnName, parsers.SystemLbExtraColPrefix)
+		}
+		name := strings.TrimPrefix(schemas[i].ColumnName, parsers.SystemLbExtraColPrefix)
+		fd := msgDesc.Fields().ByTextName(name)
+		if fd == nil {
+			return nil, nil, xerrors.Errorf("can't find field descriptor for '%s'", name)
+		}
+		lbExtraSchemas = append(lbExtraSchemas, schemaWithFieldDescriptor{
+			schema: schemas[i],
+			fd:     fd,
+		})
+	}
+
+	return includedSchemas, lbExtraSchemas, nil
 }
 
 func makeStringIndexMap(schemas []abstract.ColSchema) map[string]int {

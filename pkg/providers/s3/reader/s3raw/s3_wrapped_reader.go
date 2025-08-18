@@ -20,6 +20,7 @@ type wrapper[T io.ReadCloser] func(io.Reader) (T, error)
 
 var (
 	_ io.ReaderAt = (*wrappedReader[io.ReadCloser])(nil)
+	_ io.Reader   = (*wrappedReader[io.ReadCloser])(nil)
 	_ ReaderAll   = (*wrappedReader[io.ReadCloser])(nil)
 )
 
@@ -28,6 +29,8 @@ type wrappedReader[T io.ReadCloser] struct {
 	client                 s3iface.S3API
 	stats                  *stats.SourceStats
 	fullUncompressedObject []byte
+	currReader             T
+	closeFunc              []func() error
 	wrapper                wrapper[T]
 }
 
@@ -57,6 +60,48 @@ func (r *wrappedReader[T]) ReadAt(buffer []byte, offset int64) (int, error) {
 		return n, xerrors.Errorf("reached EOF: %w", returnErr)
 	}
 	return n, nil
+}
+
+func (r *wrappedReader[T]) Read(buffer []byte) (int, error) {
+	if r.closeFunc == nil {
+		if err := r.startStreamReader(); err != nil {
+			return 0, xerrors.Errorf("failed to start reader: %w", err)
+		}
+	}
+
+	return r.currReader.Read(buffer)
+}
+
+func (r *wrappedReader[T]) startStreamReader() error {
+	rawReader, err := r.fetcher.makeReader()
+	if err != nil {
+		return xerrors.Errorf("failed to make reader for file %s: %w", r.fetcher.key, err)
+	}
+	r.closeFunc = append(r.closeFunc, rawReader.Close)
+
+	wrappedReader, err := r.wrapper(rawReader)
+	if err != nil {
+		return xerrors.Errorf("failed to initialize wrapper: %w", err)
+	}
+	r.currReader = wrappedReader
+
+	r.closeFunc = append(r.closeFunc, wrappedReader.Close)
+	return nil
+}
+
+func (r *wrappedReader[T]) Close() error {
+	defer func() {
+		r.closeFunc = nil
+	}()
+	if r.closeFunc == nil {
+		return nil
+	}
+	for _, close := range r.closeFunc {
+		if err := close(); err != nil {
+			return xerrors.Errorf("failed to close reader: %w", err)
+		}
+	}
+	return nil
 }
 
 func (r *wrappedReader[T]) ReadAll() ([]byte, error) {
@@ -127,6 +172,8 @@ func newWrappedReader[T io.ReadCloser](
 		client:                 client,
 		stats:                  stats,
 		fullUncompressedObject: nil,
+		currReader:             *new(T),
+		closeFunc:              nil,
 		wrapper:                wrapper,
 	}, nil
 }

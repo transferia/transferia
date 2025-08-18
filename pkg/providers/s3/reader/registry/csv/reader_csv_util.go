@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/yt/go/schema"
 )
@@ -60,12 +61,12 @@ func (r *CSVReader) parseNullValues(originalValue string, col abstract.ColSchema
 		} else if strings.HasPrefix(originalValue, "'") && strings.HasSuffix(originalValue, "'") {
 			trimmedContent = strings.TrimSuffix(strings.TrimPrefix(originalValue, "'"), "'")
 		}
-		if contains(r.additionalReaderOptions.NullValues, trimmedContent) {
+		if slices.Contains(r.additionalReaderOptions.NullValues, trimmedContent) {
 			return abstract.DefaultValue(&col)
 		}
 	} else {
 		if r.additionalReaderOptions.StringsCanBeNull {
-			if contains(r.additionalReaderOptions.NullValues, originalValue) {
+			if slices.Contains(r.additionalReaderOptions.NullValues, originalValue) {
 				return abstract.DefaultValue(&col)
 			}
 		}
@@ -102,13 +103,13 @@ func (r *CSVReader) parseTimestampValue(originalValue string) interface{} {
 // then a false boolean value is returned for this value. It defaults to the original value if no matches are found.
 func (r *CSVReader) parseBooleanValue(originalValue string) interface{} {
 	if r.additionalReaderOptions.StringsCanBeNull {
-		if contains(r.additionalReaderOptions.NullValues, originalValue) {
+		if slices.Contains(r.additionalReaderOptions.NullValues, originalValue) {
 			return false
 		}
 	}
-	if contains(r.additionalReaderOptions.TrueValues, originalValue) {
+	if slices.Contains(r.additionalReaderOptions.TrueValues, originalValue) {
 		return true
-	} else if contains(r.additionalReaderOptions.FalseValues, originalValue) {
+	} else if slices.Contains(r.additionalReaderOptions.FalseValues, originalValue) {
 		return false
 	} else {
 		// last ditch attempt, try string conversion

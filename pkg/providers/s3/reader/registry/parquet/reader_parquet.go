@@ -22,6 +22,7 @@ import (
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -64,7 +65,7 @@ func (r *ReaderParquet) EstimateRowsCountOneObject(ctx context.Context, obj *aws
 
 func (r *ReaderParquet) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
 	res := uint64(0)
-	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -92,7 +93,7 @@ func (r *ReaderParquet) ResolveSchema(ctx context.Context) (*abstract.TableSchem
 		return r.tableSchema, nil
 	}
 
-	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -216,11 +217,9 @@ func (r *ReaderParquet) Read(ctx context.Context, filePath string, pusher chunk_
 
 	var currentSize int64
 	for i := uint64(0); i < rowCount; {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			r.logger.Info("Read canceled")
 			return nil
-		default:
 		}
 		row := map[string]any{}
 		if err := pr.Read(&row); err != nil {
@@ -234,30 +233,17 @@ func (r *ReaderParquet) Read(ctx context.Context, filePath string, pusher chunk_
 		currentSize += int64(ci.Size.Values)
 		buff = append(buff, ci)
 		if len(buff) > r.batchSize {
-			if err := pusher.Push(ctx, chunk_pusher.Chunk{
-				Items:     buff,
-				FilePath:  filePath,
-				Offset:    i,
-				Completed: false,
-				Size:      currentSize,
-			}); err != nil {
-				return xerrors.Errorf("unable to push: %w", err)
+			if err := abstract_reader.FlushChunk(ctx, filePath, i, currentSize, buff, pusher); err != nil {
+				return xerrors.Errorf("unable to push parquet batch: %w", err)
 			}
 			currentSize = 0
 			buff = []abstract.ChangeItem{}
 		}
 	}
-	if len(buff) > 0 {
-		if err := pusher.Push(ctx, chunk_pusher.Chunk{
-			Items:     buff,
-			FilePath:  filePath,
-			Offset:    rowCount,
-			Completed: false,
-			Size:      currentSize,
-		}); err != nil {
-			return xerrors.Errorf("unable to push: %w", err)
-		}
+	if err := abstract_reader.FlushChunk(ctx, filePath, rowCount, currentSize, buff, pusher); err != nil {
+		return xerrors.Errorf("unable to push parquet last batch: %w", err)
 	}
+
 	return nil
 }
 

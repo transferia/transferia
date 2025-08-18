@@ -2,6 +2,7 @@ package s3raw
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -98,6 +99,17 @@ func (f *s3Fetcher) getObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, er
 		return nil, xerrors.Errorf("unable to get object: %w", err)
 	}
 	return resp, nil
+}
+
+func (f *s3Fetcher) makeReader() (io.ReadCloser, error) {
+	resp, err := f.getObject(&s3.GetObjectInput{
+		Bucket: aws.String(f.bucket),
+		Key:    aws.String(f.key),
+	})
+	if err != nil {
+		return nil, xerrors.Errorf("failed to get object %s: %w", f.key, err)
+	}
+	return resp.Body, nil
 }
 
 func newS3Fetcher(ctx context.Context, client s3iface.S3API, bucket string, key string) (*s3Fetcher, error) {

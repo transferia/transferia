@@ -23,6 +23,7 @@ import (
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -56,7 +57,7 @@ type LineReader struct {
 }
 
 func (r *LineReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
@@ -86,14 +87,15 @@ func (r *LineReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (
 	}
 
 	if totalSize > 0 && sampleReader != nil {
-		data := make([]byte, r.blockSize)
-		bytesRead, err := sampleReader.ReadAt(data, 0)
+		chunkReader := abstract_reader.NewChunkReader(sampleReader, int(r.blockSize), r.logger)
+		defer chunkReader.Close()
+		err := chunkReader.ReadNextChunk()
 		if err != nil && !xerrors.Is(err, io.EOF) {
 			return uint64(0), xerrors.Errorf("failed to estimate row count: %w", err)
 		}
 
-		if bytesRead > 0 {
-			lines, bytesRead, err := readLines(data)
+		if len(chunkReader.Data()) > 0 {
+			lines, bytesRead, err := readLines(chunkReader.Data())
 			if err != nil {
 				return uint64(0), xerrors.Errorf("failed to estimate row count: %w", err)
 			}
@@ -125,34 +127,30 @@ func (r *LineReader) Read(ctx context.Context, filePath string, pusher chunk_pus
 	lineCounter := uint64(1)
 	var readBytes int
 	var lines []string
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	defer chunkReader.Close()
 
-	for {
-		select {
-		case <-ctx.Done():
+	for lastRound := false; !lastRound; {
+		if ctx.Err() != nil {
 			r.logger.Info("Read canceled")
 			return nil
-		default:
 		}
 
-		data := make([]byte, r.blockSize)
-		lastRound := false
-
-		n, err := s3RawReader.ReadAt(data, int64(offset))
-		if err != nil {
-			if xerrors.Is(err, io.EOF) && n > 0 {
-				data = data[0:n]
-				lastRound = true
-			} else {
-				return xerrors.Errorf("failed to read from file: %w", err)
-			}
+		if err := chunkReader.ReadNextChunk(); err != nil {
+			return xerrors.Errorf("failed to read from file: %w", err)
 		}
 
-		lines, readBytes, err = readLines(data)
+		if chunkReader.IsEOF() && len(chunkReader.Data()) > 0 {
+			lastRound = true
+		}
+
+		lines, readBytes, err = readLines(chunkReader.Data())
 		if err != nil {
 			return xerrors.Errorf("failed to read lines from file: %w", err)
 		}
 
 		offset += readBytes
+		chunkReader.FillBuffer(chunkReader.Data()[readBytes:])
 		var buff []abstract.ChangeItem
 		var currentSize int64
 
@@ -170,34 +168,16 @@ func (r *LineReader) Read(ctx context.Context, filePath string, pusher chunk_pus
 			buff = append(buff, *ci)
 
 			if len(buff) > r.batchSize {
-				if err := pusher.Push(ctx, chunk_pusher.Chunk{
-					Items:     buff,
-					FilePath:  filePath,
-					Offset:    lineCounter,
-					Completed: false,
-					Size:      currentSize,
-				}); err != nil {
-					return xerrors.Errorf("unable to push: %w", err)
+				if err := abstract_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
+					return xerrors.Errorf("unable to push line batch: %w", err)
 				}
 				currentSize = 0
 				buff = []abstract.ChangeItem{}
 			}
 		}
 
-		if len(buff) > 0 {
-			if err := pusher.Push(ctx, chunk_pusher.Chunk{
-				Items:     buff,
-				FilePath:  filePath,
-				Offset:    lineCounter,
-				Completed: false,
-				Size:      currentSize,
-			}); err != nil {
-				return xerrors.Errorf("unable to push: %w", err)
-			}
-		}
-
-		if lastRound {
-			break
+		if err := abstract_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
+			return xerrors.Errorf("unable to push line last batch: %w", err)
 		}
 	}
 
@@ -274,7 +254,7 @@ func (r *LineReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, 
 		return r.tableSchema, nil
 	}
 
-	files, err := abstract_reader.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load file list: %w", err)
 	}

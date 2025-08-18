@@ -50,8 +50,12 @@ func (s *ProtoseqScanner) Scan() bool {
 	}
 
 	if len(s.data) < 4 {
-		s.scanError = xerrors.Errorf("last incomplete protoseq message: expected size len = 4, got size len = %d", len(s.data))
-		return false
+		s.lastEvent = &Event{
+			data: s.data,
+			err:  xerrors.Errorf("last incomplete protoseq message: expected size len = 4, got size len = %d", len(s.data)),
+		}
+		s.data = nil
+		return true
 	}
 
 	size := binary.LittleEndian.Uint32(s.data[:4])
@@ -63,8 +67,15 @@ func (s *ProtoseqScanner) Scan() bool {
 
 	frameLen := int(size) + len(s.frameSyncrodata)
 	if len(s.data) < frameLen {
-		s.scanError = xerrors.New("last imcomplete protoseq message")
-		return false
+		eventData := make([]byte, 4+len(s.data))
+		binary.LittleEndian.PutUint32(eventData[:4], size)
+		copy(eventData[4:], s.data)
+		s.lastEvent = &Event{
+			data: eventData,
+			err:  xerrors.New("last incomplete protoseq message"),
+		}
+		s.data = nil
+		return true
 	}
 
 	if !slices.Equal(s.data[size:frameLen], s.frameSyncrodata) {
@@ -107,6 +118,10 @@ func (s *ProtoseqScanner) Event() ([]byte, error) {
 func (s *ProtoseqScanner) Err() error {
 	if s.scanError == io.EOF {
 		return nil
+	}
+
+	if s.lastEvent != nil && s.lastEvent.err != nil {
+		return xerrors.Errorf("last event error: %w", s.lastEvent.err)
 	}
 
 	return s.scanError

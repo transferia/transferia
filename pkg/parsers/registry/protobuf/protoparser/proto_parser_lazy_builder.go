@@ -8,16 +8,22 @@ import (
 	"github.com/transferia/transferia/pkg/stats"
 )
 
+var _ parsers.ParserBuilder = (*lazyProtoParserBuilder)(nil)
+
 type lazyProtoParserBuilder struct {
 	baseParser *ProtoParser
 }
 
-func NewLazyProtoParserBuilder(cfg *ProtoParserConfig, metrics *stats.SourceStats) (parsers.LazyParserBuilder, error) {
+func NewLazyProtoParserBuilder(cfg *ProtoParserConfig, metrics *stats.SourceStats) (parsers.ParserBuilder, error) {
 	parser, err := NewProtoParser(cfg, metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to construct base parser: %w", err)
 	}
 	return &lazyProtoParserBuilder{baseParser: parser}, nil
+}
+
+func (f *lazyProtoParserBuilder) BuildBaseParser() parsers.Parser {
+	return f.baseParser
 }
 
 func (f *lazyProtoParserBuilder) BuildLazyParser(msg parsers.Message, partition abstract.Partition) (parsers.LazyParser, error) {
