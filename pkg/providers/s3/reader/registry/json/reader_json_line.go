@@ -22,7 +22,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/parsers/scanner"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
@@ -130,6 +129,7 @@ func (r *JSONLineReader) Read(ctx context.Context, filePath string, pusher chunk
 	var readBytes int
 	var lines []string
 	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	skipReadBytes := 0
 
 	for lastRound := false; !lastRound; {
 		if ctx.Err() != nil {
@@ -139,20 +139,32 @@ func (r *JSONLineReader) Read(ctx context.Context, filePath string, pusher chunk
 		if err := chunkReader.ReadNextChunk(); err != nil {
 			return xerrors.Errorf("failed to read from file: %w", err)
 		}
-		if chunkReader.IsEOF() && len(chunkReader.Data()) > 0 {
+		data := chunkReader.Data()
+		if chunkReader.IsEOF() && len(data) > 0 {
 			lastRound = true
 		}
+		if len(data) < skipReadBytes {
+			skipReadBytes -= len(data)
+			continue
+		}
+		data = data[skipReadBytes:]
 		if r.newlinesInValue {
-			lines, readBytes = readAllMultilineLines(chunkReader.Data())
+			lines, readBytes = readAllMultilineLines(data)
 		} else {
-			lines, readBytes, err = readAllLines(chunkReader.Data())
+			lines, readBytes, err = readAllLines(data)
 			if err != nil {
 				return xerrors.Errorf("failed to read lines from file: %w", err)
 			}
 		}
 
 		offset += readBytes
-		chunkReader.FillBuffer(chunkReader.Data()[readBytes:])
+		if readBytes > len(data) {
+			skipReadBytes = readBytes - len(data)
+			readBytes = len(data)
+		} else {
+			skipReadBytes = 0
+		}
+		chunkReader.FillBuffer(data[readBytes:])
 		var buff []abstract.ChangeItem
 		var currentSize int64
 		for _, line := range lines {
@@ -397,60 +409,6 @@ func guessType(value interface{}) (schema.Type, string, error) {
 	default:
 		return schema.TypeAny, "", xerrors.Errorf("unknown json type")
 	}
-}
-
-func readAllLines(content []byte) ([]string, int, error) {
-	currScanner := scanner.NewLineBreakScanner(content)
-	scannedLines, err := currScanner.ScanAll()
-	if err != nil {
-		return nil, 0, xerrors.Errorf("failed to split all read lines: %w", err)
-	}
-
-	var lines []string
-
-	bytesRead := 0
-	for index, line := range scannedLines {
-		if index == len(scannedLines)-1 {
-			// check if last line is complete
-			if err := fastjson.Validate(line); err != nil {
-				break
-			}
-		}
-		lines = append(lines, line)
-		bytesRead += (len(line) + len("\n"))
-	}
-	return lines, bytesRead, nil
-}
-
-// In order to comply with the POSIX standard definition of line https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206
-func readAllMultilineLines(content []byte) ([]string, int) {
-	var lines []string
-	extractedLine := make([]rune, 0)
-	foundStart := false
-	countCurlyBrackets := 0
-	bytesRead := 0
-	for _, char := range string(content) {
-		if foundStart && countCurlyBrackets == 0 {
-			lines = append(lines, string(extractedLine))
-			bytesRead += (len(string(extractedLine)) + len("\n"))
-
-			foundStart = false
-			countCurlyBrackets = 0
-			extractedLine = []rune{}
-			continue
-		}
-		extractedLine = append(extractedLine, char)
-		if char == '{' {
-			countCurlyBrackets++
-			foundStart = true
-			continue
-		}
-
-		if char == '}' {
-			countCurlyBrackets--
-		}
-	}
-	return lines, bytesRead
 }
 
 func readSingleJSONObject(reader *bufio.Reader) (string, error) {

@@ -1817,6 +1817,8 @@
   "pkg/providers/s3/reader/registry/csv/reader_csv_test.go":"transfer_manager/go/pkg/providers/s3/reader/registry/csv/reader_csv_test.go",
   "pkg/providers/s3/reader/registry/csv/reader_csv_util.go":"transfer_manager/go/pkg/providers/s3/reader/registry/csv/reader_csv_util.go",
   "pkg/providers/s3/reader/registry/csv/reader_csv_util_test.go":"transfer_manager/go/pkg/providers/s3/reader/registry/csv/reader_csv_util_test.go",
+  "pkg/providers/s3/reader/registry/json/all_line_read.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/all_line_read.go",
+  "pkg/providers/s3/reader/registry/json/all_line_read_test.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/all_line_read_test.go",
   "pkg/providers/s3/reader/registry/json/reader_json_line.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/reader_json_line.go",
   "pkg/providers/s3/reader/registry/json/reader_json_line_test.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/reader_json_line_test.go",
   "pkg/providers/s3/reader/registry/json/reader_json_parser.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/reader_json_parser.go",
