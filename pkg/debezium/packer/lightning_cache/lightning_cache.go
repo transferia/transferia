@@ -39,12 +39,12 @@ func handleChangeItems(input []abstract.ChangeItem, schemaIDCache *SessionPacker
 				if schemaIDCache.IsUseSchemaID(false) {
 					finalSchema, err = emitter.ToConfluentSchemaVal(&input[i], isSnapshot)
 					if err != nil {
-						return xerrors.Errorf("unable to build val schema, err: %w", err)
+						return xerrors.Errorf("unable to build val schema: %w", err)
 					}
 				} else if !schemaIDCache.Packer(false).IsDropSchema() {
 					finalSchema, err = emitter.ToKafkaSchemaVal(&input[i], isSnapshot)
 					if err != nil {
-						return xerrors.Errorf("unable to build val schema, err: %w", err)
+						return xerrors.Errorf("unable to build val kafka schema: %w", err)
 					}
 				}
 				err = schemaIDCache.GetAndSaveFinalSchemaAndMaybeSchemaID(false, &input[i], finalSchema)

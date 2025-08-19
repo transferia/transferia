@@ -37,9 +37,11 @@ CREATE TABLE customers3 (
 
     float_           FLOAT,
     float_53         FLOAT(53),
+    float_10_2       FLOAT(10, 2),
 
     double_          DOUBLE,
     double_precision DOUBLE PRECISION,
+    double_10_2      DOUBLE(10, 2),
 
     -- ---
 
@@ -158,9 +160,11 @@ INSERT INTO customers3 VALUES (
 
     1.23, -- FLOAT
     1.23, -- FLOAT(53)
+    1.23, -- FLOAT(10, 2)
 
     2.34, -- DOUBLE
     2.34, -- DOUBLE PRECISION
+    2.34, -- DOUBLE(10, 2)
 
     -- CHAR
 

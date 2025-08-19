@@ -94,7 +94,7 @@ func TestSnapshot(t *testing.T) {
 	for {
 		if len(result) == 1 {
 			canonVal := eraseMeta(string(kafka_provider.GetKafkaRawMessageData(&result[0])))
-			canon.SaveJSON(t, canonVal)
+			canon.SaveJSON(t, helpers.AddIndentToJSON(t, canonVal))
 			break
 		}
 		time.Sleep(time.Second)

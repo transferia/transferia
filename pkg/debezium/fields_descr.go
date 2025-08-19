@@ -86,7 +86,7 @@ func (d *fieldsDescr) AddFieldDescr(colSchema abstract.ColSchema, snapshot bool,
 	if strings.HasSuffix(colSchema.OriginalType, "[]") {
 		elemDescr, err := getFieldDescr(pgcommon.BuildColSchemaArrayElement(colSchema), connectorParameters, true, snapshot)
 		if err != nil {
-			return xerrors.Errorf("unable to get field descr: %w", err)
+			return xerrors.Errorf("unable to get array element field descr: %w", err)
 		}
 		fieldDescr["items"] = elemDescr
 		fieldDescr["field"] = colSchema.ColumnName

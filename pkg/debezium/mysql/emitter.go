@@ -22,9 +22,6 @@ var mapMysqlNotParametrizedTypeToKafkaType = map[string]debeziumcommon.KafkaType
 	"mysql:date": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "int32", "io.debezium.time.Date", nil
 	}},
-	"mysql:float": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
-		return "double", "", nil
-	}},
 	"mysql:json": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "string", "io.debezium.data.Json", nil
 	}},
@@ -67,6 +64,9 @@ var mapMysqlParametrizedTypePrefixToKafkaType = map[string]debeziumcommon.KafkaT
 	}},
 	"mysql:datetime": {KafkaTypeAndDebeziumNameAndExtra: typeutil.TimestampMysqlParamsTypeToKafkaType},
 	"mysql:decimal(": {KafkaTypeAndDebeziumNameAndExtra: typeutil.MysqlDecimalFieldDescr},
+	"mysql:float": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
+		return "double", "", nil
+	}},
 	"mysql:double": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "double", "", nil
 	}},
