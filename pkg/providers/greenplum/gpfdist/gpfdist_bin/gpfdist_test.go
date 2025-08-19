@@ -25,9 +25,9 @@ func TestTryFunction(t *testing.T) {
 }
 
 func TestLocationBrackets(t *testing.T) {
-	g := &Gpfdist{localAddr: net.ParseIP("192.168.1.5"), port: 6500, pipeName: "data"}
-	require.Equal(t, "gpfdist://192.168.1.5:6500/data", g.Location())
+	g := &Gpfdist{localAddr: net.ParseIP("192.168.1.5"), port: 8500, pipeName: "data"}
+	require.Equal(t, "gpfdist://192.168.1.5:8500/data", g.Location())
 
-	g = &Gpfdist{localAddr: net.ParseIP("fe80::1234"), port: 6501, pipeName: "data"}
-	require.Equal(t, "gpfdist://[fe80::1234]:6501/data", g.Location())
+	g = &Gpfdist{localAddr: net.ParseIP("fe80::1234"), port: 8501, pipeName: "data"}
+	require.Equal(t, "gpfdist://[fe80::1234]:8501/data", g.Location())
 }
