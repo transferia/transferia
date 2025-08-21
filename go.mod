@@ -1,6 +1,6 @@
 module github.com/transferia/transferia
 
-go 1.23.8
+go 1.24.6
 
 require (
 	cloud.google.com/go v0.120.0
