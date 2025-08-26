@@ -188,7 +188,7 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, dat
 
 	// TODO remove after TM-9031
 	for tableID, ok := range hasPrimaryKey {
-		if !ok {
+		if !ok || len(tmpConstraintNames[tableID]) == 0 {
 			continue
 		}
 
@@ -261,7 +261,7 @@ func LoadTableConstraints(tx queryExecutor, table abstract.TableID) (map[string]
 	}
 
 	// TODO remove after TM-9031
-	if !hasPrimaryKey {
+	if !hasPrimaryKey && len(tmpConstraintNames) == 0 {
 		logger.Log.Infof("DEBUG TM-9031: table %s.%s has no primary key on REPLICATION, constraints: %v, columns: %v, postitions: %v", table.Namespace, table.Name, tmpConstraintNames, tmpColumnNames, tmpColumnPositions)
 	}
 
