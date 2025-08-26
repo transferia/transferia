@@ -164,49 +164,49 @@ func convertToastedToNormal(t *sinkTable, items []abstract.ChangeItem) ([]abstra
 	return abstract.Collapse(append(lastVersionFullRows, items...)), nil // to merge TOASTed rows with absent values
 }
 
-func fetchToastedRows(t *sinkTable, changeItems []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
+func fetchToastedRows(table *sinkTable, changeItems []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
 	tableName := changeItems[0].Table
 	schemaName := changeItems[0].Schema
 
 	keyCols := changeItems[0].MakeMapKeys()
 	keyToIdx := make(map[string]int)
 	for i := range changeItems {
-		hashK := pKHash(t, changeItems[i], keyCols)
+		hashK := pKHash(table, changeItems[i], keyCols)
 		keyToIdx[hashK] = i
 	}
 
-	filteredColumns, err := getColumns(t.cols.Columns(), changeItems)
+	filteredColumns, err := getColumns(table.cols.Columns(), changeItems)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to build schema: %w", err)
 	}
 	columnNames := buildColumnNames(filteredColumns)
 	columnNamesStr := strings.Join(columnNames, ",")
-	pkeysTemplate := buildPkeysTemplate(t.cols.Columns())
+	pkeysTemplate := buildPkeysTemplate(table.cols.Columns())
 	pkeysTemplateArr := make([]string, 0)
 	for range changeItems {
 		pkeysTemplateArr = append(pkeysTemplateArr, pkeysTemplate)
 	}
 	pkeysTemplateStr := strings.Join(pkeysTemplateArr, " OR ")
 
-	limitKeys := buildPkeysDistinct(t.cols.Columns())
+	limitKeys := buildPkeysDistinct(table.cols.Columns())
 	queryTemplate := fmt.Sprintf(
 		"SELECT %s FROM `%s`.`%s` WHERE %s ORDER BY %s DESC LIMIT 1 BY %s",
 		columnNamesStr,
-		t.config.Database(),
-		t.tableName,
+		table.config.Database(),
+		table.tableName,
 		pkeysTemplateStr,
 		verColumnName,
 		limitKeys,
 	)
 
-	pkValues, err := primaryKeyValuesFlattened(changeItems, t.cols.Columns())
+	pkValues, err := primaryKeyValuesFlattened(changeItems, table.cols.Columns())
 	if err != nil {
 		return nil, xerrors.Errorf("failed to calculate primary key values required for %q of toasted values: %w", queryTemplate, err)
 	}
 
-	pkValues = removePKTimezoneInfo(t, pkValues)
+	pkValues = removePKTimezoneInfo(table, pkValues)
 
-	queryResult, err := t.server.db.Query(queryTemplate, pkValues...)
+	queryResult, err := table.server.db.Query(queryTemplate, pkValues...)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to execute %q for toasted values: %w", queryTemplate, err)
 	}
@@ -236,7 +236,7 @@ func fetchToastedRows(t *sinkTable, changeItems []abstract.ChangeItem) ([]abstra
 			PartID:       "",
 			ColumnNames:  columnNames,
 			ColumnValues: vals,
-			TableSchema:  t.cols,
+			TableSchema:  table.cols,
 			OldKeys: abstract.OldKeysType{
 				KeyNames:  nil,
 				KeyTypes:  nil,
@@ -248,7 +248,7 @@ func fetchToastedRows(t *sinkTable, changeItems []abstract.ChangeItem) ([]abstra
 			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}
 
-		hashK := pKHash(t, changeItem, keyCols)
+		hashK := pKHash(table, changeItem, keyCols)
 		i, ok := keyToIdx[hashK]
 		if !ok {
 			return nil, xerrors.Errorf("unknown pkeys: %s", hashK)
@@ -269,7 +269,12 @@ func fetchToastedRows(t *sinkTable, changeItems []abstract.ChangeItem) ([]abstra
 	}
 
 	if len(result) != len(changeItems) {
-		return nil, xerrors.Errorf("%q from the destination returned a different number of items (%d) than the number of incoming toasted items (%d)", queryTemplate, len(result), len(changeItems))
+		return nil, xerrors.Errorf("%q from the destination returned a different number of items, expected: %d, actual: %d, actual item keys: %s",
+			queryTemplate,
+			len(result),
+			len(changeItems),
+			keyValuesToString(result),
+		)
 	}
 
 	return result, nil
@@ -331,4 +336,17 @@ func pKHash(t *sinkTable, item abstract.ChangeItem, keyColumns map[string]bool) 
 
 	d, _ := json.Marshal(toMarshal)
 	return string(d)
+}
+
+func keyValuesToString(items []abstract.ChangeItem) string {
+	res := make([]string, 0, len(items))
+	for _, item := range items {
+		var itemKeys []string
+		for keyName, keyValue := range item.KeysAsMap() {
+			itemKeys = append(itemKeys, fmt.Sprintf("%s: %v", keyName, keyValue))
+		}
+		res = append(res, fmt.Sprintf("(%s)", strings.Join(itemKeys, ", ")))
+	}
+
+	return strings.Join(res, ", ")
 }
