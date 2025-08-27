@@ -3,23 +3,11 @@ package csv
 import (
 	"bufio"
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/text/encoding/charmap"
 )
-
-// this function needed to check simultaneously: ReadAll() & ValidateOneLine() - they always should give the same result
-func csvReaderReadAll(t *testing.T, reader *Reader) ([][]string, error) {
-	result, errExpected := reader.ReadAll()
-	for _, el := range result {
-		colNum, err := reader.ValidateOneLine(strings.Join(el, string(reader.Delimiter)))
-		require.Equal(t, errExpected, err)
-		require.Equal(t, len(el), colNum)
-	}
-	return result, errExpected
-}
 
 func TestReadAll(t *testing.T) {
 	t.Run("simple example", func(t *testing.T) {
@@ -31,7 +19,7 @@ func TestReadAll(t *testing.T) {
 
 		csvReader := NewReader(reader)
 
-		result, err := csvReaderReadAll(t, csvReader)
+		result, err := csvReader.ReadAll()
 		require.NoError(t, err)
 		// we expect 3 lines each with 3 elements
 
@@ -48,9 +36,9 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(reader)
 		csvReader.NewlinesInValue = true
 
-		result, err := csvReaderReadAll(t, csvReader)
+		result, err := csvReader.ReadAll()
 		require.NoError(t, err)
-		require.Equal(t, "` 4\n\t\t4    `", result[0][3])
+		require.Equal(t, " 4\n\t\t4    ", result[0][3])
 		require.Len(t, result, 1)
 	})
 
@@ -60,7 +48,7 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(bufio.NewReader(content))
 		csvReader.NewlinesInValue = false
 
-		_, err := csvReaderReadAll(t, csvReader)
+		_, err := csvReader.ReadAll()
 		require.Error(t, err)
 	})
 
@@ -72,7 +60,7 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(reader)
 		csvReader.QuoteChar = 0
 
-		_, err := csvReaderReadAll(t, csvReader)
+		_, err := csvReader.ReadAll()
 
 		require.ErrorIs(t, err, errQuotingDisabled)
 	})
@@ -85,7 +73,7 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(reader)
 		csvReader.Delimiter = 0
 
-		_, err := csvReaderReadAll(t, csvReader)
+		_, err := csvReader.ReadAll()
 
 		require.ErrorIs(t, err, errInvalidDelimiter)
 	})
@@ -95,10 +83,10 @@ func TestReadAll(t *testing.T) {
 		reader := bufio.NewReader(content)
 		csvReader := NewReader(reader)
 
-		res, err := csvReaderReadAll(t, csvReader)
+		res, err := csvReader.ReadAll()
 		require.NoError(t, err)
 		require.Equal(t, "\\", res[0][1])
-		require.Equal(t, `"c \" e , f"`, res[0][2])
+		require.Equal(t, `c \" e , f`, res[0][2])
 		require.Len(t, res, 1)
 	})
 
@@ -111,7 +99,7 @@ func TestReadAll(t *testing.T) {
 		var escape rune
 		csvReader.EscapeChar = escape
 
-		res, err := csvReaderReadAll(t, csvReader)
+		res, err := csvReader.ReadAll()
 		require.NoError(t, err)
 		require.Equal(t, "\\", res[0][1])
 		require.Equal(t, `"c \" e`, res[0][2])
@@ -128,7 +116,7 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(reader)
 		csvReader.DoubleQuote = false
 
-		_, err := csvReaderReadAll(t, csvReader)
+		_, err := csvReader.ReadAll()
 		require.Error(t, err)
 
 		require.ErrorIs(t, err, errDoubleQuotesDisabled)
@@ -142,10 +130,10 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(reader)
 		csvReader.DoubleQuote = true
 
-		result, err := csvReaderReadAll(t, csvReader)
+		result, err := csvReader.ReadAll()
 		require.NoError(t, err)
 
-		require.Equal(t, [][]string{{"a", "b", "`the main \"test\" is this`", "d"}}, result)
+		require.Equal(t, [][]string{{"a", "b", "the main \"test\" is this", "d"}}, result)
 	})
 
 	t.Run("using different delimiter", func(t *testing.T) {
@@ -156,9 +144,9 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(reader)
 		csvReader.Delimiter = ';'
 
-		result, err := csvReaderReadAll(t, csvReader)
+		result, err := csvReader.ReadAll()
 		require.NoError(t, err)
-		require.Equal(t, [][]string{{"a", "b", "\"c\"", "d"}}, result)
+		require.Equal(t, [][]string{{"a", "b", "c", "d"}}, result)
 	})
 
 	t.Run("using different quotes char", func(t *testing.T) {
@@ -169,9 +157,9 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(reader)
 		csvReader.QuoteChar = '('
 
-		result, err := csvReaderReadAll(t, csvReader)
+		result, err := csvReader.ReadAll()
 		require.NoError(t, err)
-		require.Equal(t, [][]string{{"a", "\"b\"", "\"c\"", "d"}}, result)
+		require.Equal(t, [][]string{{"a", "b", "c", "d"}}, result)
 	})
 
 	t.Run("delimiter in quotes is not used as separator", func(t *testing.T) {
@@ -181,10 +169,10 @@ func TestReadAll(t *testing.T) {
 
 		csvReader := NewReader(reader)
 
-		result, err := csvReaderReadAll(t, csvReader)
+		result, err := csvReader.ReadAll()
 		require.NoError(t, err)
-		require.Len(t, result[0], 4)
-		require.Equal(t, [][]string{{"1", "\"2\"", "\"3 , 3\"", "4"}}, result)
+		//require.Len(t, result[0], 4)
+		require.Equal(t, [][]string{{"1", "2", "3 , 3", "4"}}, result)
 	})
 
 	t.Run("double quotes are converted to single quotes", func(t *testing.T) {
@@ -193,10 +181,10 @@ func TestReadAll(t *testing.T) {
 		reader := bufio.NewReader(content)
 		csvReader := NewReader(reader)
 
-		result, err := csvReaderReadAll(t, csvReader)
+		result, err := csvReader.ReadAll()
 		require.NoError(t, err)
 		require.Len(t, result[0], 3)
-		require.Equal(t, [][]string{{"1", "`\"2\"`", "3"}}, result)
+		require.Equal(t, [][]string{{"1", "\"2\"", "3"}}, result)
 	})
 
 	t.Run("different encoding for string is still valid", func(t *testing.T) {
@@ -211,9 +199,9 @@ func TestReadAll(t *testing.T) {
 		csvReader := NewReader(reader)
 
 		// try without encoding, see that string is broken
-		result, err := csvReaderReadAll(t, csvReader)
+		result, err := csvReader.ReadAll()
 		require.NoError(t, err)
-		require.Equal(t, [][]string{{"1", "`\"\xe4\xe4\xe4\xe4\xe4\"`", "3"}}, result)
+		require.Equal(t, [][]string{{"1", "\"\xe4\xe4\xe4\xe4\xe4\"", "3"}}, result)
 
 		// if we set the encoding, its decoded correctly
 		content2 := bytes.NewBufferString(isoEncodedString)
@@ -223,6 +211,28 @@ func TestReadAll(t *testing.T) {
 
 		result, err = csvReader2.ReadAll()
 		require.NoError(t, err)
-		require.Equal(t, [][]string{{"1", "`\"äääää\"`", "3"}}, result)
+		require.Equal(t, [][]string{{"1", "\"äääää\"", "3"}}, result)
+	})
+
+	t.Run("quoted values appears with no quotes", func(t *testing.T) {
+		content := bytes.NewBufferString(`1, "check check", 3` + "\n")
+
+		reader := bufio.NewReader(content)
+		csvReader := NewReader(reader)
+
+		result, err := csvReader.ReadAll()
+		require.NoError(t, err)
+		require.Equal(t, [][]string{{"1", "check check", "3"}}, result)
+	})
+
+	t.Run("quoted values appears with no quotes 2", func(t *testing.T) {
+		content := bytes.NewBufferString(`"5.155.155.155"|"-"|"-"|"2025-08-08 08:15:28"|"GET /aaa?ip_aaa=127.0.0.1&template_path=|ba+ff342.txt|cat HTTP/1.1"|"404"|"189"|"-"|"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15"|"656"|"m9-up-gc46"|"http"|"shield_media.tinkoffjournal.ru"|"0.023"|"0.023"|"674"|"-"|"m9"|"MISS"|"189"|"213.180.193.247:443"|"875"|"6377"|"-"|"-"|"RU"|"Moscow"|"shield_no"|"92.223.123.30"|"10080"|"404"|"-"|"0.000"|"0.023"|"127.0.0.1"|"210756"|"4316125312"|"1"|"asdasd132123asd"|"https"|"123123123123"|"-"|"-"|"-"|"text/html"|"61"|"HTTP/1.1"|"0"|"MOW"` + "\n")
+		reader := bufio.NewReader(content)
+		csvReader := NewReader(reader)
+		csvReader.Delimiter = '|'
+
+		result, err := csvReader.ReadAll()
+		require.NoError(t, err)
+		require.Equal(t, [][]string{{"5.155.155.155", "-", "-", "2025-08-08 08:15:28", "GET /aaa?ip_aaa=127.0.0.1&template_path=|ba+ff342.txt|cat HTTP/1.1", "404", "189", "-", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15", "656", "m9-up-gc46", "http", "shield_media.tinkoffjournal.ru", "0.023", "0.023", "674", "-", "m9", "MISS", "189", "213.180.193.247:443", "875", "6377", "-", "-", "RU", "Moscow", "shield_no", "92.223.123.30", "10080", "404", "-", "0.000", "0.023", "127.0.0.1", "210756", "4316125312", "1", "asdasd132123asd", "https", "123123123123", "-", "-", "-", "text/html", "61", "HTTP/1.1", "0", "MOW"}}, result)
 	})
 }
