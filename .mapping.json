@@ -2236,6 +2236,8 @@
   "pkg/transformer/registry/raw_doc_grouper/raw_doc_grouper.go":"transfer_manager/go/pkg/transformer/registry/raw_doc_grouper/raw_doc_grouper.go",
   "pkg/transformer/registry/raw_doc_grouper/raw_doc_grouper_test.go":"transfer_manager/go/pkg/transformer/registry/raw_doc_grouper/raw_doc_grouper_test.go",
   "pkg/transformer/registry/raw_doc_grouper/raw_doc_test_utils.go":"transfer_manager/go/pkg/transformer/registry/raw_doc_grouper/raw_doc_test_utils.go",
+  "pkg/transformer/registry/regex_replace/transformer.go":"transfer_manager/go/pkg/transformer/registry/regex_replace/transformer.go",
+  "pkg/transformer/registry/regex_replace/transformer_test.go":"transfer_manager/go/pkg/transformer/registry/regex_replace/transformer_test.go",
   "pkg/transformer/registry/registry.go":"transfer_manager/go/pkg/transformer/registry/registry.go",
   "pkg/transformer/registry/rename/rename.go":"transfer_manager/go/pkg/transformer/registry/rename/rename.go",
   "pkg/transformer/registry/rename/rename_test.go":"transfer_manager/go/pkg/transformer/registry/rename/rename_test.go",
