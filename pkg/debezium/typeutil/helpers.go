@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -391,9 +392,9 @@ func makeNegativeNum(in *big.Int) big.Int {
 	return result
 }
 
-func containsOnly(in string, char rune) bool {
+func containsOnly(in string, chars []rune) bool {
 	for _, ch := range in {
-		if ch != char {
+		if !slices.Contains(chars, ch) {
 			return false
 		}
 	}
@@ -401,7 +402,7 @@ func containsOnly(in string, char rune) bool {
 }
 
 func DecimalToDebeziumPrimitivesImpl(decimal string) (string, int, error) {
-	decimalInt := decimal
+	decimalInt := decimal // decimalInt is `decimal` without dot ('.').
 	scale := 0
 	dotIndex := strings.Index(decimal, ".")
 	if dotIndex != -1 {
@@ -409,7 +410,7 @@ func DecimalToDebeziumPrimitivesImpl(decimal string) (string, int, error) {
 		decimalInt = decimalInt[0:dotIndex] + decimalInt[dotIndex+1:]
 	}
 	var buf []byte
-	if containsOnly(decimalInt, '0') {
+	if containsOnly(decimalInt, []rune{'0', '-'}) {
 		buf = []byte{0}
 	} else {
 		var bigNum big.Int
@@ -420,7 +421,7 @@ func DecimalToDebeziumPrimitivesImpl(decimal string) (string, int, error) {
 		if bigNum.Sign() == -1 { // negative
 			negativeNum := makeNegativeNum(&bigNum)
 			buf = negativeNum.Bytes()
-			if isHighestBitNotSet(buf) { // if number is negative, but highest bit is 0 - then we need extra leading 0xFF byte
+			if !isHighestBitSet(buf) { // if number is negative, but highest bit is 0 - then we need extra leading 0xFF byte
 				buf = append([]byte{0xFF}, buf...)
 			}
 		} else { // positive
@@ -958,10 +959,6 @@ func NumRangeFromDebezium(in string) (string, error) {
 	return "[" + left + "," + right + ")", nil
 }
 
-func isHighestBitNotSet(in []byte) bool {
-	return in[0]&0x80 == 0
-}
-
 func isHighestBitSet(in []byte) bool {
 	return in[0]&0x80 != 0
 }
@@ -975,7 +972,7 @@ func Base64ToNumeric(based64buf string, scale int) (string, error) {
 	sign := ""
 	bigNum := new(big.Int)
 	bigNum.SetBytes(resultBuf)
-	if isHighestBitNotSet(resultBuf) { // positive
+	if !isHighestBitSet(resultBuf) { // positive
 		resultStr = bigNum.String()
 	} else {
 		negativeNum := makeNegativeNum(bigNum)
