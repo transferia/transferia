@@ -79,12 +79,12 @@ require (
 	go.uber.org/zap v1.27.0
 	go.ytsaurus.tech/library/go/core/log v0.0.4
 	go.ytsaurus.tech/yt/go v0.0.28
-	golang.org/x/crypto v0.39.0
+	golang.org/x/crypto v0.40.0
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
-	golang.org/x/mod v0.25.0
-	golang.org/x/net v0.40.0
-	golang.org/x/sync v0.15.0
-	golang.org/x/text v0.26.0
+	golang.org/x/mod v0.26.0
+	golang.org/x/net v0.42.0
+	golang.org/x/sync v0.16.0
+	golang.org/x/text v0.27.0
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
 	golang.yandex/hasql v1.1.1
 	google.golang.org/api v0.228.0
@@ -282,10 +282,10 @@ require (
 	go.ytsaurus.tech/library/go/x/xreflect v0.0.3 // indirect
 	go.ytsaurus.tech/library/go/x/xruntime v0.0.4 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/term v0.32.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/term v0.33.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
-	golang.org/x/tools v0.33.0 // indirect
+	golang.org/x/tools v0.35.1-0.20250728180453-01a3475a31bc // indirect
 	gonum.org/v1/gonum v0.15.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
@@ -389,12 +389,12 @@ replace github.com/grpc-ecosystem/go-grpc-middleware/v2 => github.com/grpc-ecosy
 
 replace github.com/vertica/vertica-sql-go => github.com/vertica/vertica-sql-go v1.2.2
 
-replace golang.org/x/tools => golang.org/x/tools v0.30.1-0.20250221230316-5055f70f240c
-
 replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.14.6
 
 replace buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go => buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.4-20250130201111-63bb56e20495.1
 
 replace github.com/bufbuild/protoyaml-go => buf.build/go/protoyaml v0.3.2
+
+replace golang.org/x/sync => golang.org/x/sync v0.15.0
 
 replace github.com/segmentio/kafka-go => ./vendor_patched/github.com/segmentio/kafka-go
