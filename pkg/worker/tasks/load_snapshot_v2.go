@@ -219,19 +219,23 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ba
 		return xerrors.Errorf("unable to begin snapshot: %w", err)
 	}
 
-	sourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
-	}
-	defer sourceStorage.Close()
+	var nextIncrementalState []abstract.IncrementalState
+	if l.transfer.IsIncremental() {
+		abstract1SourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
+		}
+		defer abstract1SourceStorage.Close()
 
-	tables, nextIncrementalState, err := l.prepareIncrementalState(ctx, sourceStorage, inTables, true)
-	if err != nil {
-		return xerrors.Errorf("unable to prepare incremental state: %w", err)
-	}
+		var tables []abstract.TableDescription
+		tables, nextIncrementalState, err = l.prepareIncrementalState(ctx, abstract1SourceStorage, inTables, true)
+		if err != nil {
+			return xerrors.Errorf("unable to prepare incremental state: %w", err)
+		}
 
-	if len(nextIncrementalState) != 0 {
-		inputFilter = filter.NewFromDescription(tables)
+		if len(nextIncrementalState) != 0 {
+			inputFilter = filter.NewFromDescription(tables)
+		}
 	}
 
 	composeFilter, err := IntersectFilter(l.transfer, inputFilter)
@@ -355,19 +359,23 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		return xerrors.Errorf("unable to begin snapshot: %w", err)
 	}
 
-	sourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
-	}
-	defer sourceStorage.Close()
+	var nextIncrementalState []abstract.IncrementalState
+	if l.transfer.IsIncremental() {
+		abstract1SourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
+		}
+		defer abstract1SourceStorage.Close()
 
-	tables, nextIncrementalState, err := l.prepareIncrementalState(ctx, sourceStorage, inTables, true)
-	if err != nil {
-		return xerrors.Errorf("unable to prepare incremental state: %w", err)
-	}
+		var tables []abstract.TableDescription
+		tables, nextIncrementalState, err = l.prepareIncrementalState(ctx, abstract1SourceStorage, inTables, true)
+		if err != nil {
+			return xerrors.Errorf("unable to prepare incremental state: %w", err)
+		}
 
-	if len(nextIncrementalState) != 0 {
-		inputFilter = filter.NewFromDescription(tables)
+		if len(nextIncrementalState) != 0 {
+			inputFilter = filter.NewFromDescription(tables)
+		}
 	}
 
 	composeFilter, err := IntersectFilter(l.transfer, inputFilter)

@@ -5,6 +5,7 @@ import (
 )
 
 type MockSource struct {
+	IsAbstract2Val   bool
 	StorageFactory   func() abstract.Storage
 	AllTablesFactory func() abstract.TableMap
 }
@@ -27,4 +28,8 @@ func (s *MockSource) GetName() string {
 
 func (s *MockSource) Validate() error {
 	return nil
+}
+
+func (s *MockSource) IsAbstract2(Destination) bool {
+	return s.IsAbstract2Val
 }

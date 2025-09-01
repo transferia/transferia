@@ -10,22 +10,30 @@ import (
 )
 
 type CoordinatorNoOp struct {
-	getTransferState func(id string) (map[string]*TransferStateData, error)
+	getTransferState     func(id string) (map[string]*TransferStateData, error)
+	getOperationWorkers  func() ([]*model.OperationWorker, error)
+	getOperationProgress func(operationID string) (*model.AggregatedProgress, error)
 }
 
 var _ Coordinator = (*CoordinatorNoOp)(nil)
 
 func NewFakeClient() *CoordinatorNoOp {
 	return &CoordinatorNoOp{
-		getTransferState: nil,
+		getTransferState:     nil,
+		getOperationWorkers:  nil,
+		getOperationProgress: nil,
 	}
 }
 
 func NewFakeClientWithOpts(
 	getTransferState func(id string) (map[string]*TransferStateData, error),
+	getOperationWorkers func() ([]*model.OperationWorker, error),
+	getOperationProgress func(operationID string) (*model.AggregatedProgress, error),
 ) *CoordinatorNoOp {
 	return &CoordinatorNoOp{
-		getTransferState: getTransferState,
+		getTransferState:     getTransferState,
+		getOperationWorkers:  getOperationWorkers,
+		getOperationProgress: getOperationProgress,
 	}
 }
 
@@ -112,6 +120,9 @@ func (f *CoordinatorNoOp) UpdateEndpoint(transferID string, endpoint model.Endpo
 }
 
 func (f *CoordinatorNoOp) GetOperationProgress(operationID string) (*model.AggregatedProgress, error) {
+	if f.getOperationProgress != nil {
+		return f.getOperationProgress(operationID)
+	}
 	return nil, nil
 }
 
@@ -120,6 +131,9 @@ func (f *CoordinatorNoOp) CreateOperationWorkers(operationID string, workersCoun
 }
 
 func (f *CoordinatorNoOp) GetOperationWorkers(operationID string) ([]*model.OperationWorker, error) {
+	if f.getOperationWorkers != nil {
+		return f.getOperationWorkers()
+	}
 	return nil, nil
 }
 

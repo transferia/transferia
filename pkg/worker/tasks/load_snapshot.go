@@ -193,7 +193,7 @@ func (l *SnapshotLoader) applyTransferTmpPolicy(tables []abstract.TableDescripti
 
 func (l *SnapshotLoader) prepareIncrementalState(
 	ctx context.Context,
-	sourceStorage abstract.Storage,
+	sourceStorage abstract.Storage, // it's 'abstract1' storage!
 	tables []abstract.TableDescription,
 	updateIncrementalState bool,
 ) ([]abstract.TableDescription, []abstract.IncrementalState, error) {

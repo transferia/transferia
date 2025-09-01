@@ -34,7 +34,7 @@ func TestMergeWithIncrementalState(t *testing.T) {
 			}
 		}
 		return result, nil
-	})
+	}, nil, nil)
 	tables := []abstract.TableDescription{
 		{Name: "table1", Schema: "public"},
 		{Name: "table2", Schema: "public"},
