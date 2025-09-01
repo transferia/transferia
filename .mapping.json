@@ -1533,6 +1533,7 @@
   "pkg/providers/kafka/source.go":"transfer_manager/go/pkg/providers/kafka/source.go",
   "pkg/providers/kafka/source_multi_topics.go":"transfer_manager/go/pkg/providers/kafka/source_multi_topics.go",
   "pkg/providers/kafka/source_test.go":"transfer_manager/go/pkg/providers/kafka/source_test.go",
+  "pkg/providers/kafka/test_patched_client/check_db_test.go":"transfer_manager/go/pkg/providers/kafka/test_patched_client/check_db_test.go",
   "pkg/providers/kafka/writer/abstract.go":"transfer_manager/go/pkg/providers/kafka/writer/abstract.go",
   "pkg/providers/kafka/writer/writer_factory.go":"transfer_manager/go/pkg/providers/kafka/writer/writer_factory.go",
   "pkg/providers/kafka/writer/writer_impl.go":"transfer_manager/go/pkg/providers/kafka/writer/writer_impl.go",

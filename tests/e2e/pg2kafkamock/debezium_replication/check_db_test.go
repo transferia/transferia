@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
@@ -21,6 +20,7 @@ import (
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	"github.com/transferia/transferia/tests/helpers"
+	"go.uber.org/mock/gomock"
 )
 
 var (

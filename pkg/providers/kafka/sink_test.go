@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
@@ -15,6 +14,7 @@ import (
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/providers/kafka/writer"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
+	"go.uber.org/mock/gomock"
 )
 
 var sinkTestTypicalChangeItem *abstract.ChangeItem
