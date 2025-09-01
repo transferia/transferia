@@ -214,3 +214,29 @@ func TestComplexPkey(t *testing.T) {
 	require.Equal(t, 2, len(item.OldKeys.KeyNames))
 	require.Equal(t, 2, len(item.OldKeys.KeyValues))
 }
+
+func TestWithNoUpdatesAndErase(t *testing.T) {
+	schema := abstract.NewTableSchema(abstract.TableColumns{
+		{ColumnName: "id", DataType: "uint64", PrimaryKey: true, OriginalType: "ydb:Uint64"},
+		{ColumnName: "test", DataType: "int32", PrimaryKey: false, OriginalType: "ydb:Int32"},
+		{ColumnName: "test_1", DataType: "utf8", PrimaryKey: false, OriginalType: "ydb:Utf8"},
+	})
+
+	noUpdateEvent := &cdcEvent{
+		Key: []interface{}{
+			json.Number("1"),
+		},
+		Update: nil,
+		Erase:  nil,
+		NewImage: map[string]interface{}{
+			"test":   json.Number("123"),
+			"test_1": "some_text",
+		},
+		OldImage: nil,
+	}
+
+	item, err := convertToChangeItem("test_table", schema, noUpdateEvent, time.Now(), 0, 0, 0, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"id", "test", "test_1"}, item.ColumnNames)
+	require.Equal(t, []any{uint64(1), int64(123), "some_text"}, item.ColumnValues)
+}

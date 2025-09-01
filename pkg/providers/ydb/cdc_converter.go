@@ -348,7 +348,7 @@ func convertToChangeItem(
 	msgSize uint64,
 	fillDefaults bool,
 ) (*abstract.ChangeItem, error) {
-	if event.Update != nil {
+	if event.Update != nil || event.NewImage != nil {
 		// insert/update
 		result, err := makeUpdateChangeItem(tablePath, schema, event, writeTime, offset, partitionID, msgSize, fillDefaults)
 		if err != nil {
