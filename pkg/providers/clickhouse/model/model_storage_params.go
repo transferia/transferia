@@ -24,7 +24,7 @@ func (c *ChStorageParams) IsManaged() bool {
 }
 
 func (s *ChSource) ToStorageParams() (*ChStorageParams, error) {
-	connParams, err := ConnectionParamsFromSource(s)
+	connParams, err := ConnectionParamsFromSource(s, s.ChClusterName)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get connection params from source: %w", err)
 	}

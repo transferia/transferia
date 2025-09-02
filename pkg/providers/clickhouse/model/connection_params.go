@@ -22,16 +22,16 @@ func (c connectionParams) SetShards(shards map[string][]*clickhouse.Host) {
 	}
 }
 
-func ConnectionParamsFromSource(chSource *ChSource) (*connectionParams, error) {
+func ConnectionParamsFromSource(chSource *ChSource, shardGroup string) (*connectionParams, error) {
 	var connParams *connectionParams
 	if chSource.ConnectionID != "" {
-		params, err := ConnectionParamsByConnectionID(chSource.ConnectionID, chSource.ChClusterName, chSource.NativePort, chSource.HTTPPort)
+		params, err := ConnectionParamsByConnectionID(chSource.ConnectionID, shardGroup, chSource.NativePort, chSource.HTTPPort)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to resolve connection params by connection ID: %w", err)
 		}
 		connParams = params
 	} else {
-		connectionHosts, shards, err := resolveHosts(chSource.MdbClusterID, chSource.ChClusterName, chSource.ShardsList, chSource.NativePort, chSource.HTTPPort)
+		connectionHosts, shards, err := resolveHosts(chSource.MdbClusterID, shardGroup, chSource.ShardsList, chSource.NativePort, chSource.HTTPPort)
 		if err != nil {
 			return nil, err
 		}

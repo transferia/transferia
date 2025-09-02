@@ -38,7 +38,7 @@ var (
 
 type ChSource struct {
 	MdbClusterID     string `json:"ClusterID"`
-	ChClusterName    string // CH cluster from which data will be transfered. Other clusters would be ignored.
+	ChClusterName    string // Name of the ClickHouse cluster from which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
 	ShardsList       []ClickHouseShard
 	HTTPPort         int
 	NativePort       int

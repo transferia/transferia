@@ -38,7 +38,7 @@ var (
 type ChDestination struct {
 	// ChSinkServerParams
 	MdbClusterID  string `json:"Cluster"`
-	ChClusterName string // CH cluster to which data will be transfered. Other clusters would be ignored.
+	ChClusterName string // Name of the ClickHouse cluster to which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
 	User          string
 	Password      model.SecretString
 	Database      string

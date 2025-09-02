@@ -186,8 +186,16 @@ func (w ChSinkParamsWrapper) GetConnectionID() string {
 }
 
 func (s *ChSource) ToSinkParams() (ChSourceWrapper, error) {
+	return toSinkParams(s, s.ChClusterName)
+}
+
+func (s *ChSource) ToSinkParamsForTopology() (ChSourceWrapper, error) {
+	return toSinkParams(s, "") // we do not need shardgroup to resolve nets
+}
+
+func toSinkParams(s *ChSource, shardGroup string) (ChSourceWrapper, error) {
 	copyChSource := *s
-	connectionParams, err := ConnectionParamsFromSource(s)
+	connectionParams, err := ConnectionParamsFromSource(s, shardGroup)
 	if err != nil {
 		return ChSourceWrapper{}, err
 	}
