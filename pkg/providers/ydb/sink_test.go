@@ -76,8 +76,8 @@ func TestSinker_Push(t *testing.T) {
 		{ColumnName: "val", DataType: string(schema.TypeString)},
 	})
 	t.Run("many upserts", func(t *testing.T) {
-		data := make([]abstract.ChangeItem, batchSize*2)
-		for i := range batchSize * 2 {
+		data := make([]abstract.ChangeItem, batchMaxLen*2)
+		for i := range batchMaxLen * 2 {
 			kind := abstract.InsertKind
 			if i > 0 {
 				kind = abstract.UpdateKind
@@ -100,7 +100,7 @@ func TestSinker_Push(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		expectedVal := fmt.Sprint(batchSize*2 - 1)
+		expectedVal := fmt.Sprint(batchMaxLen*2 - 1)
 		selectQuery(t, db, `
 		--!syntax_v1
 		SELECT val FROM foo_many_upserts_test WHERE id = 1;

@@ -275,9 +275,9 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 	for i, c := range schema.Columns() {
 		cols[i] = c.ColumnName
 	}
-	totalIdx := uint64(0)
-	wrapAroundIdx := uint64(0)
-	changes := make([]abstract.ChangeItem, 0)
+
+	batch := make([]abstract.ChangeItem, 0, batchMaxLen)
+	batchSize := uint64(0)
 
 	for res.NextResultSet(ctx) {
 		for res.NextRow() {
@@ -300,7 +300,8 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 				vals[i] = scannerValues[i].resultVal
 			}
 
-			changes = append(changes, abstract.ChangeItem{
+			valuesSize := util.DeepSizeof(vals)
+			batch = append(batch, abstract.ChangeItem{
 				ID:               0,
 				LSN:              0,
 				CommitTime:       uint64(st.UnixNano()),
@@ -313,30 +314,29 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 				ColumnValues:     vals,
 				TableSchema:      schema,
 				OldKeys:          abstract.EmptyOldKeys(),
-				Size:             abstract.RawEventSize(util.DeepSizeof(vals)),
+				Size:             abstract.RawEventSize(valuesSize),
 				TxID:             "",
 				Query:            "",
 				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			})
+			batchSize += valuesSize
 			s.metrics.ChangeItems.Inc()
-			s.metrics.Size.Add(int64(changes[len(changes)-1].Size.Read))
-			if wrapAroundIdx == 10000 {
-				if err := pusher(changes); err != nil {
+			s.metrics.Size.Add(int64(valuesSize))
+			if len(batch) >= batchMaxLen || batchSize > batchMaxSize {
+				if err := pusher(batch); err != nil {
 					return xerrors.Errorf("unable to push: %w", err)
 				}
-				changes = make([]abstract.ChangeItem, 0)
-				wrapAroundIdx = 0
+				batch = make([]abstract.ChangeItem, 0, batchMaxLen)
+				batchSize = 0
 			}
-			totalIdx++
-			wrapAroundIdx++
 		}
 	}
 	if res.Err() != nil {
 		return xerrors.Errorf("stream read table error: %w", res.Err())
 	}
 
-	if wrapAroundIdx != 0 {
-		if err := pusher(changes); err != nil {
+	if len(batch) > 0 {
+		if err := pusher(batch); err != nil {
 			return xerrors.Errorf("unable to push: %w", err)
 		}
 	}

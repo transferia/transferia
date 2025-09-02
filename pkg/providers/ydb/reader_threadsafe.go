@@ -53,7 +53,7 @@ func newReader(feedName, consumerName, dbname string, tables []string, ydbClient
 		selectors,
 		topicoptions.WithReaderCommitTimeLagTrigger(0),
 		topicoptions.WithReaderCommitMode(commitMode),
-		topicoptions.WithReaderBatchMaxCount(batchSize),
+		topicoptions.WithReaderBatchMaxCount(batchMaxLen),
 		topicoptions.WithReaderTrace(trace.Topic{
 			OnReaderError: func(info trace.TopicReaderErrorInfo) {
 				if xerrors.Is(info.Error, io.EOF) {

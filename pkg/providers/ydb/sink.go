@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
@@ -42,7 +43,8 @@ type TemplateModel struct {
 }
 
 const (
-	batchSize = 10000
+	batchMaxLen  = 10000
+	batchMaxSize = 48 * humanize.MiByte // NOTE: RPC message limit for YDB upsert is 64 MB.
 )
 
 var rowTooLargeRegexp = regexp.MustCompile(`Row cell size of [0-9]+ bytes is larger than the allowed threshold [0-9]+`)
@@ -622,21 +624,19 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 		}
 		// The most fragile part of Collape is processing PK changing events.
 		// Here we transform these changes into Delete + Insert pair and only then send batch to Collapse
-		// As a result potentially dangerous part of Collapse is avoided + PK updates are processed correctly(it is imposible to update pk in YDB explicitly)
+		// As a result potentially dangerous part of Collapse is avoided + PK updates are processed correctly (it is imposible to update pk in YDB explicitly)
 		// Ticket about rewriting Collapse https://st.yandex-team.ru/TM-8239
-		batch = abstract.Collapse(s.processPKUpdate(batch))
-		for i := 0; i < len(batch); i += batchSize {
-			end := i + batchSize
-			if end > len(batch) {
-				end = len(batch)
-			}
+		chunks := splitToChunks(abstract.Collapse(s.processPKUpdate(batch)))
+		for _, chunk := range chunks {
 			wg.Add(1)
-			go func(tablePath ydbPath, batch []abstract.ChangeItem) {
+			go func(tablePath ydbPath, chunk []abstract.ChangeItem) {
 				defer wg.Done()
-				if err := s.pushBatch(tablePath, batch); err != nil {
-					errs = append(errs, xerrors.Errorf("unable to push %d items into table %s: %w", len(batch), tablePath, err))
+				if err := s.pushBatch(tablePath, chunk); err != nil {
+					msg := fmt.Sprintf("Unable to push %d items into table %s", len(chunk), tablePath)
+					errs = append(errs, xerrors.Errorf("%s: %w", msg, err))
+					logger.Log.Error(msg, log.Error(err))
 				}
-			}(tablePath, batch[i:end])
+			}(tablePath, chunk)
 		}
 	}
 	wg.Wait()
@@ -645,6 +645,24 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	}
 
 	return nil
+}
+
+func splitToChunks(items []abstract.ChangeItem) [][]abstract.ChangeItem {
+	var res [][]abstract.ChangeItem
+	batchSize := uint64(0)
+	left := 0
+	for right := range len(items) {
+		batchSize += items[right].Size.Read
+		if batchSize >= batchMaxSize || right-left >= batchMaxLen {
+			res = append(res, items[left:right+1])
+			batchSize = 0
+			left = right + 1
+		}
+	}
+	if left < len(items) {
+		res = append(res, items[left:])
+	}
+	return res
 }
 
 func (s *sinker) processPKUpdate(batch []abstract.ChangeItem) []abstract.ChangeItem {
