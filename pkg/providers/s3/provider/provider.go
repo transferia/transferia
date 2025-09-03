@@ -71,7 +71,7 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	return storage.New(src, p.logger, p.registry)
+	return storage.New(src, p.transfer.ID, p.transfer.IsIncremental(), p.logger, p.registry)
 }
 
 func (p *Provider) Type() abstract.ProviderType {

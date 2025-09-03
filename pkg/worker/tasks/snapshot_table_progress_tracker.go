@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
-	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -19,7 +19,7 @@ type SnapshotTableProgressTracker struct {
 
 	operationID         string
 	cpClient            coordinator.Coordinator
-	parts               map[string]*model.OperationTablePart
+	parts               map[string]*abstract.OperationTablePart
 	progressUpdateMutex *sync.Mutex
 }
 
@@ -34,7 +34,7 @@ func NewSnapshotTableProgressTracker(
 
 		operationID:         operationID,
 		cpClient:            cpClient,
-		parts:               map[string]*model.OperationTablePart{},
+		parts:               map[string]*abstract.OperationTablePart{},
 		progressUpdateMutex: progressUpdateMutex,
 	}
 	tracker.wg.Add(1)
@@ -67,7 +67,7 @@ func (t *SnapshotTableProgressTracker) Close() {
 
 func (t *SnapshotTableProgressTracker) Flush() {
 	t.progressUpdateMutex.Lock()
-	partsCopy := make([]*model.OperationTablePart, 0, len(t.parts))
+	partsCopy := make([]*abstract.OperationTablePart, 0, len(t.parts))
 	for _, table := range t.parts {
 		partsCopy = append(partsCopy, table.Copy())
 	}
@@ -100,7 +100,7 @@ func (t *SnapshotTableProgressTracker) Flush() {
 	t.progressUpdateMutex.Unlock()
 }
 
-func (t *SnapshotTableProgressTracker) Add(part *model.OperationTablePart) {
+func (t *SnapshotTableProgressTracker) Add(part *abstract.OperationTablePart) {
 	t.progressUpdateMutex.Lock()
 	defer t.progressUpdateMutex.Unlock()
 	t.parts[part.Key()] = part

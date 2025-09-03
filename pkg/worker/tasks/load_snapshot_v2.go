@@ -28,16 +28,16 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-func (l *SnapshotLoader) descriptionsToParts(operationID string, descriptions ...abstract.TableDescription) []*model.OperationTablePart {
+func (l *SnapshotLoader) descriptionsToParts(operationID string, descriptions ...abstract.TableDescription) []*abstract.OperationTablePart {
 	tables := map[string][]abstract.TableDescription{}
 	for _, description := range descriptions {
 		tables[description.Fqtn()] = append(tables[description.Fqtn()], description)
 	}
 
-	var parts []*model.OperationTablePart
+	var parts []*abstract.OperationTablePart
 	for _, tableDescriptions := range tables {
 		for i, description := range tableDescriptions {
-			part := model.NewOperationTablePartFromDescription(operationID, &description)
+			part := abstract.NewOperationTablePartFromDescription(operationID, &description)
 			part.PartIndex = uint64(i)
 			part.PartsCount = uint64(len(tableDescriptions))
 			parts = append(parts, part)
@@ -48,9 +48,9 @@ func (l *SnapshotLoader) descriptionsToParts(operationID string, descriptions ..
 }
 
 func (l *SnapshotLoader) sendTableControlEventV2(
-	eventFactory func(part *model.OperationTablePart) (base.Event, error),
+	eventFactory func(part *abstract.OperationTablePart) (base.Event, error),
 	target base.EventTarget,
-	tables ...*model.OperationTablePart,
+	tables ...*abstract.OperationTablePart,
 ) error {
 	tablesSet := map[string]bool{}
 	for _, table := range tables {
@@ -77,8 +77,8 @@ func (l *SnapshotLoader) sendTableControlEventV2(
 	return nil
 }
 
-func (l *SnapshotLoader) sendStateEventV2(state events.TableLoadState, provider base.SnapshotProvider, target base.EventTarget, tables ...*model.OperationTablePart) error {
-	eventFactory := func(part *model.OperationTablePart) (base.Event, error) {
+func (l *SnapshotLoader) sendStateEventV2(state events.TableLoadState, provider base.SnapshotProvider, target base.EventTarget, tables ...*abstract.OperationTablePart) error {
+	eventFactory := func(part *abstract.OperationTablePart) (base.Event, error) {
 		dataObjectPart, err := provider.TablePartToDataObjectPart(part.ToTableDescription())
 		if err != nil {
 			return nil, xerrors.Errorf("unable create data object part for table part %v: %w", part.TableFQTN(), err)
@@ -93,8 +93,8 @@ func (l *SnapshotLoader) sendStateEventV2(state events.TableLoadState, provider 
 	return l.sendTableControlEventV2(eventFactory, target, tables...)
 }
 
-func (l *SnapshotLoader) sendCleanupEventV2(target base.EventTarget, tables ...*model.OperationTablePart) error {
-	eventFactory := func(part *model.OperationTablePart) (base.Event, error) {
+func (l *SnapshotLoader) sendCleanupEventV2(target base.EventTarget, tables ...*abstract.OperationTablePart) error {
+	eventFactory := func(part *abstract.OperationTablePart) (base.Event, error) {
 		return events.CleanupEvent(*part.ToTableID()), nil
 	}
 
@@ -228,7 +228,7 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ba
 		defer abstract1SourceStorage.Close()
 
 		var tables []abstract.TableDescription
-		tables, nextIncrementalState, err = l.prepareIncrementalState(ctx, abstract1SourceStorage, inTables, true)
+		tables, nextIncrementalState, err = l.buildNextIncrementalStateEntities(ctx, abstract1SourceStorage, inTables, true)
 		if err != nil {
 			return xerrors.Errorf("unable to prepare incremental state: %w", err)
 		}
@@ -368,7 +368,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		defer abstract1SourceStorage.Close()
 
 		var tables []abstract.TableDescription
-		tables, nextIncrementalState, err = l.prepareIncrementalState(ctx, abstract1SourceStorage, inTables, true)
+		tables, nextIncrementalState, err = l.buildNextIncrementalStateEntities(ctx, abstract1SourceStorage, inTables, true)
 		if err != nil {
 			return xerrors.Errorf("unable to prepare incremental state: %w", err)
 		}

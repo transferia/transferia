@@ -24,7 +24,7 @@ func TestIncremental(t *testing.T) {
 	s3recipe.UploadOne(t, cfg, "userdata/userdata2.parquet")
 	logger.Log.Info("file uploaded")
 
-	storage, err := New(cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	t.Run("no cursor", func(t *testing.T) {
 		tables, err := storage.GetNextIncrementalState(context.Background(), []abstract.IncrementalTable{{

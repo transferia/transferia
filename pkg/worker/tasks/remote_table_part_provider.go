@@ -9,7 +9,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
-	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/util/jsonx"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -60,7 +59,7 @@ func statePolling(ctx context.Context, getShardState ShardStateGetter) error {
 	}
 }
 
-func (p *remoteTablePartProvider) nextTablePart(ctx context.Context) (*model.OperationTablePart, error) {
+func (p *remoteTablePartProvider) nextTablePart(ctx context.Context) (*abstract.OperationTablePart, error) {
 	if !p.isAsync {
 		return p.cp.AssignOperationTablePart(p.operationID, p.workerIndex)
 	}

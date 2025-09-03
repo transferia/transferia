@@ -1,10 +1,8 @@
-package model
+package abstract
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type OperationTablePart struct {
@@ -22,24 +20,7 @@ type OperationTablePart struct {
 	Completed     bool   // Is this part already copied
 }
 
-func NewOperationTablePart() *OperationTablePart {
-	return &OperationTablePart{
-		OperationID:   "",
-		Schema:        "",
-		Name:          "",
-		Offset:        0,
-		Filter:        "",
-		PartsCount:    0,
-		PartIndex:     0,
-		WorkerIndex:   nil,
-		ETARows:       0,
-		CompletedRows: 0,
-		ReadBytes:     0,
-		Completed:     false,
-	}
-}
-
-func NewOperationTablePartFromDescription(operationID string, description *abstract.TableDescription) *OperationTablePart {
+func NewOperationTablePartFromDescription(operationID string, description *TableDescription) *OperationTablePart {
 	return &OperationTablePart{
 		OperationID:   operationID,
 		Schema:        description.Schema,
@@ -89,18 +70,18 @@ func (t *OperationTablePart) CompletedPercent() float64 {
 	return percent
 }
 
-func (t *OperationTablePart) ToTableDescription() *abstract.TableDescription {
-	return &abstract.TableDescription{
+func (t *OperationTablePart) ToTableDescription() *TableDescription {
+	return &TableDescription{
 		Name:   t.Name,
 		Schema: t.Schema,
-		Filter: abstract.WhereStatement(t.Filter),
+		Filter: WhereStatement(t.Filter),
 		EtaRow: t.ETARows,
 		Offset: t.Offset,
 	}
 }
 
-func (t *OperationTablePart) ToTableID() *abstract.TableID {
-	return &abstract.TableID{
+func (t *OperationTablePart) ToTableID() *TableID {
+	return &TableID{
 		Name:      t.Name,
 		Namespace: t.Schema,
 	}

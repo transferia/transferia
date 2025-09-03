@@ -130,9 +130,9 @@ func Snapshot(t *testing.T) {
 
 	operationID := "test-operation"
 
-	operationTables := []*model.OperationTablePart{}
+	operationTables := []*abstract.OperationTablePart{}
 	for _, table := range tables.ConvertToTableDescriptions() {
-		operationTables = append(operationTables, model.NewOperationTablePartFromDescription(operationID, &table))
+		operationTables = append(operationTables, abstract.NewOperationTablePartFromDescription(operationID, &table))
 	}
 
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), operationID, transfer, helpers.EmptyRegistry())

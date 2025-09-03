@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -191,7 +192,7 @@ func (c *CoordinatorS3) GetOperationWorkersCount(operationID string, completed b
 }
 
 // CreateOperationTablesParts creates table parts for an operation and stores them in S3.
-func (c *CoordinatorS3) CreateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
+func (c *CoordinatorS3) CreateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
 	for _, table := range tables {
 		key := fmt.Sprintf("%s/table_%v.json", operationID, table.TableKey())
 
@@ -208,21 +209,21 @@ func (c *CoordinatorS3) CreateOperationTablesParts(operationID string, tables []
 }
 
 // GetOperationTablesParts fetches table parts for a given operation.
-func (c *CoordinatorS3) GetOperationTablesParts(operationID string) ([]*model.OperationTablePart, error) {
+func (c *CoordinatorS3) GetOperationTablesParts(operationID string) ([]*abstract.OperationTablePart, error) {
 	prefix := operationID + "/table_"
 	objects, err := c.listObjects(prefix)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to list: %s: %w", prefix, err)
 	}
 
-	var tables []*model.OperationTablePart
+	var tables []*abstract.OperationTablePart
 	for _, obj := range objects {
 		resp, err := c.getObject(*obj.Key)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to get: %s: %w", *obj.Key, err)
 		}
 
-		var table model.OperationTablePart
+		var table abstract.OperationTablePart
 		if err := json.Unmarshal(resp, &table); err != nil {
 			return nil, xerrors.Errorf("failed to unmarshal table part: %w", err)
 		}
@@ -233,7 +234,7 @@ func (c *CoordinatorS3) GetOperationTablesParts(operationID string) ([]*model.Op
 }
 
 // AssignOperationTablePart assigns a table part to a worker.
-func (c *CoordinatorS3) AssignOperationTablePart(operationID string, workerIndex int) (*model.OperationTablePart, error) {
+func (c *CoordinatorS3) AssignOperationTablePart(operationID string, workerIndex int) (*abstract.OperationTablePart, error) {
 	tables, err := c.GetOperationTablesParts(operationID)
 	if err != nil {
 		return nil, err
@@ -295,12 +296,12 @@ func (c *CoordinatorS3) ClearAssignedTablesParts(ctx context.Context, operationI
 }
 
 // UpdateOperationTablesParts updates the status of table parts in S3.
-func (c *CoordinatorS3) UpdateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
+func (c *CoordinatorS3) UpdateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
 	currentTables, err := c.GetOperationTablesParts(operationID)
 	if err != nil {
 		return xerrors.Errorf("failed to get tables parts: %w", err)
 	}
-	curTbls := map[string]*model.OperationTablePart{}
+	curTbls := map[string]*abstract.OperationTablePart{}
 	for _, table := range currentTables {
 		curTbls[table.TableKey()] = table
 	}

@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -14,7 +14,7 @@ type CoordinatorInMemory struct {
 	mu        sync.Mutex
 	state     map[string]map[string]*TransferStateData
 	taskState map[string]string
-	progress  []*model.OperationTablePart
+	progress  []*abstract.OperationTablePart
 }
 
 func NewStatefulFakeClient() *CoordinatorInMemory {
@@ -28,11 +28,11 @@ func NewStatefulFakeClient() *CoordinatorInMemory {
 	}
 }
 
-func (f *CoordinatorInMemory) Progress() []*model.OperationTablePart {
+func (f *CoordinatorInMemory) Progress() []*abstract.OperationTablePart {
 	return f.progress
 }
 
-func (f *CoordinatorInMemory) UpdateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
+func (f *CoordinatorInMemory) UpdateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.progress = tables

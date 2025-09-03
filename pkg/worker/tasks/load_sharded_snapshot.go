@@ -96,11 +96,11 @@ func (l *SnapshotLoader) SplitTables(
 	logger log.Logger,
 	tables []abstract.TableDescription,
 	source abstract.Storage,
-) ([]*model.OperationTablePart, error) {
-	var tablesParts []*model.OperationTablePart
+) ([]*abstract.OperationTablePart, error) {
+	var tablesParts []*abstract.OperationTablePart
 	addTablesParts := func(shardedTable ...abstract.TableDescription) {
 		for i, shard := range shardedTable {
-			operationTable := model.NewOperationTablePartFromDescription(l.operationID, &shard)
+			operationTable := abstract.NewOperationTablePartFromDescription(l.operationID, &shard)
 			operationTable.PartsCount = uint64(len(shardedTable))
 			operationTable.PartIndex = uint64(i)
 			tablesParts = append(tablesParts, operationTable)

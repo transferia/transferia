@@ -7,6 +7,7 @@ import (
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -36,7 +37,7 @@ type SnapshotTableMetricsTracker struct {
 	sharded bool
 
 	// For non-sharded snapshot
-	parts               []*model.OperationTablePart
+	parts               []*abstract.OperationTablePart
 	progressUpdateMutex *sync.Mutex
 
 	// For sharded snapshot
@@ -48,7 +49,7 @@ func NewNotShardedSnapshotTableMetricsTracker(
 	ctx context.Context,
 	transfer *model.Transfer,
 	registry metrics.Registry,
-	parts []*model.OperationTablePart,
+	parts []*abstract.OperationTablePart,
 	progressUpdateMutex *sync.Mutex,
 ) *SnapshotTableMetricsTracker {
 	ctx, cancel := context.WithCancel(ctx)
@@ -155,17 +156,17 @@ func (t *SnapshotTableMetricsTracker) Close() {
 // 	t.parts = append(t.parts, parts...)
 // }
 
-func (t *SnapshotTableMetricsTracker) getTablesPartsNotSharded() []*model.OperationTablePart {
+func (t *SnapshotTableMetricsTracker) getTablesPartsNotSharded() []*abstract.OperationTablePart {
 	t.progressUpdateMutex.Lock()
 	defer t.progressUpdateMutex.Unlock()
-	partsCopy := make([]*model.OperationTablePart, 0, len(t.parts))
+	partsCopy := make([]*abstract.OperationTablePart, 0, len(t.parts))
 	for _, table := range t.parts {
 		partsCopy = append(partsCopy, table.Copy())
 	}
 	return partsCopy
 }
 
-func (t *SnapshotTableMetricsTracker) getTablesParts() []*model.OperationTablePart {
+func (t *SnapshotTableMetricsTracker) getTablesParts() []*abstract.OperationTablePart {
 	if t.sharded {
 		parts, err := t.cpClient.GetOperationTablesParts(t.operationID)
 		if err != nil {

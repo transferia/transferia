@@ -7,18 +7,17 @@ import (
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type loadProgress struct {
 	sink        abstract.Sinker
 	lastReport  time.Time
-	part        *model.OperationTablePart
+	part        *abstract.OperationTablePart
 	workerIndex int
 }
 
-func NewLoadProgress(workerIndex int, part *model.OperationTablePart, progressUpdateMutex *sync.Mutex) *loadProgress {
+func NewLoadProgress(workerIndex int, part *abstract.OperationTablePart, progressUpdateMutex *sync.Mutex) *loadProgress {
 	return &loadProgress{
 		sink:        nil,
 		lastReport:  time.Now(),

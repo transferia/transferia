@@ -141,15 +141,15 @@ func (f *CoordinatorNoOp) GetOperationWorkersCount(operationID string, completed
 	return 2, nil
 }
 
-func (f *CoordinatorNoOp) CreateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
+func (f *CoordinatorNoOp) CreateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
 	return nil
 }
 
-func (f *CoordinatorNoOp) GetOperationTablesParts(operationID string) ([]*model.OperationTablePart, error) {
+func (f *CoordinatorNoOp) GetOperationTablesParts(operationID string) ([]*abstract.OperationTablePart, error) {
 	return nil, nil
 }
 
-func (f *CoordinatorNoOp) AssignOperationTablePart(operationID string, workerIndex int) (*model.OperationTablePart, error) {
+func (f *CoordinatorNoOp) AssignOperationTablePart(operationID string, workerIndex int) (*abstract.OperationTablePart, error) {
 	return nil, nil
 }
 
@@ -157,6 +157,6 @@ func (f *CoordinatorNoOp) ClearAssignedTablesParts(ctx context.Context, operatio
 	return 0, nil
 }
 
-func (f *CoordinatorNoOp) UpdateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
+func (f *CoordinatorNoOp) UpdateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
 	return nil
 }

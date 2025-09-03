@@ -21,12 +21,14 @@ import (
 var _ abstract.Storage = (*Storage)(nil)
 
 type Storage struct {
-	cfg         *s3.S3Source
-	client      s3iface.S3API
-	logger      log.Logger
-	tableSchema *abstract.TableSchema
-	reader      reader.Reader
-	registry    metrics.Registry
+	cfg           *s3.S3Source
+	transferID    string
+	isIncremental bool
+	client        s3iface.S3API
+	logger        log.Logger
+	tableSchema   *abstract.TableSchema
+	reader        reader.Reader
+	registry      metrics.Registry
 }
 
 func (s *Storage) Close() {
@@ -175,7 +177,21 @@ func (s *Storage) TableExists(table abstract.TableID) (bool, error) {
 	return table == *abstract.NewTableID(s.cfg.TableNamespace, s.cfg.TableName), nil
 }
 
-func New(src *s3.S3Source, lgr log.Logger, registry metrics.Registry) (*Storage, error) {
+func (s *Storage) Build(ctx context.Context) (abstract.Assigner, error) {
+	result, err := NewSelfOperationTablePartAssigner(
+		ctx,
+		s.logger,
+		s.client,
+		nil, // TODO
+		s.cfg,
+		s.transferID,
+		nil, // TODO
+		s.isIncremental,
+	)
+	return result, err
+}
+
+func New(src *s3.S3Source, transferID string, isIncremental bool, lgr log.Logger, registry metrics.Registry) (*Storage, error) {
 	sess, err := s3.NewAWSSession(lgr, src.Bucket, src.ConnectionConfig)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create aws session: %w", err)
@@ -191,11 +207,13 @@ func New(src *s3.S3Source, lgr log.Logger, registry metrics.Registry) (*Storage,
 	}
 
 	return &Storage{
-		cfg:         src,
-		client:      aws_s3.New(sess),
-		logger:      lgr,
-		tableSchema: tableSchema,
-		reader:      currReader,
-		registry:    registry,
+		cfg:           src,
+		transferID:    transferID,
+		isIncremental: isIncremental,
+		client:        aws_s3.New(sess),
+		logger:        lgr,
+		tableSchema:   tableSchema,
+		reader:        currReader,
+		registry:      registry,
 	}, nil
 }

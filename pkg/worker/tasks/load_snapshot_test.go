@@ -128,9 +128,9 @@ func TestLocalTablePartProvider(t *testing.T) {
 		{Schema: "schema-1", Name: "table-1", Filter: "a>5"},
 		{Schema: "schema-2", Name: "table-2"},
 	}
-	parts := []*model.OperationTablePart{}
+	parts := []*abstract.OperationTablePart{}
 	for _, desc := range descs {
-		parts = append(parts, model.NewOperationTablePartFromDescription("dtjtest", desc))
+		parts = append(parts, abstract.NewOperationTablePartFromDescription("dtjtest", desc))
 	}
 
 	t.Run("empty synchronous", func(t *testing.T) {
@@ -138,7 +138,7 @@ func TestLocalTablePartProvider(t *testing.T) {
 		require.NotPanics(t, provider.Close)
 		require.NotPanics(t, provider.Close) // Check that many Closes won't panic.
 		require.Error(t, provider.AppendParts(ctx, parts))
-		checkPartProvider(t, []*model.OperationTablePart{nil}, provider.TablePartProvider())
+		checkPartProvider(t, []*abstract.OperationTablePart{nil}, provider.TablePartProvider())
 	})
 
 	t.Run("synchronous", func(t *testing.T) {
@@ -155,11 +155,11 @@ func TestLocalTablePartProvider(t *testing.T) {
 		require.NoError(t, provider.AppendParts(ctx, parts[:2]))
 		checkPartProvider(t, parts[:2], provider.TablePartProvider())
 
-		require.NoError(t, provider.AppendParts(ctx, []*model.OperationTablePart{parts[2]}))
-		checkPartProvider(t, []*model.OperationTablePart{parts[2]}, provider.TablePartProvider())
+		require.NoError(t, provider.AppendParts(ctx, []*abstract.OperationTablePart{parts[2]}))
+		checkPartProvider(t, []*abstract.OperationTablePart{parts[2]}, provider.TablePartProvider())
 
 		// Check that cancellation of context won't cause deadlock.
-		provider.parts = make(chan *model.OperationTablePart, 1) // Use 1 to make channel filled.
+		provider.parts = make(chan *abstract.OperationTablePart, 1) // Use 1 to make channel filled.
 		ctx, cancel := context.WithCancel(ctx)
 		waitCh := make(chan struct{})
 		go func() {
@@ -177,7 +177,7 @@ func TestLocalTablePartProvider(t *testing.T) {
 	})
 }
 
-func checkPartProvider(t *testing.T, expected []*model.OperationTablePart, provider TablePartProvider) {
+func checkPartProvider(t *testing.T, expected []*abstract.OperationTablePart, provider TablePartProvider) {
 	for _, part := range expected {
 		actual, err := provider(context.Background())
 		require.Equal(t, part, actual)

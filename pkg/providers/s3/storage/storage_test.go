@@ -32,7 +32,7 @@ func TestCanonParquet(t *testing.T) {
 		logger.Log.Info("dir uploaded")
 	}
 	cfg.ReadBatchSize = 100_000
-	storage, err := New(cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	schema, err := storage.TableList(nil)
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestCanonJsonline(t *testing.T) {
 	cfg.ReadBatchSize = 100_000
 	cfg.Format.JSONLSetting = new(s3.JSONLSetting)
 	cfg.Format.JSONLSetting.BlockSize = 100_000
-	storage, err := New(cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	schema, err := storage.TableList(nil)
 	require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestCanonCsv(t *testing.T) {
 	cfg.Format.CSVSetting.Delimiter = ","
 	cfg.Format.CSVSetting.QuoteChar = "\""
 	cfg.Format.CSVSetting.EscapeChar = "\\"
-	storage, err := New(cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	schema, err := storage.TableList(nil)
 	require.NoError(t, err)
@@ -237,7 +237,7 @@ func TestEstimateTableRowsCount(t *testing.T) {
 		QueueName: "test",
 	}
 
-	storage, err := New(cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
 	zeroRes, err := storage.EstimateTableRowsCount(*abstract.NewTableID("test", "name"))

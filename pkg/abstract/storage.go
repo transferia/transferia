@@ -386,3 +386,13 @@ type SnapshotableStorage interface {
 	BeginSnapshot(ctx context.Context) error
 	EndSnapshot(ctx context.Context) error
 }
+
+// self-assigner
+
+type Assigner interface {
+	NextOperationTablePart() (*OperationTablePart, error)
+	Commit(part *OperationTablePart) error
+}
+type AssignerBuilder interface {
+	Build(ctx context.Context) (Assigner, error)
+}

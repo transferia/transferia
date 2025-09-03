@@ -6,20 +6,20 @@ import (
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 const asyncBufferSize = 100_000
 
 type localTablePartProvider struct {
-	parts    chan (*model.OperationTablePart)
+	parts    chan (*abstract.OperationTablePart)
 	isClosed bool
 	mu       sync.RWMutex
 }
 
 func (l *localTablePartProvider) TablePartProvider() TablePartProvider {
-	return func(ctx context.Context) (*model.OperationTablePart, error) {
+	return func(ctx context.Context) (*abstract.OperationTablePart, error) {
 		select {
 		case parts := <-l.parts:
 			return parts, nil
@@ -30,7 +30,7 @@ func (l *localTablePartProvider) TablePartProvider() TablePartProvider {
 	}
 }
 
-func (l *localTablePartProvider) AppendParts(ctx context.Context, parts []*model.OperationTablePart) error {
+func (l *localTablePartProvider) AppendParts(ctx context.Context, parts []*abstract.OperationTablePart) error {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	if l.isClosed {
@@ -58,8 +58,8 @@ func (l *localTablePartProvider) Close() {
 }
 
 // NewLocalTablePartProvider returns provider with static parts, call of AppendParts() will return error.
-func NewLocalTablePartProvider(parts ...*model.OperationTablePart) *localTablePartProvider {
-	partsCh := make(chan *model.OperationTablePart, len(parts))
+func NewLocalTablePartProvider(parts ...*abstract.OperationTablePart) *localTablePartProvider {
+	partsCh := make(chan *abstract.OperationTablePart, len(parts))
 	for _, part := range parts {
 		partsCh <- part
 	}
@@ -74,7 +74,7 @@ func NewLocalTablePartProvider(parts ...*model.OperationTablePart) *localTablePa
 
 func NewAsyncLocalTablePartProvider() *localTablePartProvider {
 	return &localTablePartProvider{
-		parts:    make(chan *model.OperationTablePart, asyncBufferSize),
+		parts:    make(chan *abstract.OperationTablePart, asyncBufferSize),
 		isClosed: false,
 		mu:       sync.RWMutex{},
 	}
