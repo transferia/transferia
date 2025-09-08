@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"context"
-	"sort"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -14,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -91,73 +91,6 @@ func (l *SnapshotLoader) OperationStateExists(ctx context.Context) (bool, error)
 	return result, err
 }
 
-func (l *SnapshotLoader) SplitTables(
-	ctx context.Context,
-	logger log.Logger,
-	tables []abstract.TableDescription,
-	source abstract.Storage,
-) ([]*abstract.OperationTablePart, error) {
-	var tablesParts []*abstract.OperationTablePart
-	addTablesParts := func(shardedTable ...abstract.TableDescription) {
-		for i, shard := range shardedTable {
-			operationTable := abstract.NewOperationTablePartFromDescription(l.operationID, &shard)
-			operationTable.PartsCount = uint64(len(shardedTable))
-			operationTable.PartIndex = uint64(i)
-			tablesParts = append(tablesParts, operationTable)
-		}
-	}
-
-	shardingStorage, isShardingStorage := source.(abstract.ShardingStorage)
-	isShardeableDestination := model.IsShardeableDestination(l.transfer.Dst)
-	isTmpPolicyEnabled := l.transfer.TmpPolicy != nil
-
-	reasonWhyNotSharded := ""
-	if !isShardingStorage && !isShardeableDestination {
-		reasonWhyNotSharded = "Source storage is not supported sharding table, and destination is not supported shardable snapshots - that's why tables won't be sharded here"
-	} else if !isShardingStorage {
-		reasonWhyNotSharded = "Source storage is not supported sharding table - that's why tables won't be sharded here"
-	} else if !isShardeableDestination {
-		reasonWhyNotSharded = "Destination is not supported shardable snapshots - that's why tables won't be sharded here"
-	} else if isTmpPolicyEnabled {
-		reasonWhyNotSharded = "Sharding is not supported by tmp policy, disabling it"
-	}
-
-	for _, table := range tables {
-		if reasonWhyNotSharded == "" {
-			tableParts, err := shardingStorage.ShardTable(ctx, table)
-			if err != nil {
-				if abstract.IsNonShardableError(err) {
-					logger.Info("Unable to shard table", log.String("table", table.Fqtn()), log.Error(err))
-					addTablesParts([]abstract.TableDescription{table}...)
-				} else {
-					return nil, xerrors.Errorf("unable to split table, err: %w", err)
-				}
-			}
-			addTablesParts(tableParts...)
-		} else {
-			logger.Info(
-				"table is not sharded (as all another tables)",
-				log.String("table", table.Fqtn()),
-				log.String("reason", reasonWhyNotSharded),
-			)
-			addTablesParts(table)
-		}
-	}
-
-	// Big tables(or tables parts) go first;
-	// This sort is same with sort on select from database;
-	sort.Slice(tablesParts, func(i int, j int) bool {
-		return util.Less(
-			util.NewComparator(-tablesParts[i].ETARows, -tablesParts[j].ETARows),   // Sort desc
-			util.NewComparator(tablesParts[i].Schema, tablesParts[j].Schema),       // Sort asc
-			util.NewComparator(tablesParts[i].Name, tablesParts[j].Name),           // Sort asc
-			util.NewComparator(tablesParts[i].PartIndex, tablesParts[j].PartIndex), // Sort asc
-		)
-	})
-
-	return tablesParts, nil
-}
-
 func (l *SnapshotLoader) MainWorkerCreateShardedStateFromSource(source interface{}) (string, error) {
 	if shardingContextStorage, ok := source.(abstract.ShardingContextStorage); ok {
 		shardCtx, err := shardingContextStorage.ShardingContext()
@@ -169,20 +102,33 @@ func (l *SnapshotLoader) MainWorkerCreateShardedStateFromSource(source interface
 	return "", nil
 }
 
+func (l *SnapshotLoader) enrichShardedState(storage abstract.Storage, tablePartProviderSetter table_part_provider.AbstractTablePartProviderSetter) error {
+	if shardingContextStorage, ok := storage.(abstract.ShardingContextStorage); ok {
+		shardedStateBytes, err := shardingContextStorage.ShardingContext()
+		if err != nil {
+			return xerrors.Errorf("unable to prepare sharded state for operation '%v': %w", l.operationID, err)
+		}
+		shardedState := string(shardedStateBytes)
+		shardedState, err = tablePartProviderSetter.EnrichShardedState(shardedState)
+		if err != nil {
+			return xerrors.Errorf("unable to enrich sharded state: %w", err)
+		}
+
+		logger.Log.Info("will upload sharded state", log.Any("state", shardedState))
+		err = l.cp.SetOperationState(l.operationID, shardedState)
+		if err != nil {
+			return xerrors.Errorf("unable to set sharded state: %w", err)
+		}
+	}
+	return nil
+}
+
 func (l *SnapshotLoader) SetShardedStateToSource(source interface{}, shardedState string) error {
 	if shardingContextStorage, ok := source.(abstract.ShardingContextStorage); ok && shardedState != "" {
 		if err := shardingContextStorage.SetShardingContext([]byte(shardedState)); err != nil {
 			return errors.CategorizedErrorf(categories.Internal, "can't set sharded state to source: %w", err)
 		}
 	}
-	return nil
-}
-
-func (l *SnapshotLoader) SetShardedStateToCP(logger log.Logger, shardedState string) error {
-	if err := l.cp.SetOperationState(l.operationID, shardedState); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to store upload shards: %w", err)
-	}
-	logger.Info("sharded state uploaded", log.Any("state", string(shardedState)))
 	return nil
 }
 

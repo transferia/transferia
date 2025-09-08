@@ -24,6 +24,7 @@ import (
 	"github.com/transferia/transferia/pkg/targets"
 	"github.com/transferia/transferia/pkg/targets/legacy"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/semaphore"
 )
@@ -253,7 +254,7 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ba
 		table.WorkerIndex = new(int)
 		*table.WorkerIndex = 0 // Because we have one worker
 	}
-	l.dumpTablePartsToLogs(parts)
+	table_part_provider.DumpTablePartsToLogs(parts)
 
 	if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
@@ -270,7 +271,13 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ba
 	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, parts, &l.progressUpdateMutex)
 	defer metricsTracker.Close()
 
-	if err := l.doUploadTablesV2(ctx, snapshotProvider, NewLocalTablePartProvider(parts...).TablePartProvider()); err != nil {
+	tablePartProviderFull := table_part_provider.NewSingleWorkerTPPFullSync()
+	err = tablePartProviderFull.AppendParts(ctx, parts)
+	if err != nil {
+		return xerrors.Errorf("unable to append parts: %w", err)
+	}
+
+	if err := l.doUploadTablesV2(ctx, snapshotProvider, tablePartProviderFull); err != nil {
 		return xerrors.Errorf("unable to upload data objects: %w", err)
 	}
 
@@ -389,7 +396,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 	}
 
 	parts := l.descriptionsToParts(l.operationID, descriptions...)
-	l.dumpTablePartsToLogs(parts)
+	table_part_provider.DumpTablePartsToLogs(parts)
 
 	if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
@@ -400,8 +407,9 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		return errors.CategorizedErrorf(categories.Internal, "unable to prepare sharded state for operation '%v': %w", l.operationID, err)
 	}
 
-	if err := l.SetShardedStateToCP(logger.Log, shardedState); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to set sharded state: %w", err)
+	logger.Log.Info("will upload sharded state", log.Any("state", shardedState))
+	if err := l.cp.SetOperationState(l.operationID, shardedState); err != nil {
+		return errors.CategorizedErrorf(categories.Internal, "unable to store upload shards: %w", err)
 	}
 
 	metricsTracker := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operationID, l.cp)
@@ -496,7 +504,7 @@ func (l *SnapshotLoader) uploadV2Secondary(ctx context.Context, snapshotProvider
 
 	logger.Log.Infof("Start uploading tables on worker %v", l.workerIndex)
 
-	partProvider := NewRemoteTablePartProvider(ctx, l.cp, l.operationID, l.workerIndex)
+	partProvider := table_part_provider.NewMultiWorkerTPPGetterSync(l.cp, l.operationID, l.workerIndex)
 	if err := l.doUploadTablesV2(ctx, snapshotProvider, partProvider); err != nil {
 		return xerrors.Errorf("unable to upload data objects: %w", err)
 	}
@@ -514,7 +522,7 @@ func (l *SnapshotLoader) uploadV2Secondary(ctx context.Context, snapshotProvider
 	return nil
 }
 
-func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider base.SnapshotProvider, nextTablePartProvider TablePartProvider) error {
+func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider base.SnapshotProvider, nextTablePartProvider table_part_provider.AbstractTablePartProviderGetter) error {
 	ctx = util.ContextWithTimestamp(ctx, time.Now())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -533,7 +541,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 			continue
 		}
 
-		nextTablePart, err := nextTablePartProvider(ctx)
+		nextTablePart, err := nextTablePartProvider.NextOperationTablePart(ctx)
 		if err != nil {
 			logger.Log.Error("Unable to get next table to upload", log.Int("worker_index", l.workerIndex), log.Error(ctx.Err()))
 			parallelismSemaphore.Release(1)

@@ -320,6 +320,10 @@ func (f *Transfer) IsSnapshotSharded() bool {
 	return false
 }
 
+func (f *Transfer) IsSnapshotInSingleWorkerMode() bool {
+	return !f.IsSnapshotSharded()
+}
+
 func (f *Transfer) IsMain() bool {
 	if rt, ok := f.Runtime.(abstract.ShardingTaskRuntime); ok {
 		return rt.SnapshotIsMain()

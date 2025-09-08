@@ -177,26 +177,11 @@ func (s *Storage) TableExists(table abstract.TableID) (bool, error) {
 	return table == *abstract.NewTableID(s.cfg.TableNamespace, s.cfg.TableName), nil
 }
 
-func (s *Storage) Build(ctx context.Context) (abstract.Assigner, error) {
-	result, err := NewSelfOperationTablePartAssigner(
-		ctx,
-		s.logger,
-		s.client,
-		nil, // TODO
-		s.cfg,
-		s.transferID,
-		nil, // TODO
-		s.isIncremental,
-	)
-	return result, err
-}
-
 func New(src *s3.S3Source, transferID string, isIncremental bool, lgr log.Logger, registry metrics.Registry) (*Storage, error) {
 	sess, err := s3.NewAWSSession(lgr, src.Bucket, src.ConnectionConfig)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create aws session: %w", err)
 	}
-
 	currReader, err := reader_factory.NewReader(src, lgr, sess, stats.NewSourceStats(registry))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader: %w", err)
@@ -205,7 +190,6 @@ func New(src *s3.S3Source, transferID string, isIncremental bool, lgr log.Logger
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve schema: %w", err)
 	}
-
 	return &Storage{
 		cfg:           src,
 		transferID:    transferID,

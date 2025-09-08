@@ -21,8 +21,6 @@ type TableDescription struct {
 	Offset uint64 // offset (in rows) along the ordering key (not necessary primary key)
 }
 
-var NonExistentTableID TableID = *NewTableID("", "")
-
 const IsAsyncPartsUploadedStateKey = "is-async-parts-uploaded"
 
 func BuildIncludeMap(objects []string) (map[TableID]bool, error) {
@@ -385,14 +383,4 @@ type IncrementalStorage interface {
 type SnapshotableStorage interface {
 	BeginSnapshot(ctx context.Context) error
 	EndSnapshot(ctx context.Context) error
-}
-
-// self-assigner
-
-type Assigner interface {
-	NextOperationTablePart() (*OperationTablePart, error)
-	Commit(part *OperationTablePart) error
-}
-type AssignerBuilder interface {
-	Build(ctx context.Context) (Assigner, error)
 }

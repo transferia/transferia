@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/storage"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
@@ -115,12 +116,12 @@ func Snapshot(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 	transfer = helpers.WithLocalRuntime(transfer, 1, 1)
 
-	storage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
+	currStorage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
 	require.NoError(t, err)
-	defer storage.Close()
-	mysqlStorage, ok := storage.(*mysql.Storage)
+	defer currStorage.Close()
+	mysqlStorage, ok := currStorage.(*mysql.Storage)
 	require.True(t, ok)
-	tables, err := model.FilteredTableList(storage, transfer)
+	tables, err := model.FilteredTableList(currStorage, transfer)
 	require.NoError(t, err)
 
 	err = mysqlStorage.BeginSnapshot(context.TODO())
@@ -130,15 +131,17 @@ func Snapshot(t *testing.T) {
 
 	operationID := "test-operation"
 
-	operationTables := []*abstract.OperationTablePart{}
+	operationTables := make([]*abstract.OperationTablePart, 0)
 	for _, table := range tables.ConvertToTableDescriptions() {
 		operationTables = append(operationTables, abstract.NewOperationTablePartFromDescription(operationID, &table))
 	}
 
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), operationID, transfer, helpers.EmptyRegistry())
 
-	partProvider := tasks.NewLocalTablePartProvider(operationTables...)
-	err = snapshotLoader.DoUploadTables(context.TODO(), storage, partProvider.TablePartProvider())
+	tablePartProvider := table_part_provider.NewSingleWorkerTPPFullSync()
+	err = tablePartProvider.AppendParts(context.Background(), operationTables)
+	require.NoError(t, err)
+	err = snapshotLoader.DoUploadTables(context.TODO(), currStorage, tablePartProvider)
 	require.NoError(t, err)
 
 	err = mysqlStorage.EndSnapshot(context.TODO())

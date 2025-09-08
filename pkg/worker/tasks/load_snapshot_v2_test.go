@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/stdout"
+	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -28,7 +29,7 @@ func TestSnapshotLoader_doUploadTablesV2(t *testing.T) {
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := snapshotLoader.doUploadTablesV2(ctx, nil, NewLocalTablePartProvider().TablePartProvider())
+	err := snapshotLoader.doUploadTablesV2(ctx, nil, table_part_provider.NewSingleWorkerTPPFullAsync())
 	require.NoError(t, err)
 }
 

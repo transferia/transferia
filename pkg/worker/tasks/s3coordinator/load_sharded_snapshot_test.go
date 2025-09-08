@@ -12,7 +12,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/coordinator/s3coordinator"
 	"github.com/transferia/transferia/pkg/terryid"
 	"github.com/transferia/transferia/pkg/worker/tasks"
