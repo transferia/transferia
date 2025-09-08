@@ -5,6 +5,10 @@ type Environment int
 const (
 	EnvironmentUnknown  Environment = 0
 	EnvironmentInternal Environment = 1
+	EnvironmentRU       Environment = 2
+	EnvironmentAWS      Environment = 3
+	EnvironmentNebius   Environment = 4
+	EnvironmentKZ       Environment = 5
 )
 
 type EnvironmentProvider interface {
