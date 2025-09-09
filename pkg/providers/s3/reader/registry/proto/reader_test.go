@@ -68,7 +68,7 @@ func TestStreamParseFile(t *testing.T) {
 	filePath := "metrika-data/metrika_hit_protoseq_data.bin"
 	chunkReader := abstract_reader.NewChunkReader(rawReader, 2184, logger.Log)
 	defer chunkReader.Close()
-	err = genericParserReader.streamParseFile(context.Background(), filePath, chunkReader, pusher.NewSyncPusher(mockPusher), time.Now())
+	err = streamParseFile(context.Background(), &genericParserReader, filePath, chunkReader, pusher.NewSyncPusher(mockPusher), time.Now())
 	require.NoError(t, err)
 	require.Empty(t, chunkReader.Data())
 	require.True(t, allParsed(pushedItems))
