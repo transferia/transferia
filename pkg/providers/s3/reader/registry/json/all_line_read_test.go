@@ -56,3 +56,66 @@ func TestReadAllLines_NoPanicWhenTrailingNewline(t *testing.T) {
 	// safe slicing
 	_ = content[readBytes:]
 }
+
+func TestReadAllMultilineLines_WithTrailingNewlines(t *testing.T) {
+	obj1 := `{
+	"a": 1,
+	"b": {
+		"c": 2
+	}
+}`
+
+	obj2 := `{
+	"name": "test",
+	"nested": { "a": { "b": 3 } },
+	"arr": [1, 2, {"k": "c"}]
+}`
+
+	content := []byte(obj1 + "\n" + obj2 + "\n")
+	lines, readBytes := readAllMultilineLines(content)
+
+	require.Equal(t, 2, len(lines))
+	require.Equal(t, obj1, lines[0])
+	require.Equal(t, obj2, lines[1])
+	require.Equal(t, len(content), readBytes)
+
+	// safe slicing
+	require.NotPanics(t, func() { _ = content[readBytes:] })
+}
+
+func TestReadAllMultilineLines_LastLineWithoutTrailingNewline(t *testing.T) {
+	obj1 := `{
+	"id": 42
+}`
+	obj2 := `{
+	"payload": {"a": 1, "b": [2,3]},
+	"text": "many
+lines"
+}`
+	content := []byte(obj1 + "\n" + obj2)
+	lines, readBytes := readAllMultilineLines(content)
+
+	require.Equal(t, 2, len(lines))
+	require.Equal(t, obj1, lines[0])
+	require.Equal(t, obj2, lines[1])
+	require.Equal(t, len(content), readBytes)
+
+	// safe slicing
+	require.NotPanics(t, func() { _ = content[readBytes:] })
+}
+
+func TestReadAllMultilineLines_EmptyContent(t *testing.T) {
+	content := []byte("")
+	lines, readBytes := readAllMultilineLines(content)
+
+	require.Equal(t, 0, len(lines))
+	require.Equal(t, 0, readBytes)
+}
+
+func TestReadAllMultilineLines_InvalidContent(t *testing.T) {
+	content := []byte("invalid}")
+	lines, readBytes := readAllMultilineLines(content)
+
+	require.Equal(t, 0, len(lines))
+	require.Equal(t, 0, readBytes)
+}

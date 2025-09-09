@@ -31,6 +31,10 @@ func readAllLines(content []byte) ([]string, int, error) {
 
 // In order to comply with the POSIX standard definition of line https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206
 func readAllMultilineLines(content []byte) ([]string, int) {
+	if len(content) == 0 {
+		return make([]string, 0), 0
+	}
+
 	var lines []string
 	extractedLine := make([]rune, 0)
 	foundStart := false
@@ -42,7 +46,6 @@ func readAllMultilineLines(content []byte) ([]string, int) {
 			bytesRead += (len(string(extractedLine)) + len("\n"))
 
 			foundStart = false
-			countCurlyBrackets = 0
 			extractedLine = []rune{}
 			continue
 		}
@@ -56,6 +59,10 @@ func readAllMultilineLines(content []byte) ([]string, int) {
 		if char == '}' {
 			countCurlyBrackets--
 		}
+	}
+	if foundStart && countCurlyBrackets == 0 && content[len(content)-1] == '}' {
+		lines = append(lines, string(extractedLine))
+		bytesRead += len(string(extractedLine))
 	}
 	return lines, bytesRead
 }
