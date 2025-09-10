@@ -2,9 +2,7 @@ package greenplum
 
 import (
 	"context"
-	"fmt"
 	"net"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -138,40 +136,6 @@ func coordinatorConnFromStorage(storage *Storage) (*pgxpool.Pool, error) {
 	return coordinator.Conn, nil
 }
 
-func getLocalIP() (net.IP, error) {
-	var res []net.IP
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-	for _, iface := range interfaces {
-		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 || !strings.HasPrefix(iface.Name, "eth") {
-			continue
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip == nil || ip.IsLoopback() || !ip.To4().IsGlobalUnicast() {
-				continue // Skip IPv6, loopback and link-local addresses.
-			}
-			res = append(res, ip)
-		}
-	}
-	if len(res) > 0 {
-		return res[0], nil
-	}
-	return nil, fmt.Errorf("no non-loopback, unicast IPv4 address found")
-}
-
 // localAddrFromStorage returns host for external connections (from GreenPlum VMs to Transfer VMs).
 func localAddrFromStorage(storage *Storage) (net.IP, error) {
 	var gpAddr *GpHP
@@ -185,23 +149,7 @@ func localAddrFromStorage(storage *Storage) (net.IP, error) {
 			return nil, xerrors.Errorf("unable to get coordinator host: %w", err)
 		}
 	}
-
-	conn, err := net.Dial("tcp", gpAddr.String())
-	if err != nil {
-		return nil, xerrors.Errorf("unable to dial GP address %s: %w", gpAddr, err)
-	}
-	defer conn.Close()
-
-	addr := conn.LocalAddr()
-	tcpAddr, ok := addr.(*net.TCPAddr)
-	if !ok {
-		return nil, xerrors.Errorf("expected LocalAddr to be *net.TCPAddr, got %T", addr)
-	}
-	if tcpAddr.IP.IsLoopback() {
-		logger.Log.Warnf("Dial local address is loopback (%s), resolving from interfaces", tcpAddr.IP.String())
-		return getLocalIP()
-	}
-	return tcpAddr.IP, nil
+	return gpfdist.LocalAddrFromStorage(gpAddr.String())
 }
 
 func (s *GpfdistStorage) Close() { s.storage.Close() }

@@ -1491,6 +1491,7 @@
   "pkg/providers/greenplum/gpfdist/gpfdist_bin/try_function.go":"transfer_manager/go/pkg/providers/greenplum/gpfdist/gpfdist_bin/try_function.go",
   "pkg/providers/greenplum/gpfdist/pipe_reader.go":"transfer_manager/go/pkg/providers/greenplum/gpfdist/pipe_reader.go",
   "pkg/providers/greenplum/gpfdist/pipe_writer.go":"transfer_manager/go/pkg/providers/greenplum/gpfdist/pipe_writer.go",
+  "pkg/providers/greenplum/gpfdist/util.go":"transfer_manager/go/pkg/providers/greenplum/gpfdist/util.go",
   "pkg/providers/greenplum/gpfdist_sink.go":"transfer_manager/go/pkg/providers/greenplum/gpfdist_sink.go",
   "pkg/providers/greenplum/gpfdist_storage.go":"transfer_manager/go/pkg/providers/greenplum/gpfdist_storage.go",
   "pkg/providers/greenplum/gpfdist_table_sink.go":"transfer_manager/go/pkg/providers/greenplum/gpfdist_table_sink.go",
