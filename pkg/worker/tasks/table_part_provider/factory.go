@@ -71,14 +71,13 @@ func NewMultiWorkerTPPGetter(
 	}
 }
 
-func NewTablePartProviderSetter(
+func NewMultiWorkerTPPSetter(
 	ctx context.Context,
 	sourceStorage abstract.Storage,
 	dstModel model.Destination,
 	tables []abstract.TableDescription,
 	tmpPolicyConfig *model.TmpPolicyConfig,
 	operationID string,
-	workerIndex int, // <----------------------------------------------------------------------------------------------- candidate for removing
 	coordinator coordinator.Coordinator,
 ) (AbstractTablePartProviderSetter, error) {
 	if _, isAsyncParts := sourceStorage.(abstract.AsyncOperationPartsStorage); isAsyncParts {

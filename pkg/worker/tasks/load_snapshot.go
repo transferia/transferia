@@ -389,14 +389,14 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 	}
 
 	// factory call - if source have asyncParts, then builds async table_part_provider. Else - builds sync table_part_provider
-	partProvider, err := table_part_provider.NewSingleWorkerTPPFull(ctx, sourceStorage, l.transfer.Dst, tables, l.transfer.TmpPolicy, l.operationID, l.workerIndex, l.cp)
+	tablePartProviderFull, err := table_part_provider.NewSingleWorkerTPPFull(ctx, sourceStorage, l.transfer.Dst, tables, l.transfer.TmpPolicy, l.operationID, l.workerIndex, l.cp)
 	if err != nil {
 		return xerrors.Errorf("failed to build single_worker_mode table part provider: %w", err)
 	}
 
-	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, partProvider.AllPartsOrNil(), &l.progressUpdateMutex)
+	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, tablePartProviderFull.AllPartsOrNil(), &l.progressUpdateMutex)
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, partProvider.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tablePartProviderFull.AllPartsOrNil()...); err != nil {
 		return errors.CategorizedErrorf(categories.Source, "unable to start loading tables: %w", err)
 	}
 
@@ -406,11 +406,11 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		defer close(l.waitErrCh)
 		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from asyncLoadParts.
 		logger.Log.Info("Start uploading tables on single worker")
-		l.waitErrCh <- l.DoUploadTables(ctx, sourceStorage, partProvider)
+		l.waitErrCh <- l.DoUploadTables(ctx, sourceStorage, tablePartProviderFull)
 		logger.Log.Info("Uploading tables process on single worker finished")
 	}()
 
-	err = partProvider.AsyncLoadPartsIfNeeded(
+	err = tablePartProviderFull.AsyncLoadPartsIfNeeded(
 		asyncProviderCtx,
 		sourceStorage,
 		tables,
@@ -433,7 +433,7 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		return errors.CategorizedErrorf(categories.Internal, "unable to end snapshot: %w", err)
 	}
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, partProvider.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tablePartProviderFull.AllPartsOrNil()...); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to finish tables loading: %w", err)
 	}
 
@@ -502,7 +502,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to start snapshot incremental, err: %w", err)
 	}
 
-	tablePartProviderSetter, err := table_part_provider.NewTablePartProviderSetter(ctx, sourceStorage, l.transfer.Dst, tables, l.transfer.TmpPolicy, l.operationID, l.workerIndex, l.cp)
+	tablePartProviderSetter, err := table_part_provider.NewMultiWorkerTPPSetter(ctx, sourceStorage, l.transfer.Dst, tables, l.transfer.TmpPolicy, l.operationID, l.cp)
 	if err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to create table_part_provider, err: %w", err)
 	}
@@ -622,7 +622,7 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 
 	logger.Log.Infof("Start uploading tables on worker %v", l.workerIndex)
 
-	partProvider := table_part_provider.NewMultiWorkerTPPGetter(
+	tablePartProviderGetter := table_part_provider.NewMultiWorkerTPPGetter(
 		ctx,
 		sourceStorage,
 		l.transfer.ID,
@@ -634,7 +634,7 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 		},
 	)
 
-	if err := l.DoUploadTables(ctx, sourceStorage, partProvider); err != nil {
+	if err := l.DoUploadTables(ctx, sourceStorage, tablePartProviderGetter); err != nil {
 		return xerrors.Errorf("upload of tables failed on worker '%v': %w", l.workerIndex, err)
 	}
 

@@ -64,7 +64,7 @@ func asyncLoadParts(
 	if err != nil {
 		return xerrors.Errorf("unable to get total leastParts count: %w", err)
 	}
-	storageProvider, cancel, err := storage.AsyncPartsProvider(tables)
+	asyncPartsProvider, cancel, err := storage.AsyncPartsProvider(tables)
 	if err != nil {
 		return xerrors.Errorf("unable to create async leastParts provider: %w", err)
 	}
@@ -72,7 +72,7 @@ func asyncLoadParts(
 
 	partNumber := uint64(1)
 	for {
-		tables, err := storageProvider(ctx, asyncPartsDefaultBatchSize)
+		tables, err := asyncPartsProvider(ctx, asyncPartsDefaultBatchSize)
 		if err != nil {
 			return xerrors.Errorf("unable to async get table desc: %w", err)
 		}
