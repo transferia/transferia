@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS personas (
 );
 
 -- Insert personas data
-INSERT INTO personas (name, description, strength_level, special_move) VALUES
+INSERT INTO personas (name, strength_level, special_move) VALUES
 ('Billy Herrington', 100, 'Anvil Drop'),
 ('Van Darkholme', 95, 'Whip of Submission'),
 ('Ricardo Milos', 90, 'Twerk of Power'),
