@@ -101,25 +101,12 @@ func ConnectionParamsByConnectionID(connectionID string, shardGroup string, nati
 		Shards:         make(map[string][]*clickhouse.Host),
 	}
 
-	if conn.ClusterID == "" {
-		result.Shards = resolveShardsFromHosts(result.Hosts)
-	} else {
-		hosts, shards, err := ResolveShardGroupHostsAndShards(conn.ClusterID, shardGroup, nativePort, httpPort)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve shard group hosts and shards: %w", err)
-		}
-		result.Hosts = hosts
-		result.Shards = shards
+	hosts, shards, err := ResolveShardGroupHostsAndShards(conn, connectionID, shardGroup, nativePort, httpPort)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve shard group hosts and shards: %w", err)
 	}
+	result.Hosts = hosts
+	result.Shards = shards
 
 	return result, nil
-}
-
-func resolveShardsFromHosts(hosts []*clickhouse.Host) map[string][]*clickhouse.Host {
-	shards := make(map[string][]*clickhouse.Host)
-	for _, host := range hosts {
-		shards[host.ShardName] = append(shards[host.ShardName], host)
-	}
-
-	return shards
 }

@@ -17,6 +17,7 @@ type Connection struct {
 	// field in manage connection with applicable databases, currently used for info only.
 	// in the future we may want to check that DatabaseNames if defined includes Database from user input
 	DatabaseNames []string
+	ShardGroups   map[string][]string
 }
 
 func (ch *Connection) GetDatabases() []string {
