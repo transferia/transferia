@@ -496,14 +496,14 @@ func (p *GenericParser) doLfParser(msg parsers.Message, partition abstract.Parti
 			p.logger.Warnf("unable to parse result from logfeller parser: %v", err)
 			break
 		}
-		for _, i := range items {
+		for _, currItem := range items {
 			idx++
 			var ci abstract.ChangeItem
 
-			if i.IsUnparsed() {
-				ci = p.newUnparsed(partition, i.RawLine, i.Error, idx, msg)
+			if currItem.IsUnparsed() {
+				ci = p.newUnparsed(partition, currItem.RawLine, currItem.Error, idx, msg)
 			} else {
-				ci = p.makeChangeItem(i.ParsedRecord, idx, i.RawLine, partition, msg)
+				ci = p.makeChangeItem(currItem.ParsedRecord, idx, currItem.RawLine, partition, msg)
 				if err = abstract.ValidateChangeItem(&ci); err != nil {
 					p.logger.Error(err.Error())
 				}
@@ -918,6 +918,29 @@ func (p *GenericParser) ParseVal(v interface{}, typ string) (interface{}, error)
 		case schema.TypeString, schema.TypeBytes:
 			return fmt.Sprintf("%v", v), nil
 		default:
+			return n, nil
+		}
+	}
+
+	if n, ok := v.(uint64); ok {
+		switch schema.Type(typ) {
+		case schema.TypeFloat64:
+			return n, nil
+		case schema.TypeInt8:
+			return int8(n), nil
+		case schema.TypeInt16:
+			return int16(n), nil
+		case schema.TypeInt32:
+			return int32(n), nil
+		case schema.TypeInt64:
+			return int64(n), nil
+		case schema.TypeUint8:
+			return uint8(n), nil
+		case schema.TypeUint16:
+			return uint16(n), nil
+		case schema.TypeUint32:
+			return uint32(n), nil
+		case schema.TypeUint64:
 			return n, nil
 		}
 	}
