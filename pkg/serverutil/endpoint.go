@@ -33,11 +33,11 @@ func RunHealthCheckOnPort(port int) {
 	}
 }
 
-func RunPprof() {
-	logger.Log.Infof("init pprof on port 8080") // on 8080, bcs YT-vanilla forbid listen 80 port
-	server, err := NewServer("tcp", ":8080", logger.Log)
+func RunPprof(port int) {
+	logger.Log.Infof("init pprof on port %d", port)
+	server, err := NewServer("tcp", fmt.Sprintf(":%d", port), logger.Log)
 	if err != nil {
-		logger.Log.Info("failed to serve pprof on 8080, try random port", log.Error(err))
+		logger.Log.Info(fmt.Sprintf("failed to serve pprof on %d, try random port", port), log.Error(err))
 		server, err = NewServer("tcp", ":0", logger.Log)
 		if err != nil {
 			logger.Log.Error("failed to add listener for pprof", log.Error(err))
