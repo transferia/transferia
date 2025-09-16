@@ -276,29 +276,22 @@ func (s *Storage) OrderedRead(
 func (s *Storage) Ping() error {
 	return nil
 }
+func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap, error) {
+	var tableMapResult abstract.TableMap
+	err := s.tx(func(ctx context.Context, tx pgx.Tx) error {
+		tableMapTemporary, err := s.tableList(ctx, tx, filter)
+		if err != nil {
+			return err
+		}
+		tableMapResult = tableMapTemporary
+		return nil
+	}, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+
+	return tableMapResult, err
+}
 
 // TableList in PostgreSQL returns a table map with schema
-func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap, error) {
-	ctx := context.TODO()
-
-	conn, err := s.Conn.Acquire(ctx)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to acquire a connection from pool: %w", err)
-	}
-	defer conn.Release()
-
-	rollbacks := util.Rollbacks{}
-	defer rollbacks.Do()
-	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
-	if err != nil {
-		return nil, xerrors.Errorf("failed to start a transaction in storage: %w", err)
-	}
-	rollbacks.Add(func() {
-		if err := tx.Rollback(ctx); err != nil {
-			logger.Log.Warn("Failed to ROLLBACK table list transaction", log.Error(err))
-		}
-	})
-
+func (s *Storage) tableList(ctx context.Context, tx pgx.Tx, filter abstract.IncludeTableList) (abstract.TableMap, error) {
 	warnTooLongExec := util.DelayFunc(
 		func() {
 			logger.Log.Warn("Schema retrieval takes longer than usual. Check the list of tables included in the transfer and the load of source database.")
@@ -314,7 +307,7 @@ func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour)
 
-	tablesListUnfiltered, ts, err := sEx.TablesList(ctx, tx.Conn())
+	tablesListUnfiltered, ts, err := sEx.TablesList(ctx, tx)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to load a list of tables in schema *: %w", err)
 	}
@@ -346,11 +339,6 @@ func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap
 			return nil, xerrors.Errorf("failed to load schema: %w", err)
 		}
 	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, xerrors.Errorf("failed to COMMIT table list transaction: %w", err)
-	}
-	rollbacks.Cancel()
 
 	return result, nil
 }
@@ -457,18 +445,22 @@ WHERE
 	return uint64(etaRow), nil
 }
 
-func (s *Storage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
-	tx, err := s.Conn.BeginTx(context.TODO(), pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
-	if err != nil {
-		return 0, xerrors.Errorf("unable to begin transaction to get exact table rows for table %s: %w", table.Fqtn(), err)
-	}
-	defer tx.Commit(context.TODO()) //nolint
+func (s *Storage) tx(operation txOp, options pgx.TxOptions) error {
+	return doUnderTransactionWithOptions(context.TODO(), s.Conn, operation, options, logger.Log)
+}
 
-	exactCountQueryStr := exactCountQuery(&abstract.TableDescription{Schema: table.Namespace, Name: table.Name, Filter: "", EtaRow: 0, Offset: 0})
+func (s *Storage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
 	var totalCount uint64
-	if err := tx.QueryRow(context.TODO(), exactCountQueryStr).Scan(&totalCount); err != nil {
+	exactCountQueryStr := exactCountQuery(&abstract.TableDescription{Schema: table.Namespace, Name: table.Name, Filter: "", EtaRow: 0, Offset: 0})
+
+	err := s.tx(func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, exactCountQueryStr).Scan(&totalCount)
+	}, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+
+	if err != nil {
 		return 0, xerrors.Errorf("unable to count table rows: %w", err)
 	}
+
 	return totalCount, nil
 }
 
@@ -816,20 +808,14 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 func (s *Storage) LoadSampleBySet(table abstract.TableDescription, keySet []map[string]interface{}, pusher abstract.Pusher) error {
 	startTime := time.Now()
 
-	conn, err := s.Conn.Acquire(context.TODO())
-	if err != nil {
-		return xerrors.Errorf("unable to acquire connection: %w", err)
-	}
-	defer conn.Release()
+	return s.tx(func(ctx context.Context, tx pgx.Tx) error {
+		return s.loadSampleBySet(ctx, tx, startTime, table, keySet, pusher)
+	}, repeatableReadReadOnlyTxOptions)
 
-	ctx := context.Background()
-	tx, err := conn.BeginTx(ctx, repeatableReadReadOnlyTxOptions)
-	if err != nil {
-		return xerrors.Errorf("unable to begin transaction: %w", err)
-	}
-	defer tx.Commit(context.TODO()) //nolint
+}
 
-	loadMode, err := s.discoverTableLoadMode(ctx, conn, table)
+func (s *Storage) loadSampleBySet(ctx context.Context, tx pgx.Tx, startTime time.Time, table abstract.TableDescription, keySet []map[string]interface{}, pusher abstract.Pusher) error {
+	loadMode, err := s.discoverTableLoadMode(ctx, tx, table)
 	if err != nil {
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
@@ -896,15 +882,13 @@ func (s *Storage) LoadSampleBySet(table abstract.TableDescription, keySet []map[
 
 func (s *Storage) LoadTopBottomSample(table abstract.TableDescription, pusher abstract.Pusher) error {
 	startTime := time.Now()
-	ctx := context.Background()
+	return s.tx(func(ctx context.Context, tx pgx.Tx) error {
+		return s.loadTopBottomSample(ctx, tx, startTime, table, pusher)
+	}, repeatableReadReadOnlyTxOptions)
+}
 
-	conn, err := s.Conn.Acquire(ctx)
-	if err != nil {
-		return xerrors.Errorf("Failed to acquire a connection: %w", err)
-	}
-	defer conn.Release()
-
-	loadMode, err := s.discoverTableLoadMode(ctx, conn, table)
+func (s *Storage) loadTopBottomSample(ctx context.Context, tx pgx.Tx, startTime time.Time, table abstract.TableDescription, pusher abstract.Pusher) error {
+	loadMode, err := s.discoverTableLoadMode(ctx, tx, table)
 	if err != nil {
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
@@ -918,14 +902,6 @@ func (s *Storage) LoadTopBottomSample(table abstract.TableDescription, pusher ab
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
-
-	tx, err := conn.BeginTx(ctx, repeatableReadReadOnlyTxOptions)
-	if err != nil {
-		return xerrors.Errorf("Failed to begin a transaction: %w", err)
-	}
-	defer func() {
-		_ = tx.Commit(ctx)
-	}()
 
 	schema, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
