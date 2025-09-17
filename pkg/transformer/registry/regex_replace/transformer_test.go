@@ -287,32 +287,43 @@ func TestReplaceMultipleMatches(t *testing.T) {
 }
 
 func TestReplaceComplexRegex(t *testing.T) {
-	matchRegex := regexp.MustCompile(`(\w+)\s(\w+)`)
-	replaceRule := "$2, $1"
-
 	tests := []struct {
-		name     string
-		value    any
-		typ      string
-		expected any
+		name        string
+		value       any
+		typ         string
+		expected    any
+		matchRegex  *regexp.Regexp
+		replaceRule string
 	}{
 		{
-			name:     "string with groups",
-			value:    "John Doe",
-			typ:      schema.TypeString.String(),
-			expected: "Doe, John",
+			name:        "string with groups",
+			value:       "John Doe",
+			typ:         schema.TypeString.String(),
+			expected:    "Doe, John",
+			matchRegex:  regexp.MustCompile(`(\w+)\s(\w+)`),
+			replaceRule: "$2, $1",
 		},
 		{
-			name:     "bytes with groups",
-			value:    []byte("John Doe"),
-			typ:      schema.TypeBytes.String(),
-			expected: []byte("Doe, John"),
+			name:        "bytes with groups",
+			value:       []byte("John Doe"),
+			typ:         schema.TypeBytes.String(),
+			expected:    []byte("Doe, John"),
+			matchRegex:  regexp.MustCompile(`(\w+)\s(\w+)`),
+			replaceRule: "$2, $1",
+		},
+		{
+			name:        "DTSUPPORT-5833,dtt2i4adsdahs7dkmm7e",
+			value:       "https://yandex.ru/games/app/99348",
+			typ:         schema.TypeString.String(),
+			expected:    "99348",
+			matchRegex:  regexp.MustCompile(`.*?/app/(\d+).*`),
+			replaceRule: "$1",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := replace(tt.value, tt.typ, matchRegex, replaceRule)
+			result := replace(tt.value, tt.typ, tt.matchRegex, tt.replaceRule)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
