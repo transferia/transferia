@@ -176,7 +176,7 @@ func calculateBuffererConfig(transfer *model.Transfer, middlewaresConfig middlew
 }
 
 func getMemoryThrottlerSettings(transfer *model.Transfer) (uint64, bool) {
-	if val, err := transfer.SystemLabel(model.SystemLabelMemThrottle); err == nil && val == "on" {
+	if val, err := transfer.FeatureLabel(model.FeatureLabelMemThrottle); err == nil && val == "on" {
 		if rt, ok := transfer.Runtime.(abstract.LimitedResourceRuntime); ok {
 			return rt.RAMGuarantee(), rt.RAMGuarantee() != 0
 		}

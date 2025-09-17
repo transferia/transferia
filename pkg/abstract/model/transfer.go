@@ -414,7 +414,7 @@ func (f *Transfer) Include(tID abstract.TableID) bool {
 // SystemLabel method is used to access system labels for transfer.
 // System labels are special reserved labels which are used to control some
 // hidden experimental transfer features
-func (f *Transfer) SystemLabel(name SystemLabel) (string, error) {
+func (f *Transfer) FeatureLabel(name FeatureLabel) (string, error) {
 	labelMap := map[string]string{}
 	if err := json.Unmarshal([]byte(f.Labels), &labelMap); err != nil {
 		return "", xerrors.Errorf("error parsing transfer labels: %w", err)
@@ -455,7 +455,7 @@ func (f *Transfer) Copy(name string) Transfer {
 }
 
 func (f *Transfer) IsAsyncCHExp() bool {
-	val, err := f.SystemLabel(SystemLabelAsyncCH)
+	val, err := f.FeatureLabel(FeatureLabelAsyncCH)
 	if err != nil || val != "on" {
 		return false
 	}

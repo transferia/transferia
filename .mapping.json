@@ -2185,6 +2185,7 @@
   "pkg/stats/sink_wrapper_util_test.go":"transfer_manager/go/pkg/stats/sink_wrapper_util_test.go",
   "pkg/stats/sinker.go":"transfer_manager/go/pkg/stats/sinker.go",
   "pkg/stats/source.go":"transfer_manager/go/pkg/stats/source.go",
+  "pkg/stats/stopper.go":"transfer_manager/go/pkg/stats/stopper.go",
   "pkg/stats/table.go":"transfer_manager/go/pkg/stats/table.go",
   "pkg/stats/type_strictness.go":"transfer_manager/go/pkg/stats/type_strictness.go",
   "pkg/stats/worker.go":"transfer_manager/go/pkg/stats/worker.go",

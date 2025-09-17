@@ -245,10 +245,13 @@ func NewFromHosts(dbName, user, password string, hosts []string, port int, ssl b
 	opts := []hasql.ClusterOption{
 		hasql.WithUpdateInterval(2 * time.Second), // set custom update interval
 	}
-	c, _ := hasql.NewCluster(nodes, checkers.PostgreSQL, opts...)
+	c, err := hasql.NewCluster(nodes, checkers.PostgreSQL, opts...)
+	if err != nil {
+		return nil, xerrors.Errorf("Failed to create HA cluster: %w", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
-	_, err := c.WaitForAlive(ctx)
+	_, err = c.WaitForAlive(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to wait for cluster availability: %w", err)
 	}
