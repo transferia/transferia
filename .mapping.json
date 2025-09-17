@@ -1620,6 +1620,7 @@
   "pkg/providers/mysql/mysql_connection_params.go":"transfer_manager/go/pkg/providers/mysql/mysql_connection_params.go",
   "pkg/providers/mysql/mysqlrecipe/adapter.go":"transfer_manager/go/pkg/providers/mysql/mysqlrecipe/adapter.go",
   "pkg/providers/mysql/mysqlrecipe/container.go":"transfer_manager/go/pkg/providers/mysql/mysqlrecipe/container.go",
+  "pkg/providers/mysql/parser_utf8mb3_test.go":"transfer_manager/go/pkg/providers/mysql/parser_utf8mb3_test.go",
   "pkg/providers/mysql/provider.go":"transfer_manager/go/pkg/providers/mysql/provider.go",
   "pkg/providers/mysql/queries.go":"transfer_manager/go/pkg/providers/mysql/queries.go",
   "pkg/providers/mysql/queries_builder.go":"transfer_manager/go/pkg/providers/mysql/queries_builder.go",
