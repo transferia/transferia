@@ -1327,6 +1327,7 @@
   "pkg/providers/clickhouse/model/model_ch_destination.go":"transfer_manager/go/pkg/providers/clickhouse/model/model_ch_destination.go",
   "pkg/providers/clickhouse/model/model_ch_destination_test.go":"transfer_manager/go/pkg/providers/clickhouse/model/model_ch_destination_test.go",
   "pkg/providers/clickhouse/model/model_ch_source.go":"transfer_manager/go/pkg/providers/clickhouse/model/model_ch_source.go",
+  "pkg/providers/clickhouse/model/model_ch_source_test.go":"transfer_manager/go/pkg/providers/clickhouse/model/model_ch_source_test.go",
   "pkg/providers/clickhouse/model/model_sink_params.go":"transfer_manager/go/pkg/providers/clickhouse/model/model_sink_params.go",
   "pkg/providers/clickhouse/model/model_storage_params.go":"transfer_manager/go/pkg/providers/clickhouse/model/model_storage_params.go",
   "pkg/providers/clickhouse/model/resolver.go":"transfer_manager/go/pkg/providers/clickhouse/model/resolver.go",

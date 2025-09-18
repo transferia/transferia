@@ -307,7 +307,7 @@ func (d ChDestinationWrapper) Cleanup() model.CleanupType {
 }
 
 func (d ChDestinationWrapper) MdbClusterID() string {
-	return d.Model.MdbClusterID
+	return d.connectionParams.ClusterID
 }
 
 func (d ChDestinationWrapper) ChClusterName() string {
@@ -319,11 +319,20 @@ func (d ChDestinationWrapper) User() string {
 }
 
 func (d ChDestinationWrapper) Password() string {
-	return string(d.Model.Password)
+	password := string(d.connectionParams.Password)
+	if password == "" {
+		password = string(d.Model.Password)
+	}
+	return password
 }
 
 func (d ChDestinationWrapper) ResolvePassword() (string, error) {
-	password, err := ResolvePassword(d.MdbClusterID(), d.User(), string(d.Model.Password))
+	rawPassword := string(d.connectionParams.Password)
+	if rawPassword == "" {
+		rawPassword = string(d.Model.Password)
+	}
+	password, err := ResolvePassword(d.MdbClusterID(), d.User(), rawPassword)
+
 	return password, err
 }
 
@@ -340,7 +349,7 @@ func (d ChDestinationWrapper) Host() *chConn.Host {
 }
 
 func (d ChDestinationWrapper) SSLEnabled() bool {
-	return d.Model.SSLEnabled || d.MdbClusterID() != ""
+	return d.Model.SSLEnabled || d.MdbClusterID() != "" || d.connectionParams.Secure
 }
 
 func (d ChDestinationWrapper) TTL() string {
@@ -428,7 +437,7 @@ func (d ChDestinationWrapper) ColumnToShardName() map[string]string {
 }
 
 func (d ChDestinationWrapper) PemFileContent() string {
-	return d.Model.PemFileContent
+	return d.connectionParams.PemFileContent
 }
 
 func (d ChDestinationWrapper) MakeChildServerParams(host *chConn.Host) ChSinkServerParams {

@@ -196,7 +196,7 @@ func (s ChSourceWrapper) Cleanup() model.CleanupType {
 }
 
 func (s ChSourceWrapper) MdbClusterID() string {
-	return s.Model.MdbClusterID
+	return s.connectionParams.ClusterID
 }
 
 func (s ChSourceWrapper) ChClusterName() string {
@@ -204,15 +204,26 @@ func (s ChSourceWrapper) ChClusterName() string {
 }
 
 func (s ChSourceWrapper) User() string {
+	if s.connectionParams.User == "" {
+		return s.Model.User
+	}
 	return s.connectionParams.User
 }
 
 func (s ChSourceWrapper) Password() string {
-	return string(s.Model.Password)
+	password := string(s.connectionParams.Password)
+	if password == "" {
+		password = string(s.Model.Password)
+	}
+	return password
 }
 
 func (s ChSourceWrapper) ResolvePassword() (string, error) {
-	password, err := ResolvePassword(s.MdbClusterID(), s.User(), string(s.Model.Password))
+	rawPassword := string(s.connectionParams.Password)
+	if rawPassword == "" {
+		rawPassword = string(s.Model.Password)
+	}
+	password, err := ResolvePassword(s.MdbClusterID(), s.User(), rawPassword)
 	return password, err
 }
 
@@ -225,11 +236,14 @@ func (s ChSourceWrapper) Partition() string {
 }
 
 func (s ChSourceWrapper) Host() *clickhouse.Host {
+	if s.host == nil && len(s.AltHosts()) > 0 {
+		return s.AltHosts()[0]
+	}
 	return s.host
 }
 
 func (s ChSourceWrapper) SSLEnabled() bool {
-	return s.Model.SSLEnabled || s.MdbClusterID() != ""
+	return s.Model.SSLEnabled || s.MdbClusterID() != "" || s.connectionParams.Secure
 }
 
 func (s ChSourceWrapper) TTL() string {
@@ -305,6 +319,9 @@ func (s ChSourceWrapper) ColumnToShardName() map[string]string {
 }
 
 func (s ChSourceWrapper) PemFileContent() string {
+	if s.connectionParams.PemFileContent != "" {
+		return s.connectionParams.PemFileContent
+	}
 	return s.Model.PemFileContent
 }
 
