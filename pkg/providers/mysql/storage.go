@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -494,7 +495,15 @@ func (s *Storage) LoadSchema() (schema abstract.DBSchema, err error) {
 
 func (s *Storage) getGtid(ctx context.Context, tx Queryable) (string, error) {
 	var gtidSet string
-	err := tx.QueryRowContext(ctx, "select @@global.gtid_executed;").Scan(&gtidSet)
+	flavor, _, err := CheckMySQLVersion(s)
+	if err != nil {
+		return "", xerrors.Errorf("unable to check MySQL version: %w", err)
+	}
+	if flavor == mysql.MariaDBFlavor {
+		err = tx.QueryRowContext(ctx, "select @@global.gtid_current_pos;").Scan(&gtidSet)
+	} else {
+		err = tx.QueryRowContext(ctx, "select @@global.gtid_executed;").Scan(&gtidSet)
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "Unknown system variable 'gtid_executed'") {
 			return "", nil

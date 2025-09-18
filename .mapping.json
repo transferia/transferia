@@ -3476,6 +3476,8 @@
   "tests/large/docker-compose/elastic2opensearch_test.go":"transfer_manager/go/tests/large/docker-compose/elastic2opensearch_test.go",
   "tests/large/docker-compose/elastic_helpers.go":"transfer_manager/go/tests/large/docker-compose/elastic_helpers.go",
   "tests/large/docker-compose/elasticsearch2pg_test.go":"transfer_manager/go/tests/large/docker-compose/elasticsearch2pg_test.go",
+  "tests/large/docker-compose/mysql_docker_helpers.go":"transfer_manager/go/tests/large/docker-compose/mysql_docker_helpers.go",
+  "tests/large/docker-compose/mysql_mariadb_gtid_test.go":"transfer_manager/go/tests/large/docker-compose/mysql_mariadb_gtid_test.go",
   "tests/large/docker-compose/old_postgres_pg2pg_test.go":"transfer_manager/go/tests/large/docker-compose/old_postgres_pg2pg_test.go",
   "tests/large/docker-compose/pg2elasticsearch_test.go":"transfer_manager/go/tests/large/docker-compose/pg2elasticsearch_test.go",
   "tests/large/docker-compose/pg2kafka2pg_debezium_sr_test.go":"transfer_manager/go/tests/large/docker-compose/pg2kafka2pg_debezium_sr_test.go",
