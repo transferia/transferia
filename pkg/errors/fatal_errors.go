@@ -1,6 +1,8 @@
 package errors
 
 import (
+	"fmt"
+
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
@@ -19,6 +21,21 @@ const (
 )
 
 func LogFatalError(err error, transferID string, dstType abstract.ProviderType, srcType abstract.ProviderType) {
+	defer func() {
+		if r := recover(); r != nil {
+			// If a panic occurs during logging, we log it as a critical error
+			logger.FatalErrorLog.Error(
+				"panic during error logging",
+				log.String("panic", fmt.Sprintf("%v", r)),
+				log.String(KeyTransferID, transferID),
+				log.String(KeyDstType, dstType.Name()),
+				log.String(KeySrcType, srcType.Name()),
+				log.String(Category, string(categories.Internal)),
+				log.String(Code, UnspecifiedCode.ID()),
+			)
+		}
+	}()
+
 	errs := multierr.Errors(err)
 	for _, err := range errs {
 		logFatalError(err, transferID, dstType, srcType)
