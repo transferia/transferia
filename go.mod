@@ -28,7 +28,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/go-git/go-git/v5 v5.14.0
 	github.com/go-mysql-org/go-mysql v1.8.0
-	github.com/go-sql-driver/mysql v1.9.1
+	github.com/go-sql-driver/mysql v1.9.2
 	github.com/goccy/go-json v0.10.3
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang/protobuf v1.5.4
@@ -230,9 +230,9 @@ require (
 	github.com/paulmach/orb v0.11.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pingcap/check v0.0.0-20211026125417-57bd13f7b5f0 // indirect
-	github.com/pingcap/errors v0.11.5-0.20221009092201-b66cddb77c32 // indirect
+	github.com/pingcap/errors v0.11.5-0.20240311024730-e056997136bb // indirect
 	github.com/pingcap/log v1.1.1-0.20230317032135-a0d097d16e22 // indirect
-	github.com/pingcap/tidb/pkg/parser v0.0.0-20231103042308-035ad5ccbe67 // indirect
+	github.com/pingcap/tidb/pkg/parser v0.0.0-20250324122243-d51e00e5bbf0 // indirect
 	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
