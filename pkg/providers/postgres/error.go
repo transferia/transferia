@@ -4,12 +4,12 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 )
 
-var (
-	NoPrimaryKeyCode              = coded.Register("postgres", "no_primary_key")
-	DropTableWithDependenciesCode = coded.Register("postgres", "drop_table_with_dependencies")
-)
+// No alias exports here; use codes from codespkg directly
+
+func init() {}
 
 type PgErrorCode string
 
@@ -37,7 +37,7 @@ func IsPgError(err error, code PgErrorCode) bool {
 func IsPKeyCheckError(err error) bool {
 	var codederr coded.CodedError
 	if xerrors.As(err, &codederr) {
-		return codederr.Code() == NoPrimaryKeyCode
+		return codederr.Code() == codes.PostgresNoPrimaryKeyCode
 	}
 	return false
 }

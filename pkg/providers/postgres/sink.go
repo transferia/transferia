@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -531,7 +532,7 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 						return err
 					}
 				} else if IsPgError(err, ErrcDropTableWithDependencies) {
-					return coded.Errorf(DropTableWithDependenciesCode, "failed to drop table %v: %w", item.PgName(), err)
+					return coded.Errorf(codes.PostgresDropTableWithDependencies, "failed to drop table %v: %w", item.PgName(), err)
 				} else {
 					//nolint:descriptiveerrors
 					return err

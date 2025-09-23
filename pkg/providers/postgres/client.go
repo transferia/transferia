@@ -17,8 +17,8 @@ import (
 	"github.com/transferia/transferia/pkg/connection"
 	"github.com/transferia/transferia/pkg/dbaas"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/pgha"
-	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -527,11 +527,15 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	pgxConn, err := pgx.ConnectConfig(basicCtx, poolConfig.ConnConfig)
 	if err != nil {
 		if IsPgError(err, ErrcInvalidPassword) || IsPgError(err, ErrcInvalidAuthSpec) {
-			return nil, coded.Errorf(providers.InvalidCredential, "failed to connect to a PostgreSQL instance: %w", err)
+			return nil, coded.Errorf(codes.InvalidCredential, "failed to connect to a PostgreSQL instance: %w", err)
+		}
+		var dnsErr *net.DNSError
+		if xerrors.As(err, &dnsErr) {
+			return nil, coded.Errorf(codes.PostgresDNSResolutionFailed, "failed to connect to a PostgreSQL instance: %w", err)
 		}
 		var opErr *net.OpError
 		if xerrors.As(err, &opErr) && opErr.Op == "dial" {
-			return nil, coded.Errorf(providers.Dial, "failed to dial a PostgreSQL instance: %w", err)
+			return nil, coded.Errorf(codes.Dial, "failed to dial a PostgreSQL instance: %w", err)
 		}
 		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance: %w", err)
 	}

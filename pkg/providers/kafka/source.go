@@ -11,11 +11,11 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/functions"
 	"github.com/transferia/transferia/pkg/parsequeue"
 	"github.com/transferia/transferia/pkg/parsers"
-	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/queues/sequencer"
@@ -444,7 +444,7 @@ func ensureTopicExists(cl *kgo.Client, topics []string) error {
 		missedTopics = append(missedTopics, name)
 	}
 	if len(missedTopics) != 0 {
-		return coded.Errorf(providers.MissingData, "%v not found, response: %v", missedTopics, resp.Topics)
+		return coded.Errorf(codes.MissingData, "%v not found, response: %v", missedTopics, resp.Topics)
 	}
 
 	return nil

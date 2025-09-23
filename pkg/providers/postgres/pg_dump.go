@@ -20,6 +20,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/middlewares"
 	sink_factory "github.com/transferia/transferia/pkg/sink"
 	"github.com/transferia/transferia/pkg/util"
@@ -113,7 +115,7 @@ func ApplyCommands(commands []*pgDumpItem, transfer model.Transfer, registry met
 				log.String("query", command.Body),
 				log.Error(err),
 			)
-			return xerrors.Errorf(
+			return coded.Errorf(codes.PostgresDDLApplyFailed,
 				"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
 				command.Typ, command.Schema, command.Name, err)
 		}

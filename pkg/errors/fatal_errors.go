@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -31,7 +32,7 @@ func LogFatalError(err error, transferID string, dstType abstract.ProviderType, 
 				log.String(KeyDstType, dstType.Name()),
 				log.String(KeySrcType, srcType.Name()),
 				log.String(Category, string(categories.Internal)),
-				log.String(Code, UnspecifiedCode.ID()),
+				log.String(Code, codes.Unspecified.ID()),
 			)
 		}
 	}()
@@ -48,13 +49,13 @@ func logFatalError(err error, transferID string, dstType abstract.ProviderType, 
 	if xerrors.As(err, &categorized) {
 		cat = categorized.Category()
 	}
-	code := UnspecifiedCode
+	code := codes.Unspecified
 	var codeErr coded.CodedError = nil
 	if xerrors.As(err, &codeErr) {
 		code = codeErr.Code()
 	}
 	msg := ExtractShortStackTrace(err)
-	if code != UnspecifiedCode {
+	if code != codes.Unspecified {
 		msg = code.ID()
 	}
 	logger.FatalErrorLog.Error(

@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
@@ -73,5 +74,5 @@ func TestCodedErrors_DropTableWithDependencies(t *testing.T) {
 	require.Error(t, err)
 	var codedErr coded.CodedError
 	require.ErrorAs(t, err, &codedErr)
-	require.Equal(t, postgres.DropTableWithDependenciesCode, codedErr.Code())
+	require.Equal(t, codes.PostgresDropTableWithDependencies, codedErr.Code())
 }

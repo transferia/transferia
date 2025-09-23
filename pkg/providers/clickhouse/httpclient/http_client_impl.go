@@ -18,8 +18,8 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
-	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -76,7 +76,7 @@ func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, connString, bytes.NewReader(compressed.Bytes()))
 	if err != nil {
-		return nil, coded.Errorf(providers.NetworkUnreachable, "unable to create request: %w", err)
+		return nil, coded.Errorf(codes.NetworkUnreachable, "unable to create request: %w", err)
 	}
 
 	req.Header.Add("Content-Type", "application/octet-stream")
