@@ -11,9 +11,7 @@ import (
 type PluggableTransformer func(*model.Transfer, metrics.Registry, coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker
 
 var chain PluggableTransformer = func(t *model.Transfer, r metrics.Registry, cp coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker {
-	return func(s abstract.Sinker) abstract.Sinker {
-		return s
-	}
+	return IdentityMiddleware
 }
 
 // PlugTransformer adds a new pluggable transformer to a chain of such transformers.
