@@ -3263,6 +3263,8 @@
   "tests/e2e/pg2yt/relocator_trigger/dump/type_check.sql":"transfer_manager/go/tests/e2e/pg2yt/relocator_trigger/dump/type_check.sql",
   "tests/e2e/pg2yt/replication/check_db_test.go":"transfer_manager/go/tests/e2e/pg2yt/replication/check_db_test.go",
   "tests/e2e/pg2yt/replication/dump/type_check.sql":"transfer_manager/go/tests/e2e/pg2yt/replication/dump/type_check.sql",
+  "tests/e2e/pg2yt/rotation/check_db_test.go":"transfer_manager/go/tests/e2e/pg2yt/rotation/check_db_test.go",
+  "tests/e2e/pg2yt/rotation/dump/dump.sql":"transfer_manager/go/tests/e2e/pg2yt/rotation/dump/dump.sql",
   "tests/e2e/pg2yt/schema_change/check_db_test.go":"transfer_manager/go/tests/e2e/pg2yt/schema_change/check_db_test.go",
   "tests/e2e/pg2yt/schema_change/dump/dump.sql":"transfer_manager/go/tests/e2e/pg2yt/schema_change/dump/dump.sql",
   "tests/e2e/pg2yt/simple/check_db_test.go":"transfer_manager/go/tests/e2e/pg2yt/simple/check_db_test.go",

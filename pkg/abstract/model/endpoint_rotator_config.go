@@ -215,48 +215,54 @@ func (p *RotatorConfig) AnnotateWithTimeFromColumn(name string, item abstract.Ch
 	}
 }
 
-func ExtractTimeCol(item abstract.ChangeItem, timeColumn string) time.Time {
-	partKey := time.Now()
-	for i, k := range item.ColumnNames {
+func extractTimeCol(keyNames []string, keyValues []interface{}, timeColumn string) time.Time {
+	for i, k := range keyNames {
 		if k == timeColumn {
-			switch v := item.ColumnValues[i].(type) {
+			switch v := keyValues[i].(type) {
 			case time.Time:
-				partKey = v
+				return v
 			case *time.Time:
 				if v != nil {
-					partKey = *v
+					return *v
 				}
 			case string:
 				t, err := dateparse.ParseAny(v)
 				if err != nil {
 					break
 				}
-				partKey = t
+				return t
 			case []byte:
 				t, err := dateparse.ParseAny(string(v))
 				if err != nil {
 					break
 				}
-				partKey = t
+				return t
 			case *string:
 				if v != nil {
 					t, err := dateparse.ParseAny(*v)
 					if err != nil {
 						break
 					}
-					partKey = t
+					return t
 				}
 			case int, int32, int64, uint, uint32, uint64:
 				t, err := dateparse.ParseAny(fmt.Sprintf("%v", v))
 				if err != nil {
 					break
 				}
-				partKey = t
+				return t
 			}
 			break
 		}
 	}
-	return partKey
+	return time.Now()
+}
+
+func ExtractTimeCol(item abstract.ChangeItem, timeColumn string) time.Time {
+	if item.Kind == abstract.DeleteKind {
+		return extractTimeCol(item.OldKeys.KeyNames, item.OldKeys.KeyValues, timeColumn)
+	}
+	return extractTimeCol(item.ColumnNames, item.ColumnValues, timeColumn)
 }
 
 func (p *RotatorConfig) ParseTime(rotationTime string) (time.Time, error) {
