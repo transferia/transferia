@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/connection/kafka"
 )
 
 var _ ConnResolver = (*StubConnectionResolver)(nil)
@@ -38,6 +39,11 @@ func (d *StubConnectionResolver) ResolveConnection(ctx context.Context, connecti
 			return chConn, nil
 		}
 		return nil, xerrors.Errorf("Unable to cast ch connection %s", connectionID)
+	case "kafka":
+		if kafkaConn, ok := res.(*kafka.Connection); ok {
+			return kafkaConn, nil
+		}
+		return nil, xerrors.Errorf("Unable to cast kafka connection %s", connectionID)
 
 	default:
 		return nil, xerrors.Errorf("Not implemented for provider %s", typ)

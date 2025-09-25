@@ -118,6 +118,9 @@ func (s *sink) Close() error {
 }
 
 func NewSinkImpl(cfg *KafkaDestination, registry metrics.Registry, lgr log.Logger, writerFactory writer.AbstractWriterFactory, isSnapshot bool) (abstract.Sinker, error) {
+	if err := cfg.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sink: %w", err)
+	}
 	brokers, err := ResolveBrokers(cfg.Connection)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve brokers: %w", err)

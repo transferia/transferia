@@ -60,6 +60,9 @@ func (p *Provider) Sniffer(_ context.Context) (abstract.Fetchable, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
+	if err := src.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sniffer: %w", err)
+	}
 	topics := src.GroupTopics
 	if len(topics) == 0 && src.Topic != "" {
 		topics = append(topics, src.Topic)
@@ -116,6 +119,9 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
+	if err := src.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for source: %w", err)
+	}
 	if !src.IsHomo { // we can enforce homo from outside
 		src.IsHomo = p.transfer.DstType() == ProviderType && src.IsDefaultMirror()
 	}
@@ -134,6 +140,9 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	cfgCopy := *dst
+	if err := cfgCopy.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sink: %w", err)
+	}
 	cfgCopy.FormatSettings = InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
 	return NewReplicationSink(&cfgCopy, p.registry, p.logger)
 }
@@ -144,6 +153,9 @@ func (p *Provider) SnapshotSink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	cfgCopy := *dst
+	if err := cfgCopy.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for snapshot sink: %w", err)
+	}
 	cfgCopy.FormatSettings = InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
 	return NewSnapshotSink(&cfgCopy, p.registry, p.logger)
 }

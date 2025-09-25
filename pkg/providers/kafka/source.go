@@ -452,6 +452,10 @@ func ensureTopicExists(cl *kgo.Client, topics []string) error {
 
 func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (*Source, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	if err := cfg.WithConnectionID(); err != nil {
+		cancel()
+		return nil, xerrors.Errorf("unable to resolve connection: %w", err)
+	}
 
 	source := &Source{
 		config:            cfg,
@@ -475,6 +479,7 @@ func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (
 		executor, err := functions.NewExecutor(cfg.Transformer, cfg.Transformer.CloudFunctionsBaseURL, functions.YDS, logger, registry)
 		if err != nil {
 			logger.Error("init function executor", log.Error(err))
+			cancel()
 			return nil, xerrors.Errorf("unable to init functions transformer: %w", err)
 		}
 		source.executor = executor
@@ -483,20 +488,11 @@ func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (
 	if cfg.ParserConfig != nil {
 		parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, source.metrics)
 		if err != nil {
+			cancel()
 			return nil, xerrors.Errorf("unable to make parser, err: %w", err)
 		}
 		source.parser = parser
 	}
-
-	return source, nil
-}
-
-func newSourceWithReader(cfg *KafkaSource, logger log.Logger, registry metrics.Registry, r reader) (*Source, error) {
-	source, err := newSource(cfg, logger, registry)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create Source: %w", err)
-	}
-	source.reader = r
 
 	return source, nil
 }

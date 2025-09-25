@@ -820,6 +820,7 @@
   "pkg/connection/connections.go":"transfer_manager/go/pkg/connection/connections.go",
   "pkg/connection/greenplum/connection.go":"transfer_manager/go/pkg/connection/greenplum/connection.go",
   "pkg/connection/greenplum/host.go":"transfer_manager/go/pkg/connection/greenplum/host.go",
+  "pkg/connection/kafka/connection.go":"transfer_manager/go/pkg/connection/kafka/connection.go",
   "pkg/connection/mongo/connection.go":"transfer_manager/go/pkg/connection/mongo/connection.go",
   "pkg/connection/opensearch/connection.go":"transfer_manager/go/pkg/connection/opensearch/connection.go",
   "pkg/connection/opensearch/host.go":"transfer_manager/go/pkg/connection/opensearch/host.go",

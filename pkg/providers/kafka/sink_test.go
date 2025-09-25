@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/providers/kafka/writer"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
@@ -38,7 +39,7 @@ func TestNative(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -81,7 +82,7 @@ func TestJSON(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -124,7 +125,7 @@ func TestDebezium(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -171,7 +172,7 @@ func TestMirror(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -213,7 +214,7 @@ func TestMirrorKafka(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -256,7 +257,7 @@ func TestAddDTSystemTables(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -333,7 +334,7 @@ func TestPassConfigEntries(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},

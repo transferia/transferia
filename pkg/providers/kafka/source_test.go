@@ -77,7 +77,9 @@ func TestThrottler(t *testing.T) {
 		},
 	}
 	kafkaSource := &KafkaSource{BufferSize: 100}
-	source, err := newSourceWithReader(kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), reader)
+	source, err := newSource(kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	require.NoError(t, err)
+	source.reader = reader
 	require.NoError(t, err)
 	require.True(t, source.inLimits())
 	wg := sync.WaitGroup{}
