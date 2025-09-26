@@ -729,7 +729,7 @@ func (s *sinker) deleteQuery(tablePath ydbPath, keySchemas []abstract.ColSchema)
 	cols := make([]TemplateCol, len(keySchemas))
 	for i, c := range keySchemas {
 		cols[i].Name = c.ColumnName
-		cols[i].Typ = s.adjustTypName(c.DataType)
+		cols[i].Typ = s.ydbType(c.DataType, c.OriginalType).Yql()
 		if i != len(keySchemas)-1 {
 			cols[i].Comma = ","
 		}
