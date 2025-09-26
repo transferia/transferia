@@ -43,6 +43,9 @@ var (
 	// ydb
 	YDBNotFound = coded.Register("ydb", "not_found")
 
+	// ytsaurus
+	YTSaurusNotFound = coded.Register("yt", "not_found")
+
 	// other
 	Unspecified           = coded.Register("unspecified")
 	ClickHouseToastUpdate = coded.Register("ch", "update_toast_error")

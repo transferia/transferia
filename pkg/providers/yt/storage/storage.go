@@ -274,18 +274,24 @@ func (s *Storage) TableExists(table abstract.TableID) (bool, error) {
 }
 
 func NewStorage(config *ytprovider.YtStorageParams) (*Storage, error) {
-	ytConfig := yt.Config{
-		Proxy:                 config.Cluster,
-		Logger:                nil,
-		Token:                 config.Token,
-		AllowRequestsFromJob:  true,
-		DisableProxyDiscovery: config.DisableProxyDiscovery,
+	var ytClient yt.Client
+	var err error
+	if config.ConnParams != nil {
+		ytClient, err = ytclient.FromConnParams(config.ConnParams, nil)
+	} else {
+		ytConfig := yt.Config{
+			Proxy:                 config.Cluster,
+			Logger:                nil,
+			Token:                 config.Token,
+			AllowRequestsFromJob:  true,
+			DisableProxyDiscovery: config.DisableProxyDiscovery,
+		}
+		ytClient, err = ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &ytConfig)
 	}
-	ytClient, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &ytConfig)
+
 	if err != nil {
 		return nil, err
 	}
-
 	return &Storage{
 		path:     config.Path,
 		ytClient: ytClient,

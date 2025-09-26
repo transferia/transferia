@@ -116,7 +116,7 @@ func TestSnapshotOnlyWorksWithStaticTables(t *testing.T) {
 	}()
 
 	defer fixture.teardown()
-	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetStaticTable()
+	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.Static = true
 	transferType := abstract.TransferTypeSnapshotOnly
 	fixture.transfer.Type = transferType
 	helpers.InitSrcDst(helpers.GenerateTransferID("TestSnapshotOnlyWorksWithStaticTables"), fixture.transfer.Src, fixture.transfer.Dst, transferType)

@@ -166,7 +166,7 @@ var YtColumns = []schema.Column{
 func TestCanonSource(t *testing.T) {
 	Source := &yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//home/cdc/junk/test_table"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -190,7 +190,7 @@ func TestCanonSource(t *testing.T) {
 func TestCanonSourceWithDataObjects(t *testing.T) {
 	Source := &yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//home/cdc/junk/test_parent_dir"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -215,7 +215,7 @@ func TestCanonSourceWithDataObjects(t *testing.T) {
 func TestCanonSourceWithDirInDataObjects(t *testing.T) {
 	Source := &yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//home/cdc/junk/test_parent_dir"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -238,7 +238,7 @@ func TestCanonSourceWithDirInDataObjects(t *testing.T) {
 }
 
 func createTestData(t *testing.T, Source *yt_provider.YtSource, path string) {
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy})
 	require.NoError(t, err)
 	_ = ytc.RemoveNode(context.Background(), ypath.NewRich(path).YPath(), nil)
 

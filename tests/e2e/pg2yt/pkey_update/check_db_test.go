@@ -270,7 +270,7 @@ func TestPkeyUpdateIndex(t *testing.T) {
 
 	defer fixture.teardown()
 
-	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetIndex([]string{"idxcol"})
+	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.Index = []string{"idxcol"}
 
 	fixture.loadAndCheckSnapshot()
 
@@ -312,7 +312,7 @@ func TestPkeyUpdateIndexToast(t *testing.T) {
 
 	defer fixture.teardown()
 
-	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetIndex([]string{"idxcol"})
+	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.Index = []string{"idxcol"}
 
 	fixture.loadAndCheckSnapshot()
 

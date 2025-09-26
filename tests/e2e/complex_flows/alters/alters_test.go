@@ -161,7 +161,6 @@ func getAlterableDestination(t *testing.T, sinkType abstract.ProviderType) (mode
 		return &dst, nil
 	case yt.ProviderType:
 		target := yt_helpers.RecipeYtTarget("//home/cdc/test/alters")
-		target.AllowAlter()
 		return target, nil
 	default:
 		return nil, xerrors.Errorf("Unknown sink type: %s", sinkType)

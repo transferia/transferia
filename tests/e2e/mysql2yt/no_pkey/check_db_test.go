@@ -119,7 +119,7 @@ func TestSnapshotOnlyWorksWithStaticTables(t *testing.T) {
 	}()
 
 	defer fixture.teardown()
-	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetStaticTable()
+	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.Static = true
 	fixture.transfer.Type = abstract.TransferTypeSnapshotOnly
 
 	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())

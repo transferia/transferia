@@ -29,7 +29,7 @@ var (
 	TransferType = abstract.TransferTypeSnapshotOnly
 	Source       = ytprovider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//table_for_tests"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -84,7 +84,7 @@ func TestBigTable(t *testing.T) {
 	chClient, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	require.NoError(t, err)
 
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy, Token: Source.YtToken})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy, Token: Source.YtToken})
 	require.NoError(t, err)
 
 	var rowCount int

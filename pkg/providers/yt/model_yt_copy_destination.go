@@ -91,3 +91,7 @@ func (y *YtCopyDestination) UseTLS() bool {
 func (y *YtCopyDestination) TLSFile() string {
 	return ""
 }
+
+func (y *YtCopyDestination) ServiceAccountID() string {
+	return ""
+}

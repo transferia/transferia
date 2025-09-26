@@ -26,6 +26,9 @@ import (
 
 func init() {
 	providers.Register(yt_provider.ProviderType, New(yt_provider.ProviderType))
+	providers.Register(yt_provider.ManagedProviderType, New(yt_provider.ManagedProviderType))
+	providers.Register(yt_provider.ManagedDynamicProviderType, New(yt_provider.ManagedDynamicProviderType))
+	providers.Register(yt_provider.ManagedStaticProviderType, New(yt_provider.ManagedStaticProviderType))
 	providers.Register(yt_provider.StagingType, New(yt_provider.StagingType))
 	providers.Register(yt_provider.CopyType, New(yt_provider.CopyType))
 }
@@ -63,7 +66,6 @@ func (p *Provider) Verify(ctx context.Context) error {
 	if !ok {
 		return nil
 	}
-	dst.SetSnapshotLoad()
 	if dst.Static() && !p.transfer.SnapshotOnly() {
 		return xerrors.New("static yt available only for snapshot copy")
 	}
@@ -71,21 +73,22 @@ func (p *Provider) Verify(ctx context.Context) error {
 }
 
 func (p *Provider) Storage() (abstract.Storage, error) {
-	src, ok := p.transfer.Src.(*yt_provider.YtSource)
+	src, ok := p.transfer.Src.(yt_provider.YtSourceModel)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	return ytstorage.NewStorage(&yt_provider.YtStorageParams{
-		Token:                 src.YtToken,
-		Cluster:               src.Cluster,
-		Path:                  src.Paths[0], // TODO: Handle multi-path in abstract 1 yt storage
+		Token:                 src.GetYtToken(),
+		Cluster:               src.GetCluster(),
+		Path:                  src.GetPaths()[0], // TODO: Handle multi-path in abstract 1 yt storage
 		Spec:                  nil,
-		DisableProxyDiscovery: src.Connection.DisableProxyDiscovery,
+		DisableProxyDiscovery: src.DisableProxyDiscovery(),
+		ConnParams:            src,
 	})
 }
 
 func (p *Provider) DataProvider() (provider base.DataProvider, err error) {
-	specificConfig, ok := p.transfer.Src.(*yt_provider.YtSource)
+	specificConfig, ok := p.transfer.Src.(yt_provider.YtSourceModel)
 	if !ok {
 		return nil, xerrors.Errorf("Unexpected source type: %T", p.transfer.Src)
 	}
@@ -98,7 +101,7 @@ func (p *Provider) DataProvider() (provider base.DataProvider, err error) {
 }
 
 func (p *Provider) SnapshotSink(config middlewares.Config) (abstract.Sinker, error) {
-	dst, ok := p.transfer.Dst.(*yt_provider.YtDestinationWrapper)
+	dst, ok := p.transfer.Dst.(yt_provider.YtDestinationModel)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
@@ -125,9 +128,6 @@ func (p *Provider) SnapshotSink(config middlewares.Config) (abstract.Sinker, err
 		return p.Sink(config)
 	}
 
-	if !dst.Ordered() {
-		dst.Model.SortedStatic = true
-	}
 	if s, err = staticsink.NewStaticSinkWrapper(dst, p.cp, p.transfer.ID, p.registry, p.logger); err != nil {
 		return nil, xerrors.Errorf("failed to create YT (static) sinker: %w", err)
 	}
@@ -150,7 +150,7 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 		}
 		return s, nil
 	}
-	dst, ok := p.transfer.Dst.(*yt_provider.YtDestinationWrapper)
+	dst, ok := p.transfer.Dst.(yt_provider.YtDestinationModel)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}

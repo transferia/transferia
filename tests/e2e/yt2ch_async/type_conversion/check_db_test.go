@@ -30,7 +30,7 @@ var (
 	YtColumns, TestData = yt_helpers.YtTypesTestData()
 	Source              = ytprovider.YtSource{
 		Cluster: os.Getenv("YT_PROXY"),
-		Proxy:   os.Getenv("YT_PROXY"),
+		YtProxy: os.Getenv("YT_PROXY"),
 		Paths:   []string{"//home/cdc/junk/types_test"},
 		YtToken: "",
 	}
@@ -54,7 +54,7 @@ func init() {
 }
 
 func initYTTable(t *testing.T) {
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy})
 	require.NoError(t, err)
 	_ = ytc.RemoveNode(context.Background(), ypath.NewRich(Source.Paths[0]).YPath(), nil)
 

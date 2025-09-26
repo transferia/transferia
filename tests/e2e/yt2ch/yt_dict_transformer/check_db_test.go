@@ -33,7 +33,7 @@ var (
 	YtColumns, TestData = yt_helpers.YtTypesTestData()
 	Source              = ytprovider.YtSource{
 		Cluster: os.Getenv("YT_PROXY"),
-		Proxy:   os.Getenv("YT_PROXY"),
+		YtProxy: os.Getenv("YT_PROXY"),
 		Paths: []string{
 			fmt.Sprintf("//home/cdc/junk/%s", TransformedTableName),
 			fmt.Sprintf("//home/cdc/junk/%s", NotTransformedTableName),
@@ -58,7 +58,7 @@ func init() {
 }
 
 func initYTTable(t *testing.T) {
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy})
 	require.NoError(t, err)
 	opts := yt.WithCreateOptions(yt.WithSchema(schema.Schema{Columns: YtColumns}), yt.WithRecursive())
 	for _, path := range Source.Paths {

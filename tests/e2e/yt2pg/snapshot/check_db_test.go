@@ -29,7 +29,7 @@ var (
 	TransferType = abstract.TransferTypeSnapshotOnly
 	Source       = yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//home/cdc/junk/test_table"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -141,7 +141,7 @@ var YtColumns = []schema.Column{
 }
 
 func createTestData(t *testing.T) {
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy})
 	require.NoError(t, err)
 
 	sch := schema.Schema{

@@ -57,7 +57,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("all_tables", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -77,7 +77,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("2_tables", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -102,7 +102,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("error_for_non_tables", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -126,7 +126,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("error_for_none_table_path", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -150,7 +150,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("no_error_when_ask_dir", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
