@@ -2,6 +2,7 @@ package abstract
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -138,4 +139,37 @@ func (t *OperationTablePart) StringWithoutFilter() string {
 
 func (t *OperationTablePart) Sharded() bool {
 	return t.PartsCount > 1
+}
+
+func SortTableParts(parts []*OperationTablePart) {
+	sort.Slice(parts, func(i, j int) bool {
+		if parts[i].TableKey() != parts[j].TableKey() {
+			return parts[i].TableKey() < parts[j].TableKey()
+		}
+		if parts[i].Offset != parts[j].Offset {
+			return parts[i].Offset < parts[j].Offset
+		}
+		return parts[i].Filter < parts[j].Filter
+	})
+}
+
+func SortAndDeduplicateTableParts(parts []*OperationTablePart) []*OperationTablePart {
+	partsMap := map[string]*OperationTablePart{}
+	for _, incomingPart := range parts {
+		key := fmt.Sprintf("%s-%s-%v", incomingPart.TableKey(), incomingPart.Filter, incomingPart.Offset)
+		if old, ok := partsMap[key]; ok && (incomingPart.CompletedRows <= old.CompletedRows &&
+			incomingPart.ReadBytes <= old.ReadBytes &&
+			(old.Completed || incomingPart.Completed == old.Completed)) {
+			continue
+		}
+		partsMap[key] = incomingPart
+	}
+
+	newParts := []*OperationTablePart{}
+	for _, part := range partsMap {
+		newParts = append(newParts, part)
+	}
+
+	SortTableParts(newParts)
+	return newParts
 }

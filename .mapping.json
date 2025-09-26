@@ -737,6 +737,7 @@
   "pkg/abstract/model/transformation.go":"transfer_manager/go/pkg/abstract/model/transformation.go",
   "pkg/abstract/movable.go":"transfer_manager/go/pkg/abstract/movable.go",
   "pkg/abstract/operation_table_part.go":"transfer_manager/go/pkg/abstract/operation_table_part.go",
+  "pkg/abstract/operation_table_part_test.go":"transfer_manager/go/pkg/abstract/operation_table_part_test.go",
   "pkg/abstract/operations.go":"transfer_manager/go/pkg/abstract/operations.go",
   "pkg/abstract/operations_test.go":"transfer_manager/go/pkg/abstract/operations_test.go",
   "pkg/abstract/parsers.go":"transfer_manager/go/pkg/abstract/parsers.go",

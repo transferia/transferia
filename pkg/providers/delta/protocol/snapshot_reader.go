@@ -333,7 +333,7 @@ func (r *SnapshotReader) updateInternal() (*Snapshot, error) {
 			return nil, xerrors.Errorf("reconstruct err: %w", err)
 		}
 
-		logger.Log.Infof("No delta log found for the Delta table at " + r.logStore.Root())
+		logger.Log.Infof("No delta log found for the Delta table at %s", r.logStore.Root())
 		newSnapshot, err := NewInitialSnapshot(r.logStore.Root(), r.logStore, r.checkpointReader)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to build initial snapshot: %w", err)
