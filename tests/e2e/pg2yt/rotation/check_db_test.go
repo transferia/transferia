@@ -54,6 +54,7 @@ func TestGroup(t *testing.T) {
 		))
 	}()
 	Source.PreSteps.Constraint = true
+	t.Setenv("TZ", "Europe/Moscow")
 
 	t.Run("Group after port check", func(t *testing.T) {
 		t.Run("SnapshotAndIncrement", SnapshotAndIncrement)
