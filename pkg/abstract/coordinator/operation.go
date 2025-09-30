@@ -20,9 +20,9 @@ type OperationState interface {
 	// SetOperationState called by *main* worker to store coordinator info
 	// for example:
 	// 		postgres can store `pg_lsn` so secondary worker will read same data
-	SetOperationState(taskID string, state string) error
+	SetOperationState(operationID string, state string) error
 	// GetOperationState called by *secondary* workers, so they know when to start and what to do
-	GetOperationState(taskID string) (string, error)
+	GetOperationState(operationID string) (string, error)
 }
 
 type OperationStatus interface {
@@ -30,7 +30,7 @@ type OperationStatus interface {
 	OperationHealth(ctx context.Context, operationID string, workerIndex int, workerTime time.Time) error
 	// FinishOperation used by *main* and *secondary* workers to signal completeness of work
 	// if worker had a failure `taskErr` will be filled up with this error
-	FinishOperation(taskID, taskType string, shardIndex int, taskErr error) error
+	FinishOperation(operationID, taskType string, shardIndex int, taskErr error) error
 }
 
 // Sharding coordinate multiple worker for transfer operations

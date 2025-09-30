@@ -8,7 +8,6 @@ import (
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -17,14 +16,17 @@ type SnapshotTableProgressTracker struct {
 	wg        sync.WaitGroup
 	closeOnce *sync.Once
 
+	sharedMemory        abstract.SharedMemory
 	operationID         string
-	cpClient            coordinator.Coordinator
 	parts               map[string]*abstract.OperationTablePart
 	progressUpdateMutex *sync.Mutex
 }
 
 func NewSnapshotTableProgressTracker(
-	ctx context.Context, operationID string, cpClient coordinator.Coordinator, progressUpdateMutex *sync.Mutex,
+	ctx context.Context,
+	sharedMemory abstract.SharedMemory,
+	operationID string,
+	progressUpdateMutex *sync.Mutex,
 ) *SnapshotTableProgressTracker {
 	ctx, cancel := context.WithCancel(ctx)
 	tracker := &SnapshotTableProgressTracker{
@@ -32,8 +34,8 @@ func NewSnapshotTableProgressTracker(
 		wg:        sync.WaitGroup{},
 		closeOnce: &sync.Once{},
 
+		sharedMemory:        sharedMemory,
 		operationID:         operationID,
-		cpClient:            cpClient,
 		parts:               map[string]*abstract.OperationTablePart{},
 		progressUpdateMutex: progressUpdateMutex,
 	}
@@ -51,7 +53,7 @@ func (t *SnapshotTableProgressTracker) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-pushTicker.C:
-			t.Flush()
+			t.Flush(t.sharedMemory)
 		}
 	}
 }
@@ -61,11 +63,11 @@ func (t *SnapshotTableProgressTracker) Close() {
 	t.closeOnce.Do(func() {
 		t.cancel()
 		t.wg.Wait()
-		t.Flush()
+		t.Flush(t.sharedMemory)
 	})
 }
 
-func (t *SnapshotTableProgressTracker) Flush() {
+func (t *SnapshotTableProgressTracker) Flush(sharedMemory abstract.SharedMemory) {
 	t.progressUpdateMutex.Lock()
 	partsCopy := make([]*abstract.OperationTablePart, 0, len(t.parts))
 	for _, table := range t.parts {
@@ -77,7 +79,7 @@ func (t *SnapshotTableProgressTracker) Flush() {
 		return
 	}
 
-	if err := t.cpClient.UpdateOperationTablesParts(t.operationID, partsCopy); err != nil {
+	if err := sharedMemory.UpdateOperationTablesParts(t.operationID, partsCopy); err != nil {
 		logger.Log.Warn(
 			fmt.Sprintf("Failed to send tables progress for operation '%v'", t.operationID),
 			log.String("OperationID", t.operationID), log.Error(err))

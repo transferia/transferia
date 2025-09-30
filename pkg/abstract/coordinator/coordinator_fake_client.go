@@ -52,11 +52,11 @@ func (f *CoordinatorNoOp) RemoveTransferState(transferID string, stateKeys []str
 	return nil
 }
 
-func (f *CoordinatorNoOp) SetOperationState(taskID string, state string) error {
+func (f *CoordinatorNoOp) SetOperationState(operationID string, state string) error {
 	return nil
 }
 
-func (f *CoordinatorNoOp) GetOperationState(taskID string) (string, error) {
+func (f *CoordinatorNoOp) GetOperationState(operationID string) (string, error) {
 	return "", OperationStateNotFoundError
 }
 
@@ -64,7 +64,7 @@ func (f *CoordinatorNoOp) UploadTable(transferID string, tables []abstract.Table
 	return nil
 }
 
-func (f *CoordinatorNoOp) FinishOperation(taskID string, taskType string, shardIndex int, taskErr error) error {
+func (f *CoordinatorNoOp) FinishOperation(operationID string, taskType string, shardIndex int, taskErr error) error {
 	return nil
 }
 

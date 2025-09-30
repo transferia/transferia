@@ -5,17 +5,30 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 )
 
-type MultiWorkerTPPSetterAsync struct {
+// To verify providers contract implementation
+var (
+	_ AbstractTablePartProviderSetter = (*TPPSetterAsync)(nil)
+)
+
+type TPPSetterAsync struct {
+	sharedMemory abstract.SharedMemory
 }
 
-func (s *MultiWorkerTPPSetterAsync) AppendParts(ctx context.Context, parts []*abstract.OperationTablePart) error {
+func (s *TPPSetterAsync) SharedMemory() abstract.SharedMemory {
+	return s.sharedMemory
+}
+
+func (s *TPPSetterAsync) AppendParts(ctx context.Context, parts []*abstract.OperationTablePart) error {
 	return nil
 }
 
-func (s *MultiWorkerTPPSetterAsync) EnrichShardedState(inState string) (string, error) {
+func (s *TPPSetterAsync) AllPartsOrNil() []*abstract.OperationTablePart {
+	return nil
+}
+
+func (s *TPPSetterAsync) EnrichShardedState(inState string) (string, error) {
 	newState, err := addKeyToJson(inState, abstract.IsAsyncPartsUploadedStateKey, false)
 	if err != nil {
 		return "", xerrors.Errorf("unable to add key to state: %w", err)
@@ -23,30 +36,24 @@ func (s *MultiWorkerTPPSetterAsync) EnrichShardedState(inState string) (string, 
 	return string(newState), nil
 }
 
-func (s *MultiWorkerTPPSetterAsync) AllPartsOrNil() []*abstract.OperationTablePart {
-	return nil
-}
-
-func (s *MultiWorkerTPPSetterAsync) AsyncLoadPartsIfNeeded(
+func (s *TPPSetterAsync) AsyncLoadPartsIfNeeded(
 	ctx context.Context,
-	storage abstract.Storage,
+	inStorage abstract.Storage,
 	tables []abstract.TableDescription,
-	cp coordinator.Coordinator,
 	transferID string,
 	operationID string,
 	checkLoaderError func() error,
 ) error {
-	shardingContextStorage, ok := storage.(abstract.AsyncOperationPartsStorage)
+	storage, ok := inStorage.(abstract.NextArrTableDescriptionGetterBuilder)
 	if !ok {
 		return xerrors.New("storage does not implement AsyncLoadPartsIfNeeded")
 	}
 
 	err := asyncLoadParts(
 		ctx,
-		shardingContextStorage,
+		storage,
 		tables,
-		nil,
-		cp,
+		s.sharedMemory,
 		transferID,
 		operationID,
 		func() error {
@@ -59,7 +66,7 @@ func (s *MultiWorkerTPPSetterAsync) AsyncLoadPartsIfNeeded(
 
 	// mark shareded_state by flag
 
-	shardedStateBytes, err := shardingContextStorage.ShardingContext()
+	shardedStateBytes, err := storage.ShardingContext()
 	if err != nil {
 		return xerrors.Errorf("unable to prepare sharded state for operation '%v': %w", operationID, err)
 	}
@@ -67,13 +74,15 @@ func (s *MultiWorkerTPPSetterAsync) AsyncLoadPartsIfNeeded(
 	if err != nil {
 		return xerrors.Errorf("unable to add key to state: %w", err)
 	}
-	err = cp.SetOperationState(operationID, string(newState))
+	err = s.sharedMemory.SetOperationState(operationID, string(newState))
 	if err != nil {
 		return xerrors.Errorf("unable to set sharded state after upload: %w", err)
 	}
 	return nil
 }
 
-func NewMultiWorkerTPPSetterAsync() *MultiWorkerTPPSetterAsync {
-	return &MultiWorkerTPPSetterAsync{}
+func NewTPPSetterAsync(sharedMemory abstract.SharedMemory) *TPPSetterAsync {
+	return &TPPSetterAsync{
+		sharedMemory: sharedMemory,
+	}
 }

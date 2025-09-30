@@ -8,6 +8,7 @@ import (
 
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -15,7 +16,6 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/storage"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
@@ -119,6 +119,7 @@ func Snapshot(t *testing.T) {
 	currStorage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
 	require.NoError(t, err)
 	defer currStorage.Close()
+
 	mysqlStorage, ok := currStorage.(*mysql.Storage)
 	require.True(t, ok)
 	tables, err := model.FilteredTableList(currStorage, transfer)
@@ -131,17 +132,19 @@ func Snapshot(t *testing.T) {
 
 	operationID := "test-operation"
 
-	operationTables := make([]*abstract.OperationTablePart, 0)
-	for _, table := range tables.ConvertToTableDescriptions() {
-		operationTables = append(operationTables, abstract.NewOperationTablePartFromDescription(operationID, &table))
-	}
-
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), operationID, transfer, helpers.EmptyRegistry())
 
-	tablePartProvider := table_part_provider.NewSingleWorkerTPPFullSync()
-	err = tablePartProvider.AppendParts(context.Background(), operationTables)
+	tppGetter, _, err := snapshotLoader.BuildTPP(
+		context.Background(),
+		logger.Log,
+		currStorage,
+		tables.ConvertToTableDescriptions(),
+		true,
+		true,
+	)
 	require.NoError(t, err)
-	err = snapshotLoader.DoUploadTables(context.TODO(), currStorage, tablePartProvider)
+
+	err = snapshotLoader.DoUploadTables(context.TODO(), currStorage, tppGetter)
 	require.NoError(t, err)
 
 	err = mysqlStorage.EndSnapshot(context.TODO())

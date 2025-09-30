@@ -25,28 +25,10 @@ import (
 	"github.com/transferia/transferia/pkg/targets/legacy"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
+	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider/shared_memory"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/semaphore"
 )
-
-func (l *SnapshotLoader) descriptionsToParts(operationID string, descriptions ...abstract.TableDescription) []*abstract.OperationTablePart {
-	tables := map[string][]abstract.TableDescription{}
-	for _, description := range descriptions {
-		tables[description.Fqtn()] = append(tables[description.Fqtn()], description)
-	}
-
-	var parts []*abstract.OperationTablePart
-	for _, tableDescriptions := range tables {
-		for i, description := range tableDescriptions {
-			part := abstract.NewOperationTablePartFromDescription(operationID, &description)
-			part.PartIndex = uint64(i)
-			part.PartsCount = uint64(len(tableDescriptions))
-			parts = append(parts, part)
-		}
-	}
-
-	return parts
-}
 
 func (l *SnapshotLoader) sendTableControlEventV2(
 	eventFactory func(part *abstract.OperationTablePart) (base.Event, error),
@@ -249,39 +231,34 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ba
 		return xerrors.Errorf("unable to get table parts: %w", err)
 	}
 
-	parts := l.descriptionsToParts(l.operationID, descriptions...)
-	for _, table := range parts {
-		table.WorkerIndex = new(int)
-		*table.WorkerIndex = 0 // Because we have one worker
+	tppGetter, tppSetter, err := l.BuildTPP(
+		ctx,
+		logger.Log,
+		nil,
+		descriptions,
+		true,
+		true,
+	)
+	if err != nil {
+		return xerrors.Errorf("unable to build TPP: %w", err)
 	}
-	table_part_provider.DumpTablePartsToLogs(parts)
 
-	if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
-	}
+	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, tppSetter.AllPartsOrNil(), &l.progressUpdateMutex)
+	defer metricsTracker.Close()
 
-	if err := l.sendCleanupEventV2(dataTarget, parts...); err != nil {
+	if err := l.sendCleanupEventV2(dataTarget, tppSetter.AllPartsOrNil()...); err != nil {
 		return xerrors.Errorf("unable cleanup tables: %w", err)
 	}
 
-	if err := l.sendStateEventV2(events.InitShardedTableLoad, snapshotProvider, dataTarget, parts...); err != nil {
+	if err := l.sendStateEventV2(events.InitShardedTableLoad, snapshotProvider, dataTarget, tppSetter.AllPartsOrNil()...); err != nil {
 		return xerrors.Errorf("unable to start loading tables: %w", err)
 	}
 
-	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, parts, &l.progressUpdateMutex)
-	defer metricsTracker.Close()
-
-	tablePartProviderFull := table_part_provider.NewSingleWorkerTPPFullSync()
-	err = tablePartProviderFull.AppendParts(ctx, parts)
-	if err != nil {
-		return xerrors.Errorf("unable to append parts: %w", err)
-	}
-
-	if err := l.doUploadTablesV2(ctx, snapshotProvider, tablePartProviderFull); err != nil {
+	if err := l.doUploadTablesV2(ctx, snapshotProvider, tppGetter); err != nil {
 		return xerrors.Errorf("unable to upload data objects: %w", err)
 	}
 
-	if err := l.sendStateEventV2(events.DoneShardedTableLoad, snapshotProvider, dataTarget, parts...); err != nil {
+	if err := l.sendStateEventV2(events.DoneShardedTableLoad, snapshotProvider, dataTarget, tppSetter.AllPartsOrNil()...); err != nil {
 		return xerrors.Errorf("unable to start loading tables: %w", err)
 	}
 
@@ -395,11 +372,16 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		return xerrors.Errorf("unable to get table parts: %w", err)
 	}
 
-	parts := l.descriptionsToParts(l.operationID, descriptions...)
-	table_part_provider.DumpTablePartsToLogs(parts)
-
-	if err := l.cp.CreateOperationTablesParts(l.operationID, parts); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to store operation tables: %w", err)
+	_, tppSetter, err := l.BuildTPP(
+		ctx,
+		logger.Log,
+		nil,
+		descriptions,
+		false,
+		true,
+	)
+	if err != nil {
+		return xerrors.Errorf("unable to build TPP: %w", err)
 	}
 
 	shardedState, err := l.MainWorkerCreateShardedStateFromSource(snapshotProvider)
@@ -415,11 +397,11 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 	metricsTracker := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operationID, l.cp)
 	defer metricsTracker.Close()
 
-	if err := l.sendCleanupEventV2(dataTarget, parts...); err != nil {
+	if err := l.sendCleanupEventV2(dataTarget, tppSetter.AllPartsOrNil()...); err != nil {
 		return xerrors.Errorf("unable cleanup tables: %w", err)
 	}
 
-	if err := l.sendStateEventV2(events.InitShardedTableLoad, snapshotProvider, dataTarget, parts...); err != nil {
+	if err := l.sendStateEventV2(events.InitShardedTableLoad, snapshotProvider, dataTarget, tppSetter.AllPartsOrNil()...); err != nil {
 		return xerrors.Errorf("unable to start loading tables: %w", err)
 	}
 
@@ -431,7 +413,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		return xerrors.Errorf("unable to wait shard completed: %w", err)
 	}
 
-	if err := l.sendStateEventV2(events.DoneShardedTableLoad, snapshotProvider, dataTarget, parts...); err != nil {
+	if err := l.sendStateEventV2(events.DoneShardedTableLoad, snapshotProvider, dataTarget, tppSetter.AllPartsOrNil()...); err != nil {
 		return xerrors.Errorf("unable to start loading tables: %w", err)
 	}
 
@@ -504,8 +486,10 @@ func (l *SnapshotLoader) uploadV2Secondary(ctx context.Context, snapshotProvider
 
 	logger.Log.Infof("Start uploading tables on worker %v", l.workerIndex)
 
-	partProvider := table_part_provider.NewMultiWorkerTPPGetterSync(l.cp, l.operationID, l.workerIndex)
-	if err := l.doUploadTablesV2(ctx, snapshotProvider, partProvider); err != nil {
+	sharedMemoryForAsyncTPP := shared_memory.NewRemote(l.cp, l.operationID, l.workerIndex)
+	tppGetter := table_part_provider.NewTPPGetterSync(sharedMemoryForAsyncTPP, l.transfer.ID, l.operationID, l.workerIndex)
+
+	if err := l.doUploadTablesV2(ctx, snapshotProvider, tppGetter); err != nil {
 		return xerrors.Errorf("unable to upload data objects: %w", err)
 	}
 
@@ -522,7 +506,7 @@ func (l *SnapshotLoader) uploadV2Secondary(ctx context.Context, snapshotProvider
 	return nil
 }
 
-func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider base.SnapshotProvider, nextTablePartProvider table_part_provider.AbstractTablePartProviderGetter) error {
+func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider base.SnapshotProvider, tppGetter table_part_provider.AbstractTablePartProviderGetter) error {
 	ctx = util.ContextWithTimestamp(ctx, time.Now())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -532,7 +516,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 	errorOnce := sync.Once{}
 	var tableUploadErr error
 
-	progressTracker := NewSnapshotTableProgressTracker(ctx, l.operationID, l.cp, &l.progressUpdateMutex)
+	progressTracker := NewSnapshotTableProgressTracker(ctx, tppGetter.SharedMemory(), l.operationID, &l.progressUpdateMutex)
 	defer progressTracker.Close()
 
 	for ctx.Err() == nil {
@@ -541,7 +525,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 			continue
 		}
 
-		nextTablePart, err := nextTablePartProvider.NextOperationTablePart(ctx)
+		nextTablePart, err := tppGetter.NextOperationTablePart(ctx)
 		if err != nil {
 			logger.Log.Error("Unable to get next table to upload", log.Int("worker_index", l.workerIndex), log.Error(ctx.Err()))
 			parallelismSemaphore.Release(1)
@@ -633,7 +617,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 				l.progressUpdateMutex.Lock()
 				nextTablePart.Completed = true
 				l.progressUpdateMutex.Unlock()
-				progressTracker.Flush()
+				progressTracker.Flush(tppGetter.SharedMemory())
 
 				logger.Log.Info(
 					fmt.Sprintf("Finish load table '%v' progress %v / %v (%.2f%%)", nextTablePart, nextTablePart.CompletedRows, nextTablePart.ETARows, nextTablePart.CompletedPercent()),

@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 )
 
@@ -110,10 +110,24 @@ func TestDoUploadTables_CtxCancelledNoErr(t *testing.T) {
 		"schema2.*",
 	}}
 
-	storage := &mockstorage.MockStorage{}
+	storage := mockstorage.NewMockStorage()
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := snapshotLoader.DoUploadTables(ctx, storage, table_part_provider.NewSingleWorkerTPPFullSync())
+
+	tablesMap, err := storage.TableList(transfer)
+	require.NoError(t, err)
+
+	tppGetter, _, err := snapshotLoader.BuildTPP(
+		context.Background(),
+		logger.Log,
+		storage,
+		tablesMap.ConvertToTableDescriptions(),
+		true,
+		true,
+	)
+	require.NoError(t, err)
+
+	err = snapshotLoader.DoUploadTables(ctx, storage, tppGetter)
 	require.NoError(t, err)
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -14,7 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/stdout"
-	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
+	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -26,10 +27,28 @@ func TestSnapshotLoader_doUploadTablesV2(t *testing.T) {
 		"schema2.*",
 	}}
 
-	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	registry := solomon.NewRegistry(nil)
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, registry)
+
+	srcStorage := mockstorage.NewMockStorage()
+	defer srcStorage.Close()
+
+	tablesMap, err := srcStorage.TableList(transfer)
+	require.NoError(t, err)
+
+	tppGetter, _, err := snapshotLoader.BuildTPP(
+		context.Background(),
+		logger.Log,
+		srcStorage,
+		tablesMap.ConvertToTableDescriptions(),
+		true,
+		true,
+	)
+	require.NoError(t, err)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := snapshotLoader.doUploadTablesV2(ctx, nil, table_part_provider.NewSingleWorkerTPPFullAsync())
+	err = snapshotLoader.doUploadTablesV2(ctx, nil, tppGetter)
 	require.NoError(t, err)
 }
 

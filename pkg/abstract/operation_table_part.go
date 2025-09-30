@@ -2,7 +2,6 @@ package abstract
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -19,23 +18,6 @@ type OperationTablePart struct {
 	CompletedRows uint64 // How much rows already copied
 	ReadBytes     uint64 // How many bytes were read from the source
 	Completed     bool   // Is this part already copied
-}
-
-func NewOperationTablePartFromDescription(operationID string, description *TableDescription) *OperationTablePart {
-	return &OperationTablePart{
-		OperationID:   operationID,
-		Schema:        description.Schema,
-		Name:          description.Name,
-		Offset:        description.Offset,
-		Filter:        string(description.Filter),
-		PartsCount:    0,
-		PartIndex:     0,
-		WorkerIndex:   nil,
-		ETARows:       description.EtaRow,
-		CompletedRows: 0,
-		ReadBytes:     0,
-		Completed:     false,
-	}
 }
 
 func (t *OperationTablePart) Copy() *OperationTablePart {
@@ -141,35 +123,38 @@ func (t *OperationTablePart) Sharded() bool {
 	return t.PartsCount > 1
 }
 
-func SortTableParts(parts []*OperationTablePart) {
-	sort.Slice(parts, func(i, j int) bool {
-		if parts[i].TableKey() != parts[j].TableKey() {
-			return parts[i].TableKey() < parts[j].TableKey()
-		}
-		if parts[i].Offset != parts[j].Offset {
-			return parts[i].Offset < parts[j].Offset
-		}
-		return parts[i].Filter < parts[j].Filter
-	})
+func NewOperationTablePartFromDescription(operationID string, description *TableDescription) *OperationTablePart {
+	return &OperationTablePart{
+		OperationID:   operationID,
+		Schema:        description.Schema,
+		Name:          description.Name,
+		Offset:        description.Offset,
+		Filter:        string(description.Filter),
+		PartsCount:    0,
+		PartIndex:     0,
+		WorkerIndex:   nil,
+		ETARows:       description.EtaRow,
+		CompletedRows: 0,
+		ReadBytes:     0,
+		Completed:     false,
+	}
 }
 
-func SortAndDeduplicateTableParts(parts []*OperationTablePart) []*OperationTablePart {
-	partsMap := map[string]*OperationTablePart{}
-	for _, incomingPart := range parts {
-		key := fmt.Sprintf("%s-%s-%v", incomingPart.TableKey(), incomingPart.Filter, incomingPart.Offset)
-		if old, ok := partsMap[key]; ok && (incomingPart.CompletedRows <= old.CompletedRows &&
-			incomingPart.ReadBytes <= old.ReadBytes &&
-			(old.Completed || incomingPart.Completed == old.Completed)) {
-			continue
+func NewOperationTablePartFromDescriptionArr(operationID string, descriptions ...TableDescription) []*OperationTablePart {
+	tables := map[string][]TableDescription{}
+	for _, description := range descriptions {
+		tables[description.Fqtn()] = append(tables[description.Fqtn()], description)
+	}
+
+	var parts []*OperationTablePart
+	for _, tableDescriptions := range tables {
+		for i, description := range tableDescriptions {
+			part := NewOperationTablePartFromDescription(operationID, &description)
+			part.PartIndex = uint64(i)
+			part.PartsCount = uint64(len(tableDescriptions))
+			parts = append(parts, part)
 		}
-		partsMap[key] = incomingPart
 	}
 
-	newParts := []*OperationTablePart{}
-	for _, part := range partsMap {
-		newParts = append(newParts, part)
-	}
-
-	SortTableParts(newParts)
-	return newParts
+	return parts
 }

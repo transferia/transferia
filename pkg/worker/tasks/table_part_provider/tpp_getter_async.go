@@ -8,24 +8,33 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/util/jsonx"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 const assignPartTimeout = 30 * time.Second
 
-type MultiWorkerTPPGetterAsync struct {
-	cp            coordinator.Coordinator
-	operationID   string
-	workerIndex   int
-	transferID    string
+// To verify providers contract implementation
+var (
+	_ AbstractTablePartProviderGetter = (*TPPGetterAsync)(nil)
+)
+
+type TPPGetterAsync struct {
+	sharedMemory abstract.SharedMemory
+	transferID   string
+	operationID  string
+	workerIndex  int
+
 	pollingErr    error
 	isPollingDone atomic.Bool
 }
 
+func (g *TPPGetterAsync) SharedMemory() abstract.SharedMemory {
+	return g.sharedMemory
+}
+
 // statePolling checks operation state, async provider specific function.
-func statePolling(ctx context.Context, getShardState shardStateGetter) error {
+func (g *TPPGetterAsync) statePolling(ctx context.Context) error {
 	ticker := time.NewTicker(assignPartTimeout)
 	defer ticker.Stop()
 	for {
@@ -34,9 +43,12 @@ func statePolling(ctx context.Context, getShardState shardStateGetter) error {
 			logger.Log.Info("Async PartsCh poller context is cancelled")
 			return nil
 		case <-ticker.C:
-			stateStr, err := getShardState(ctx)
+			stateStr, err := g.sharedMemory.GetShardStateNoWait(ctx, g.operationID)
 			if err != nil {
 				return xerrors.Errorf("unable to get shard state: %w", err)
+			}
+			if stateStr == "" {
+				continue
 			}
 			var state map[string]any
 			if err := jsonx.Unmarshal([]byte(stateStr), &state); err != nil {
@@ -54,10 +66,10 @@ func statePolling(ctx context.Context, getShardState shardStateGetter) error {
 	}
 }
 
-func (g *MultiWorkerTPPGetterAsync) NextOperationTablePart(ctx context.Context) (*abstract.OperationTablePart, error) {
+func (g *TPPGetterAsync) NextOperationTablePart(ctx context.Context) (*abstract.OperationTablePart, error) {
 	// Part provider is async and need to wait for more PartsCh.
 	for ctx.Err() == nil {
-		part, err := g.cp.AssignOperationTablePart(g.operationID, g.workerIndex)
+		part, err := g.sharedMemory.NextOperationTablePart(ctx)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to assign operation table part: %w", err)
 		}
@@ -67,7 +79,7 @@ func (g *MultiWorkerTPPGetterAsync) NextOperationTablePart(ctx context.Context) 
 		}
 
 		if g.isPollingDone.Load() {
-			logger.Log.Info("Async MultiWorkerTPPGetterAsync table_part_provider polling is done", log.Error(err))
+			logger.Log.Info("Async TPPGetterAsync table_part_provider polling is done", log.Error(err))
 			if err := g.pollingErr; err != nil {
 				return nil, xerrors.Errorf("state polling finished with error: %w", err)
 			}
@@ -77,35 +89,42 @@ func (g *MultiWorkerTPPGetterAsync) NextOperationTablePart(ctx context.Context) 
 	}
 
 	if ctx.Err() != nil {
-		logger.Log.Error("MultiWorkerTPPGetterAsync table_part_provider cancelled", log.Error(ctx.Err()))
-		return nil, xerrors.Errorf("MultiWorkerTPPGetterAsync table_part_provider cancelled: %w", ctx.Err())
+		logger.Log.Error("TPPGetterAsync table_part_provider cancelled", log.Error(ctx.Err()))
+		return nil, xerrors.Errorf("TPPGetterAsync table_part_provider cancelled: %w", ctx.Err())
 	}
 	return nil, nil
 }
 
-func (g *MultiWorkerTPPGetterAsync) AllPartsOrNil() []*abstract.OperationTablePart {
+func (g *TPPGetterAsync) ConvertToTableDescription(in *abstract.OperationTablePart) (*abstract.TableDescription, error) {
+	return g.sharedMemory.ConvertToTableDescription(in)
+}
+
+func (g *TPPGetterAsync) RemoveFromAsyncSharedMemory(in *abstract.OperationTablePart) error {
+	return g.sharedMemory.RemoveTransferState(g.transferID, []string{in.Filter})
+}
+
+func (g *TPPGetterAsync) AllPartsOrNil() []*abstract.OperationTablePart {
 	return nil
 }
 
-func NewMultiWorkerTPPGetterAsync(
+func NewTPPGetterAsync(
 	ctx context.Context,
-	cp coordinator.Coordinator,
-	getShardState shardStateGetter,
-	operationID string,
+	sharedMemory abstract.SharedMemory,
 	transferID string,
+	operationID string,
 	workerIndex int,
 ) AbstractTablePartProviderGetter {
-	result := &MultiWorkerTPPGetterAsync{
-		cp:            cp,
+	result := &TPPGetterAsync{
+		sharedMemory:  sharedMemory,
+		transferID:    transferID,
 		operationID:   operationID,
 		workerIndex:   workerIndex,
-		transferID:    transferID,
 		pollingErr:    nil,
 		isPollingDone: atomic.Bool{},
 	}
 	go func() {
 		defer result.isPollingDone.Store(true)
-		result.pollingErr = statePolling(ctx, getShardState)
+		result.pollingErr = result.statePolling(ctx)
 	}()
 	return result
 }

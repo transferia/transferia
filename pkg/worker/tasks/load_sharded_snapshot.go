@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
+	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider/shared_memory"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -47,29 +48,7 @@ func (l *SnapshotLoader) ReadFromCPShardState(ctx context.Context) (string, erro
 	if err := l.WaitWorkersInitiated(ctx); err != nil {
 		return "", errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task metadata initialization: %w", err)
 	}
-	return l.getShardStateNoWait(ctx)
-}
-
-// getShardStateNoWait is GetShardState, but do not calls WaitWorkersInitiated.
-func (l *SnapshotLoader) getShardStateNoWait(ctx context.Context) (string, error) {
-	result, err := backoff.RetryNotifyWithData(
-		func() (string, error) {
-			stateMsg, err := l.cp.GetOperationState(l.operationID)
-			if err != nil {
-				if xerrors.Is(err, coordinator.OperationStateNotFoundError) {
-					return "", nil
-				}
-				return "", errors.CategorizedErrorf(categories.Internal, "failed to get operation state: %w", err)
-			}
-			return stateMsg, nil
-		},
-		backoff.WithContext(newMetaCheckBackoff(), ctx),
-		util.BackoffLoggerDebug(logger.Log, "waiting for sharded state"),
-	)
-	if err != nil {
-		return "", errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task state: %w", err)
-	}
-	return result, nil
+	return shared_memory.GetShardStateNoWait(ctx, l.cp, l.operationID)
 }
 
 // OperationStateExists returns true if the state of the operation of the given task exists (is not nil)

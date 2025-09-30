@@ -4,11 +4,13 @@ import "github.com/transferia/transferia/pkg/errors/coded"
 
 var (
 	// generic
-	NetworkUnreachable = coded.Register("generic", "network", "unreachable")
-	UnknownCluster     = coded.Register("generic", "unknown_cluster")
-	InvalidCredential  = coded.Register("generic", "invalid_credentials")
-	Dial               = coded.Register("generic", "dial_error")
-	MissingData        = coded.Register("generic", "missing_data")
+	NetworkUnreachable       = coded.Register("generic", "network", "unreachable")
+	UnknownCluster           = coded.Register("generic", "unknown_cluster")
+	InvalidCredential        = coded.Register("generic", "invalid_credentials")
+	Dial                     = coded.Register("generic", "dial_error")
+	MissingData              = coded.Register("generic", "missing_data")
+	GenericNoPKey            = coded.Register("generic", "no_primary_key")
+	ShardedTransferTmpPolicy = coded.Register("generic", "sharded_transfer_tmp_policy")
 
 	// data
 	DataOutOfRange        = coded.Register("data", "out_of_range")
@@ -50,5 +52,4 @@ var (
 	Unspecified           = coded.Register("unspecified")
 	ClickHouseToastUpdate = coded.Register("ch", "update_toast_error")
 	RuntimePodRestart     = coded.Register("runtime", "pod_restart")
-	GenericNoPKey         = coded.Register("generic", "no_primary_key")
 )
