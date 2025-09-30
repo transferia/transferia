@@ -172,7 +172,7 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 	mergeSpec.MergeMode = "ordered"
 	mergeSpec.InputTablePaths = []ypath.YPath{tableWriter.target, tableWriter.tmp}
 	mergeSpec.OutputTablePath = tableWriter.tmp
-	mergeSpec.Pool = "transfer_manager"
+	mergeSpec.Pool = t.config.Pool()
 	mergeOperation, err := mrClient.Merge(mergeSpec)
 	if err != nil {
 		return xerrors.Errorf("unable to start merge: %w", err)
