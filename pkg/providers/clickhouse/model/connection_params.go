@@ -29,6 +29,7 @@ func ConnectionParamsFromSource(chSource *ChSource, shardGroup string) (*connect
 		if err != nil {
 			return nil, xerrors.Errorf("unable to resolve connection params by connection ID: %w", err)
 		}
+		params.Database = chSource.Database
 		connParams = params
 	} else {
 		connectionHosts, shards, err := resolveHosts(chSource.MdbClusterID, shardGroup, chSource.ShardsList, chSource.NativePort, chSource.HTTPPort)
@@ -58,6 +59,7 @@ func ConnectionParamsFromDestination(chDestination *ChDestination) (*connectionP
 		if err != nil {
 			return nil, xerrors.Errorf("unable to resolve connection params by connection ID: %w", err)
 		}
+		params.Database = chDestination.Database
 		connParams = params
 	} else {
 		connectionHosts, shards, err := resolveHosts(chDestination.MdbClusterID, chDestination.ChClusterName, chDestination.ShardsList, chDestination.NativePort, chDestination.HTTPPort)

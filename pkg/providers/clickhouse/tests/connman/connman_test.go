@@ -52,12 +52,14 @@ func TestToSinkParams(t *testing.T) {
 
 func TestToStorageParams(t *testing.T) {
 	connSource := &chmodel.ChSource{}
+	connSource.Database = "test"
 	connSource.ConnectionID = connID
 	storageParams, err := connSource.ToStorageParams()
 	require.NoError(t, err)
 
 	connTarget := &chmodel.ChDestination{}
 	connTarget.ConnectionID = connID
+	connTarget.Database = "test"
 	storageParamsConnmanTarget, err := connTarget.ToStorageParams()
 	require.NoError(t, err)
 
