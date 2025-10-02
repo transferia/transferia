@@ -77,6 +77,10 @@ func (s YTSaurusSource) ServiceAccountID() string {
 	return s.Connection.ServiceAccountID
 }
 
+func (s YTSaurusSource) ProxyRole() string {
+	return ""
+}
+
 func (s *YTSaurusSource) GetPaths() []string {
 	return s.Paths
 }

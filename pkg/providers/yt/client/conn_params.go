@@ -18,6 +18,7 @@ type ConnParams interface {
 	UseTLS() bool
 	TLSFile() string
 	ServiceAccountID() string
+	ProxyRole() string
 }
 
 func FromConnParams(cfg ConnParams, lgr log.Logger) (yt.Client, error) {
@@ -28,6 +29,7 @@ func FromConnParams(cfg ConnParams, lgr log.Logger) (yt.Client, error) {
 		DisableProxyDiscovery:    cfg.DisableProxyDiscovery(),
 		UseTLS:                   cfg.UseTLS(),
 		CertificateAuthorityData: []byte(cfg.TLSFile()),
+		ProxyRole:                cfg.ProxyRole(),
 	}
 	var cc credentials.Credentials
 	var err error

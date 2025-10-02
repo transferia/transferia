@@ -95,3 +95,7 @@ func (y *YtCopyDestination) TLSFile() string {
 func (y *YtCopyDestination) ServiceAccountID() string {
 	return ""
 }
+
+func (y *YtCopyDestination) ProxyRole() string {
+	return ""
+}

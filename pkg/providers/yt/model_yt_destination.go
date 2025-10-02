@@ -462,6 +462,10 @@ func (d *YtDestinationWrapper) ServiceAccountID() string {
 	return ""
 }
 
+func (d *YtDestinationWrapper) ProxyRole() string {
+	return ""
+}
+
 func (d *YtDestinationWrapper) SupportSharding() bool {
 	return !(d.Model.Static && d.Rotation() != nil)
 }

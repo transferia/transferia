@@ -16,6 +16,7 @@ type ConnectionData struct {
 	DisableProxyDiscovery bool
 	UseTLS                bool
 	TLSFile               string
+	ProxyRole             string
 
 	// For YTSaurus only
 	ClusterID        string
@@ -122,4 +123,8 @@ func (s *YtSource) TLSFile() string {
 
 func (s *YtSource) ServiceAccountID() string {
 	return ""
+}
+
+func (s *YtSource) ProxyRole() string {
+	return s.Connection.ProxyRole
 }

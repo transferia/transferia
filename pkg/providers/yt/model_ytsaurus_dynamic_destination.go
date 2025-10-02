@@ -284,6 +284,10 @@ func (d *YTSaurusDynamicDestination) ServiceAccountID() string {
 	return d.GetConnectionData().ServiceAccountID
 }
 
+func (d *YTSaurusDynamicDestination) ProxyRole() string {
+	return ""
+}
+
 func (d *YTSaurusDynamicDestination) SupportSharding() bool {
 	return false
 }
