@@ -218,3 +218,34 @@ func TestOffsetPolicy(t *testing.T) {
 	abstract.Dump(items)
 	require.Len(t, items, 2)
 }
+
+type mockParser struct {
+	parsers.Parser
+}
+
+func (m *mockParser) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
+	return []abstract.ChangeItem{abstract.ChangeItem{LSN: 0}}
+}
+
+func TestParseLSNNotSetNull(t *testing.T) {
+	kafkaSource, err := SourceRecipe()
+	require.NoError(t, err)
+
+	kafkaSource.Topic = "topic2"
+	src, err := NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	require.NoError(t, err)
+
+	src.parser = &mockParser{}
+
+	parsedItems := src.parse([]kgo.Record{
+		{
+			Topic:     "topic2",
+			Offset:    3,
+			Value:     []byte("{\"ts\":\"2021-01-01T00:00:00Z\",\"msg\":\"test\"}"),
+			Timestamp: time.Now(),
+		},
+	})
+
+	require.Len(t, parsedItems, 1)
+	require.Equal(t, uint64(3), parsedItems[0].LSN)
+}

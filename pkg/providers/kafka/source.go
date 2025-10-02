@@ -314,7 +314,14 @@ func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
 		var converted []abstract.ChangeItem
 		for _, row := range data {
 			ci, part := p.changeItemAsMessage(row)
-			converted = append(converted, p.parser.Do(ci, part)...)
+			parsedMessages := p.parser.Do(ci, part)
+			// it's a workaround for the case when parser doesn't set LSN
+			for i := range parsedMessages {
+				if parsedMessages[i].LSN == 0 {
+					parsedMessages[i].LSN = row.LSN
+				}
+			}
+			converted = append(converted, parsedMessages...)
 		}
 		p.logger.Infof("convert done in %v, %v rows -> %v rows", time.Since(st), len(data), len(converted))
 		data = converted
