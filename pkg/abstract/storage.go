@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/set"
 )
@@ -79,12 +81,12 @@ func ParseTableIDs(objects ...string) ([]TableID, error) {
 func NewTableIDFromStringPg(fqtn string, replaceOmittedSchemaWithPublic bool) (*TableID, error) {
 	parts, err := identifierToParts(fqtn)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to parse identifier '%s' into parts: %w", fqtn, err)
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "failed to identify parts: %s: %w", fqtn, err)
 	}
 
 	switch len(parts) {
 	case 0:
-		return nil, xerrors.Errorf("zero-length identifier")
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "object identifier has no parts: %s", fqtn)
 	case 1:
 		if replaceOmittedSchemaWithPublic {
 			return &TableID{Namespace: "public", Name: parts[0]}, nil
@@ -93,7 +95,8 @@ func NewTableIDFromStringPg(fqtn string, replaceOmittedSchemaWithPublic bool) (*
 	case 2:
 		return &TableID{Namespace: parts[0], Name: parts[1]}, nil
 	default:
-		return nil, xerrors.Errorf("identifier '%s' contains %d parts instead of maximum two", fqtn, len(parts))
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "identifier '%s' contains %d parts instead of maximum two", fqtn, len(parts))
+
 	}
 }
 

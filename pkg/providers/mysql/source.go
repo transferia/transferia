@@ -18,6 +18,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	unmarshaller "github.com/transferia/transferia/pkg/providers/mysql/unmarshaller/replication"
 	"github.com/transferia/transferia/pkg/stats"
@@ -448,7 +450,7 @@ func (p *publisher) Run(sink abstract.AsyncSink) error {
 			if xerrors.As(cErr, &mErr) {
 				if mErr.Code == mysql.ER_MASTER_FATAL_ERROR_READING_BINLOG {
 					p.logger.Error("fatal canal error", log.Error(mErr))
-					return xerrors.Errorf("fatal canal error: %w", abstract.NewFatalError(err))
+					return coded.Errorf(codes.MySQLBinlogFirstFileMissing, "fatal canal error (binlog): %w", abstract.NewFatalError(err))
 				}
 			}
 			p.logger.Error("canal run failed", log.Error(err))
@@ -474,7 +476,7 @@ func (p *publisher) Run(sink abstract.AsyncSink) error {
 			if xerrors.As(cErr, &mErr) {
 				if mErr.Code == mysql.ER_MASTER_FATAL_ERROR_READING_BINLOG {
 					p.logger.Error("fatal canal error", log.Error(mErr))
-					return xerrors.Errorf("fatal canal error: %w", abstract.NewFatalError(err))
+					return coded.Errorf(codes.MySQLBinlogFirstFileMissing, "fatal canal error (binlog): %w", abstract.NewFatalError(err))
 				}
 			}
 			if p.stopped {

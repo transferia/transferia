@@ -38,11 +38,12 @@ WHERE (TABLE_SCHEMA = ?) AND (TABLE_NAME = ?)
 `
 
 const (
-	ErrCodeDuplicateKey    = 1062
-	ErrCodeSyntax          = 1064
-	ErrCodeLockTimeout     = 1205
-	ErrCodeDeadlock        = 1213
-	ErrCodeUnknownDatabase = 1049
+	ErrCodeDuplicateKey      = 1062
+	ErrCodeSyntax            = 1064
+	ErrCodeLockTimeout       = 1205
+	ErrCodeDeadlock          = 1213
+	ErrCodeUnknownDatabase   = 1049
+	ErrCodeInvalidCredential = 1045
 )
 
 const maxSampleLen = 10000

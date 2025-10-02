@@ -19,6 +19,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/parsequeue"
 	sequencer2 "github.com/transferia/transferia/pkg/providers/postgres/sequencer"
@@ -316,6 +318,9 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 				p.sendError(abstract.NewFatalError(err))
 				return
 			}
+			if IsPgError(err, ErrcAdminShutdown) {
+				err = coded.Errorf(codes.PostgresSessionDurationTimeout, "Replication stopped due to session timeout/admin shutdown: %w", err)
+			}
 			p.logger.Warn("Connection dropped", log.Error(err))
 			p.sendError(err)
 			return
@@ -570,6 +575,21 @@ func startReplication(
 				//nolint:descriptiveerrors
 				return nil, backoff.Permanent(err)
 			}
+			// Too many connections (SQLSTATE 53300)
+			var pgErr *pgconn.PgError
+			if xerrors.As(err, &pgErr) && pgErr.Code == string(ErrcTooManyConnections) {
+				return nil, coded.Errorf(codes.PostgresTooManyConnections, "error establishing replication connection: %w", err)
+			}
+			// SSL handshake failures often come wrapped without PgError during replication handshake
+			if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed") {
+				return nil, coded.Errorf(codes.PostgresSSLVerifyFailed, "error establishing replication connection: %w", err)
+			}
+			// classify a common case when replication is not allowed by server config/pg_hba
+			// NOTE: pgx often returns this as a non-PgError during connection handshake,
+			// so there is no reliable SQLSTATE to match here; textual match is used intentionally.
+			if strings.Contains(err.Error(), "no pg_hba.conf entry for replication connection") || strings.Contains(err.Error(), "replication connection") {
+				return nil, coded.Errorf(codes.PostgresReplicationConnectionNotAllowed, "error establishing replication connection: %w", err)
+			}
 			return nil, xerrors.Errorf("error establishing replication connection: %w", err)
 		}
 		rb.Add(func() {
@@ -595,6 +615,8 @@ func startReplication(
 			// object_in_use code means some other process is reading the slot
 			// nobody is expected to read transfer slot so most common case of this error is stale transfer process
 			if strings.Contains(err.Error(), "SQLSTATE 55006") {
+				// map to coded error for UI/linking
+				err = coded.Errorf(codes.PostgresObjectInUse, "Replication slot is in use: %w", err)
 				tryKillSlotReader(rConn, slotName, lgr)
 			}
 			//nolint:descriptiveerrors

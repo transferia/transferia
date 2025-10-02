@@ -1648,6 +1648,8 @@
   "pkg/providers/mysql/sync_binlog_position.go":"transfer_manager/go/pkg/providers/mysql/sync_binlog_position.go",
   "pkg/providers/mysql/table_progress.go":"transfer_manager/go/pkg/providers/mysql/table_progress.go",
   "pkg/providers/mysql/tasks.go":"transfer_manager/go/pkg/providers/mysql/tasks.go",
+  "pkg/providers/mysql/tests/codes/binlog_missing_test.go":"transfer_manager/go/pkg/providers/mysql/tests/codes/binlog_missing_test.go",
+  "pkg/providers/mysql/tests/codes/connection_integration_test.go":"transfer_manager/go/pkg/providers/mysql/tests/codes/connection_integration_test.go",
   "pkg/providers/mysql/tests/sharding/source.sql":"transfer_manager/go/pkg/providers/mysql/tests/sharding/source.sql",
   "pkg/providers/mysql/tests/sharding/storage_sharding_test.go":"transfer_manager/go/pkg/providers/mysql/tests/sharding/storage_sharding_test.go",
   "pkg/providers/mysql/tracker.go":"transfer_manager/go/pkg/providers/mysql/tracker.go",

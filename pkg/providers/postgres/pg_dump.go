@@ -115,6 +115,18 @@ func ApplyCommands(commands []*pgDumpItem, transfer model.Transfer, registry met
 				log.String("query", command.Body),
 				log.Error(err),
 			)
+			// If destination has functions from extensions in user schema missing, pg returns 42883
+			if IsPgError(err, ErrcUndefinedFunction) {
+				return coded.Errorf(codes.PostgresUndefinedFunction,
+					"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
+					command.Typ, command.Schema, command.Name, err)
+			}
+			// If schema is missing, map 3F000
+			if IsPgError(err, ErrcSchemaDoesNotExists) {
+				return coded.Errorf(codes.PostgresSchemaDoesNotExist,
+					"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
+					command.Typ, command.Schema, command.Name, err)
+			}
 			return coded.Errorf(codes.PostgresDDLApplyFailed,
 				"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
 				command.Typ, command.Schema, command.Name, err)
@@ -726,8 +738,8 @@ func execPgDump(pgDump []string, connString string, password model.SecretString,
 	if err := command.Run(); err != nil {
 		stderrBytes := stderr.Bytes()
 		if bytes.Contains(stderrBytes, []byte("permission denied")) {
-			// TM-1650: permission error should be fatal
-			err = abstract.NewFatalError(err)
+			// Map to coded error for better UX and docs linking
+			err = abstract.NewFatalError(coded.Errorf(codes.PostgresPgDumpPermissionDenied, "failed to execute pg_dump: %w", err))
 		}
 		return nil, xerrors.Errorf("failed to execute pg_dump. STDERR:\n%s\nerror: %w", string(truncate(string(stderrBytes), 2000)), err)
 	}

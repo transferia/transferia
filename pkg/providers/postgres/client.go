@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/transferia/transferia/internal/logger"
@@ -533,6 +534,10 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 		if xerrors.As(err, &dnsErr) {
 			return nil, coded.Errorf(codes.PostgresDNSResolutionFailed, "failed to connect to a PostgreSQL instance: %w", err)
 		}
+		// SSL handshake failures often come wrapped without PgError
+		if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed") {
+			return nil, coded.Errorf(codes.PostgresSSLVerifyFailed, "failed to connect to a PostgreSQL instance: %w", err)
+		}
 		var opErr *net.OpError
 		if xerrors.As(err, &opErr) && opErr.Op == "dial" {
 			return nil, coded.Errorf(codes.Dial, "failed to dial a PostgreSQL instance: %w", err)
@@ -556,6 +561,15 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	defer cancel()
 	result, err := pgxpool.ConnectConfig(goodTimeoutCtx, poolConfig)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if xerrors.As(err, &pgErr) {
+			if pgErr.Code == string(ErrcTooManyConnections) {
+				return nil, coded.Errorf(codes.PostgresTooManyConnections, "failed to connect: too many connections: %w", err)
+			}
+		}
+		if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed") {
+			return nil, coded.Errorf(codes.PostgresSSLVerifyFailed, "failed to connect to a PostgreSQL instance: %w", err)
+		}
 		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance or create a connection pool: %w", err)
 	}
 

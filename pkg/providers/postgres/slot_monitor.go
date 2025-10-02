@@ -162,7 +162,7 @@ func (m *SlotMonitor) validateSlot(ctx context.Context) error {
 		}
 		if err := rows.Err(); err != nil {
 			if pgErr, ok := err.(*pgconn.PgError); ok && pgFatalCode[pgErr.Code] && strings.Contains(err.Error(), "has already been removed") {
-				return abstract.NewFatalError(err)
+				return abstract.NewFatalError(coded.Errorf(codes.PostgresWalSegmentRemoved, "requested WAL segment has already been removed: %w", err))
 			}
 		}
 		rows.Close()

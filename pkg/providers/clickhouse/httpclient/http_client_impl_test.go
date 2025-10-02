@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 )
 
@@ -95,4 +96,21 @@ func TestCompression(t *testing.T) {
 	t.Run("MOAR-jsons", func(t *testing.T) {
 		tc([]byte(strings.Repeat(jsonLine, 2_000_000)))
 	})
+}
+
+func TestQueryStream_ReturnsNetworkUnreachableOnInvalidURL(t *testing.T) {
+	cl, err := NewHTTPClientImpl(&stubParams{port: 0})
+	require.NoError(t, err)
+
+	badHost := &chconn.Host{
+		Name:       "bad host name",
+		HTTPPort:   -1,
+		NativePort: -1,
+	}
+
+	_, err = cl.QueryStream(context.Background(), logger.Log, badHost, "SELECT 1")
+	require.Error(t, err)
+	if !codes.NetworkUnreachable.Contains(err) {
+		t.Fatalf("expected codes.NetworkUnreachable, got: %v", err)
+	}
 }

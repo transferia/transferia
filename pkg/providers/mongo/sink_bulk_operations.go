@@ -7,6 +7,8 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -100,6 +102,12 @@ func (s *sinker) bulkWrite(ctx context.Context, collID Namespace, bulk []mongo.W
 			result = &serialPushResult
 		} else if strings.Contains(err.Error(), "could not extract exact shard key") {
 			return xerrors.Errorf("cannot write %v documents to sharded collection %v - check if user has clusterManager or mdbShardingManager role: %w", docsNumber, collID.GetFullName(), err)
+		} else if strings.Contains(err.Error(), "BSONObjectTooLarge") || strings.Contains(err.Error(), "Tried to create string longer than 16MB") {
+			// Fallback by message
+			if strings.Contains(err.Error(), "Tried to create string longer than 16MB") {
+				return coded.Errorf(codes.MongoCollectionKeyTooLarge, "bulk write failed for %v: %w", collID.GetFullName(), err)
+			}
+			return coded.Errorf(codes.MongoBSONObjectTooLarge, "bulk write failed for %v: %w", collID.GetFullName(), err)
 		} else {
 			return err
 		}

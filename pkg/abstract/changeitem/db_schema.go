@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/util"
 )
 
@@ -37,11 +39,11 @@ func (s DBSchema) CheckPrimaryKeys(filter includeable) error {
 			continue
 		}
 		if !columns.Columns().HasPrimaryKey() {
-			errs = append(errs, xerrors.Errorf("%s: no key columns found", tID.Fqtn()))
+			errs = append(errs, coded.Errorf(codes.PostgresNoPrimaryKeyCode, "%s: no key columns found", tID.Fqtn()))
 		}
 	}
 	if len(errs) > 0 {
-		return xerrors.Errorf("Tables: %v / %v check failed:\n%w", len(errs), len(s), errs)
+		return xerrors.Errorf("Tables: %v / %v check failed:\n%w", len(errs), len(s), util.NewErrs(errs...))
 	}
 	return nil
 }

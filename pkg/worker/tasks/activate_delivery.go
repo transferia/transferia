@@ -14,13 +14,15 @@ import (
 	"github.com/transferia/transferia/pkg/data"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/storage"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var NoTablesError = xerrors.New("Unable to find any tables")
+var NoTablesError = coded.Errorf(codes.NoTablesFound, "Unable to find any tables")
 
 func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coordinator.Coordinator, transfer model.Transfer, registry metrics.Registry) error {
 	rollbacks := util.Rollbacks{}
@@ -124,7 +126,7 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 			}
 		} else {
 			if noKeysTables := tables.NoKeysTables(); len(noKeysTables) > 0 {
-				return errors.CategorizedErrorf(categories.Source, "PRIMARY KEY check failed: %v: no key columns found", noKeysTables)
+				return coded.Errorf(codes.PostgresNoPrimaryKeyCode, "PRIMARY KEY check failed: %v: no key columns found", noKeysTables)
 			}
 			if err := coordinator.ReportFakePKey(cp, transfer.ID, coordinator.FakePKeyStatusMessageCategory, tables.FakePkeyTables()); err != nil {
 				logger.Log.Warn("failed to report fake primary key presence or absence in tables", log.Error(err))

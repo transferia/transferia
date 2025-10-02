@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -12,6 +13,8 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/dbaas"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/util"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -158,6 +161,12 @@ func newClient(ctx context.Context, connOpts *options.ClientOptions) (*mongo.Cli
 	}
 
 	if err := client.Ping(ctx, nil); err != nil {
+		// Network-level classification: prefer structural checks over string matching.
+		// We treat it as DNS failure when error chain contains net.DNSError and driver classifies it as network error.
+		var dnsErr *net.DNSError
+		if mongo.IsNetworkError(err) && xerrors.As(err, &dnsErr) {
+			return nil, coded.Errorf(codes.MongoDNSResolutionFailed, "unable to ping mongo db: %w", err)
+		}
 		return nil, xerrors.Errorf("unable to ping mongo db: %w", err)
 	}
 	return client, nil

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/pingcap/parser/ast"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -63,14 +66,19 @@ func (c *Canal) runSyncBinlog() error {
 		ev, err := s.GetEvent(c.ctx)
 		cErr := util.Unwrap(err)
 		var mErr *mysql.MyError
-		if xerrors.As(cErr, &mErr) {
-			if mErr.Code == mysql.ER_MASTER_FATAL_ERROR_READING_BINLOG {
-				c.logger.Error("failed to get canal event (fatal)", log.Error(mErr))
-				return xerrors.Errorf("failed to get canal event (fatal): %w", abstract.NewFatalError(err))
-			}
-		}
-
 		if err != nil {
+			msg := strings.ToLower(err.Error())
+			if xerrors.As(cErr, &mErr) && mErr.Code == mysql.ER_MASTER_FATAL_ERROR_READING_BINLOG {
+				c.logger.Error("failed to get canal event (fatal)", log.Error(mErr))
+				if util.ContainsAnySubstrings(msg, "more than 4gb", "exceeds 4gb") {
+					err = coded.Errorf(codes.MySQLBinlogTransactionTooLarge, "mysql binlog transaction too large: %w", abstract.NewFatalError(err))
+				}
+				// Otherwise return as-is (no classification)
+				return xerrors.Errorf("failed to get canal event (fatal): %w", err)
+			}
+			if strings.Contains(msg, "could not find first log file") {
+				return coded.Errorf(codes.MySQLBinlogFirstFileMissing, "failed to get canal event (fatal): %w", abstract.NewFatalError(err))
+			}
 			return xerrors.Errorf("failed to get canal event: %w", err)
 		}
 

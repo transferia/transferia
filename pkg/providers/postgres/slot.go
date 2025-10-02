@@ -11,6 +11,9 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -74,7 +77,14 @@ func (slot *Slot) Create() error {
 		}
 		stmt, err := tx.Exec(ctx, "SELECT pg_create_logical_replication_slot($1, 'wal2json')", slot.slotID)
 		slot.logger.Info("Create slot", log.Any("stmt", stmt))
-		return err
+		if err != nil {
+			// Map "all replication slots are in use" (SQLSTATE 53400) to coded error
+			if util.ContainsAnySubstrings(err.Error(), "SQLSTATE 53400", "all replication slots are in use") {
+				return coded.Errorf(codes.PostgresReplicationSlotsInUse, "failed to create a replication slot: %w", err)
+			}
+			return xerrors.Errorf("failed to create a replication slot: %w", err)
+		}
+		return nil
 	})
 }
 

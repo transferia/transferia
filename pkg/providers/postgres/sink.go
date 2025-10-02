@@ -1038,6 +1038,9 @@ func (s *sink) executeQueries(ctx context.Context, conn *pgx.Conn, queries []str
 	}
 
 	s.logger.Warn("failed to execute queries at sink", log.String("query", util.DefaultSample(combinedQuery)), log.Error(err), log.Int("len", len(queries)))
+	if IsPgError(err, ErrcGeneratedColumnWriteAttempt) {
+		return coded.Errorf(codes.PostgresGeneratedColumnWriteAttempt, "failed to execute %d queries at sink: %w", len(queries), err)
+	}
 	return xerrors.Errorf("failed to execute %d queries at sink: %w", len(queries), err)
 }
 
@@ -1071,6 +1074,9 @@ func (s *sink) insert(ctx context.Context, table string, schema []abstract.ColSc
 		}
 
 		err := s.executeQueries(ctx, conn.Conn(), queries[processedQueries:batchFinishI])
+		if IsPgError(err, ErrcUniqueViolation) && !s.config.IgnoreUniqueConstraint() {
+			return coded.Errorf(codes.PostgresDuplicateKeyViolation, "failed to process a single item at sink: %w", err)
+		}
 		if IsPgError(err, ErrcUniqueViolation) && s.config.IgnoreUniqueConstraint() {
 			// This may happen when the state of the target database is newer than the WAL entries
 			// we are currently reading. We can safely ignore such errors (I hope) because, assuming

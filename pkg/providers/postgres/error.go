@@ -19,10 +19,15 @@ const (
 	ErrcWrongObjectType              PgErrorCode = "42809"
 	ErrcRelationDoesNotExists        PgErrorCode = "42P01"
 	ErrcSchemaDoesNotExists          PgErrorCode = "3F000"
+	ErrcInvalidSnapshotIdentifier    PgErrorCode = "22023"
 	ErrcObjectNotInPrerequisiteState PgErrorCode = "55000"
 	ErrcInvalidPassword              PgErrorCode = "28P01"
 	ErrcInvalidAuthSpec              PgErrorCode = "28000"
 	ErrcDropTableWithDependencies    PgErrorCode = "2BP01"
+	ErrcGeneratedColumnWriteAttempt  PgErrorCode = "42P10"
+	ErrcTooManyConnections           PgErrorCode = "53300"
+	ErrcUndefinedFunction            PgErrorCode = "42883"
+	ErrcAdminShutdown                PgErrorCode = "57P01"
 )
 
 func IsPgError(err error, code PgErrorCode) bool {

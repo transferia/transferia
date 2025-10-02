@@ -21,6 +21,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -98,7 +99,25 @@ func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *
 		if err != nil {
 			return nil, xerrors.Errorf("failed to read unsuccessful response body: %w", err)
 		}
-		return nil, xerrors.Errorf("failed: %v to POST %s, status: %s: %w", query, req.URL.String(), resp.Status, ParseCHException(string(rawBody)))
+		chErr := ParseCHException(string(rawBody))
+		body := strings.ToLower(string(rawBody))
+		// Map common SSL requirement messages to coded error
+		if util.ContainsAnySubstrings(body, "ssl", "required") {
+			return nil, coded.Errorf(codes.ClickHouseSSLRequired, "error executing CH query: %w", chErr)
+		}
+		// Map ClickHouse out-of-range date errors
+		if util.ContainsAnySubstrings(body, "must be between", "out of range") {
+			return nil, coded.Errorf(codes.DataOutOfRange, "error executing CH query: %w", chErr)
+		}
+		// Map syntax error due to hyphen in database name
+		var chExc *clickhouse.Exception
+		if xerrors.As(chErr, &chExc) && chExc.Code == 62 && strings.Contains(body, "syntax error") {
+			// Heuristic: ClickHouse complains near '-' when DB name contains hyphen
+			if util.ContainsAnySubstrings(body, "('-')", " failed at position ") {
+				return nil, coded.Errorf(codes.ClickHouseInvalidDatabaseName, "error executing CH query: %w", chErr)
+			}
+		}
+		return nil, xerrors.Errorf("failed: %v to POST %s, status: %s: %w", query, req.URL.String(), resp.Status, chErr)
 	}
 	return resp.Body, nil
 }
