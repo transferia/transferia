@@ -1,6 +1,8 @@
 package s3
 
 import (
+	"time"
+
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
@@ -66,6 +68,9 @@ type S3Source struct {
 	// Concurrency - amount of parallel goroutines into one worker on REPLICATION
 	Concurrency            int64
 	SyntheticPartitionsNum int
+
+	// FetchInterval - fixed interval for fetching objects. If set to 0, exponential backoff is used
+	FetchInterval time.Duration
 }
 
 // TODO: Add sharding of one file to bytes ranges.

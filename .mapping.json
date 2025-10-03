@@ -1902,6 +1902,7 @@
   "pkg/providers/s3/source/object_fetcher/poller/synthetic_partition/synthetic_partition_test.go":"transfer_manager/go/pkg/providers/s3/source/object_fetcher/poller/synthetic_partition/synthetic_partition_test.go",
   "pkg/providers/s3/source/sharded_replication_test/sharded_replication_test.go":"transfer_manager/go/pkg/providers/s3/source/sharded_replication_test/sharded_replication_test.go",
   "pkg/providers/s3/source/source.go":"transfer_manager/go/pkg/providers/s3/source/source.go",
+  "pkg/providers/s3/source/source_test.go":"transfer_manager/go/pkg/providers/s3/source/source_test.go",
   "pkg/providers/s3/storage/gotest/canondata/gotest.gotest.TestCanonCsv/extracted":"transfer_manager/go/pkg/providers/s3/storage/gotest/canondata/gotest.gotest.TestCanonCsv/extracted",
   "pkg/providers/s3/storage/gotest/canondata/gotest.gotest.TestCanonJsonline/extracted":"transfer_manager/go/pkg/providers/s3/storage/gotest/canondata/gotest.gotest.TestCanonJsonline/extracted",
   "pkg/providers/s3/storage/gotest/canondata/gotest.gotest.TestCanonParquet/extracted":"transfer_manager/go/pkg/providers/s3/storage/gotest/canondata/gotest.gotest.TestCanonParquet/extracted",
