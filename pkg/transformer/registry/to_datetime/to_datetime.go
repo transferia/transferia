@@ -53,7 +53,7 @@ func (t *ToDateTimeTransformer) Type() abstract.TransformerType {
 	return Type
 }
 
-func (t *ToDateTimeTransformer) sutableColumn(columnName string, columnType string) bool {
+func (t *ToDateTimeTransformer) suitableColumn(columnName string, columnType string) bool {
 	return t.Columns.Match(columnName) && supportedTypes[columnType]
 }
 
@@ -65,7 +65,7 @@ func (t *ToDateTimeTransformer) Suitable(table abstract.TableID, tableSchema *ab
 		return false
 	}
 	for _, colSchema := range tableSchema.Columns() {
-		if t.sutableColumn(colSchema.ColumnName, colSchema.DataType) {
+		if t.suitableColumn(colSchema.ColumnName, colSchema.DataType) {
 			return true
 		}
 	}
@@ -95,16 +95,17 @@ func (t *ToDateTimeTransformer) Apply(input []abstract.ChangeItem) abstract.Tran
 		for i := range item.TableSchema.Columns() {
 			column := item.TableSchema.Columns()[i]
 			newTableSchema[i] = column
-			if t.sutableColumn(column.ColumnName, column.DataType) {
+			if t.suitableColumn(column.ColumnName, column.DataType) {
 				oldTypes[column.ColumnName] = column.DataType
 				newTableSchema[i].DataType = schema.TypeDatetime.String()
 			}
 		}
 
+		colNameToIdx := abstract.MakeMapColNameToIndex(item.TableSchema.Columns())
 		newValues := make([]interface{}, len(item.ColumnNames))
 		for i, columnName := range item.ColumnNames {
-			column := item.TableSchema.Columns()[i]
-			if !t.sutableColumn(column.ColumnName, column.DataType) {
+			column := item.TableSchema.Columns()[colNameToIdx[columnName]]
+			if !t.suitableColumn(column.ColumnName, column.DataType) {
 				newValues[i] = item.ColumnValues[i]
 				continue
 			}
@@ -124,7 +125,7 @@ func (t *ToDateTimeTransformer) Apply(input []abstract.ChangeItem) abstract.Tran
 func (t *ToDateTimeTransformer) ResultSchema(original *abstract.TableSchema) (*abstract.TableSchema, error) {
 	result := original.Columns().Copy()
 	for i, col := range result {
-		if t.sutableColumn(col.ColumnName, col.DataType) {
+		if t.suitableColumn(col.ColumnName, col.DataType) {
 			result[i].DataType = schema.TypeDatetime.String()
 		}
 	}
