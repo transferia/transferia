@@ -1,9 +1,7 @@
-package writers
+package logger
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -46,13 +44,11 @@ func (w *LeakyWriter) Write(p []byte) (int, error) {
 		return len(p), nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
 	if w.leakedCount > 0 {
 		msg := fmt.Sprintf(leakageInfoMsg, w.leakedCount, w.leakedSize)
 		w.leakedCount = 0
 		w.leakedSize = 0
-		if err := w.writer.Write(ctx, []byte(msg)); err != nil {
+		if _, err := w.writer.Write([]byte(msg)); err != nil {
 			return 0, xerrors.Errorf("unable to write leakage info: %w", err)
 		}
 	}
@@ -61,11 +57,7 @@ func (w *LeakyWriter) Write(p []byte) (int, error) {
 		return len(p), nil
 	}
 
-	return len(p), w.writer.Write(ctx, p)
-}
-
-func (w *LeakyWriter) Close() error {
-	return w.writer.Close()
+	return w.writer.Write(p)
 }
 
 func (w *LeakyWriter) checkIfCanWrite(p []byte) bool {
@@ -83,5 +75,8 @@ func (w *LeakyWriter) checkIfCanWrite(p []byte) bool {
 }
 
 func (w *LeakyWriter) canWrite(p []byte) bool {
-	return w.maxSize <= 0 || len(p) <= w.maxSize
+	if w.maxSize > 0 && len(p) > w.maxSize {
+		return false
+	}
+	return w.writer.CanWrite()
 }
