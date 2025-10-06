@@ -2,7 +2,9 @@ package tasks
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
@@ -105,9 +107,10 @@ func newAbstract2Provider(lgr log.Logger, registry metrics.Registry, cp coordina
 }
 
 func TestAbstract2SourcePassViaWholeUploadPipeline(t *testing.T) {
-	ctx := context.Background()
-
+	metaCheckInterval = 100 * time.Millisecond
 	providers.Register(abstract.ProviderTypeMock, newAbstract2Provider)
+
+	ctx := context.Background()
 
 	transfer := new(model.Transfer)
 	transfer.Src = &model.MockSource{
@@ -120,25 +123,85 @@ func TestAbstract2SourcePassViaWholeUploadPipeline(t *testing.T) {
 		},
 	}
 
-	cp := coordinator.NewFakeClientWithOpts(
-		nil,
-		func() ([]*model.OperationWorker, error) {
-			return []*model.OperationWorker{
-				{Completed: true},
-				{Completed: true},
-			}, nil
+	cp := coordinator.NewStatefulFakeClient()
+
+	t.Run("uploadV2Main", func(t *testing.T) {
+		operationID := "test-operation-1"
+		snapshotLoader := NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+
+		go func(inSnapshotLoader *SnapshotLoader) {
+			_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
+			_ = cp.FinishOperation(operationID, "", 0, nil)
+			_ = cp.FinishOperation(operationID, "", 1, nil)
+		}(snapshotLoader)
+
+		err := snapshotLoader.uploadV2Main(ctx, nil, []abstract.TableDescription{{Schema: "schema", Name: "name"}})
+		require.NoError(t, err)
+	})
+
+	t.Run("uploadV2Single", func(t *testing.T) {
+		operationID := "test-operation-2"
+		snapshotLoader := NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+
+		err := snapshotLoader.uploadV2Single(ctx, nil, []abstract.TableDescription{{Schema: "schema", Name: "name"}})
+		require.NoError(t, err)
+	})
+
+	t.Run("ActivateDelivery", func(t *testing.T) {
+		operationID := "test-operation-3"
+		snapshotLoader := NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+
+		go func(inSnapshotLoader *SnapshotLoader) {
+			_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
+			_ = cp.FinishOperation(operationID, "", 0, nil)
+			_ = cp.FinishOperation(operationID, "", 1, nil)
+		}(snapshotLoader)
+
+		task := &model.TransferOperation{
+			OperationID: operationID,
+		}
+		err := ActivateDelivery(ctx, task, cp, *transfer, solomon.NewRegistry(nil))
+		require.NoError(t, err)
+	})
+}
+
+func TestMainWorkerRestartV2(t *testing.T) {
+	metaCheckInterval = 100 * time.Millisecond
+	providers.Register(abstract.ProviderTypeMock, newAbstract2Provider)
+
+	tables := []abstract.TableDescription{{Schema: "schema1", Name: "table1"}}
+	operationID := "dtj"
+
+	transfer := &model.Transfer{
+		Runtime: &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1}},
+		Src: &model.MockSource{
+			IsAbstract2Val: true,
 		},
-		func(operationID string) (*model.AggregatedProgress, error) {
-			return &model.AggregatedProgress{}, nil
+		Dst: &model.MockDestination{
+			SinkerFactory: func() abstract.Sinker {
+				return newFakeSink(func(items []abstract.ChangeItem) error {
+					return nil
+				})
+			},
 		},
-	)
-	snapshotLoader := NewSnapshotLoader(cp, "test-operation", transfer, solomon.NewRegistry(nil))
-	var err error
-	err = snapshotLoader.uploadV2Main(ctx, nil, []abstract.TableDescription{{Schema: "schema", Name: "name"}})
-	require.NoError(t, err)
-	err = snapshotLoader.uploadV2Single(ctx, nil, []abstract.TableDescription{{Schema: "schema", Name: "name"}})
+	}
+
+	cp := coordinator.NewStatefulFakeClient()
+
+	snapshotLoader := NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+	ctx := context.Background()
+
+	// first run
+	go func(inSnapshotLoader *SnapshotLoader) {
+		_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
+		_ = cp.FinishOperation(operationID, "", 0, nil)
+		_ = cp.FinishOperation(operationID, "", 1, nil)
+	}(snapshotLoader)
+	err := snapshotLoader.UploadV2(ctx, nil, tables)
 	require.NoError(t, err)
 
-	err = ActivateDelivery(ctx, nil, cp, *transfer, solomon.NewRegistry(nil))
-	require.NoError(t, err)
+	// second run
+	err = snapshotLoader.UploadV2(ctx, nil, tables)
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), mainWorkerRestartedErrorText))
 }

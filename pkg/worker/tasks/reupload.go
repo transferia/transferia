@@ -61,7 +61,7 @@ func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 			tables, err := ObtainAllSrcTables(&transfer, registry)
 			if err != nil {
 				if !xerrors.Is(err, storage.UnsupportedSourceErr) {
-					return xerrors.Errorf(TableListErrorText, err)
+					return xerrors.Errorf(tableListErrorText, err)
 				}
 			}
 

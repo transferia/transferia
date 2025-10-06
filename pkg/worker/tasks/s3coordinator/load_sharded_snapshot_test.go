@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -16,59 +15,8 @@ import (
 	"github.com/transferia/transferia/pkg/coordinator/s3coordinator"
 	"github.com/transferia/transferia/pkg/terryid"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers/fake_sharding_storage"
 )
-
-type fakeShardingStorage struct {
-	tables []abstract.TableDescription
-}
-
-func (f *fakeShardingStorage) TableSchema(ctx context.Context, table abstract.TableID) (*abstract.TableSchema, error) {
-	return nil, nil
-}
-
-func (f *fakeShardingStorage) Close() {
-}
-
-func (f *fakeShardingStorage) Ping() error {
-	return nil
-}
-
-func (f *fakeShardingStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
-	return nil
-}
-
-func (f *fakeShardingStorage) TableList(abstract.IncludeTableList) (abstract.TableMap, error) {
-	return nil, nil
-}
-
-func (f *fakeShardingStorage) ShardTable(ctx context.Context, table abstract.TableDescription) ([]abstract.TableDescription, error) {
-	if table.Offset != 0 {
-		logger.Log.Infof("Table %v will not be sharded, offset: %v", table.Fqtn(), table.Offset)
-		return []abstract.TableDescription{table}, nil
-	}
-
-	var res []abstract.TableDescription
-	for i := 0; i < 10; i++ {
-		res = append(res, abstract.TableDescription{
-			Name:   table.Name,
-			Schema: table.Schema,
-			Filter: abstract.WhereStatement(fmt.Sprintf("shard = '%v'", i)),
-		})
-	}
-	return res, nil
-}
-
-func (f *fakeShardingStorage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
-	return 0, xerrors.New("not implemented")
-}
-
-func (f *fakeShardingStorage) EstimateTableRowsCount(table abstract.TableID) (uint64, error) {
-	return 0, xerrors.New("not implemented")
-}
-
-func (f *fakeShardingStorage) TableExists(table abstract.TableID) (bool, error) {
-	return false, xerrors.New("not implemented")
-}
 
 type fakeSinker struct{}
 
@@ -137,9 +85,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 			},
 			Src: &model.MockSource{
 				StorageFactory: func() abstract.Storage {
-					return &fakeShardingStorage{
-						tables: tables,
-					}
+					return fake_sharding_storage.NewFakeShardingStorage(tables)
 				},
 				AllTablesFactory: func() abstract.TableMap {
 					return nil
@@ -191,9 +137,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 			},
 			Src: &model.MockSource{
 				StorageFactory: func() abstract.Storage {
-					return &fakeShardingStorage{
-						tables: tables,
-					}
+					return fake_sharding_storage.NewFakeShardingStorage(tables)
 				},
 				AllTablesFactory: func() abstract.TableMap {
 					return nil

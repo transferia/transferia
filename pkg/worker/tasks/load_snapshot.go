@@ -32,8 +32,9 @@ import (
 )
 
 const (
-	ResolveStorageErrorText string = "failed to resolve storage: %w"
-	TableListErrorText      string = "failed to list tables and their schemas: %w"
+	mainWorkerRestartedErrorText string = "main worker job was terminated by runtime. Check logs to see the cause"
+	resolveStorageErrorText      string = "failed to resolve storage: %w"
+	tableListErrorText           string = "failed to list tables and their schemas: %w"
 )
 
 type SnapshotLoader struct {
@@ -86,7 +87,7 @@ func NewSnapshotLoader(cp coordinator.Coordinator, operationID string, transfer 
 func (l *SnapshotLoader) LoadSnapshot(ctx context.Context) error {
 	tables, err := ObtainAllSrcTables(l.transfer, l.registry)
 	if err != nil {
-		return errors.CategorizedErrorf(categories.Source, TableListErrorText, err)
+		return errors.CategorizedErrorf(categories.Source, tableListErrorText, err)
 	}
 	tableDescriptions := tables.ConvertToTableDescriptions()
 	l.schemaLock.Lock()
@@ -373,7 +374,7 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 
 	sourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
 	if err != nil {
-		return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
+		return errors.CategorizedErrorf(categories.Source, resolveStorageErrorText, err)
 	}
 	defer sourceStorage.Close()
 
@@ -481,6 +482,14 @@ func (l *SnapshotLoader) uploadShardedMode(ctx context.Context, tables []abstrac
 }
 
 func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.TableDescription, updateIncrementalState bool) error {
+	workers, err := l.cp.GetOperationWorkers(l.operationID)
+	if err != nil {
+		return xerrors.Errorf("failed to get operation workers: %w", err)
+	}
+	if len(workers) != 0 {
+		return xerrors.New(mainWorkerRestartedErrorText)
+	}
+
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 	if !ok || runtime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
@@ -499,7 +508,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 
 	sourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
 	if err != nil {
-		return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
+		return errors.CategorizedErrorf(categories.Source, resolveStorageErrorText, err)
 	}
 	defer sourceStorage.Close()
 
@@ -623,7 +632,7 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 
 	sourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
 	if err != nil {
-		return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
+		return errors.CategorizedErrorf(categories.Source, resolveStorageErrorText, err)
 	}
 	defer sourceStorage.Close()
 

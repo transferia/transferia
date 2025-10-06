@@ -2,14 +2,18 @@ package tasks
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/tests/helpers/fake_sharding_storage"
 	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 )
 
@@ -130,4 +134,49 @@ func TestDoUploadTables_CtxCancelledNoErr(t *testing.T) {
 
 	err = snapshotLoader.DoUploadTables(ctx, storage, tppGetter)
 	require.NoError(t, err)
+}
+
+func TestMainWorkerRestart(t *testing.T) {
+	metaCheckInterval = 100 * time.Millisecond
+
+	tables := []abstract.TableDescription{{Schema: "schema1", Name: "table1"}}
+	operationID := "dtj"
+
+	transfer := &model.Transfer{
+		Runtime: &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1}},
+		Src: &model.MockSource{
+			StorageFactory: func() abstract.Storage {
+				return fake_sharding_storage.NewFakeShardingStorage(tables)
+			},
+			AllTablesFactory: func() abstract.TableMap {
+				return nil
+			},
+		},
+		Dst: &model.MockDestination{
+			SinkerFactory: func() abstract.Sinker {
+				return newFakeSink(func(items []abstract.ChangeItem) error {
+					return nil
+				})
+			},
+		},
+	}
+
+	cp := coordinator.NewStatefulFakeClient()
+
+	snapshotLoader := NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+	ctx := context.Background()
+
+	// first run
+	go func(inSnapshotLoader *SnapshotLoader) {
+		_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
+		_ = cp.FinishOperation(operationID, "", 0, nil)
+		_ = cp.FinishOperation(operationID, "", 1, nil)
+	}(snapshotLoader)
+	err := snapshotLoader.UploadTables(ctx, tables, false)
+	require.NoError(t, err)
+
+	// second run
+	err = snapshotLoader.UploadTables(ctx, tables, false)
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), mainWorkerRestartedErrorText))
 }

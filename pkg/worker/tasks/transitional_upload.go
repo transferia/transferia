@@ -203,7 +203,7 @@ func TransitReupload(ctx context.Context, cp coordinator.Coordinator, transfer m
 				if xerrors.Is(err, storage.UnsupportedSourceErr) {
 					continue
 				}
-				return xerrors.Errorf(TableListErrorText, err)
+				return xerrors.Errorf(tableListErrorText, err)
 			}
 
 			if err := rutSnapshotLoader.CleanupSinker(tables); err != nil {

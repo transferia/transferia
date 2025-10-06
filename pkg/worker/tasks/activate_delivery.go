@@ -56,14 +56,6 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 		return nil
 	}
 
-	notFirstRun, err := snapshotLoader.OperationStateExists(ctx)
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "failed to check existence of operation state: %w", err)
-	}
-	if notFirstRun {
-		return xerrors.New("main worker job was terminated by runtime. Check logs to see the cause")
-	}
-
 	logger.Log.Info("ActivateDelivery starts on primary worker")
 
 	if transfer.IsAbstract2() {
@@ -185,7 +177,7 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 func ObtainAllSrcTables(transfer *model.Transfer, registry metrics.Registry) (abstract.TableMap, error) {
 	srcStorage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), registry)
 	if err != nil {
-		return nil, xerrors.Errorf(ResolveStorageErrorText, err)
+		return nil, xerrors.Errorf(resolveStorageErrorText, err)
 	}
 	defer srcStorage.Close()
 	result, err := model.FilteredTableList(srcStorage, transfer)

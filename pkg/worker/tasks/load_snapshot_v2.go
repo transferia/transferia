@@ -206,7 +206,7 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ba
 	if l.transfer.IsIncremental() {
 		abstract1SourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
 		if err != nil {
-			return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
+			return errors.CategorizedErrorf(categories.Source, resolveStorageErrorText, err)
 		}
 		defer abstract1SourceStorage.Close()
 
@@ -302,6 +302,14 @@ func (l *SnapshotLoader) uploadV2Sharded(ctx context.Context, snapshotProvider b
 }
 
 func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base.SnapshotProvider, inTables []abstract.TableDescription) error {
+	workers, err := l.cp.GetOperationWorkers(l.operationID)
+	if err != nil {
+		return xerrors.Errorf("failed to get operation workers: %w", err)
+	}
+	if len(workers) != 0 {
+		return xerrors.New(mainWorkerRestartedErrorText)
+	}
+
 	paralleledRuntime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 	if !ok || paralleledRuntime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
@@ -347,7 +355,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 	if l.transfer.IsIncremental() {
 		abstract1SourceStorage, err := storage.NewStorage(l.transfer, l.cp, l.registry)
 		if err != nil {
-			return errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err)
+			return errors.CategorizedErrorf(categories.Source, resolveStorageErrorText, err)
 		}
 		defer abstract1SourceStorage.Close()
 

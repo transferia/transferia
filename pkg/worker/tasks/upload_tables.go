@@ -21,7 +21,7 @@ type UploadSpec struct {
 func missingTables(transfer *model.Transfer, registry metrics.Registry, requested []abstract.TableDescription) (result []string, err error) {
 	presentTables, err := ObtainAllSrcTables(transfer, registry)
 	if err != nil {
-		return nil, xerrors.Errorf(TableListErrorText, err)
+		return nil, xerrors.Errorf(tableListErrorText, err)
 	}
 
 	for _, rTD := range requested {
@@ -36,7 +36,7 @@ func missingTables(transfer *model.Transfer, registry metrics.Registry, requeste
 func inaccessibleTables(transfer *model.Transfer, registry metrics.Registry, requested []abstract.TableDescription) ([]string, error) {
 	srcStorage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), registry)
 	if err != nil {
-		return nil, xerrors.Errorf(ResolveStorageErrorText, err)
+		return nil, xerrors.Errorf(resolveStorageErrorText, err)
 	}
 	defer srcStorage.Close()
 

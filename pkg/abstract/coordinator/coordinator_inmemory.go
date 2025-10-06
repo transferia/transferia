@@ -6,6 +6,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -17,6 +18,7 @@ type CoordinatorInMemory struct {
 	taskState            map[string]string
 	progress             []*abstract.OperationTablePart
 	operationTablesParts map[string]*OperationTablesParts
+	operationIdToWorkers map[string][]*model.OperationWorker
 }
 
 func NewStatefulFakeClient() *CoordinatorInMemory {
@@ -28,6 +30,7 @@ func NewStatefulFakeClient() *CoordinatorInMemory {
 		taskState:            map[string]string{},
 		progress:             nil,
 		operationTablesParts: make(map[string]*OperationTablesParts),
+		operationIdToWorkers: make(map[string][]*model.OperationWorker),
 	}
 }
 
@@ -147,4 +150,53 @@ func (f *CoordinatorInMemory) UpdateOperationTablesParts(operationID string, tab
 	}
 
 	return nil
+}
+
+func (f *CoordinatorInMemory) CreateOperationWorkers(operationID string, workersCount int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	arr := make([]*model.OperationWorker, 0)
+	for i := 0; i < workersCount; i++ {
+		arr = append(arr, &model.OperationWorker{
+			OperationID: operationID,
+			WorkerIndex: i,
+			Completed:   false,
+			Err:         "",
+			Progress:    nil,
+		})
+	}
+	f.operationIdToWorkers[operationID] = arr
+	return nil
+}
+
+func (f *CoordinatorInMemory) GetOperationWorkers(operationID string) ([]*model.OperationWorker, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return f.operationIdToWorkers[operationID], nil
+}
+
+func (f *CoordinatorInMemory) FinishOperation(operationID, _ string, shardIndex int, _ error) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for index := range f.operationIdToWorkers[operationID] {
+		if f.operationIdToWorkers[operationID][index].WorkerIndex == shardIndex {
+			f.operationIdToWorkers[operationID][index].Completed = true
+			return nil
+		}
+	}
+	return xerrors.New("Operation worker not found")
+}
+
+func (f *CoordinatorInMemory) GetOperationWorkersCount(operationID string, completed bool) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return len(f.operationIdToWorkers[operationID]), nil
+}
+
+func (f *CoordinatorInMemory) GetOperationProgress(operationID string) (*model.AggregatedProgress, error) {
+	return model.NewAggregatedProgress(), nil
 }

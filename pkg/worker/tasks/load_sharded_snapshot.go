@@ -22,10 +22,15 @@ func newMetaCheckBackoff() backoff.BackOff {
 	return backoff.WithMaxRetries(backoff.NewConstantBackOff(metaCheckInterval), metaCheckMaxRetries)
 }
 
-const (
-	metaCheckInterval   time.Duration = 15 * time.Second
-	metaCheckMaxRetries uint64        = uint64((6 * time.Hour) / metaCheckInterval)
+var (
+	metaCheckInterval   time.Duration
+	metaCheckMaxRetries uint64
 )
+
+func init() {
+	metaCheckInterval = 15 * time.Second
+	metaCheckMaxRetries = uint64((6 * time.Hour) / metaCheckInterval)
+}
 
 func (l *SnapshotLoader) WaitWorkersInitiated(ctx context.Context) error {
 	return backoff.RetryNotify(
@@ -159,7 +164,7 @@ func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, workersCount 
 			completedWorkersCountPercent = (float64(completedWorkersCount) / float64(workersCount)) * 100
 		}
 
-		completed := (int(completedWorkersCount) == workersCount)
+		completed := (completedWorkersCount == workersCount)
 
 		status := "running"
 		if completed {
@@ -168,10 +173,19 @@ func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, workersCount 
 		logger.Log.Infof(
 			"Secondary workers are %v, workers: %v in progress, %v completed, %v total (%.2f%% completed), parts: %v in progress, %v completed, %v total (%.2f%% completed), rows: %v / %v (%.2f%%), elapsed time: %v",
 			status,
-			workersCount-completedWorkersCount, completedWorkersCount, workersCount, completedWorkersCountPercent,
-			partsInProgress, progress.CompletedPartsCount, progress.PartsCount, progress.PartsPercent(),
-			progress.CompletedRowsCount, progress.ETARowsCount, progress.RowsPercent(),
-			time.Since(start))
+			workersCount-completedWorkersCount,
+			completedWorkersCount,
+			workersCount,
+			completedWorkersCountPercent,
+			partsInProgress,
+			progress.CompletedPartsCount,
+			progress.PartsCount,
+			progress.PartsPercent(),
+			progress.CompletedRowsCount,
+			progress.ETARowsCount,
+			progress.RowsPercent(),
+			time.Since(start),
+		)
 
 		if len(errs) > 0 {
 			return xerrors.Errorf("errors detected on secondary workers: %v", errs)
