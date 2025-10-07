@@ -78,6 +78,10 @@ type Provider struct {
 	transfer *model.Transfer
 }
 
+func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
+	return transferType != abstract.TransferTypeSnapshotOnly
+}
+
 func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) error {
 	src, err := p.srcParamsFromTransfer()
 	if err != nil {

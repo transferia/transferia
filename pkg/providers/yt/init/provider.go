@@ -178,6 +178,10 @@ func (p *Provider) TMPCleaner(ctx context.Context, task *model.TransferOperation
 	return yt_provider.NewTmpCleaner(dst, p.logger)
 }
 
+func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
+	return transferType != abstract.TransferTypeSnapshotOnly
+}
+
 func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) error {
 	return nil
 }

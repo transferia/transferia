@@ -94,9 +94,19 @@ func SourceIs[T Provider](transfer *model.Transfer) bool {
 	return ProviderIs[T](transfer.SrcType())
 }
 
+// SourceAs checks if source implements provided interface and returns its object if so.
+func SourceAs[T Provider](transfer *model.Transfer) (T, bool) {
+	return ProviderAs[T](transfer.SrcType())
+}
+
 // Destination implements a specific provider interface from registry
 func DestinationIs[T Provider](transfer *model.Transfer) bool {
 	return ProviderIs[T](transfer.DstType())
+}
+
+// DestinationAs checks if destination implements provided interface and returns its object if so.
+func DestinationAs[T Provider](transfer *model.Transfer) (T, bool) {
+	return ProviderAs[T](transfer.DstType())
 }
 
 func ProviderIs[T Provider](provider abstract.ProviderType) bool {
@@ -107,6 +117,17 @@ func ProviderIs[T Provider](provider abstract.ProviderType) bool {
 	res := f(logger.Log, nil, coordinator.NewFakeClient(), new(model.Transfer))
 	_, ok = res.(T)
 	return ok
+}
+
+func ProviderAs[T Provider](provider abstract.ProviderType) (T, bool) {
+	f, ok := knownProviders[provider]
+	if !ok {
+		var t T
+		return t, false
+	}
+	res := f(logger.Log, nil, coordinator.NewFakeClient(), new(model.Transfer))
+	typed, ok := res.(T)
+	return typed, ok
 }
 
 // Destination resolve a specific provider interface from registry by `transfer.DstType()` provider type.

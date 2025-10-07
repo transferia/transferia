@@ -32,9 +32,11 @@ type Activator interface {
 }
 
 // Cleanuper enable custom functionality on transfer `Activate`/`Upload`/`Reupload` tasks on `Cleanup` stage.
+// If CleanupSuitable returns false then Cleanup won't be called.
 type Cleanuper interface {
 	Provider
 	Cleanup(ctx context.Context, task *model.TransferOperation) error
+	CleanupSuitable(transferType abstract.TransferType) bool
 }
 
 // Deactivator enable custom functionality on transfer `Deactivate` task.
