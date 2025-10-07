@@ -127,7 +127,7 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 	}
 
 	if err == nil && len(tables) == 0 {
-		return NoTablesError
+		return errors.CategorizedErrorf(categories.Source, "ActivateDelivery: %w", NoTablesError)
 	}
 
 	if !transfer.IncrementOnly() && !transfer.AsyncOperations {

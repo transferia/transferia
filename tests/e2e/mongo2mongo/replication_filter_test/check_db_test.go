@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	mongodataagent "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
@@ -101,7 +102,7 @@ func testCollectionFilterIncludeWholeDB(t *testing.T) {
 	if strings.Contains(err.Error(), "replication") {
 		require.EqualError(t, err, "Failed in accordance with configuration: Some tables whose replication was requested are missing in the source database. Include directives with no matching tables: [db1.*]")
 	} else {
-		require.EqualError(t, err, "Unable to find any tables")
+		require.True(t, codes.NoTablesFound.Contains(err))
 	}
 }
 
@@ -236,6 +237,6 @@ func testCollectionFilterWholeDBExcludedExcludesCollection(t *testing.T) {
 	if strings.Contains(err.Error(), "replication") {
 		require.EqualError(t, err, "Failed in accordance with configuration: Some tables whose replication was requested are missing in the source database. Include directives with no matching tables: [db1.coll1]")
 	} else {
-		require.EqualError(t, err, "Unable to find any tables")
+		require.True(t, codes.NoTablesFound.Contains(err))
 	}
 }
