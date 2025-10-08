@@ -30,6 +30,8 @@ func (sa *stubAgent) Stop() error {
 	return nil
 }
 
+func (sa *stubAgent) WithStats(stats *MeteringStats) {}
+
 func NewStubAgent(lgr log.Logger) MeteringAgent {
 	return &stubAgent{
 		logger: lgr,

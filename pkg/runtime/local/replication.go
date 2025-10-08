@@ -68,7 +68,9 @@ const healthReportPeriod time.Duration = 1 * time.Minute
 const replicationRetryInterval time.Duration = 10 * time.Second
 
 func RunReplicationWithMeteringTags(ctx context.Context, cp coordinator.Coordinator, transfer *model.Transfer, registry metrics.Registry, runtimeTags map[string]interface{}) error {
-	metering.InitializeWithTags(transfer, nil, runtimeTags)
+	meteringStats := metering.NewMeteringStats(registry.WithPrefix(metering.DPInternalPrefix))
+	defer func() { meteringStats.Reset() }()
+	metering.InitializeWithTags(transfer, nil, runtimeTags, meteringStats)
 	shared.ApplyRuntimeLimits(transfer.RuntimeForReplication())
 	return runReplication(ctx, cp, transfer, registry, logger.Log)
 }
