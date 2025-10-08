@@ -32,9 +32,8 @@ func PluggableProblemItemTransformer(transfer *model.Transfer, _ metrics.Registr
 
 func transferNeedDetector(transformers *transformer.Transformers) bool {
 	for _, t := range transformers.Transformers {
-		if v, ok := t[TransformerType]; ok {
-			_, applicable := v.(Config)
-			return applicable
+		if _, ok := t[TransformerType]; ok {
+			return true
 		}
 	}
 	return false
