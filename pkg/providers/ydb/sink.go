@@ -475,19 +475,19 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 			var tableTime time.Time
 			switch s.config.Rotation.PartType {
 			case model.RotatorPartHour:
-				t, err := time.Parse(model.HourFormat, child.Name)
+				t, err := time.ParseInLocation(model.HourFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
 				tableTime = t
 			case model.RotatorPartDay:
-				t, err := time.Parse(model.DayFormat, child.Name)
+				t, err := time.ParseInLocation(model.DayFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
 				tableTime = t
 			case model.RotatorPartMonth:
-				t, err := time.Parse(model.MonthFormat, child.Name)
+				t, err := time.ParseInLocation(model.MonthFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
@@ -496,7 +496,7 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 				continue
 			}
 			if tableTime.Before(baseTime) {
-				s.logger.Infof("Old table need to be deleted %v", child.Name)
+				s.logger.Infof("Old table need to be deleted %v, table time: %v, base time: %v", child.Name, tableTime, baseTime)
 				if err := s.db.Table().Do(context.Background(), func(ctx context.Context, session table.Session) error {
 					dropTable := DropTableTemplate{s.getFullPath(currPath.MakeChildPath(child.Name))}
 
@@ -528,7 +528,6 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 					return nil
 				}); err != nil {
 					s.logger.Warnf("Unable to init next table %s: %v", nextTablePath, err)
-
 					continue
 				}
 			}
