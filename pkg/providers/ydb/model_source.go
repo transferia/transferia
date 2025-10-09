@@ -85,6 +85,13 @@ func (s *YdbSource) MDBClusterID() string {
 	return s.Instance + s.Database
 }
 
+func (s *YdbSource) ServiceAccountIDs() []string {
+	if s.ServiceAccountID != "" {
+		return []string{s.ServiceAccountID}
+	}
+	return nil
+}
+
 func (s *YdbSource) IsSource() {}
 
 func (s *YdbSource) WithDefaults() {

@@ -29,6 +29,13 @@ func (s *YTSaurusSource) WithDefaults() {
 	}
 }
 
+func (s *YTSaurusSource) ServiceAccountIDs() []string {
+	if s.Connection.ServiceAccountID == "" {
+		return nil
+	}
+	return []string{s.Connection.ServiceAccountID}
+}
+
 func (s *YTSaurusSource) GetProviderType() abstract.ProviderType {
 	return ManagedProviderType
 }

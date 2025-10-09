@@ -54,6 +54,13 @@ func (s *KafkaSource) MDBClusterID() string {
 	return ""
 }
 
+func (s *KafkaSource) ServiceAccountIDs() []string {
+	if s.Transformer != nil && s.Transformer.ServiceAccountID != "" {
+		return []string{s.Transformer.ServiceAccountID}
+	}
+	return nil
+}
+
 func (s *KafkaSource) GetConnectionID() string {
 	return s.Connection.ConnectionID
 }

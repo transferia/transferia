@@ -188,6 +188,13 @@ func (s *S3Source) Validate() error {
 	return nil
 }
 
+func (s *S3Source) ServiceAccountIDs() []string {
+	if s.ConnectionConfig.ServiceAccountID != "" {
+		return []string{s.ConnectionConfig.ServiceAccountID}
+	}
+	return nil
+}
+
 func (s *S3Source) WithDefaults() {
 	if s.ReadBatchSize == 0 {
 		s.ReadBatchSize = defaultReadBatchSize

@@ -52,6 +52,13 @@ var (
 
 func (d *YdbDestination) IsAlterable() {}
 
+func (d *YdbDestination) ServiceAccountIDs() []string {
+	if d.ServiceAccountID != "" {
+		return []string{d.ServiceAccountID}
+	}
+	return nil
+}
+
 func (d *YdbDestination) MDBClusterID() string {
 	return d.Instance + d.Database
 }

@@ -77,6 +77,13 @@ func (d *S3Destination) BuffererConfig() *bufferer.BuffererConfig {
 	}
 }
 
+func (d *S3Destination) ServiceAccountIDs() []string {
+	if d.ServiceAccountID != "" {
+		return []string{d.ServiceAccountID}
+	}
+	return nil
+}
+
 func (d *S3Destination) ConnectionConfig() ConnectionConfig {
 	return ConnectionConfig{
 		AccessKey:        d.AccessKey,

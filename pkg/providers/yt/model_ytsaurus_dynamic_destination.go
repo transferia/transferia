@@ -43,6 +43,13 @@ func (d *YTSaurusDynamicDestination) CompressionCodec() yt.ClientCompressionCode
 	return 0
 }
 
+func (d *YTSaurusDynamicDestination) ServiceAccountIDs() []string {
+	if d.Connection.ServiceAccountID == "" {
+		return nil
+	}
+	return []string{d.Connection.ServiceAccountID}
+}
+
 func (d *YTSaurusDynamicDestination) MDBClusterID() string {
 	return d.Connection.ClusterID
 }
