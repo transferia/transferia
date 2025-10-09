@@ -40,6 +40,9 @@ func readAllMultilineLines(content []byte) ([]string, int) {
 	foundStart := false
 	countCurlyBrackets := 0
 	bytesRead := 0
+	inString := false
+	escaped := false
+
 	for _, char := range string(content) {
 		if foundStart && countCurlyBrackets == 0 {
 			lines = append(lines, string(extractedLine))
@@ -47,17 +50,40 @@ func readAllMultilineLines(content []byte) ([]string, int) {
 
 			foundStart = false
 			extractedLine = []rune{}
+			inString = false
+			escaped = false
 			continue
 		}
 		extractedLine = append(extractedLine, char)
-		if char == '{' {
-			countCurlyBrackets++
-			foundStart = true
+
+		// Handle escape sequences
+		if escaped {
+			escaped = false
 			continue
 		}
 
-		if char == '}' {
-			countCurlyBrackets--
+		if char == '\\' {
+			escaped = true
+			continue
+		}
+
+		// Toggle string state on unescaped quotes
+		if char == '"' {
+			inString = !inString
+			continue
+		}
+
+		// Only count brackets when not inside a string
+		if !inString {
+			if char == '{' {
+				countCurlyBrackets++
+				foundStart = true
+				continue
+			}
+
+			if char == '}' {
+				countCurlyBrackets--
+			}
 		}
 	}
 	if foundStart && countCurlyBrackets == 0 && content[len(content)-1] == '}' {

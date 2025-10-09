@@ -119,3 +119,22 @@ func TestReadAllMultilineLines_InvalidContent(t *testing.T) {
 	require.Equal(t, 0, len(lines))
 	require.Equal(t, 0, readBytes)
 }
+
+func TestReadAllMultilineLines_CurlyBracketsInTheValue(t *testing.T) {
+
+	t.Run("simple case", func(t *testing.T) {
+		content := []byte(`{"value": "{{some text}}}}}}]]]]]{{}}"}`)
+		lines, readBytes := readAllMultilineLines(content)
+		require.Equal(t, 1, len(lines))
+		require.Equal(t, `{"value": "{{some text}}}}}}]]]]]{{}}"}`, lines[0])
+		require.Equal(t, len(content), readBytes)
+	})
+
+	t.Run("curly brackets in the value with quotes", func(t *testing.T) {
+		content := []byte(`{"value": "{{some text\"}\"}}}}}]]]]]{{}}"}`) // here \" is not a part of the json
+		lines, readBytes := readAllMultilineLines(content)
+		require.Equal(t, 1, len(lines))
+		require.Equal(t, `{"value": "{{some text\"}\"}}}}}]]]]]{{}}"}`, lines[0])
+		require.Equal(t, len(content), readBytes)
+	})
+}
