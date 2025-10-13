@@ -11,6 +11,7 @@ import (
 	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
 )
 
 type KafkaDestination struct {
@@ -129,7 +130,7 @@ func (d *KafkaDestination) Validate() error {
 }
 
 func (d *KafkaDestination) Compatible(src model.Source, transferType abstract.TransferType) error {
-	return sourceCompatible(src, transferType, d.FormatSettings.Name)
+	return coherence_check.SourceCompatible(src, transferType, d.FormatSettings.Name)
 }
 
 func (d *KafkaDestination) Serializer() (model.SerializationFormat, bool) {

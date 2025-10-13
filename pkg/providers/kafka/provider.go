@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/kafka/client"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
+	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -143,7 +144,7 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 	if err := cfgCopy.WithConnectionID(); err != nil {
 		return nil, xerrors.Errorf("unable to resolve connection for sink: %w", err)
 	}
-	cfgCopy.FormatSettings = InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
+	cfgCopy.FormatSettings = coherence_check.InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
 	return NewReplicationSink(&cfgCopy, p.registry, p.logger)
 }
 
@@ -156,7 +157,7 @@ func (p *Provider) SnapshotSink(middlewares.Config) (abstract.Sinker, error) {
 	if err := cfgCopy.WithConnectionID(); err != nil {
 		return nil, xerrors.Errorf("unable to resolve connection for snapshot sink: %w", err)
 	}
-	cfgCopy.FormatSettings = InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
+	cfgCopy.FormatSettings = coherence_check.InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
 	return NewSnapshotSink(&cfgCopy, p.registry, p.logger)
 }
 

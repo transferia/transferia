@@ -1,4 +1,4 @@
-package kafka
+package coherence_check
 
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -55,7 +55,7 @@ func InferFormatSettings(src model.Source, formatSettings model.SerializationFor
 	return *result
 }
 
-func sourceCompatible(src model.Source, transferType abstract.TransferType, serializationName model.SerializationFormatName) error {
+func SourceCompatible(src model.Source, transferType abstract.TransferType, serializationName model.SerializationFormatName) error {
 	switch serializationName {
 	case model.SerializationFormatAuto:
 		return nil
