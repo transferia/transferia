@@ -13,6 +13,29 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
+var once sync.Once
+
+// encodingMap contains map of all available charmap encodings for fast search
+var encodingMap = make(map[string]encoding.Encoding)
+
+func prepareEncodingName(original string) string {
+	original = strings.ToLower(original)
+	original = strings.ReplaceAll(original, " ", "-")
+	return original
+}
+
+func decoderFactoryByEncoding(encoding string) encoding.Encoding {
+	once.Do(func() {
+		for _, enc := range charmap.All {
+			if charmapEnc, ok := enc.(fmt.Stringer); ok {
+				encodingMap[prepareEncodingName(charmapEnc.String())] = enc
+			}
+		}
+	})
+
+	return encodingMap[prepareEncodingName(encoding)]
+}
+
 // For now, it's by default custom csv (not original csv)
 // Custom - bcs of default EscapeChar == '\\', so it's like an extension of format
 // backslashes in csv generates apache spark, for example.
@@ -305,16 +328,12 @@ func validDelimiter(r rune) bool {
 }
 
 func (r *Reader) getEncodingDecoder() *encoding.Decoder {
-	// TODO: add other encodings ?
-	switch r.Encoding {
-	case charmap.ISO8859_1.String():
-		return charmap.ISO8859_1.NewDecoder()
-	case charmap.Macintosh.String():
-		return charmap.Macintosh.NewDecoder()
-	default:
-		// utf8 encoding, no decoder needed
-		return nil
+	if enc := decoderFactoryByEncoding(r.Encoding); enc != nil {
+		return enc.NewDecoder()
 	}
+
+	// If encoding is not found, return nil (assuming UTF-8)
+	return nil
 }
 
 func NewReader(r io.Reader) *Reader {

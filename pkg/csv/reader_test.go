@@ -3,6 +3,7 @@ package csv
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -235,4 +236,18 @@ func TestReadAll(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, [][]string{{"5.155.155.155", "-", "-", "2025-08-08 08:15:28", "GET /aaa?ip_aaa=127.0.0.1&template_path=|ba+ff342.txt|cat HTTP/1.1", "404", "189", "-", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15", "656", "m9-up-gc46", "http", "shield_media.tinkoffjournal.ru", "0.023", "0.023", "674", "-", "m9", "MISS", "189", "213.180.193.247:443", "875", "6377", "-", "-", "RU", "Moscow", "shield_no", "92.223.123.30", "10080", "404", "-", "0.000", "0.023", "127.0.0.1", "210756", "4316125312", "1", "asdasd132123asd", "https", "123123123123", "-", "-", "-", "text/html", "61", "HTTP/1.1", "0", "MOW"}}, result)
 	})
+}
+
+func TestGetEncodingDecoder(t *testing.T) {
+	r := NewReader(nil)
+	for _, enc := range charmap.All {
+		if encStringer, ok := enc.(fmt.Stringer); ok {
+			encodingName := encStringer.String()
+			r.Encoding = encodingName
+			require.NotNil(t, r.getEncodingDecoder())
+			require.Equal(t, enc.NewDecoder(), r.getEncodingDecoder())
+		} else {
+			require.Nil(t, r.getEncodingDecoder())
+		}
+	}
 }
