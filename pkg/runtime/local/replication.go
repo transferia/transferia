@@ -170,7 +170,7 @@ waitingForReplicationErr:
 		logger.Log.Error("replication failed, will restart the whole dataplane", log.Error(attemptErr))
 		return xerrors.Errorf("replication failed, dataplane must be restarted: %w", attemptErr), false
 	}
-
+	errors.LogFatalError(attemptErr, transfer.ID, transfer.Dst.GetProviderType(), transfer.Src.GetProviderType())
 	return attemptErr, true
 }
 
