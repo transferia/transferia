@@ -17,9 +17,9 @@ import (
 	"github.com/transferia/transferia/pkg/parsequeue"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/resources"
-	"github.com/transferia/transferia/pkg/providers/logbroker/queues"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/queues/lbyds"
 	"github.com/transferia/transferia/pkg/xtls"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -27,7 +27,7 @@ import (
 type oneDCSource struct {
 	config           *LfSource
 	parser           parsers.Parser
-	offsetsValidator *queues.LbOffsetsSourceValidator
+	offsetsValidator *lbyds.LbOffsetsSourceValidator
 	consumer         persqueue.Reader
 	cancel           context.CancelFunc
 
@@ -73,7 +73,7 @@ func (s *oneDCSource) Fetch() ([]abstract.ChangeItem, error) {
 				for _, item := range buffer {
 					for _, b := range item.Batches() {
 						for _, m := range b.Messages {
-							raw = append(raw, queues.MessageAsChangeItem(parsers.Message{
+							raw = append(raw, lbyds.MessageAsChangeItem(parsers.Message{
 								Offset:     m.Offset,
 								SeqNo:      m.SeqNo,
 								Key:        m.SourceID,
@@ -89,7 +89,7 @@ func (s *oneDCSource) Fetch() ([]abstract.ChangeItem, error) {
 						}
 					}
 				}
-				return queues.Parse(buffer, s.parser, s.metrics, s.logger, nil)
+				return lbyds.Parse(buffer, s.parser, s.metrics, s.logger, nil)
 			}
 			parsed := parseWrapper([]*persqueue.Data{v})
 			if len(raw) > 3 {
@@ -246,7 +246,7 @@ func (s *oneDCSource) run(parseQ *parsequeue.WaitableParseQueue[batch]) error {
 					return xerrors.Errorf("unable to send synchronize event, err: %w", err)
 				}
 			case *persqueue.Data:
-				batches := queues.ConvertBatches(v.Batches())
+				batches := lbyds.ConvertBatches(v.Batches())
 				err := s.offsetsValidator.CheckLbOffsets(batches)
 				if err != nil {
 					if s.config.AllowTTLRewind {
@@ -256,7 +256,7 @@ func (s *oneDCSource) run(parseQ *parsequeue.WaitableParseQueue[batch]) error {
 						return abstract.NewFatalError(err)
 					}
 				}
-				s.logger.Debug("got lb_offsets", log.Any("range", queues.BuildMapPartitionToLbOffsetsRange(batches)))
+				s.logger.Debug("got lb_offsets", log.Any("range", lbyds.BuildMapPartitionToLbOffsetsRange(batches)))
 
 				s.lastRead = time.Now()
 				messagesSize, messagesCount := BatchStatistics(batches)
@@ -458,7 +458,7 @@ func NewOneDCSource(cfg *LfSource, logger log.Logger, registry *stats.SourceStat
 	p := oneDCSource{
 		config:           cfg,
 		parser:           parser,
-		offsetsValidator: queues.NewLbOffsetsSourceValidator(logger),
+		offsetsValidator: lbyds.NewLbOffsetsSourceValidator(logger),
 		consumer:         currReader,
 		cancel:           cancel,
 		onceStop:         sync.Once{},

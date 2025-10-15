@@ -1,4 +1,4 @@
-package queues
+package lbyds
 
 import (
 	"github.com/transferia/transferia/kikimr/public/sdk/go/persqueue"

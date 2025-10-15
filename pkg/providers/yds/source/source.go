@@ -16,10 +16,10 @@ import (
 	"github.com/transferia/transferia/pkg/parsequeue"
 	"github.com/transferia/transferia/pkg/parsers"
 	gp "github.com/transferia/transferia/pkg/parsers/generic"
-	"github.com/transferia/transferia/pkg/providers/logbroker/queues"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/queues/lbyds"
 	"github.com/transferia/transferia/pkg/xtls"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -27,7 +27,7 @@ import (
 type Source struct {
 	config           *YDSSource
 	parser           parsers.Parser
-	offsetsValidator *queues.LbOffsetsSourceValidator
+	offsetsValidator *lbyds.LbOffsetsSourceValidator
 	consumer         persqueue.Reader
 	cancel           context.CancelFunc
 
@@ -67,7 +67,7 @@ func (p *Source) Run(sink abstract.AsyncSink) error {
 				return data
 			}
 		}
-		return queues.Parse(buffer, p.parser, p.metrics, p.logger, transformFunc)
+		return lbyds.Parse(buffer, p.parser, p.metrics, p.logger, transformFunc)
 	}
 	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, parseWrapper, p.ack)
 	defer parseQ.Close()
@@ -78,8 +78,7 @@ func (p *Source) Run(sink abstract.AsyncSink) error {
 func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[[]*persqueue.Data]) error {
 	defer func() {
 		p.consumer.Shutdown()
-		p.logger.Info("Start gracefully close lb reader")
-		p.waitSkippedMsgs()
+		lbyds.WaitSkippedMsgs(p.logger, p.consumer, "yds")
 	}()
 
 	lastPush := time.Now()
@@ -130,7 +129,7 @@ func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[[]*persqueue.Data]) e
 					return xerrors.Errorf("unable to send synchronize event, err: %w", err)
 				}
 			case *persqueue.Data:
-				batches := queues.ConvertBatches(v.Batches())
+				batches := lbyds.ConvertBatches(v.Batches())
 				err := p.offsetsValidator.CheckLbOffsets(batches)
 				if err != nil {
 					if p.config.AllowTTLRewind {
@@ -140,7 +139,7 @@ func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[[]*persqueue.Data]) e
 						return abstract.NewFatalError(err)
 					}
 				}
-				ranges := queues.BuildMapPartitionToLbOffsetsRange(batches)
+				ranges := lbyds.BuildMapPartitionToLbOffsetsRange(batches)
 				p.logger.Debug("got lb_offsets", log.Any("range", ranges))
 
 				p.metrics.Master.Set(1)
@@ -174,37 +173,6 @@ func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[[]*persqueue.Data]) e
 			lastPush = time.Now()
 			buffer = make([]*persqueue.Data, 0)
 			bufferSize = 0
-		}
-	}
-}
-
-func (p *Source) waitSkippedMsgs() {
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-	for {
-		select {
-		case m := <-p.consumer.C():
-			switch v := m.(type) {
-			case *persqueue.Data:
-				p.logger.Info("skipped message data messages", log.Any("cookie", v.Cookie))
-				for _, b := range v.Batches() {
-					for _, msg := range b.Messages {
-						p.logger.Infof("message: %v@%v at %v", b.Topic, b.Partition, msg.Offset)
-					}
-				}
-			case *persqueue.Disconnect:
-				if v.Err != nil {
-					p.logger.Infof("Disconnected: %v", v.Err.Error())
-				} else {
-					p.logger.Info("Disconnected")
-				}
-			}
-		case <-p.consumer.Closed():
-			p.logger.Info("Gracefully closed")
-			return
-		case <-shutdownCtx.Done():
-			p.logger.Warn("Timeout while waiting for graceful yds reader shutdown", log.Any("reader_stat", p.consumer.Stat()))
-			return
 		}
 	}
 }
@@ -253,13 +221,13 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 			batchSize := 0
 			var res []abstract.ChangeItem
 			var data []abstract.ChangeItem
-			for _, b := range queues.ConvertBatches(v.Batches()[:1]) {
+			for _, b := range lbyds.ConvertBatches(v.Batches()[:1]) {
 				total := len(b.Messages)
 				if len(b.Messages) > 3 {
 					total = 3
 				}
 				for _, m := range b.Messages[:total] {
-					data = append(data, queues.MessageAsChangeItem(m, b))
+					data = append(data, lbyds.MessageAsChangeItem(m, b))
 					batchSize += len(m.Value)
 				}
 				res = append(res, data...)
@@ -282,7 +250,7 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 				for i := range dataBatches {
 					var rows []abstract.ChangeItem
 					for _, row := range dataBatches[i] {
-						ci, part := queues.ChangeItemAsMessage(row)
+						ci, part := lbyds.ChangeItemAsMessage(row)
 						rows = append(rows, p.parser.Do(ci, part)...)
 					}
 					res = append(res, rows...)
@@ -418,7 +386,7 @@ func NewSourceWithOpts(transferID string, cfg *YDSSource, logger log.Logger, reg
 	yds := &Source{
 		config:           cfg,
 		parser:           parser,
-		offsetsValidator: queues.NewLbOffsetsSourceValidator(logger),
+		offsetsValidator: lbyds.NewLbOffsetsSourceValidator(logger),
 		consumer:         c,
 		cancel:           cancel,
 		onceStop:         sync.Once{},

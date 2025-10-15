@@ -13,9 +13,9 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/format"
-	"github.com/transferia/transferia/pkg/providers/logbroker/queues"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/queues/lbyds"
 	"github.com/transferia/transferia/pkg/xtls"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -29,7 +29,7 @@ type publisher struct {
 	stopCh           chan bool
 	once             sync.Once
 	cancel           context.CancelFunc
-	offsetsValidator *queues.LbOffsetsSourceValidator
+	offsetsValidator *lbyds.LbOffsetsSourceValidator
 }
 
 type changesOrError struct {
@@ -81,43 +81,7 @@ func (p *publisher) Run(sink abstract.AsyncSink) error {
 	defer func() {
 		p.consumer.Shutdown()
 		p.cancel()
-		p.logger.Info("Start gracefully close lb reader")
-		for {
-			select {
-			case m := <-p.consumer.C():
-				switch v := m.(type) {
-				case *persqueue.Data:
-					var skips []map[string]interface{}
-					for _, b := range v.Batches() {
-						for _, msg := range b.Messages {
-							p.logger.Debugf("message: %v@%v at %v", b.Topic, b.Partition, msg.Offset)
-							skips = append(skips, map[string]interface{}{
-								"topic":     b.Topic,
-								"partition": b.Partition,
-								"offset":    msg.Offset,
-							})
-						}
-					}
-					p.logger.Warn("skipped message data messages", log.Any("cookie", v.Cookie), log.Any("skips", skips))
-
-				case *persqueue.Disconnect:
-					if v.Err != nil {
-						p.logger.Infof("Disconnected: %s", v.Err.Error())
-					} else {
-						p.logger.Info("Disconnected")
-					}
-				case nil:
-					p.logger.Info("Semi-gracefully closed")
-					return
-
-				default:
-					p.logger.Infof("Received unexpected Event type: %T", m)
-				}
-			case <-p.consumer.Closed():
-				p.logger.Info("Gracefully closed")
-				return
-			}
-		}
+		lbyds.WaitSkippedMsgs(p.logger, p.consumer, "lb")
 	}()
 
 	for {
@@ -160,7 +124,7 @@ func (p *publisher) Run(sink abstract.AsyncSink) error {
 					return xerrors.Errorf("unable to send synchronize event, err: %w", err)
 				}
 			case *persqueue.Data:
-				batches := queues.ConvertBatches(v.Batches())
+				batches := lbyds.ConvertBatches(v.Batches())
 				messagesSize, messagesCount := BatchStatistics(batches)
 				p.metrics.Size.Add(messagesSize)
 				p.metrics.Count.Add(messagesCount)
@@ -173,11 +137,11 @@ func (p *publisher) Run(sink abstract.AsyncSink) error {
 						return abstract.NewFatalError(err)
 					}
 				}
-				p.logger.Debug("got lb_offsets", log.Any("range", queues.BuildMapPartitionToLbOffsetsRange(batches)))
+				p.logger.Debug("got lb_offsets", log.Any("range", lbyds.BuildMapPartitionToLbOffsetsRange(batches)))
 
 				p.metrics.Master.Set(1)
 				parseQ := []chan changesOrError{}
-				mapPartitionToLbOffsetsRange := queues.BuildMapPartitionToLbOffsetsRange(batches)
+				mapPartitionToLbOffsetsRange := lbyds.BuildMapPartitionToLbOffsetsRange(batches)
 				for _, b := range v.Batches() {
 					for _, m := range b.Messages {
 						resCh := make(chan changesOrError, 1)
@@ -301,7 +265,7 @@ func NewNativeSource(cfg *LbSource, logger log.Logger, registry metrics.Registry
 		stopCh:           stopCh,
 		once:             sync.Once{},
 		cancel:           cancel,
-		offsetsValidator: queues.NewLbOffsetsSourceValidator(logger),
+		offsetsValidator: lbyds.NewLbOffsetsSourceValidator(logger),
 	}
 
 	return &p, nil
