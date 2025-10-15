@@ -95,7 +95,23 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
-	return s3_sink.NewSink(p.logger, dst, p.registry, p.cp, p.transfer.ID)
+
+	switch p.transfer.Type {
+	case abstract.TransferTypeSnapshotOnly:
+		sink, err := s3_sink.NewSnapshotSink(p.logger, dst, p.registry, p.cp, p.transfer.ID)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to create snapshot sink: %w", err)
+		}
+		return sink, nil
+	case abstract.TransferTypeIncrementOnly:
+		sink, err := s3_sink.NewReplicationSink(p.logger, dst, p.registry, p.cp, p.transfer.ID)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to create replication sink: %w", err)
+		}
+		return sink, nil
+	default:
+		return nil, xerrors.Errorf("unsupported transfer type: %v", p.transfer.Type)
+	}
 }
 
 func New(lgr log.Logger, registry metrics.Registry, cp cpclient.Coordinator, transfer *model.Transfer) providers.Provider {
