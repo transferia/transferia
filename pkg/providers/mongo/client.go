@@ -185,7 +185,7 @@ func getClusterInfo(endpoint *MongoConnectionOptions) (hosts []string, sharded b
 		return hosts, sharded, nil
 	}
 
-	// Managed MongoDB
+	// Managed MongoDB/StoreDoc
 	provider, err := dbaas.Current()
 	if err != nil {
 		return nil, false, xerrors.Errorf("unable to get dbaas provider: %w", err)
@@ -207,9 +207,9 @@ func getClusterInfo(endpoint *MongoConnectionOptions) (hosts []string, sharded b
 	gatewayType := dbaas.InstanceTypeUnspecified // one of mongod, mongos, mongoinfra
 
 	// useful connection info:
-	// https://cloud.yandex.ru/docs/managed-mongodb/concepts/sharding
+	// https://cloud.yandex.ru/docs/storedoc/concepts/sharding
 	if sharded {
-		port = 27017 // Default port for sharded MongoDB in MDB
+		port = 27017 // Default port for sharded MongoDB/Yandex StoreDoc in MDB
 		for _, host := range clusterHosts {
 			switch host.Type {
 			case dbaas.InstanceTypeMongos, dbaas.InstanceTypeMongoinfra:
@@ -223,7 +223,7 @@ func getClusterInfo(endpoint *MongoConnectionOptions) (hosts []string, sharded b
 			}
 		}
 	} else {
-		port = 27018 // Default port for MongoDB in MDB
+		port = 27018 // Default port for MongoDB/Yandex StoreDoc in MDB
 		gatewayType = dbaas.InstanceTypeMongod
 	}
 	// make hosts out of the selected type of cluster
