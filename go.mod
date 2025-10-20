@@ -63,7 +63,7 @@ require (
 	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed
 	github.com/spf13/cast v1.7.1
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.33.0
 	github.com/twmb/franz-go v1.17.0
 	github.com/twmb/franz-go/pkg/kmsg v1.8.0
@@ -395,5 +395,7 @@ replace buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go => buf.build/
 replace github.com/bufbuild/protoyaml-go => buf.build/go/protoyaml v0.3.2
 
 replace golang.org/x/sync => golang.org/x/sync v0.15.0
+
+replace github.com/stretchr/testify => github.com/stretchr/testify v1.10.0
 
 replace github.com/segmentio/kafka-go => ./vendor_patched/github.com/segmentio/kafka-go

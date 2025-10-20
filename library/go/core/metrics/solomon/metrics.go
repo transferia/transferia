@@ -6,10 +6,10 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"golang.org/x/exp/slices"
 )
 
 // Gather collects all metrics data via snapshots.
@@ -33,12 +33,17 @@ func (r Registry) Gather() (*Metrics, error) {
 	return &Metrics{metrics: metrics}, nil
 }
 
-func NewMetrics(metrics []Metric) Metrics {
-	return Metrics{metrics: metrics}
-}
+func NewMetrics(metrics []Metric, opts ...MetricOpt) Metrics {
+	var mopts MetricsOpts
+	for _, opt := range opts {
+		opt(&mopts)
+	}
 
-func NewMetricsWithTimestamp(metrics []Metric, ts time.Time) Metrics {
-	return Metrics{metrics: metrics, timestamp: &ts}
+	return Metrics{
+		metrics:      metrics,
+		timestamp:    mopts.timestamp,
+		commonLabels: mopts.commonLabels,
+	}
 }
 
 type valueType uint8
@@ -172,14 +177,9 @@ func (s Metrics) SplitToChunks(maxChunkSize int) []Metrics {
 	if maxChunkSize == 0 || len(s.metrics) == 0 {
 		return []Metrics{s}
 	}
-	chunks := make([]Metrics, 0, len(s.metrics)/maxChunkSize+1)
 
-	for leftBound := 0; leftBound < len(s.metrics); leftBound += maxChunkSize {
-		rightBound := leftBound + maxChunkSize
-		if rightBound > len(s.metrics) {
-			rightBound = len(s.metrics)
-		}
-		chunk := s.metrics[leftBound:rightBound]
+	chunks := make([]Metrics, 0, len(s.metrics)/maxChunkSize+1)
+	for chunk := range slices.Chunk(s.metrics, maxChunkSize) {
 		chunks = append(chunks, Metrics{metrics: chunk, timestamp: s.timestamp, commonLabels: s.commonLabels})
 	}
 	return chunks
