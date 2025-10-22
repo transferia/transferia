@@ -1,6 +1,8 @@
 package coherence_check
 
 import (
+	"encoding/json"
+
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -10,13 +12,14 @@ import (
 	clickhouse "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/postgres"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type Mirrareable interface {
 	ForceMirror()
 }
 
-func InferFormatSettings(src model.Source, formatSettings model.SerializationFormat) model.SerializationFormat {
+func inferFormatSettings(src model.Source, formatSettings model.SerializationFormat) model.SerializationFormat {
 	result := formatSettings.Copy()
 
 	if result.Name == model.SerializationFormatAuto {
@@ -89,4 +92,13 @@ func SourceCompatible(src model.Source, transferType abstract.TransferType, seri
 	default:
 		return xerrors.Errorf("unknown serializer name: %s", serializationName)
 	}
+}
+
+func InferFormatSettings(lgr log.Logger, src model.Source, formatSettings model.SerializationFormat) model.SerializationFormat {
+	formatSettingsArr, _ := json.Marshal(formatSettings)
+	lgr.Infof("InferFormatSettings - input - srcProviderName:%s, formatSettings:%s", src.GetProviderType().Name(), string(formatSettingsArr))
+	result := inferFormatSettings(src, formatSettings)
+	resultArr, _ := json.Marshal(result)
+	lgr.Infof("InferFormatSettings - output:%s", string(resultArr))
+	return result
 }

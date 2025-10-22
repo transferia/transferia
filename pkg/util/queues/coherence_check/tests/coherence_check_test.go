@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
@@ -152,7 +153,7 @@ func TestSourceCompatible(t *testing.T) {
 		fmt.Println(i)
 		checkDst(t, el.src, el.serializationFormat, abstract.TransferTypeIncrementOnly, el.expectedOk)
 		if el.expectedOk {
-			require.Equal(t, el.inferredSerializationFormat, coherence_check.InferFormatSettings(el.src, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto}).Name)
+			require.Equal(t, el.inferredSerializationFormat, coherence_check.InferFormatSettings(logger.Log, el.src, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto}).Name)
 		} else {
 			require.Equal(t, string(el.inferredSerializationFormat), "")
 		}
