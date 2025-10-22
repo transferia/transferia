@@ -76,12 +76,11 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 			if _, ok := knownDatabases[s.cfg.Cluster]; ok && s.cfg.Database == "" {
 				childCfg.Database = knownDatabases[s.cfg.Cluster]
 			}
-			sourceStats := stats.NewSourceStats(s.metrics.WithTags(map[string]string{"dc": string(endpoint)}))
 			for {
 				source, err := NewOneDCSource(
 					&childCfg,
 					log.With(s.logger, log.String("dc", string(endpoint))),
-					sourceStats,
+					s.metrics.WithTags(map[string]string{"dc": string(endpoint)}),
 					5,
 				)
 				if err != nil {
@@ -155,11 +154,10 @@ func (s *multiDcSource) Fetch() ([]abstract.ChangeItem, error) {
 			if _, ok := knownDatabases[s.cfg.Cluster]; ok && s.cfg.Database == "" {
 				childCfg.Database = knownDatabases[s.cfg.Cluster]
 			}
-			sourceStats := stats.NewSourceStats(s.metrics.WithTags(map[string]string{"dc": string(endpoint)}))
 			source, err := NewOneDCSource(
 				&childCfg,
 				s.logger,
-				sourceStats,
+				s.metrics.WithTags(map[string]string{"dc": string(endpoint)}),
 				5,
 			)
 			if err != nil {

@@ -4,7 +4,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -20,7 +19,7 @@ func NewSourceWithRetries(cfg *LfSource, logger log.Logger, registry metrics.Reg
 		}
 		return result, nil
 	}
-	result, err := NewOneDCSource(cfg, logger, stats.NewSourceStats(registry), retries)
+	result, err := NewOneDCSource(cfg, logger, registry, retries)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create one-dc source, err: %w", err)
 	}

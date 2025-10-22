@@ -82,6 +82,7 @@ var FindItemOfKind = changeitem.FindItemOfKind
 var KeyNames = changeitem.KeyNames
 var RegisterSystemTables = changeitem.RegisterSystemTables
 var MakeRawMessage = changeitem.MakeRawMessage
+var MakeRawMessageWithMeta = changeitem.MakeRawMessageWithMeta
 var PgName = changeitem.PgName
 var MakeOriginallyTypedColSchema = changeitem.MakeOriginallyTypedColSchema
 var ColIDX = changeitem.ColIDX

@@ -13,6 +13,7 @@ const (
 	RawMessageSeqNo     = "seq_no"
 	RawMessageWriteTime = "write_time"
 	RawMessageData      = "data"
+	RawMessageMeta      = "meta"
 
 	OriginalTypeMirrorBinary = "mirror:binary"
 )
@@ -24,12 +25,17 @@ var (
 		{ColumnName: RawMessageSeqNo, DataType: string(schema.TypeUint64), PrimaryKey: true, Required: true},
 		{ColumnName: RawMessageWriteTime, DataType: string(schema.TypeDatetime), PrimaryKey: true, Required: true},
 		{ColumnName: RawMessageData, DataType: string(schema.TypeString), OriginalType: OriginalTypeMirrorBinary},
+		{ColumnName: RawMessageMeta, DataType: string(schema.TypeAny)},
 	})
-	RawDataColumns = []string{RawMessageTopic, RawMessagePartition, RawMessageSeqNo, RawMessageWriteTime, RawMessageData}
+	RawDataColumns = []string{RawMessageTopic, RawMessagePartition, RawMessageSeqNo, RawMessageWriteTime, RawMessageData, RawMessageMeta}
 	RawDataColsIDX = ColIDX(RawDataSchema.Columns())
 )
 
 func MakeRawMessage(table string, commitTime time.Time, topic string, shard int, offset int64, data []byte) ChangeItem {
+	return MakeRawMessageWithMeta(table, commitTime, topic, shard, offset, data, nil)
+}
+
+func MakeRawMessageWithMeta(table string, commitTime time.Time, topic string, shard int, offset int64, data []byte, meta map[string]string) ChangeItem {
 	return ChangeItem{
 		ID:          0,
 		LSN:         uint64(offset),
@@ -46,6 +52,7 @@ func MakeRawMessage(table string, commitTime time.Time, topic string, shard int,
 			uint64(offset),
 			commitTime,
 			string(data),
+			meta,
 		},
 		TableSchema:      RawDataSchema,
 		OldKeys:          EmptyOldKeys(),

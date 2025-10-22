@@ -23,6 +23,10 @@ func ChangeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Part
 	case string:
 		data = []byte(v)
 	}
+	var headers map[string]string
+	if rawHeaders, ok := ci.ColumnValues[5].(map[string]string); ok {
+		headers = rawHeaders
+	}
 	return parsers.Message{
 			Offset:     ci.LSN,
 			SeqNo:      seqNo,
@@ -30,7 +34,7 @@ func ChangeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Part
 			CreateTime: time.Unix(0, int64(ci.CommitTime)),
 			WriteTime:  wTime,
 			Value:      data,
-			Headers:    nil,
+			Headers:    headers,
 		}, abstract.Partition{
 			Cluster:   "", // v1 protocol does not contains such entity
 			Partition: uint32(partition),
@@ -43,13 +47,14 @@ func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch) abstract.Cha
 	if len(topicID) == 0 {
 		topicID = b.Topic
 	}
-	return abstract.MakeRawMessage(
+	return abstract.MakeRawMessageWithMeta(
 		topicID,
 		m.WriteTime,
 		b.Topic,
 		int(b.Partition),
 		int64(m.Offset),
 		m.Value,
+		m.Headers,
 	)
 }
 

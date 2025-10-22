@@ -309,34 +309,40 @@ func NewSourceWithOpts(transferID string, cfg *YDSSource, logger log.Logger, reg
 		srcOpts = fn(srcOpts)
 	}
 
-	consumer := cfg.Consumer
-	if consumer == "" {
-		consumer = transferID
-	}
-	opts := persqueue.ReaderOptions{
-		Credentials:               srcOpts.creds,
-		Logger:                    corelogadapter.New(logger),
-		Endpoint:                  cfg.Endpoint,
-		Port:                      cfg.Port,
-		Database:                  cfg.Database,
-		ManualPartitionAssignment: true,
-		Consumer:                  consumer,
-		Topics:                    []persqueue.TopicInfo{{Topic: cfg.Stream}},
-		MaxReadSize:               1 * 1024 * 1024,
-		MaxMemory:                 300 * 1024 * 1024,
-		RetryOnFailure:            true,
-	}
-	if cfg.TLSEnalbed {
-		tls, err := xtls.FromPath(cfg.RootCAFiles)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to obtain TLS configuration for cloud: %w", err)
+	var readerOpts persqueue.ReaderOptions
+	if srcOpts.readerOpts != nil {
+		readerOpts = *srcOpts.readerOpts
+	} else {
+		consumer := cfg.Consumer
+		if consumer == "" {
+			consumer = transferID
 		}
-		opts.TLSConfig = tls
+		readerOpts = persqueue.ReaderOptions{
+			Credentials:               srcOpts.creds,
+			Logger:                    corelogadapter.New(logger),
+			Endpoint:                  cfg.Endpoint,
+			Port:                      cfg.Port,
+			Database:                  cfg.Database,
+			ManualPartitionAssignment: true,
+			Consumer:                  consumer,
+			Topics:                    []persqueue.TopicInfo{{Topic: cfg.Stream}},
+			MaxReadSize:               1 * 1024 * 1024,
+			MaxMemory:                 300 * 1024 * 1024,
+			RetryOnFailure:            true,
+		}
+		if cfg.TLSEnalbed {
+			tls, err := xtls.FromPath(cfg.RootCAFiles)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to obtain TLS configuration for cloud: %w", err)
+			}
+			readerOpts.TLSConfig = tls
+		}
+		if cfg.Transformer != nil {
+			readerOpts.MaxMemory = int(cfg.Transformer.BufferSize * 10)
+		}
 	}
-	if cfg.Transformer != nil {
-		opts.MaxMemory = int(cfg.Transformer.BufferSize * 10)
-	}
-	c := persqueue.NewReaderV1(opts)
+
+	c := persqueue.NewReaderV1(readerOpts)
 	ctx, cancel := context.WithCancel(context.Background())
 	var rb util.Rollbacks
 	rb.Add(cancel)
@@ -425,6 +431,8 @@ func NewSource(transferID string, cfg *YDSSource, logger log.Logger, registry me
 type sourceOpts struct {
 	creds  ydb.TokenCredentials
 	parser parsers.Parser
+
+	readerOpts *persqueue.ReaderOptions
 }
 
 type SourceOpt = func(*sourceOpts) *sourceOpts
@@ -439,6 +447,13 @@ func WithCreds(creds ydb.TokenCredentials) SourceOpt {
 func WithParser(parser parsers.Parser) SourceOpt {
 	return func(o *sourceOpts) *sourceOpts {
 		o.parser = parser
+		return o
+	}
+}
+
+func WithReaderOpts(opts *persqueue.ReaderOptions) SourceOpt {
+	return func(o *sourceOpts) *sourceOpts {
+		o.readerOpts = opts
 		return o
 	}
 }

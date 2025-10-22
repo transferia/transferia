@@ -32,7 +32,7 @@ func TestReadWriteWithCompression(t *testing.T) {
 		require.NoError(t, err)
 		src.Stop()
 		require.Len(t, items, 1)
-		require.Len(t, items[0].ColumnValues, 5)
+		require.Len(t, items[0].ColumnValues, 6)
 		require.Equal(t, items[0].ColumnValues[4], "blablabla")
 		abstract.Dump(items)
 	}

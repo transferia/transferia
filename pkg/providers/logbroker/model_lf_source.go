@@ -11,32 +11,22 @@ import (
 )
 
 type LfSource struct {
-	Instance                LogbrokerInstance
-	Cluster                 LogbrokerCluster
-	Database                string
-	Token                   string
-	Consumer                string
-	HashColumn              string
-	MaxReadSize             model.BytesSize
-	MaxMemory               model.BytesSize
-	MaxTimeLag              time.Duration
-	InferSchema             bool
-	Extra                   map[string]string
-	MaxConcurrentPartitions int
-	Topics                  []string
-	EnrichTopic             bool
-	MaxIdleTime             time.Duration
-	MaxReadMessagesCount    uint32
-	OnlyLocal               bool
-	LfParser                bool
-	Credentials             ydb.TokenCredentials
-	Port                    int
-	AllowTTLRewind          bool
-
-	// See DTSUPPORT-293, once it enable it will look for timezone in date strings, and if none presented will set it
-	// to UTC not MSK, breaking change so hided behind flag
-	InferTimezone bool
-	Sniff         bool // will print abstract.Sniff result for each parsed batch
+	Instance             LogbrokerInstance
+	Cluster              LogbrokerCluster
+	Database             string
+	Token                string
+	Consumer             string
+	MaxReadSize          model.BytesSize
+	MaxMemory            model.BytesSize
+	MaxTimeLag           time.Duration
+	Topics               []string
+	MaxIdleTime          time.Duration
+	MaxReadMessagesCount uint32
+	OnlyLocal            bool
+	LfParser             bool
+	Credentials          ydb.TokenCredentials
+	Port                 int
+	AllowTTLRewind       bool
 
 	IsLbSink bool // it's like IsHomo
 
@@ -45,6 +35,8 @@ type LfSource struct {
 	TLS                   TLSMode
 	RootCAFiles           []string
 	ParseQueueParallelism int
+
+	UsePqv1 bool
 }
 
 var _ model.Source = (*LfSource)(nil)
@@ -63,10 +55,6 @@ func (s *LfSource) WithDefaults() {
 	if s.MaxMemory == 0 {
 		// large then max memory to be able to hold at least 2 message batch in memory
 		s.MaxMemory = s.MaxReadSize * 50
-	}
-
-	if s.Extra == nil {
-		s.Extra = map[string]string{}
 	}
 }
 

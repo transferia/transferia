@@ -10,13 +10,16 @@ import (
 
 	"github.com/transferia/transferia/kikimr/public/sdk/go/persqueue"
 	"github.com/transferia/transferia/kikimr/public/sdk/go/persqueue/log/corelogadapter"
+	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/config/env"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/parsequeue"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/resources"
+	ydssource "github.com/transferia/transferia/pkg/providers/yds/source"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/queues/lbyds"
@@ -378,13 +381,14 @@ func (s *oneDCSource) oldParseBatch(b parsers.MessageBatch) []abstract.ChangeIte
 	return parsed
 }
 
-func NewOneDCSource(cfg *LfSource, logger log.Logger, registry *stats.SourceStats, retries int) (abstract.Source, error) {
+func NewOneDCSource(cfg *LfSource, logger log.Logger, registry metrics.Registry, retries int) (abstract.Source, error) {
 	// In test we use logbroker with local environment therefore we should skip this check
 	if !env.IsTest() {
 		if instanceIsValid := checkInstanceValidity(cfg.Instance); !instanceIsValid {
 			return nil, abstract.NewFatalError(xerrors.Errorf("the instance '%s' from config is not known", cfg.Instance))
 		}
 	}
+
 	var topics []persqueue.TopicInfo
 	if len(cfg.Topics) > 0 {
 		topics = make([]persqueue.TopicInfo, len(cfg.Topics))
@@ -419,8 +423,21 @@ func NewOneDCSource(cfg *LfSource, logger log.Logger, registry *stats.SourceStat
 			return nil, xerrors.Errorf("unable to load tls: %w", err)
 		}
 	}
-	currReader := persqueue.NewReader(opts)
 
+	sourceMetrics := stats.NewSourceStats(registry)
+	parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, sourceMetrics)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to make parser, err: %w", err)
+	}
+	if resourceable, ok := parser.(resources.Resourceable); ok {
+		resourceable.ResourcesObj().RunWatcher()
+	}
+
+	if cfg.UsePqv1 {
+		return newPqv1Source(cfg, logger, registry, opts, parser)
+	}
+
+	currReader := persqueue.NewReader(opts)
 	ctx, cancel := context.WithCancel(context.Background())
 	rollbacks := util.Rollbacks{}
 	rollbacks.Add(cancel)
@@ -445,14 +462,6 @@ func NewOneDCSource(cfg *LfSource, logger log.Logger, registry *stats.SourceStat
 		break
 	}
 
-	parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, registry)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to make parser, err: %w", err)
-	}
-	if resourceable, ok := parser.(resources.Resourceable); ok {
-		resourceable.ResourcesObj().RunWatcher()
-	}
-
 	stopCh := make(chan bool)
 
 	p := oneDCSource{
@@ -466,7 +475,7 @@ func NewOneDCSource(cfg *LfSource, logger log.Logger, registry *stats.SourceStat
 		onceErr:          sync.Once{},
 		errCh:            make(chan error, 1),
 		logger:           logger,
-		metrics:          registry,
+		metrics:          sourceMetrics,
 		runningWG:        sync.WaitGroup{},
 		lastRead:         time.Now(),
 		maxBatchSize:     15 * 1024 * 1024,
@@ -487,4 +496,49 @@ func checkInstanceValidity(configInstance LogbrokerInstance) bool {
 		}
 	}
 	return false
+}
+
+func newPqv1Source(
+	cfg *LfSource,
+	logger log.Logger,
+	registry metrics.Registry,
+	readerOpts persqueue.ReaderOptions,
+	parser parsers.Parser,
+) (abstract.Source, error) {
+	ydsCfg := &ydssource.YDSSource{
+		AllowTTLRewind:        cfg.AllowTTLRewind,
+		IsLbSink:              cfg.IsLbSink,
+		ParseQueueParallelism: cfg.ParseQueueParallelism,
+
+		// These fields are either irrelevant for lb source or already specified in readerOpts and parser
+		Endpoint:         "",
+		Database:         "",
+		Stream:           "",
+		Consumer:         "",
+		S3BackupBucket:   "",
+		Port:             0,
+		BackupMode:       model.S3BackupModeNoBackup,
+		Transformer:      nil,
+		SubNetworkID:     "",
+		SecurityGroupIDs: nil,
+		SupportedCodecs:  nil,
+		TLSEnalbed:       false,
+		RootCAFiles:      nil,
+		ParserConfig:     nil,
+		Underlay:         false,
+		Credentials:      nil,
+		ServiceAccountID: "",
+		SAKeyContent:     "",
+		TokenServiceURL:  "",
+		Token:            "",
+		UserdataAuth:     false,
+	}
+
+	// transferID is empty because it is used to specify the consumer, and it is already specified in the readerOpts
+	transferID := ""
+	return ydssource.NewSourceWithOpts(transferID, ydsCfg, logger, registry,
+		ydssource.WithCreds(cfg.Credentials),
+		ydssource.WithReaderOpts(&readerOpts),
+		ydssource.WithParser(parser),
+	)
 }

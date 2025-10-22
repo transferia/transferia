@@ -66,13 +66,14 @@ func TestRowPart(t *testing.T) {
 		{
 			name: "mirror row",
 			row: abstract.ChangeItem{
-				ColumnNames: []string{"topic", "partition", "seq_no", "write_time", "data"},
+				ColumnNames: []string{"topic", "partition", "seq_no", "write_time", "data", "meta"},
 				ColumnValues: []interface{}{
 					"test_topic",
 					uint32(1),
 					uint64(123),
 					"2023-01-01T00:00:00Z",
 					"test_data",
+					nil,
 				},
 			},
 			expected: "test_topic_1",
