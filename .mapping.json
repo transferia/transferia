@@ -837,6 +837,8 @@
   "pkg/container/client.go":"transfer_manager/go/pkg/container/client.go",
   "pkg/container/container.go":"transfer_manager/go/pkg/container/container.go",
   "pkg/container/container_opts.go":"transfer_manager/go/pkg/container/container_opts.go",
+  "pkg/container/context_reader.go":"transfer_manager/go/pkg/container/context_reader.go",
+  "pkg/container/context_reader_test.go":"transfer_manager/go/pkg/container/context_reader_test.go",
   "pkg/container/docker.go":"transfer_manager/go/pkg/container/docker.go",
   "pkg/container/docker_mocks.go":"transfer_manager/go/pkg/container/docker_mocks.go",
   "pkg/container/docker_options.go":"transfer_manager/go/pkg/container/docker_options.go",
