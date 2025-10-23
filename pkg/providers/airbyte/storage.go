@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -43,7 +45,14 @@ type Storage struct {
 	cw container.ContainerImpl
 }
 
-func (a *Storage) Close() {}
+func (a *Storage) Close() {
+	dir, err := a.getFilesDir()
+	if err == nil {
+		if err := os.RemoveAll(dir); err != nil {
+			a.logger.Warnf("unable to remove temp dir: %s", dir)
+		}
+	}
+}
 
 func (a *Storage) Ping() error {
 	return a.check()
@@ -83,16 +92,20 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		fmt.Sprintf("/data/%s", catalogFile),
 	}
 
-	stdout, stderr, err := a.runRawCommand(args...)
+	stdoutReader, stderrReader, err := a.runCommand(nil, args...)
 	if err != nil {
 		return xerrors.Errorf("%s unable to start: %w", table.ID().String(), err)
+	}
+	defer stdoutReader.Close()
+	if stderrReader != nil {
+		defer stderrReader.Close()
 	}
 
 	var batch *RecordBatch
 	cntr := 0
 	batch = NewRecordBatch(cntr, stream.Stream.AsModel())
 
-	reader := bufio.NewScanner(stdout)
+	reader := bufio.NewScanner(stdoutReader)
 	buf := make([]byte, 1024*1024, math.Max(a.config.MaxRowSize, 1024*1024))
 	reader.Buffer(buf, a.config.MaxRowSize)
 	for reader.Scan() {
@@ -162,12 +175,17 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 	if err := a.storeState(table.ID(), currentState); err != nil {
 		return xerrors.Errorf("unable to store incremental state: %w", err)
 	}
-	data, err := io.ReadAll(stderr)
-	if err != nil {
-		return xerrors.Errorf("%s stderr read all failed: %w", table.ID().String(), err)
-	}
-	if len(data) > 0 {
-		a.logger.Warnf("stderr: %v\nlast error:%v", string(data), lastAirbyteError)
+
+	if stderrReader != nil {
+		// Read stderr to completion to ensure the container process is waited upon
+		stderrBuf := new(bytes.Buffer)
+		_, err = io.Copy(stderrBuf, stderrReader)
+		if err != nil {
+			return xerrors.Errorf("%s stderr read failed: %w", table.ID().String(), err)
+		}
+		if stderrBuf.Len() > 0 {
+			a.logger.Warnf("stderr: %v\nlast error:%v", stderrBuf.String(), lastAirbyteError)
+		}
 	}
 
 	return nil
@@ -308,14 +326,37 @@ func (a *Storage) parse(data []byte) (*Message, []string) {
 	return res, logs
 }
 
+func (a *Storage) getFilesDir() (string, error) {
+	switch a.cw.Type() {
+	case container.BackendDocker:
+		return a.config.DataDir(), nil
+	case container.BackendKubernetes:
+		tempDir := filepath.Join(os.TempDir(), "airbyte-secrets", a.transfer.ID)
+		if err := os.MkdirAll(tempDir, 0o755); err != nil && !os.IsExist(err) {
+			return "", xerrors.Errorf("unable to create temp directory: %w", err)
+		}
+		return tempDir, nil
+	}
+
+	return "", xerrors.New("unknown container backend")
+}
+
 func (a *Storage) writeFile(fileName, fileData string) error {
-	fullPath := fmt.Sprintf("%v/%v", a.config.DataDir(), fileName)
+	var fullPath string
+
+	dir, err := a.getFilesDir()
+	if err != nil {
+		return xerrors.Errorf("unable to get files dir: %w", err)
+	}
+
+	fullPath = filepath.Join(dir, fileName)
+
 	a.logger.Debugf("%s -> \n%s", fileName, fileData)
 	defer a.logger.Infof("file(%s) %s written", format.SizeInt(len(fileData)), fullPath)
 	return os.WriteFile(
 		fullPath,
 		[]byte(fileData),
-		0664,
+		0o664,
 	)
 }
 
@@ -324,7 +365,8 @@ func (a *Storage) check() error {
 	if err := a.writeFile("config.json", a.config.Config); err != nil {
 		return xerrors.Errorf("unable to write config: %w", err)
 	}
-	configResponse, err := a.runCommand("check", "--config", "/data/config.json")
+
+	configResponse, err := a.runSyncCommand(nil, "check", "--config", "/data/config.json")
 	if err != nil {
 		return err
 	}
@@ -332,6 +374,11 @@ func (a *Storage) check() error {
 	for _, row := range logs {
 		a.logger.Infof("config: %v", row)
 	}
+
+	if resp == nil {
+		return xerrors.New("empty response")
+	}
+
 	if resp.Type != MessageTypeConnectionStatus {
 		return xerrors.Errorf("unexpected response type: %v", resp.Type)
 	}
@@ -348,7 +395,7 @@ func (a *Storage) discover() error {
 	if err := a.check(); err != nil {
 		return xerrors.Errorf("unable to check provider: %w", err)
 	}
-	response, err := a.runCommand("discover", "--config", "/data/config.json")
+	response, err := a.runSyncCommand(nil, "discover", "--config", "/data/config.json")
 	if err != nil {
 		return xerrors.Errorf("exec error: %w", err)
 	}
@@ -370,7 +417,7 @@ func (a *Storage) discover() error {
 }
 
 func (a *Storage) baseOpts() container.ContainerOpts {
-	return container.ContainerOpts{
+	opts := container.ContainerOpts{
 		Env: map[string]string{
 			"AWS_EC2_METADATA_DISABLED": "true",
 		},
@@ -380,77 +427,125 @@ func (a *Storage) baseOpts() container.ContainerOpts {
 		},
 		Namespace:     "",
 		RestartPolicy: "Never",
-		PodName:       "",
+		PodName:       "airbyte-runner",
 		Image:         a.config.DockerImage(),
 		LogDriver:     "local",
 		Network:       "host",
-		ContainerName: "",
-		Volumes: []container.Volume{
-			{
-				Name:          "data",
-				HostPath:      a.config.DataDir(),
-				ContainerPath: "/data",
-				VolumeType:    "bind",
-			},
-		},
-		Command:      nil,
-		Args:         nil,
-		Timeout:      0,
+		ContainerName: "runner",
+		Command:       nil,
+		Args:          nil,
+		// FIXME: make this configurable
+		Timeout:      12 * time.Hour,
 		AttachStdout: true,
 		AttachStderr: true,
 		AutoRemove:   true,
 	}
+
+	dir, err := a.getFilesDir()
+	if err != nil {
+		a.logger.Errorf("unable to specify data dir: %w", err)
+	}
+
+	switch a.cw.Type() {
+	case container.BackendDocker:
+		opts.Volumes = []container.Volume{
+			{
+				Name:          "data",
+				HostPath:      dir,
+				ContainerPath: "/data",
+				VolumeType:    "bind",
+			},
+		}
+	case container.BackendKubernetes:
+		if _, err := os.Stat(dir); err == nil {
+			// Create a unique secret name based on the transfer ID
+			secretName := fmt.Sprintf("airbyte-secret-%s-%s", a.transfer.ID, time.Now().Format("20060102-150405"))
+
+			// Create a map to store file contents for the secret
+			secretData := make(map[string][]byte)
+
+			// Read all files from the temporary directory
+			files, err := os.ReadDir(dir)
+			if err == nil && len(files) > 0 {
+				for _, file := range files {
+					if !file.IsDir() {
+						filePath := filepath.Join(dir, file.Name())
+						data, err := os.ReadFile(filePath)
+						if err == nil {
+							secretData[file.Name()] = data
+						} else {
+							a.logger.Warnf("Failed to read file %s: %v", filePath, err)
+						}
+					}
+				}
+
+				// Add the secret to the container options
+				opts.Secrets = []container.Secret{
+					{
+						Name: secretName,
+						Data: secretData,
+					},
+				}
+
+				// Mount the secret as a volume
+				opts.Volumes = []container.Volume{
+					{
+						Name:          "data",
+						SecretName:    secretName,
+						ContainerPath: "/data",
+						VolumeType:    "secret",
+					},
+				}
+
+				return opts
+			}
+		}
+	}
+
+	return opts
 }
 
-func (a *Storage) runRawCommand(args ...string) (io.Reader, io.Reader, error) {
+func (a *Storage) runCommand(cmd []string, args ...string) (io.ReadCloser, io.ReadCloser, error) {
 	ctx := context.Background()
 
 	opts := a.baseOpts()
-	opts.Command = args
+
+	opts.Command = cmd
+	opts.Args = args
 
 	a.logger.Info(opts.String())
 
 	return a.cw.Run(ctx, opts)
 }
 
-func (a *Storage) runCommand(args ...string) ([]byte, error) {
-	outReader, errReader, err := a.runRawCommand(args...)
+func (a *Storage) runSyncCommand(cmd []string, args ...string) ([]byte, error) {
+	ctx := context.Background()
 
-	outBuf := new(bytes.Buffer)
-	errBuf := new(bytes.Buffer)
+	opts := a.baseOpts()
 
-	if outReader != nil {
-		if _, err := outBuf.ReadFrom(outReader); err != nil {
-			return nil, xerrors.Errorf("failed to read stdout: %w", err)
+	opts.Command = cmd
+	opts.Args = args
+
+	a.logger.Info(opts.String())
+
+	stdoutBuf, stderrBuf, cmdErr := a.cw.RunAndWait(ctx, opts)
+	if cmdErr != nil {
+		a.logger.Error(cmdErr.Error())
+		return nil, xerrors.Errorf("command failed: %w", cmdErr)
+	}
+
+	if stderrBuf != nil {
+		scanner := bufio.NewScanner(bytes.NewReader(stderrBuf.Bytes()))
+		var stderrErrs util.Errors
+		for scanner.Scan() {
+			stderrErrs = append(stderrErrs, xerrors.New(scanner.Text()))
+		}
+		if len(stderrErrs) > 0 {
+			a.logger.Warnf("stderr: %v", log.Error(stderrErrs))
 		}
 	}
 
-	if errReader != nil {
-		if _, err := errBuf.ReadFrom(outReader); err != nil {
-			return nil, xerrors.Errorf("failed to read stdout: %w", err)
-		}
-	}
-
-	if err != nil {
-		// TODO: duplicated code
-		opts := a.baseOpts()
-		opts.Command = args
-
-		a.logger.Errorf("command: %s stdout:\n%s", opts.String(), outBuf.String())
-		a.logger.Errorf("command: %s stderr:\n%s", opts.String(), errBuf.String())
-
-		return nil, xerrors.Errorf("failed: %w", err)
-	}
-
-	scr := bufio.NewScanner(errReader)
-	var errs util.Errors
-	for scr.Scan() {
-		errs = append(errs, xerrors.New(scr.Text()))
-	}
-	if len(errs) > 0 {
-		a.logger.Warnf("stderr: %v", log.Error(errs))
-	}
-	return outBuf.Bytes(), nil
+	return stdoutBuf.Bytes(), nil
 }
 
 func (a *Storage) extractState(table abstract.TableDescription) string {
