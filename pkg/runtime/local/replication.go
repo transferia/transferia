@@ -96,6 +96,7 @@ func runReplication(ctx context.Context, cp coordinator.Coordinator, transfer *m
 
 		attemptErr, attemptAgain := replicationAttempt(ctx, cp, transfer, registry, lgr, replicationStats, retryCount)
 		if !attemptAgain {
+			errors.LogFatalError(attemptErr, transfer.ID, transfer.Dst.GetProviderType(), transfer.Src.GetProviderType())
 			return xerrors.Errorf("replication failed: %w", attemptErr)
 		}
 
@@ -170,7 +171,6 @@ waitingForReplicationErr:
 		logger.Log.Error("replication failed, will restart the whole dataplane", log.Error(attemptErr))
 		return xerrors.Errorf("replication failed, dataplane must be restarted: %w", attemptErr), false
 	}
-	errors.LogFatalError(attemptErr, transfer.ID, transfer.Dst.GetProviderType(), transfer.Src.GetProviderType())
 	return attemptErr, true
 }
 
