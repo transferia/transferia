@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/providers/ydb"
+	"golang.org/x/exp/maps"
 )
 
 type LfSource struct {
@@ -44,7 +45,13 @@ var _ model.Source = (*LfSource)(nil)
 type LogbrokerInstance string
 type LogbrokerCluster string
 
-func (s *LfSource) ForceMirror() {}
+func (s *LfSource) IsLbMirror() bool {
+	if len(s.ParserConfig) == 0 {
+		return false
+	} else {
+		return maps.Keys(s.ParserConfig)[0] == "blank.lb"
+	}
+}
 
 func (s *LfSource) WithDefaults() {
 	if s.MaxReadSize == 0 {

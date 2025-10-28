@@ -17,7 +17,7 @@ func TestReadWriteWithCompression(t *testing.T) {
 	dst, err := DestinationRecipe()
 	require.NoError(t, err)
 	dst.FormatSettings.Name = model.SerializationFormatMirror
-	tc := func(compression Encoding) {
+	check := func(compression Encoding) {
 		kafkaSource.Topic = "topic_" + string(compression)
 		dst.Topic = "topic_" + string(compression)
 		dst.Compression = compression
@@ -32,20 +32,20 @@ func TestReadWriteWithCompression(t *testing.T) {
 		require.NoError(t, err)
 		src.Stop()
 		require.Len(t, items, 1)
-		require.Len(t, items[0].ColumnValues, 6)
+		require.Len(t, items[0].ColumnValues, 7)
 		require.Equal(t, items[0].ColumnValues[4], "blablabla")
 		abstract.Dump(items)
 	}
 	t.Run("gzip", func(t *testing.T) {
-		tc(GzipEncoding)
+		check(GzipEncoding)
 	})
 	t.Run("snappy", func(t *testing.T) {
-		tc(SnappyEncoding)
+		check(SnappyEncoding)
 	})
 	t.Run("lz4", func(t *testing.T) {
-		tc(LZ4Encoding)
+		check(LZ4Encoding)
 	})
 	t.Run("zstd", func(t *testing.T) {
-		tc(ZstdEncoding)
+		check(ZstdEncoding)
 	})
 }

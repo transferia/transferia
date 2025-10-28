@@ -15,10 +15,6 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-type Mirrareable interface {
-	ForceMirror()
-}
-
 func inferFormatSettings(src model.Source, formatSettings model.SerializationFormat) model.SerializationFormat {
 	result := formatSettings.Copy()
 
@@ -27,20 +23,31 @@ func inferFormatSettings(src model.Source, formatSettings model.SerializationFor
 			result.Name = model.SerializationFormatMirror
 			return *result
 		}
+		if model.IsLbMirrorSource(src) {
+			result.Name = model.SerializationFormatLbMirror
+			return *result
+		}
 		if model.IsAppendOnlySource(src) {
 			result.Name = model.SerializationFormatJSON
 			return *result
 		}
+		if debezium_prod_status.IsSupportedSource(src.GetProviderType().Name(), abstract.TransferTypeNone) {
+			result.Name = model.SerializationFormatDebezium
+			return *result
+		}
 
 		switch src.(type) {
-		case Mirrareable:
-			result.Name = model.SerializationFormatLbMirror
 		case *airbyte.AirbyteSource:
 			result.Name = model.SerializationFormatJSON
 		case *clickhouse.ChSource:
 			result.Name = model.SerializationFormatNative
 		default:
-			result.Name = model.SerializationFormatDebezium
+			return model.SerializationFormat{
+				Name:             "",
+				Settings:         nil,
+				SettingsKV:       nil,
+				BatchingSettings: nil,
+			}
 		}
 	}
 	if result.Name == model.SerializationFormatDebezium {
@@ -83,7 +90,7 @@ func SourceCompatible(src model.Source, transferType abstract.TransferType, seri
 		}
 		return xerrors.New("in Mirror serialized supported only default mirror source types")
 	case model.SerializationFormatLbMirror:
-		if src.GetProviderType().Name() == "lb" { // sorry again
+		if src.GetProviderType().Name() == "lb" || src.GetProviderType().Name() == "lf" || src.GetProviderType().Name() == "yds" { // sorry again
 			return nil
 		}
 		return xerrors.New("in LbMirror serialized supported only lb source type")

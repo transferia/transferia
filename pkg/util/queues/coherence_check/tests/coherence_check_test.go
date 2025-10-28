@@ -56,6 +56,11 @@ func checkDst(t *testing.T, src dp_model.Source, serializerName dp_model.Seriali
 }
 
 func TestSourceCompatible(t *testing.T) {
+	// Логика какая
+	//     - src - задает источник
+	//     - serializationFormat - что будет выбрано в UI
+	//     - expectedOk - позволит ли создать или нет
+	//     - inferredSerializationFormat - если настроено auto, то что должно автовывестись
 	type testCase struct {
 		src                         dp_model.Source
 		serializationFormat         dp_model.SerializationFormatName
@@ -64,98 +69,70 @@ func TestSourceCompatible(t *testing.T) {
 	}
 
 	testCases := []testCase{
-		{&logbroker.LfSource{ParserConfig: nil}, dp_model.SerializationFormatMirror, false, ""},
-		{&logbroker.LfSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatMirror, false, ""},
-		{&logbroker.LfSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatMirror, false, ""},
-
 		{&logbroker.LfSource{ParserConfig: nil}, dp_model.SerializationFormatJSON, false, ""},
 		{&logbroker.LfSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatJSON, true, dp_model.SerializationFormatJSON},
 		{&logbroker.LfSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatJSON, false, ""},
 
 		{&logbroker.LfSource{ParserConfig: nil}, dp_model.SerializationFormatDebezium, false, ""},
-		{&logbroker.LfSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatDebezium, false, ""},
+		{&logbroker.LfSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatJSON},
 		{&logbroker.LfSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatDebezium, false, ""},
 
-		{&kafka.KafkaSource{ParserConfig: nil}, dp_model.SerializationFormatMirror, true, dp_model.SerializationFormatMirror},
-		{&kafka.KafkaSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatMirror, false, ""},
-		{&kafka.KafkaSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatMirror, false, ""},
-
-		{&kafka.KafkaSource{ParserConfig: nil}, dp_model.SerializationFormatJSON, false, ""},
+		{&kafka.KafkaSource{ParserConfig: nil}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatMirror},
 		{&kafka.KafkaSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatJSON, true, dp_model.SerializationFormatJSON},
 		{&kafka.KafkaSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatJSON, false, ""},
 
-		{&kafka.KafkaSource{ParserConfig: nil}, dp_model.SerializationFormatDebezium, false, ""},
-		{&kafka.KafkaSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatDebezium, false, ""},
+		{&kafka.KafkaSource{ParserConfig: nil}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatMirror},
+		{&kafka.KafkaSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatJSON},
 		{&kafka.KafkaSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatDebezium, false, ""},
 
-		{&eventhub.EventHubSource{ParserConfig: nil}, dp_model.SerializationFormatMirror, true, dp_model.SerializationFormatMirror},
-		{&eventhub.EventHubSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatMirror, false, ""},
-		{&eventhub.EventHubSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatMirror, false, ""},
-
-		{&eventhub.EventHubSource{ParserConfig: nil}, dp_model.SerializationFormatJSON, false, ""},
+		{&eventhub.EventHubSource{ParserConfig: nil}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatMirror},
 		{&eventhub.EventHubSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatJSON, true, dp_model.SerializationFormatJSON},
 		{&eventhub.EventHubSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatJSON, false, ""},
 
-		{&eventhub.EventHubSource{ParserConfig: nil}, dp_model.SerializationFormatDebezium, false, ""},
-		{&eventhub.EventHubSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatDebezium, false, ""},
+		{&eventhub.EventHubSource{ParserConfig: nil}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatMirror},
+		{&eventhub.EventHubSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatJSON},
 		{&eventhub.EventHubSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatDebezium, false, ""},
 
-		{&ydssource.YDSSource{ParserConfig: nil}, dp_model.SerializationFormatMirror, true, dp_model.SerializationFormatMirror},
-		{&ydssource.YDSSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatMirror, false, ""},
-		{&ydssource.YDSSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatMirror, false, ""},
-
-		{&ydssource.YDSSource{ParserConfig: nil}, dp_model.SerializationFormatJSON, false, ""},
+		{&ydssource.YDSSource{ParserConfig: nil}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatMirror},
 		{&ydssource.YDSSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatJSON, true, dp_model.SerializationFormatJSON},
 		{&ydssource.YDSSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatJSON, false, ""},
 
-		{&ydssource.YDSSource{ParserConfig: nil}, dp_model.SerializationFormatDebezium, false, ""},
-		{&ydssource.YDSSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatDebezium, false, ""},
+		{&ydssource.YDSSource{ParserConfig: nil}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatMirror},
+		{&ydssource.YDSSource{ParserConfig: parserJSONCommon(t)}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatJSON},
 		{&ydssource.YDSSource{ParserConfig: parserDebeziumCommon(t)}, dp_model.SerializationFormatDebezium, false, ""},
 
-		{&postgres.PgSource{}, dp_model.SerializationFormatMirror, false, ""},
-		{&postgres.PgSource{}, dp_model.SerializationFormatJSON, false, ""},
+		{&postgres.PgSource{}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatDebezium},
 		{&postgres.PgSource{}, dp_model.SerializationFormatDebezium, true, dp_model.SerializationFormatDebezium},
 
-		{&mysql.MysqlSource{}, dp_model.SerializationFormatMirror, false, ""},
-		{&mysql.MysqlSource{}, dp_model.SerializationFormatJSON, false, ""},
+		{&mysql.MysqlSource{}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatDebezium},
 		{&mysql.MysqlSource{}, dp_model.SerializationFormatDebezium, true, dp_model.SerializationFormatDebezium},
 
-		{&ydb.YdbSource{}, dp_model.SerializationFormatMirror, false, ""},
-		{&ydb.YdbSource{}, dp_model.SerializationFormatJSON, false, ""},
+		{&ydb.YdbSource{}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatDebezium},
 		{&ydb.YdbSource{}, dp_model.SerializationFormatDebezium, true, dp_model.SerializationFormatDebezium},
 
-		{&airbyte.AirbyteSource{}, dp_model.SerializationFormatMirror, false, ""},
 		{&airbyte.AirbyteSource{}, dp_model.SerializationFormatJSON, true, dp_model.SerializationFormatJSON},
-		{&airbyte.AirbyteSource{}, dp_model.SerializationFormatDebezium, false, ""},
+		{&airbyte.AirbyteSource{}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatJSON},
 
-		{&model.ChSource{}, dp_model.SerializationFormatMirror, false, ""},
-		{&model.ChSource{}, dp_model.SerializationFormatJSON, false, ""},
-		{&model.ChSource{}, dp_model.SerializationFormatDebezium, false, ""},
+		{&model.ChSource{}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatNative},
+		{&model.ChSource{}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatNative},
 
-		{&greenplum.GpSource{}, dp_model.SerializationFormatMirror, false, ""},
 		{&greenplum.GpSource{}, dp_model.SerializationFormatJSON, false, ""},
 		{&greenplum.GpSource{}, dp_model.SerializationFormatDebezium, false, ""},
 
-		{&mongo.MongoSource{}, dp_model.SerializationFormatMirror, false, ""},
 		{&mongo.MongoSource{}, dp_model.SerializationFormatJSON, false, ""},
 		{&mongo.MongoSource{}, dp_model.SerializationFormatDebezium, false, ""},
 
-		{&oracle.OracleSource{}, dp_model.SerializationFormatMirror, false, ""},
 		{&oracle.OracleSource{}, dp_model.SerializationFormatJSON, false, ""},
 		{&oracle.OracleSource{}, dp_model.SerializationFormatDebezium, false, ""},
 
-		{&yt.YtSource{}, dp_model.SerializationFormatMirror, false, ""},
 		{&yt.YtSource{}, dp_model.SerializationFormatJSON, false, ""},
 		{&yt.YtSource{}, dp_model.SerializationFormatDebezium, false, ""},
 	}
 
 	for i, el := range testCases {
 		fmt.Println(i)
+		require.True(t, el.serializationFormat == dp_model.SerializationFormatJSON || el.serializationFormat == dp_model.SerializationFormatDebezium)
 		checkDst(t, el.src, el.serializationFormat, abstract.TransferTypeIncrementOnly, el.expectedOk)
-		if el.expectedOk {
-			require.Equal(t, el.inferredSerializationFormat, coherence_check.InferFormatSettings(logger.Log, el.src, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto}).Name)
-		} else {
-			require.Equal(t, string(el.inferredSerializationFormat), "")
-		}
+		require.Equal(t, el.inferredSerializationFormat, coherence_check.InferFormatSettings(logger.Log, el.src, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto}).Name)
 	}
 }

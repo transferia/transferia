@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/library/go/test/yatest"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	kafka_provider "github.com/transferia/transferia/pkg/providers/kafka"
 	"github.com/transferia/transferia/pkg/providers/mysql"
@@ -80,7 +81,6 @@ func TestReplication(t *testing.T) {
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{dst.Topic},
-		IsHomo:      true,
 	}, &mockTarget, abstract.TransferTypeIncrementOnly)
 
 	// activate main transfer
@@ -134,7 +134,8 @@ func TestReplication(t *testing.T) {
 		if len(result) == 6 {
 			canonData := make([]string, 6)
 			for i := 0; i < len(result); i += 1 {
-				canonVal := eraseMeta(string(kafka_provider.GetKafkaRawMessageData(&result[0])))
+				vv, _ := changeitem.GetRawMessageData(result[0])
+				canonVal := eraseMeta(string(vv))
 				canonData = append(canonData, canonVal)
 			}
 			canon.SaveJSON(t, canonData)

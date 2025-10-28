@@ -1528,7 +1528,6 @@
   "pkg/providers/kafka/compression_test.go":"transfer_manager/go/pkg/providers/kafka/compression_test.go",
   "pkg/providers/kafka/fallback_generic_parser_timestamp.go":"transfer_manager/go/pkg/providers/kafka/fallback_generic_parser_timestamp.go",
   "pkg/providers/kafka/kafka_test.go":"transfer_manager/go/pkg/providers/kafka/kafka_test.go",
-  "pkg/providers/kafka/mirror.go":"transfer_manager/go/pkg/providers/kafka/mirror.go",
   "pkg/providers/kafka/model_connection.go":"transfer_manager/go/pkg/providers/kafka/model_connection.go",
   "pkg/providers/kafka/model_destination.go":"transfer_manager/go/pkg/providers/kafka/model_destination.go",
   "pkg/providers/kafka/model_encoding.go":"transfer_manager/go/pkg/providers/kafka/model_encoding.go",

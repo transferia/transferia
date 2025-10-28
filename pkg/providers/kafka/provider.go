@@ -123,9 +123,6 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if err := src.WithConnectionID(); err != nil {
 		return nil, xerrors.Errorf("unable to resolve connection for source: %w", err)
 	}
-	if !src.IsHomo { // we can enforce homo from outside
-		src.IsHomo = p.transfer.DstType() == ProviderType && src.IsDefaultMirror()
-	}
 	if !src.SynchronizeIsNeeded {
 		src.SynchronizeIsNeeded = p.transfer.DstType() == "lb" // sorry for that
 	}

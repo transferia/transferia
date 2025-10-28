@@ -337,19 +337,8 @@ func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
 }
 
 func (p *Source) makeRawChangeItem(msg kgo.Record) abstract.ChangeItem {
-	if p.config.IsHomo {
-		return MakeKafkaRawMessage(
-			msg.Topic,
-			msg.Timestamp,
-			msg.Topic,
-			int(msg.Partition),
-			msg.Offset,
-			msg.Key,
-			msg.Value,
-		)
-	}
-
 	return abstract.MakeRawMessage(
+		msg.Key,
 		msg.Topic,
 		msg.Timestamp,
 		msg.Topic,

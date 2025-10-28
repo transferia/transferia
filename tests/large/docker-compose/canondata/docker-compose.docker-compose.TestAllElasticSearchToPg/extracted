@@ -30,6 +30,7 @@ CREATE TABLE public.test_doc (
     data text,
     partition bigint,
     seq_no bigint,
+    sequence_key text,
     topic text,
     write_time timestamp without time zone
 );
@@ -48,15 +49,15 @@ ALTER TABLE ONLY public.test_doc
 --
 
 copy (select * from test_doc order by _id) to STDOUT;
-test-topic.0.0.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_0	0	0	test-topic	2022-10-19 00:00:00
-test-topic.0.1.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_1	0	1	test-topic	2022-10-19 00:00:00
-test-topic.0.2.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_2	0	2	test-topic	2022-10-19 00:00:00
-test-topic.0.3.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_3	0	3	test-topic	2022-10-19 00:00:00
-test-topic.0.4.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_4	0	4	test-topic	2022-10-19 00:00:00
-test-topic.0.5.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_5	0	5	test-topic	2022-10-19 00:00:00
-test-topic.0.6.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_6	0	6	test-topic	2022-10-19 00:00:00
-test-topic.0.7.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_7	0	7	test-topic	2022-10-19 00:00:00
-test-topic.0.8.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_8	0	8	test-topic	2022-10-19 00:00:00
-test-topic.0.9.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_9	0	9	test-topic	2022-10-19 00:00:00
+test-topic.0.0.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_0	0	0	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.1.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_1	0	1	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.2.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_2	0	2	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.3.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_3	0	3	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.4.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_4	0	4	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.5.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_5	0	5	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.6.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_6	0	6	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.7.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_7	0	7	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.8.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_8	0	8	stub	test-topic	2022-10-19 00:00:00
+test-topic.0.9.2022-10-19+00%3A00%3A00+%2B0000+UTC	{"id": 0, "table": "test_doc", "schema": ""}	test_part_0_value_9	0	9	stub	test-topic	2022-10-19 00:00:00
 
 

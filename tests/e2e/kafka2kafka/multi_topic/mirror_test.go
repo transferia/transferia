@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	kafkasink "github.com/transferia/transferia/pkg/providers/kafka"
@@ -19,7 +20,6 @@ import (
 func TestReplication(t *testing.T) {
 	src, err := kafkasink.SourceRecipe()
 	require.NoError(t, err)
-	src.IsHomo = true
 
 	dst, err := kafkasink.DestinationRecipe()
 	require.NoError(t, err)
@@ -49,7 +49,6 @@ func TestReplication(t *testing.T) {
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{"topic1", "topic2"},
-		IsHomo:      true,
 	}, &mockTarget, abstract.TransferTypeIncrementOnly)
 
 	localAdditionalWorker := local.NewLocalWorker(coordinator.NewFakeClient(), additionalTransfer, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
@@ -57,6 +56,7 @@ func TestReplication(t *testing.T) {
 	defer localAdditionalWorker.Stop()
 
 	//-----------------------------------------------------------------------------------------------------------------
+
 	st := time.Now()
 	for time.Since(st) < time.Minute {
 		if len(result) < 2 {
@@ -67,9 +67,12 @@ func TestReplication(t *testing.T) {
 	}
 	readedData := map[string]map[string]string{}
 	for _, ci := range result {
+		kk, _ := changeitem.GetSequenceKey(&ci)
+		vv, _ := changeitem.GetRawMessageData(ci)
+
 		readedData[ci.TableID().String()] = map[string]string{
-			"key":  string(kafkasink.GetKafkaRawMessageKey(&ci)),
-			"data": string(kafkasink.GetKafkaRawMessageData(&ci)),
+			"key":  string(kk),
+			"data": string(vv),
 		}
 	}
 	require.Len(t, result, 2)
@@ -89,7 +92,7 @@ func pushData(t *testing.T, src kafkasink.KafkaSource, srcTopic string, dst kafk
 		logger.Log,
 	)
 	require.NoError(t, err)
-	err = srcSink.Push([]abstract.ChangeItem{kafkasink.MakeKafkaRawMessage(srcTopic, time.Time{}, srcTopic, 0, 0, k, v)})
+	err = srcSink.Push([]abstract.ChangeItem{abstract.MakeRawMessage(k, srcTopic, time.Time{}, srcTopic, 0, 0, v)})
 	require.NoError(t, err)
 	require.NoError(t, srcSink.Close())
 }

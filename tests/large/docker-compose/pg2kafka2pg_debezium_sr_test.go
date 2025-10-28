@@ -144,7 +144,6 @@ func TestPg2Kafka2PgSchemaRegistry(t *testing.T) {
 					BufferSize:       model.BytesSize(1024),
 					SecurityGroupIDs: nil,
 					ParserConfig:     parserConfigMap,
-					IsHomo:           false,
 				}
 				pgTarget := postgres.PgDestination{
 					Database: dbName,

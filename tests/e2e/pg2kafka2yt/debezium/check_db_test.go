@@ -97,7 +97,6 @@ func TestReplication(t *testing.T) {
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     parserConfigMap,
-		IsHomo:           false,
 	}
 	kafkaSrc.WithDefaults()
 

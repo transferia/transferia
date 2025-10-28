@@ -94,13 +94,13 @@ func TestReplication(t *testing.T) {
 	)
 	require.NoError(t, err)
 	err = srcSink.Push([]abstract.ChangeItem{
-		kafkasink.MakeKafkaRawMessage(
+		abstract.MakeRawMessage(
+			[]byte(`any_key_2`),
 			source.Topic,
 			time.Time{},
 			source.Topic,
 			0,
 			1,
-			[]byte(`any_key_2`),
 			[]byte(`{"level": "my_level", "caller": "my_caller", "msg": "my_msg"}`), // no ID column, should fail matview.
 		),
 	})

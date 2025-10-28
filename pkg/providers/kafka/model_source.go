@@ -29,7 +29,6 @@ type KafkaSource struct {
 	SecurityGroupIDs []string
 
 	ParserConfig        map[string]interface{}
-	IsHomo              bool // enabled kafka mirror protocol which can work only with kafka target
 	SynchronizeIsNeeded bool // true, if we need to send synchronize events on releasing partitions
 
 	OffsetPolicy          OffsetPolicy // specify from what topic part start message consumption

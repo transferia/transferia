@@ -195,6 +195,7 @@ func (s *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, a
 
 func (s *Source) makeRawChangeItem(msg *consumer.Record) abstract.ChangeItem {
 	return abstract.MakeRawMessage(
+		[]byte("stub"),
 		s.config.Stream,
 		*msg.ApproximateArrivalTimestamp,
 		s.config.Stream,

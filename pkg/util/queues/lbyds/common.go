@@ -48,6 +48,7 @@ func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch) abstract.Cha
 		topicID = b.Topic
 	}
 	return abstract.MakeRawMessageWithMeta(
+		m.Key,
 		topicID,
 		m.WriteTime,
 		b.Topic,

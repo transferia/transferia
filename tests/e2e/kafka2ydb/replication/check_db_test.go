@@ -45,7 +45,6 @@ func TestReplication(t *testing.T) {
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     parserConfigMap,
-		IsHomo:           false,
 	}
 
 	// create destination
@@ -91,7 +90,7 @@ func TestReplication(t *testing.T) {
 			Auth:       source.Auth,
 			Topic:      source.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -109,7 +108,7 @@ func TestReplication(t *testing.T) {
 		k := []byte(fmt.Sprintf("%d", i))
 		v := []byte(fmt.Sprintf(`{"id": "%d", "level": "my_level", "caller": "my_caller", "msg": "my_msg"}`, i))
 		err = srcSink.Push([]abstract.ChangeItem{
-			kafkasink.MakeKafkaRawMessage(source.Topic, time.Time{}, source.Topic, 0, 0, k, v),
+			abstract.MakeRawMessage(k, source.Topic, time.Time{}, source.Topic, 0, 0, v),
 		})
 		require.NoError(t, err)
 	}

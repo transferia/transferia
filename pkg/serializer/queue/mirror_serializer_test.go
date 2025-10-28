@@ -3,6 +3,7 @@ package queue
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
@@ -14,8 +15,8 @@ import (
 var mirrorSerializerTestMirrorChangeItem *abstract.ChangeItem
 
 func init() {
-	var testMirrorChangeItem = `{"id":0,"nextlsn":49,"commitTime":1648053051911000000,"txPosition":0,"kind":"insert","schema":"default-topic","table":"94","columnnames":["topic","partition","seq_no","write_time","data","meta"],"columnvalues":["default-topic",94,50,"2022-03-23T19:30:51.911+03:00","blablabla",null],"table_schema":[{"path":"","name":"topic","type":"utf8","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"partition","type":"uint32","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"seq_no","type":"uint64","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"write_time","type":"datetime","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"data","type":"utf8","key":false,"required":false,"original_type":"mirror:binary","original_type_params":null},{"path":"","name":"meta","type":"any","key":false,"required":false,"original_type":"","original_type_params":null}],"oldkeys":{},"tx_id":"","query":""}`
-	mirrorSerializerTestMirrorChangeItem, _ = abstract.UnmarshalChangeItem([]byte(testMirrorChangeItem))
+	tmp := abstract.MakeRawMessage([]byte("stub"), "", time.Now(), "", 0, 0, []byte("aboba123"))
+	mirrorSerializerTestMirrorChangeItem = &tmp
 }
 
 func TestMirrorSerializerEmptyInput(t *testing.T) {
@@ -34,8 +35,8 @@ func TestMirrorSerializerTopicName(t *testing.T) {
 	batches, err := mirrorSerializer.serialize(mirrorSerializerTestMirrorChangeItem)
 	require.NoError(t, err)
 	require.Len(t, batches, 1)
-	require.Equal(t, len(batches[0].Key), 0)
-	require.Equal(t, batches[0].Value, []byte(`blablabla`))
+	require.Equal(t, batches[0].Key, []byte("stub"))
+	require.Equal(t, batches[0].Value, []byte(`aboba123`))
 }
 
 func TestSerializeLB(t *testing.T) {

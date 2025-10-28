@@ -58,7 +58,7 @@ func TestSerialize(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			item := abstract.MakeRawMessage(
-				"table", time.Time{}, "topic", 42, 42, []byte("data"),
+				[]byte("stub"), "table", time.Time{}, "topic", 42, 42, []byte("data"),
 			)
 
 			data, err := test.Serializer.Serialize(&item)
@@ -252,6 +252,7 @@ func MakeChangeItems(n int) []*abstract.ChangeItem {
 	out := make([]*abstract.ChangeItem, n)
 	for i := range out {
 		item := abstract.MakeRawMessage(
+			[]byte("stub"),
 			fmt.Sprintf("table%d", i),
 			time.Time{},
 			fmt.Sprintf("topic%d", i),

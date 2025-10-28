@@ -14,6 +14,7 @@ const (
 	RawMessageWriteTime = "write_time"
 	RawMessageData      = "data"
 	RawMessageMeta      = "meta"
+	RawSequenceKey      = "sequence_key"
 
 	OriginalTypeMirrorBinary = "mirror:binary"
 )
@@ -26,16 +27,17 @@ var (
 		{ColumnName: RawMessageWriteTime, DataType: string(schema.TypeDatetime), PrimaryKey: true, Required: true},
 		{ColumnName: RawMessageData, DataType: string(schema.TypeString), OriginalType: OriginalTypeMirrorBinary},
 		{ColumnName: RawMessageMeta, DataType: string(schema.TypeAny)},
+		{ColumnName: RawSequenceKey, DataType: string(schema.TypeBytes)},
 	})
-	RawDataColumns = []string{RawMessageTopic, RawMessagePartition, RawMessageSeqNo, RawMessageWriteTime, RawMessageData, RawMessageMeta}
-	RawDataColsIDX = ColIDX(RawDataSchema.Columns())
+	RawDataColumns = RawDataSchema.Columns().ColumnNames()
+	RawDataColsIDX = colIDX(RawDataSchema.Columns())
 )
 
-func MakeRawMessage(table string, commitTime time.Time, topic string, shard int, offset int64, data []byte) ChangeItem {
-	return MakeRawMessageWithMeta(table, commitTime, topic, shard, offset, data, nil)
+func MakeRawMessage(sequenceKey []byte, table string, commitTime time.Time, topic string, shard int, offset int64, data []byte) ChangeItem {
+	return MakeRawMessageWithMeta(sequenceKey, table, commitTime, topic, shard, offset, data, nil)
 }
 
-func MakeRawMessageWithMeta(table string, commitTime time.Time, topic string, shard int, offset int64, data []byte, meta map[string]string) ChangeItem {
+func MakeRawMessageWithMeta(sequenceKey []byte, table string, commitTime time.Time, topic string, shard int, offset int64, data []byte, meta map[string]string) ChangeItem {
 	return ChangeItem{
 		ID:          0,
 		LSN:         uint64(offset),
@@ -53,14 +55,24 @@ func MakeRawMessageWithMeta(table string, commitTime time.Time, topic string, sh
 			commitTime,
 			string(data),
 			meta,
+			sequenceKey,
 		},
 		TableSchema:      RawDataSchema,
 		OldKeys:          EmptyOldKeys(),
 		Size:             RawEventSize(uint64(len(data))),
 		TxID:             "",
 		Query:            "",
-		QueueMessageMeta: QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
+		QueueMessageMeta: QueueMessageMeta{TopicName: topic, PartitionNum: shard, Offset: uint64(offset), Index: 0},
 	}
+}
+
+// getters
+
+func GetSequenceKey(changeItem *ChangeItem) ([]byte, error) {
+	if changeItem.TableSchema != RawDataSchema {
+		return nil, xerrors.Errorf("changeItem should be 'mirror'")
+	}
+	return changeItem.ColumnValues[RawDataColsIDX[RawSequenceKey]].([]byte), nil
 }
 
 func GetRawMessageData(r ChangeItem) ([]byte, error) {
@@ -74,7 +86,9 @@ func GetRawMessageData(r ChangeItem) ([]byte, error) {
 	}
 }
 
-func ColIDX(schema []ColSchema) map[string]int {
+// util
+
+func colIDX(schema []ColSchema) map[string]int {
 	res := map[string]int{}
 	for i := range schema {
 		res[schema[i].ColumnName] = i

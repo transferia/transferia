@@ -66,7 +66,7 @@ func TestRowPart(t *testing.T) {
 		{
 			name: "mirror row",
 			row: abstract.ChangeItem{
-				ColumnNames: []string{"topic", "partition", "seq_no", "write_time", "data", "meta"},
+				ColumnNames: []string{"topic", "partition", "seq_no", "write_time", "data", "meta", "sequence_key"},
 				ColumnValues: []interface{}{
 					"test_topic",
 					uint32(1),
@@ -74,6 +74,7 @@ func TestRowPart(t *testing.T) {
 					"2023-01-01T00:00:00Z",
 					"test_data",
 					nil,
+					[]byte("stub"),
 				},
 			},
 			expected: "test_topic_1",

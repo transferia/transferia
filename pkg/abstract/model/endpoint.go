@@ -125,6 +125,19 @@ func IsDefaultMirrorSource(src Source) bool {
 	}
 }
 
+// LbMirrorSource marks source as compatible with lb-mirror protocol (lb/yds)
+type LbMirrorSource interface {
+	IsLbMirror() bool
+}
+
+func IsLbMirrorSource(src Source) bool {
+	if defaultMirrorSource, ok := src.(LbMirrorSource); ok {
+		return defaultMirrorSource.IsLbMirror()
+	} else {
+		return false
+	}
+}
+
 // Parseable provider unified access to parser config
 type Parseable interface {
 	Parser() map[string]interface{}

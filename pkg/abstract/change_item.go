@@ -85,7 +85,6 @@ var MakeRawMessage = changeitem.MakeRawMessage
 var MakeRawMessageWithMeta = changeitem.MakeRawMessageWithMeta
 var PgName = changeitem.PgName
 var MakeOriginallyTypedColSchema = changeitem.MakeOriginallyTypedColSchema
-var ColIDX = changeitem.ColIDX
 var RawDataSchema = changeitem.RawDataSchema
 var ChangeItemFromMap = changeitem.ChangeItemFromMap
 var SystemTables = changeitem.SystemTables

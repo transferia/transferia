@@ -18,7 +18,7 @@ func TestChangeitems(t *testing.T) {
 	offset := int64(15)
 	data := []byte{1, 2, 3}
 
-	ci := abstract.MakeRawMessage(table, ts, topic, shard, offset, data)
+	ci := abstract.MakeRawMessage([]byte("stub"), table, ts, topic, shard, offset, data)
 
 	msg, err := GetRawMessage(ci)
 	require.NoError(t, err, "GetRawMessage throws")

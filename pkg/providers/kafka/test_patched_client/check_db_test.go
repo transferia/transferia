@@ -48,13 +48,13 @@ func buildSink(t *testing.T, broker, topicName, topicPrefix string, encoding kaf
 }
 
 func makeChangeItem(topicName, val string) abstract.ChangeItem {
-	return kafka.MakeKafkaRawMessage(
+	return abstract.MakeRawMessage(
+		[]byte("_"),
 		"table",
 		time.Time{},
 		topicName,
 		1, // shard
 		0, // offset
-		nil,
 		[]byte(val),
 	)
 }

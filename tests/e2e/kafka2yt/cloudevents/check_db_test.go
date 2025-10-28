@@ -38,7 +38,6 @@ var (
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     nil,
-		IsHomo:           false,
 	}
 	target = yt_helpers.RecipeYtTarget("//home/cdc/test/pg2yt_e2e_replication")
 )
@@ -96,7 +95,7 @@ func checkCase(t *testing.T, currSource *kafka.KafkaSource, topicName string, ms
 			Auth:       currSource.Auth,
 			Topic:      currSource.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -110,7 +109,7 @@ func checkCase(t *testing.T, currSource *kafka.KafkaSource, topicName string, ms
 		logger.Log,
 	)
 	require.NoError(t, err)
-	err = srcSink.Push([]abstract.ChangeItem{kafka.MakeKafkaRawMessage(currSource.Topic, time.Time{}, currSource.Topic, 0, 0, []byte("_"), msg)})
+	err = srcSink.Push([]abstract.ChangeItem{abstract.MakeRawMessage([]byte("_"), currSource.Topic, time.Time{}, currSource.Topic, 0, 0, msg)})
 	require.NoError(t, err)
 
 	// check results

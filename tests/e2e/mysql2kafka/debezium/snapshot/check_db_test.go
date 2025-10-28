@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	kafka_provider "github.com/transferia/transferia/pkg/providers/kafka"
 	"github.com/transferia/transferia/pkg/util"
@@ -62,7 +63,6 @@ func TestSnapshot(t *testing.T) {
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{dst.Topic},
-		IsHomo:      true,
 	}, &mockTarget, abstract.TransferTypeIncrementOnly)
 	//------------------------------------------------------------------------------
 	// activate main transfer
@@ -93,7 +93,8 @@ func TestSnapshot(t *testing.T) {
 
 	for {
 		if len(result) == 1 {
-			canonVal := eraseMeta(string(kafka_provider.GetKafkaRawMessageData(&result[0])))
+			vv, _ := changeitem.GetRawMessageData(result[0])
+			canonVal := eraseMeta(string(vv))
 			canon.SaveJSON(t, helpers.AddIndentToJSON(t, canonVal))
 			break
 		}
