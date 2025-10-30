@@ -97,6 +97,7 @@ var (
 	// yc
 	YCTopologyNoCommonZone                = coded.Register("yc", "topology_no_common_zone")
 	YCTopologySubnetAddressSpaceCollision = coded.Register("yc", "subnet_address_space_collision")
+	YCSecurityGroupsDoNotMatch            = coded.Register("yc", "subnet_security_groups_do_not_match")
 
 	// unspecified
 	Unspecified = coded.Register("unspecified")
