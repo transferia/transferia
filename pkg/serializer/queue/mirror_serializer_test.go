@@ -54,3 +54,17 @@ func TestSerializeLB(t *testing.T) {
 	require.Equal(t, changeItemsCount, len(extras))
 	require.Equal(t, len(batches), len(extras))
 }
+
+func TestMirrorSerializerGroupsByTopic(t *testing.T) {
+	mirrorSerializer, err := NewMirrorSerializer(logger.Log)
+	require.NoError(t, err)
+
+	changeItems := []abstract.ChangeItem{
+		abstract.MakeRawMessage([]byte("sequence_key_1"), "", time.Now(), "", 0, 0, []byte("aboba1")),
+		abstract.MakeRawMessage([]byte("sequence_key_2"), "", time.Now(), "", 0, 0, []byte("aboba2")),
+	}
+
+	batches, err := mirrorSerializer.Serialize(changeItems)
+	require.NoError(t, err)
+	require.Len(t, batches, 1)
+}

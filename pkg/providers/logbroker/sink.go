@@ -1,7 +1,6 @@
 package logbroker
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"time"
@@ -91,6 +90,9 @@ func (s *sink) Push(inputRaw []abstract.ChangeItem) error {
 	} else {
 		// 'id' here - fqtn()
 		tableToMessages, err = s.serializer.Serialize(input)
+		if s.config.FormatSettings.Name == model.SerializationFormatMirror { // for lb-sink they should be grouped by SourceID
+			tableToMessages = rearrangeTableToMessagesForMirror(tableToMessages)
+		}
 	}
 	if err != nil {
 		return xerrors.Errorf("unable to serialize: %w", err)
@@ -271,26 +273,6 @@ func (s *sink) closeWriters() error {
 	}
 
 	return nil
-}
-
-func splitSerializedMessages(maxSize int, serializedMessages []serializer.SerializedMessage) (int, [][]topicwriter.Message) {
-	var totalMessagesSize, currentBatchSize int
-	currentBatch := make([]topicwriter.Message, 0)
-	messageBatches := make([][]topicwriter.Message, 0)
-	for idx, currSerializedMessage := range serializedMessages {
-		currentBatchSize += len(currSerializedMessage.Value)
-		currentBatch = append(currentBatch, topicwriter.Message{Data: bytes.NewReader(currSerializedMessage.Value)})
-
-		if currentBatchSize >= maxSize || idx == len(serializedMessages)-1 {
-			totalMessagesSize += currentBatchSize
-			messageBatches = append(messageBatches, currentBatch)
-
-			currentBatchSize = 0
-			currentBatch = make([]topicwriter.Message, 0)
-		}
-	}
-
-	return totalMessagesSize, messageBatches
 }
 
 func newWriter(driver *ydb.Driver, topic string, opts []topicoptions.WriterOption) (cancelableWriter, error) {

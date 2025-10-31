@@ -1571,6 +1571,7 @@
   "pkg/providers/logbroker/sink.go":"transfer_manager/go/pkg/providers/logbroker/sink.go",
   "pkg/providers/logbroker/source_native.go":"transfer_manager/go/pkg/providers/logbroker/source_native.go",
   "pkg/providers/logbroker/stat.go":"transfer_manager/go/pkg/providers/logbroker/stat.go",
+  "pkg/providers/logbroker/util.go":"transfer_manager/go/pkg/providers/logbroker/util.go",
   "pkg/providers/middlewares/asynchronizer.go":"transfer_manager/go/pkg/providers/middlewares/asynchronizer.go",
   "pkg/providers/mongo/batcher.go":"transfer_manager/go/pkg/providers/mongo/batcher.go",
   "pkg/providers/mongo/batcher_test.go":"transfer_manager/go/pkg/providers/mongo/batcher_test.go",

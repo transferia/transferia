@@ -46,18 +46,7 @@ func (s *MirrorSerializer) Serialize(input []abstract.ChangeItem) (map[abstract.
 		if len(group) == 0 {
 			continue
 		}
-		key, err := changeitem.GetSequenceKey(&changeItem)
-		if err != nil {
-			return nil, abstract.NewFatalError(xerrors.Errorf("unable to get sequence key: %w", err))
-		}
-		keyObject := abstract.TablePartID{
-			TableID: abstract.TableID{
-				Namespace: "",
-				Name:      string(key),
-			},
-			PartID: "",
-		}
-		idToGroup[keyObject] = append(idToGroup[keyObject], group...)
+		idToGroup[changeItem.TablePartID()] = append(idToGroup[changeItem.TablePartID()], group...)
 	}
 	return idToGroup, nil
 }
