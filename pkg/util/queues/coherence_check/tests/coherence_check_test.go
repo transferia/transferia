@@ -8,11 +8,12 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/registry/debezium"
 	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
 	"github.com/transferia/transferia/pkg/providers/airbyte"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chmodel "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/eventhub"
 	"github.com/transferia/transferia/pkg/providers/greenplum"
 	"github.com/transferia/transferia/pkg/providers/kafka"
@@ -113,8 +114,8 @@ func TestSourceCompatible(t *testing.T) {
 		{&airbyte.AirbyteSource{}, dp_model.SerializationFormatJSON, true, dp_model.SerializationFormatJSON},
 		{&airbyte.AirbyteSource{}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatJSON},
 
-		{&model.ChSource{}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatNative},
-		{&model.ChSource{}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatNative},
+		{&chmodel.ChSource{}, dp_model.SerializationFormatJSON, false, dp_model.SerializationFormatNative},
+		{&chmodel.ChSource{}, dp_model.SerializationFormatDebezium, false, dp_model.SerializationFormatNative},
 
 		{&greenplum.GpSource{}, dp_model.SerializationFormatJSON, false, ""},
 		{&greenplum.GpSource{}, dp_model.SerializationFormatDebezium, false, ""},
@@ -133,6 +134,26 @@ func TestSourceCompatible(t *testing.T) {
 		fmt.Println(i)
 		require.True(t, el.serializationFormat == dp_model.SerializationFormatJSON || el.serializationFormat == dp_model.SerializationFormatDebezium)
 		checkDst(t, el.src, el.serializationFormat, abstract.TransferTypeIncrementOnly, el.expectedOk)
-		require.Equal(t, el.inferredSerializationFormat, coherence_check.InferFormatSettings(logger.Log, el.src, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto}).Name)
+		result, err := coherence_check.InferFormatSettings(logger.Log, el.src, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto})
+		if err == nil {
+			require.Equal(t, el.inferredSerializationFormat, result.Name)
+		}
 	}
+}
+
+func TestAutoFormatFillsSourceType(t *testing.T) {
+	format, err := coherence_check.InferFormatSettings(logger.Log, &postgres.PgSource{}, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto})
+	require.NoError(t, err)
+	require.Equal(t, dp_model.SerializationFormatDebezium, format.Name)
+	require.Equal(t, "pg", format.Settings[debeziumparameters.SourceType])
+
+	format2, err := coherence_check.InferFormatSettings(logger.Log, &mysql.MysqlSource{}, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto})
+	require.NoError(t, err)
+	require.Equal(t, dp_model.SerializationFormatDebezium, format2.Name)
+	require.Equal(t, "mysql", format2.Settings[debeziumparameters.SourceType])
+
+	format3, err := coherence_check.InferFormatSettings(logger.Log, &ydb.YdbSource{}, dp_model.SerializationFormat{Name: dp_model.SerializationFormatAuto})
+	require.NoError(t, err)
+	require.Equal(t, dp_model.SerializationFormatDebezium, format3.Name)
+	require.Equal(t, "", format3.Settings[debeziumparameters.SourceType]) // YDB don't have special fields in debezium - so, we don't fill it here
 }

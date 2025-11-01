@@ -141,7 +141,11 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 	if err := cfgCopy.WithConnectionID(); err != nil {
 		return nil, xerrors.Errorf("unable to resolve connection for sink: %w", err)
 	}
-	cfgCopy.FormatSettings = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	var err error
+	cfgCopy.FormatSettings, err = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	return NewReplicationSink(&cfgCopy, p.registry, p.logger)
 }
 
@@ -154,7 +158,11 @@ func (p *Provider) SnapshotSink(middlewares.Config) (abstract.Sinker, error) {
 	if err := cfgCopy.WithConnectionID(); err != nil {
 		return nil, xerrors.Errorf("unable to resolve connection for snapshot sink: %w", err)
 	}
-	cfgCopy.FormatSettings = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	var err error
+	cfgCopy.FormatSettings, err = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	return NewSnapshotSink(&cfgCopy, p.registry, p.logger)
 }
 

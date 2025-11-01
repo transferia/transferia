@@ -15,39 +15,46 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func inferFormatSettings(src model.Source, formatSettings model.SerializationFormat) model.SerializationFormat {
+var emptyObject model.SerializationFormat
+
+func inferFormatSettings(src model.Source, formatSettings model.SerializationFormat) (model.SerializationFormat, error) {
 	result := formatSettings.Copy()
 
-	if result.Name == model.SerializationFormatAuto {
+	handleAuto := func(inOut *model.SerializationFormat) error {
 		if model.IsDefaultMirrorSource(src) {
-			result.Name = model.SerializationFormatMirror
-			return *result
+			inOut.Name = model.SerializationFormatMirror
+			return nil
 		}
 		if model.IsLbMirrorSource(src) {
-			result.Name = model.SerializationFormatLbMirror
-			return *result
+			inOut.Name = model.SerializationFormatLbMirror
+			return nil
 		}
 		if model.IsAppendOnlySource(src) {
-			result.Name = model.SerializationFormatJSON
-			return *result
+			inOut.Name = model.SerializationFormatJSON
+			return nil
 		}
 		if debezium_prod_status.IsSupportedSource(src.GetProviderType().Name(), abstract.TransferTypeNone) {
-			result.Name = model.SerializationFormatDebezium
-			return *result
+			inOut.Name = model.SerializationFormatDebezium
+			return nil
 		}
 
 		switch src.(type) {
 		case *airbyte.AirbyteSource:
 			result.Name = model.SerializationFormatJSON
+			return nil
 		case *clickhouse.ChSource:
 			result.Name = model.SerializationFormatNative
+			return nil
 		default:
-			return model.SerializationFormat{
-				Name:             "",
-				Settings:         nil,
-				SettingsKV:       nil,
-				BatchingSettings: nil,
-			}
+			*inOut = emptyObject
+			return xerrors.Errorf("unsupported source type for AUTO serializer: %T", src)
+		}
+	}
+
+	if result.Name == model.SerializationFormatAuto {
+		err := handleAuto(result)
+		if err != nil {
+			return emptyObject, xerrors.Errorf("unable to handle 'auto' serialization format, err: %w", err)
 		}
 	}
 	if result.Name == model.SerializationFormatDebezium {
@@ -62,7 +69,7 @@ func inferFormatSettings(src model.Source, formatSettings model.SerializationFor
 		}
 	}
 
-	return *result
+	return *result, nil
 }
 
 func SourceCompatible(src model.Source, transferType abstract.TransferType, serializationName model.SerializationFormatName) error {
@@ -101,11 +108,14 @@ func SourceCompatible(src model.Source, transferType abstract.TransferType, seri
 	}
 }
 
-func InferFormatSettings(lgr log.Logger, src model.Source, formatSettings model.SerializationFormat) model.SerializationFormat {
+func InferFormatSettings(lgr log.Logger, src model.Source, formatSettings model.SerializationFormat) (model.SerializationFormat, error) {
 	formatSettingsArr, _ := json.Marshal(formatSettings)
 	lgr.Infof("InferFormatSettings - input - srcProviderName:%s, formatSettings:%s", src.GetProviderType().Name(), string(formatSettingsArr))
-	result := inferFormatSettings(src, formatSettings)
+	result, err := inferFormatSettings(src, formatSettings)
+	if err != nil {
+		return emptyObject, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	resultArr, _ := json.Marshal(result)
 	lgr.Infof("InferFormatSettings - output:%s", string(resultArr))
-	return result
+	return result, nil
 }

@@ -94,7 +94,11 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	cfgCopy := *cfg
-	cfgCopy.FormatSettings = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	var err error
+	cfgCopy.FormatSettings, err = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	return NewReplicationSink(&cfgCopy, p.registry, p.logger, p.transfer.ID)
 }
 
@@ -104,7 +108,11 @@ func (p *Provider) SnapshotSink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	cfgCopy := *cfg
-	cfgCopy.FormatSettings = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	var err error
+	cfgCopy.FormatSettings, err = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	return NewSnapshotSink(&cfgCopy, p.registry, p.logger, p.transfer.ID)
 }
 
