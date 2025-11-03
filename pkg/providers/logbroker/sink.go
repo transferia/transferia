@@ -17,6 +17,7 @@ import (
 	queues "github.com/transferia/transferia/pkg/util/queues"
 	"github.com/transferia/transferia/pkg/xtls"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/config"
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicwriter"
@@ -235,7 +236,9 @@ func (s *sink) findOrCreateWriter(groupID, topic string, extras map[string]strin
 		topicoptions.WithWriterProducerID(sourceID),
 		topicoptions.WithWriterCodec(s.config.CompressionCodec.ToTopicTypesCodec()),
 		topicoptions.WithWriterSessionMeta(extras),
-		topicoptions.WithWriterStartTimeout(60 * time.Second),
+		topicoptions.WithWriterStartTimeout(60 * time.Second), // to prevent some hanging-on
+		topicoptions.WithWriterMaxQueueLen(writerQueueLenSize),
+		topicoptions.WithWriterWaitServerAck(true),
 	}
 
 	// writer should be in temporary variable, and should be written in s.writers only after successes Init()
@@ -276,13 +279,7 @@ func (s *sink) closeWriters() error {
 }
 
 func newWriter(driver *ydb.Driver, topic string, opts []topicoptions.WriterOption) (cancelableWriter, error) {
-	defaultOpts := []topicoptions.WriterOption{
-		topicoptions.WithWriterStartTimeout(20 * time.Second),
-		topicoptions.WithWriterMaxQueueLen(writerQueueLenSize),
-		topicoptions.WithWriterWaitServerAck(true),
-	}
-	writerOpts := append(opts, defaultOpts...)
-	writer, err := driver.Topic().StartWriter(topic, writerOpts...)
+	writer, err := driver.Topic().StartWriter(topic, opts...)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to create topic writer: %w", err)
 	}
@@ -294,6 +291,9 @@ func newDriver(cfg *LbDestination, lgr log.Logger) (*ydb.Driver, error) {
 	isSecure := false
 	opts := []ydb.Option{
 		logadapter.WithTraces(lgr, trace.DetailsAll),
+		ydb.With(
+			config.WithOperationTimeout(60 * time.Second), // to prevent some hanging-on
+		),
 	}
 
 	if cfg.Credentials != nil {
@@ -337,25 +337,23 @@ func newSinkWithFactories(cfg *LbDestination, registry metrics.Registry, lgr log
 		return nil, xerrors.Errorf("unable to create driver, try to check DSN: %w", err)
 	}
 
-	sink := sink{
+	resultShard := cfg.Shard
+	if resultShard == "" {
+		resultShard = transferID
+	}
+
+	return &sink{
 		config:     cfg,
 		logger:     lgr,
 		metrics:    stats.NewSinkerStats(registry),
 		serializer: currSerializer,
 		driver:     driver,
 		writers:    util.NewConcurrentMap[string, cancelableWriter](),
-		shard:      cfg.Shard,
-	}
-
-	if sink.shard == "" {
-		sink.shard = transferID
-	}
-
-	return &sink, nil
+		shard:      resultShard,
+	}, nil
 }
 
-func NewYDSSink(cfg *LbDestination, registry metrics.Registry, lgr log.Logger,
-	transferID string) (abstract.Sinker, error) {
+func NewYDSSink(cfg *LbDestination, registry metrics.Registry, lgr log.Logger, transferID string) (abstract.Sinker, error) {
 	return newSinkWithFactories(cfg, registry, lgr, transferID, false)
 }
 

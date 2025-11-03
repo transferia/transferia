@@ -23,14 +23,9 @@ func newYDBDriver(
 	database, instance string,
 	credentials ydbcreds.Credentials,
 	tlsConfig *tls.Config,
-	verboseTraces bool,
 ) (*ydb.Driver, error) {
 	secure := tlsConfig != nil
 
-	traceLevel := trace.DriverEvents
-	if verboseTraces {
-		traceLevel = trace.DetailsAll
-	}
 	// TODO: it would be nice to handle some common errors such as unauthenticated one
 	// but YDB driver error design makes this task extremely painful
 	d, err := ydb.Open(
@@ -38,7 +33,7 @@ func newYDBDriver(
 		sugar.DSN(instance, database, sugar.WithSecure(secure)),
 		ydb.WithCredentials(credentials),
 		ydb.WithTLSConfig(tlsConfig),
-		logadapter.WithTraces(logger.Log, traceLevel),
+		logadapter.WithTraces(logger.Log, trace.DetailsAll),
 	)
 	if err != nil {
 		if s, ok := status.FromError(err); ok && s.Code() == grpcCodes.NotFound {
@@ -72,5 +67,5 @@ func newYDBSourceDriver(ctx context.Context, cfg *YdbSource) (*ydb.Driver, error
 			return nil, xerrors.Errorf("cannot create TLS config: %w", err)
 		}
 	}
-	return newYDBDriver(ctx, cfg.Database, cfg.Instance, creds, tlsConfig, cfg.VerboseSDKLogs)
+	return newYDBDriver(ctx, cfg.Database, cfg.Instance, creds, tlsConfig)
 }

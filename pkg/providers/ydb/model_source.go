@@ -62,7 +62,6 @@ type YdbSource struct {
 	ChangeFeedCustomName         string         // user can specify pre-created feed's name, otherwise it will created with name == transferID
 	ChangeFeedCustomConsumerName string
 	BufferSize                   model.BytesSize // it's not some real buffer size - see comments to waitLimits() method in kafka-source
-	VerboseSDKLogs               bool
 	CommitMode                   CommitMode
 
 	// auth stuff:

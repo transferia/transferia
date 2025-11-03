@@ -22,7 +22,6 @@ const (
 )
 
 func TestYdbStorageSharded_TableLoad(t *testing.T) {
-
 	endpoint, ok := os.LookupEnv("YDB_ENDPOINT")
 	if !ok {
 		t.Fail()
@@ -72,7 +71,7 @@ func TestYdbStorageSharded_TableLoad(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	ydbDriver, err := newYDBDriver(clientCtx, src.Database, src.Instance, ydbCreds, tlsConfig, false)
+	ydbDriver, err := newYDBDriver(clientCtx, src.Database, src.Instance, ydbCreds, tlsConfig)
 	require.NoError(t, err)
 
 	err = ydbDriver.Table().Do(clientCtx,
