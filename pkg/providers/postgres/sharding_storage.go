@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgtype"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -13,19 +12,6 @@ import (
 	"github.com/transferia/transferia/pkg/stringutil"
 	"github.com/transferia/transferia/pkg/util/set"
 )
-
-func (s *Storage) isSequence(table abstract.TableID, col abstract.ColSchema) (bool, error) {
-	var seqName interface{}
-	if err := s.Conn.QueryRow(
-		context.Background(),
-		"select pg_get_serial_sequence($1, $2)",
-		table.Fqtn(),
-		col.ColumnName,
-	).Scan(&seqName); err != nil {
-		return false, xerrors.Errorf("unable to select pg_get_serial_sequence: %w", err)
-	}
-	return seqName != nil, nil
-}
 
 // function 'ShardTable' tries to shard one table/view into parts (split task for snapshotting one table/view into parts):
 //
@@ -131,69 +117,6 @@ func (s *Storage) ShardTable(ctx context.Context, table abstract.TableDescriptio
 	return shardByPKHash(table, keys, int32(s.Config.SnapshotDegreeOfParallelism), splittedTableMetadata.DataSizeInRows), nil
 }
 
-func (s *Storage) shardBySequenceColumn(ctx context.Context, table abstract.TableDescription, idCol abstract.ColSchema, partCount, etaRows, etaSize uint64) ([]abstract.TableDescription, error) {
-	offsetStep := etaRows / partCount
-	logger.Log.Infof(
-		"Size of table %v (%v) bigger than limit (%v), split in %v parts with %v eta rows in batch",
-		table.Fqtn(),
-		format.SizeUInt64(etaSize),
-		format.SizeUInt64(s.Config.DesiredTableSize),
-		partCount,
-		offsetStep,
-	)
-
-	percentiles := make([]string, partCount-1)
-	for i := 1; i < int(partCount); i++ {
-		p := fmt.Sprintf("%f", float64(i)/float64(partCount))
-		percentiles[i-1] = p
-	}
-
-	percentilesStr := stringutil.JoinStrings(", ", func(p *string) string { return *p }, percentiles...)
-
-	query := fmt.Sprintf(`
-		select percentile_disc(ARRAY[%s]) WITHIN GROUP (ORDER BY "%s") from %s;
-	`, percentilesStr, idCol.ColumnName, table.Fqtn())
-
-	conn, err := s.Conn.Acquire(ctx)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to acquire a connection: %w", err)
-	}
-	defer conn.Release()
-
-	var rawBounds pgtype.Int8Array
-	if err := conn.QueryRow(ctx, query).Scan(&rawBounds); err != nil {
-		return nil, xerrors.Errorf("failed to get percentiles: %w", err)
-	}
-
-	bounds := make([]int64, partCount-1)
-	for i := 0; i < len(rawBounds.Elements); i++ {
-		bounds[i] = rawBounds.Elements[i].Int
-	}
-
-	logger.Log.Infof("extracted bounds: %v from table %v", bounds, table.Fqtn())
-
-	shards := make([]abstract.TableDescription, partCount)
-	for i := 0; i < int(partCount); i++ {
-		var filter string
-		if i == 0 {
-			filter = fmt.Sprintf(`"%s" < '%v'`, idCol.ColumnName, bounds[i])
-		} else if i == int(partCount)-1 {
-			filter = fmt.Sprintf(`"%s" >= '%v'`, idCol.ColumnName, bounds[i-1])
-		} else {
-			filter = fmt.Sprintf(`"%s" >= '%v' AND "%s" < '%v'`, idCol.ColumnName, bounds[i-1], idCol.ColumnName, bounds[i])
-		}
-		shards[i] = abstract.TableDescription{
-			Name:   table.Name,
-			Schema: table.Schema,
-			Filter: abstract.FiltersIntersection(table.Filter, abstract.WhereStatement(filter)),
-			EtaRow: offsetStep,
-			Offset: 0,
-		}
-	}
-	logger.Log.Infof("Table %v sharded by percentile disc into %v parts", table.Fqtn(), partCount)
-	return shards, nil
-}
-
 func (s *Storage) getLoadTableMode(ctx context.Context, table abstract.TableDescription) (*loadTableMode, error) {
 	conn, err := s.Conn.Acquire(ctx)
 	if err != nil {
@@ -269,17 +192,6 @@ func (s *Storage) explicitShardingKeys(table abstract.TableDescription) []string
 	return []string{}
 }
 
-func (s *Storage) canShardBySequenceKeyColumn(key []abstract.ColSchema, table abstract.TableDescription) (bool, error) {
-	if len(key) != 1 {
-		return false, nil
-	}
-	isSeq, err := s.isSequence(table.ID(), key[0])
-	if err != nil {
-		return false, xerrors.Errorf("unable to check table %v for sequence: %w", table.Fqtn(), err)
-	}
-	return isSeq, nil
-}
-
 func shardByPKHash(table abstract.TableDescription, keys []abstract.ColSchema, shardCount int32, etaRows uint64) []abstract.TableDescription {
 	cols := stringutil.JoinStrings(",", func(col *abstract.ColSchema) string { return fmt.Sprintf("\"%v\"", col.ColumnName) }, keys...)
 
@@ -287,7 +199,7 @@ func shardByPKHash(table abstract.TableDescription, keys []abstract.ColSchema, s
 
 	shards := make([]abstract.TableDescription, shardCount)
 	for i := int32(0); i < shardCount; i++ {
-		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs(hashtext(row(%v)::text)) %% %v = %v", cols, shardCount, i))
+		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs(hashtext(row(%v)::text) %% %v) = %v", cols, shardCount, i))
 		shards[i] = abstract.TableDescription{
 			Name:   table.Name,
 			Schema: table.ID().Namespace,
@@ -306,7 +218,7 @@ func shardByNumberSum(table abstract.TableDescription, keys []abstract.ColSchema
 	shardEtaSize := etaRows / uint64(shardCount)
 	shards := make([]abstract.TableDescription, shardCount)
 	for i := int32(0); i < shardCount; i++ {
-		shardFilter := abstract.WhereStatement(fmt.Sprintf("(abs(%v)::bigint %% %v) = %v", colsSum, shardCount, i))
+		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs((%v)::bigint %% %v) = %v", colsSum, shardCount, i))
 		shards[i] = abstract.TableDescription{
 			Name:   table.Name,
 			Schema: table.ID().Namespace,

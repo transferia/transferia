@@ -85,7 +85,7 @@ func (s *Storage) TableSizeInBytes(table abstract.TableID) (uint64, error) {
 	result, ok := decodedR["size"]
 	if !ok {
 		err := xerrors.Errorf("failed to calculate table size for table %v at obtaining result: 'size' is missing in result: %v", table.Name, decodedR)
-		logger.Log.Warnf(err.Error())
+		logger.Log.Warn(err.Error())
 		return 0, err
 	}
 

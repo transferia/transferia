@@ -76,8 +76,8 @@ func TestSinker_Push(t *testing.T) {
 		{ColumnName: "val", DataType: string(schema.TypeString)},
 	})
 	t.Run("many upserts", func(t *testing.T) {
-		data := make([]abstract.ChangeItem, batchSize*2)
-		for i := range batchSize * 2 {
+		data := make([]abstract.ChangeItem, batchMaxLen*2)
+		for i := range batchMaxLen * 2 {
 			kind := abstract.InsertKind
 			if i > 0 {
 				kind = abstract.UpdateKind
@@ -100,7 +100,7 @@ func TestSinker_Push(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		expectedVal := fmt.Sprint(batchSize*2 - 1)
+		expectedVal := fmt.Sprint(batchMaxLen*2 - 1)
 		selectQuery(t, db, `
 		--!syntax_v1
 		SELECT val FROM foo_many_upserts_test WHERE id = 1;
@@ -378,6 +378,104 @@ WHERE 1=1
 	and `+"`flow`"+` = $batch.`+"`flow`"+`
 	and `+"`list`"+` = $batch.`+"`list`"+`
 `, q)
+
+	qyeryShouldUseOriginalType := s.deleteQuery(
+		"flow_table",
+		[]abstract.ColSchema{
+			{ColumnName: "uid", DataType: string(schema.TypeInt64), OriginalType: "ydb:Int64"},
+			{ColumnName: "month", DataType: string(schema.TypeInt16), OriginalType: "ydb:Int16"},
+			{ColumnName: "version", DataType: string(schema.TypeInt8), OriginalType: "ydb:Int8"},
+			{ColumnName: "ColumnUint64", DataType: string(schema.TypeUint64), OriginalType: "ydb:Uint64"},
+			{ColumnName: "ColumnUint32", DataType: string(schema.TypeUint32), OriginalType: "ydb:Uint32"},
+			{ColumnName: "ColumnUint16", DataType: string(schema.TypeUint16), OriginalType: "ydb:Uint16"},
+			{ColumnName: "ColumnUint8", DataType: string(schema.TypeUint8), OriginalType: "ydb:Uint8"},
+			{ColumnName: "ColumnInt64", DataType: string(schema.TypeInt64), OriginalType: "ydb:Int64"},
+			{ColumnName: "ColumnInt32", DataType: string(schema.TypeInt32), OriginalType: "ydb:Int32"},
+			{ColumnName: "ColumnInt16", DataType: string(schema.TypeInt16), OriginalType: "ydb:Int16"},
+			{ColumnName: "ColumnInt8", DataType: string(schema.TypeInt8), OriginalType: "ydb:Int8"},
+			{ColumnName: "ColumnFloat64", DataType: string(schema.TypeFloat64), OriginalType: "ydb:Double"},
+			{ColumnName: "ColumnFloat32", DataType: string(schema.TypeFloat32), OriginalType: "ydb:Float"},
+			{ColumnName: "ColumnBool", DataType: string(schema.TypeBoolean), OriginalType: "ydb:Bool"},
+			{ColumnName: "Double", DataType: string(schema.TypeFloat64), OriginalType: "ydb:Double"},
+			{ColumnName: "Float", DataType: string(schema.TypeFloat32), OriginalType: "ydb:Float"},
+			{ColumnName: "Decimal", DataType: string(schema.TypeString), OriginalType: "ydb:Decimal"},
+			{ColumnName: "Date", DataType: string(schema.TypeDate), OriginalType: "ydb:Date"},
+			{ColumnName: "Datetime", DataType: string(schema.TypeDatetime), OriginalType: "ydb:Datetime"},
+			{ColumnName: "Timestamp", DataType: string(schema.TypeTimestamp), OriginalType: "ydb:Timestamp"},
+			{ColumnName: "Interval", DataType: string(schema.TypeInterval), OriginalType: "ydb:Interval"},
+			{ColumnName: "Uuid", DataType: string(schema.TypeString), OriginalType: "ydb:Uuid"},
+			{ColumnName: "Json", DataType: string(schema.TypeAny), OriginalType: "ydb:Json"},
+			{ColumnName: "JsonDocument", DataType: string(schema.TypeAny), OriginalType: "ydb:JsonDocument"},
+			{ColumnName: "Yson", DataType: string(schema.TypeAny), OriginalType: "ydb:Yson"},
+			{ColumnName: "TzDate", DataType: string(schema.TypeDate), OriginalType: "ydb:TzDate"},
+			{ColumnName: "TzDatetime", DataType: string(schema.TypeDatetime), OriginalType: "ydb:TzDatetime"},
+			{ColumnName: "TzTimestamp", DataType: string(schema.TypeTimestamp), OriginalType: "ydb:TzTimestamp"},
+		},
+	)
+
+	require.Equal(t, `--!syntax_v1
+DECLARE $batch AS Struct<
+	`+"`uid`"+`:Int64?,
+	`+"`month`"+`:Int16?,
+	`+"`version`"+`:Int8?,
+	`+"`ColumnUint64`"+`:Uint64?,
+	`+"`ColumnUint32`"+`:Uint32?,
+	`+"`ColumnUint16`"+`:Uint16?,
+	`+"`ColumnUint8`"+`:Uint8?,
+	`+"`ColumnInt64`"+`:Int64?,
+	`+"`ColumnInt32`"+`:Int32?,
+	`+"`ColumnInt16`"+`:Int16?,
+	`+"`ColumnInt8`"+`:Int8?,
+	`+"`ColumnFloat64`"+`:Double?,
+	`+"`ColumnFloat32`"+`:Float?,
+	`+"`ColumnBool`"+`:Bool?,
+	`+"`Double`"+`:Double?,
+	`+"`Float`"+`:Float?,
+	`+"`Decimal`"+`:Decimal(22,9)?,
+	`+"`Date`"+`:Date?,
+	`+"`Datetime`"+`:Datetime?,
+	`+"`Timestamp`"+`:Timestamp?,
+	`+"`Interval`"+`:Interval?,
+	`+"`Uuid`"+`:Uuid?,
+	`+"`Json`"+`:Json?,
+	`+"`JsonDocument`"+`:JsonDocument?,
+	`+"`Yson`"+`:Yson?,
+	`+"`TzDate`"+`:TzDate?,
+	`+"`TzDatetime`"+`:TzDatetime?,
+	`+"`TzTimestamp`"+`:TzTimestamp?
+>;
+DELETE FROM `+"`flow_table`"+`
+WHERE 1=1
+
+	and `+"`uid`"+` = $batch.`+"`uid`"+`
+	and `+"`month`"+` = $batch.`+"`month`"+`
+	and `+"`version`"+` = $batch.`+"`version`"+`
+	and `+"`ColumnUint64`"+` = $batch.`+"`ColumnUint64`"+`
+	and `+"`ColumnUint32`"+` = $batch.`+"`ColumnUint32`"+`
+	and `+"`ColumnUint16`"+` = $batch.`+"`ColumnUint16`"+`
+	and `+"`ColumnUint8`"+` = $batch.`+"`ColumnUint8`"+`
+	and `+"`ColumnInt64`"+` = $batch.`+"`ColumnInt64`"+`
+	and `+"`ColumnInt32`"+` = $batch.`+"`ColumnInt32`"+`
+	and `+"`ColumnInt16`"+` = $batch.`+"`ColumnInt16`"+`
+	and `+"`ColumnInt8`"+` = $batch.`+"`ColumnInt8`"+`
+	and `+"`ColumnFloat64`"+` = $batch.`+"`ColumnFloat64`"+`
+	and `+"`ColumnFloat32`"+` = $batch.`+"`ColumnFloat32`"+`
+	and `+"`ColumnBool`"+` = $batch.`+"`ColumnBool`"+`
+	and `+"`Double`"+` = $batch.`+"`Double`"+`
+	and `+"`Float`"+` = $batch.`+"`Float`"+`
+	and `+"`Decimal`"+` = $batch.`+"`Decimal`"+`
+	and `+"`Date`"+` = $batch.`+"`Date`"+`
+	and `+"`Datetime`"+` = $batch.`+"`Datetime`"+`
+	and `+"`Timestamp`"+` = $batch.`+"`Timestamp`"+`
+	and `+"`Interval`"+` = $batch.`+"`Interval`"+`
+	and `+"`Uuid`"+` = $batch.`+"`Uuid`"+`
+	and `+"`Json`"+` = $batch.`+"`Json`"+`
+	and `+"`JsonDocument`"+` = $batch.`+"`JsonDocument`"+`
+	and `+"`Yson`"+` = $batch.`+"`Yson`"+`
+	and `+"`TzDate`"+` = $batch.`+"`TzDate`"+`
+	and `+"`TzDatetime`"+` = $batch.`+"`TzDatetime`"+`
+	and `+"`TzTimestamp`"+` = $batch.`+"`TzTimestamp`"+`
+`, qyeryShouldUseOriginalType)
 }
 
 func TestIsPrimaryKey(t *testing.T) {

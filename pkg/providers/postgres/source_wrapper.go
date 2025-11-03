@@ -38,7 +38,11 @@ func (w *Worker) Run(sink abstract.AsyncSink) error {
 		}
 	}
 	err := w.run(sink)
-	w.logger.Error("Run done", log.Error(err))
+	if err == nil {
+		w.logger.Info("postgres worker - run done successfully")
+	} else {
+		w.logger.Error("postgres worker - run done (with error)", log.Error(err))
+	}
 	if err != nil {
 		if abstract.IsFatal(err) {
 			if err := w.slot.Suicide(); err != nil {

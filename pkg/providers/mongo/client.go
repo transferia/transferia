@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -12,6 +13,8 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/dbaas"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/util"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -158,6 +161,12 @@ func newClient(ctx context.Context, connOpts *options.ClientOptions) (*mongo.Cli
 	}
 
 	if err := client.Ping(ctx, nil); err != nil {
+		// Network-level classification: prefer structural checks over string matching.
+		// We treat it as DNS failure when error chain contains net.DNSError and driver classifies it as network error.
+		var dnsErr *net.DNSError
+		if mongo.IsNetworkError(err) && xerrors.As(err, &dnsErr) {
+			return nil, coded.Errorf(codes.MongoDNSResolutionFailed, "unable to ping mongo db: %w", err)
+		}
 		return nil, xerrors.Errorf("unable to ping mongo db: %w", err)
 	}
 	return client, nil
@@ -176,7 +185,7 @@ func getClusterInfo(endpoint *MongoConnectionOptions) (hosts []string, sharded b
 		return hosts, sharded, nil
 	}
 
-	// Managed MongoDB
+	// Managed MongoDB/StoreDoc
 	provider, err := dbaas.Current()
 	if err != nil {
 		return nil, false, xerrors.Errorf("unable to get dbaas provider: %w", err)
@@ -198,9 +207,9 @@ func getClusterInfo(endpoint *MongoConnectionOptions) (hosts []string, sharded b
 	gatewayType := dbaas.InstanceTypeUnspecified // one of mongod, mongos, mongoinfra
 
 	// useful connection info:
-	// https://cloud.yandex.ru/docs/managed-mongodb/concepts/sharding
+	// https://cloud.yandex.ru/docs/storedoc/concepts/sharding
 	if sharded {
-		port = 27017 // Default port for sharded MongoDB in MDB
+		port = 27017 // Default port for sharded MongoDB/Yandex StoreDoc in MDB
 		for _, host := range clusterHosts {
 			switch host.Type {
 			case dbaas.InstanceTypeMongos, dbaas.InstanceTypeMongoinfra:
@@ -214,7 +223,7 @@ func getClusterInfo(endpoint *MongoConnectionOptions) (hosts []string, sharded b
 			}
 		}
 	} else {
-		port = 27018 // Default port for MongoDB in MDB
+		port = 27018 // Default port for MongoDB/Yandex StoreDoc in MDB
 		gatewayType = dbaas.InstanceTypeMongod
 	}
 	// make hosts out of the selected type of cluster

@@ -55,6 +55,13 @@ func (s *EventHubSource) WithDefaults() {
 	}
 }
 
+func (s *EventHubSource) ServiceAccountIDs() []string {
+	if s.Transformer != nil && s.Transformer.ServiceAccountID != "" {
+		return []string{s.Transformer.ServiceAccountID}
+	}
+	return nil
+}
+
 func (s *EventHubSource) IsSource() {
 }
 

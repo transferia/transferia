@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"encoding/json"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -33,20 +34,50 @@ type Spec struct {
 	TypeSystemVersion int
 }
 
+func NewSpec(transfer *model.Transfer) *Spec {
+	return &Spec{
+		ID:   transfer.ID,
+		Src:  transfer.Src,
+		Dst:  transfer.Dst,
+		Type: transfer.Type,
+
+		Transformation: transfer.Transformation,
+		DataObjects:    transfer.DataObjects,
+		FolderID:       transfer.FolderID,
+
+		TypeSystemVersion: transfer.TypeSystemVersion,
+	}
+}
+
+func (s *Spec) Differs(another *Spec) (bool, error) {
+	this, err := json.Marshal(s)
+	if err != nil {
+		return false, xerrors.Errorf("cannot marshal spec: %w", err)
+	}
+	that, err := json.Marshal(another)
+	if err != nil {
+		return false, xerrors.Errorf("cannot marshal another spec: %w", err)
+	}
+
+	return string(this) != string(that), nil
+}
+
 const ReplicationStatusMessagesCategory string = "replication"
 
 const healthReportPeriod time.Duration = 1 * time.Minute
 const replicationRetryInterval time.Duration = 10 * time.Second
 
 func RunReplicationWithMeteringTags(ctx context.Context, cp coordinator.Coordinator, transfer *model.Transfer, registry metrics.Registry, runtimeTags map[string]interface{}) error {
-	metering.InitializeWithTags(transfer, nil, runtimeTags)
-	shared.ApplyRuntimeLimits(transfer.Runtime)
+	meteringStats := metering.NewMeteringStats(registry)
+	defer func() { meteringStats.Reset() }()
+	metering.InitializeWithTags(transfer, nil, runtimeTags, meteringStats)
+	shared.ApplyRuntimeLimits(transfer.RuntimeForReplication())
 	return runReplication(ctx, cp, transfer, registry, logger.Log)
 }
 
 func RunReplication(ctx context.Context, cp coordinator.Coordinator, transfer *model.Transfer, registry metrics.Registry) error {
 	metering.Initialize(transfer, nil)
-	shared.ApplyRuntimeLimits(transfer.Runtime)
+	shared.ApplyRuntimeLimits(transfer.RuntimeForReplication())
 	return runReplication(ctx, cp, transfer, registry, logger.Log)
 }
 
@@ -65,6 +96,7 @@ func runReplication(ctx context.Context, cp coordinator.Coordinator, transfer *m
 
 		attemptErr, attemptAgain := replicationAttempt(ctx, cp, transfer, registry, lgr, replicationStats, retryCount)
 		if !attemptAgain {
+			errors.LogFatalError(attemptErr, transfer.ID, transfer.Dst.GetProviderType(), transfer.Src.GetProviderType())
 			return xerrors.Errorf("replication failed: %w", attemptErr)
 		}
 
@@ -139,7 +171,6 @@ waitingForReplicationErr:
 		logger.Log.Error("replication failed, will restart the whole dataplane", log.Error(attemptErr))
 		return xerrors.Errorf("replication failed, dataplane must be restarted: %w", attemptErr), false
 	}
-
 	return attemptErr, true
 }
 

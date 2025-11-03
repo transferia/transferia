@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/tests/helpers"
@@ -25,7 +26,7 @@ var (
 	transferType = abstract.TransferTypeSnapshotOnly
 	source       = &yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//table_for_tests"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -54,13 +55,13 @@ func init() {
 }
 
 func TestBigTable(t *testing.T) {
-	target := s3.PrepareS3(t, t.Name(), dp_model.ParsingFormatJSON, s3.NoEncoding)
+	target := s3recipe.PrepareS3(t, t.Name(), dp_model.ParsingFormatJSON, s3.NoEncoding)
 	helpers.InitSrcDst(helpers.TransferID, source, target, transferType)
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
 	helpers.Activate(t, transfer)
 
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: source.Proxy, Token: source.YtToken})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: source.YtProxy, Token: source.YtToken})
 	require.NoError(t, err)
 
 	var rowCount int64
@@ -97,7 +98,7 @@ func TestBigTable(t *testing.T) {
 	maxVal := int64(math.MinInt64)
 	var someItem changeitem.ChangeItem
 	sinkMock := &helpers.MockSink{
-		PushCallback: func(items []changeitem.ChangeItem) {
+		PushCallback: func(items []changeitem.ChangeItem) error {
 			mu.Lock()
 			defer mu.Unlock()
 			for _, item := range items {
@@ -115,6 +116,7 @@ func TestBigTable(t *testing.T) {
 				someItem = item
 				totalCnt++
 			}
+			return nil
 		},
 	}
 	targetMock := &dp_model.MockDestination{

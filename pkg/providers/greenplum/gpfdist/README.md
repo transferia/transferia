@@ -1,3 +1,5 @@
+Architecture is presented in https://docs.yandex-team.ru/greenplum/architecture/gp-to-gp
+
 Source (Storage) UML schema:
 
 @startuml

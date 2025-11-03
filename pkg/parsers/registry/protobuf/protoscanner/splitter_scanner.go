@@ -17,7 +17,7 @@ type SplitterScanner struct {
 func NewSplitterScanner(lineSplitter abstract.LfLineSplitter, data []byte, msgDesc protoreflect.MessageDescriptor) (*SplitterScanner, error) {
 	sc, err := scanner.NewScanner(lineSplitter, data)
 	if err != nil {
-		return nil, xerrors.Errorf("construct underlying scanner error: %v", err)
+		return nil, xerrors.Errorf("construct underlying scanner error: %w", err)
 	}
 
 	return &SplitterScanner{
@@ -33,12 +33,12 @@ func (s *SplitterScanner) Scan() bool {
 func (s *SplitterScanner) Message() (protoreflect.Message, error) {
 	data, err := s.scanner.Event()
 	if err != nil {
-		return nil, xerrors.Errorf("geting protoseq item error: %v", err)
+		return nil, xerrors.Errorf("getting protoseq item error: %w", err)
 	}
 
 	protoMsg := dynamicpb.NewMessage(s.msgDesc)
 	if err := proto.Unmarshal(data, protoMsg); err != nil {
-		return nil, xerrors.Errorf("error unmarshaling protoseq item: %v", err)
+		return nil, xerrors.Errorf("error unmarshaling protoseq item: %w", err)
 	}
 
 	return protoMsg, nil

@@ -8,8 +8,10 @@ import (
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
 )
 
 type KafkaDestination struct {
@@ -45,6 +47,7 @@ type KafkaDestination struct {
 }
 
 var _ model.Destination = (*KafkaDestination)(nil)
+var _ model.WithConnectionID = (*KafkaDestination)(nil)
 
 type TopicConfigEntry struct {
 	ConfigName, ConfigValue string
@@ -63,10 +66,15 @@ func (d *KafkaDestination) MDBClusterID() string {
 	return ""
 }
 
+func (d *KafkaDestination) GetConnectionID() string {
+	return d.Connection.ConnectionID
+}
+
 func (d *KafkaDestination) WithDefaults() {
 	if d.Connection == nil {
 		d.Connection = &KafkaConnectionOptions{
 			ClusterID:    "",
+			ConnectionID: "",
 			TLS:          "",
 			TLSFile:      "",
 			Brokers:      nil,
@@ -76,7 +84,7 @@ func (d *KafkaDestination) WithDefaults() {
 	if d.Auth == nil {
 		d.Auth = &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "",
 			Password:  "",
 		}
@@ -122,7 +130,7 @@ func (d *KafkaDestination) Validate() error {
 }
 
 func (d *KafkaDestination) Compatible(src model.Source, transferType abstract.TransferType) error {
-	return sourceCompatible(src, transferType, d.FormatSettings.Name)
+	return coherence_check.SourceCompatible(src, transferType, d.FormatSettings.Name)
 }
 
 func (d *KafkaDestination) Serializer() (model.SerializationFormat, bool) {
@@ -146,4 +154,18 @@ func (d *KafkaDestination) HostsNames() ([]string, error) {
 		return nil, nil
 	}
 	return ResolveOnPremBrokers(d.Connection, d.Auth, d.DialFunc)
+}
+
+func (d *KafkaDestination) WithConnectionID() error {
+	if d.Connection == nil || d.Connection.ConnectionID == "" {
+		return nil
+	}
+	kafkaConnection, err := resolveConnection(d.Connection.ConnectionID)
+	if err != nil {
+		return xerrors.Errorf("unable to resolve connection: %w", err)
+	}
+	d.Connection = ResolveConnectionOptions(d.Connection, kafkaConnection)
+	d.Auth = ResolveKafkaAuth(d.Auth, kafkaConnection)
+
+	return nil
 }

@@ -5,7 +5,7 @@
                 "Data": {
                     "any": {
                         "GoType": "string",
-                        "Val": "\"{\\\"A2\\\": {\\\"a\\\": \\\"321\\\"}, \\\"B2\\\": {\\\"b1\\\": \\\"654\\\", \\\"b2\\\": \\\"987\\\"}}\""
+                        "Val": "{\\\"A2\\\": {\\\"a\\\": \\\"321\\\"}, \\\"B2\\\": {\\\"b1\\\": \\\"654\\\", \\\"b2\\\": \\\"987\\\"}}"
                     },
                     "boolean": {
                         "GoType": "bool",
@@ -53,7 +53,7 @@
                     },
                     "string": {
                         "GoType": "string",
-                        "Val": "\"This is a test\""
+                        "Val": "This is a test"
                     },
                     "timestamp": {
                         "GoType": "time.Time",
@@ -81,7 +81,7 @@
                 "Data": {
                     "any": {
                         "GoType": "string",
-                        "Val": "\"{\\\"A2\\\": {\\\"a\\\": \\\"321\\\"}, \\\"B2\\\": {\\\"b1\\\": \\\"654\\\", \\\"b2\\\": \\\"987\\\"}}\""
+                        "Val": "{\\\"A2\\\": {\\\"a\\\": \\\"321\\\"}, \\\"B2\\\": {\\\"b1\\\": \\\"654\\\", \\\"b2\\\": \\\"987\\\"}}"
                     },
                     "boolean": {
                         "GoType": "bool",
@@ -129,7 +129,7 @@
                     },
                     "string": {
                         "GoType": "string",
-                        "Val": "\"This is a test 2\""
+                        "Val": "This is a test 2"
                     },
                     "timestamp": {
                         "GoType": "time.Time",
@@ -157,7 +157,7 @@
                 "Data": {
                     "any": {
                         "GoType": "string",
-                        "Val": "\"[\\\"a\\\", \\\"b\\\"]\""
+                        "Val": "[\\\"a\\\", \\\"b\\\"]"
                     },
                     "boolean": {
                         "GoType": "bool",
@@ -205,7 +205,7 @@
                     },
                     "string": {
                         "GoType": "string",
-                        "Val": "\"This is a test 3\""
+                        "Val": "This is a test 3"
                     },
                     "timestamp": {
                         "GoType": "time.Time",

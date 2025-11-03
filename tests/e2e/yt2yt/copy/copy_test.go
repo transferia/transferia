@@ -25,7 +25,7 @@ var (
 	DstYT        = os.Getenv("YT_PROXY_DST")
 	Source       = yt2.YtSource{
 		Cluster: "src",
-		Proxy:   SrcYT,
+		YtProxy: SrcYT,
 		Paths: []string{
 			"//a",
 			"//nested/test/b",

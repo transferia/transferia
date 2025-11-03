@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -37,10 +38,12 @@ WHERE (TABLE_SCHEMA = ?) AND (TABLE_NAME = ?)
 `
 
 const (
-	ErrCodeDuplicateKey = 1062
-	ErrCodeSyntax       = 1064
-	ErrCodeLockTimeout  = 1205
-	ErrCodeDeadlock     = 1213
+	ErrCodeDuplicateKey      = 1062
+	ErrCodeSyntax            = 1064
+	ErrCodeLockTimeout       = 1205
+	ErrCodeDeadlock          = 1213
+	ErrCodeUnknownDatabase   = 1049
+	ErrCodeInvalidCredential = 1045
 )
 
 const maxSampleLen = 10000
@@ -186,7 +189,7 @@ func (s *sinker) prepareInputPerTables(input []abstract.ChangeItem) (map[abstrac
 			if _, err := s.db.Exec(ddlQ); err != nil {
 				s.logger.Warn("Unable to exec DDL:\n"+util.Sample(ddlQ, maxSampleLen), log.Error(err))
 				if IsErrorCode(err, ErrCodeSyntax) {
-					return nil, abstract.NewFatalError(coded.Errorf(CodeSyntax, "%w", err))
+					return nil, abstract.NewFatalError(coded.Errorf(codes.MySQLIncorrectSyntax, "%w", err))
 				}
 				return nil, xerrors.Errorf("unable to execute ddl: %w", err)
 			} else {
@@ -712,7 +715,7 @@ func (s *sinker) pushQuires(tx *sql.Tx, queries []sinkQuery) error {
 		start := time.Now()
 		if _, err := tx.Exec(q.query); err != nil {
 			if IsErrorCode(err, ErrCodeDeadlock) {
-				return coded.Errorf(CodeDeadlock, "a deadlock occurred while executing query: %w", err)
+				return coded.Errorf(codes.MySQLDeadlock, "a deadlock occurred while executing query: %w", err)
 			}
 			s.logger.Error(fmt.Sprintf("exec error, query:\n%v", util.Sample(q.query, maxSampleLen)), log.Duration("elapsed", time.Since(start)), log.Error(err))
 			if tErr := tx.Rollback(); tErr != nil {

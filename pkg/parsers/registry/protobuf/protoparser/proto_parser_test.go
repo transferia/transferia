@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/core/metrics/mock"
+	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser/gotest/prototest"
@@ -15,6 +16,7 @@ import (
 	"go.ytsaurus.tech/yt/go/schema"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var stdDataTypesFilled = &prototest.StdDataTypesMsg{
@@ -42,6 +44,21 @@ var stdDataTypesFilled = &prototest.StdDataTypesMsg{
 		StringField: "stringField",
 		Int32Field:  2,
 		EnumField:   prototest.EmbeddedEnum_ITEM_2,
+	},
+	StructField: &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"key1": {
+				Kind: &structpb.Value_StringValue{StringValue: "value1"},
+			},
+			"key2": {
+				Kind: &structpb.Value_NumberValue{NumberValue: 2.2},
+			},
+		},
+	},
+	One: &prototest.OneOfs{
+		One: &prototest.OneOfs_Int32Field{
+			Int32Field: 52,
+		},
 	},
 }
 
@@ -492,4 +509,210 @@ func TestDoRequiredNotSet(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckNotFillEmptyFields(t *testing.T) {
+	data, err := proto.Marshal(stdDataTypesFilled)
+	require.NoError(t, err)
+
+	pMsg := parsers.Message{
+		Offset:     1,
+		SeqNo:      1,
+		Key:        nil,
+		CreateTime: time.Time{},
+		WriteTime:  time.Time{},
+		Value:      data,
+		Headers:    nil,
+	}
+
+	desc := stdDataTypesFilled.ProtoReflect().Descriptor()
+	config := ProtoParserConfig{
+		ProtoMessageDesc:   desc,
+		ScannerMessageDesc: desc,
+		ProtoScannerType:   protoscanner.ScannerTypeLineSplitter,
+		LineSplitter:       abstract.LfLineSplitterDoNotSplit,
+		IncludeColumns:     fieldList(desc, true),
+	}
+
+	t.Run("not fill empty fields", func(t *testing.T) {
+		config.NotFillEmptyFields = true
+		par, err := NewProtoParser(&config, getSourceStatsMock())
+		require.NoError(t, err)
+
+		got := par.Do(pMsg, abstract.NewPartition("", 0))
+		require.Len(t, got, 1)
+		canon.SaveJSON(t, got[0].ToJSONString())
+	})
+
+	t.Run("fill empty fields", func(t *testing.T) {
+		config.NotFillEmptyFields = false
+		par, err := NewProtoParser(&config, getSourceStatsMock())
+		require.NoError(t, err)
+
+		got := par.Do(pMsg, abstract.NewPartition("", 0))
+		require.Len(t, got, 1)
+		canon.SaveJSON(t, got[0].ToJSONString())
+	})
+
+	t.Run("not fill column with nil value", func(t *testing.T) {
+		config.NotFillEmptyFields = true
+		config.IncludeColumns = fieldList(desc, false)
+		par, err := NewProtoParser(&config, getSourceStatsMock())
+		require.NoError(t, err)
+
+		data, err := proto.Marshal(stdDataTypesEmpty)
+		require.NoError(t, err)
+
+		pMsg.Value = data
+
+		got := par.Do(pMsg, abstract.NewPartition("", 0))
+		require.Len(t, got, 1)
+		canon.SaveJSON(t, got[0].ToJSONString())
+	})
+}
+
+func TestPrepareFieldDescriptors(t *testing.T) {
+	desc := stdDataTypesFilled.ProtoReflect().Descriptor()
+
+	t.Run("success case with only included fields", func(t *testing.T) {
+		schemas := []abstract.ColSchema{
+			abstract.MakeTypedColSchema("doubleField", string(schema.TypeFloat64), false),
+			abstract.MakeTypedColSchema("stringField", string(schema.TypeString), false),
+			abstract.MakeTypedColSchema("int32Field", string(schema.TypeInt32), false),
+		}
+		includedFieldsEndIdx := 3
+		lbExtraFieldsEndIdx := 3
+
+		includedSchemas, lbExtraSchemas, err := prepareFieldDescriptors(desc, schemas, includedFieldsEndIdx, lbExtraFieldsEndIdx)
+
+		require.NoError(t, err)
+		require.Len(t, includedSchemas, 3)
+		require.Len(t, lbExtraSchemas, 0)
+
+		// check that field descriptors are correctly matched
+		require.Equal(t, "doubleField", includedSchemas[0].schema.ColumnName)
+		require.Equal(t, "doubleField", includedSchemas[0].fd.TextName())
+		require.Equal(t, protoreflect.DoubleKind, includedSchemas[0].fd.Kind())
+
+		require.Equal(t, "stringField", includedSchemas[1].schema.ColumnName)
+		require.Equal(t, "stringField", includedSchemas[1].fd.TextName())
+		require.Equal(t, protoreflect.StringKind, includedSchemas[1].fd.Kind())
+
+		require.Equal(t, "int32Field", includedSchemas[2].schema.ColumnName)
+		require.Equal(t, "int32Field", includedSchemas[2].fd.TextName())
+		require.Equal(t, protoreflect.Int32Kind, includedSchemas[2].fd.Kind())
+	})
+
+	t.Run("success case with included and lbExtra fields", func(t *testing.T) {
+		schemas := []abstract.ColSchema{
+			abstract.MakeTypedColSchema("doubleField", string(schema.TypeFloat64), false),
+			abstract.MakeTypedColSchema("stringField", string(schema.TypeString), false),
+			abstract.MakeTypedColSchema(parsers.SystemLbExtraColPrefix+"floatField", string(schema.TypeFloat32), false),
+			abstract.MakeTypedColSchema(parsers.SystemLbExtraColPrefix+"boolField", string(schema.TypeBoolean), false),
+		}
+		includedFieldsEndIdx := 2
+		lbExtraFieldsEndIdx := 4
+
+		includedSchemas, lbExtraSchemas, err := prepareFieldDescriptors(desc, schemas, includedFieldsEndIdx, lbExtraFieldsEndIdx)
+
+		require.NoError(t, err)
+		require.Len(t, includedSchemas, 2)
+		require.Len(t, lbExtraSchemas, 2)
+
+		// check included fields
+		require.Equal(t, "doubleField", includedSchemas[0].schema.ColumnName)
+		require.Equal(t, "doubleField", includedSchemas[0].fd.TextName())
+
+		require.Equal(t, "stringField", includedSchemas[1].schema.ColumnName)
+		require.Equal(t, "stringField", includedSchemas[1].fd.TextName())
+
+		// check lbExtra fields
+		require.Equal(t, parsers.SystemLbExtraColPrefix+"floatField", lbExtraSchemas[0].schema.ColumnName)
+		require.Equal(t, "floatField", lbExtraSchemas[0].fd.TextName())
+		require.Equal(t, protoreflect.FloatKind, lbExtraSchemas[0].fd.Kind())
+
+		require.Equal(t, parsers.SystemLbExtraColPrefix+"boolField", lbExtraSchemas[1].schema.ColumnName)
+		require.Equal(t, "boolField", lbExtraSchemas[1].fd.TextName())
+		require.Equal(t, protoreflect.BoolKind, lbExtraSchemas[1].fd.Kind())
+	})
+
+	t.Run("empty schemas", func(t *testing.T) {
+		schemas := []abstract.ColSchema{}
+		includedFieldsEndIdx := 0
+		lbExtraFieldsEndIdx := 0
+
+		includedSchemas, lbExtraSchemas, err := prepareFieldDescriptors(desc, schemas, includedFieldsEndIdx, lbExtraFieldsEndIdx)
+
+		require.NoError(t, err)
+		require.Len(t, includedSchemas, 0)
+		require.Len(t, lbExtraSchemas, 0)
+	})
+
+	t.Run("error - field descriptor not found for included field", func(t *testing.T) {
+		schemas := []abstract.ColSchema{
+			abstract.MakeTypedColSchema("nonExistentField", string(schema.TypeString), false),
+		}
+		includedFieldsEndIdx := 1
+		lbExtraFieldsEndIdx := 1
+
+		includedSchemas, lbExtraSchemas, err := prepareFieldDescriptors(desc, schemas, includedFieldsEndIdx, lbExtraFieldsEndIdx)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "can't find field descriptor for 'nonExistentField'")
+		require.Nil(t, includedSchemas)
+		require.Nil(t, lbExtraSchemas)
+	})
+
+	t.Run("error - lbExtra field without prefix", func(t *testing.T) {
+		schemas := []abstract.ColSchema{
+			abstract.MakeTypedColSchema("doubleField", string(schema.TypeFloat64), false),
+			abstract.MakeTypedColSchema("invalidExtraField", string(schema.TypeString), false),
+		}
+		includedFieldsEndIdx := 1
+		lbExtraFieldsEndIdx := 2
+
+		includedSchemas, lbExtraSchemas, err := prepareFieldDescriptors(desc, schemas, includedFieldsEndIdx, lbExtraFieldsEndIdx)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "extra column field 'invalidExtraField' has no '_lb_extra_' prefix")
+		require.Nil(t, includedSchemas)
+		require.Nil(t, lbExtraSchemas)
+	})
+
+	t.Run("error - field descriptor not found for lbExtra field", func(t *testing.T) {
+		schemas := []abstract.ColSchema{
+			abstract.MakeTypedColSchema("doubleField", string(schema.TypeFloat64), false),
+			abstract.MakeTypedColSchema(parsers.SystemLbExtraColPrefix+"nonExistentField", string(schema.TypeString), false),
+		}
+		includedFieldsEndIdx := 1
+		lbExtraFieldsEndIdx := 2
+
+		includedSchemas, lbExtraSchemas, err := prepareFieldDescriptors(desc, schemas, includedFieldsEndIdx, lbExtraFieldsEndIdx)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "can't find field descriptor for 'nonExistentField'")
+		require.Nil(t, includedSchemas)
+		require.Nil(t, lbExtraSchemas)
+	})
+
+	t.Run("edge case - only lbExtra fields", func(t *testing.T) {
+		schemas := []abstract.ColSchema{
+			abstract.MakeTypedColSchema(parsers.SystemLbExtraColPrefix+"floatField", string(schema.TypeFloat32), false),
+			abstract.MakeTypedColSchema(parsers.SystemLbExtraColPrefix+"boolField", string(schema.TypeBoolean), false),
+		}
+		includedFieldsEndIdx := 0
+		lbExtraFieldsEndIdx := 2
+
+		includedSchemas, lbExtraSchemas, err := prepareFieldDescriptors(desc, schemas, includedFieldsEndIdx, lbExtraFieldsEndIdx)
+
+		require.NoError(t, err)
+		require.Len(t, includedSchemas, 0)
+		require.Len(t, lbExtraSchemas, 2)
+
+		require.Equal(t, parsers.SystemLbExtraColPrefix+"floatField", lbExtraSchemas[0].schema.ColumnName)
+		require.Equal(t, "floatField", lbExtraSchemas[0].fd.TextName())
+
+		require.Equal(t, parsers.SystemLbExtraColPrefix+"boolField", lbExtraSchemas[1].schema.ColumnName)
+		require.Equal(t, "boolField", lbExtraSchemas[1].fd.TextName())
+	})
 }

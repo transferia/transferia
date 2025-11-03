@@ -13,6 +13,7 @@ type metricsVector struct {
 	mtx          sync.RWMutex // Protects metrics.
 	metrics      map[uint64]Metric
 	rated        bool
+	memOnly      bool
 	newMetric    func(map[string]string) Metric
 	removeMetric func(m Metric)
 }
@@ -36,6 +37,9 @@ func (v *metricsVector) with(tags map[string]string) Metric {
 	metric, ok = v.metrics[hv]
 	if !ok {
 		metric = v.newMetric(tags)
+		if v.memOnly {
+			MemOnly(metric)
+		}
 		v.metrics[hv] = metric
 	}
 
@@ -75,7 +79,7 @@ func (r *Registry) CounterVec(name string, labels []string) metrics.CounterVec {
 				Counter(name).(*Counter)
 		},
 		removeMetric: func(m Metric) {
-			r.WithTags(m.getLabels()).(*Registry).unregisterMetric(m)
+			r.WithTags(m.Labels()).(*Registry).unregisterMetric(m)
 		},
 	}
 	return &CounterVec{vec: vec}
@@ -90,6 +94,10 @@ func (v *CounterVec) With(tags map[string]string) metrics.Counter {
 // Reset deletes all metrics in this vector.
 func (v *CounterVec) Reset() {
 	v.vec.reset()
+}
+
+func (v *CounterVec) setMemOnly() {
+	v.vec.memOnly = true
 }
 
 var _ metrics.GaugeVec = (*GaugeVec)(nil)
@@ -111,7 +119,7 @@ func (r *Registry) GaugeVec(name string, labels []string) metrics.GaugeVec {
 				return r.WithTags(tags).Gauge(name).(*Gauge)
 			},
 			removeMetric: func(m Metric) {
-				r.WithTags(m.getLabels()).(*Registry).unregisterMetric(m)
+				r.WithTags(m.Labels()).(*Registry).unregisterMetric(m)
 			},
 		},
 	}
@@ -126,6 +134,10 @@ func (v *GaugeVec) With(tags map[string]string) metrics.Gauge {
 // Reset deletes all metrics in this vector.
 func (v *GaugeVec) Reset() {
 	v.vec.reset()
+}
+
+func (v *GaugeVec) setMemOnly() {
+	v.vec.memOnly = true
 }
 
 var _ metrics.IntGaugeVec = (*IntGaugeVec)(nil)
@@ -147,7 +159,7 @@ func (r *Registry) IntGaugeVec(name string, labels []string) metrics.IntGaugeVec
 				return r.WithTags(tags).IntGauge(name).(*IntGauge)
 			},
 			removeMetric: func(m Metric) {
-				r.WithTags(m.getLabels()).(*Registry).unregisterMetric(m)
+				r.WithTags(m.Labels()).(*Registry).unregisterMetric(m)
 			},
 		},
 	}
@@ -162,6 +174,10 @@ func (v *IntGaugeVec) With(tags map[string]string) metrics.IntGauge {
 // Reset deletes all metrics in this vector.
 func (v *IntGaugeVec) Reset() {
 	v.vec.reset()
+}
+
+func (v *IntGaugeVec) setMemOnly() {
+	v.vec.memOnly = true
 }
 
 var _ metrics.TimerVec = (*TimerVec)(nil)
@@ -183,7 +199,7 @@ func (r *Registry) TimerVec(name string, labels []string) metrics.TimerVec {
 				return r.WithTags(tags).Timer(name).(*Timer)
 			},
 			removeMetric: func(m Metric) {
-				r.WithTags(m.getLabels()).(*Registry).unregisterMetric(m)
+				r.WithTags(m.Labels()).(*Registry).unregisterMetric(m)
 			},
 		},
 	}
@@ -198,6 +214,10 @@ func (v *TimerVec) With(tags map[string]string) metrics.Timer {
 // Reset deletes all metrics in this vector.
 func (v *TimerVec) Reset() {
 	v.vec.reset()
+}
+
+func (v *TimerVec) setMemOnly() {
+	v.vec.memOnly = true
 }
 
 var _ metrics.HistogramVec = (*HistogramVec)(nil)
@@ -222,7 +242,7 @@ func (r *Registry) HistogramVec(name string, buckets metrics.Buckets, labels []s
 				Histogram(name, buckets).(*Histogram)
 		},
 		removeMetric: func(m Metric) {
-			r.WithTags(m.getLabels()).(*Registry).unregisterMetric(m)
+			r.WithTags(m.Labels()).(*Registry).unregisterMetric(m)
 		},
 	}
 	return &HistogramVec{vec: vec}
@@ -237,6 +257,10 @@ func (v *HistogramVec) With(tags map[string]string) metrics.Histogram {
 // Reset deletes all metrics in this vector.
 func (v *HistogramVec) Reset() {
 	v.vec.reset()
+}
+
+func (v *HistogramVec) setMemOnly() {
+	v.vec.memOnly = true
 }
 
 var _ metrics.TimerVec = (*DurationHistogramVec)(nil)
@@ -261,7 +285,7 @@ func (r *Registry) DurationHistogramVec(name string, buckets metrics.DurationBuc
 				DurationHistogram(name, buckets).(*Histogram)
 		},
 		removeMetric: func(m Metric) {
-			r.WithTags(m.getLabels()).(*Registry).unregisterMetric(m)
+			r.WithTags(m.Labels()).(*Registry).unregisterMetric(m)
 		},
 	}
 	return &DurationHistogramVec{vec: vec}
@@ -276,4 +300,8 @@ func (v *DurationHistogramVec) With(tags map[string]string) metrics.Timer {
 // Reset deletes all metrics in this vector.
 func (v *DurationHistogramVec) Reset() {
 	v.vec.reset()
+}
+
+func (v *DurationHistogramVec) setMemOnly() {
+	v.vec.memOnly = true
 }

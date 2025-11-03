@@ -29,6 +29,13 @@ func (t *Timer) RecordDuration(value time.Duration) {
 	t.value.Store(value)
 }
 
+func (t *Timer) getID() string {
+	if t.timestamp != nil {
+		return t.name + "(" + t.timestamp.Format(time.RFC3339) + ")"
+	}
+	return t.name
+}
+
 func (t *Timer) Name() string {
 	return t.name
 }
@@ -37,11 +44,11 @@ func (t *Timer) getType() metricType {
 	return t.metricType
 }
 
-func (t *Timer) getLabels() map[string]string {
+func (t *Timer) Labels() map[string]string {
 	return t.tags
 }
 
-func (t *Timer) getValue() interface{} {
+func (t *Timer) Value() interface{} {
 	return t.value.Load().Seconds()
 }
 
@@ -78,7 +85,7 @@ func (t *Timer) MarshalJSON() ([]byte, error) {
 		Value: t.value.Load().Seconds(),
 		Labels: func() map[string]string {
 			labels := make(map[string]string, len(t.tags)+1)
-			labels[t.getNameTag()] = t.Name()
+			labels[t.getNameTag()] = t.name
 			for k, v := range t.tags {
 				labels[k] = v
 			}

@@ -10,6 +10,8 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -35,6 +37,9 @@ func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 	ctx context.Context, mode externalTableMode, table abstract.TableID,
 	schema *abstract.TableSchema, locations []string,
 ) (int64, error) {
+	if len(locations) == 0 {
+		return 0, xerrors.New("locations is empty")
+	}
 	serviceSchema := d.serviceSchema
 	if serviceSchema == "" {
 		serviceSchema = table.Namespace
@@ -67,6 +72,7 @@ func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 		}
 	})
 
+	logger.Log.Info("Creating external table", log.String("sql", createExtTableQuery))
 	if _, err := tx.Exec(ctx, createExtTableQuery); err != nil {
 		msg := "Unable to create external table"
 		logger.Log.Error(msg, log.Error(err), log.String("sql", createExtTableQuery))
@@ -85,6 +91,15 @@ func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 	if err != nil {
 		msg := fmt.Sprintf("Unable to select and insert with external %s table", string(mode))
 		logger.Log.Error(msg, log.Error(err), log.String("sql", selectAndInsertQuery))
+		lower := strings.ToLower(err.Error())
+		if util.ContainsAnySubstrings(
+			lower,
+			"external table has more urls than available primary segments",
+			"more urls than segments",
+			"more urls than available primary segments",
+		) {
+			return 0, coded.Errorf(codes.GreenplumExternalUrlsExceedSegments, "%s: %w", msg, err)
+		}
 		return 0, xerrors.Errorf("%s: %w", msg, err)
 	}
 	if err := tx.Commit(ctx); err != nil {

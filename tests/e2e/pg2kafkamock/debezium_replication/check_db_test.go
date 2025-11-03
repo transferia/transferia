@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
@@ -21,6 +20,7 @@ import (
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	"github.com/transferia/transferia/tests/helpers"
+	"go.uber.org/mock/gomock"
 )
 
 var (
@@ -30,7 +30,6 @@ var (
 		Password: model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("PG_LOCAL_DATABASE"),
 		Port:     helpers.GetIntFromEnv("PG_LOCAL_PORT"),
-		SlotID:   "testslot",
 	}
 )
 
@@ -331,7 +330,8 @@ func TestReplication(t *testing.T) {
 	require.NoError(t, err)
 
 	target := model.MockDestination{SinkerFactory: func() abstract.Sinker { return sink }}
-	transfer := helpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeIncrementOnly)
+	helpers.InitSrcDst(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

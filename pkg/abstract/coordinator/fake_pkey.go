@@ -6,12 +6,8 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/terryid"
-)
-
-var (
-	NoPKey = coded.Register("generic", "no_primary_key")
 )
 
 func ReportFakePKey(cp Coordinator, transferID string, category string, fakePkeyTables []abstract.TableID) error {
@@ -28,7 +24,7 @@ func ReportFakePKey(cp Coordinator, transferID string, category string, fakePkey
 		Heading:    "Some tables do not have PRIMARY KEYs",
 		Message:    fmt.Sprintf("Some tables being transferred do not have PRIMARY KEYs. For these tables, PRIMARY KEY is assumed to consist of all fields of the table. This may negatively affect the throughput of the Transfer. Tables without PRIMARY KEYs: %s", strings.Join(tableFQTNsAsStrings(fakePkeyTables), ", ")),
 		Categories: []string{},
-		Code:       NoPKey,
+		Code:       codes.GenericNoPKey,
 	}); err != nil {
 		return xerrors.Errorf("unable to add warning: %w", err)
 	}

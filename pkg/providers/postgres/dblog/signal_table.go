@@ -11,7 +11,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/dblog"
-	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -111,20 +110,7 @@ func (s *signalTable) CreateWatermark(
 	lowBoundArr []string,
 ) (uuid.UUID, error) {
 	var newUUID uuid.UUID
-	err := s.tx(ctx, func(conn pgx.Tx) error {
-		tx, err := s.conn.Begin(ctx)
-		if err != nil {
-			return xerrors.Errorf("unable to begin transaction: %w", err)
-		}
-
-		rollback := util.Rollbacks{}
-		defer rollback.Do()
-		rollback.Add(func() {
-			if err := tx.Rollback(ctx); err != nil {
-				s.logger.Info("Unable to rollback", log.Error(err))
-			}
-		})
-
+	err := s.tx(ctx, func(tx pgx.Tx) error {
 		newUUID = uuid.New()
 
 		lowBoundStr, err := dblog.ConvertArrayToString(lowBoundArr)
@@ -157,11 +143,6 @@ func (s *signalTable) CreateWatermark(
 			return xerrors.Errorf("failed to create watermark for %s: %w", tableID.Fqtn(), err)
 		}
 
-		if err := tx.Commit(ctx); err != nil {
-			return xerrors.Errorf("unable to commit transaction: %w", err)
-		}
-
-		rollback.Cancel()
 		return nil
 	})
 

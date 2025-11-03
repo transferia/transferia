@@ -116,11 +116,13 @@ func TestSnapshotOnlyWorksWithStaticTables(t *testing.T) {
 	}()
 
 	defer fixture.teardown()
-	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetStaticTable()
-	fixture.transfer.Type = abstract.TransferTypeSnapshotOnly
+	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.Static = true
+	transferType := abstract.TransferTypeSnapshotOnly
+	fixture.transfer.Type = transferType
+	helpers.InitSrcDst(helpers.GenerateTransferID("TestSnapshotOnlyWorksWithStaticTables"), fixture.transfer.Src, fixture.transfer.Dst, transferType)
 
-	err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
+	_ = helpers.Activate(t, &fixture.transfer)
+
 	require.EqualValues(t, expectedTableContent, fixture.readAll())
 }
 
@@ -136,19 +138,14 @@ func TestSnapshotOnlyFailsWithSortedTables(t *testing.T) {
 		))
 	}()
 
+	transferType := abstract.TransferTypeSnapshotOnly
+
+	transferID := helpers.GenerateTransferID("TestSnapshotOnlyFailsWithSortedTables")
+	fixture.transfer.Type = transferType
+	helpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
 	defer fixture.teardown()
-	fixture.transfer.Type = abstract.TransferTypeSnapshotOnly
 
-	err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())
-	require.Error(t, err)
-	require.Contains(t, strings.ToLower(err.Error()), "no key columns found")
-
-	err = postgres.CreateReplicationSlot(fixture.transfer.Src.(*postgres.PgSource))
-	require.NoError(t, err)
-	defer func() { _ = postgres.DropReplicationSlot(fixture.transfer.Src.(*postgres.PgSource)) }()
-
-	wrk := local.NewLocalWorker(coordinator.NewStatefulFakeClient(), &fixture.transfer, helpers.EmptyRegistry(), logger.Log)
-	err = wrk.Run()
+	_, err = helpers.ActivateErr(&fixture.transfer)
 	require.Error(t, err)
 	require.Contains(t, strings.ToLower(err.Error()), "no key columns found")
 }
@@ -166,8 +163,10 @@ func TestIncrementFails(t *testing.T) {
 			))
 		}()
 
-		defer fixture.teardown()
+		transferID := helpers.GenerateTransferID("TestIncrementFails")
 		fixture.transfer.Type = transferType
+		helpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
+		defer fixture.teardown()
 
 		err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())
 		require.Error(t, err)

@@ -30,13 +30,14 @@ func TestExcludeTablesWithEmptyWhitelist(t *testing.T) {
 	}
 	helpers.InitSrcDst(helpers.TransferID, source, target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	var changes []abstract.ChangeItem
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, item := range input {
 			if item.Kind == abstract.InsertKind {
 				fmt.Printf("changeItem dump:%s\n", item.ToJSONString())
 				changes = append(changes, item)
 			}
 		}
+		return nil
 	}
 
 	defer func() {

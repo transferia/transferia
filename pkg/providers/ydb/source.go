@@ -118,8 +118,11 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[[]batchWithSize]) err
 		// send into sink
 		s.metrics.Size.Add(int64(bufSize))
 		s.metrics.Count.Add(int64(messagesCount))
-		s.logger.Info(fmt.Sprintf("begin to process batch: %v items with %v", messagesCount, format.SizeInt(int(bufSize))),
-			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))))
+		s.logger.Info(fmt.Sprintf("begin to process batch: %v items with %v",
+			messagesCount,
+			format.SizeInt(int(bufSize))),
+			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))),
+		)
 
 		if err := parseQ.Add(buffer); err != nil {
 			return xerrors.Errorf("unable to add buffer to parse queue: %w", err)
@@ -181,8 +184,10 @@ func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {
 	defer s.memThrottler.ReduceInflight(batchesSize(buffer))
 
 	if err != nil {
-		s.logger.Error("failed to push change items", log.Error(err),
-			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))))
+		s.logger.Error("failed to push change items",
+			log.Error(err),
+			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))),
+		)
 		util.Send(s.ctx, s.errCh, xerrors.Errorf("failed to push change items: %w", err))
 		return
 	}

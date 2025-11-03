@@ -108,7 +108,7 @@ func TestUnparsed(t *testing.T) {
 	t.Run("confluentschemaregistry", func(t *testing.T) {
 		schemaRegistryMock := confluentsrmock.NewConfluentSRMock(nil, nil)
 		defer schemaRegistryMock.Close()
-		parser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, logger.Log)
+		parser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
 		checkEx(t, parser, parsers.Message{Value: []byte("{]")})
 	})
 	t.Run("debezium", func(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
@@ -38,10 +38,10 @@ var dst = model.ChDestination{
 
 func TestNativeS3(t *testing.T) {
 	testCasePath := "thousands_of_csv_files"
-	src := s3.PrepareCfg(t, "data4", "")
+	src := s3recipe.PrepareCfg(t, "data4", "")
 	src.PathPrefix = testCasePath
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
-		s3.UploadOne(t, src, "thousands_of_csv_files/data0.csv")
+		s3recipe.UploadOne(t, src, "thousands_of_csv_files/data0.csv")
 		//s3.PrepareTestCase(t, src, src.PathPrefix)
 	}
 
@@ -61,7 +61,7 @@ func TestNativeS3(t *testing.T) {
 	helpers.Activate(t, transfer)
 
 	for i := 1; i < 1240; i++ {
-		s3.UploadOne(t, src, fmt.Sprintf("thousands_of_csv_files/data%d.csv", i))
+		s3recipe.UploadOne(t, src, fmt.Sprintf("thousands_of_csv_files/data%d.csv", i))
 	}
 
 	err := helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 500*time.Second, 426216)

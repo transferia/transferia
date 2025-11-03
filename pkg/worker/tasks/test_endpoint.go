@@ -123,7 +123,7 @@ func SniffSnapshotData(ctx context.Context, tr *abstract.TestResult, transfer *m
 
 	sourceStorage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), metrics)
 	if err != nil {
-		return tr.NotOk(ConfigCheckType, errors.CategorizedErrorf(categories.Source, ResolveStorageErrorText, err))
+		return tr.NotOk(ConfigCheckType, errors.CategorizedErrorf(categories.Source, resolveStorageErrorText, err))
 	}
 	tr.Ok(ConfigCheckType)
 	tr.Preview = map[abstract.TableID][]abstract.ChangeItem{}

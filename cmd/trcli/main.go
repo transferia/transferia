@@ -70,7 +70,7 @@ func main() {
 				return nil
 			}
 			if runProfiler {
-				go serverutil.RunPprof()
+				go serverutil.RunPprof(8080)
 			}
 
 			go func() {

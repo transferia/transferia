@@ -64,7 +64,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 	result := make(map[string]interface{})
 
 	index := 0
-	sink.PushCallback = func(input []abstract.ChangeItem) {
+	sink.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, currChangeItem := range input {
 			if currChangeItem.Kind == abstract.InsertKind || currChangeItem.Kind == abstract.UpdateKind || currChangeItem.Kind == abstract.DeleteKind {
 				index++
@@ -84,6 +84,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 				result[fmt.Sprintf("%v-%v", currMode, index)] = currChangeItem
 			}
 		}
+		return nil
 	}
 
 	// init source table
@@ -133,7 +134,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 	// wait when all events goes thought sink
 
 	for {
-		if index == 5 {
+		if len(result) == 5 {
 			break
 		}
 		time.Sleep(time.Second)

@@ -23,29 +23,8 @@ func AddTransformer(transformerName string, transformer SinkOption) error {
 	return nil
 }
 
-func GetTransformers(middlewareNames []string) ([]SinkOption, error) {
-	transformersLock.Lock()
-	defer transformersLock.Unlock()
-
-	result := make([]SinkOption, 0)
-	for _, currTransformerName := range middlewareNames {
-		if transformer, ok := transformers[currTransformerName]; ok {
-			result = append(result, transformer)
-		} else {
-			return nil, xerrors.Errorf("unknown transformer name: %s", currTransformerName)
-		}
-	}
-	return result, nil
-}
-
 type TransformationRuntimeOpts struct {
 	JobIndex int
-}
-
-type Transformation interface {
-	MakeSinkMiddleware() SinkOption
-	AddTransformer(transformer Transformer) error
-	RuntimeOpts() TransformationRuntimeOpts
 }
 
 type TransformerType string

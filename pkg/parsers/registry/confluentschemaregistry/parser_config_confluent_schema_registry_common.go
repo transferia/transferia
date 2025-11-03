@@ -6,12 +6,14 @@ type ParserConfigConfluentSchemaRegistryCommon struct {
 	Username          string
 	Password          string
 	TLSFile           string
+
+	IsGenerateUpdates bool
 }
 
 func (c *ParserConfigConfluentSchemaRegistryCommon) IsNewParserConfig() {}
 
 func (c *ParserConfigConfluentSchemaRegistryCommon) IsAppendOnly() bool {
-	return true
+	return !c.IsGenerateUpdates
 }
 
 func (c *ParserConfigConfluentSchemaRegistryCommon) Validate() error {

@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	reader_factory "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -20,12 +21,14 @@ import (
 var _ abstract.Storage = (*Storage)(nil)
 
 type Storage struct {
-	cfg         *s3.S3Source
-	client      s3iface.S3API
-	logger      log.Logger
-	tableSchema *abstract.TableSchema
-	reader      reader.Reader
-	registry    metrics.Registry
+	cfg           *s3.S3Source
+	transferID    string
+	isIncremental bool
+	client        s3iface.S3API
+	logger        log.Logger
+	tableSchema   *abstract.TableSchema
+	reader        reader.Reader
+	registry      metrics.Registry
 }
 
 func (s *Storage) Close() {
@@ -107,9 +110,11 @@ func (s *Storage) readFiles(ctx context.Context, part abstract.TableDescription,
 		return xerrors.Errorf("expected []string value, got '%s' in filter '%s'", term.Value.Type(), part.Filter)
 	}
 	for _, filePath := range term.Value.AsStringList() {
+		s.logger.Infof("Start loading file %s", filePath)
 		if err := s.reader.Read(ctx, filePath, syncPusher); err != nil {
 			return xerrors.Errorf("unable to read file %s: %w", filePath, err)
 		}
+		s.logger.Infof("Done loading file %s", filePath)
 	}
 	return nil
 }
@@ -172,13 +177,12 @@ func (s *Storage) TableExists(table abstract.TableID) (bool, error) {
 	return table == *abstract.NewTableID(s.cfg.TableNamespace, s.cfg.TableName), nil
 }
 
-func New(src *s3.S3Source, lgr log.Logger, registry metrics.Registry) (*Storage, error) {
+func New(src *s3.S3Source, transferID string, isIncremental bool, lgr log.Logger, registry metrics.Registry) (*Storage, error) {
 	sess, err := s3.NewAWSSession(lgr, src.Bucket, src.ConnectionConfig)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create aws session: %w", err)
 	}
-
-	currReader, err := reader.New(src, lgr, sess, stats.NewSourceStats(registry))
+	currReader, err := reader_factory.NewReader(src, lgr, sess, stats.NewSourceStats(registry))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader: %w", err)
 	}
@@ -186,13 +190,14 @@ func New(src *s3.S3Source, lgr log.Logger, registry metrics.Registry) (*Storage,
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve schema: %w", err)
 	}
-
 	return &Storage{
-		cfg:         src,
-		client:      aws_s3.New(sess),
-		logger:      lgr,
-		tableSchema: tableSchema,
-		reader:      currReader,
-		registry:    registry,
+		cfg:           src,
+		transferID:    transferID,
+		isIncremental: isIncremental,
+		client:        aws_s3.New(sess),
+		logger:        lgr,
+		tableSchema:   tableSchema,
+		reader:        currReader,
+		registry:      registry,
 	}, nil
 }

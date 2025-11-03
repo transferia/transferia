@@ -98,6 +98,13 @@ func (h *Histogram) Reset() {
 	h.infValue.Store(0)
 }
 
+func (h *Histogram) getID() string {
+	if h.timestamp != nil {
+		return h.name + "(" + h.timestamp.Format(time.RFC3339) + ")"
+	}
+	return h.name
+}
+
 func (h *Histogram) Name() string {
 	return h.name
 }
@@ -106,11 +113,11 @@ func (h *Histogram) getType() metricType {
 	return h.metricType
 }
 
-func (h *Histogram) getLabels() map[string]string {
+func (h *Histogram) Labels() map[string]string {
 	return h.tags
 }
 
-func (h *Histogram) getValue() interface{} {
+func (h *Histogram) Value() interface{} {
 	return histogram{
 		Bounds:  h.bucketBounds,
 		Buckets: h.bucketValues,
@@ -159,7 +166,7 @@ func (h *Histogram) MarshalJSON() ([]byte, error) {
 		},
 		Labels: func() map[string]string {
 			labels := make(map[string]string, len(h.tags)+1)
-			labels[h.getNameTag()] = h.Name()
+			labels[h.getNameTag()] = h.name
 			for k, v := range h.tags {
 				labels[k] = v
 			}

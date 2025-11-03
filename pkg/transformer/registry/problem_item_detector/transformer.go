@@ -31,7 +31,7 @@ func (b problemItemDetector) Apply(input []abstract.ChangeItem) abstract.Transfo
 }
 
 func (b problemItemDetector) Suitable(table abstract.TableID, schema *abstract.TableSchema) bool {
-	return false
+	return true
 }
 
 func (b problemItemDetector) ResultSchema(original *abstract.TableSchema) (*abstract.TableSchema, error) {

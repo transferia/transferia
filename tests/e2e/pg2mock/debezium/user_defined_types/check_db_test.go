@@ -67,7 +67,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	myMap := make(map[string][]abstract.ChangeItem)
 	index := 0
 	myMutex := sync.Mutex{}
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		myMutex.Lock()
 		defer myMutex.Unlock()
 		for _, el := range input {
@@ -78,6 +78,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 			myMap[el.Table] = append(myMap[el.Table], el)
 			index++
 		}
+		return nil
 	}
 
 	worker := helpers.Activate(t, transfer)

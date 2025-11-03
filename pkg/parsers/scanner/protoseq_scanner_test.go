@@ -72,10 +72,11 @@ func TestProtoseqScanErrScan(t *testing.T) {
 	enc.WriteData([]byte("12"))
 
 	scanner := NewProtoseqScanner(enc.Result())
-	require.False(t, scanner.Scan())
+	require.True(t, scanner.Scan())
 	_, err := scanner.Event()
 	require.Error(t, err)
 	require.Error(t, scanner.Err())
+	require.False(t, scanner.Scan())
 
 	// not full
 	enc = newprotoseqEncoder(t)
@@ -83,10 +84,11 @@ func TestProtoseqScanErrScan(t *testing.T) {
 	enc.WriteData([]byte("12"))
 
 	scanner = NewProtoseqScanner(enc.Result())
-	require.False(t, scanner.Scan())
+	require.True(t, scanner.Scan())
 	_, err = scanner.Event()
 	require.Error(t, err)
 	require.Error(t, scanner.Err())
+	require.False(t, scanner.Scan())
 
 	// not full sync
 	enc = newprotoseqEncoder(t)
@@ -96,10 +98,11 @@ func TestProtoseqScanErrScan(t *testing.T) {
 	enc.WriteData(enc.sync[:30])
 
 	scanner = NewProtoseqScanner(enc.Result())
-	require.False(t, scanner.Scan())
+	require.True(t, scanner.Scan())
 	_, err = scanner.Event()
 	require.Error(t, err)
 	require.Error(t, scanner.Err())
+	require.False(t, scanner.Scan())
 
 	// no sync
 	enc = newprotoseqEncoder(t)
@@ -108,11 +111,11 @@ func TestProtoseqScanErrScan(t *testing.T) {
 	enc.WriteData(data)
 
 	scanner = NewProtoseqScanner(enc.Result())
-	require.False(t, scanner.Scan())
+	require.True(t, scanner.Scan())
 	_, err = scanner.Event()
 	require.Error(t, err)
 	require.Error(t, scanner.Err())
-
+	require.False(t, scanner.Scan())
 }
 
 func TestProtoseqScanEventCorrupted(t *testing.T) {

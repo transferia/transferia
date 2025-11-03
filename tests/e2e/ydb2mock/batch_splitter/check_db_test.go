@@ -58,13 +58,14 @@ func TestGroup(t *testing.T) {
 
 	mutex := sync.Mutex{}
 	var changeItemsCount int
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		mutex.Lock()
 		defer mutex.Unlock()
 		require.Equal(t, maxBatchSize, len(input))
 		if input[0].Kind == abstract.InsertKind {
 			changeItemsCount += 1
 		}
+		return nil
 	}
 
 	// create transfer with batch-splitter transformer

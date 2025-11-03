@@ -8,6 +8,8 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
+var _ Snapshot = (*SnapshotGzip)(nil)
+
 type SnapshotGzip struct {
 	feedChannel chan []byte
 	writer      *gzip.Writer

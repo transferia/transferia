@@ -77,7 +77,7 @@ func (r Registry) Counter(name string) metrics.Counter {
 func (r Registry) FuncCounter(name string, function func() int64) metrics.FuncCounter {
 	metricName := r.newMetricName(name)
 	key := registryutil.BuildRegistryKey(metricName, r.tags)
-	s := FuncCounter{function: function}
+	s := &FuncCounter{function: function}
 	if _, loaded := r.metrics.LoadOrStore(key, s); loaded {
 		panic("metric with key " + key + " already registered")
 	}
@@ -104,7 +104,7 @@ func (r Registry) Gauge(name string) metrics.Gauge {
 func (r Registry) FuncGauge(name string, function func() float64) metrics.FuncGauge {
 	metricName := r.newMetricName(name)
 	key := registryutil.BuildRegistryKey(metricName, r.tags)
-	s := FuncGauge{function: function}
+	s := &FuncGauge{function: function}
 	if _, loaded := r.metrics.LoadOrStore(key, s); loaded {
 		panic("metric with key " + key + " already registered")
 	}
@@ -131,7 +131,7 @@ func (r *Registry) IntGauge(name string) metrics.IntGauge {
 func (r *Registry) FuncIntGauge(name string, function func() int64) metrics.FuncIntGauge {
 	metricName := r.newMetricName(name)
 	key := registryutil.BuildRegistryKey(metricName, r.tags)
-	s := FuncIntGauge{function: function}
+	s := &FuncIntGauge{function: function}
 	if _, loaded := r.metrics.LoadOrStore(key, s); loaded {
 		panic("metric with key " + key + " already registered")
 	}

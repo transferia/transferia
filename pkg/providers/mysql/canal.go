@@ -133,14 +133,12 @@ func (c *Canal) run() error {
 	}()
 
 	c.master.UpdateTimestamp(uint32(time.Now().Unix()))
-	if err := c.runSyncBinlog(); err != nil {
-		if !xerrors.Is(err, context.Canceled) {
-			c.logger.Errorf("failed to start binlog sync: %v", err)
-			return xerrors.Errorf("failed to start binlog sync: %w", err)
-		}
+	err := c.runSyncBinlog()
+	if xerrors.Is(err, context.Canceled) {
+		return nil
 	}
-
-	return nil
+	c.logger.Errorf("failed to start binlog sync: %v", err)
+	return xerrors.Errorf("failed to start binlog sync: %w", err)
 }
 
 func (c *Canal) Close() {

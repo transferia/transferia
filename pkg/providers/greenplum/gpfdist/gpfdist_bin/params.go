@@ -1,7 +1,7 @@
 package gpfdistbin
 
 const (
-	defaultGpfdistBinPath = "/usr/bin/gpfdist"
+	defaultBinPath = "/usr/bin/gpfdist"
 )
 
 type GpfdistParams struct {
@@ -11,14 +11,14 @@ type GpfdistParams struct {
 	ThreadsCount   int
 }
 
-func NewGpfdistParams(path, schema string, threads int) GpfdistParams {
-	if path == "" {
-		path = defaultGpfdistBinPath
+func NewGpfdistParams(binPath, serviceSchema string, threads int) *GpfdistParams {
+	if binPath == "" {
+		binPath = defaultBinPath
 	}
-	return GpfdistParams{
+	return &GpfdistParams{
 		IsEnabled:      true,
-		GpfdistBinPath: path,
-		ServiceSchema:  schema,
+		GpfdistBinPath: binPath,
+		ServiceSchema:  serviceSchema,
 		ThreadsCount:   threads,
 	}
 }

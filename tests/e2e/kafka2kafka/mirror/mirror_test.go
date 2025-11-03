@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	kafkasink "github.com/transferia/transferia/pkg/providers/kafka"
@@ -25,7 +26,6 @@ func TestReplication(t *testing.T) {
 	src, err := kafkasink.SourceRecipe()
 	require.NoError(t, err)
 	src.Topic = srcTopic
-	src.IsHomo = true
 
 	dst, err := kafkasink.DestinationRecipe()
 	require.NoError(t, err)
@@ -49,16 +49,17 @@ func TestReplication(t *testing.T) {
 		logger.Log,
 	)
 	require.NoError(t, err)
-	err = srcSink.Push([]abstract.ChangeItem{kafkasink.MakeKafkaRawMessage(srcTopic, time.Time{}, srcTopic, 0, 0, k, v)})
+	err = srcSink.Push([]abstract.ChangeItem{abstract.MakeRawMessage(k, srcTopic, time.Time{}, srcTopic, 0, 0, v)})
 	require.NoError(t, err)
 
 	// prepare additional transfer: from dst to mock
 
 	result := make([]abstract.ChangeItem, 0)
 	mockSink := &helpers.MockSink{
-		PushCallback: func(in []abstract.ChangeItem) {
+		PushCallback: func(in []abstract.ChangeItem) error {
 			abstract.Dump(in)
 			result = append(result, in...)
+			return nil
 		},
 	}
 	mockTarget := model.MockDestination{
@@ -69,7 +70,6 @@ func TestReplication(t *testing.T) {
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{dst.Topic},
-		IsHomo:      true,
 	}, &mockTarget, abstract.TransferTypeIncrementOnly)
 
 	// activate main transfer
@@ -102,8 +102,11 @@ func TestReplication(t *testing.T) {
 	st := time.Now()
 	for time.Since(st) < time.Second*30 {
 		if len(result) == 1 {
-			require.Equal(t, k, kafkasink.GetKafkaRawMessageKey(&result[0]))
-			require.Equal(t, v, kafkasink.GetKafkaRawMessageData(&result[0]))
+			kk, _ := changeitem.GetSequenceKey(&result[0])
+			vv, _ := changeitem.GetRawMessageData(result[0])
+
+			require.Equal(t, k, kk)
+			require.Equal(t, v, vv)
 			break
 		}
 

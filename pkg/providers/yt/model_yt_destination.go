@@ -37,7 +37,6 @@ type YtDestinationModel interface {
 	CellBundle() string
 	TTL() int64
 	OptimizeFor() string
-	CanAlter() bool
 	IsSchemaMigrationDisabled() bool
 	TimeShardCount() int
 	Index() []string
@@ -46,7 +45,6 @@ type YtDestinationModel interface {
 	Pool() string
 	Atomicity() yt.Atomicity
 	DiscardBigValues() bool
-	TabletCount() int
 	Rotation() *dp_model.RotatorConfig
 	VersionColumn() string
 	Ordered() bool
@@ -59,19 +57,13 @@ type YtDestinationModel interface {
 	ChunkSize() uint32
 	BufferTriggingSize() uint64
 	BufferTriggingInterval() time.Duration
-	Transformer() map[string]string
 	CleanupMode() dp_model.CleanupType
 	WithDefaults()
 	IsDestination()
 	GetProviderType() abstract.ProviderType
 	GetTableAltName(table string) string
 	Validate() error
-	SetSnapshotLoad()
 	LegacyModel() interface{}
-	AllowAlter()
-	SetStaticTable()
-	SetIndex(index []string)
-	SetOrdered()
 	CompressionCodec() yt.ClientCompressionCodec
 
 	Static() bool
@@ -102,7 +94,6 @@ type YtDestination struct {
 	CellBundle                string
 	TTL                       int64 // it's in milliseconds
 	OptimizeFor               string
-	CanAlter                  bool
 	IsSchemaMigrationDisabled bool
 	TimeShardCount            int
 	Index                     []string
@@ -113,11 +104,9 @@ type YtDestination struct {
 	Atomicity                 yt.Atomicity // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
 
 	DiscardBigValues         bool
-	TabletCount              int // DEPRECATED - remove in March
 	Rotation                 *dp_model.RotatorConfig
 	VersionColumn            string
 	Ordered                  bool
-	TransformerConfig        map[string]string
 	UseStaticTableOnSnapshot bool // optional.Optional[bool] breaks compatibility
 	AltNames                 map[string]string
 	Cleanup                  dp_model.CleanupType
@@ -203,34 +192,13 @@ func (d *YtDestinationWrapper) CompressionCodec() yt.ClientCompressionCodec {
 	return d.Model.CompressionCodec
 }
 
-func (d *YtDestinationWrapper) SetOrdered() {
-	d.Model.Ordered = true
-}
-
-func (d *YtDestinationWrapper) SetIndex(index []string) {
-	d.Model.Index = index
-}
-
-func (d *YtDestinationWrapper) SetStaticTable() {
-	d.Model.Static = true
-}
-
-func (d *YtDestinationWrapper) AllowAlter() {
-	d.Model.CanAlter = true
-	d.Model.IsSchemaMigrationDisabled = false
-}
-
 func (d *YtDestinationWrapper) PreSnapshotHacks() {
-	d.SetSnapshotLoad()
+	d._pushWal = d.Model.PushWal
+	d.Model.PushWal = false
 }
 
 func (d *YtDestinationWrapper) PostSnapshotHacks() {
 	d.Model.PushWal = d._pushWal
-}
-
-func (d *YtDestinationWrapper) SetSnapshotLoad() {
-	d._pushWal = d.Model.PushWal
-	d.Model.PushWal = false
 }
 
 func (d *YtDestinationWrapper) ToStorageParams() *YtStorageParams {
@@ -267,10 +235,6 @@ func (d *YtDestinationWrapper) TTL() int64 {
 
 func (d *YtDestinationWrapper) OptimizeFor() string {
 	return d.Model.OptimizeFor
-}
-
-func (d *YtDestinationWrapper) CanAlter() bool {
-	return d.Model.CanAlter
 }
 
 func (d *YtDestinationWrapper) IsSchemaMigrationDisabled() bool {
@@ -311,10 +275,6 @@ func (d *YtDestinationWrapper) DiscardBigValues() bool {
 	return d.Model.DiscardBigValues
 }
 
-func (d *YtDestinationWrapper) TabletCount() int {
-	return d.Model.TabletCount
-}
-
 func (d *YtDestinationWrapper) Rotation() *dp_model.RotatorConfig {
 	return d.Model.Rotation
 }
@@ -332,6 +292,9 @@ func (d *YtDestinationWrapper) Static() bool {
 }
 
 func (d *YtDestinationWrapper) SortedStatic() bool {
+	if !d.Static() && d.UseStaticTableOnSnapshot() && !d.Ordered() {
+		return true
+	}
 	return d.Model.SortedStatic
 }
 
@@ -376,10 +339,6 @@ func (d *YtDestinationWrapper) BufferTriggingSize() uint64 {
 
 func (d *YtDestinationWrapper) BufferTriggingInterval() time.Duration {
 	return d.Model.BufferTriggingInterval
-}
-
-func (d *YtDestinationWrapper) Transformer() map[string]string {
-	return d.Model.TransformerConfig
 }
 
 func (d *YtDestinationWrapper) CleanupMode() dp_model.CleanupType {
@@ -489,6 +448,22 @@ func (d *YtDestinationWrapper) DisableProxyDiscovery() bool {
 
 func (d *YtDestinationWrapper) Proxy() string {
 	return d.Cluster()
+}
+
+func (d *YtDestinationWrapper) UseTLS() bool {
+	return d.GetConnectionData().UseTLS
+}
+
+func (d *YtDestinationWrapper) TLSFile() string {
+	return d.GetConnectionData().TLSFile
+}
+
+func (d *YtDestinationWrapper) ServiceAccountID() string {
+	return ""
+}
+
+func (d *YtDestinationWrapper) ProxyRole() string {
+	return ""
 }
 
 func (d *YtDestinationWrapper) SupportSharding() bool {

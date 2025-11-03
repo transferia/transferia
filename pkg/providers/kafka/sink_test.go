@@ -6,15 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/providers/kafka/writer"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
+	"go.uber.org/mock/gomock"
 )
 
 var sinkTestTypicalChangeItem *abstract.ChangeItem
@@ -23,8 +24,9 @@ var sinkTestMirrorChangeItem *abstract.ChangeItem
 func init() {
 	var testChangeItem = `{"id":601,"nextlsn":25051056,"commitTime":1643660670333075000,"txPosition":0,"kind":"insert","schema":"public","table":"basic_types15","columnnames":["id","val"],"columnvalues":[1,-8388605],"table_schema":[{"path":"","name":"id","type":"int32","key":true,"required":false,"original_type":"pg:integer","original_type_params":null},{"path":"","name":"val","type":"int32","key":false,"required":false,"original_type":"pg:integer","original_type_params":null}],"oldkeys":{},"tx_id":"","query":""}`
 	sinkTestTypicalChangeItem, _ = abstract.UnmarshalChangeItem([]byte(testChangeItem))
-	var testMirrorChangeItem = `{"id":0,"nextlsn":49,"commitTime":1648053051911000000,"txPosition":0,"kind":"insert","schema":"default-topic","table":"94","columnnames":["topic","partition","seq_no","write_time","data"],"columnvalues":["default-topic",94,50,"2022-03-23T19:30:51.911+03:00","blablabla"],"table_schema":[{"path":"","name":"topic","type":"utf8","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"partition","type":"uint32","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"seq_no","type":"uint64","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"write_time","type":"datetime","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"data","type":"utf8","key":false,"required":false,"original_type":"mirror:binary","original_type_params":null}],"oldkeys":{},"tx_id":"","query":""}`
-	sinkTestMirrorChangeItem, _ = abstract.UnmarshalChangeItem([]byte(testMirrorChangeItem))
+
+	sinkTestMirrorChangeItemTmp := abstract.MakeRawMessage([]byte("my_key"), "foo_bar", time.Time{}, "foo_bar", 0, 0, []byte("blablabla"))
+	sinkTestMirrorChangeItem = &sinkTestMirrorChangeItemTmp
 }
 
 func TestNative(t *testing.T) {
@@ -38,7 +40,7 @@ func TestNative(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -81,7 +83,7 @@ func TestJSON(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -124,7 +126,7 @@ func TestDebezium(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -171,7 +173,7 @@ func TestMirror(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -182,10 +184,11 @@ func TestMirror(t *testing.T) {
 	}
 	dst.WithDefaults()
 
+	k := `my_key`
 	v := `blablabla`
 
 	currWriter := writer.NewMockAbstractWriter(ctrl)
-	currWriter.EXPECT().WriteMessages(gomock.Any(), gomock.Any(), "foo_bar", []serializer.SerializedMessage{{Value: []byte(v)}})
+	currWriter.EXPECT().WriteMessages(gomock.Any(), gomock.Any(), "foo_bar", []serializer.SerializedMessage{{Key: []byte(k), Value: []byte(v)}})
 	client := writer.NewMockAbstractWriterFactory(ctrl)
 	client.EXPECT().BuildWriter([]string{"my_broker_0"}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(currWriter)
 
@@ -213,7 +216,7 @@ func TestMirrorKafka(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -241,7 +244,7 @@ func TestMirrorKafka(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = testSink.Push([]abstract.ChangeItem{MakeKafkaRawMessage("foo_bar", time.Time{}, "foo_bar", 0, 0, k, v)})
+	err = testSink.Push([]abstract.ChangeItem{abstract.MakeRawMessage([]byte("my_key"), "foo_bar", time.Time{}, "foo_bar", 0, 0, v)})
 	require.NoError(t, err)
 }
 
@@ -256,7 +259,7 @@ func TestAddDTSystemTables(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},
@@ -333,7 +336,7 @@ func TestPassConfigEntries(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "user1",
 			Password:  "qwert12345",
 		},

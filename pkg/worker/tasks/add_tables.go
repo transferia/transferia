@@ -15,7 +15,23 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+func CheckAddTablesSupported(transfer model.Transfer) error {
+	if !isAllowedSourceType(transfer.Src) {
+		return errors.CategorizedErrorf(categories.Source, "Add tables method is obsolete and supported only for pg sources")
+	}
+
+	if transfer.IsTransitional() && transfer.AsyncOperations {
+		return xerrors.New("Add tables method is obsolete and supported only for non-transitional transfers")
+	}
+
+	return nil
+}
+
 func AddTables(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task model.TransferOperation, tables []string, registry metrics.Registry) error {
+	if err := CheckAddTablesSupported(transfer); err != nil {
+		return xerrors.Errorf("Unable to add tables: %v", err)
+	}
+
 	if transfer.IsTransitional() {
 		err := TransitionalAddTables(ctx, cp, transfer, task, tables, registry)
 		if err != nil {
@@ -25,10 +41,6 @@ func AddTables(ctx context.Context, cp coordinator.Coordinator, transfer model.T
 	}
 	if err := StopJob(cp, transfer); err != nil {
 		return xerrors.Errorf("stop job: %w", err)
-	}
-
-	if !isAllowedSourceType(transfer.Src) {
-		return errors.CategorizedErrorf(categories.Source, "Add tables method is obsolete and supported only for pg sources")
 	}
 
 	if err := verifyCanAddTables(transfer.Src, tables, &transfer); err != nil {

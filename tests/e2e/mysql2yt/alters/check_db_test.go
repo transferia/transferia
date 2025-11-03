@@ -64,7 +64,6 @@ func TestGroup(t *testing.T) {
 	}()
 	require.NoError(t, err)
 
-	Target.AllowAlter()
 	t.Run("Load", Load)
 }
 

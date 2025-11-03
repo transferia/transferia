@@ -47,7 +47,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}
 
 	var result []abstract.ChangeItem
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, i := range input {
 			if i.Table == "__consumer_keeper" {
 				continue
@@ -58,6 +58,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 			require.Equal(t, "\"public\".\"actions\"", i.TableID().String())
 			result = append(result, i)
 		}
+		return nil
 	}
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, Source, target, TransferType)

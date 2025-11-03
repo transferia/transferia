@@ -7,10 +7,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/terryid"
 )
-
-var UnspecifiedCode = coded.Register("unspecified")
 
 type statusMessageError struct {
 	statusMessage *coordinator.StatusMessage
@@ -50,14 +49,14 @@ func ToTransferStatusMessage(err error) *coordinator.StatusMessage {
 		resultCategory = categorized.Category()
 	}
 
-	resultCode := UnspecifiedCode
+	resultCode := codes.Unspecified
 	previous := err
 	current := err
 	for {
 		// we should take only top-level code
 		// so once we have our resultCode we should be fine
 		var currentCoded coded.CodedError = nil
-		if xerrors.As(current, &currentCoded) && resultCode == UnspecifiedCode {
+		if xerrors.As(current, &currentCoded) && resultCode == codes.Unspecified {
 			resultCode = currentCoded.Code()
 		}
 

@@ -2,17 +2,18 @@ package tasks
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/tests/helpers/fake_sharding_storage"
 	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 )
 
@@ -113,98 +114,69 @@ func TestDoUploadTables_CtxCancelledNoErr(t *testing.T) {
 		"schema2.*",
 	}}
 
-	storage := &mockstorage.MockStorage{}
+	storage := mockstorage.NewMockStorage()
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := snapshotLoader.DoUploadTables(ctx, storage, NewLocalTablePartProvider().TablePartProvider())
+
+	tablesMap, err := storage.TableList(transfer)
+	require.NoError(t, err)
+
+	tppGetter, _, err := snapshotLoader.BuildTPP(
+		context.Background(),
+		logger.Log,
+		storage,
+		tablesMap.ConvertToTableDescriptions(),
+		true,
+		true,
+	)
+	require.NoError(t, err)
+
+	err = snapshotLoader.DoUploadTables(ctx, storage, tppGetter)
 	require.NoError(t, err)
 }
 
-func TestLocalTablePartProvider(t *testing.T) {
+func TestMainWorkerRestart(t *testing.T) {
+	metaCheckInterval = 100 * time.Millisecond
+
+	tables := []abstract.TableDescription{{Schema: "schema1", Name: "table1"}}
+	operationID := "dtj"
+
+	transfer := &model.Transfer{
+		Runtime: &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1}},
+		Src: &model.MockSource{
+			StorageFactory: func() abstract.Storage {
+				return fake_sharding_storage.NewFakeShardingStorage(tables)
+			},
+			AllTablesFactory: func() abstract.TableMap {
+				return nil
+			},
+		},
+		Dst: &model.MockDestination{
+			SinkerFactory: func() abstract.Sinker {
+				return newFakeSink(func(items []abstract.ChangeItem) error {
+					return nil
+				})
+			},
+		},
+	}
+
+	cp := coordinator.NewStatefulFakeClient()
+
+	snapshotLoader := NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
 	ctx := context.Background()
-	descs := []*abstract.TableDescription{
-		{Schema: "schema-1", Name: "table-1", Filter: "a<5"},
-		{Schema: "schema-1", Name: "table-1", Filter: "a>5"},
-		{Schema: "schema-2", Name: "table-2"},
-	}
-	parts := []*model.OperationTablePart{}
-	for _, desc := range descs {
-		parts = append(parts, model.NewOperationTablePartFromDescription("dtjtest", desc))
-	}
 
-	t.Run("empty synchronous", func(t *testing.T) {
-		provider := NewLocalTablePartProvider()
-		require.NotPanics(t, provider.Close)
-		require.NotPanics(t, provider.Close) // Check that many Closes won't panic.
-		require.Error(t, provider.AppendParts(ctx, parts))
-		checkPartProvider(t, []*model.OperationTablePart{nil}, provider.TablePartProvider())
-	})
+	// first run
+	go func(inSnapshotLoader *SnapshotLoader) {
+		_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
+		_ = cp.FinishOperation(operationID, "", 0, nil)
+		_ = cp.FinishOperation(operationID, "", 1, nil)
+	}(snapshotLoader)
+	err := snapshotLoader.UploadTables(ctx, tables, false)
+	require.NoError(t, err)
 
-	t.Run("synchronous", func(t *testing.T) {
-		provider := NewLocalTablePartProvider(parts...)
-		require.NotPanics(t, provider.Close)
-		require.NotPanics(t, provider.Close) // Check that many Closes won't panic.
-		require.Error(t, provider.AppendParts(ctx, parts))
-		checkPartProvider(t, append(parts, nil), provider.TablePartProvider())
-	})
-
-	t.Run("asynchronous", func(t *testing.T) {
-		provider := NewAsyncLocalTablePartProvider()
-
-		require.NoError(t, provider.AppendParts(ctx, parts[:2]))
-		checkPartProvider(t, parts[:2], provider.TablePartProvider())
-
-		require.NoError(t, provider.AppendParts(ctx, []*model.OperationTablePart{parts[2]}))
-		checkPartProvider(t, []*model.OperationTablePart{parts[2]}, provider.TablePartProvider())
-
-		// Check that cancellation of context won't cause deadlock.
-		provider.parts = make(chan *model.OperationTablePart, 1) // Use 1 to make channel filled.
-		ctx, cancel := context.WithCancel(ctx)
-		waitCh := make(chan struct{})
-		go func() {
-			defer close(waitCh)
-			// Will be cancelled (bcs len(parts) > cap(chan)), so err is not nil.
-			require.Error(t, provider.AppendParts(ctx, parts))
-		}()
-		time.Sleep(50 * time.Millisecond)
-		cancel()
-		<-waitCh
-
-		require.NotPanics(t, provider.Close)
-		require.NotPanics(t, provider.Close) // Check that many Closes won't panic.
-		require.Error(t, provider.AppendParts(ctx, parts))
-	})
-}
-
-func checkPartProvider(t *testing.T, expected []*model.OperationTablePart, provider TablePartProvider) {
-	for _, part := range expected {
-		actual, err := provider(context.Background())
-		require.Equal(t, part, actual)
-		require.NoError(t, err)
-	}
-}
-
-func TestAddKeyToJson(t *testing.T) {
-	testCases := []struct {
-		input    string
-		expected map[string]any
-	}{
-		{
-			input:    ``,
-			expected: map[string]any{"key": json.Number("123")},
-		},
-		{
-			input:    `{"key-1":"text"}`,
-			expected: map[string]any{"key-1": "text", "key": json.Number("123")},
-		},
-	}
-
-	for i, testCase := range testCases {
-		res, err := addKeyToJson(testCase.input, "key", 123)
-		require.NoError(t, err)
-		var actual map[string]any
-		require.NoError(t, jsonx.Unmarshal(res, &actual))
-		require.Equal(t, testCase.expected, actual, fmt.Sprintf("test-case-%d", i))
-	}
+	// second run
+	err = snapshotLoader.UploadTables(ctx, tables, false)
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), mainWorkerRestartedErrorText))
 }

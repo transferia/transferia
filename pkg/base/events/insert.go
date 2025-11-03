@@ -3,6 +3,7 @@ package events
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/base"
 )
 
@@ -76,6 +77,10 @@ func (event *DefaultInsertEvent) ToOldChangeItem() (*abstract.ChangeItem, error)
 
 	valCnt := len(event.newValues)
 	changeItem := &abstract.ChangeItem{
+		ID:           0,
+		LSN:          0,
+		CommitTime:   0,
+		Counter:      0,
 		Kind:         abstract.InsertKind,
 		Schema:       event.table.Schema(),
 		Table:        event.table.Name(),
@@ -83,18 +88,15 @@ func (event *DefaultInsertEvent) ToOldChangeItem() (*abstract.ChangeItem, error)
 		TableSchema:  oldTable,
 		ColumnNames:  make([]string, valCnt),
 		ColumnValues: make([]interface{}, valCnt),
-		ID:           0,
-		LSN:          0,
-		CommitTime:   0,
-		Counter:      0,
 		OldKeys: abstract.OldKeysType{
 			KeyNames:  nil,
 			KeyTypes:  nil,
 			KeyValues: nil,
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.EmptyEventSize(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 
 	for idx, value := range event.newValues {

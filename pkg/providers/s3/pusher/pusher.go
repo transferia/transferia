@@ -27,6 +27,16 @@ type Chunk struct {
 	Items     []abstract.ChangeItem
 }
 
+func NewChunk(filePath string, completed bool, offset any, size int64, items []abstract.ChangeItem) Chunk {
+	return Chunk{
+		FilePath:  filePath,
+		Completed: completed,
+		Offset:    offset,
+		Size:      size,
+		Items:     items,
+	}
+}
+
 func New(pusher abstract.Pusher, queue *parsequeue.ParseQueue[Chunk], logger log.Logger, inflightLimit int64) Pusher {
 	if queue != nil {
 		return NewParsequeuePusher(queue, logger, inflightLimit)

@@ -29,22 +29,6 @@ type sink struct {
 	writer     writer.AbstractWriter
 }
 
-func serializeKafkaMirror(input []abstract.ChangeItem) map[abstract.TablePartID][]serializer.SerializedMessage {
-	tableToMessages := make(map[abstract.TablePartID][]serializer.SerializedMessage)
-	arr := make([]serializer.SerializedMessage, 0, len(input))
-	for _, changeItem := range input {
-		arr = append(arr, serializer.SerializedMessage{
-			Key:   GetKafkaRawMessageKey(&changeItem),
-			Value: GetKafkaRawMessageData(&changeItem),
-		})
-	}
-	if len(input) != 0 {
-		fqtnWithPartID := input[0].TablePartID()
-		tableToMessages[fqtnWithPartID] = arr
-	}
-	return tableToMessages
-}
-
 func (s *sink) Push(input []abstract.ChangeItem) error {
 	start := time.Now()
 
@@ -56,12 +40,8 @@ func (s *sink) Push(input []abstract.ChangeItem) error {
 		// 'id' here - sourceID
 		tableToMessages, _, err = s.serializer.(*serializer.MirrorSerializer).GroupAndSerializeLB(input)
 	} else {
-		// 'id' here - fqtn()
-		if IsKafkaRawMessage(input) {
-			tableToMessages = serializeKafkaMirror(input)
-		} else {
-			tableToMessages, err = s.serializer.Serialize(input)
-		}
+		// 'id' here - fqtn() for json/debezium, sequenceKey for mirror
+		tableToMessages, err = s.serializer.Serialize(input)
 	}
 	if err != nil {
 		return xerrors.Errorf("unable to serialize: %w", err)
@@ -118,6 +98,9 @@ func (s *sink) Close() error {
 }
 
 func NewSinkImpl(cfg *KafkaDestination, registry metrics.Registry, lgr log.Logger, writerFactory writer.AbstractWriterFactory, isSnapshot bool) (abstract.Sinker, error) {
+	if err := cfg.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sink: %w", err)
+	}
 	brokers, err := ResolveBrokers(cfg.Connection)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve brokers: %w", err)

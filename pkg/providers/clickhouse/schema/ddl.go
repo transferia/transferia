@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
 type TableDDL struct {
@@ -14,21 +15,22 @@ type TableDDL struct {
 
 func (t *TableDDL) ToChangeItem() abstract.ChangeItem {
 	return abstract.ChangeItem{
-		Schema:       t.tableID.Namespace,
-		Table:        t.tableID.Name,
-		PartID:       "",
-		Kind:         abstract.ChCreateTableKind,
-		CommitTime:   uint64(time.Now().UnixNano()),
-		ColumnValues: []interface{}{t.sql, t.engine},
-		ID:           0,
-		LSN:          0,
-		Counter:      0,
-		ColumnNames:  nil,
-		TableSchema:  nil,
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		ID:               0,
+		LSN:              0,
+		CommitTime:       uint64(time.Now().UnixNano()),
+		Counter:          0,
+		Kind:             abstract.ChCreateTableKind,
+		Schema:           t.tableID.Namespace,
+		Table:            t.tableID.Name,
+		PartID:           "",
+		ColumnValues:     []interface{}{t.sql, t.engine},
+		ColumnNames:      nil,
+		TableSchema:      nil,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 

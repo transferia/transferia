@@ -24,7 +24,7 @@ func (c *ChStorageParams) IsManaged() bool {
 }
 
 func (s *ChSource) ToStorageParams() (*ChStorageParams, error) {
-	connParams, err := ConnectionParamsFromSource(s)
+	connParams, err := ConnectionParamsFromSource(s, s.ChClusterName)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get connection params from source: %w", err)
 	}
@@ -111,7 +111,7 @@ func (c *ChStorageParams) String() string {
 
 func resolveHosts(clucterID, shardGroup string, shardList []ClickHouseShard, nativePort, httpPort int) ([]*clickhouse.Host, map[string][]*clickhouse.Host, error) {
 	if clucterID != "" {
-		return ResolveShardGroupHostsAndShards(clucterID, shardGroup, nativePort, httpPort)
+		return ResolveHostsFromMDBCluster(clucterID, shardGroup, nativePort, httpPort)
 	}
 
 	hosts, shards := resolveShardsAndHosts(shardList, nativePort, httpPort)

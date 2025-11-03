@@ -50,6 +50,7 @@ type ProtoParserConfig struct {
 	AddSystemColumns   bool
 	SkipDedupKeys      bool
 	AddSyntheticKeys   bool
+	NotFillEmptyFields bool
 }
 
 // SetDescriptors sets ProtoMessageDesc & ScannerMessageDesc

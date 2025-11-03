@@ -38,7 +38,6 @@ var (
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     nil,
-		IsHomo:           false,
 	}
 	target = yt_helpers.RecipeYtTarget("//home/confluent_sr/test/kafka2yt_e2e_replication")
 )
@@ -72,6 +71,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 	parserConfigMap, err := parsers.ParserConfigStructToMap(&confluentschemaregistry.ParserConfigConfluentSchemaRegistryCommon{
 		SchemaRegistryURL: schemaRegistryMock.URL(),
 		SkipAuth:          true,
+		IsGenerateUpdates: true,
 	})
 	require.NoError(t, err)
 	currSource.ParserConfig = parserConfigMap
@@ -94,7 +94,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 			Auth:       currSource.Auth,
 			Topic:      currSource.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -110,7 +110,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 	require.NoError(t, err)
 	for _, message := range strings.Split(string(messages), "\n") {
 		err = srcSink.Push(
-			[]abstract.ChangeItem{kafka.MakeKafkaRawMessage(currSource.Topic, time.Time{}, currSource.Topic, 0, 0, []byte("_"), []byte(message))})
+			[]abstract.ChangeItem{abstract.MakeRawMessage([]byte("_"), currSource.Topic, time.Time{}, currSource.Topic, 0, 0, []byte(message))})
 		require.NoError(t, err)
 	}
 

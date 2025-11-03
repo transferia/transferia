@@ -130,7 +130,7 @@ func (s *Storage) openPGStorageForAnyInPair(ctx context.Context, sp GPSegPointer
 			_ = isGPMirrorErr(err, hp.String())
 			wrappedErr := xerrors.Errorf("failed to connect to Greenplum %s (%s): %w", sp.String(), cfg.String(), err)
 			errs[i] = wrappedErr
-			logger.Log.Infof(wrappedErr.Error())
+			logger.Log.Info(wrappedErr.Error())
 			continue
 		}
 		s.configurePGStorageForGreenplum(result)
@@ -139,7 +139,7 @@ func (s *Storage) openPGStorageForAnyInPair(ctx context.Context, sp GPSegPointer
 			_ = isGPMirrorErr(err, hp.String())
 			wrappedErr := xerrors.Errorf("connection to Greenplum %s (%s) is faulty: %w", sp.String(), cfg.String(), err)
 			errs[i] = wrappedErr
-			logger.Log.Infof(wrappedErr.Error())
+			logger.Log.Info(wrappedErr.Error())
 			continue
 		}
 		logger.Log.Infof("successfully connected to Greenplum %s (%s)", sp.String(), cfg.String())

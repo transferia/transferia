@@ -9,6 +9,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"golang.org/x/exp/maps"
 )
 
@@ -197,9 +198,10 @@ func makeUpdateChangeItem(
 			KeyTypes:  make([]string, 0, len(event.Key)+len(event.OldImage)),
 			KeyValues: make([]interface{}, 0, len(event.Key)+len(event.OldImage)),
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.RawEventSize(msgSize),
+		Size:             abstract.RawEventSize(msgSize),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	index := 0
 	for _, keyVal := range event.Key {
@@ -301,9 +303,10 @@ func makeDeleteChangeItem(
 			KeyTypes:  make([]string, 0, len(event.Key)),
 			KeyValues: make([]interface{}, 0, len(event.Key)),
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.RawEventSize(msgSize),
+		Size:             abstract.RawEventSize(msgSize),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	index := 0
 	for _, keyVal := range event.Key {
@@ -345,7 +348,7 @@ func convertToChangeItem(
 	msgSize uint64,
 	fillDefaults bool,
 ) (*abstract.ChangeItem, error) {
-	if event.Update != nil {
+	if event.Update != nil || event.NewImage != nil {
 		// insert/update
 		result, err := makeUpdateChangeItem(tablePath, schema, event, writeTime, offset, partitionID, msgSize, fillDefaults)
 		if err != nil {

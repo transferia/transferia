@@ -13,7 +13,6 @@ type RepeatedScanner struct {
 	avgDataLen int
 
 	gotMessage protoreflect.Message
-	gotError   error
 }
 
 func NewRepeatedScanner(data []byte, wrapperDesc protoreflect.MessageDescriptor) (*RepeatedScanner, error) {
@@ -55,15 +54,10 @@ func NewRepeatedScanner(data []byte, wrapperDesc protoreflect.MessageDescriptor)
 		idx:        -1,
 		avgDataLen: avgDataLen,
 		gotMessage: nil,
-		gotError:   nil,
 	}, nil
 }
 
 func (s *RepeatedScanner) Scan() (res bool) {
-	if s.gotError != nil {
-		return false
-	}
-
 	s.idx++
 	if s.idx < 0 || s.idx >= s.items.Len() {
 		return false
@@ -99,5 +93,5 @@ func (s *RepeatedScanner) ApxDataLen() int {
 }
 
 func (s *RepeatedScanner) Err() error {
-	return s.gotError
+	return nil
 }

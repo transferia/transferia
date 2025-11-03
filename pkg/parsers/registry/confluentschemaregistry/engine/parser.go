@@ -21,7 +21,8 @@ type ConfluentSrImpl struct {
 	logger                    log.Logger
 	SchemaRegistryClient      *confluent.SchemaRegistryClient
 	schemaRegistryClientMutex sync.Mutex
-	SendSrNotFoundToUnparsed  bool
+	isGenerateUpdates         bool
+	sendSrNotFoundToUnparsed  bool
 	inMDBuilder               *mdBuilder
 }
 
@@ -31,16 +32,16 @@ func (p *ConfluentSrImpl) doWithSchema(partition abstract.Partition, schema *con
 	var err error
 	switch schema.SchemaType {
 	case confluent.JSON:
-		changeItems, msgLen, err = makeChangeItemsFromMessageWithJSON(schema, buf, offset, writeTime)
+		changeItems, msgLen, err = makeChangeItemsFromMessageWithJSON(schema, buf, offset, writeTime, p.isGenerateUpdates)
 	case confluent.PROTOBUF:
-		changeItems, err = makeChangeItemsFromMessageWithProtobuf(p.inMDBuilder, schema, refs, name, buf, offset, writeTime, isCloudevents)
+		changeItems, err = makeChangeItemsFromMessageWithProtobuf(p.inMDBuilder, schema, refs, name, buf, offset, writeTime, isCloudevents, p.isGenerateUpdates)
 		msgLen = len(buf)
 	default:
 		err = xerrors.Errorf("Schema type is not JSON/PROTOBUF (%v) (currently only the json & protobuf schema is supported)", schema.SchemaType)
 	}
 	if err != nil {
-		err := xerrors.Errorf("Can't make change item from message %w", err)
-		changeItems = []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), err.Error(), 0, offset, writeTime)}
+		errStr := xerrors.Errorf("Can't make change item from message %w", err).Error()
+		changeItems = []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
 		return nil, changeItems
 	}
 	return buf[msgLen:], changeItems
@@ -54,21 +55,21 @@ func (p *ConfluentSrImpl) DoWithSchemaID(partition abstract.Partition, schemaID 
 		var err error
 		currSchema, err = p.SchemaRegistryClient.GetSchema(int(schemaID)) // returns *Schema
 
-		if p.SendSrNotFoundToUnparsed && err != nil && strings.Contains(err.Error(), "Error code: 404") {
+		if p.sendSrNotFoundToUnparsed && err != nil && strings.Contains(err.Error(), "Error code: 404") {
 			is404 = true
 			return nil
 		}
 		return err
 	}, backoff.NewConstantBackOff(time.Second), util.BackoffLogger(p.logger, "getting schema"))
 
-	if p.SendSrNotFoundToUnparsed && is404 {
-		err := xerrors.Errorf("SchemaRegistry for schema (id: %v) returned http code 404", schemaID)
-		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), err.Error(), 0, offset, writeTime)}
+	if p.sendSrNotFoundToUnparsed && is404 {
+		errStr := xerrors.Errorf("SchemaRegistry for schema (id: %v) returned http code 404", schemaID).Error()
+		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
 	}
 
 	if currSchema.SchemaType.String() == "" {
-		err := xerrors.Errorf("Schema type for schema (id: %v) not defined", schemaID)
-		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), err.Error(), 0, offset, writeTime)}
+		errStr := xerrors.Errorf("Schema type for schema (id: %v) not defined", schemaID).Error()
+		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
 	}
 
 	// handle 'references', if present
@@ -77,8 +78,8 @@ func (p *ConfluentSrImpl) DoWithSchemaID(partition abstract.Partition, schemaID 
 	if currSchema != nil && len(currSchema.References) != 0 {
 		refs, err = p.SchemaRegistryClient.ResolveReferencesRecursive(currSchema.References)
 		if err != nil {
-			err := xerrors.Errorf("ResolveReferencesRecursive for schema (id: %v) returned error, %w", schemaID, err)
-			return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), err.Error(), 0, offset, writeTime)}
+			errStr := xerrors.Errorf("ResolveReferencesRecursive for schema (id: %v) returned error, %w", schemaID, err).Error()
+			return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
 		}
 	}
 
@@ -87,12 +88,12 @@ func (p *ConfluentSrImpl) DoWithSchemaID(partition abstract.Partition, schemaID 
 
 func (p *ConfluentSrImpl) DoOne(partition abstract.Partition, buf []byte, offset uint64, writeTime time.Time) ([]byte, []abstract.ChangeItem) {
 	if len(buf) < 5 {
-		err := xerrors.Errorf("Can't extract schema id form message: message length less then 5 (%v)", len(buf))
-		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), err.Error(), 0, offset, writeTime)}
+		errStr := xerrors.Errorf("Can't extract schema id form message: message length less then 5 (%v)", len(buf)).Error()
+		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
 	}
 	if buf[0] != 0 {
-		err := xerrors.Errorf("Unknown magic byte in message (%v) (first byte in message must be 0)", string(buf))
-		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), err.Error(), 0, offset, writeTime)}
+		errStr := xerrors.Errorf("Unknown magic byte in message (%v) (first byte in message must be 0)", string(buf)).Error()
+		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
 	}
 	schemaID := binary.BigEndian.Uint32(buf[1:5])
 	bufWithoutWirePrefix := buf[5:]
@@ -114,11 +115,15 @@ func (p *ConfluentSrImpl) DoBuf(partition abstract.Partition, buf []byte, offset
 }
 
 func (p *ConfluentSrImpl) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
-	return p.DoBuf(partition, msg.Value, msg.Offset, msg.WriteTime)
+	result := p.DoBuf(partition, msg.Value, msg.Offset, msg.WriteTime)
+	for i := range result {
+		result[i].FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
+	}
+	return result
 }
 
 func (p *ConfluentSrImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem {
-	warmup.WarmUpSRCache(p.logger, &p.schemaRegistryClientMutex, batch, p.SchemaRegistryClient, p.SendSrNotFoundToUnparsed)
+	warmup.WarmUpSRCache(p.logger, &p.schemaRegistryClientMutex, batch, p.SchemaRegistryClient, p.sendSrNotFoundToUnparsed)
 	result := make([]abstract.ChangeItem, 0, len(batch.Messages))
 	for _, msg := range batch.Messages {
 		result = append(result, p.Do(msg, abstract.Partition{Cluster: "", Partition: batch.Partition, Topic: batch.Topic})...)
@@ -126,7 +131,7 @@ func (p *ConfluentSrImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeI
 	return result
 }
 
-func NewConfluentSchemaRegistryImpl(srURL string, caCert string, username string, password string, SendSrNotFoundToUnparsed bool, logger log.Logger) *ConfluentSrImpl {
+func NewConfluentSchemaRegistryImpl(srURL string, caCert string, username string, password string, isGenerateUpdates bool, sendSrNotFoundToUnparsed bool, logger log.Logger) *ConfluentSrImpl {
 	client, err := confluent.NewSchemaRegistryClientWithTransport(srURL, caCert, logger)
 	if err != nil {
 		logger.Warnf("Unable to create schema registry client: %v", err)
@@ -137,7 +142,8 @@ func NewConfluentSchemaRegistryImpl(srURL string, caCert string, username string
 		logger:                    logger,
 		SchemaRegistryClient:      client,
 		schemaRegistryClientMutex: sync.Mutex{},
-		SendSrNotFoundToUnparsed:  SendSrNotFoundToUnparsed,
+		isGenerateUpdates:         isGenerateUpdates,
+		sendSrNotFoundToUnparsed:  sendSrNotFoundToUnparsed,
 		inMDBuilder:               newMDBuilder(),
 	}
 }

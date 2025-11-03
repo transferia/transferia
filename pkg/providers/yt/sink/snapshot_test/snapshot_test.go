@@ -43,7 +43,6 @@ var (
 		PrimaryMedium:            "default",
 		UseStaticTableOnSnapshot: false,
 		Cleanup:                  model.DisabledCleanup,
-		CanAlter:                 true,
 	})
 )
 

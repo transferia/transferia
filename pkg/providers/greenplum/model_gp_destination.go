@@ -30,13 +30,6 @@ type GpDestination struct {
 var _ dp_model.Destination = (*GpDestination)(nil)
 var _ dp_model.WithConnectionID = (*GpDestination)(nil)
 
-func (d *GpDestination) FillDependentFields(transfer *dp_model.Transfer) {
-	if src, ok := transfer.Src.(*GpSource); ok {
-		threads := transfer.ParallelismParams().ProcessCount
-		d.gpfdistParams = gpfdistbin.NewGpfdistParams(src.AdvancedProps.GpfdistBinPath, src.AdvancedProps.ServiceSchema, threads)
-	}
-}
-
 func (d *GpDestination) GetConnectionID() string {
 	return d.Connection.ConnectionID
 }

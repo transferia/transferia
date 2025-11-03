@@ -491,6 +491,14 @@ func TestParseVal(t *testing.T) {
 
 	parser := GetGenericParserImpl(parserW)
 
+	// v.(uint64)
+
+	t.Run("uint32", func(t *testing.T) {
+		uint32Res, err := parser.ParseVal(uint64(1), schema.TypeUint32.String())
+		require.NoError(t, err)
+		require.Equal(t, uint32(0x1), uint32Res)
+	})
+
 	// v.(float64)
 
 	doubleRes, doubleErr := parser.ParseVal(1.5, "double")

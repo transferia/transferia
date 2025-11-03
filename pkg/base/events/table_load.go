@@ -5,6 +5,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/base"
 )
 
@@ -92,14 +93,14 @@ func (event *DefaultTableLoadEvent) ToOldChangeItem() (*abstract.ChangeItem, err
 	}
 
 	return &abstract.ChangeItem{
-		Kind:         kind,
-		Schema:       event.table.Schema(),
-		Table:        event.table.Name(),
-		PartID:       event.part,
 		ID:           0,
 		LSN:          0,
 		CommitTime:   0,
 		Counter:      0,
+		Kind:         kind,
+		Schema:       event.table.Schema(),
+		Table:        event.table.Name(),
+		PartID:       event.part,
 		ColumnNames:  nil,
 		ColumnValues: nil,
 		TableSchema:  schema,
@@ -108,8 +109,9 @@ func (event *DefaultTableLoadEvent) ToOldChangeItem() (*abstract.ChangeItem, err
 			KeyTypes:  nil,
 			KeyValues: nil,
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.EmptyEventSize(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, nil
 }

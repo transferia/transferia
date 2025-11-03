@@ -16,7 +16,6 @@ import (
 const defaultTopicPrefix = "__data_transfer_stub"
 
 type DebeziumSerializer struct {
-	parameters  map[string]string
 	isSnapshot  bool
 	emitter     *debezium.Emitter
 	saveTxOrder bool
@@ -120,7 +119,6 @@ func NewDebeziumSerializer(formatSettings map[string]string, saveTxOrder, dropKe
 		return nil, xerrors.Errorf("can't create debezium emitter: %w", err)
 	}
 	return &DebeziumSerializer{
-		parameters:  formatSettings,
 		isSnapshot:  isSnapshot,
 		emitter:     emitter,
 		saveTxOrder: saveTxOrder,

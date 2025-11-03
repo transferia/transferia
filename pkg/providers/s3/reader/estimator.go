@@ -13,7 +13,7 @@ import (
 
 type readerCtorF = func(ctx context.Context, filePath string) (s3raw.S3RawReader, error)
 
-func estimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Object, readerCtor readerCtorF) (uint64, s3raw.S3RawReader, error) {
+func EstimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Object, readerCtor readerCtorF) (uint64, s3raw.S3RawReader, error) {
 	var sampleReader s3raw.S3RawReader
 	multiplier := float64(1)
 	sniffFiles := files
@@ -41,7 +41,15 @@ func estimateTotalSize(ctx context.Context, lgr log.Logger, files []*aws_s3.Obje
 		return 0, sampleReader, xerrors.Errorf("unable to estimate size: %w", err)
 	}
 	var totalSize uint64
-	for _, s := range sizes {
+	for i, s := range sizes {
+		if s < 0 {
+			var fileName string
+			if sniffFiles[i].Key != nil {
+				fileName = *sniffFiles[i].Key
+			}
+			lgr.Infof("file %s has negative size, skipping", fileName)
+			continue
+		}
 		totalSize += uint64(s)
 	}
 	totalSize = uint64(float64(totalSize) * multiplier)

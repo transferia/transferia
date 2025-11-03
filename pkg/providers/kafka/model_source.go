@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
 	"github.com/transferia/transferia/pkg/parsers"
 )
 
@@ -28,7 +29,6 @@ type KafkaSource struct {
 	SecurityGroupIDs []string
 
 	ParserConfig        map[string]interface{}
-	IsHomo              bool // enabled kafka mirror protocol which can work only with kafka target
 	SynchronizeIsNeeded bool // true, if we need to send synchronize events on releasing partitions
 
 	OffsetPolicy          OffsetPolicy // specify from what topic part start message consumption
@@ -44,6 +44,7 @@ const (
 )
 
 var _ model.Source = (*KafkaSource)(nil)
+var _ model.WithConnectionID = (*KafkaSource)(nil)
 
 func (s *KafkaSource) MDBClusterID() string {
 	if s.Connection != nil {
@@ -52,10 +53,22 @@ func (s *KafkaSource) MDBClusterID() string {
 	return ""
 }
 
+func (s *KafkaSource) ServiceAccountIDs() []string {
+	if s.Transformer != nil && s.Transformer.ServiceAccountID != "" {
+		return []string{s.Transformer.ServiceAccountID}
+	}
+	return nil
+}
+
+func (s *KafkaSource) GetConnectionID() string {
+	return s.Connection.ConnectionID
+}
+
 func (s *KafkaSource) WithDefaults() {
 	if s.Connection == nil {
 		s.Connection = &KafkaConnectionOptions{
 			ClusterID:    "",
+			ConnectionID: "",
 			TLS:          "",
 			TLSFile:      "",
 			Brokers:      nil,
@@ -65,7 +78,7 @@ func (s *KafkaSource) WithDefaults() {
 	if s.Auth == nil {
 		s.Auth = &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "",
 			Password:  "",
 		}
@@ -123,4 +136,19 @@ func (s *KafkaSource) HostsNames() ([]string, error) {
 		return nil, nil
 	}
 	return ResolveOnPremBrokers(s.Connection, s.Auth, s.DialFunc)
+}
+
+func (s *KafkaSource) WithConnectionID() error {
+	if s.Connection == nil || s.Connection.ConnectionID == "" {
+		return nil
+	}
+
+	kafkaConnection, err := resolveConnection(s.Connection.ConnectionID)
+	if err != nil {
+		return xerrors.Errorf("unable to resolve connection: %w", err)
+	}
+	s.Connection = ResolveConnectionOptions(s.Connection, kafkaConnection)
+	s.Auth = ResolveKafkaAuth(s.Auth, kafkaConnection)
+
+	return nil
 }

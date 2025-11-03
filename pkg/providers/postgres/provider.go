@@ -78,6 +78,10 @@ type Provider struct {
 	transfer *model.Transfer
 }
 
+func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
+	return transferType != abstract.TransferTypeSnapshotOnly
+}
+
 func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) error {
 	src, err := p.srcParamsFromTransfer()
 	if err != nil {
@@ -356,7 +360,7 @@ func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abst
 	}
 	var tables []abstract.TableDescription
 	for tID, tInfo := range all {
-		if tID.Name == TableConsumerKeeper || tID.Name == dblog.SignalTableName {
+		if abstract.IsSystemTable(tID.Name) {
 			continue
 		}
 		if src.Include(tID) {
@@ -425,6 +429,9 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap) er
 
 	tableDescs := tables.ConvertToTableDescriptions()
 	for _, table := range tableDescs {
+		if abstract.IsSystemTable(table.Name) {
+			continue
+		}
 		asyncSink, err := abstract_sink.MakeAsyncSink(
 			p.transfer,
 			logger.Log,

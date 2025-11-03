@@ -9,7 +9,25 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres"
 )
 
+func CheckRemoveTablesSupported(transfer model.Transfer) error {
+	if transfer.IsTransitional() {
+		if transfer.AsyncOperations {
+			return xerrors.New("RemoveTables is supported only for non-transitional transfers")
+		}
+		return nil //cannot check more deep from cpl
+	}
+
+	if !isAllowedSourceType(transfer.Src) {
+		return xerrors.New("RemoveTables is supported only for pg sources")
+	}
+
+	return nil
+}
+
 func RemoveTables(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task model.TransferOperation, tables []string) error {
+	if err := CheckRemoveTablesSupported(transfer); err != nil {
+		return xerrors.Errorf("RemoveTables unsupported: %w", err)
+	}
 	active, err := GetLeftTerminalSrcEndpoints(cp, transfer)
 	if err != nil {
 		return nil

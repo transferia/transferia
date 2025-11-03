@@ -17,6 +17,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/container"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -337,7 +339,7 @@ func (a *Storage) check() error {
 		return xerrors.New("empty connection status")
 	}
 	if resp.ConnectionStatus.Status != "SUCCEEDED" {
-		return xerrors.Errorf("unexpected connection status: %v: %v", resp.ConnectionStatus.Status, resp.ConnectionStatus.Message)
+		return coded.Errorf(codes.AirbyteConnectionFailed, "unexpected connection status: %v: %v", resp.ConnectionStatus.Status, resp.ConnectionStatus.Message)
 	}
 	return nil
 }

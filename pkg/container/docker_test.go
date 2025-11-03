@@ -302,7 +302,7 @@ func TestDockerWrapper_Run_Success(t *testing.T) {
 			wout := stdcopy.NewStdWriter(stdbuf, stdcopy.Stdout)
 			werr := stdcopy.NewStdWriter(stdbuf, stdcopy.Stderr)
 
-			go func() {
+			func() {
 				_, _ = wout.Write([]byte("mock stdout\n"))
 				if tc.expectStderr {
 					_, _ = werr.Write([]byte("mock stderr\n"))

@@ -29,7 +29,6 @@ var (
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     nil,
-		IsHomo:           false,
 	}
 	target = *helpers.RecipeMysqlTarget()
 )
@@ -63,7 +62,7 @@ func TestReplication(t *testing.T) {
 			Auth:       source.Auth,
 			Topic:      source.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -77,7 +76,7 @@ func TestReplication(t *testing.T) {
 		logger.Log,
 	)
 	require.NoError(t, err)
-	err = srcSink.Push([]abstract.ChangeItem{kafkasink.MakeKafkaRawMessage(source.Topic, time.Time{}, source.Topic, 0, 0, k, v)})
+	err = srcSink.Push([]abstract.ChangeItem{abstract.MakeRawMessage(k, source.Topic, time.Time{}, source.Topic, 0, 0, v)})
 	require.NoError(t, err)
 
 	// activate transfer

@@ -33,7 +33,7 @@ const (
 )
 
 type snapshotSource struct {
-	cfg  *yt2.YtSource
+	cfg  yt2.YtSourceModel
 	yt   yt.Client
 	txID yt.TxID
 	part *dataobjects.Part
@@ -69,8 +69,8 @@ func (s *snapshotSource) Start(ctx context.Context, target base.EventTarget) err
 	if err != nil {
 		return xerrors.Errorf("error loading table schema: %w", err)
 	}
-	if s.cfg.RowIdxEnabled() {
-		schema.AddRowIdxColumn(tbl, s.cfg.RowIdxColumnName)
+	if s.cfg.GetRowIdxColumn() != "" {
+		schema.AddRowIdxColumn(tbl, s.cfg.GetRowIdxColumn())
 	}
 
 	s.lowerIdx = s.part.LowerBound()
@@ -228,7 +228,7 @@ func (s *snapshotSource) pusher(tbl table.YtTable, target base.EventTarget) {
 	partID := fmt.Sprintf("%d_%d", s.lowerIdx, s.upperIdx)
 
 	resetBatch := func(size int) {
-		batch = newEmptyBatch(tbl, size, partID, s.cfg.RowIdxColumnName)
+		batch = newEmptyBatch(tbl, size, partID, s.cfg.GetRowIdxColumn())
 		batchSize = 0
 	}
 
@@ -284,7 +284,7 @@ func (s *snapshotSource) Progress() (base.EventSourceProgress, error) {
 	return base.NewDefaultEventSourceProgress(s.isDone, s.doneCnt, s.totalCnt), nil
 }
 
-func NewSnapshotSource(cfg *yt2.YtSource, ytc yt.Client, part *dataobjects.Part,
+func NewSnapshotSource(cfg yt2.YtSourceModel, ytc yt.Client, part *dataobjects.Part,
 	lgr log.Logger, metrics *stats.SourceStats) *snapshotSource {
 	return &snapshotSource{
 		cfg:       cfg,

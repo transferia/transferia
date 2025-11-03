@@ -8,6 +8,7 @@ import (
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -62,7 +63,17 @@ func dirtyPatch(in string) string {
 	return strings.Join(result, "\n")
 }
 
-func makeChangeItemsFromMessageWithProtobuf(inMDBuilder *mdBuilder, schema *confluent.Schema, refs map[string]confluent.Schema, messageName string, buf []byte, offset uint64, writeTime time.Time, isCloudevents bool) ([]abstract.ChangeItem, error) {
+func makeChangeItemsFromMessageWithProtobuf(
+	inMDBuilder *mdBuilder,
+	schema *confluent.Schema,
+	refs map[string]confluent.Schema,
+	messageName string,
+	buf []byte,
+	offset uint64,
+	writeTime time.Time,
+	isCloudevents bool,
+	isGenerateUpdates bool,
+) ([]abstract.ChangeItem, error) {
 	currBuf := buf
 	if !isCloudevents {
 		arrayIndexesFirstByte := buf[0]
@@ -99,22 +110,27 @@ func makeChangeItemsFromMessageWithProtobuf(inMDBuilder *mdBuilder, schema *conf
 	if err != nil {
 		return nil, xerrors.Errorf("Can't process payload:%w", err)
 	}
+	kind := abstract.InsertKind
+	if isGenerateUpdates {
+		kind = abstract.UpdateKind
+	}
 	changeItem := abstract.ChangeItem{
-		ID:           0,
-		LSN:          offset,
-		CommitTime:   uint64(writeTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       schemaName,
-		Table:        tableName,
-		PartID:       "",
-		ColumnNames:  names,
-		ColumnValues: values,
-		TableSchema:  tableColumns,
-		OldKeys:      abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.RawEventSize(uint64(len(buf))),
+		ID:               0,
+		LSN:              offset,
+		CommitTime:       uint64(writeTime.UnixNano()),
+		Counter:          0,
+		Kind:             kind,
+		Schema:           schemaName,
+		Table:            tableName,
+		PartID:           "",
+		ColumnNames:      names,
+		ColumnValues:     values,
+		TableSchema:      tableColumns,
+		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+		Size:             abstract.RawEventSize(uint64(len(buf))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	return []abstract.ChangeItem{changeItem}, nil
 }

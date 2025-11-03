@@ -66,7 +66,7 @@ func EnsureTmpPolicySupported(destination Destination, transfer *Transfer) error
 	}
 
 	if transfer != nil {
-		if transfer.IsSharded() {
+		if transfer.IsSnapshotSharded() {
 			return xerrors.New("sharding is not supported")
 		}
 	}

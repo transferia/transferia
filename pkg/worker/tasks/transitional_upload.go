@@ -29,7 +29,7 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 		}
 		return nil
 	}
-	if transfer.IsSharded() && transfer.IsTransitional() {
+	if transfer.IsSnapshotSharded() && transfer.IsTransitional() {
 		return xerrors.New("sharded upload on connected transfers not supported")
 	}
 
@@ -61,24 +61,25 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 	for _, src := range sources {
 		for _, dst := range destinations {
 			utTransfer := model.Transfer{
-				ID:                transfer.ID,
-				TransferName:      "",
-				Description:       "",
-				Labels:            "",
-				Author:            "",
-				Status:            model.Running,
-				Type:              abstract.TransferTypeSnapshotOnly,
-				FolderID:          "",
-				Runtime:           transfer.Runtime,
-				Src:               src,
-				Dst:               dst,
-				CloudID:           "",
-				RegularSnapshot:   nil,
-				Transformation:    transfer.Transformation,
-				TmpPolicy:         transfer.TmpPolicy,
-				DataObjects:       transfer.DataObjects,
-				TypeSystemVersion: transfer.TypeSystemVersion,
-				AsyncOperations:   transfer.AsyncOperations,
+				ID:                 transfer.ID,
+				TransferName:       "",
+				Description:        "",
+				Labels:             "",
+				Author:             "",
+				Status:             model.Running,
+				Type:               abstract.TransferTypeSnapshotOnly,
+				FolderID:           "",
+				Runtime:            transfer.Runtime,
+				ReplicationRuntime: transfer.ReplicationRuntime,
+				Src:                src,
+				Dst:                dst,
+				CloudID:            "",
+				RegularSnapshot:    nil,
+				Transformation:     transfer.Transformation,
+				TmpPolicy:          transfer.TmpPolicy,
+				DataObjects:        transfer.DataObjects,
+				TypeSystemVersion:  transfer.TypeSystemVersion,
+				AsyncOperations:    transfer.AsyncOperations,
 			}
 
 			if !transfer.IsAbstract2() {
@@ -98,7 +99,7 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 			transfers = append(transfers, utTransfer)
 		}
 	}
-	if transfer.IsSharded() && len(transfers) > 1 {
+	if transfer.IsSnapshotSharded() && len(transfers) > 1 {
 		return xerrors.New("sharded upload on connected transfers not supported")
 	}
 
@@ -202,7 +203,7 @@ func TransitReupload(ctx context.Context, cp coordinator.Coordinator, transfer m
 				if xerrors.Is(err, storage.UnsupportedSourceErr) {
 					continue
 				}
-				return xerrors.Errorf(TableListErrorText, err)
+				return xerrors.Errorf(tableListErrorText, err)
 			}
 
 			if err := rutSnapshotLoader.CleanupSinker(tables); err != nil {

@@ -77,7 +77,9 @@ func TestThrottler(t *testing.T) {
 		},
 	}
 	kafkaSource := &KafkaSource{BufferSize: 100}
-	source, err := newSourceWithReader(kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), reader)
+	source, err := newSource(kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	require.NoError(t, err)
+	source.reader = reader
 	require.NoError(t, err)
 	require.True(t, source.inLimits())
 	wg := sync.WaitGroup{}
@@ -215,4 +217,35 @@ func TestOffsetPolicy(t *testing.T) {
 	src.Stop()
 	abstract.Dump(items)
 	require.Len(t, items, 2)
+}
+
+type mockParser struct {
+	parsers.Parser
+}
+
+func (m *mockParser) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
+	return []abstract.ChangeItem{abstract.ChangeItem{LSN: 0}}
+}
+
+func TestParseLSNNotSetNull(t *testing.T) {
+	kafkaSource, err := SourceRecipe()
+	require.NoError(t, err)
+
+	kafkaSource.Topic = "topic2"
+	src, err := NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	require.NoError(t, err)
+
+	src.parser = &mockParser{}
+
+	parsedItems := src.parse([]kgo.Record{
+		{
+			Topic:     "topic2",
+			Offset:    3,
+			Value:     []byte("{\"ts\":\"2021-01-01T00:00:00Z\",\"msg\":\"test\"}"),
+			Timestamp: time.Now(),
+		},
+	})
+
+	require.Len(t, parsedItems, 1)
+	require.Equal(t, uint64(3), parsedItems[0].LSN)
 }

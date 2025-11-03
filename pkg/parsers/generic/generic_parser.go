@@ -17,6 +17,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/registry/logfeller/lib"
@@ -295,21 +296,22 @@ func newLfResult(raw []byte) ([]lfResult, error) {
 
 func (p *GenericParser) makeChangeItem(item map[string]interface{}, idx int, line string, partition abstract.Partition, msg parsers.Message) abstract.ChangeItem {
 	changeItem := abstract.ChangeItem{
-		ID:           0,
-		LSN:          msg.Offset,
-		CommitTime:   uint64(msg.WriteTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       "",
-		Table:        "",
-		PartID:       partition.String(),
-		ColumnNames:  p.columns,
-		ColumnValues: make([]interface{}, len(p.columns)),
-		TableSchema:  p.schema,
-		OldKeys:      abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.RawEventSize(uint64(len(line))),
+		ID:               0,
+		LSN:              msg.Offset,
+		CommitTime:       uint64(msg.WriteTime.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           "",
+		Table:            "",
+		PartID:           partition.String(),
+		ColumnNames:      p.columns,
+		ColumnValues:     make([]interface{}, len(p.columns)),
+		TableSchema:      p.schema,
+		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+		Size:             abstract.RawEventSize(uint64(len(line))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	if p.auxOpts.AddSystemColumns {
 		item["_lb_ctime"] = msg.CreateTime
@@ -437,11 +439,11 @@ func (p *GenericParser) DoBatch(batch parsers.MessageBatch) []abstract.ChangeIte
 
 func (p *GenericParser) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
 	start := time.Now()
-	var res []abstract.ChangeItem
+	var result []abstract.ChangeItem
 	if p.lfParser {
-		res = p.doLfParser(msg, partition)
+		result = p.doLfParser(msg, partition)
 	} else {
-		res = p.doGenericParser(msg, partition)
+		result = p.doGenericParser(msg, partition)
 	}
 	p.metrics.DecodeTime.RecordDuration(time.Since(start))
 	p.logger.Debug(
@@ -449,7 +451,10 @@ func (p *GenericParser) Do(msg parsers.Message, partition abstract.Partition) []
 		log.Any("elapsed", time.Since(start)),
 		log.Any("size", format.Size(binary.Size(msg.Value)).String()),
 	)
-	return res
+	for i := range result {
+		result[i].FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
+	}
+	return result
 }
 
 func (p *GenericParser) doLfParser(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
@@ -491,14 +496,14 @@ func (p *GenericParser) doLfParser(msg parsers.Message, partition abstract.Parti
 			p.logger.Warnf("unable to parse result from logfeller parser: %v", err)
 			break
 		}
-		for _, i := range items {
+		for _, currItem := range items {
 			idx++
 			var ci abstract.ChangeItem
 
-			if i.IsUnparsed() {
-				ci = p.newUnparsed(partition, i.RawLine, i.Error, idx, msg)
+			if currItem.IsUnparsed() {
+				ci = p.newUnparsed(partition, currItem.RawLine, currItem.Error, idx, msg)
 			} else {
-				ci = p.makeChangeItem(i.ParsedRecord, idx, i.RawLine, partition, msg)
+				ci = p.makeChangeItem(currItem.ParsedRecord, idx, currItem.RawLine, partition, msg)
 				if err = abstract.ValidateChangeItem(&ci); err != nil {
 					p.logger.Error(err.Error())
 				}
@@ -591,11 +596,12 @@ func NewUnparsed(partition abstract.Partition, name, line, reason string, idx in
 			line,
 			reason,
 		},
-		TableSchema: UnparsedSchema,
-		OldKeys:     abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		TxID:        "",
-		Query:       "",
-		Size:        abstract.RawEventSize(uint64(len(line))),
+		TableSchema:      UnparsedSchema,
+		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+		Size:             abstract.RawEventSize(uint64(len(line))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 
@@ -912,6 +918,29 @@ func (p *GenericParser) ParseVal(v interface{}, typ string) (interface{}, error)
 		case schema.TypeString, schema.TypeBytes:
 			return fmt.Sprintf("%v", v), nil
 		default:
+			return n, nil
+		}
+	}
+
+	if n, ok := v.(uint64); ok {
+		switch schema.Type(typ) {
+		case schema.TypeFloat64:
+			return n, nil
+		case schema.TypeInt8:
+			return int8(n), nil
+		case schema.TypeInt16:
+			return int16(n), nil
+		case schema.TypeInt32:
+			return int32(n), nil
+		case schema.TypeInt64:
+			return int64(n), nil
+		case schema.TypeUint8:
+			return uint8(n), nil
+		case schema.TypeUint16:
+			return uint16(n), nil
+		case schema.TypeUint32:
+			return uint32(n), nil
+		case schema.TypeUint64:
 			return n, nil
 		}
 	}

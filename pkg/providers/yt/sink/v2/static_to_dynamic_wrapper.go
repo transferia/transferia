@@ -108,6 +108,9 @@ func (s *sinker) convertStaticToDynamic(ctx context.Context, tableYPath ypath.Pa
 		if err := s.ytClient.AlterTable(ctx, tableYPath, &alterOptions); err != nil {
 			return xerrors.Errorf("unable to alter destination table %q: %w", tableYPath, err)
 		}
+		if err := yt2.MountUnmountWrapper(ctx, s.ytClient, tableYPath, migrate.UnmountAndWait); err != nil {
+			return xerrors.Errorf("unable to unmount destination table %q: %w", tableYPath, err)
+		}
 
 		dstInfo, err := yt2.GetNodeInfo(ctx, s.ytClient, tableYPath)
 		if err != nil {
@@ -118,7 +121,7 @@ func (s *sinker) convertStaticToDynamic(ctx context.Context, tableYPath ypath.Pa
 			return xerrors.Errorf("unable to set destination attributes: %w", err)
 		}
 
-		if err := migrate.MountAndWait(ctx, s.ytClient, tableYPath); err != nil {
+		if err := yt2.MountUnmountWrapper(ctx, s.ytClient, tableYPath, migrate.MountAndWait); err != nil {
 			return xerrors.Errorf("unable to mount destination table %q: %w", tableYPath, err)
 		}
 		return nil

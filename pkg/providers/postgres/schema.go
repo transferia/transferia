@@ -438,16 +438,11 @@ func (s tableIDWithInfos) String() string {
 }
 
 // TablesList returns a list of basic information pieces about all tables in the given schema
-func (e *SchemaExtractor) TablesList(ctx context.Context, conn *pgx.Conn) ([]tableIDWithInfo, time.Time, error) {
+func (e *SchemaExtractor) TablesList(ctx context.Context, tx pgx.Tx) ([]tableIDWithInfo, time.Time, error) {
 	var ts time.Time
 	query := e.listTablesQuery()
 	e.logger.Info("Retrieving a list of tables", log.String("query", query))
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return nil, ts, xerrors.Errorf("unable to begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx)
-	rows, err := tx.Query(context.TODO(), query)
+	rows, err := tx.Query(ctx, query)
 	if err != nil {
 		return nil, ts, xerrors.Errorf("failed to list tables: %w", err)
 	}

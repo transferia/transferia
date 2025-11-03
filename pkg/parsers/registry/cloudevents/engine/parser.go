@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/parsers"
 	genericparser "github.com/transferia/transferia/pkg/parsers/generic"
 	confluentschemaregistryengine "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine"
@@ -82,11 +83,12 @@ func buildChangeItem(
 			fields.time,
 			changeItem.AsMap(),
 		},
-		TableSchema: tableSchema,
-		OldKeys:     abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		TxID:        "",
-		Query:       "",
-		Size:        abstract.RawEventSize(uint64(len(msg.Value))),
+		TableSchema:      tableSchema,
+		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+		Size:             abstract.RawEventSize(uint64(len(msg.Value))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 
@@ -100,7 +102,7 @@ func (p *CloudEventsImpl) getConfluentSRParserImpl(hostPort string) (*confluents
 
 	p.logger.Infof("try to create confluentSRParser for host/port:%s, username:%s", hostPort, p.username)
 
-	confluentSRParser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(hostPort, p.caCert, p.username, p.password, p.SendSrNotFoundToUnparsed, p.logger)
+	confluentSRParser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(hostPort, p.caCert, p.username, p.password, false, p.SendSrNotFoundToUnparsed, p.logger)
 	isAuthorizedPrimaryPass, err := confluentSRParser.SchemaRegistryClient.IsAuthorized()
 	if err != nil {
 		return nil, xerrors.Errorf("unable to check if authorized with primary password, err: %w", err)
@@ -112,19 +114,18 @@ func (p *CloudEventsImpl) getConfluentSRParserImpl(hostPort string) (*confluents
 	}
 	p.logger.Info("tested original password, didn't work. Try fallback password")
 
-	if !isAuthorizedPrimaryPass {
-		confluentSRParser = confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(hostPort, p.caCert, p.username, p.passwordFallback, p.SendSrNotFoundToUnparsed, p.logger)
-		isAuthorizedFallbackPass, err := confluentSRParser.SchemaRegistryClient.IsAuthorized()
-		if err != nil {
-			return nil, xerrors.Errorf("unable to check if authorized with fallback password, err: %w", err)
-		}
-		if isAuthorizedFallbackPass {
-			p.logger.Info("SchemaRegistry got fallback password")
-			p.hostPortToClient[hostPort] = confluentSRParser
-			return confluentSRParser, nil
-		}
-		p.logger.Info("tested fallback password, didn't work. Try fallback password")
+	confluentSRParser = confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(hostPort, p.caCert, p.username, p.passwordFallback, false, p.SendSrNotFoundToUnparsed, p.logger)
+	isAuthorizedFallbackPass, err := confluentSRParser.SchemaRegistryClient.IsAuthorized()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to check if authorized with fallback password, err: %w", err)
 	}
+	if isAuthorizedFallbackPass {
+		p.logger.Info("SchemaRegistry got fallback password")
+		p.hostPortToClient[hostPort] = confluentSRParser
+		return confluentSRParser, nil
+	}
+	p.logger.Info("tested fallback password, didn't work. Try fallback password")
+
 	return nil, xerrors.New("unable to authorize on primary & fallback password")
 }
 
@@ -161,17 +162,20 @@ func (p *CloudEventsImpl) Do(msg parsers.Message, partition abstract.Partition) 
 	_, leastChangeItems := confluentSRParser.DoWithSchemaID(partition, schemaID, protoPath, body, msg.Offset, msg.WriteTime, true)
 
 	result := make([]abstract.ChangeItem, 0, len(leastChangeItems))
-	for _, currChangeItem := range leastChangeItems {
+	for i, currChangeItem := range leastChangeItems {
+		var finalChangeItem abstract.ChangeItem
 		if strings.HasSuffix(currChangeItem.Table, "_unparsed") {
-			result = append(result, currChangeItem)
+			finalChangeItem = currChangeItem
 		} else {
-			result = append(result, buildChangeItem(
+			finalChangeItem = buildChangeItem(
 				&currChangeItem,
 				cloudEventsFields,
 				msg,
 				partition,
-			))
+			)
 		}
+		finalChangeItem.FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
+		result = append(result, finalChangeItem)
 	}
 	return result
 }

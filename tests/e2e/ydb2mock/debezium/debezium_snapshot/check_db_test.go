@@ -67,8 +67,9 @@ func TestGroup(t *testing.T) {
 	transfer := helpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
 
 	var changeItems []abstract.ChangeItem
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		changeItems = append(changeItems, input...)
+		return nil
 	}
 
 	helpers.Activate(t, transfer)

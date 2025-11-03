@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
 )
 
 // manual test based on YC junk cluster
@@ -30,7 +31,7 @@ func TestKafka(t *testing.T) {
 		},
 		Auth: &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      os.Getenv("KAFKA_USER"),
 			Password:  os.Getenv("KAFKA_PASSWORD"),
 		},

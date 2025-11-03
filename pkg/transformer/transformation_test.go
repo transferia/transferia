@@ -61,7 +61,6 @@ func TestMultipleTransformers(t *testing.T) {
 			ErrorsOutput: nil,
 		},
 		ExtraTransformers: nil,
-		Executor:          nil,
 	}
 
 	mockSinker := new(mockSinker)

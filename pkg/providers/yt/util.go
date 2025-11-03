@@ -209,17 +209,16 @@ func WaitMountingPreloadState(yc yt.Client, path ypath.Path) error {
 
 func ResolveMoveOptions(client yt.CypressClient, table ypath.Path, isRecursive bool) *yt.MoveNodeOptions {
 	ctx := context.Background()
-
-	var tableTimeout int64
-	var tableExpirationTime string
-	preserveExpirationTimeoutErr := client.GetNode(ctx, table.Attr("expiration_timeout"), &tableTimeout, nil)
-	preserveExpirationTimeErr := client.GetNode(ctx, table.Attr("expiration_time"), &tableExpirationTime, nil)
-
 	result := &yt.MoveNodeOptions{
-		Force:                     true,
-		Recursive:                 isRecursive,
-		PreserveExpirationTimeout: ptr.Bool(preserveExpirationTimeoutErr == nil),
-		PreserveExpirationTime:    ptr.Bool(preserveExpirationTimeErr == nil),
+		Force:     true,
+		Recursive: isRecursive,
+	}
+
+	if ok, err := client.NodeExists(ctx, table.Attr("expiration_timeout"), nil); err == nil && ok {
+		result.PreserveExpirationTimeout = ptr.Bool(true)
+	}
+	if ok, err := client.NodeExists(ctx, table.Attr("expiration_time"), nil); err == nil && ok {
+		result.PreserveExpirationTime = ptr.Bool(true)
 	}
 	return result
 }

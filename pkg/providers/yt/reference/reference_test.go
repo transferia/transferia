@@ -39,7 +39,7 @@ func TestPushReferenceTable(t *testing.T) {
 		}))
 		source := &yt.YtSource{
 			Cluster:          os.Getenv("YT_PROXY"),
-			Proxy:            os.Getenv("YT_PROXY"),
+			YtProxy:          os.Getenv("YT_PROXY"),
 			Paths:            []string{Destination.Path},
 			YtToken:          "",
 			RowIdxColumnName: "row_idx",

@@ -34,6 +34,7 @@ type S3Source struct {
 	errCh         chan error
 	pusher        pusher.Pusher
 	inflightLimit int64
+	fetchInterval time.Duration
 }
 
 func (s *S3Source) Run(sink abstract.AsyncSink) error {
@@ -68,13 +69,26 @@ func (s *S3Source) sendSynchronizeEvent() error {
 	return nil
 }
 
+func (s *S3Source) newBackoffForFetchInterval() backoff.BackOff {
+	if s.fetchInterval > 0 {
+		s.logger.Infof("Using fixed fetch interval: %v", s.fetchInterval)
+		return backoff.NewConstantBackOff(s.fetchInterval)
+	}
+
+	s.logger.Infof("Using exponential backoff timer")
+	exponentialBackoff := util.NewExponentialBackOff()
+	exponentialBackoff.InitialInterval = time.Second
+	exponentialBackoff.MaxInterval = time.Minute * 10 // max delay between fetch objects
+	exponentialBackoff.Multiplier = 1.5               // increase delay in 1.5 times when no files found
+	exponentialBackoff.Reset()
+	return exponentialBackoff
+}
+
 func (s *S3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 	defer s.metrics.Master.Set(0)
-	backoffTimer := backoff.NewExponentialBackOff()
-	backoffTimer.InitialInterval = time.Second * 10
-	backoffTimer.MaxElapsedTime = 0
-	backoffTimer.Reset()
-	nextWaitDuration := backoffTimer.NextBackOff()
+
+	fetchDelayTimer := s.newBackoffForFetchInterval()
+	nextFetchDelay := fetchDelayTimer.NextBackOff()
 
 	currPusher := pusher.New(nil, parseQ, s.logger, s.inflightLimit)
 	s.pusher = currPusher
@@ -92,22 +106,30 @@ func (s *S3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 		default:
 		}
 		s.metrics.Master.Set(1)
+
+		if nextFetchDelay > 0 {
+			s.logger.Infof("Waiting %v before fetching objects to reduce source load", nextFetchDelay)
+			time.Sleep(nextFetchDelay)
+		}
+
 		objectList, err := s.objectFetcher.FetchObjects(s.reader)
 		if err != nil {
 			return xerrors.Errorf("failed to get list of new objects: %w", err)
 		}
 
 		if len(objectList) == 0 {
-			err = s.sendSynchronizeEvent()
-			if err != nil {
+			if err := s.sendSynchronizeEvent(); err != nil {
 				return xerrors.Errorf("failed to send synchronize event: %w", err)
 			}
-			s.logger.Infof("No new file from s3 found, will wait %v", nextWaitDuration)
-			time.Sleep(nextWaitDuration)
-			nextWaitDuration = backoffTimer.NextBackOff()
+			nextFetchDelay = fetchDelayTimer.NextBackOff()
+			s.logger.Infof("No new s3 files found, increasing fetch delay to %v", nextFetchDelay)
+
 			continue
 		}
-		backoffTimer.Reset()
+
+		fetchDelayTimer.Reset()
+		nextFetchDelay = fetchDelayTimer.NextBackOff()
+		s.logger.Infof("New files found (%d), next fetch delay: %v", len(objectList), nextFetchDelay)
 
 		if err := util.ParallelDoWithContextAbort(s.ctx, len(objectList), int(s.srcModel.Concurrency), func(i int, ctx context.Context) error {
 			singleObject := objectList[i]
@@ -188,5 +210,6 @@ func NewSource(
 		errCh:         make(chan error, 1),
 		pusher:        nil,
 		inflightLimit: srcModel.InflightLimit,
+		fetchInterval: srcModel.FetchInterval,
 	}, nil
 }

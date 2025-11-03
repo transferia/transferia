@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/set"
 )
@@ -20,8 +22,6 @@ type TableDescription struct {
 	EtaRow uint64 // estimated number of rows in the table
 	Offset uint64 // offset (in rows) along the ordering key (not necessary primary key)
 }
-
-var NonExistentTableID TableID = *NewTableID("", "")
 
 const IsAsyncPartsUploadedStateKey = "is-async-parts-uploaded"
 
@@ -81,12 +81,12 @@ func ParseTableIDs(objects ...string) ([]TableID, error) {
 func NewTableIDFromStringPg(fqtn string, replaceOmittedSchemaWithPublic bool) (*TableID, error) {
 	parts, err := identifierToParts(fqtn)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to parse identifier '%s' into parts: %w", fqtn, err)
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "failed to identify parts: %s: %w", fqtn, err)
 	}
 
 	switch len(parts) {
 	case 0:
-		return nil, xerrors.Errorf("zero-length identifier")
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "object identifier has no parts: %s", fqtn)
 	case 1:
 		if replaceOmittedSchemaWithPublic {
 			return &TableID{Namespace: "public", Name: parts[0]}, nil
@@ -95,7 +95,8 @@ func NewTableIDFromStringPg(fqtn string, replaceOmittedSchemaWithPublic bool) (*
 	case 2:
 		return &TableID{Namespace: parts[0], Name: parts[1]}, nil
 	default:
-		return nil, xerrors.Errorf("identifier '%s' contains %d parts instead of maximum two", fqtn, len(parts))
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "identifier '%s' contains %d parts instead of maximum two", fqtn, len(parts))
+
 	}
 }
 
@@ -353,19 +354,6 @@ type ShardingStorage interface {
 	ShardTable(ctx context.Context, table TableDescription) ([]TableDescription, error)
 }
 
-type TableDescProvider func(ctx context.Context, limit uint64) ([]TableDescription, error)
-
-// AsyncOperationPartsStorage is like ShardingStorage, but uses TableDescProvider to receive
-// table descriptions during transfer process, not all at once.
-// NOTE: For such storage in sharding context (operation state) could appear value with
-// key IsAsyncPartsUploadedStateKey, which is used by control code and should be not changed by storage.
-type AsyncOperationPartsStorage interface {
-	ShardingContextStorage
-	// NOTE: TableDescProvider should be cancelled with corresponding context.CancelFunc if necessary.
-	AsyncPartsProvider(tables []TableDescription) (TableDescProvider, context.CancelFunc, error)
-	TotalPartsCount(ctx context.Context, tables []TableDescription) (uint64, error)
-}
-
 // Storage has data, that need to be shared with all workers
 type ShardingContextStorage interface {
 	// ShardingContext Return shared data, used on *MAIN* worker;
@@ -385,4 +373,51 @@ type IncrementalStorage interface {
 type SnapshotableStorage interface {
 	BeginSnapshot(ctx context.Context) error
 	EndSnapshot(ctx context.Context) error
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// async table part provider
+
+type SharedMemory interface {
+	// init thing
+	ResetState() error
+
+	// main methods - remove, add, get, get_for_logging, commit_done
+	RemoveTransferState(transferID string, stateKeys []string) error
+	Store(in []TableDescription) error
+	NextOperationTablePart(ctx context.Context) (*OperationTablePart, error)
+	UpdateOperationTablesParts(operationID string, tables []*OperationTablePart) error
+
+	// additional work with OperationState
+	GetShardStateNoWait(ctx context.Context, operationID string) (string, error)
+	SetOperationState(operationID string, newState string) error
+
+	// convertor thing
+	ConvertToTableDescription(in *OperationTablePart) (*TableDescription, error)
+}
+
+type SharedMemoryBuilder interface {
+	BuildSharedMemory(
+		transferID string,
+		operationID string,
+		workerIndex int,
+		cp any,
+		totalParts uint64,
+		checkLoaderError func() error,
+	) SharedMemory
+}
+
+// NextArrTableDescriptionGetter is used in async_table_parts (tpp_*_async.go) to get tasks
+type NextArrTableDescriptionGetter interface {
+	NextArrTableDescription(ctx context.Context, limit uint64) ([]TableDescription, error)
+	Close()
+}
+
+// NextArrTableDescriptionGetterBuilder means there are used async_table_parts mechanism
+//
+// NOTE: For such storage in sharding context (operation state) could appear value with
+// key IsAsyncPartsUploadedStateKey, which is used by control code and should be not changed by storage.
+type NextArrTableDescriptionGetterBuilder interface {
+	ShardingContextStorage
+	BuildNextArrTableDescriptionGetter(tables []TableDescription) (NextArrTableDescriptionGetter, error)
 }

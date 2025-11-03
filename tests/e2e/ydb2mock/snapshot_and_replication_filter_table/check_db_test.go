@@ -38,7 +38,7 @@ func TestGroup(t *testing.T) {
 
 	var changeItems []abstract.ChangeItem
 	mutex := sync.Mutex{}
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		mutex.Lock()
 		defer mutex.Unlock()
 
@@ -47,6 +47,7 @@ func TestGroup(t *testing.T) {
 				changeItems = append(changeItems, currElem)
 			}
 		}
+		return nil
 	}
 
 	t.Run("init source database", func(t *testing.T) {

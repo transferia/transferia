@@ -20,6 +20,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/middlewares"
 	sink_factory "github.com/transferia/transferia/pkg/sink"
 	"github.com/transferia/transferia/pkg/util"
@@ -113,7 +115,19 @@ func ApplyCommands(commands []*pgDumpItem, transfer model.Transfer, registry met
 				log.String("query", command.Body),
 				log.Error(err),
 			)
-			return xerrors.Errorf(
+			// If destination has functions from extensions in user schema missing, pg returns 42883
+			if IsPgError(err, ErrcUndefinedFunction) {
+				return coded.Errorf(codes.PostgresUndefinedFunction,
+					"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
+					command.Typ, command.Schema, command.Name, err)
+			}
+			// If schema is missing, map 3F000
+			if IsPgError(err, ErrcSchemaDoesNotExists) {
+				return coded.Errorf(codes.PostgresSchemaDoesNotExist,
+					"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
+					command.Typ, command.Schema, command.Name, err)
+			}
+			return coded.Errorf(codes.PostgresDDLApplyFailed,
 				"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
 				command.Typ, command.Schema, command.Name, err)
 		}
@@ -385,9 +399,13 @@ func loadPgDumpSchema(ctx context.Context, src *PgSource, transfer *model.Transf
 		return nil, xerrors.Errorf("failed to compose arguments for pg_dump: %w", err)
 	}
 	dump, err := execPgDump(src.PgDumpCommand, connString, secretPass, pgDumpArgs)
-	result = append(result, filterDump(dump, src.DBTables)...)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to execute pg_dump to get schema: %w", err)
+	}
+	if len(src.DBTables) == 0 {
+		result = append(result, dump...)
+	} else {
+		result = append(result, filterDump(dump, abstract.NewIntersectionIncludeable(src, transfer))...)
 	}
 
 	if (src.PreSteps.SequenceSet == nil || *src.PreSteps.SequenceSet) || (src.PostSteps.SequenceSet == nil || *src.PostSteps.SequenceSet) {
@@ -651,10 +669,7 @@ func dumpCasts(definedCasts []*pgDumpItem, src *PgSource, excludedTypes *set.Set
 	return result
 }
 
-func filterDump(dump []*pgDumpItem, DBTables []string) []*pgDumpItem {
-	if len(DBTables) == 0 {
-		return dump
-	}
+func filterDump(dump []*pgDumpItem, filter abstract.Includeable) []*pgDumpItem {
 	result := make([]*pgDumpItem, 0, len(dump))
 	createdIndexes := set.New[string]()
 
@@ -665,7 +680,14 @@ func filterDump(dump []*pgDumpItem, DBTables []string) []*pgDumpItem {
 			splitSQL := splitSQLBySeparator(catSQL, " ATTACH")
 			parentTable := splitSQL[0]
 
-			if !slices.Contains(DBTables, parentTable) {
+			tableID, err := abstract.NewTableIDFromStringPg(parentTable, false)
+			if err != nil {
+				logger.Log.Warnf("unable to parse table id from %s: %s", parentTable, err.Error())
+				continue
+			}
+
+			if !filter.Include(*tableID) {
+				logger.Log.Infof("table attachment for %s skipped", parentTable)
 				continue
 			}
 		case "INDEX":
@@ -716,8 +738,8 @@ func execPgDump(pgDump []string, connString string, password model.SecretString,
 	if err := command.Run(); err != nil {
 		stderrBytes := stderr.Bytes()
 		if bytes.Contains(stderrBytes, []byte("permission denied")) {
-			// TM-1650: permission error should be fatal
-			err = abstract.NewFatalError(err)
+			// Map to coded error for better UX and docs linking
+			err = abstract.NewFatalError(coded.Errorf(codes.PostgresPgDumpPermissionDenied, "failed to execute pg_dump: %w", err))
 		}
 		return nil, xerrors.Errorf("failed to execute pg_dump. STDERR:\n%s\nerror: %w", string(truncate(string(stderrBytes), 2000)), err)
 	}

@@ -10,20 +10,21 @@ import (
 )
 
 type Transfer struct {
-	ID                string
-	TransferName      string
-	Description       string
-	Labels            string
-	Status            TransferStatus
-	Type              abstract.TransferType
-	Runtime           abstract.Runtime
-	Src               Source
-	Dst               Destination
-	RegularSnapshot   *abstract.RegularSnapshot
-	Transformation    *Transformation
-	DataObjects       *DataObjects
-	TypeSystemVersion int
-	TmpPolicy         *TmpPolicyConfig
+	ID                 string
+	TransferName       string
+	Description        string
+	Labels             string
+	Status             TransferStatus
+	Type               abstract.TransferType
+	Runtime            abstract.Runtime
+	ReplicationRuntime abstract.Runtime // if nil, use Runtime (see `RuntimeForReplication`)
+	Src                Source
+	Dst                Destination
+	RegularSnapshot    *abstract.RegularSnapshot
+	Transformation     *Transformation
+	DataObjects        *DataObjects
+	TypeSystemVersion  int
+	TmpPolicy          *TmpPolicyConfig
 
 	AsyncOperations bool // real async operation flag
 
@@ -59,6 +60,11 @@ func (f *Transfer) IncrementOnly() bool {
 	return f.Type == abstract.TransferTypeIncrementOnly
 }
 
+// RuntimeType used by external references:
+//
+//	taxi/atlas/saas/data-transfer/transfer/internal/runtime/metering
+//	taxi/atlas/saas/data-transfer/transfer/internal/workflow
+//	taxi/atlas/saas/data-transfer/transfer/internal/workflow/gotest
 func (f *Transfer) RuntimeType() string {
 	if f.Runtime != nil {
 		return string(f.Runtime.Type())
@@ -105,6 +111,9 @@ func (f *Transfer) WithDefault() {
 	}
 	if f.Runtime != nil {
 		f.Runtime.WithDefaults()
+	}
+	if f.ReplicationRuntime != nil {
+		f.ReplicationRuntime.WithDefaults()
 	}
 }
 
@@ -224,21 +233,7 @@ func (f *Transfer) AddExtraTransformer(transformer abstract.Transformer) error {
 		f.Transformation = new(Transformation)
 	}
 	f.Transformation.ExtraTransformers = append(f.Transformation.ExtraTransformers, transformer)
-	if f.Transformation.Executor != nil {
-		// add new transformer to transformation executor plan
-		return f.Transformation.Executor.AddTransformer(transformer)
-	}
 	return nil
-}
-
-func (f *Transfer) TransformationMiddleware() (abstract.SinkOption, error) {
-	if f.Transformation != nil {
-		if f.Transformation.Executor == nil {
-			return nil, xerrors.New("Transformation executor is not inited")
-		}
-		return f.Transformation.Executor.MakeSinkMiddleware(), nil
-	}
-	return nil, nil
 }
 
 func (f *Transfer) TransformationJSON() ([]byte, error) {
@@ -250,7 +245,7 @@ func (f *Transfer) TransformationJSON() ([]byte, error) {
 }
 
 func (f *Transfer) TransformationFromJSON(value string) error {
-	transformation, err := MakeTransformationFromJSON(value)
+	transformation, err := NewTransformationFromJSON(value)
 	if err != nil {
 		return xerrors.Errorf("cannot make transformation from JSON string: %w", err)
 	}
@@ -311,11 +306,22 @@ func (f *Transfer) ParallelismParams() *abstract.ShardUploadParams {
 	return parallelismParams
 }
 
-func (f *Transfer) IsSharded() bool {
+func (f *Transfer) RuntimeForReplication() abstract.Runtime {
+	if f.ReplicationRuntime != nil {
+		return f.ReplicationRuntime
+	}
+	return f.Runtime
+}
+
+func (f *Transfer) IsSnapshotSharded() bool {
 	if rt, ok := f.Runtime.(abstract.ShardingTaskRuntime); ok {
 		return rt.SnapshotWorkersNum() > 1
 	}
 	return false
+}
+
+func (f *Transfer) IsSnapshotInSingleWorkerMode() bool {
+	return !f.IsSnapshotSharded()
 }
 
 func (f *Transfer) IsMain() bool {
@@ -408,7 +414,7 @@ func (f *Transfer) Include(tID abstract.TableID) bool {
 // SystemLabel method is used to access system labels for transfer.
 // System labels are special reserved labels which are used to control some
 // hidden experimental transfer features
-func (f *Transfer) SystemLabel(name SystemLabel) (string, error) {
+func (f *Transfer) FeatureLabel(name FeatureLabel) (string, error) {
 	labelMap := map[string]string{}
 	if err := json.Unmarshal([]byte(f.Labels), &labelMap); err != nil {
 		return "", xerrors.Errorf("error parsing transfer labels: %w", err)
@@ -426,29 +432,30 @@ func (f *Transfer) LabelsRaw() string {
 
 func (f *Transfer) Copy(name string) Transfer {
 	return Transfer{
-		ID:                name,
-		TransferName:      f.TransferName,
-		Description:       f.Description,
-		Labels:            f.Labels,
-		Status:            f.Status,
-		Type:              f.Type,
-		Runtime:           f.Runtime,
-		Src:               f.Src,
-		Dst:               f.Dst,
-		RegularSnapshot:   f.RegularSnapshot,
-		Transformation:    f.Transformation,
-		DataObjects:       f.DataObjects,
-		TypeSystemVersion: f.TypeSystemVersion,
-		TmpPolicy:         f.TmpPolicy,
-		FolderID:          f.FolderID,
-		CloudID:           f.CloudID,
-		Author:            f.Author,
-		AsyncOperations:   f.AsyncOperations,
+		ID:                 name,
+		TransferName:       f.TransferName,
+		Description:        f.Description,
+		Labels:             f.Labels,
+		Status:             f.Status,
+		Type:               f.Type,
+		Runtime:            f.Runtime,
+		ReplicationRuntime: f.ReplicationRuntime,
+		Src:                f.Src,
+		Dst:                f.Dst,
+		RegularSnapshot:    f.RegularSnapshot,
+		Transformation:     f.Transformation,
+		DataObjects:        f.DataObjects,
+		TypeSystemVersion:  f.TypeSystemVersion,
+		TmpPolicy:          f.TmpPolicy,
+		FolderID:           f.FolderID,
+		CloudID:            f.CloudID,
+		Author:             f.Author,
+		AsyncOperations:    f.AsyncOperations,
 	}
 }
 
 func (f *Transfer) IsAsyncCHExp() bool {
-	val, err := f.SystemLabel(SystemLabelAsyncCH)
+	val, err := f.FeatureLabel(FeatureLabelAsyncCH)
 	if err != nil || val != "on" {
 		return false
 	}

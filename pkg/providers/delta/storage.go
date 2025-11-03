@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/abstract/typesystem"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/providers/delta/protocol"
@@ -18,6 +19,7 @@ import (
 	s3_source "github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	reader_factory "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -36,7 +38,7 @@ const defaultReadBatchSize = 128
 type Storage struct {
 	cfg         *DeltaSource
 	client      s3iface.S3API
-	reader      *s3_reader.ReaderParquet
+	reader      s3_reader.Reader
 	logger      log.Logger
 	table       *protocol.TableLog
 	snapshot    *protocol.Snapshot
@@ -183,8 +185,9 @@ func NewStorage(cfg *DeltaSource, lgr log.Logger, registry metrics.Registry) (*S
 	s3Source.PathPrefix = cfg.PathPrefix
 	s3Source.ReadBatchSize = defaultReadBatchSize
 	s3Source.HideSystemCols = cfg.HideSystemCols
+	s3Source.InputFormat = model.ParsingFormatPARQUET
 
-	reader, err := s3_reader.NewParquet(s3Source, lgr, sess, stats.NewSourceStats(registry))
+	reader, err := reader_factory.NewReader(s3Source, lgr, sess, stats.NewSourceStats(registry))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to initialize parquet reader: %w", err)
 	}

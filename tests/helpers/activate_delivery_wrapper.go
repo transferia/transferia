@@ -15,12 +15,9 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type Worker struct {
-	worker *local.LocalWorker
-	cp     coordinator.Coordinator
-}
+//---------------------------------------------------------------------------------------------------------------------
+// fake cp
 
-// controlplane that catches replication failure
 type fakeCpErrRepl struct {
 	coordinator.Coordinator
 	onErrorCallback []func(err error)
@@ -33,9 +30,30 @@ func (f *fakeCpErrRepl) FailReplication(transferID string, err error) error {
 	return nil
 }
 
-func (q *Worker) Close(t *testing.T) {
-	if q.worker != nil {
-		err := q.worker.Stop()
+func NewFakeCPErrRepl(onErrorCallback ...func(err error)) coordinator.Coordinator {
+	return &fakeCpErrRepl{Coordinator: coordinator.NewStatefulFakeClient(), onErrorCallback: onErrorCallback}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// worker
+
+type Worker struct {
+	worker *local.LocalWorker
+	cp     coordinator.Coordinator
+}
+
+func (w *Worker) initLocalWorker(transfer *model.Transfer) {
+	w.worker = local.NewLocalWorker(w.cp, transfer, EmptyRegistry(), logger.LoggerWithLevel(zapcore.DebugLevel))
+}
+
+func (w *Worker) Run() error {
+	return w.worker.Run()
+}
+
+// controlplane that catches replication failure
+func (w *Worker) Close(t *testing.T) {
+	if w.worker != nil {
+		err := w.worker.Stop()
 		if xerrors.Is(err, context.Canceled) {
 			return
 		}
@@ -43,39 +61,57 @@ func (q *Worker) Close(t *testing.T) {
 	}
 }
 
-// Restart replication worker with updated transfer
-func (q *Worker) Restart(t *testing.T, transfer *model.Transfer) {
-	q.Close(t)
-	q.initLocalWorker(transfer)
-	q.worker.Start()
+func (w *Worker) CloseWithErr() error {
+	if w.worker != nil {
+		err := w.worker.Stop()
+		if xerrors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
-func (q *Worker) initLocalWorker(transfer *model.Transfer) {
-	q.worker = local.NewLocalWorker(q.cp, transfer, EmptyRegistry(), logger.LoggerWithLevel(zapcore.DebugLevel))
+// Restart replication worker with updated transfer
+func (w *Worker) Restart(t *testing.T, transfer *model.Transfer) {
+	w.Close(t)
+	w.initLocalWorker(transfer)
+	w.worker.Start()
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+// functions
 
 func Activate(t *testing.T, transfer *model.Transfer, onErrorCallback ...func(err error)) *Worker {
+	return activate(t, transfer, true, onErrorCallback...)
+}
+
+func ActivateWithoutStart(t *testing.T, transfer *model.Transfer, onErrorCallback ...func(err error)) *Worker {
+	return activate(t, transfer, false, onErrorCallback...)
+}
+
+func activate(t *testing.T, transfer *model.Transfer, isStart bool, onErrorCallback ...func(err error)) *Worker {
 	if len(onErrorCallback) == 0 {
 		// append default callback checker: no error!
 		onErrorCallback = append(onErrorCallback, func(err error) {
 			require.NoError(t, err)
 		})
 	}
-	result, err := ActivateErr(transfer, onErrorCallback...)
+	result, err := activateErr(transfer, isStart, onErrorCallback...)
 	require.NoError(t, err)
-
 	return result
 }
 
 func ActivateErr(transfer *model.Transfer, onErrorCallback ...func(err error)) (*Worker, error) {
-	cp := NewFakeCP(onErrorCallback...)
-	return ActivateWithCP(transfer, cp)
-}
-func NewFakeCP(onErrorCallback ...func(err error)) coordinator.Coordinator {
-	return &fakeCpErrRepl{Coordinator: coordinator.NewStatefulFakeClient(), onErrorCallback: onErrorCallback}
+	return activateErr(transfer, true, onErrorCallback...)
 }
 
-func ActivateWithCP(transfer *model.Transfer, cp coordinator.Coordinator) (*Worker, error) {
+func activateErr(transfer *model.Transfer, isStart bool, onErrorCallback ...func(err error)) (*Worker, error) {
+	cp := NewFakeCPErrRepl(onErrorCallback...)
+	return ActivateWithCP(transfer, cp, isStart)
+}
+
+func ActivateWithCP(transfer *model.Transfer, cp coordinator.Coordinator, isStart bool) (*Worker, error) {
 	result := &Worker{
 		worker: nil,
 		cp:     cp,
@@ -88,7 +124,9 @@ func ActivateWithCP(transfer *model.Transfer, cp coordinator.Coordinator) (*Work
 
 	if transfer.Type == abstract.TransferTypeSnapshotAndIncrement || transfer.Type == abstract.TransferTypeIncrementOnly {
 		result.initLocalWorker(transfer)
-		result.worker.Start()
+		if isStart {
+			result.worker.Start()
+		}
 	}
 
 	return result, nil

@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	reader_factory "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -91,7 +92,7 @@ func NewWrapper(
 	}
 
 	currMetrics := stats.NewSourceStats(registry)
-	currReader, err := reader.New(srcModel, logger, sess, currMetrics)
+	currReader, err := reader_factory.NewReader(srcModel, logger, sess, currMetrics)
 	if err != nil {
 		return nil, nil, nil, nil, nil, xerrors.Errorf("unable to create reader: %w", err)
 	}

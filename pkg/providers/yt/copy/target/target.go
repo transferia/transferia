@@ -8,6 +8,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/base"
 	baseevent "github.com/transferia/transferia/pkg/base/events"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
@@ -68,7 +69,8 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 
 	if _, err := task.yt.CreateNode(ctx, outYPath, yt.NodeTable, &yt.CreateNodeOptions{
 		Recursive:      true,
-		IgnoreExisting: true,
+		IgnoreExisting: t.cfg.Cleanup != model.Drop,
+		Force:          t.cfg.Cleanup == model.Drop,
 	}); err != nil {
 		return xerrors.Errorf("error creating (if not exists) node %s: %w", outYPath.YPath().String(), err)
 	}

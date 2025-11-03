@@ -43,14 +43,15 @@ func extractStackTrace(err error) string {
 		return ""
 	}
 
-	seen := make(map[error]bool)
+	seen := make(map[string]bool)
 	var result []string
 
 	for err != nil {
-		if seen[err] {
+		errStr := err.Error()
+		if seen[errStr] {
 			break
 		}
-		seen[err] = true
+		seen[errStr] = true
 
 		if errStack, ok := err.(xerrors.ErrorStackTrace); ok {
 			frames := errStack.StackTrace().Frames()

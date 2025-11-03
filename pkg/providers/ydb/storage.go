@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -66,7 +67,7 @@ func NewStorage(cfg *YdbStorageParams, mtrcs metrics.Registry) (*Storage, error)
 		return nil, xerrors.Errorf("Cannot create YDB credentials: %w", err)
 	}
 
-	ydbDriver, err := newYDBDriver(clientCtx, cfg.Database, cfg.Instance, ydbCreds, tlsConfig, false)
+	ydbDriver, err := newYDBDriver(clientCtx, cfg.Database, cfg.Instance, ydbCreds, tlsConfig)
 	if err != nil {
 		return nil, xerrors.Errorf("Cannot create YDB driver: %w", err)
 	}
@@ -274,10 +275,8 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 	for i, c := range schema.Columns() {
 		cols[i] = c.ColumnName
 	}
-	totalIdx := uint64(0)
-	wrapAroundIdx := uint64(0)
-	changes := make([]abstract.ChangeItem, 0)
 
+	batch := make([]abstract.ChangeItem, 0, batchMaxLen)
 	for res.NextResultSet(ctx) {
 		for res.NextRow() {
 			scannerValues := make([]scanner, len(schema.Columns()))
@@ -299,42 +298,41 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 				vals[i] = scannerValues[i].resultVal
 			}
 
-			changes = append(changes, abstract.ChangeItem{
-				CommitTime:   uint64(st.UnixNano()),
-				Kind:         abstract.InsertKind,
-				Table:        tableDescr.Name,
-				ColumnNames:  cols,
-				ColumnValues: vals,
-				TableSchema:  schema,
-				PartID:       partID,
-				ID:           0,
-				LSN:          0,
-				Counter:      0,
-				Schema:       "",
-				OldKeys:      abstract.EmptyOldKeys(),
-				TxID:         "",
-				Query:        "",
-				Size:         abstract.RawEventSize(util.DeepSizeof(vals)),
+			valuesSize := util.DeepSizeof(vals)
+			batch = append(batch, abstract.ChangeItem{
+				ID:               0,
+				LSN:              0,
+				CommitTime:       uint64(st.UnixNano()),
+				Counter:          0,
+				Kind:             abstract.InsertKind,
+				Schema:           "",
+				Table:            tableDescr.Name,
+				PartID:           partID,
+				ColumnNames:      cols,
+				ColumnValues:     vals,
+				TableSchema:      schema,
+				OldKeys:          abstract.EmptyOldKeys(),
+				Size:             abstract.RawEventSize(valuesSize),
+				TxID:             "",
+				Query:            "",
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			})
 			s.metrics.ChangeItems.Inc()
-			s.metrics.Size.Add(int64(changes[len(changes)-1].Size.Read))
-			if wrapAroundIdx == 10000 {
-				if err := pusher(changes); err != nil {
+			s.metrics.Size.Add(int64(valuesSize))
+			if len(batch) >= batchMaxLen {
+				if err := pusher(batch); err != nil {
 					return xerrors.Errorf("unable to push: %w", err)
 				}
-				changes = make([]abstract.ChangeItem, 0)
-				wrapAroundIdx = 0
+				batch = make([]abstract.ChangeItem, 0, batchMaxLen)
 			}
-			totalIdx++
-			wrapAroundIdx++
 		}
 	}
 	if res.Err() != nil {
 		return xerrors.Errorf("stream read table error: %w", res.Err())
 	}
 
-	if wrapAroundIdx != 0 {
-		if err := pusher(changes); err != nil {
+	if len(batch) > 0 {
+		if err := pusher(batch); err != nil {
 			return xerrors.Errorf("unable to push: %w", err)
 		}
 	}

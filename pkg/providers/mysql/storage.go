@@ -11,10 +11,13 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -30,6 +33,11 @@ func (e NotMasterError) Is(err error) bool {
 
 func (e NotMasterError) Error() string {
 	return fmt.Sprintf("Storage %v:%v is not master", e.connParams.Host, e.connParams.Port)
+}
+
+// Code attaches stable code so NotMasterError is a coded error in the chain
+func (e NotMasterError) Code() coded.Code {
+	return codes.MySQLSourceIsNotMaster
 }
 
 type Storage struct {
@@ -494,7 +502,15 @@ func (s *Storage) LoadSchema() (schema abstract.DBSchema, err error) {
 
 func (s *Storage) getGtid(ctx context.Context, tx Queryable) (string, error) {
 	var gtidSet string
-	err := tx.QueryRowContext(ctx, "select @@global.gtid_executed;").Scan(&gtidSet)
+	flavor, _, err := CheckMySQLVersion(s)
+	if err != nil {
+		return "", xerrors.Errorf("unable to check MySQL version: %w", err)
+	}
+	if flavor == mysql.MariaDBFlavor {
+		err = tx.QueryRowContext(ctx, "select @@global.gtid_current_pos;").Scan(&gtidSet)
+	} else {
+		err = tx.QueryRowContext(ctx, "select @@global.gtid_executed;").Scan(&gtidSet)
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "Unknown system variable 'gtid_executed'") {
 			return "", nil

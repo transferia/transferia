@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
@@ -42,19 +43,20 @@ type TemplateModel struct {
 }
 
 const (
-	batchSize = 10000
+	batchMaxLen  = 10000
+	batchMaxSize = 48 * humanize.MiByte // NOTE: RPC message limit for YDB upsert is 64 MB.
 )
 
 var rowTooLargeRegexp = regexp.MustCompile(`Row cell size of [0-9]+ bytes is larger than the allowed threshold [0-9]+`)
 
-type TemplateCol struct{ Name, Typ, Comma string }
+type TemplateCol struct{ Name, Typ, Optional, Comma string }
 
 var insertTemplate, _ = template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 --!syntax_v1
 DECLARE $batch AS List<
 	Struct<{{ range .Cols }}
-		` + "`{{ .Name }}`" + `:{{ .Typ }}?{{ .Comma }}{{ end }}
+		` + "`{{ .Name }}`" + `:{{ .Typ }}{{ .Optional }}{{ .Comma }}{{ end }}
 	>
 >;
 UPSERT INTO ` + "`{{ .Path }}`" + ` ({{ range .Cols }}
@@ -69,7 +71,7 @@ var deleteTemplate, _ = template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 --!syntax_v1
 DECLARE $batch AS Struct<{{ range .Cols }}
-	` + "`{{ .Name }}`" + `:{{ .Typ }}?{{ .Comma }}{{ end }}
+	` + "`{{ .Name }}`" + `:{{ .Typ }}{{ .Optional }}{{ .Comma }}{{ end }}
 >;
 DELETE FROM ` + "`{{ .Path }}`" + `
 WHERE 1=1
@@ -473,19 +475,19 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 			var tableTime time.Time
 			switch s.config.Rotation.PartType {
 			case model.RotatorPartHour:
-				t, err := time.Parse(model.HourFormat, child.Name)
+				t, err := time.ParseInLocation(model.HourFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
 				tableTime = t
 			case model.RotatorPartDay:
-				t, err := time.Parse(model.DayFormat, child.Name)
+				t, err := time.ParseInLocation(model.DayFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
 				tableTime = t
 			case model.RotatorPartMonth:
-				t, err := time.Parse(model.MonthFormat, child.Name)
+				t, err := time.ParseInLocation(model.MonthFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
@@ -494,7 +496,7 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 				continue
 			}
 			if tableTime.Before(baseTime) {
-				s.logger.Infof("Old table need to be deleted %v", child.Name)
+				s.logger.Infof("Old table need to be deleted %v, table time: %v, base time: %v", child.Name, tableTime, baseTime)
 				if err := s.db.Table().Do(context.Background(), func(ctx context.Context, session table.Session) error {
 					dropTable := DropTableTemplate{s.getFullPath(currPath.MakeChildPath(child.Name))}
 
@@ -526,7 +528,6 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 					return nil
 				}); err != nil {
 					s.logger.Warnf("Unable to init next table %s: %v", nextTablePath, err)
-
 					continue
 				}
 			}
@@ -622,21 +623,19 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 		}
 		// The most fragile part of Collape is processing PK changing events.
 		// Here we transform these changes into Delete + Insert pair and only then send batch to Collapse
-		// As a result potentially dangerous part of Collapse is avoided + PK updates are processed correctly(it is imposible to update pk in YDB explicitly)
+		// As a result potentially dangerous part of Collapse is avoided + PK updates are processed correctly (it is imposible to update pk in YDB explicitly)
 		// Ticket about rewriting Collapse https://st.yandex-team.ru/TM-8239
-		batch = abstract.Collapse(s.processPKUpdate(batch))
-		for i := 0; i < len(batch); i += batchSize {
-			end := i + batchSize
-			if end > len(batch) {
-				end = len(batch)
-			}
+		chunks := splitToChunks(abstract.Collapse(s.processPKUpdate(batch)))
+		for _, chunk := range chunks {
 			wg.Add(1)
-			go func(tablePath ydbPath, batch []abstract.ChangeItem) {
+			go func(tablePath ydbPath, chunk []abstract.ChangeItem) {
 				defer wg.Done()
-				if err := s.pushBatch(tablePath, batch); err != nil {
-					errs = append(errs, xerrors.Errorf("unable to push %d items into table %s: %w", len(batch), tablePath, err))
+				if err := s.pushBatch(tablePath, chunk); err != nil {
+					msg := fmt.Sprintf("Unable to push %d items into table %s", len(chunk), tablePath)
+					errs = append(errs, xerrors.Errorf("%s: %w", msg, err))
+					logger.Log.Error(msg, log.Error(err))
 				}
-			}(tablePath, batch[i:end])
+			}(tablePath, chunk)
 		}
 	}
 	wg.Wait()
@@ -645,6 +644,24 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	}
 
 	return nil
+}
+
+func splitToChunks(items []abstract.ChangeItem) [][]abstract.ChangeItem {
+	var res [][]abstract.ChangeItem
+	batchSize := uint64(0)
+	left := 0
+	for right := range len(items) {
+		batchSize += items[right].Size.Read
+		if batchSize >= batchMaxSize || right-left >= batchMaxLen {
+			res = append(res, items[left:right+1])
+			batchSize = 0
+			left = right + 1
+		}
+	}
+	if left < len(items) {
+		res = append(res, items[left:])
+	}
+	return res
 }
 
 func (s *sinker) processPKUpdate(batch []abstract.ChangeItem) []abstract.ChangeItem {
@@ -711,17 +728,23 @@ func (s *sinker) deleteQuery(tablePath ydbPath, keySchemas []abstract.ColSchema)
 	cols := make([]TemplateCol, len(keySchemas))
 	for i, c := range keySchemas {
 		cols[i].Name = c.ColumnName
-		cols[i].Typ = s.adjustTypName(c.DataType)
+		cols[i].Typ = s.ydbType(c.DataType, c.OriginalType).Yql()
 		if i != len(keySchemas)-1 {
 			cols[i].Comma = ","
+		}
+		if c.Required {
+			cols[i].Optional = ""
+		} else {
+			cols[i].Optional = "?"
 		}
 	}
 	if s.config.ShardCount > 0 {
 		cols[len(cols)-1].Comma = ","
 		cols = append(cols, TemplateCol{
-			Name:  "_shard_key",
-			Typ:   "Uint64",
-			Comma: "",
+			Name:     "_shard_key",
+			Typ:      "Uint64",
+			Optional: "?",
+			Comma:    "",
 		})
 	}
 	buf := new(bytes.Buffer)
@@ -737,13 +760,19 @@ func (s *sinker) insertQuery(tablePath ydbPath, colSchemas []abstract.ColSchema)
 		if i != len(colSchemas)-1 {
 			cols[i].Comma = ","
 		}
+		if c.Required {
+			cols[i].Optional = ""
+		} else {
+			cols[i].Optional = "?"
+		}
 	}
 	if s.config.ShardCount > 0 {
 		cols[len(cols)-1].Comma = ","
 		cols = append(cols, TemplateCol{
-			Name:  "_shard_key",
-			Typ:   "Uint64",
-			Comma: "",
+			Name:     "_shard_key",
+			Typ:      "Uint64",
+			Optional: "?",
+			Comma:    "",
 		})
 	}
 	buf := new(bytes.Buffer)
@@ -774,7 +803,7 @@ func (s *sinker) insert(tablePath ydbPath, batch []abstract.ChangeItem) error {
 			if err != nil {
 				return xerrors.Errorf("%s: unable to build val: %w", c, err)
 			}
-			if !opt {
+			if !colSchemas[rev[c]].Required && !opt {
 				val = types.OptionalValue(val)
 			}
 			fields = append(fields, types.StructFieldValue(c, val))
@@ -1408,7 +1437,7 @@ func (s *sinker) delete(tablePath ydbPath, item abstract.ChangeItem) error {
 		if err != nil {
 			return xerrors.Errorf("unable to build ydb val: %w", err)
 		}
-		if !opt {
+		if !colSchemas[rev[c]].Required && !opt {
 			val = types.OptionalValue(val)
 		}
 		fields = append(fields, types.StructFieldValue(c, val))
@@ -1478,7 +1507,7 @@ func NewSinker(lgr log.Logger, cfg *YdbDestination, mtrcs metrics.Registry) (abs
 		return nil, xerrors.Errorf("Cannot create YDB credentials: %w", err)
 	}
 
-	ydbDriver, err := newYDBDriver(ctx, cfg.Database, cfg.Instance, creds, tlsConfig, false)
+	ydbDriver, err := newYDBDriver(ctx, cfg.Database, cfg.Instance, creds, tlsConfig)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init ydb driver: %w", err)
 	}

@@ -7,10 +7,14 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestSlotHappyPath(t *testing.T) {
 	src := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
+
+	transferID := helpers.GenerateTransferID("TestSlotHappyPath")
+	src.SlotID = transferID
 
 	connConfig, err := postgres.MakeConnConfigFromSrc(logger.Log, src)
 	require.NoError(t, err)
@@ -34,6 +38,9 @@ func TestSlotHappyPath(t *testing.T) {
 
 func TestSlotBrokenConnection(t *testing.T) {
 	src := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
+
+	transferID := helpers.GenerateTransferID("TestSlotBrokenConnection")
+	src.SlotID = transferID
 
 	connConfig, err := postgres.MakeConnConfigFromSrc(logger.Log, src)
 	require.NoError(t, err)

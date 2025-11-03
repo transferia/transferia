@@ -12,30 +12,36 @@ const LabelRuntimeStatus = "runtime_status"
 type PoolStats struct {
 	DroppedTransfers metrics.Counter
 
-	RunningOperations                  metrics.IntGauge
-	StartedOperations                  metrics.Counter
-	FailedInitOperationsServer         metrics.Counter
-	FailedInitOperationsUser           metrics.Counter
-	FailedStopTransfers                metrics.Counter
-	FailedStopOperations               metrics.Counter
-	PendingOperations                  metrics.IntGauge
-	StaleTransfers                     metrics.Gauge
-	TransferLastPingTime               metrics.Timer
-	TransferErrors                     metrics.Counter
-	OperationLastPingTime              metrics.Timer
-	StaleOperations                    metrics.Gauge
-	StatusCount                        map[string]metrics.Gauge
-	OperationStartLatency              metrics.Timer
-	TransfersCount                     metrics.IntGaugeVec
-	RegularSnapshotPlanIterations      metrics.Counter
-	RegularSnapshotPlanSuccess         metrics.Counter
-	RegularSnapshotPlanErrors          metrics.Counter
-	RegularSnapshotTasksScheduled      metrics.Counter
-	RegularSnapshotTasksScheduleErrors metrics.Counter
+	RunningOperations                             metrics.IntGauge
+	StartedOperations                             metrics.Counter
+	FailedInitOperationsServer                    metrics.Counter
+	FailedInitOperationsUser                      metrics.Counter
+	FailedStopTransfers                           metrics.Counter
+	FailedStopOperations                          metrics.Counter
+	PendingOperations                             metrics.IntGauge
+	StaleTransfers                                metrics.Gauge
+	TransferLastPingTime                          metrics.Timer
+	TransferErrors                                metrics.Counter
+	OperationLastPingTime                         metrics.Timer
+	StaleOperations                               metrics.Gauge
+	StatusCount                                   map[string]metrics.Gauge
+	OperationStartLatency                         metrics.Timer
+	TransfersCount                                metrics.IntGaugeVec
+	RegularSnapshotPlanIterations                 metrics.Counter
+	RegularSnapshotPlanSuccess                    metrics.Counter
+	RegularSnapshotPlanErrors                     metrics.Counter
+	RegularSnapshotTasksScheduled                 metrics.Counter
+	RegularSnapshotTasksScheduleErrors            metrics.Counter
+	DeactivateFreetierTransfersIterations         metrics.Counter
+	DeactivateFreetierTransfersSuccess            metrics.Counter
+	DeactivateFreetierTransfersErrors             metrics.Counter
+	DeactivateFreetierTransfersDeactivated        metrics.Counter
+	DeactivateFreetierTransfersDeactivationErrors metrics.Counter
 
-	pm                                metrics.Registry
-	operationScheduleRoundStartTime   atomic.Value // time.Time
-	regularSnapshotIterationStartTime atomic.Value // time.Time
+	pm                                            metrics.Registry
+	operationScheduleRoundStartTime               atomic.Value // time.Time
+	regularSnapshotIterationStartTime             atomic.Value // time.Time
+	deactivateFreetierTransfersIterationStartTime atomic.Value // time.Time
 }
 
 func (s PoolStats) SetStatusCount(status string, count int) {
@@ -71,34 +77,41 @@ func NewPoolStats(mtrc metrics.Registry) *PoolStats {
 	})
 
 	stats := &PoolStats{
-		DroppedTransfers:                   pm.Counter("transfers.dropped"),
-		RunningOperations:                  pm.IntGauge("operations.running"),
-		StartedOperations:                  pm.Counter("operations.started"),
-		FailedInitOperationsServer:         pm.Counter("operations.failed_init.server"),
-		FailedInitOperationsUser:           pm.Counter("operations.failed_init.user"),
-		FailedStopTransfers:                pm.Counter("transfers.failed_stop"),
-		FailedStopOperations:               pm.Counter("operations.failed_stop"),
-		PendingOperations:                  pm.IntGauge("operations.pending"),
-		StaleTransfers:                     pm.Gauge("transfers.stale"),
-		TransferLastPingTime:               pm.Timer("operations.ping_delay"),
-		TransferErrors:                     pm.Counter("transfer.total_retries"),
-		OperationLastPingTime:              pm.Timer("operations.ping_delay"),
-		StaleOperations:                    pm.Gauge("operations.stale"),
-		StatusCount:                        map[string]metrics.Gauge{},
-		OperationStartLatency:              pm.DurationHistogram("operations.start_latency", operationStartDurationBuckets),
-		TransfersCount:                     pm.IntGaugeVec("transfers.count", []string{LabelRuntimeStatus}),
-		RegularSnapshotPlanIterations:      pm.Counter("regular_snapshots.iterations"),
-		RegularSnapshotPlanSuccess:         pm.Counter("regular_snapshots.success"),
-		RegularSnapshotPlanErrors:          pm.Counter("regular_snapshots.errors"),
-		RegularSnapshotTasksScheduled:      pm.Counter("regular_snapshots.tasks.scheduled"),
-		RegularSnapshotTasksScheduleErrors: pm.Counter("regular_snapshots.tasks.errors"),
+		DroppedTransfers:                              pm.Counter("transfers.dropped"),
+		RunningOperations:                             pm.IntGauge("operations.running"),
+		StartedOperations:                             pm.Counter("operations.started"),
+		FailedInitOperationsServer:                    pm.Counter("operations.failed_init.server"),
+		FailedInitOperationsUser:                      pm.Counter("operations.failed_init.user"),
+		FailedStopTransfers:                           pm.Counter("transfers.failed_stop"),
+		FailedStopOperations:                          pm.Counter("operations.failed_stop"),
+		PendingOperations:                             pm.IntGauge("operations.pending"),
+		StaleTransfers:                                pm.Gauge("transfers.stale"),
+		TransferLastPingTime:                          pm.Timer("operations.ping_delay"),
+		TransferErrors:                                pm.Counter("transfer.total_retries"),
+		OperationLastPingTime:                         pm.Timer("operations.ping_delay"),
+		StaleOperations:                               pm.Gauge("operations.stale"),
+		StatusCount:                                   map[string]metrics.Gauge{},
+		OperationStartLatency:                         pm.DurationHistogram("operations.start_latency", operationStartDurationBuckets),
+		TransfersCount:                                pm.IntGaugeVec("transfers.count", []string{LabelRuntimeStatus}),
+		RegularSnapshotPlanIterations:                 pm.Counter("regular_snapshots.iterations"),
+		RegularSnapshotPlanSuccess:                    pm.Counter("regular_snapshots.success"),
+		RegularSnapshotPlanErrors:                     pm.Counter("regular_snapshots.errors"),
+		RegularSnapshotTasksScheduled:                 pm.Counter("regular_snapshots.tasks.scheduled"),
+		RegularSnapshotTasksScheduleErrors:            pm.Counter("regular_snapshots.tasks.errors"),
+		DeactivateFreetierTransfersIterations:         pm.Counter("deactivate_freetier_transfers.iterations"),
+		DeactivateFreetierTransfersSuccess:            pm.Counter("deactivate_freetier_transfers.success"),
+		DeactivateFreetierTransfersErrors:             pm.Counter("deactivate_freetier_transfers.errors"),
+		DeactivateFreetierTransfersDeactivated:        pm.Counter("deactivate_freetier_transfers.deactivated"),
+		DeactivateFreetierTransfersDeactivationErrors: pm.Counter("deactivate_freetier_transfers.deactivation_errors"),
 
 		pm:                                pm,
 		operationScheduleRoundStartTime:   atomic.Value{},
 		regularSnapshotIterationStartTime: atomic.Value{},
+		deactivateFreetierTransfersIterationStartTime: atomic.Value{},
 	}
 	pm.FuncGauge("operations.iteration_duration", stats.currentOperationScheduleDuration)
 	pm.FuncGauge("regular_snapshots.iteration_duration", stats.currentRegularSnapshotScheduleDuration)
+	pm.FuncGauge("deactivate_freetier_transfers.iteration_duration", stats.currentDeactivateFreetierTransfersDuration)
 	return stats
 }
 
@@ -135,6 +148,27 @@ func (s *PoolStats) currentRegularSnapshotScheduleDuration() float64 {
 	startTime, ok := s.regularSnapshotIterationStartTime.Load().(time.Time)
 	if !ok {
 		// RegularSnapshotScheduleStarted() has not been called yet
+		return 0
+	}
+	if startTime.IsZero() {
+		// Iteration is not in progress
+		return 0
+	}
+	return time.Since(startTime).Seconds()
+}
+
+func (s *PoolStats) DeactivateFreetierTransfersStarted(now time.Time) {
+	s.deactivateFreetierTransfersIterationStartTime.Store(now)
+}
+
+func (s *PoolStats) DeactivateFreetierTransfersFinished() {
+	s.deactivateFreetierTransfersIterationStartTime.Store(time.Time{})
+}
+
+func (s *PoolStats) currentDeactivateFreetierTransfersDuration() float64 {
+	startTime, ok := s.deactivateFreetierTransfersIterationStartTime.Load().(time.Time)
+	if !ok {
+		// DeactivateFreetierTransfersStarted() has not been called yet
 		return 0
 	}
 	if startTime.IsZero() {

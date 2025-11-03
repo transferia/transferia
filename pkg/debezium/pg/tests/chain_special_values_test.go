@@ -237,8 +237,8 @@ func TestNegativeTimestamp(t *testing.T) {
 	require.Equal(t, 1, len(currDebeziumKV))
 
 	msg := currDebeziumKV[0]
-	fmt.Printf(msg.DebeziumKey)
-	fmt.Printf(*msg.DebeziumVal)
+	fmt.Print(msg.DebeziumKey)
+	fmt.Print(*msg.DebeziumVal)
 
 	receiver := debezium.NewReceiver(nil, nil)
 	recoveredChangeItem, err := receiver.Receive(*currDebeziumKV[0].DebeziumVal)

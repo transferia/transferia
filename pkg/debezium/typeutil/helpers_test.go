@@ -236,6 +236,7 @@ func helpTestDecimalToDebeziumPrimitivesImpl(t *testing.T, in, out string, expec
 
 func TestDecimalToDebeziumPrimitivesImpl(t *testing.T) {
 	helpTestDecimalToDebeziumPrimitivesImpl(t, "0.00", "AA==", 2) // TM-6908
+	helpTestDecimalToDebeziumPrimitivesImpl(t, "-0.0", "AA==", 1) // TM-9115
 	helpTestDecimalToDebeziumPrimitivesImpl(t, "1267650600228229401496703205376", "EAAAAAAAAAAAAAAAAA==", 0)
 	helpTestDecimalToDebeziumPrimitivesImpl(t, "126765060022822940149670320537.6", "EAAAAAAAAAAAAAAAAA==", 1)
 	helpTestDecimalToDebeziumPrimitivesImpl(t, "100.00", "JxA=", 2)

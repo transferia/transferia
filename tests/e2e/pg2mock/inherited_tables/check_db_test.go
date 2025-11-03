@@ -102,7 +102,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	transferNoCollapse := helpers.MakeTransfer("fake_no_collapse", &SourceNoCollapse, &targetNoCollapse, abstract.TransferTypeSnapshotAndIncrement)
 
 	var changeItemsNoCollapse []abstract.ChangeItem
-	sinkerNoCollapse.PushCallback = func(input []abstract.ChangeItem) {
+	sinkerNoCollapse.PushCallback = func(input []abstract.ChangeItem) error {
 		sinkerNoCollapseMutex.Lock()
 		defer sinkerNoCollapseMutex.Unlock()
 		for _, i := range input {
@@ -111,6 +111,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 			}
 			changeItemsNoCollapse = append(changeItemsNoCollapse, i)
 		}
+		return nil
 	}
 
 	helpers.Activate(t, transferNoCollapse)
@@ -145,7 +146,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	transferCollapse := helpers.MakeTransfer("fake_collapse", &SourceCollapse, &targetCollapse, abstract.TransferTypeSnapshotAndIncrement)
 
 	var changeItemsCollapse []abstract.ChangeItem
-	sinkerCollapse.PushCallback = func(input []abstract.ChangeItem) {
+	sinkerCollapse.PushCallback = func(input []abstract.ChangeItem) error {
 		sinkerCollapseMutex.Lock()
 		defer sinkerCollapseMutex.Unlock()
 		for _, i := range input {
@@ -154,6 +155,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 			}
 			changeItemsCollapse = append(changeItemsCollapse, i)
 		}
+		return nil
 	}
 
 	helpers.Activate(t, transferCollapse)

@@ -20,11 +20,12 @@ func CleanupNeeded(transfer model.Transfer) bool {
 		return true
 	}
 
-	if transfer.SnapshotOnly() {
+	cleanuper, ok := providers.SourceAs[providers.Cleanuper](&transfer)
+	if !ok {
 		return false
 	}
 
-	return providers.SourceIs[providers.Cleanuper](&transfer)
+	return cleanuper.CleanupSuitable(transfer.Type)
 }
 
 func CleanupResource(ctx context.Context, task model.TransferOperation, transfer model.Transfer, logger log.Logger, cp coordinator.Coordinator) error {
@@ -37,12 +38,8 @@ func CleanupResource(ctx context.Context, task model.TransferOperation, transfer
 		return xerrors.Errorf("unable to cleanup tmp: %w", err)
 	}
 
-	if transfer.SnapshotOnly() {
-		return nil
-	}
-
 	cleanuper, ok := providers.Source[providers.Cleanuper](logger, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, &transfer)
-	if !ok {
+	if !ok || !cleanuper.CleanupSuitable(transfer.Type) {
 		logger.Infof("CleanupResource(%v) for transfer(%v) has no active resource", task.OperationID, transfer.ID)
 		return nil
 	}

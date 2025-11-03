@@ -40,9 +40,9 @@ func (y *shardedMongoRecipe) publishEnvVariables(
 	for key, value := range map[string]string{
 		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterHost:       mongos.Host,
 		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterPort:       fmt.Sprint(mongos.Port),
-		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterUsername:   fmt.Sprintf(config.PostSteps.CreateAdminUser.User),
-		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterPassword:   fmt.Sprintf(config.PostSteps.CreateAdminUser.Password),
-		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterAuthSource: fmt.Sprintf(config.PostSteps.CreateAdminUser.AuthSource),
+		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterUsername:   fmt.Sprint(config.PostSteps.CreateAdminUser.User),
+		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterPassword:   fmt.Sprint(config.PostSteps.CreateAdminUser.Password),
+		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterAuthSource: fmt.Sprint(config.PostSteps.CreateAdminUser.AuthSource),
 	} {
 		recipe.SetEnv(key, value)
 	}

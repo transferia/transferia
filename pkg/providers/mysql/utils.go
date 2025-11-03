@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/providers/mysql/unmarshaller/snapshot"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/size"
@@ -252,21 +253,22 @@ func readRowsAndPushByChunks(
 		}
 
 		inflight = append(inflight, abstract.ChangeItem{
-			LSN:          lsn,
-			CommitTime:   uint64(st.UnixNano()),
-			Kind:         abstract.InsertKind,
-			Schema:       table.Schema,
-			Table:        table.Name,
-			PartID:       "",
-			ColumnNames:  colsNames,
-			ColumnValues: columnValues,
-			TableSchema:  tableSchema,
-			ID:           0,
-			Counter:      0,
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(readValuesSize),
+			ID:               0,
+			LSN:              lsn,
+			CommitTime:       uint64(st.UnixNano()),
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           table.Schema,
+			Table:            table.Name,
+			PartID:           "",
+			ColumnNames:      colsNames,
+			ColumnValues:     columnValues,
+			TableSchema:      tableSchema,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.RawEventSize(readValuesSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		})
 		globalIdx++
 		if uint64(len(inflight)) >= chunkSize || inflightSize >= 16*size.MiB {

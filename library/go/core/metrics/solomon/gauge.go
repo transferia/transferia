@@ -50,6 +50,13 @@ func (g *Gauge) Add(value float64) {
 	g.value.Add(value)
 }
 
+func (g *Gauge) getID() string {
+	if g.timestamp != nil {
+		return g.name + "(" + g.timestamp.Format(time.RFC3339) + ")"
+	}
+	return g.name
+}
+
 func (g *Gauge) Name() string {
 	return g.name
 }
@@ -58,11 +65,11 @@ func (g *Gauge) getType() metricType {
 	return g.metricType
 }
 
-func (g *Gauge) getLabels() map[string]string {
+func (g *Gauge) Labels() map[string]string {
 	return g.tags
 }
 
-func (g *Gauge) getValue() interface{} {
+func (g *Gauge) Value() interface{} {
 	return g.value.Load()
 }
 
@@ -92,7 +99,7 @@ func (g *Gauge) MarshalJSON() ([]byte, error) {
 	value := g.value.Load()
 	labels := func() map[string]string {
 		labels := make(map[string]string, len(g.tags)+1)
-		labels[g.getNameTag()] = g.Name()
+		labels[g.getNameTag()] = g.name
 		for k, v := range g.tags {
 			labels[k] = v
 		}

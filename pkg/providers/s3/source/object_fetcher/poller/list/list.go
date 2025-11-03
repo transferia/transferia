@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/providers/s3/source/object_fetcher/poller/dispatcher"
 	"github.com/transferia/transferia/pkg/providers/s3/source/object_fetcher/poller/dispatcher/file"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -38,7 +39,7 @@ func ListNewMyFiles(
 			for _, currentFile := range o.Contents {
 				currentMarker = currentFile.Key
 
-				if reader.SkipObject(currentFile, srcModel.PathPattern, "|", inReader.ObjectsFilter()) {
+				if s3util.SkipObject(currentFile, srcModel.PathPattern, "|", inReader.ObjectsFilter()) {
 					logger.Debugf("ListNewMyFiles - file did not pass type/path check, skipping: file %s, pathPattern: %s", *currentFile.Key, srcModel.PathPattern) // TODO - MAKE HERE SPECIAL LOGGER!!!
 					listStat.skippedBcsNotMatched++
 					continue

@@ -8,6 +8,7 @@ import (
 
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -115,12 +116,13 @@ func Snapshot(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 	transfer = helpers.WithLocalRuntime(transfer, 1, 1)
 
-	storage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
+	currStorage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
 	require.NoError(t, err)
-	defer storage.Close()
-	mysqlStorage, ok := storage.(*mysql.Storage)
+	defer currStorage.Close()
+
+	mysqlStorage, ok := currStorage.(*mysql.Storage)
 	require.True(t, ok)
-	tables, err := model.FilteredTableList(storage, transfer)
+	tables, err := model.FilteredTableList(currStorage, transfer)
 	require.NoError(t, err)
 
 	err = mysqlStorage.BeginSnapshot(context.TODO())
@@ -130,15 +132,19 @@ func Snapshot(t *testing.T) {
 
 	operationID := "test-operation"
 
-	operationTables := []*model.OperationTablePart{}
-	for _, table := range tables.ConvertToTableDescriptions() {
-		operationTables = append(operationTables, model.NewOperationTablePartFromDescription(operationID, &table))
-	}
-
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), operationID, transfer, helpers.EmptyRegistry())
 
-	partProvider := tasks.NewLocalTablePartProvider(operationTables...)
-	err = snapshotLoader.DoUploadTables(context.TODO(), storage, partProvider.TablePartProvider())
+	tppGetter, _, err := snapshotLoader.BuildTPP(
+		context.Background(),
+		logger.Log,
+		currStorage,
+		tables.ConvertToTableDescriptions(),
+		true,
+		true,
+	)
+	require.NoError(t, err)
+
+	err = snapshotLoader.DoUploadTables(context.TODO(), currStorage, tppGetter)
 	require.NoError(t, err)
 
 	err = mysqlStorage.EndSnapshot(context.TODO())

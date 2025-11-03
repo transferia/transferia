@@ -11,11 +11,11 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/functions"
 	"github.com/transferia/transferia/pkg/parsequeue"
 	"github.com/transferia/transferia/pkg/parsers"
-	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/queues/sequencer"
@@ -314,7 +314,14 @@ func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
 		var converted []abstract.ChangeItem
 		for _, row := range data {
 			ci, part := p.changeItemAsMessage(row)
-			converted = append(converted, p.parser.Do(ci, part)...)
+			parsedMessages := p.parser.Do(ci, part)
+			// it's a workaround for the case when parser doesn't set LSN
+			for i := range parsedMessages {
+				if parsedMessages[i].LSN == 0 {
+					parsedMessages[i].LSN = row.LSN
+				}
+			}
+			converted = append(converted, parsedMessages...)
 		}
 		p.logger.Infof("convert done in %v, %v rows -> %v rows", time.Since(st), len(data), len(converted))
 		data = converted
@@ -330,19 +337,8 @@ func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
 }
 
 func (p *Source) makeRawChangeItem(msg kgo.Record) abstract.ChangeItem {
-	if p.config.IsHomo {
-		return MakeKafkaRawMessage(
-			msg.Topic,
-			msg.Timestamp,
-			msg.Topic,
-			int(msg.Partition),
-			msg.Offset,
-			msg.Key,
-			msg.Value,
-		)
-	}
-
 	return abstract.MakeRawMessage(
+		msg.Key,
 		msg.Topic,
 		msg.Timestamp,
 		msg.Topic,
@@ -444,7 +440,7 @@ func ensureTopicExists(cl *kgo.Client, topics []string) error {
 		missedTopics = append(missedTopics, name)
 	}
 	if len(missedTopics) != 0 {
-		return coded.Errorf(providers.MissingData, "%v not found, response: %v", missedTopics, resp.Topics)
+		return coded.Errorf(codes.MissingData, "%v not found, response: %v", missedTopics, resp.Topics)
 	}
 
 	return nil
@@ -452,6 +448,10 @@ func ensureTopicExists(cl *kgo.Client, topics []string) error {
 
 func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (*Source, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	if err := cfg.WithConnectionID(); err != nil {
+		cancel()
+		return nil, xerrors.Errorf("unable to resolve connection: %w", err)
+	}
 
 	source := &Source{
 		config:            cfg,
@@ -475,6 +475,7 @@ func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (
 		executor, err := functions.NewExecutor(cfg.Transformer, cfg.Transformer.CloudFunctionsBaseURL, functions.YDS, logger, registry)
 		if err != nil {
 			logger.Error("init function executor", log.Error(err))
+			cancel()
 			return nil, xerrors.Errorf("unable to init functions transformer: %w", err)
 		}
 		source.executor = executor
@@ -483,20 +484,11 @@ func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (
 	if cfg.ParserConfig != nil {
 		parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, source.metrics)
 		if err != nil {
+			cancel()
 			return nil, xerrors.Errorf("unable to make parser, err: %w", err)
 		}
 		source.parser = parser
 	}
-
-	return source, nil
-}
-
-func newSourceWithReader(cfg *KafkaSource, logger log.Logger, registry metrics.Registry, r reader) (*Source, error) {
-	source, err := newSource(cfg, logger, registry)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create Source: %w", err)
-	}
-	source.reader = r
 
 	return source, nil
 }

@@ -92,12 +92,13 @@ func TestGroup(t *testing.T) {
 	transferMock := helpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
 	var extractedChangeItem abstract.ChangeItem
 	t.Run("extract change_item from dst", func(t *testing.T) {
-		sinkMock.PushCallback = func(input []abstract.ChangeItem) {
+		sinkMock.PushCallback = func(input []abstract.ChangeItem) error {
 			for _, currItem := range input {
 				if currItem.Table == pathOut && currItem.Kind == abstract.InsertKind {
 					extractedChangeItem = currItem
 				}
 			}
+			return nil
 		}
 		helpers.Activate(t, transferMock)
 	})

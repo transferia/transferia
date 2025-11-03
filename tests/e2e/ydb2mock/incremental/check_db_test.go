@@ -44,13 +44,14 @@ func TestYDBIncrementalSnapshot(t *testing.T) {
 	var readItems []abstract.ChangeItem
 	var sinkLock sync.Mutex
 	sinker := &helpers.MockSink{
-		PushCallback: func(items []abstract.ChangeItem) {
+		PushCallback: func(items []abstract.ChangeItem) error {
 			items = yslices.Filter(items, func(i abstract.ChangeItem) bool {
 				return i.IsRowEvent()
 			})
 			sinkLock.Lock()
 			defer sinkLock.Unlock()
 			readItems = append(readItems, items...)
+			return nil
 		},
 	}
 	dst := &model.MockDestination{

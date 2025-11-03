@@ -18,8 +18,9 @@ import (
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
+	cherrors "github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	httpuploader2 "github.com/transferia/transferia/pkg/providers/clickhouse/httpuploader"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/schema"
@@ -79,7 +80,7 @@ func (t *sinkTable) Init(cols *abstract.TableSchema) error {
 		return t.createTable(sch.abstractCols(), distributed)
 	})
 	if err != nil {
-		if errors.IsFatalClickhouseError(err) {
+		if cherrors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
 		return xerrors.Errorf("failed to create table %s: %w", t.tableName, err)
@@ -258,7 +259,7 @@ func (t *sinkTable) ApplyChangeItems(rows []abstract.ChangeItem) error {
 	batches := splitRowsBySchema(rows)
 	for i, batch := range batches {
 		if err := t.applyBatch(batch); err != nil {
-			if errors.UpdateToastsError.Contains(err) && t.config.UpsertAbsentToastedRows() {
+			if codes.ClickHouseToastUpdate.Contains(err) && t.config.UpsertAbsentToastedRows() {
 				t.logger.Warnf("batch insertion fail, fallback to one-by-one pushing (batch #%d)", i)
 				for j, batchElem := range batch {
 					if err := t.applyBatch([]abstract.ChangeItem{batchElem}); err != nil {
@@ -315,14 +316,14 @@ func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
 	defer txRollbacks.Do()
 
 	if err := doOperation(t, tx, items); err != nil {
-		if errors.IsFatalClickhouseError(err) {
+		if cherrors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
 		return xerrors.Errorf("failed to process change items: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		if errors.IsFatalClickhouseError(err) {
+		if cherrors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
 		t.logger.Warn("Commit error", log.Any("ch_host", t.config.Host().HostName()), log.Error(err))
@@ -511,21 +512,22 @@ func normalizeColumnNamesOrder(changeItems []abstract.ChangeItem) ([]abstract.Ch
 				vals[colNameToIdx[colName]] = el.ColumnValues[i]
 			}
 			res[i] = abstract.ChangeItem{
-				ID:           changeItems[i].ID,
-				LSN:          changeItems[i].LSN,
-				CommitTime:   changeItems[i].CommitTime,
-				Counter:      changeItems[i].Counter,
-				Kind:         changeItems[i].Kind,
-				Schema:       changeItems[i].Schema,
-				Table:        changeItems[i].Table,
-				PartID:       changeItems[i].PartID,
-				ColumnNames:  masterChangeItem.ColumnNames,
-				ColumnValues: vals,
-				TableSchema:  masterChangeItem.TableSchema,
-				OldKeys:      changeItems[i].OldKeys,
-				TxID:         changeItems[i].TxID,
-				Query:        changeItems[i].Query,
-				Size:         changeItems[i].Size,
+				ID:               changeItems[i].ID,
+				LSN:              changeItems[i].LSN,
+				CommitTime:       changeItems[i].CommitTime,
+				Counter:          changeItems[i].Counter,
+				Kind:             changeItems[i].Kind,
+				Schema:           changeItems[i].Schema,
+				Table:            changeItems[i].Table,
+				PartID:           changeItems[i].PartID,
+				ColumnNames:      masterChangeItem.ColumnNames,
+				ColumnValues:     vals,
+				TableSchema:      masterChangeItem.TableSchema,
+				OldKeys:          changeItems[i].OldKeys,
+				Size:             changeItems[i].Size,
+				TxID:             changeItems[i].TxID,
+				Query:            changeItems[i].Query,
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			}
 		}
 	}

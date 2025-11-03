@@ -18,7 +18,8 @@ type YtCluster string
 type RuntimeType string
 
 const (
-	LocalRuntimeType = RuntimeType("local")
+	UnspecifiedRuntimeType = RuntimeType("")
+	LocalRuntimeType       = RuntimeType("local")
 )
 
 type Runtime interface {
@@ -27,6 +28,13 @@ type Runtime interface {
 	Validate() error
 	Type() RuntimeType
 	SetVersion(runtimeSpecificVersion string, versionProperties *string) error
+}
+
+func GetRuntimeType(r Runtime, defaultRuntime RuntimeType) RuntimeType {
+	if r == nil {
+		return defaultRuntime
+	}
+	return r.Type()
 }
 
 func NewRuntime(runtime RuntimeType, runtimeSpec string) (Runtime, error) {

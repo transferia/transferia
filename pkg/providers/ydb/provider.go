@@ -137,6 +137,10 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 	return nil
 }
 
+func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
+	return transferType != abstract.TransferTypeSnapshotOnly
+}
+
 func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) error {
 	src, ok := p.transfer.Src.(*YdbSource)
 	if !ok {

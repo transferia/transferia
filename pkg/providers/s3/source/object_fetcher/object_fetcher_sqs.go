@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -108,7 +109,7 @@ func (s *ObjectFetcherSQS) fetchMessages(inReader reader.Reader) ([]object, erro
 					if err != nil {
 						return nil, xerrors.Errorf("failed to unescape S3 object key from SQS queue: %w", err)
 					}
-					if reader.SkipObject(&aws_s3.Object{
+					if s3util.SkipObject(&aws_s3.Object{
 						Key:  aws.String(unescapedKey),
 						Size: aws.Int64(record.S3.Object.Size),
 					}, s.pathPattern, "|", inReader.ObjectsFilter()) {

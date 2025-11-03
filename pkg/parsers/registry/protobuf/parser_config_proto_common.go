@@ -16,7 +16,8 @@ type ParserConfigProtoCommon struct {
 	PrimaryKeys    []string
 	PackageType    protoparser.MessagePackageType
 
-	NullKeysAllowed bool
+	NullKeysAllowed    bool
+	NotFillEmptyFields bool
 }
 
 func (c *ParserConfigProtoCommon) IsNewParserConfig() {}
@@ -59,13 +60,14 @@ func (c *ParserConfigProtoCommon) ToProtoParserConfig(logger log.Logger) (*proto
 		TableSplitter:      nil,
 		TimeField:          nil,
 		NullKeysAllowed:    c.NullKeysAllowed,
+		NotFillEmptyFields: c.NotFillEmptyFields,
 		AddSyntheticKeys:   false,
 		AddSystemColumns:   false,
 		SkipDedupKeys:      false,
 	}
 
 	if err := cfg.SetDescriptors(descFileContent, c.MessageName, c.PackageType); err != nil {
-		return nil, xerrors.Errorf("SetDescriptors error: %v", err)
+		return nil, xerrors.Errorf("SetDescriptors error: %w", err)
 	}
 
 	cfg.SetLineSplitter(c.PackageType)

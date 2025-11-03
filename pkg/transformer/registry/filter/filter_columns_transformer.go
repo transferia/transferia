@@ -7,6 +7,8 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/transformer"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -261,7 +263,7 @@ func NewFilterColumnsTransformer(config FilterColumnsConfig, lgr log.Logger) (*F
 	}
 
 	if config.Columns.IncludeColumns == nil && config.Columns.ExcludeColumns == nil {
-		return nil, xerrors.New("filter for columns cannot be empty in user defined transformation")
+		return nil, coded.Errorf(codes.FilterColumnsEmpty, "filter for columns cannot be empty in user defined transformation")
 	}
 
 	colFilter, err := NewFilter(config.Columns.IncludeColumns, config.Columns.ExcludeColumns)

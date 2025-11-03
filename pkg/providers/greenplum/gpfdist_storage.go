@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/providers/greenplum/gpfdist"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -27,16 +28,12 @@ type GpfdistStorage struct {
 	params  gpfdistbin.GpfdistParams
 }
 
-func NewGpfdistStorage(config *GpSource, mRegistry metrics.Registry) (*GpfdistStorage, error) {
+func NewGpfdistStorage(src *GpSource, mRegistry metrics.Registry, params gpfdistbin.GpfdistParams) *GpfdistStorage {
 	return &GpfdistStorage{
-		storage: NewStorage(config, mRegistry),
-		src:     config,
-		params:  gpfdistbin.NewGpfdistParams(config.AdvancedProps.GpfdistBinPath, config.AdvancedProps.ServiceSchema, 0),
-	}, nil
-}
-
-func (s *GpfdistStorage) SetProcessCount(threads int) {
-	s.params.ThreadsCount = threads
+		storage: NewStorage(src, mRegistry),
+		src:     src,
+		params:  params,
+	}
 }
 
 func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
@@ -112,27 +109,31 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 
 func itemTemplate(table abstract.TableDescription, schema *abstract.TableSchema) abstract.ChangeItem {
 	return abstract.ChangeItem{
-		ID:           uint32(0),
-		LSN:          uint64(0),
-		CommitTime:   uint64(time.Now().UTC().UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       table.Schema,
-		Table:        table.Name,
-		PartID:       table.PartID(),
-		ColumnNames:  schema.Columns().ColumnNames(),
-		ColumnValues: nil,
-		TableSchema:  schema,
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		ID:               uint32(0),
+		LSN:              uint64(0),
+		CommitTime:       uint64(time.Now().UTC().UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           table.Schema,
+		Table:            table.Name,
+		PartID:           table.PartID(),
+		ColumnNames:      schema.Columns().ColumnNames(),
+		ColumnValues:     nil,
+		TableSchema:      schema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 
 func coordinatorConnFromStorage(storage *Storage) (*pgxpool.Pool, error) {
 	coordinator, err := storage.PGStorage(context.Background(), Coordinator())
-	return coordinator.Conn, err
+	if err != nil {
+		return nil, err
+	}
+	return coordinator.Conn, nil
 }
 
 // localAddrFromStorage returns host for external connections (from GreenPlum VMs to Transfer VMs).
@@ -148,19 +149,7 @@ func localAddrFromStorage(storage *Storage) (net.IP, error) {
 			return nil, xerrors.Errorf("unable to get coordinator host: %w", err)
 		}
 	}
-
-	conn, err := net.Dial("tcp", gpAddr.String())
-	if err != nil {
-		return nil, xerrors.Errorf("unable to dial GP address %s: %w", gpAddr, err)
-	}
-	defer conn.Close()
-
-	addr := conn.LocalAddr()
-	tcpAddr, ok := addr.(*net.TCPAddr)
-	if !ok {
-		return nil, xerrors.Errorf("expected LocalAddr to be *net.TCPAddr, got %T", addr)
-	}
-	return tcpAddr.IP, nil
+	return gpfdist.LocalAddrFromStorage(gpAddr.String())
 }
 
 func (s *GpfdistStorage) Close() { s.storage.Close() }

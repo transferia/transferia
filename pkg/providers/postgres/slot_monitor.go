@@ -16,6 +16,8 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -126,7 +128,7 @@ func (m *SlotMonitor) checkSlot(version PgVersion, maxSlotByteLag int64) error {
 	m.logger.Infof("replication slot %q WAL lag %s / %s", m.slotName, bytesToString(slotByteLag), format.SizeUInt64(uint64(maxSlotByteLag)))
 	m.metrics.Usage.Set(float64(slotByteLag))
 	if slotByteLag > maxSlotByteLag {
-		return abstract.NewFatalError(xerrors.Errorf("byte lag for replication slot %q exceeds the limit: %d > %d", m.slotName, slotByteLag, maxSlotByteLag))
+		return abstract.NewFatalError(coded.Errorf(codes.PostgresSlotByteLagExceedsLimit, "byte lag for replication slot %q exceeds the limit: %d > %d", m.slotName, slotByteLag, maxSlotByteLag))
 	}
 
 	return nil
@@ -160,7 +162,7 @@ func (m *SlotMonitor) validateSlot(ctx context.Context) error {
 		}
 		if err := rows.Err(); err != nil {
 			if pgErr, ok := err.(*pgconn.PgError); ok && pgFatalCode[pgErr.Code] && strings.Contains(err.Error(), "has already been removed") {
-				return abstract.NewFatalError(err)
+				return abstract.NewFatalError(coded.Errorf(codes.PostgresWalSegmentRemoved, "requested WAL segment has already been removed: %w", err))
 			}
 		}
 		rows.Close()

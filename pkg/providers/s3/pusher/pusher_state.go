@@ -111,13 +111,19 @@ func (s *PusherState) deleteDone(filePath string) {
 
 func (s *PusherState) waitLimits(ctx context.Context) {
 	backoffTimer := backoff.NewExponentialBackOff()
+	// Configure backoff to reduce log noise
+	backoffTimer.InitialInterval = 1 * time.Second
+	backoffTimer.Multiplier = 1.7
+	backoffTimer.RandomizationFactor = 0.2
+	backoffTimer.MaxInterval = 1 * time.Minute
+	backoffTimer.MaxElapsedTime = 0 // never stop
 	backoffTimer.Reset()
-	backoffTimer.MaxElapsedTime = 0
+
 	nextLogDuration := backoffTimer.NextBackOff()
 	logTime := time.Now()
 
 	for !s.inLimits() {
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(10 * time.Millisecond)
 		if ctx.Err() != nil {
 			s.logger.Warn("context aborted, stop wait for limits")
 			return

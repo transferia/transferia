@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 )
 
 // To verify providers contract implementation
@@ -60,7 +60,7 @@ func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abs
 				for _, file := range o.Contents {
 					currentMarker = file.Key
 					s.logger.Infof("file %s: %s", *file.Key, *file.LastModified)
-					if reader.SkipObject(file, s.cfg.PathPattern, "|", s.reader.ObjectsFilter()) {
+					if s3util.SkipObject(file, s.cfg.PathPattern, "|", s.reader.ObjectsFilter()) {
 						s.logger.Infof("file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, s.cfg.PathPattern)
 						continue
 					}

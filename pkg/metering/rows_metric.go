@@ -58,14 +58,17 @@ func (*RowsMetric) isMetric() {}
 func (rm *RowsMetric) Reset() *RowsMetricState {
 	rm.statsMu.Lock()
 	prevIntervalFinishTS := time.Now()
+	if rm.startTS.After(prevIntervalFinishTS) {
+		// this happened once in TM-9233 due to some time anomaly
+		prevIntervalFinishTS = rm.startTS
+	}
 	prevState := &RowsMetricState{
 		serializationSchemas: rm.serializationSchemas,
-
-		rawSizes:    rm.rawSizes,
-		parsedSizes: rm.parsedSizes,
-		startTS:     rm.startTS,
-		finishTS:    prevIntervalFinishTS,
-		runtimeType: rm.runtimeType,
+		rawSizes:             rm.rawSizes,
+		parsedSizes:          rm.parsedSizes,
+		startTS:              rm.startTS,
+		finishTS:             prevIntervalFinishTS,
+		runtimeType:          rm.runtimeType,
 	}
 	rm.rawSizes = EmptyStats()
 	rm.parsedSizes = EmptyStats()

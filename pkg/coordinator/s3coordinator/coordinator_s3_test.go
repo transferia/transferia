@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
-	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 func TestCoordinatorS3TransferState(t *testing.T) {
@@ -74,7 +74,7 @@ func TestDataplaneServiceShardedTasks(t *testing.T) {
 
 	// Step 1: Create workers and table parts
 	require.NoError(t, dp.CreateOperationWorkers(operationID, 3))
-	require.NoError(t, dp.CreateOperationTablesParts(operationID, []*model.OperationTablePart{
+	require.NoError(t, dp.CreateOperationTablesParts(operationID, []*abstract.OperationTablePart{
 		{OperationID: operationID, Schema: "Schema", Name: "table 1", ETARows: 10},
 		{OperationID: operationID, Schema: "Schema", Name: "table 2", ETARows: 20},
 		{OperationID: operationID, Schema: "Schema", Name: "table 3", ETARows: 30},
@@ -142,7 +142,7 @@ func TestDataplaneServiceShardedTasks(t *testing.T) {
 
 	t.Run("UpdateAndValidateTableProgress", func(t *testing.T) {
 		// Update table progress
-		err := dp.UpdateOperationTablesParts(operationID, []*model.OperationTablePart{
+		err := dp.UpdateOperationTablesParts(operationID, []*abstract.OperationTablePart{
 			{OperationID: operationID, Schema: "Schema", Name: "table 1", ETARows: 10, CompletedRows: 5},
 			{OperationID: operationID, Schema: "Schema", Name: "table 2", ETARows: 20, CompletedRows: 10},
 			{OperationID: operationID, Schema: "Schema", Name: "table 3", ETARows: 30, CompletedRows: 15, Completed: true},

@@ -8,8 +8,12 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -62,16 +66,26 @@ select exists(
 	return exists, nil
 }
 
-func (slot *Slot) Create() error {
-	stmt, err := slot.conn.Exec(context.Background(), fmt.Sprintf(`
-BEGIN;
-SET LOCAL lock_timeout = '0';
-select pg_create_logical_replication_slot('%v', 'wal2json');
-COMMIT;
-`, slot.slotID))
+func (slot *Slot) tx(operation txOp) error {
+	return doUnderTransaction(context.Background(), slot.conn, operation, slot.logger)
+}
 
-	slot.logger.Info("Create slot", log.Any("stmt", stmt))
-	return err
+func (slot *Slot) Create() error {
+	return slot.tx(func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SET LOCAL lock_timeout = '0'"); err != nil {
+			return xerrors.Errorf("failed to set lock_timeout: %w", err)
+		}
+		stmt, err := tx.Exec(ctx, "SELECT pg_create_logical_replication_slot($1, 'wal2json')", slot.slotID)
+		slot.logger.Info("Create slot", log.Any("stmt", stmt))
+		if err != nil {
+			// Map "all replication slots are in use" (SQLSTATE 53400) to coded error
+			if util.ContainsAnySubstrings(err.Error(), "SQLSTATE 53400", "all replication slots are in use") {
+				return coded.Errorf(codes.PostgresReplicationSlotsInUse, "failed to create a replication slot: %w", err)
+			}
+			return xerrors.Errorf("failed to create a replication slot: %w", err)
+		}
+		return nil
+	})
 }
 
 func (slot *Slot) Close() {
@@ -80,23 +94,21 @@ func (slot *Slot) Close() {
 	})
 }
 
-const queryForTerminatingSlot = `
-	BEGIN;
-	SET LOCAL lock_timeout = '30s';
-	select pg_terminate_backend(active_pid) from pg_replication_slots where slot_name = '%[1]v' and active_pid > 0;
-	select from pg_drop_replication_slot('%[1]v');
-	COMMIT;
-`
-
 func (slot *Slot) SuicideImpl() error {
-	stmt, err := slot.conn.Exec(context.Background(), fmt.Sprintf(queryForTerminatingSlot, slot.slotID, slot.slotID))
+	return slot.tx(func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SET LOCAL lock_timeout = '30s'"); err != nil {
+			return xerrors.Errorf("failed to set lock_timeout: %w", err)
+		}
+		if _, err := tx.Exec(ctx, "select pg_terminate_backend(active_pid) from pg_replication_slots where slot_name = $1 and active_pid > 0", slot.slotID); err != nil {
+			return xerrors.Errorf("failed to terminate active backends for slot: %w", err)
+		}
+		if _, err := tx.Exec(ctx, "select from pg_drop_replication_slot($1)", slot.slotID); err != nil {
+			return xerrors.Errorf("failed to drop replication slot: %w", err)
+		}
 
-	slot.logger.Info("Drop slot query executed", log.Any("stmt", stmt), log.String("slot_name", slot.slotID))
-
-	if err != nil {
-		return err
-	}
-	return nil
+		slot.logger.Info("Drop slot query executed", log.String("slot_name", slot.slotID))
+		return nil
+	})
 }
 
 func (slot *Slot) Suicide() error {

@@ -36,7 +36,7 @@ const App = () => {
                                     text: ' Transfer',
                                     theme: 'github',
                                     type: NavigationItemType.Button,
-                                    url: 'https://github.com/doublecloud/transfer',
+                                    url: 'https://github.com/transferia/transferia',
                                 },
                             ],
                         },

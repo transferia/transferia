@@ -17,6 +17,11 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+const (
+	// containerStdoutAwaitTimeout is a timeout which reader awaits upon each Read call, after timeout the read gets discarded
+	containerStdoutAwaitTimeout = time.Hour
+)
+
 type DockerWrapper struct {
 	cli    DockerClient
 	logger log.Logger
@@ -151,7 +156,10 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 		if attachResp.Conn != nil {
 			defer attachResp.Close()
 		}
-		if _, err := stdcopy.StdCopy(stdoutBuf, stderrBuf, attachResp.Reader); err != nil {
+		containerReader := NewContextReader(attachResp.Reader, func() (context.Context, context.CancelFunc) {
+			return context.WithTimeout(ctx, containerStdoutAwaitTimeout)
+		})
+		if _, err := stdcopy.StdCopy(stdoutBuf, stderrBuf, containerReader); err != nil {
 			copyCh <- err
 		}
 	}()

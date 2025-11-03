@@ -22,16 +22,17 @@ func (c connectionParams) SetShards(shards map[string][]*clickhouse.Host) {
 	}
 }
 
-func ConnectionParamsFromSource(chSource *ChSource) (*connectionParams, error) {
+func ConnectionParamsFromSource(chSource *ChSource, shardGroup string) (*connectionParams, error) {
 	var connParams *connectionParams
 	if chSource.ConnectionID != "" {
-		params, err := ConnectionParamsByConnectionID(chSource.ConnectionID, chSource.ChClusterName, chSource.NativePort, chSource.HTTPPort)
+		params, err := ConnectionParamsByConnectionID(chSource.ConnectionID, shardGroup, chSource.NativePort, chSource.HTTPPort)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to resolve connection params by connection ID: %w", err)
 		}
+		params.Database = chSource.Database
 		connParams = params
 	} else {
-		connectionHosts, shards, err := resolveHosts(chSource.MdbClusterID, chSource.ChClusterName, chSource.ShardsList, chSource.NativePort, chSource.HTTPPort)
+		connectionHosts, shards, err := resolveHosts(chSource.MdbClusterID, shardGroup, chSource.ShardsList, chSource.NativePort, chSource.HTTPPort)
 		if err != nil {
 			return nil, err
 		}
@@ -58,6 +59,7 @@ func ConnectionParamsFromDestination(chDestination *ChDestination) (*connectionP
 		if err != nil {
 			return nil, xerrors.Errorf("unable to resolve connection params by connection ID: %w", err)
 		}
+		params.Database = chDestination.Database
 		connParams = params
 	} else {
 		connectionHosts, shards, err := resolveHosts(chDestination.MdbClusterID, chDestination.ChClusterName, chDestination.ShardsList, chDestination.NativePort, chDestination.HTTPPort)
@@ -101,25 +103,12 @@ func ConnectionParamsByConnectionID(connectionID string, shardGroup string, nati
 		Shards:         make(map[string][]*clickhouse.Host),
 	}
 
-	if conn.ClusterID == "" {
-		result.Shards = resolveShardsFromHosts(result.Hosts)
-	} else {
-		hosts, shards, err := ResolveShardGroupHostsAndShards(conn.ClusterID, shardGroup, nativePort, httpPort)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve shard group hosts and shards: %w", err)
-		}
-		result.Hosts = hosts
-		result.Shards = shards
+	hosts, shards, err := ResolveShardGroupHostsAndShards(conn, connectionID, shardGroup, nativePort, httpPort)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve shard group hosts and shards: %w", err)
 	}
+	result.Hosts = hosts
+	result.Shards = shards
 
 	return result, nil
-}
-
-func resolveShardsFromHosts(hosts []*clickhouse.Host) map[string][]*clickhouse.Host {
-	shards := make(map[string][]*clickhouse.Host)
-	for _, host := range hosts {
-		shards[host.ShardName] = append(shards[host.ShardName], host)
-	}
-
-	return shards
 }

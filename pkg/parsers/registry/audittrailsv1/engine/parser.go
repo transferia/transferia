@@ -7,6 +7,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/generic"
 	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
@@ -151,22 +152,24 @@ func (p *AuditTrailsV1ParserImpl) Do(msg parsers.Message, partition abstract.Par
 		}
 
 		changeItem := abstract.ChangeItem{
-			ID:           0,
-			LSN:          msg.Offset,
-			CommitTime:   uint64(msg.WriteTime.UnixNano()),
-			Counter:      0,
-			Kind:         abstract.InsertKind,
-			Schema:       "",
-			Table:        strings.Replace(partition.Topic, "/", "_", -1),
-			PartID:       "",
-			ColumnNames:  make([]string, 0, len(dict)),
-			ColumnValues: make([]any, 0, len(dict)),
-			TableSchema:  getElasticFields(),
-			OldKeys:      abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(uint64(len(line))),
+			ID:               0,
+			LSN:              msg.Offset,
+			CommitTime:       uint64(msg.WriteTime.UnixNano()),
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           "",
+			Table:            strings.Replace(partition.Topic, "/", "_", -1),
+			PartID:           "",
+			ColumnNames:      make([]string, 0, len(dict)),
+			ColumnValues:     make([]any, 0, len(dict)),
+			TableSchema:      getElasticFields(),
+			OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+			Size:             abstract.RawEventSize(uint64(len(line))),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}
+		changeItem.FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
 
 		for k, v := range dict {
 			changeItem.ColumnNames = append(changeItem.ColumnNames, k)

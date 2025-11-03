@@ -23,7 +23,6 @@ type Writer struct {
 	saslMechanism sasl.Mechanism
 	tlsConfig     *tls.Config
 	topicConfig   [][2]string
-	batchBytes    int64
 
 	writersMutex sync.Mutex
 	knownTopics  map[string]bool
@@ -35,9 +34,10 @@ type Writer struct {
 
 func NewWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64, dial func(ctx context.Context, network string, address string) (net.Conn, error)) *Writer {
 	rawKafkaWriter := &kafka.Writer{
-		Addr:       kafka.TCP(brokers...),
-		Balancer:   &kafka.Hash{},
-		BatchBytes: batchBytes,
+		Addr:                            kafka.TCP(brokers...),
+		Balancer:                        &kafka.Hash{},
+		AutoDeriveBatchBytes:            true,
+		ApplyBatchBytesAfterCompression: true,
 		Transport: &kafka.Transport{
 			Dial: dial,
 			TLS:  tlsConfig,
@@ -51,7 +51,6 @@ func NewWriter(brokers []string, compression kafka.Compression, saslMechanism sa
 		saslMechanism: saslMechanism,
 		tlsConfig:     tlsConfig,
 		topicConfig:   topicConfig,
-		batchBytes:    batchBytes,
 
 		writersMutex: sync.Mutex{},
 		knownTopics:  make(map[string]bool),
@@ -96,7 +95,7 @@ func (w *Writer) WriteMessages(ctx context.Context, lgr log.Logger, topicName st
 		case kafka.WriteErrors:
 			return xerrors.Errorf("returned kafka.WriteErrors, err: %w", util.NewErrs(t...))
 		case kafka.MessageTooLargeError:
-			return xerrors.Errorf("message exceeded max message size (current BatchBytes: %d, len(key):%d, len(val):%d", w.batchBytes, len(t.Message.Key), len(t.Message.Value))
+			return xerrors.Errorf("message exceeded max message size (len(key):%d, len(val):%d", len(t.Message.Key), len(t.Message.Value))
 		default:
 			return xerrors.Errorf("unable to write messages, topicName: %s, messages: %d : %w", topicName, len(currMessages), err)
 		}

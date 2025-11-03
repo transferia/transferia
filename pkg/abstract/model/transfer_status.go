@@ -44,6 +44,10 @@ var statusActivityMap = map[TransferStatus]bool{
 
 var ActiveStatuses []TransferStatus
 
+func (s TransferStatus) IsActive() bool {
+	return statusActivityMap[s]
+}
+
 func IsActiveStatus(status TransferStatus) (bool, error) {
 	isActive, ok := statusActivityMap[status]
 	if !ok {

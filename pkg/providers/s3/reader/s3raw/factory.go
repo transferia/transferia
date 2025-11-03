@@ -30,7 +30,7 @@ func NewS3RawReader(ctx context.Context, client s3iface.S3API, bucket, key strin
 			return nil, xerrors.Errorf("failed to initialize new zlib reader: %w", err)
 		}
 	} else {
-		reader, err = newChunkedReader(fetcher, metrics)
+		reader, err = newS3RawReader(fetcher, metrics)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to initialize new chunked reader: %w", err)
 		}

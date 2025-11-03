@@ -14,11 +14,32 @@ type ConnectionData struct {
 	Subnet                string
 	SecurityGroups        []string
 	DisableProxyDiscovery bool
+	UseTLS                bool
+	TLSFile               string
+	ProxyRole             string
+
+	// For YTSaurus only
+	ClusterID        string
+	ServiceAccountID string
+}
+
+type YtSourceModel interface {
+	ytclient.ConnParams
+	model.Source
+	model.StrictSource
+	model.Abstract2Source
+	model.AsyncPartSource
+
+	GetRowIdxColumn() string
+	GetPaths() []string
+	GetCluster() string
+	GetYtToken() string
+	GetDesiredPartSizeBytes() int64
 }
 
 type YtSource struct {
 	Cluster          string
-	Proxy            string
+	YtProxy          string
 	Paths            []string
 	YtToken          string
 	RowIdxColumnName string
@@ -49,37 +70,61 @@ func (s *YtSource) Validate() error {
 	return nil
 }
 
-func (s *YtSource) IsAbstract2(model.Destination) bool { return true }
-
-func (s *YtSource) RowIdxEnabled() bool {
-	return s.RowIdxColumnName != ""
+func (s *YtSource) GetPaths() []string {
+	return s.Paths
 }
+
+func (s *YtSource) GetDesiredPartSizeBytes() int64 {
+	return s.DesiredPartSizeBytes
+}
+
+func (s *YtSource) GetYtToken() string {
+	return s.YtToken
+}
+
+func (s *YtSource) GetCluster() string {
+	return s.Cluster
+}
+
+func (s *YtSource) GetRowIdxColumn() string {
+	return s.RowIdxColumnName
+}
+
+func (s *YtSource) IsAbstract2(model.Destination) bool { return true }
 
 func (s *YtSource) IsAsyncShardPartsSource() {}
 
-func (s *YtSource) ConnParams() ytclient.ConnParams {
-	return ytSrcWrapper{s}
-}
-
-type ytSrcWrapper struct {
-	*YtSource
-}
-
-func (y ytSrcWrapper) Proxy() string {
-	if y.YtSource.Proxy != "" {
-		return y.YtSource.Proxy
+func (s YtSource) Proxy() string {
+	if s.YtProxy != "" {
+		return s.YtProxy
 	}
-	return y.YtSource.Cluster
+	return s.Cluster
 }
 
-func (y ytSrcWrapper) Token() string {
-	return y.YtToken
+func (s *YtSource) Token() string {
+	return s.YtToken
 }
 
-func (y ytSrcWrapper) DisableProxyDiscovery() bool {
-	return y.Connection.DisableProxyDiscovery
+func (s *YtSource) DisableProxyDiscovery() bool {
+	return s.Connection.DisableProxyDiscovery
 }
 
-func (y ytSrcWrapper) CompressionCodec() yt.ClientCompressionCodec {
+func (s *YtSource) CompressionCodec() yt.ClientCompressionCodec {
 	return yt.ClientCodecBrotliFastest
+}
+
+func (s *YtSource) UseTLS() bool {
+	return s.Connection.UseTLS
+}
+
+func (s *YtSource) TLSFile() string {
+	return s.Connection.TLSFile
+}
+
+func (s *YtSource) ServiceAccountID() string {
+	return ""
+}
+
+func (s *YtSource) ProxyRole() string {
+	return s.Connection.ProxyRole
 }

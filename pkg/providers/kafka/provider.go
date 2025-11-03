@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/kafka/client"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
+	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -59,6 +60,9 @@ func (p *Provider) Sniffer(_ context.Context) (abstract.Fetchable, error) {
 	src, ok := p.transfer.Src.(*KafkaSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
+	}
+	if err := src.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sniffer: %w", err)
 	}
 	topics := src.GroupTopics
 	if len(topics) == 0 && src.Topic != "" {
@@ -116,8 +120,8 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	if !src.IsHomo { // we can enforce homo from outside
-		src.IsHomo = p.transfer.DstType() == ProviderType && src.IsDefaultMirror()
+	if err := src.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for source: %w", err)
 	}
 	if !src.SynchronizeIsNeeded {
 		src.SynchronizeIsNeeded = p.transfer.DstType() == "lb" // sorry for that
@@ -134,7 +138,14 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	cfgCopy := *dst
-	cfgCopy.FormatSettings = InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
+	if err := cfgCopy.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sink: %w", err)
+	}
+	var err error
+	cfgCopy.FormatSettings, err = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	return NewReplicationSink(&cfgCopy, p.registry, p.logger)
 }
 
@@ -144,7 +155,14 @@ func (p *Provider) SnapshotSink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	cfgCopy := *dst
-	cfgCopy.FormatSettings = InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
+	if err := cfgCopy.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for snapshot sink: %w", err)
+	}
+	var err error
+	cfgCopy.FormatSettings, err = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	return NewSnapshotSink(&cfgCopy, p.registry, p.logger)
 }
 

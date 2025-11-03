@@ -40,6 +40,7 @@ func generateRawMessages(table string, part, from, to int) []abstract.ChangeItem
 	var res []abstract.ChangeItem
 	for i := from; i < to; i++ {
 		res = append(res, abstract.MakeRawMessage(
+			[]byte("stub"),
 			table,
 			ciTime,
 			"test-topic",

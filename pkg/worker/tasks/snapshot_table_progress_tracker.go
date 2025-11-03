@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
-	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -17,14 +16,17 @@ type SnapshotTableProgressTracker struct {
 	wg        sync.WaitGroup
 	closeOnce *sync.Once
 
+	sharedMemory        abstract.SharedMemory
 	operationID         string
-	cpClient            coordinator.Coordinator
-	parts               map[string]*model.OperationTablePart
+	parts               map[string]*abstract.OperationTablePart
 	progressUpdateMutex *sync.Mutex
 }
 
 func NewSnapshotTableProgressTracker(
-	ctx context.Context, operationID string, cpClient coordinator.Coordinator, progressUpdateMutex *sync.Mutex,
+	ctx context.Context,
+	sharedMemory abstract.SharedMemory,
+	operationID string,
+	progressUpdateMutex *sync.Mutex,
 ) *SnapshotTableProgressTracker {
 	ctx, cancel := context.WithCancel(ctx)
 	tracker := &SnapshotTableProgressTracker{
@@ -32,9 +34,9 @@ func NewSnapshotTableProgressTracker(
 		wg:        sync.WaitGroup{},
 		closeOnce: &sync.Once{},
 
+		sharedMemory:        sharedMemory,
 		operationID:         operationID,
-		cpClient:            cpClient,
-		parts:               map[string]*model.OperationTablePart{},
+		parts:               map[string]*abstract.OperationTablePart{},
 		progressUpdateMutex: progressUpdateMutex,
 	}
 	tracker.wg.Add(1)
@@ -51,7 +53,7 @@ func (t *SnapshotTableProgressTracker) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-pushTicker.C:
-			t.Flush()
+			t.Flush(t.sharedMemory)
 		}
 	}
 }
@@ -61,13 +63,13 @@ func (t *SnapshotTableProgressTracker) Close() {
 	t.closeOnce.Do(func() {
 		t.cancel()
 		t.wg.Wait()
-		t.Flush()
+		t.Flush(t.sharedMemory)
 	})
 }
 
-func (t *SnapshotTableProgressTracker) Flush() {
+func (t *SnapshotTableProgressTracker) Flush(sharedMemory abstract.SharedMemory) {
 	t.progressUpdateMutex.Lock()
-	partsCopy := make([]*model.OperationTablePart, 0, len(t.parts))
+	partsCopy := make([]*abstract.OperationTablePart, 0, len(t.parts))
 	for _, table := range t.parts {
 		partsCopy = append(partsCopy, table.Copy())
 	}
@@ -77,7 +79,7 @@ func (t *SnapshotTableProgressTracker) Flush() {
 		return
 	}
 
-	if err := t.cpClient.UpdateOperationTablesParts(t.operationID, partsCopy); err != nil {
+	if err := sharedMemory.UpdateOperationTablesParts(t.operationID, partsCopy); err != nil {
 		logger.Log.Warn(
 			fmt.Sprintf("Failed to send tables progress for operation '%v'", t.operationID),
 			log.String("OperationID", t.operationID), log.Error(err))
@@ -100,7 +102,7 @@ func (t *SnapshotTableProgressTracker) Flush() {
 	t.progressUpdateMutex.Unlock()
 }
 
-func (t *SnapshotTableProgressTracker) Add(part *model.OperationTablePart) {
+func (t *SnapshotTableProgressTracker) Add(part *abstract.OperationTablePart) {
 	t.progressUpdateMutex.Lock()
 	defer t.progressUpdateMutex.Unlock()
 	t.parts[part.Key()] = part

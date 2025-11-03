@@ -357,6 +357,7 @@ func annotateWithTimeFromColumnTest(t *testing.T) {
 	t.Run("NoTimeColumnFound", annotateWithTimeFromColumnTestNoTimeColumnInRawData)
 	t.Run("NoTimeColumnInConfig", annotateWithTimeFromColumnTestNoTimeColumnInConfig)
 	t.Run("NilReceiver", annotateWithTimeFromColumnTestNilReceiver)
+	t.Run("IntDataInColumn", annotateWithTimeFromColumnTestIntDataInColumn)
 }
 
 func annotateWithTimeFromColumnTestWithoutFormat(t *testing.T) {
@@ -705,6 +706,21 @@ func annotateWithTimeFromColumnTestNilReceiver(t *testing.T) {
 		annotate1 = nilRotator.Annotate("ElonMusksTable")
 	}
 	require.Equal(t, annotate1, annotate2, "nil reciver should use current date for annotation as default method does")
+}
+
+func annotateWithTimeFromColumnTestIntDataInColumn(t *testing.T) {
+	t.Parallel()
+	changeItem := abstract.ChangeItem{
+		ColumnNames:  []string{"now"},
+		ColumnValues: []any{1753649681},
+	}
+	timeExtracted := ExtractTimeCol(changeItem, "now")
+
+	require.Equal(t, time.Unix(1753649681, 0), timeExtracted)
+
+	rotator := RotatorConfig{PartType: RotatorPartDay, PartSize: 1, KeepPartCount: 3650, TimeColumn: "now", TableNameTemplate: ""}
+	result := rotator.AnnotateWithTimeFromColumn("kek", changeItem)
+	require.Equal(t, "kek/2025-07-27", result)
 }
 
 func nextTest(t *testing.T) {

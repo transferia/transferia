@@ -21,6 +21,30 @@ type FuncGauge struct {
 	memOnly    bool
 }
 
+func NewFuncGauge(name string, function func() float64, opts ...MetricOpt) FuncGauge {
+	mOpts := MetricsOpts{}
+	for _, op := range opts {
+		op(&mOpts)
+	}
+	return FuncGauge{
+		name:       name,
+		metricType: typeIGauge,
+		tags:       mOpts.tags,
+		function:   function,
+		timestamp:  mOpts.timestamp,
+
+		useNameTag: mOpts.useNameTag,
+		memOnly:    mOpts.memOnly,
+	}
+}
+
+func (g *FuncGauge) getID() string {
+	if g.timestamp != nil {
+		return g.name + "(" + g.timestamp.Format(time.RFC3339) + ")"
+	}
+	return g.name
+}
+
 func (g *FuncGauge) Name() string {
 	return g.name
 }
@@ -33,11 +57,11 @@ func (g *FuncGauge) getType() metricType {
 	return g.metricType
 }
 
-func (g *FuncGauge) getLabels() map[string]string {
+func (g *FuncGauge) Labels() map[string]string {
 	return g.tags
 }
 
-func (g *FuncGauge) getValue() interface{} {
+func (g *FuncGauge) Value() interface{} {
 	return g.function()
 }
 
@@ -74,7 +98,7 @@ func (g *FuncGauge) MarshalJSON() ([]byte, error) {
 		Value: g.function(),
 		Labels: func() map[string]string {
 			labels := make(map[string]string, len(g.tags)+1)
-			labels[g.getNameTag()] = g.Name()
+			labels[g.getNameTag()] = g.name
 			for k, v := range g.tags {
 				labels[k] = v
 			}

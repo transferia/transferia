@@ -1,0 +1,91 @@
+version: '2.3'
+services:
+
+  zookeeper:
+    hostname: zookeeper
+    image: bitnami/zookeeper:latest
+    restart: always
+    expose:
+    - "2181"
+    ports:
+    - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: yes
+  
+  kafka:
+    hostname: kafka
+    image: bitnami/kafka:2.7.0
+    restart: always
+    env_file:
+    - kafka/kafka-variables.env
+    depends_on:
+    - zookeeper
+    expose:
+    - "9092"
+    - "8082"
+    - "8083"
+    ports:
+    - '9092:9092'
+    - '8082:8082'
+    - '8083:8083'
+
+  mongo-db:
+    image: mongo:4.0
+    restart: always
+    expose:
+    - "27017"
+    ports:
+    - "27017:27017"
+    environment:
+      MONGO_DATA_DIR: /data/db
+      MONGO_LOG_DIR: /dev/null
+
+  consumer-mongo-db:
+    build:
+      context: consumer-mongo-db
+    environment:
+      mongoURL: mongodb://mongo-db:27017
+      dbName: example_db
+      collectionName: example_coll
+      kafkaURL: kafka:9092
+      topic: topic1
+      groupID: mongo-group
+    depends_on: 
+    - kafka
+    - mongo-db
+    restart: always
+
+  consumer-logger:
+    build:
+      context: consumer-logger
+    environment:
+      kafkaURL: kafka:9092
+      topic: topic1
+      groupID: logger-group
+    depends_on: 
+    - kafka
+    restart: always
+
+  producer-random:
+    build:
+      context: producer-random
+    environment:
+      kafkaURL: kafka:9092
+      topic: topic1
+    depends_on: 
+    - kafka
+    restart: always
+
+  producer-api:
+    build:
+      context: producer-api
+    environment:
+      kafkaURL: kafka:9092
+      topic: topic1
+    expose:
+    - "8080"
+    ports:
+    - "8080:8080"
+    depends_on: 
+    - kafka
+    restart: always

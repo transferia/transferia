@@ -1,0 +1,759 @@
+{
+	"Version": "v0.4.48",
+	"GoVersion": "1.15",
+	"Sum": "h1:9jyu9CWK4W5W+SroCe8EffbrRZVqAOkuaLd/ApID4Vs=",
+	"Packages": {
+		"github.com/segmentio/kafka-go": {
+			"Imports": [
+				"bufio",
+				"bytes",
+				"context",
+				"crypto/tls",
+				"encoding",
+				"encoding/binary",
+				"errors",
+				"fmt",
+				"github.com/segmentio/kafka-go",
+				"github.com/segmentio/kafka-go/compress",
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/segmentio/kafka-go/protocol/addoffsetstotxn",
+				"github.com/segmentio/kafka-go/protocol/addpartitionstotxn",
+				"github.com/segmentio/kafka-go/protocol/alterclientquotas",
+				"github.com/segmentio/kafka-go/protocol/alterconfigs",
+				"github.com/segmentio/kafka-go/protocol/alterpartitionreassignments",
+				"github.com/segmentio/kafka-go/protocol/alteruserscramcredentials",
+				"github.com/segmentio/kafka-go/protocol/apiversions",
+				"github.com/segmentio/kafka-go/protocol/consumer",
+				"github.com/segmentio/kafka-go/protocol/createacls",
+				"github.com/segmentio/kafka-go/protocol/createpartitions",
+				"github.com/segmentio/kafka-go/protocol/createtopics",
+				"github.com/segmentio/kafka-go/protocol/deleteacls",
+				"github.com/segmentio/kafka-go/protocol/deletegroups",
+				"github.com/segmentio/kafka-go/protocol/deletetopics",
+				"github.com/segmentio/kafka-go/protocol/describeacls",
+				"github.com/segmentio/kafka-go/protocol/describeclientquotas",
+				"github.com/segmentio/kafka-go/protocol/describeconfigs",
+				"github.com/segmentio/kafka-go/protocol/describegroups",
+				"github.com/segmentio/kafka-go/protocol/describeuserscramcredentials",
+				"github.com/segmentio/kafka-go/protocol/electleaders",
+				"github.com/segmentio/kafka-go/protocol/endtxn",
+				"github.com/segmentio/kafka-go/protocol/fetch",
+				"github.com/segmentio/kafka-go/protocol/findcoordinator",
+				"github.com/segmentio/kafka-go/protocol/heartbeat",
+				"github.com/segmentio/kafka-go/protocol/incrementalalterconfigs",
+				"github.com/segmentio/kafka-go/protocol/initproducerid",
+				"github.com/segmentio/kafka-go/protocol/joingroup",
+				"github.com/segmentio/kafka-go/protocol/leavegroup",
+				"github.com/segmentio/kafka-go/protocol/listgroups",
+				"github.com/segmentio/kafka-go/protocol/listoffsets",
+				"github.com/segmentio/kafka-go/protocol/listpartitionreassignments",
+				"github.com/segmentio/kafka-go/protocol/metadata",
+				"github.com/segmentio/kafka-go/protocol/offsetcommit",
+				"github.com/segmentio/kafka-go/protocol/offsetdelete",
+				"github.com/segmentio/kafka-go/protocol/offsetfetch",
+				"github.com/segmentio/kafka-go/protocol/produce",
+				"github.com/segmentio/kafka-go/protocol/rawproduce",
+				"github.com/segmentio/kafka-go/protocol/saslauthenticate",
+				"github.com/segmentio/kafka-go/protocol/saslhandshake",
+				"github.com/segmentio/kafka-go/protocol/syncgroup",
+				"github.com/segmentio/kafka-go/protocol/txnoffsetcommit",
+				"github.com/segmentio/kafka-go/sasl",
+				"hash",
+				"hash/crc32",
+				"hash/fnv",
+				"io",
+				"log",
+				"math",
+				"math/rand",
+				"net",
+				"os",
+				"path/filepath",
+				"reflect",
+				"runtime/pprof",
+				"sort",
+				"strconv",
+				"strings",
+				"sync",
+				"sync/atomic",
+				"syscall",
+				"time"
+			],
+			"TestImports": [
+				"bufio",
+				"bytes",
+				"context",
+				"crypto/tls",
+				"crypto/x509",
+				"encoding/hex",
+				"encoding/json",
+				"errors",
+				"fmt",
+				"github.com/segmentio/kafka-go",
+				"github.com/segmentio/kafka-go/compress",
+				"github.com/segmentio/kafka-go/compress/gzip",
+				"github.com/segmentio/kafka-go/compress/lz4",
+				"github.com/segmentio/kafka-go/compress/snappy",
+				"github.com/segmentio/kafka-go/compress/zstd",
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/segmentio/kafka-go/protocol/createtopics",
+				"github.com/segmentio/kafka-go/protocol/metadata",
+				"github.com/segmentio/kafka-go/sasl/plain",
+				"github.com/segmentio/kafka-go/testing",
+				"github.com/stretchr/testify/assert",
+				"github.com/stretchr/testify/require",
+				"golang.org/x/net/nettest",
+				"hash",
+				"hash/crc32",
+				"io",
+				"io/ioutil",
+				"log",
+				"math",
+				"math/rand",
+				"net",
+				"net/http",
+				"os",
+				"reflect",
+				"sort",
+				"strconv",
+				"strings",
+				"sync",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/segmentio/kafka-go/compress": {
+			"Imports": [
+				"encoding",
+				"fmt",
+				"github.com/segmentio/kafka-go/compress/gzip",
+				"github.com/segmentio/kafka-go/compress/lz4",
+				"github.com/segmentio/kafka-go/compress/snappy",
+				"github.com/segmentio/kafka-go/compress/zstd",
+				"io",
+				"strconv",
+				"strings"
+			],
+			"TestImports": [
+				"bytes",
+				"context",
+				"fmt",
+				"github.com/klauspost/compress/gzip",
+				"github.com/segmentio/kafka-go",
+				"github.com/segmentio/kafka-go/compress",
+				"github.com/segmentio/kafka-go/compress/gzip",
+				"github.com/segmentio/kafka-go/compress/lz4",
+				"github.com/segmentio/kafka-go/compress/snappy",
+				"github.com/segmentio/kafka-go/compress/zstd",
+				"github.com/segmentio/kafka-go/testing",
+				"io",
+				"io/ioutil",
+				"math/rand",
+				"net",
+				"os",
+				"path/filepath",
+				"strconv",
+				"testing",
+				"text/tabwriter",
+				"time"
+			]
+		},
+		"github.com/segmentio/kafka-go/compress/gzip": {
+			"Imports": [
+				"github.com/klauspost/compress/gzip",
+				"io",
+				"sync"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/compress/lz4": {
+			"Imports": [
+				"github.com/pierrec/lz4/v4",
+				"io",
+				"sync"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/compress/snappy": {
+			"Imports": [
+				"bytes",
+				"encoding/binary",
+				"errors",
+				"github.com/klauspost/compress/s2",
+				"github.com/klauspost/compress/snappy",
+				"io",
+				"sync"
+			],
+			"TestImports": [
+				"bytes",
+				"crypto/rand",
+				"github.com/klauspost/compress/snappy",
+				"github.com/segmentio/kafka-go/compress/snappy/go-xerial-snappy",
+				"io",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/compress/snappy/go-xerial-snappy": {
+			"Imports": [
+				"bytes",
+				"encoding/binary",
+				"errors",
+				"github.com/klauspost/compress/snappy"
+			],
+			"TestImports": [
+				"bytes",
+				"errors",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/compress/zstd": {
+			"Imports": [
+				"github.com/klauspost/compress/zstd",
+				"io",
+				"sync"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/gzip": {
+			"Imports": [
+				"github.com/klauspost/compress/gzip",
+				"github.com/segmentio/kafka-go/compress/gzip"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/lz4": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/compress/lz4"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol": {
+			"Imports": [
+				"bufio",
+				"bytes",
+				"crypto/tls",
+				"encoding/binary",
+				"errors",
+				"fmt",
+				"github.com/segmentio/kafka-go/compress",
+				"hash/crc32",
+				"io",
+				"io/ioutil",
+				"math",
+				"math/bits",
+				"net",
+				"reflect",
+				"sort",
+				"strconv",
+				"strings",
+				"sync",
+				"sync/atomic",
+				"text/tabwriter",
+				"time"
+			],
+			"TestImports": [
+				"bytes",
+				"errors",
+				"io",
+				"io/ioutil",
+				"math",
+				"reflect",
+				"strings",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/addoffsetstotxn": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/addoffsetstotxn",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/addpartitionstotxn": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/addpartitionstotxn",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/alterclientquotas": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/alterclientquotas",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/alterconfigs": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/alterconfigs",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/alterpartitionreassignments": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/alterpartitionreassignments",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/alteruserscramcredentials": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/alteruserscramcredentials",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/apiversions": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/apiversions",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/consumer": {
+			"Imports": null,
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/segmentio/kafka-go/protocol/consumer",
+				"reflect",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/createacls": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/createacls",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/createpartitions": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/createpartitions",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/createtopics": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol/deleteacls": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/deleteacls",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/deletegroups": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/deletegroups",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/deletetopics": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/deletetopics",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/describeacls": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/describeacls",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/describeclientquotas": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/describeclientquotas",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/describeconfigs": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol",
+				"strconv"
+			],
+			"TestImports": [
+				"errors",
+				"fmt",
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/stretchr/testify/require",
+				"io",
+				"reflect",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/describegroups": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol/describeuserscramcredentials": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/describeuserscramcredentials",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/electleaders": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/electleaders",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/endtxn": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/endtxn",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/fetch": {
+			"Imports": [
+				"fmt",
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/segmentio/kafka-go/protocol/fetch",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/findcoordinator": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol/heartbeat": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/heartbeat",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/incrementalalterconfigs": {
+			"Imports": [
+				"errors",
+				"github.com/segmentio/kafka-go/protocol",
+				"strconv"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/segmentio/kafka-go/protocol/incrementalalterconfigs",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/initproducerid": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/initproducerid",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/joingroup": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/joingroup",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/leavegroup": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/leavegroup",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/listgroups": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol/listoffsets": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol",
+				"sort"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/listoffsets",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/listpartitionreassignments": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/listpartitionreassignments",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/metadata": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/metadata",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/offsetcommit": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/offsetcommit",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/offsetdelete": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/offsetdelete",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/offsetfetch": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol/produce": {
+			"Imports": [
+				"fmt",
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/segmentio/kafka-go/protocol/produce",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/prototest": {
+			"Imports": [
+				"bufio",
+				"bytes",
+				"encoding/hex",
+				"errors",
+				"fmt",
+				"github.com/segmentio/kafka-go/protocol",
+				"io",
+				"reflect",
+				"testing",
+				"time"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol/rawproduce": {
+			"Imports": [
+				"fmt",
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/segmentio/kafka-go/protocol/produce"
+			],
+			"TestImports": [
+				"bytes",
+				"github.com/segmentio/kafka-go/protocol",
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"github.com/segmentio/kafka-go/protocol/rawproduce",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/saslauthenticate": {
+			"Imports": [
+				"encoding/binary",
+				"github.com/segmentio/kafka-go/protocol",
+				"io"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol/saslhandshake": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/protocol/syncgroup": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"github.com/segmentio/kafka-go/protocol/syncgroup",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/protocol/txnoffsetcommit": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/protocol"
+			],
+			"TestImports": [
+				"github.com/segmentio/kafka-go/protocol/prototest",
+				"github.com/segmentio/kafka-go/protocol/txnoffsetcommit",
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/sasl": {
+			"Imports": [
+				"context"
+			],
+			"TestImports": [
+				"context",
+				"github.com/segmentio/kafka-go",
+				"github.com/segmentio/kafka-go/sasl",
+				"github.com/segmentio/kafka-go/sasl/plain",
+				"github.com/segmentio/kafka-go/sasl/scram",
+				"github.com/segmentio/kafka-go/testing",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/segmentio/kafka-go/sasl/plain": {
+			"Imports": [
+				"context",
+				"fmt",
+				"github.com/segmentio/kafka-go/sasl"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/sasl/scram": {
+			"Imports": [
+				"context",
+				"crypto/sha256",
+				"crypto/sha512",
+				"github.com/segmentio/kafka-go/sasl",
+				"github.com/xdg-go/scram",
+				"hash"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/snappy": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/compress/snappy"
+			],
+			"TestImports": null
+		},
+		"github.com/segmentio/kafka-go/testing": {
+			"Imports": [
+				"context",
+				"net",
+				"os",
+				"strconv",
+				"strings",
+				"sync"
+			],
+			"TestImports": [
+				"testing"
+			]
+		},
+		"github.com/segmentio/kafka-go/topics": {
+			"Imports": [
+				"context",
+				"errors",
+				"github.com/segmentio/kafka-go",
+				"regexp"
+			],
+			"TestImports": [
+				"context",
+				"github.com/segmentio/kafka-go",
+				"github.com/segmentio/kafka-go/testing",
+				"net",
+				"regexp",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/segmentio/kafka-go/zstd": {
+			"Imports": [
+				"github.com/segmentio/kafka-go/compress/zstd"
+			],
+			"TestImports": null
+		}
+	}
+}
