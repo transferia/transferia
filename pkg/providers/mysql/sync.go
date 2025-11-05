@@ -94,6 +94,9 @@ func (c *Canal) runSyncBinlog() error {
 			case *replication.RotateEvent:
 				fakeRotateLogName = string(e.NextLogName)
 				c.logger.Infof("received fake rotate event, next log name is %s", e.NextLogName)
+			case *replication.RowsEvent:
+				// Maybe there is a problem with a new format for MariaDB 11.4+, check docs
+				return xerrors.Errorf("received RowsEvent without log position, event exact type: %s", ev.Header.EventType.String())
 			}
 
 			continue
