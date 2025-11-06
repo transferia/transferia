@@ -75,8 +75,13 @@ var (
 	YDBOverloaded = coded.Register("ydb", "overloaded")
 
 	// ytsaurus
-	YTSaurusNotFound = coded.Register("yt", "not_found")
-
+	YTSaurusNotFound              = coded.Register("yt", "not_found")
+	YTSaurusGenericError          = coded.Register("yt", "generic_error")
+	YTSaurusOOMKilled             = coded.Register("yt", "oom_killed")
+	YTSaurusProcessExitedWithCode = coded.Register("yt", "process_exited_with_code")
+	YTSaurusJobsFailed            = coded.Register("yt", "jobs_failed")
+	YTSaurusTooManyOperations     = coded.Register("yt", "too_many_operations")
+	YTSaurusAuthorizationError    = coded.Register("yt", "authorization_error")
 	// greenplum
 	GreenplumExternalUrlsExceedSegments = coded.Register("greenplum", "external_urls_exceed_segments")
 
