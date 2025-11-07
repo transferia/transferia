@@ -22,6 +22,7 @@ import (
 	ydssource "github.com/transferia/transferia/pkg/providers/yds/source"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	queues "github.com/transferia/transferia/pkg/util/queues"
 	"github.com/transferia/transferia/pkg/util/queues/lbyds"
 	"github.com/transferia/transferia/pkg/xtls"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -72,29 +73,15 @@ func (s *oneDCSource) Fetch() ([]abstract.ChangeItem, error) {
 		case *persqueue.Data:
 			var res []abstract.ChangeItem
 			raw := make([]abstract.ChangeItem, 0)
-			parseWrapper := func(buffer []*persqueue.Data) []abstract.ChangeItem {
-				for _, item := range buffer {
-					for _, b := range item.Batches() {
-						for _, m := range b.Messages {
-							raw = append(raw, lbyds.MessageAsChangeItem(parsers.Message{
-								Offset:     m.Offset,
-								SeqNo:      m.SeqNo,
-								Key:        m.SourceID,
-								CreateTime: m.CreateTime,
-								WriteTime:  m.WriteTime,
-								Value:      m.Data,
-								Headers:    m.ExtraFields,
-							}, parsers.MessageBatch{
-								Topic:     b.Topic,
-								Partition: b.Partition,
-								Messages:  nil, // not used here
-							}))
-						}
+			parseWrapper := func(batches []parsers.MessageBatch) []abstract.ChangeItem {
+				for _, messageBatch := range batches {
+					for _, message := range messageBatch.Messages {
+						raw = append(raw, lbyds.MessageAsChangeItem(message, messageBatch))
 					}
 				}
-				return lbyds.Parse(buffer, s.parser, s.metrics, s.logger, nil)
+				return lbyds.Parse(batches, s.parser, s.metrics, s.logger, nil)
 			}
-			parsed := parseWrapper([]*persqueue.Data{v})
+			parsed := parseWrapper(lbyds.ConvertBatches(v.Batches()))
 			if len(raw) > 3 {
 				raw = raw[:3]
 			}
@@ -262,9 +249,9 @@ func (s *oneDCSource) run(parseQ *parsequeue.WaitableParseQueue[batch]) error {
 				s.logger.Debug("got lb_offsets", log.Any("range", lbyds.BuildMapPartitionToLbOffsetsRange(batches)))
 
 				s.lastRead = time.Now()
-				messagesSize, messagesCount := BatchStatistics(batches)
-				s.metrics.Size.Add(int64(messagesSize))
-				s.metrics.Count.Add(int64(messagesCount))
+				messagesSize, messagesCount := queues.BatchStatistics(batches)
+				s.metrics.Size.Add(messagesSize)
+				s.metrics.Count.Add(messagesCount)
 				s.logger.Debugf("Incoming data: %d messages of total size %d", messagesCount, messagesSize)
 
 				splittedBatches := newBatches(s.maxBatchSize, v.Commit, batches)

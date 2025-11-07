@@ -1,4 +1,4 @@
-package logbroker
+package util
 
 import (
 	"encoding/binary"

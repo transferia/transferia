@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	queues "github.com/transferia/transferia/pkg/util/queues"
 	"github.com/transferia/transferia/pkg/util/queues/lbyds"
 	"github.com/transferia/transferia/pkg/xtls"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -44,8 +45,8 @@ type Source struct {
 }
 
 func (p *Source) Run(sink abstract.AsyncSink) error {
-	parseWrapper := func(buffer []*persqueue.Data) []abstract.ChangeItem {
-		if len(buffer) == 0 {
+	parseWrapper := func(batch committableBatch) []abstract.ChangeItem {
+		if len(batch.Batches) == 0 {
 			return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}
 		}
 		transformFunc := func(data []abstract.ChangeItem) []abstract.ChangeItem {
@@ -67,7 +68,7 @@ func (p *Source) Run(sink abstract.AsyncSink) error {
 				return data
 			}
 		}
-		return lbyds.Parse(buffer, p.parser, p.metrics, p.logger, transformFunc)
+		return lbyds.Parse(batch.Batches, p.parser, p.metrics, p.logger, transformFunc)
 	}
 	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, parseWrapper, p.ack)
 	defer parseQ.Close()
@@ -75,16 +76,13 @@ func (p *Source) Run(sink abstract.AsyncSink) error {
 	return p.run(parseQ)
 }
 
-func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[[]*persqueue.Data]) error {
+func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) error {
 	defer func() {
 		p.consumer.Shutdown()
 		lbyds.WaitSkippedMsgs(p.logger, p.consumer, "yds")
 	}()
 
 	lastPush := time.Now()
-	bufferSize := 0
-
-	var buffer []*persqueue.Data
 	for {
 		select {
 		case <-p.stopCh:
@@ -143,36 +141,16 @@ func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[[]*persqueue.Data]) e
 				p.logger.Debug("got lb_offsets", log.Any("range", ranges))
 
 				p.metrics.Master.Set(1)
-				buffer = append(buffer, v)
-				for _, batch := range v.Batches() {
-					for _, m := range batch.Messages {
-						bufferSize += len(m.Data)
-						p.metrics.Size.Add(int64(len(m.Data)))
-						p.metrics.Count.Inc()
-					}
+				messagesSize, messagesCount := queues.BatchStatistics(batches)
+				p.metrics.Size.Add(messagesSize)
+				p.metrics.Count.Add(messagesCount)
+
+				p.logger.Infof("begin to process batch: %v items with %v, time from last batch: %v", len(batches), format.SizeUInt64(uint64(messagesSize)), time.Since(lastPush))
+				if err := parseQ.Add(newBatch(v.Commit, batches)); err != nil {
+					return xerrors.Errorf("unable to add message to parser process: %w", err)
 				}
+				lastPush = time.Now()
 			}
-		default:
-			if len(buffer) == 0 {
-				continue
-			}
-			if p.config.Transformer != nil {
-				if time.Since(lastPush).Nanoseconds() < p.config.Transformer.BufferFlushInterval.Nanoseconds() &&
-					bufferSize < int(p.config.Transformer.BufferSize) {
-					continue
-				} else {
-					if time.Since(lastPush) < 500*time.Millisecond {
-						continue
-					}
-				}
-			}
-			p.logger.Infof("begin to process batch: %v items with %v, time from last batch: %v", len(buffer), format.SizeInt(bufferSize), time.Since(lastPush))
-			if err := parseQ.Add(buffer); err != nil {
-				return xerrors.Errorf("unable to add message to parser process: %w", err)
-			}
-			lastPush = time.Now()
-			buffer = make([]*persqueue.Data, 0)
-			bufferSize = 0
 		}
 	}
 }
@@ -277,10 +255,10 @@ func (p *Source) lockPartition(lock *persqueue.LockV1) {
 	lock.StartRead(true, lock.ReadOffset, lock.ReadOffset)
 }
 
-func (p *Source) sendSynchronizeEventIfNeeded(parseQ *parsequeue.WaitableParseQueue[[]*persqueue.Data]) error {
+func (p *Source) sendSynchronizeEventIfNeeded(parseQ *parsequeue.WaitableParseQueue[committableBatch]) error {
 	if p.config.IsLbSink && parseQ != nil {
 		p.logger.Info("Sending synchronize event")
-		if err := parseQ.Add([]*persqueue.Data{}); err != nil {
+		if err := parseQ.Add(newEmtpyBatch()); err != nil {
 			return xerrors.Errorf("unable to add message to parser process: %w", err)
 		}
 		parseQ.Wait()
@@ -289,16 +267,14 @@ func (p *Source) sendSynchronizeEventIfNeeded(parseQ *parsequeue.WaitableParseQu
 	return nil
 }
 
-func (p *Source) ack(data []*persqueue.Data, st time.Time, err error) {
+func (p *Source) ack(data committableBatch, st time.Time, err error) {
 	if err != nil {
 		p.onceErr.Do(func() {
 			p.errCh <- err
 		})
 		return
 	} else {
-		for _, b := range data {
-			b.Commit()
-		}
+		data.Commit()
 		p.metrics.PushTime.RecordDuration(time.Since(st))
 	}
 }

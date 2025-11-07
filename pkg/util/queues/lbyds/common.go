@@ -5,7 +5,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/transferia/transferia/kikimr/public/sdk/go/persqueue"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/stats"
@@ -61,28 +60,14 @@ func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch) abstract.Cha
 
 type TransformFunc func([]abstract.ChangeItem) []abstract.ChangeItem
 
-func Parse(buffer []*persqueue.Data, parser parsers.Parser, metrics *stats.SourceStats, logger log.Logger, transformFunc TransformFunc) []abstract.ChangeItem {
+func Parse(batches []parsers.MessageBatch, parser parsers.Parser, metrics *stats.SourceStats, logger log.Logger, transformFunc TransformFunc) []abstract.ChangeItem {
 	totalSize := 0
 	st := time.Now()
 	var data []abstract.ChangeItem
-	for _, item := range buffer {
-		for _, b := range item.Batches() {
-			for _, m := range b.Messages {
-				data = append(data, MessageAsChangeItem(parsers.Message{
-					Offset:     m.Offset,
-					SeqNo:      m.SeqNo,
-					Key:        m.SourceID,
-					CreateTime: m.CreateTime,
-					WriteTime:  m.WriteTime,
-					Value:      m.Data,
-					Headers:    m.ExtraFields,
-				}, parsers.MessageBatch{
-					Topic:     b.Topic,
-					Partition: b.Partition,
-					Messages:  nil, // not used here
-				}))
-				totalSize += len(m.Data)
-			}
+	for _, batch := range batches {
+		for _, m := range batch.Messages {
+			data = append(data, MessageAsChangeItem(m, batch))
+			totalSize += len(m.Value)
 		}
 	}
 	if transformFunc != nil {
