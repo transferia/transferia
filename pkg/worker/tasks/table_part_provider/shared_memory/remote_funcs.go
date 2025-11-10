@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
@@ -47,19 +46,4 @@ func GetShardStateNoWait(
 		return "", errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task state: %w", err)
 	}
 	return result, nil
-}
-
-func ConvertArrTablePartsToTD(
-	sharedMemory abstract.SharedMemory,
-	parts []*abstract.OperationTablePart,
-) ([]abstract.TableDescription, error) {
-	tdArr := make([]abstract.TableDescription, 0, len(parts))
-	for _, part := range parts {
-		td, err := sharedMemory.ConvertToTableDescription(part)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to convert to table description: %w", err)
-		}
-		tdArr = append(tdArr, *td)
-	}
-	return tdArr, nil
 }

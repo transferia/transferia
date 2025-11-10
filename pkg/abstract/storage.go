@@ -379,32 +379,16 @@ type SnapshotableStorage interface {
 // async table part provider
 
 type SharedMemory interface {
-	// init thing
-	ResetState() error
+	// main methods - add, get, update:
 
-	// main methods - remove, add, get, get_for_logging, commit_done
-	RemoveTransferState(transferID string, stateKeys []string) error
-	Store(in []TableDescription) error
+	Store(in []*OperationTablePart) error
 	NextOperationTablePart(ctx context.Context) (*OperationTablePart, error)
 	UpdateOperationTablesParts(operationID string, tables []*OperationTablePart) error
 
-	// additional work with OperationState
+	// additional work with OperationState:
+
 	GetShardStateNoWait(ctx context.Context, operationID string) (string, error)
 	SetOperationState(operationID string, newState string) error
-
-	// convertor thing
-	ConvertToTableDescription(in *OperationTablePart) (*TableDescription, error)
-}
-
-type SharedMemoryBuilder interface {
-	BuildSharedMemory(
-		transferID string,
-		operationID string,
-		workerIndex int,
-		cp any,
-		totalParts uint64,
-		checkLoaderError func() error,
-	) SharedMemory
 }
 
 // NextArrTableDescriptionGetter is used in async_table_parts (tpp_*_async.go) to get tasks
@@ -419,5 +403,5 @@ type NextArrTableDescriptionGetter interface {
 // key IsAsyncPartsUploadedStateKey, which is used by control code and should be not changed by storage.
 type NextArrTableDescriptionGetterBuilder interface {
 	ShardingContextStorage
-	BuildNextArrTableDescriptionGetter(tables []TableDescription) (NextArrTableDescriptionGetter, error)
+	BuildNextArrTableDescriptionGetter(operationID string, tables []TableDescription) (NextArrTableDescriptionGetter, error)
 }

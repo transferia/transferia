@@ -3,6 +3,7 @@ package table_part_provider
 import (
 	"context"
 	"encoding/json"
+	"math"
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -23,21 +24,22 @@ func asyncLoadParts(
 	sharedMemory abstract.SharedMemory,
 	transferID string,
 	operationID string,
-	checkLoaderError func() error,
 ) error {
-	err := sharedMemory.ResetState()
-	if err != nil {
-		return xerrors.Errorf("unable to reset state, err: %w", err)
-	}
-
 	logger.Log.Info("Starting async load leastParts with table_part_provider")
 
-	asyncTPPStorage, err := storage.BuildNextArrTableDescriptionGetter(inTables)
+	asyncTPPStorage, err := storage.BuildNextArrTableDescriptionGetter(operationID, inTables)
 	if err != nil {
 		return xerrors.Errorf("unable to create async leastParts provider, err: %w", err)
 	}
 	defer asyncTPPStorage.Close()
 
+	tablePartIndex := make(map[abstract.TableID]uint64, len(inTables))  // Count of already received parts per table.
+	tablePartsCount := make(map[abstract.TableID]uint64, len(inTables)) // Count of all parts per table.
+	for _, table := range inTables {
+		tid := table.ID()
+		tablePartIndex[tid] = 1
+		tablePartsCount[tid] = math.MaxInt32 // TODO: TM-9427.
+	}
 	for {
 		currTables, err := asyncTPPStorage.NextArrTableDescription(ctx, asyncPartsDefaultBatchSize)
 		if err != nil {
@@ -47,13 +49,18 @@ func asyncLoadParts(
 			break
 		}
 
-		err = sharedMemory.Store(currTables)
+		parts := make([]*abstract.OperationTablePart, 0, len(currTables))
+		for _, table := range currTables {
+			part := abstract.NewOperationTablePartFromDescription(operationID, &table)
+			tid := table.ID()
+			part.PartsCount = tablePartsCount[tid]
+			part.PartIndex = tablePartIndex[tid]
+			tablePartIndex[tid]++
+			parts = append(parts, part)
+		}
+		err = sharedMemory.Store(parts)
 		if err != nil {
 			return xerrors.Errorf("unable to store current tables, err: %w", err)
-		}
-		err = checkLoaderError()
-		if err != nil {
-			return xerrors.Errorf("upload of %d tables failed (not all leastParts published), err: %w", len(currTables), err)
 		}
 	}
 	logger.Log.Info("Async load leastParts finished successfully")

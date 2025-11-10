@@ -5,7 +5,6 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider/shared_memory"
 )
 
 // To verify providers contract implementation
@@ -16,27 +15,6 @@ var (
 type TPPSetterSync struct {
 	sharedMemory abstract.SharedMemory
 	cachedParts  []*abstract.OperationTablePart
-}
-
-func (s *TPPSetterSync) SharedMemory() abstract.SharedMemory {
-	return s.sharedMemory
-}
-
-func (s *TPPSetterSync) AppendParts(ctx context.Context, parts []*abstract.OperationTablePart) error {
-	if s.cachedParts != nil {
-		return xerrors.Errorf("TPPSetterSync AppendParts called more than once")
-	}
-	s.cachedParts = parts
-
-	tdArr, err := shared_memory.ConvertArrTablePartsToTD(s.sharedMemory, parts)
-	if err != nil {
-		return xerrors.Errorf("failed to convert parts: %w", err)
-	}
-	err = s.sharedMemory.Store(tdArr)
-	if err != nil {
-		return xerrors.Errorf("failed to store table parts: %w", err)
-	}
-	return nil
 }
 
 func (s *TPPSetterSync) AllPartsOrNil() []*abstract.OperationTablePart {
@@ -58,9 +36,13 @@ func (s *TPPSetterSync) AsyncLoadPartsIfNeeded(
 	return nil
 }
 
-func NewTPPSetterSync(sharedMemory abstract.SharedMemory) *TPPSetterSync {
-	return &TPPSetterSync{
+func NewTPPSetterSync(sharedMemory abstract.SharedMemory, parts []*abstract.OperationTablePart) (*TPPSetterSync, error) {
+	setter := &TPPSetterSync{
 		sharedMemory: sharedMemory,
-		cachedParts:  nil,
+		cachedParts:  parts,
 	}
+	if err := setter.sharedMemory.Store(parts); err != nil {
+		return nil, xerrors.Errorf("failed to store table parts: %w", err)
+	}
+	return setter, nil
 }

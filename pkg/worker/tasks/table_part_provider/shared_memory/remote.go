@@ -21,24 +21,15 @@ type Remote struct {
 	workerIndex int
 }
 
-func (m *Remote) ResetState() error {
-	return nil // no-op
-}
-
-func (m *Remote) Store(in []abstract.TableDescription) error {
+func (m *Remote) Store(in []*abstract.OperationTablePart) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	arrTablePart := abstract.NewOperationTablePartFromDescriptionArr(m.operationID, in...)
-	err := m.cp.CreateOperationTablesParts(m.operationID, arrTablePart)
+	err := m.cp.CreateOperationTablesParts(m.operationID, in)
 	if err != nil {
 		return xerrors.Errorf("Failed to CreateOperationTablesParts: %w", err)
 	}
 	return nil
-}
-
-func (m *Remote) ConvertToTableDescription(in *abstract.OperationTablePart) (*abstract.TableDescription, error) {
-	return in.ToTableDescription(), nil
 }
 
 func (m *Remote) NextOperationTablePart(ctx context.Context) (*abstract.OperationTablePart, error) {
@@ -47,10 +38,6 @@ func (m *Remote) NextOperationTablePart(ctx context.Context) (*abstract.Operatio
 
 func (m *Remote) UpdateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
 	return m.cp.UpdateOperationTablesParts(operationID, tables)
-}
-
-func (m *Remote) RemoveTransferState(transferID string, stateKeys []string) error {
-	return m.cp.RemoveTransferState(transferID, stateKeys)
 }
 
 func (m *Remote) GetShardStateNoWait(ctx context.Context, operationID string) (string, error) {

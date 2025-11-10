@@ -2,6 +2,7 @@ package table_part_provider
 
 import (
 	"context"
+	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -14,14 +15,6 @@ var (
 
 type TPPSetterAsync struct {
 	sharedMemory abstract.SharedMemory
-}
-
-func (s *TPPSetterAsync) SharedMemory() abstract.SharedMemory {
-	return s.sharedMemory
-}
-
-func (s *TPPSetterAsync) AppendParts(ctx context.Context, parts []*abstract.OperationTablePart) error {
-	return nil
 }
 
 func (s *TPPSetterAsync) AllPartsOrNil() []*abstract.OperationTablePart {
@@ -49,19 +42,46 @@ func (s *TPPSetterAsync) AsyncLoadPartsIfNeeded(
 		return xerrors.New("storage does not implement AsyncLoadPartsIfNeeded")
 	}
 
+	loadPartsCtx, cancelLoadParts := context.WithCancel(ctx)
+	defer cancelLoadParts()
+
+	// Run background loader error checker to stop asyncLoadParts by cancelling loadPartsCtx on error.
+	loaderErrCh := make(chan error)
+	go func() {
+		defer close(loaderErrCh)
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := checkLoaderError(); err != nil {
+					loaderErrCh <- err
+					cancelLoadParts()
+					return
+				}
+			case <-loadPartsCtx.Done():
+				return
+			}
+		}
+	}()
+
 	err := asyncLoadParts(
-		ctx,
+		loadPartsCtx,
 		storage,
 		tables,
 		s.sharedMemory,
 		transferID,
 		operationID,
-		func() error {
-			return checkLoaderError()
-		},
 	)
 	if err != nil {
 		return xerrors.Errorf("unable to async load parts: %w", err)
+	}
+
+	// Async load parts finished, stopping loader error checker.
+	cancelLoadParts()   // This will stop loader error checker goroutine.
+	err = <-loaderErrCh // Wait for loader error.
+	if err != nil {
+		return xerrors.Errorf("async load parts detected loader error: %w", err)
 	}
 
 	// mark shareded_state by flag

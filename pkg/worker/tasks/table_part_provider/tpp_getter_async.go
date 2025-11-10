@@ -95,18 +95,6 @@ func (g *TPPGetterAsync) NextOperationTablePart(ctx context.Context) (*abstract.
 	return nil, nil
 }
 
-func (g *TPPGetterAsync) ConvertToTableDescription(in *abstract.OperationTablePart) (*abstract.TableDescription, error) {
-	return g.sharedMemory.ConvertToTableDescription(in)
-}
-
-func (g *TPPGetterAsync) RemoveFromAsyncSharedMemory(in *abstract.OperationTablePart) error {
-	return g.sharedMemory.RemoveTransferState(g.transferID, []string{in.Filter})
-}
-
-func (g *TPPGetterAsync) AllPartsOrNil() []*abstract.OperationTablePart {
-	return nil
-}
-
 func NewTPPGetterAsync(
 	ctx context.Context,
 	sharedMemory abstract.SharedMemory,

@@ -51,8 +51,7 @@ func NewTPPSetter(
 		}
 		abstract.DumpTablePartsToLogs(parts)
 
-		result := NewTPPSetterSync(sharedMemory)
-		err = result.AppendParts(ctx, parts)
+		result, err := NewTPPSetterSync(sharedMemory, parts)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to store operation tables: %w", err)
 		}

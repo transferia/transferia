@@ -1004,12 +1004,7 @@ func (l *SnapshotLoader) DoUploadTables(
 					return errors.CategorizedErrorf(categories.Target, "unable to start loading table: %w", err)
 				}
 
-				loadTableInput, err := tppGetter.ConvertToTableDescription(nextPart)
-				if err != nil {
-					return errors.CategorizedErrorf(categories.Target, "unable to convert part to TableDescription, err: %w", err)
-				}
-
-				if err := source.LoadTable(ctx, *loadTableInput, pusher); err != nil {
+				if err := source.LoadTable(ctx, *nextPart.ToTableDescription(), pusher); err != nil {
 					logger.Log.Error(
 						fmt.Sprintf("Failed to load table '%v' on worker %v", nextPart, l.workerIndex),
 						log.Any("table_part", nextPart), log.Int("worker_index", l.workerIndex), log.Error(err),
@@ -1018,12 +1013,6 @@ func (l *SnapshotLoader) DoUploadTables(
 						err = backoff.Permanent(err)
 					}
 					return errors.CategorizedErrorf(categories.Source, "failed to load table '%s': %w", nextPart, err)
-				}
-
-				err = tppGetter.RemoveFromAsyncSharedMemory(nextPart)
-				if err != nil {
-					logger.Log.Error("Unable to remove transfer state", log.String("key", nextPart.Filter), log.Error(err))
-					return errors.CategorizedErrorf(categories.Internal, "unable to remove transfer state: %w", err)
 				}
 
 				doneTableLoad := abstract.MakeDoneTableLoad(logPosition, *nextPart.ToTableDescription(), timestampTz, schema)
@@ -1095,26 +1084,12 @@ func (l *SnapshotLoader) BuildTPP(
 	isBuildSetter bool,
 ) (table_part_provider.AbstractTablePartProviderGetter, table_part_provider.AbstractTablePartProviderSetter, error) {
 	var sharedMemoryForAsyncTPP abstract.SharedMemory
-	if builder, ok := inStorage.(abstract.SharedMemoryBuilder); ok {
-		lgr.Infof("BuildTPP - factory calls builder.BuildSharedMemory")
-		sharedMemoryForAsyncTPP = builder.BuildSharedMemory(
-			l.transfer.ID,
-			l.operationID,
-			l.workerIndex,
-			l.cp,
-			0,
-			func() error {
-				return l.checkLoaderError()
-			},
-		)
+	if isLocal {
+		lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewLocal")
+		sharedMemoryForAsyncTPP = shared_memory.NewLocal(l.operationID)
 	} else {
-		if isLocal {
-			lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewLocal")
-			sharedMemoryForAsyncTPP = shared_memory.NewLocal(l.operationID)
-		} else {
-			lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewRemote")
-			sharedMemoryForAsyncTPP = shared_memory.NewRemote(l.cp, l.operationID, l.workerIndex)
-		}
+		lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewRemote")
+		sharedMemoryForAsyncTPP = shared_memory.NewRemote(l.cp, l.operationID, l.workerIndex)
 	}
 
 	tablePartProviderGetter := table_part_provider.NewTPPGetter(

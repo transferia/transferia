@@ -15,45 +15,31 @@ var (
 type Local struct {
 	mu             sync.Mutex
 	operationID    string
-	allParts       []abstract.TableDescription
-	currParts      []abstract.TableDescription
+	parts          []*abstract.OperationTablePart
 	operationState map[string]string
 }
 
-func (m *Local) ResetState() error {
-	return nil // no-op
-}
-
-func (m *Local) Store(in []abstract.TableDescription) error {
+func (m *Local) Store(in []*abstract.OperationTablePart) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.allParts = append(m.allParts, in...)
-	m.currParts = append(m.currParts, in...)
+	m.parts = append(m.parts, in...)
 	return nil
-}
-
-func (m *Local) ConvertToTableDescription(in *abstract.OperationTablePart) (*abstract.TableDescription, error) {
-	return in.ToTableDescription(), nil
 }
 
 func (m *Local) NextOperationTablePart(ctx context.Context) (*abstract.OperationTablePart, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if len(m.currParts) == 0 {
+	if len(m.parts) == 0 {
 		return nil, nil
 	}
-	result := m.currParts[0]
-	m.currParts = m.currParts[1:]
-	return abstract.NewOperationTablePartFromDescription(m.operationID, &result), nil
+	result := m.parts[0]
+	m.parts = m.parts[1:]
+	return result, nil
 }
 
 func (m *Local) UpdateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
-	return nil
-}
-
-func (m *Local) RemoveTransferState(transferID string, stateKeys []string) error {
 	return nil
 }
 
@@ -76,8 +62,7 @@ func NewLocal(operationID string) *Local {
 	return &Local{
 		mu:             sync.Mutex{},
 		operationID:    operationID,
-		allParts:       nil,
-		currParts:      nil,
+		parts:          nil,
 		operationState: make(map[string]string),
 	}
 }
