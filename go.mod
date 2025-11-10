@@ -79,7 +79,7 @@ require (
 	go.ytsaurus.tech/library/go/core/log v0.0.4
 	go.ytsaurus.tech/yt/go v0.0.28
 	golang.org/x/crypto v0.42.0
-	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
+	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6
 	golang.org/x/mod v0.27.0
 	golang.org/x/net v0.44.0
 	golang.org/x/sync v0.17.0
