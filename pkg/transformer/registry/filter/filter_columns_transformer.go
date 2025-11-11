@@ -53,7 +53,6 @@ func (f *FilterColumnsTransformer) Apply(input []abstract.ChangeItem) abstract.T
 	errors := make([]abstract.TransformerError, 0)
 	for _, item := range input {
 		valueIndexes, filteredSchema, err := f.filterValueIndexes(item)
-		f.Logger.Debugf("Table %v: filtered indexes: %v\ncolumns names: %v", item.Table, valueIndexes, item.ColumnNames)
 		if err != nil {
 			f.Logger.Errorf("unable to filter columns indexes: %v", err)
 			errors = append(errors, abstract.TransformerError{
@@ -64,7 +63,6 @@ func (f *FilterColumnsTransformer) Apply(input []abstract.ChangeItem) abstract.T
 		}
 
 		if result, err := f.trimChangeItem(item, valueIndexes, filteredSchema); err == nil {
-			f.Logger.Debugf("Transform item for %v:\n before %v\nafter %v", item.Table, item, result)
 			transformed = append(transformed, result)
 		} else {
 			f.Logger.Errorf("unable to trim change item: %v", err)

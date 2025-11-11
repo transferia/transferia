@@ -196,11 +196,18 @@ func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {
 	s.logger.Info("Got ACK from sink; commiting read messages to the source", log.Duration("delay", time.Since(pushSt)), log.String("pushed", pushed))
 
 	for _, batch := range buffer {
-		if err := s.reader.Commit(s.ctx, batch.ydbBatch); err != nil {
-			if xerrors.Is(err, topicreader.ErrCommitToExpiredSession) {
-				s.logger.Warn("failed to commit change items", log.Error(err))
-				continue
+		err := func() error {
+			commitCtx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+			defer cancel()
+			if err := s.reader.Commit(commitCtx, batch.ydbBatch); err != nil {
+				if xerrors.Is(err, topicreader.ErrCommitToExpiredSession) {
+					s.logger.Warn("failed to commit change items", log.Error(err))
+					return nil
+				}
 			}
+			return err
+		}()
+		if err != nil {
 			util.Send(s.ctx, s.errCh, xerrors.Errorf("failed to commit change items: %w", err))
 			return
 		}
