@@ -27,9 +27,9 @@ func TestInheritTableStorageSize(t *testing.T) {
 
 func TestInheritTableSharding(t *testing.T) {
 	src := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("test_scripts"))
+	src.CollapseInheritTables = true
 	storage, err := postgres.NewStorage(src.ToStorageParams(nil))
 	require.NoError(t, err)
-	storage.SetLoadDescending(true)
 	err = storage.BeginPGSnapshot(context.TODO())
 	require.NoError(t, err)
 	logger.Log.Infof("create snapshot: %v, ts: %v", storage.ShardedStateLSN, storage.ShardedStateTS)

@@ -222,6 +222,7 @@ func (d *PgDestination) ToStorageParams() *PgStorageParams {
 		ClusterID:                   d.ClusterID,
 		TLSFile:                     d.TLSFile,
 		EnableTLS:                   d.EnableTLS,
+		CollapseInheritTables:       false,
 		UseFakePrimaryKey:           false,
 		DBFilter:                    nil,
 		IgnoreUserTypes:             false,

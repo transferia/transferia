@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/exp/maps"
 )
 
 func timescaleDBSchemas() []string {
@@ -38,22 +39,24 @@ func pgSystemTableNames() []string {
 }
 
 type SchemaExtractor struct {
-	excludeViews      bool
-	useFakePrimaryKey bool
-	forbiddenSchemas  []string
-	forbiddenTables   []string
-	flavour           DBFlavour
-	logger            log.Logger
+	excludeViews          bool
+	useFakePrimaryKey     bool
+	forbiddenSchemas      []string
+	forbiddenTables       []string
+	flavour               DBFlavour
+	collapseInheritTables bool
+	logger                log.Logger
 }
 
 func NewSchemaExtractor() *SchemaExtractor {
 	return &SchemaExtractor{
-		excludeViews:      false,
-		useFakePrimaryKey: false,
-		forbiddenSchemas:  pgSystemSchemas(),
-		forbiddenTables:   pgSystemTableNames(),
-		flavour:           NewPostgreSQLFlavour(),
-		logger:            logger.Log,
+		excludeViews:          false,
+		useFakePrimaryKey:     false,
+		forbiddenSchemas:      pgSystemSchemas(),
+		forbiddenTables:       pgSystemTableNames(),
+		flavour:               NewPostgreSQLFlavour(),
+		collapseInheritTables: false,
+		logger:                logger.Log,
 	}
 }
 
@@ -79,6 +82,11 @@ func (e *SchemaExtractor) WithForbiddenTables(forbiddenTables []string) *SchemaE
 
 func (e *SchemaExtractor) WithFlavour(flavour DBFlavour) *SchemaExtractor {
 	e.flavour = flavour
+	return e
+}
+
+func (e *SchemaExtractor) WithCollapseInheritTables(collapseInheritTables bool) *SchemaExtractor {
+	e.collapseInheritTables = collapseInheritTables
 	return e
 }
 
@@ -123,6 +131,62 @@ func (e *SchemaExtractor) LoadSchema(ctx context.Context, conn *pgx.Conn, specif
 		result[k] = abstract.NewTableSchema(ts)
 	}
 
+	if e.collapseInheritTables {
+		result, err = e.handleSchemasCollapasInheritTables(ctx, conn, result)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to load collapsed tables: %w", err)
+		}
+	}
+
+	return result, nil
+}
+
+func (e *SchemaExtractor) handleSchemasCollapasInheritTables(ctx context.Context, conn *pgx.Conn, in abstract.DBSchema) (abstract.DBSchema, error) {
+	result := in
+
+	childToParent, err := MakeChildParentMap(ctx, conn)
+	if err != nil {
+		return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - failed to make MakeChildParentMap, err: %w", err)
+	}
+
+	keys := maps.Keys(result)
+	for _, currTableID := range keys {
+		tableInfo, err := newTableInformationSchema(ctx, conn, abstract.TableDescription{
+			Schema: currTableID.Namespace,
+			Name:   currTableID.Name,
+			Filter: abstract.NoFilter,
+			EtaRow: uint64(0),
+			Offset: uint64(0),
+		})
+		if err != nil {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - failed to create table information schema for table: %s, err: %w", currTableID.Fqtn(), err)
+		}
+		if tableInfo == nil {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - newTableInformationSchema returned nil for table:%s", currTableID.Fqtn())
+		}
+		if !tableInfo.IsInherited {
+			continue
+		}
+
+		e.logger.Infof("handleSchemasCollapasInheritTables - table %s is a child, will take schema from parent table", currTableID.Fqtn())
+
+		parentTableID, ok := childToParent[currTableID]
+		if !ok {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - failed to find parent table for table %s", currTableID.Fqtn())
+		}
+		parentDBSchema, err := e.LoadSchema(ctx, conn, &parentTableID)
+		if err != nil {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - LoadSchema returned error for table: %s, err: %w", parentTableID.Fqtn(), err)
+		}
+		parentSchema := parentDBSchema[parentTableID]
+		if parentSchema == nil {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - LoadSchema returned map without schema of parent table: %s", parentTableID.Fqtn())
+		}
+
+		e.logger.Infof("handleSchemasCollapasInheritTables - successfully changed schema for child table: %s for schema of parent table: %s", currTableID.Fqtn(), parentTableID.Fqtn())
+
+		result[currTableID] = parentSchema
+	}
 	return result, nil
 }
 

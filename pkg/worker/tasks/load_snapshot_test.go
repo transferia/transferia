@@ -32,7 +32,7 @@ func TestCheckIncludeDirectives_DataObjects_NoError(t *testing.T) {
 		{Name: "table1", Schema: "schema2"},
 	}
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
-	err := snapshotLoader.CheckIncludeDirectives(tables)
+	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.NoError(t, err)
 }
 
@@ -51,7 +51,7 @@ func TestCheckIncludeDirectives_DataObjects_Error(t *testing.T) {
 		{Name: "table1", Schema: "schema1"},
 	}
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
-	err := snapshotLoader.CheckIncludeDirectives(tables)
+	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.Error(t, err)
 	require.Equal(t, "some tables from include list are missing in the source database: [schema1.table2 schema2.*]", err.Error())
 }
@@ -71,7 +71,7 @@ func TestCheckIncludeDirectives_DataObjects_FqtnVariants(t *testing.T) {
 		{Name: "table1", Schema: "schema2"},
 	}
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
-	err := snapshotLoader.CheckIncludeDirectives(tables)
+	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.NoError(t, err)
 }
 
@@ -86,7 +86,7 @@ func TestCheckIncludeDirectives_Src_NoError(t *testing.T) {
 		{Name: "table1", Schema: "schema2"},
 	}
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
-	err := snapshotLoader.CheckIncludeDirectives(tables)
+	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.NoError(t, err)
 }
 
@@ -101,7 +101,7 @@ func TestCheckIncludeDirectives_Src_Error(t *testing.T) {
 		{Name: "table1", Schema: "schema1"},
 	}
 	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
-	err := snapshotLoader.CheckIncludeDirectives(tables)
+	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.Error(t, err)
 	require.Equal(t, "some tables from include list are missing in the source database: [schema1.table2 schema2.*]", err.Error())
 }

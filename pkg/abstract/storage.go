@@ -405,3 +405,13 @@ type NextArrTableDescriptionGetterBuilder interface {
 	ShardingContextStorage
 	BuildNextArrTableDescriptionGetter(operationID string, tables []TableDescription) (NextArrTableDescriptionGetter, error)
 }
+
+// This is special workaround for partitioned_tables in postgres
+// see FulfilledIncludes
+//
+// load_snapshot expects TableList should return all tables,
+// but for partitioned_tables with CollapseInheritTables we skip partitioned_table in TableList
+// then in SnapshotLoader.CheckIncludeDirectives made handling of this case via 'SkippableStorage' interface
+type SkippableStorage interface {
+	Skipped(tID TableID) (bool, error)
+}

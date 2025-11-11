@@ -38,7 +38,7 @@ func (s *Storage) ShardTable(ctx context.Context, table abstract.TableDescriptio
 		return nil, xerrors.Errorf("unexpected desired table size: %v, expect > 0", s.Config.DesiredTableSize)
 	}
 
-	if s.loadDescending {
+	if s.Config.CollapseInheritTables {
 		childs, err := s.getChildTables(ctx, table)
 		if err != nil {
 			logger.Log.Warnf("unable to load child tables: %v", err)

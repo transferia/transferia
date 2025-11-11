@@ -185,7 +185,7 @@ func (p *replication) reloadSchema() error {
 	defer storage.Close()
 	storage.IsHomo = true // exclude VIEWs. This is a nasty solution which should be replaced when an Accessor is introduced instead of the jack of all trades Storage
 
-	tableMap, err := storage.TableList(nil)
+	tableMap, err := storage.TableListWithoutSkips(nil) // to collect 'child' tables, when CollapseInheritTables=true
 	if err != nil {
 		return xerrors.Errorf("failed to list tables (with schema) at source endpoint: %w", err)
 	}

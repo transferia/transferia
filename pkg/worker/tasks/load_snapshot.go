@@ -97,7 +97,10 @@ func (l *SnapshotLoader) LoadSnapshot(ctx context.Context) error {
 	l.schemaLock.Unlock()
 
 	logger.Log.Infof("storage resolved: %d tables in total", len(tables))
-	if err := l.CheckIncludeDirectives(tableDescriptions); err != nil {
+	err = l.CheckIncludeDirectives(tableDescriptions, func() (abstract.Storage, error) {
+		return storage.NewStorage(l.transfer, coordinator.NewFakeClient(), l.registry)
+	})
+	if err != nil {
 		return xerrors.Errorf("failed in accordance with configuration: %w", err)
 	}
 	if err = l.UploadTables(ctx, tableDescriptions, true); err != nil {
@@ -106,7 +109,7 @@ func (l *SnapshotLoader) LoadSnapshot(ctx context.Context) error {
 	return nil
 }
 
-func (l *SnapshotLoader) CheckIncludeDirectives(tables []abstract.TableDescription) error {
+func (l *SnapshotLoader) CheckIncludeDirectives(tables []abstract.TableDescription, storageBuilder func() (abstract.Storage, error)) error {
 	unfulfilledIncludes := set.New[string]()
 	if l.transfer.DataObjects != nil {
 		for _, includeObject := range l.transfer.DataObjects.IncludeObjects {
@@ -133,6 +136,30 @@ func (l *SnapshotLoader) CheckIncludeDirectives(tables []abstract.TableDescripti
 			}
 			fulfilledIncludes := includeable.FulfilledIncludes(table.ID())
 			unfulfilledIncludes.Remove(fulfilledIncludes...)
+		}
+	}
+
+	// handle 'skips'
+
+	srcStorage, err := storageBuilder()
+	if err != nil {
+		return xerrors.Errorf("unable to create storage, err: %w", err)
+	}
+	defer srcStorage.Close()
+	if skippableStorage, ok := srcStorage.(abstract.SkippableStorage); ok {
+		keys := unfulfilledIncludes.Slice()
+		for _, key := range keys {
+			requiredTableID, err := abstract.ParseTableID(key)
+			if err != nil {
+				return xerrors.Errorf("unable to parse table id: %w", err)
+			}
+			skipped, err := skippableStorage.Skipped(*requiredTableID)
+			if err != nil {
+				return xerrors.Errorf("unable to check if table skipped, err: %w", err)
+			}
+			if skipped {
+				unfulfilledIncludes.Remove(key)
+			}
 		}
 	}
 

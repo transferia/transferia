@@ -156,7 +156,9 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 				return snapshotLoader.UploadTables(ctx, tables.ConvertToTableDescriptions(), true)
 			},
 			CheckIncludes: func(tables abstract.TableMap) error {
-				return snapshotLoader.CheckIncludeDirectives(tables.ConvertToTableDescriptions())
+				return snapshotLoader.CheckIncludeDirectives(tables.ConvertToTableDescriptions(), func() (abstract.Storage, error) {
+					return storage.NewStorage(snapshotLoader.transfer, coordinator.NewFakeClient(), snapshotLoader.registry)
+				})
 			},
 			Rollbacks: &rollbacks,
 		}); err != nil {

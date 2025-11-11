@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 )
 
 func TestYdbSource_Include(t *testing.T) {
@@ -177,6 +178,6 @@ func TestCheckIncludeDirectives_Src_YDBSpecific(t *testing.T) {
 		"/table2/full/path",
 	}}
 	snapshotLoader := tasks.NewSnapshotLoader(&coordinator.CoordinatorNoOp{}, "test-operation", transfer, solomon.NewRegistry(nil))
-	err := snapshotLoader.CheckIncludeDirectives(tables)
+	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.NoError(t, err)
 }

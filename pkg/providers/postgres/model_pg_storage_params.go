@@ -18,6 +18,7 @@ type PgStorageParams struct {
 	ClusterID                   string // should be non-empty only one field: Hosts/ClusterID
 	TLSFile                     string
 	EnableTLS                   bool
+	CollapseInheritTables       bool
 	UseFakePrimaryKey           bool
 	DBFilter                    []string
 	IgnoreUserTypes             bool

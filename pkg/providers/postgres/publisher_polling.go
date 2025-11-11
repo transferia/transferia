@@ -92,7 +92,7 @@ func (p *poller) reloadSchema() error {
 	defer storage.Close()
 	storage.IsHomo = true // exclude VIEWs
 
-	tableMap, err := storage.TableList(nil)
+	tableMap, err := storage.TableListWithoutSkips(nil) // to collect 'child' tables, when CollapseInheritTables=true
 	if err != nil {
 		return xerrors.Errorf("failed to list tables (with schema) at source endpoint: %w", err)
 	}

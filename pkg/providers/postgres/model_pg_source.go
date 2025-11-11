@@ -503,6 +503,7 @@ func (s *PgSource) ToStorageParams(transfer *model.Transfer) *PgStorageParams {
 		ClusterID:                   s.ClusterID,
 		TLSFile:                     s.TLSFile,
 		EnableTLS:                   s.EnableTLS,
+		CollapseInheritTables:       s.CollapseInheritTables,
 		UseFakePrimaryKey:           s.UseFakePrimaryKey,
 		DBFilter:                    nil,
 		IgnoreUserTypes:             s.IgnoreUserTypes,
