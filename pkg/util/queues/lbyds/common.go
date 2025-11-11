@@ -41,11 +41,12 @@ func ChangeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Part
 		}
 }
 
-func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch) abstract.ChangeItem {
+func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch, useFullTopicName bool) abstract.ChangeItem {
 	topicID := path.Base(b.Topic)
-	if len(topicID) == 0 {
+	if len(topicID) == 0 || useFullTopicName {
 		topicID = b.Topic
 	}
+
 	return abstract.MakeRawMessageWithMeta(
 		m.Key,
 		topicID,
@@ -60,13 +61,13 @@ func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch) abstract.Cha
 
 type TransformFunc func([]abstract.ChangeItem) []abstract.ChangeItem
 
-func Parse(batches []parsers.MessageBatch, parser parsers.Parser, metrics *stats.SourceStats, logger log.Logger, transformFunc TransformFunc) []abstract.ChangeItem {
+func Parse(batches []parsers.MessageBatch, parser parsers.Parser, metrics *stats.SourceStats, logger log.Logger, transformFunc TransformFunc, useFullTopicName bool) []abstract.ChangeItem {
 	totalSize := 0
 	st := time.Now()
 	var data []abstract.ChangeItem
 	for _, batch := range batches {
 		for _, m := range batch.Messages {
-			data = append(data, MessageAsChangeItem(m, batch))
+			data = append(data, MessageAsChangeItem(m, batch, useFullTopicName))
 			totalSize += len(m.Value)
 		}
 	}

@@ -76,10 +76,10 @@ func (s *oneDCSource) Fetch() ([]abstract.ChangeItem, error) {
 			parseWrapper := func(batches []parsers.MessageBatch) []abstract.ChangeItem {
 				for _, messageBatch := range batches {
 					for _, message := range messageBatch.Messages {
-						raw = append(raw, lbyds.MessageAsChangeItem(message, messageBatch))
+						raw = append(raw, lbyds.MessageAsChangeItem(message, messageBatch, false))
 					}
 				}
-				return lbyds.Parse(batches, s.parser, s.metrics, s.logger, nil)
+				return lbyds.Parse(batches, s.parser, s.metrics, s.logger, nil, false)
 			}
 			parsed := parseWrapper(lbyds.ConvertBatches(v.Batches()))
 			if len(raw) > 3 {
@@ -526,6 +526,7 @@ func newPqv1Source(
 	return ydssource.NewSourceWithOpts(transferID, ydsCfg, logger, registry,
 		ydssource.WithCreds(cfg.Credentials),
 		ydssource.WithReaderOpts(&readerOpts),
+		ydssource.WithUseFullTopicName(true),
 		ydssource.WithParser(parser),
 	)
 }

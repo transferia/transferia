@@ -27,10 +27,12 @@ import (
 
 type Source struct {
 	config           *YDSSource
-	parser           parsers.Parser
 	offsetsValidator *lbyds.LbOffsetsSourceValidator
 	consumer         persqueue.Reader
 	cancel           context.CancelFunc
+
+	useFullTopicName bool
+	parser           parsers.Parser
 
 	onceStop sync.Once
 	stopCh   chan bool
@@ -68,7 +70,7 @@ func (p *Source) Run(sink abstract.AsyncSink) error {
 				return data
 			}
 		}
-		return lbyds.Parse(batch.Batches, p.parser, p.metrics, p.logger, transformFunc)
+		return lbyds.Parse(batch.Batches, p.parser, p.metrics, p.logger, transformFunc, p.useFullTopicName)
 	}
 	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, parseWrapper, p.ack)
 	defer parseQ.Close()
@@ -205,7 +207,7 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 					total = 3
 				}
 				for _, m := range b.Messages[:total] {
-					data = append(data, lbyds.MessageAsChangeItem(m, b))
+					data = append(data, lbyds.MessageAsChangeItem(m, b, false))
 					batchSize += len(m.Value)
 				}
 				res = append(res, data...)
@@ -367,10 +369,11 @@ func NewSourceWithOpts(transferID string, cfg *YDSSource, logger log.Logger, reg
 
 	yds := &Source{
 		config:           cfg,
-		parser:           parser,
 		offsetsValidator: lbyds.NewLbOffsetsSourceValidator(logger),
 		consumer:         c,
 		cancel:           cancel,
+		useFullTopicName: srcOpts.useFullTopicName,
+		parser:           parser,
 		onceStop:         sync.Once{},
 		stopCh:           stopCh,
 		onceErr:          sync.Once{},
@@ -405,8 +408,10 @@ func NewSource(transferID string, cfg *YDSSource, logger log.Logger, registry me
 }
 
 type sourceOpts struct {
-	creds  ydb.TokenCredentials
-	parser parsers.Parser
+	creds ydb.TokenCredentials
+
+	useFullTopicName bool
+	parser           parsers.Parser
 
 	readerOpts *persqueue.ReaderOptions
 }
@@ -416,6 +421,13 @@ type SourceOpt = func(*sourceOpts) *sourceOpts
 func WithCreds(creds ydb.TokenCredentials) SourceOpt {
 	return func(o *sourceOpts) *sourceOpts {
 		o.creds = creds
+		return o
+	}
+}
+
+func WithUseFullTopicName(useFullTopicName bool) SourceOpt {
+	return func(o *sourceOpts) *sourceOpts {
+		o.useFullTopicName = useFullTopicName
 		return o
 	}
 }
