@@ -53,6 +53,7 @@ jobs:
             { group: "tests/e2e", name: "mongo2ch", path: "mongo2ch" },
             { group: "tests/e2e", name: "kinesis2ch", path: "kinesis2ch" },
             { group: "tests/e2e", name: "ch2s3", path: "ch2s3" },
+            { group: "tests/e2e", name: "coordinator", path: "coordinator" },
           ]
     steps:
       - name: Checkout
@@ -96,6 +97,7 @@ jobs:
           make run-tests SUITE_GROUP="${{ matrix.suite.group }}" SUITE_PATH="${{ matrix.suite.path }}" SUITE_NAME="${{ matrix.suite.name }}"
         env:
           TEST_KUBERNETES_INTEGRATION: ${{ matrix.suite.container == true && '1' || '' }}
+          TEST_ETCD_INTEGRATION: ${{ matrix.suite.coordinator == true && '1' || '' }}
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
