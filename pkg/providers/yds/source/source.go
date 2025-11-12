@@ -147,7 +147,7 @@ func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) er
 				p.metrics.Size.Add(messagesSize)
 				p.metrics.Count.Add(messagesCount)
 
-				p.logger.Infof("begin to process batch: %v items with %v, time from last batch: %v", len(batches), format.SizeUInt64(uint64(messagesSize)), time.Since(lastPush))
+				p.logger.Debugf("begin to process batch: %v items with %v, time from last batch: %v", len(batches), format.SizeUInt64(uint64(messagesSize)), time.Since(lastPush))
 				if err := parseQ.Add(newBatch(v.Commit, batches)); err != nil {
 					return xerrors.Errorf("unable to add message to parser process: %w", err)
 				}

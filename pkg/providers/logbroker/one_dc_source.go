@@ -521,7 +521,7 @@ func newPqv1Source(
 		UserdataAuth:     false,
 	}
 
-	readerOpts.MinReadInterval = time.Millisecond * 80
+	readerOpts.MinReadInterval = time.Millisecond * 95
 
 	// transferID is empty because it is used to specify the consumer, and it is already specified in the readerOpts
 	transferID := ""
