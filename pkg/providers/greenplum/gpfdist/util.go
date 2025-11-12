@@ -3,9 +3,11 @@ package gpfdist
 import (
 	"net"
 	"slices"
+	"strings"
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/config/env"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -73,5 +75,45 @@ func LocalAddrFromStorage(gpAddr string) (net.IP, error) {
 	}
 	logger.Log.Infof("Transfer VM's address resolved (%s)", tcpAddr.String())
 
+	if env.IsTest() && tcpAddr.IP.IsLoopback() {
+		logger.Log.Warnf("Dial local address is loopback (%s), resolving from interfaces", tcpAddr.IP.String())
+		ip, err := getLocalIP()
+		if err != nil {
+			return nil, xerrors.Errorf("unable to get local IP: %w", err)
+		}
+		return ip, nil
+	}
+
 	return replaceWithV6IfEth0(tcpAddr.IP)
+}
+
+// getLocalIP needed when GP cluster runs on same VM as gpfdist (should be in tests/debugging only).
+func getLocalIP() (net.IP, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get net interfaces: %w", err)
+	}
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 || !strings.HasPrefix(iface.Name, "eth") {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() || !ip.To4().IsGlobalUnicast() {
+				continue // Skip IPv6, loopback and link-local addresses.
+			}
+			return ip, nil
+		}
+	}
+	return nil, xerrors.Errorf("no non-loopback, unicast IPv4 address found")
 }

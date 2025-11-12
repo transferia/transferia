@@ -37,6 +37,13 @@ func NewGpfdistStorage(src *GpSource, mRegistry metrics.Registry, params gpfdist
 }
 
 func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
+	rowsCount, err := s.ExactTableRowsCount(*abstract.NewTableID(table.Schema, table.Name))
+	if err != nil {
+		return xerrors.Errorf("unable to get table rows count: %w", err)
+	}
+	if rowsCount == 0 {
+		return nil
+	}
 	schema, err := s.TableSchema(ctx, table.ID())
 	if err != nil {
 		return xerrors.Errorf("unable to retrive table schema: %w", err)
