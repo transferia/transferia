@@ -1870,6 +1870,7 @@
   "pkg/providers/s3/reader/registry/registry.go":"transfer_manager/go/pkg/providers/s3/reader/registry/registry.go",
   "pkg/providers/s3/reader/s3raw/abstract.go":"transfer_manager/go/pkg/providers/s3/reader/s3raw/abstract.go",
   "pkg/providers/s3/reader/s3raw/factory.go":"transfer_manager/go/pkg/providers/s3/reader/s3raw/factory.go",
+  "pkg/providers/s3/reader/s3raw/factory_test.go":"transfer_manager/go/pkg/providers/s3/reader/s3raw/factory_test.go",
   "pkg/providers/s3/reader/s3raw/s3_fetcher.go":"transfer_manager/go/pkg/providers/s3/reader/s3raw/s3_fetcher.go",
   "pkg/providers/s3/reader/s3raw/s3_fetcher_test.go":"transfer_manager/go/pkg/providers/s3/reader/s3raw/s3_fetcher_test.go",
   "pkg/providers/s3/reader/s3raw/s3_reader.go":"transfer_manager/go/pkg/providers/s3/reader/s3raw/s3_reader.go",
