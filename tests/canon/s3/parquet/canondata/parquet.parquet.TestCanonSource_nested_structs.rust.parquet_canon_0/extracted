@@ -1126,7 +1126,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nested_structs.rust.parquet"
+            "value": "a09660f95845d32a40eb473deae01504"
         },
         "Query": {
             "type": "string",

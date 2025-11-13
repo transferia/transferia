@@ -101,7 +101,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_dictionary.parquet"
+            "value": "5c56e9870b3d75068b0307dae9a51db2"
         },
         "Query": {
             "type": "string",
@@ -394,7 +394,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_dictionary.parquet"
+            "value": "5c56e9870b3d75068b0307dae9a51db2"
         },
         "Query": {
             "type": "string",

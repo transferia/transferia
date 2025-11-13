@@ -51,7 +51,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -174,7 +174,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -297,7 +297,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -420,7 +420,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -543,7 +543,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -666,7 +666,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -789,7 +789,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -912,7 +912,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -1035,7 +1035,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -1158,7 +1158,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -1281,7 +1281,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -1404,7 +1404,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -1527,7 +1527,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -1650,7 +1650,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -1773,7 +1773,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -1896,7 +1896,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -2019,7 +2019,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -2142,7 +2142,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -2265,7 +2265,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -2388,7 +2388,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -2511,7 +2511,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -2634,7 +2634,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -2757,7 +2757,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",
@@ -2880,7 +2880,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_byte_array.parquet"
+            "value": "844be9a0c7054e1d8c875e60411bd971"
         },
         "Query": {
             "type": "string",

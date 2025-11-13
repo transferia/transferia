@@ -131,7 +131,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/delta_encoding_required_column.parquet"
+            "value": "bb55de41a72434b43246834c3854ac1a"
         },
         "Query": {
             "type": "string",
@@ -526,7 +526,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/delta_encoding_required_column.parquet"
+            "value": "bb55de41a72434b43246834c3854ac1a"
         },
         "Query": {
             "type": "string",
@@ -921,7 +921,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/delta_encoding_required_column.parquet"
+            "value": "bb55de41a72434b43246834c3854ac1a"
         },
         "Query": {
             "type": "string",

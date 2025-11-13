@@ -320,7 +320,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nonnullable.impala.parquet"
+            "value": "aa8f45578d198b7bcc39fdb9a989b13d"
         },
         "Query": {
             "type": "string",

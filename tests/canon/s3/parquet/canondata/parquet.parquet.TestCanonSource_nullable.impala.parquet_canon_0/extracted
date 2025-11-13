@@ -418,7 +418,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nullable.impala.parquet"
+            "value": "e7d21ee78a746d203557ee2a569db54f"
         },
         "Query": {
             "type": "string",
@@ -1258,7 +1258,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nullable.impala.parquet"
+            "value": "e7d21ee78a746d203557ee2a569db54f"
         },
         "Query": {
             "type": "string",
@@ -1547,7 +1547,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nullable.impala.parquet"
+            "value": "e7d21ee78a746d203557ee2a569db54f"
         },
         "Query": {
             "type": "string",

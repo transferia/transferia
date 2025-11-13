@@ -135,7 +135,19 @@ func (s *Storage) readFile(ctx context.Context, part abstract.TableDescription, 
 	if !ok {
 		return xerrors.Errorf("%s expected to be string, but got: %T", s3FileNameCol, fileOp.Val)
 	}
-	syncPusher := pusher.New(inPusher, nil, s.logger, 0)
+
+	wrappedPusher := func(items []abstract.ChangeItem) error {
+		for i, item := range items {
+			if item.IsRowEvent() {
+				items[i].Schema = s.cfg.TableNamespace
+				items[i].Table = s.cfg.TableName
+				items[i].PartID = part.PartID()
+			}
+		}
+		return inPusher(items)
+	}
+
+	syncPusher := pusher.New(wrappedPusher, nil, s.logger, 0)
 	if err := s.reader.Read(ctx, fileName, syncPusher); err != nil {
 		return xerrors.Errorf("unable to read file: %s: %w", part.Filter, err)
 	}

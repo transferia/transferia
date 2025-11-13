@@ -112,7 +112,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nested_maps.snappy.parquet"
+            "value": "c0d95a64d9f2de9f46ddade974b346c8"
         },
         "Query": {
             "type": "string",
@@ -307,7 +307,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nested_maps.snappy.parquet"
+            "value": "c0d95a64d9f2de9f46ddade974b346c8"
         },
         "Query": {
             "type": "string",
@@ -483,7 +483,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nested_maps.snappy.parquet"
+            "value": "c0d95a64d9f2de9f46ddade974b346c8"
         },
         "Query": {
             "type": "string",

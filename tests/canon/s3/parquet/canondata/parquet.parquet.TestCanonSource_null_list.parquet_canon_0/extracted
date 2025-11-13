@@ -51,7 +51,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/null_list.parquet"
+            "value": "129136dceb3146cde93384896e5e6282"
         },
         "Query": {
             "type": "string",

@@ -101,7 +101,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_plain.parquet"
+            "value": "8ce752eae235d1195a0cbd8a6da44972"
         },
         "Query": {
             "type": "string",
@@ -394,7 +394,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_plain.parquet"
+            "value": "8ce752eae235d1195a0cbd8a6da44972"
         },
         "Query": {
             "type": "string",
@@ -687,7 +687,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_plain.parquet"
+            "value": "8ce752eae235d1195a0cbd8a6da44972"
         },
         "Query": {
             "type": "string",

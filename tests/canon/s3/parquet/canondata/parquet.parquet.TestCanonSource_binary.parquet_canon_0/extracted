@@ -51,7 +51,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/binary.parquet"
+            "value": "08689e5a968ba7e214656b454c53eae1"
         },
         "Query": {
             "type": "string",
@@ -174,7 +174,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/binary.parquet"
+            "value": "08689e5a968ba7e214656b454c53eae1"
         },
         "Query": {
             "type": "string",
@@ -297,7 +297,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/binary.parquet"
+            "value": "08689e5a968ba7e214656b454c53eae1"
         },
         "Query": {
             "type": "string",

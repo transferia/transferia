@@ -101,7 +101,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_plain.snappy.parquet"
+            "value": "4106a4ef1b6818ba5d59ceeb5d44e132"
         },
         "Query": {
             "type": "string",
@@ -394,7 +394,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_plain.snappy.parquet"
+            "value": "4106a4ef1b6818ba5d59ceeb5d44e132"
         },
         "Query": {
             "type": "string",

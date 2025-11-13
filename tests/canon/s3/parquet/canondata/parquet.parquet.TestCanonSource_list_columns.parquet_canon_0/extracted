@@ -82,7 +82,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/list_columns.parquet"
+            "value": "848ee9ef8fe5daffed16e29782026ed6"
         },
         "Query": {
             "type": "string",
@@ -231,7 +231,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/list_columns.parquet"
+            "value": "848ee9ef8fe5daffed16e29782026ed6"
         },
         "Query": {
             "type": "string",
@@ -393,7 +393,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/list_columns.parquet"
+            "value": "848ee9ef8fe5daffed16e29782026ed6"
         },
         "Query": {
             "type": "string",

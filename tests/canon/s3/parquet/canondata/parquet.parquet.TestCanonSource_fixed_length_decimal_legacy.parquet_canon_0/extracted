@@ -51,7 +51,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_decimal_legacy.parquet"
+            "value": "514cbcdf6891d75ac077cf155991705b"
         },
         "Query": {
             "type": "string",
@@ -174,7 +174,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_decimal_legacy.parquet"
+            "value": "514cbcdf6891d75ac077cf155991705b"
         },
         "Query": {
             "type": "string",
@@ -297,7 +297,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_decimal_legacy.parquet"
+            "value": "514cbcdf6891d75ac077cf155991705b"
         },
         "Query": {
             "type": "string",

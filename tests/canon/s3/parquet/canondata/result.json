@@ -18,27 +18,27 @@
         "uri": "file://parquet.parquet.TestCanonSource_data_index_bloom_encoding_stats.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/datapage_v1-snappy-compressed-checksum.parquet/canon_0": {
-        "checksum": "069e11ba6084a2c1ab8c9a11cace4ab6",
-        "size": 483991,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942671/6b523534ebcc6644a4284d54e958cd92ff096227/resource.tar.gz#parquet.parquet.TestCanonSource_datapage_v1-snappy-compressed-checksum.parquet_canon_0/extracted"
+        "checksum": "b805465c437a2d536d7ea00c141baec8",
+        "size": 481711,
+        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_datapage_v1-snappy-compressed-checksum.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/datapage_v1-uncompressed-checksum.parquet/canon_0": {
-        "checksum": "c4dc59783e13610e885a3cc9f3ce1fd7",
-        "size": 482191,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942671/6b523534ebcc6644a4284d54e958cd92ff096227/resource.tar.gz#parquet.parquet.TestCanonSource_datapage_v1-uncompressed-checksum.parquet_canon_0/extracted"
+        "checksum": "f492dcdb6c37362a1fa4ac5bc79faeac",
+        "size": 480511,
+        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_datapage_v1-uncompressed-checksum.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/datapage_v2.snappy.parquet/canon_0": {
         "uri": "file://parquet.parquet.TestCanonSource_datapage_v2.snappy.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/delta_binary_packed.parquet/canon_0": {
-        "checksum": "15217aee99c14cac3291166b05b33752",
+        "checksum": "006974859bf73cfa83dfa70795f31a0e",
         "size": 243761,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942671/6b523534ebcc6644a4284d54e958cd92ff096227/resource.tar.gz#parquet.parquet.TestCanonSource_delta_binary_packed.parquet_canon_0/extracted"
+        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_delta_binary_packed.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/delta_byte_array.parquet/canon_0": {
-        "checksum": "047660b34470ff014a51f6e367b0dbd9",
-        "size": 194189,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942671/6b523534ebcc6644a4284d54e958cd92ff096227/resource.tar.gz#parquet.parquet.TestCanonSource_delta_byte_array.parquet_canon_0/extracted"
+        "checksum": "4e95ba32c42e1ec566c63d80fa26d0da",
+        "size": 194261,
+        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_delta_byte_array.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/delta_encoding_optional_column.parquet/canon_0": {
         "uri": "file://parquet.parquet.TestCanonSource_delta_encoding_optional_column.parquet_canon_0/extracted"
@@ -77,9 +77,9 @@
         "uri": "file://parquet.parquet.TestCanonSource_lz4_raw_compressed.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/lz4_raw_compressed_larger.parquet/canon_0": {
-        "checksum": "1ae88b44198e719dacb26f0b490e7a74",
-        "size": 811688,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942671/6b523534ebcc6644a4284d54e958cd92ff096227/resource.tar.gz#parquet.parquet.TestCanonSource_lz4_raw_compressed_larger.parquet_canon_0/extracted"
+        "checksum": "739bf45f6d9172889cd7e7d314ab2168",
+        "size": 810284,
+        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_lz4_raw_compressed_larger.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/nested_lists.snappy.parquet/canon_0": {
         "uri": "file://parquet.parquet.TestCanonSource_nested_lists.snappy.parquet_canon_0/extracted"

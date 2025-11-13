@@ -61,7 +61,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "test_csv_all_types/all_types.csv"
+            "value": "81e698b5826587d53d2eb9c4297c5bec"
         },
         "Query": {
             "type": "string",
@@ -218,7 +218,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "test_csv_all_types/all_types.csv"
+            "value": "81e698b5826587d53d2eb9c4297c5bec"
         },
         "Query": {
             "type": "string",
@@ -375,7 +375,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "test_csv_all_types/all_types.csv"
+            "value": "81e698b5826587d53d2eb9c4297c5bec"
         },
         "Query": {
             "type": "string",

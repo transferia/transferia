@@ -91,7 +91,7 @@ file: "s3_file_name" = 'test_csv_large/people-500000.csv'
     },
     "PartID": {
         "type": "string",
-        "value": "test_csv_large/people-500000.csv"
+        "value": "98810bc150e38d330cb0b513427c10d5"
     },
     "Query": {
         "type": "string",

@@ -51,7 +51,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/dict-page-offset-zero.parquet"
+            "value": "57a6f0d65e7dd4592d476506e001647e"
         },
         "Query": {
             "type": "string",
@@ -174,7 +174,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/dict-page-offset-zero.parquet"
+            "value": "57a6f0d65e7dd4592d476506e001647e"
         },
         "Query": {
             "type": "string",
@@ -297,7 +297,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/dict-page-offset-zero.parquet"
+            "value": "57a6f0d65e7dd4592d476506e001647e"
         },
         "Query": {
             "type": "string",

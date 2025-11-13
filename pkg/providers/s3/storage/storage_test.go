@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,6 +21,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/predicate"
 	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/pusher"
+	"github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 )
 
@@ -249,4 +252,46 @@ func TestEstimateTableRowsCount(t *testing.T) {
 	res, err := storage.EstimateTableRowsCount(*abstract.NewTableID("test", "name"))
 	require.NoError(t, err)
 	require.Equal(t, uint64(508060), res) // actual estimated row size
+}
+
+type mockReader struct {
+	reader.Reader
+}
+
+func (m *mockReader) Read(ctx context.Context, filePath string, inPusher pusher.Pusher) error {
+	var items []abstract.ChangeItem
+	for i := range 10 {
+		items = append(items, abstract.ChangeItem{PartID: strconv.Itoa(i), Kind: abstract.InsertKind})
+	}
+
+	return inPusher.Push(ctx, pusher.Chunk{
+		Items: items,
+	})
+}
+
+func TestReadFileCorrectPartID(t *testing.T) {
+	storage := &Storage{
+		cfg: &s3.S3Source{
+			TableNamespace: "test",
+			TableName:      "name",
+		},
+		logger:   logger.Log,
+		registry: solomon.NewRegistry(solomon.NewRegistryOpts()),
+		reader:   &mockReader{},
+	}
+
+	tableDesc := abstract.TableDescription{
+		Name:   "table-desc-name",
+		Schema: "table-desc-schema",
+		Filter: abstract.WhereStatement(`"s3_file_name" = 'test.csv'`),
+	}
+	require.NoError(t, storage.readFile(context.Background(), tableDesc, func(items []abstract.ChangeItem) error {
+		for _, item := range items {
+			require.Equal(t, tableDesc.PartID(), item.PartID)
+			require.Equal(t, abstract.InsertKind, item.Kind)
+			require.Equal(t, "test", item.Schema)
+			require.Equal(t, "name", item.Table)
+		}
+		return nil
+	}))
 }

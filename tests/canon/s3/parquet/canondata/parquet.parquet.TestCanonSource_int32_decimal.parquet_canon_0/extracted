@@ -51,7 +51,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/int32_decimal.parquet"
+            "value": "b5227dd96092bcad64ed0af21765d9ba"
         },
         "Query": {
             "type": "string",
@@ -174,7 +174,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/int32_decimal.parquet"
+            "value": "b5227dd96092bcad64ed0af21765d9ba"
         },
         "Query": {
             "type": "string",
@@ -297,7 +297,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/int32_decimal.parquet"
+            "value": "b5227dd96092bcad64ed0af21765d9ba"
         },
         "Query": {
             "type": "string",

@@ -51,7 +51,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/rle_boolean_encoding.parquet"
+            "value": "66d136455fee3ae6064655aaab4d064f"
         },
         "Query": {
             "type": "string",
@@ -174,7 +174,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/rle_boolean_encoding.parquet"
+            "value": "66d136455fee3ae6064655aaab4d064f"
         },
         "Query": {
             "type": "string",
@@ -297,7 +297,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/rle_boolean_encoding.parquet"
+            "value": "66d136455fee3ae6064655aaab4d064f"
         },
         "Query": {
             "type": "string",

@@ -61,7 +61,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/lz4_raw_compressed.parquet"
+            "value": "d5c7931c33d128051682066f617a0321"
         },
         "Query": {
             "type": "string",
@@ -218,7 +218,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/lz4_raw_compressed.parquet"
+            "value": "d5c7931c33d128051682066f617a0321"
         },
         "Query": {
             "type": "string",
@@ -375,7 +375,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/lz4_raw_compressed.parquet"
+            "value": "d5c7931c33d128051682066f617a0321"
         },
         "Query": {
             "type": "string",
