@@ -73,6 +73,7 @@ func Collapse(input []ChangeItem) []ChangeItem {
 			hashKToIdx[hashK] = i
 			idxToHashK[i] = hashK
 		case UpdateKind:
+			delete(toDelete, hashK)
 			current, ok := rows[hashK]
 			if !ok {
 				newHashK := c.CurrentKeysString(keyCols)

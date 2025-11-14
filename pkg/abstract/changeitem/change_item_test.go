@@ -665,6 +665,42 @@ func TestCollapse(t *testing.T) {
 		assert.Contains(t, res[0].ColumnValues, "[{\"value\":200}]")
 		assert.Contains(t, res[0].ColumnNames, "minus_words")
 	})
+	t.Run("Delete Update (Upsert scenario)", func(t *testing.T) {
+		changes := []ChangeItem{{
+			ID:          291975574,
+			CommitTime:  1601382119000000000,
+			Kind:        DeleteKind,
+			Schema:      "ppc",
+			Table:       "camp_options",
+			TableSchema: NewTableSchema([]ColSchema{{PrimaryKey: true, ColumnName: "cid"}}),
+			ColumnNames: []string{
+				"cid",
+			},
+			ColumnValues: []interface{}{
+				51615524,
+			},
+		}, {
+			ID:          291975574,
+			CommitTime:  1601382119000000000,
+			Kind:        UpdateKind,
+			Schema:      "ppc",
+			Table:       "camp_options",
+			TableSchema: NewTableSchema([]ColSchema{{PrimaryKey: true, ColumnName: "cid"}}),
+			ColumnNames: []string{
+				"cid",
+				"meaningful_goals",
+			},
+			ColumnValues: []interface{}{
+				51615524,
+				"[{\"value\":500}]",
+			},
+		}}
+		Dump(changes)
+		res := Collapse(changes)
+		Dump(res)
+		assert.Equal(t, len(res), 1)
+		assert.Equal(t, res[0].Kind, UpdateKind)
+	})
 	t.Run("Primary key change", func(t *testing.T) {
 		changes := []ChangeItem{{
 			ID:           291971525,
