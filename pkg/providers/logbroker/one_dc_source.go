@@ -416,19 +416,25 @@ func NewOneDCSource(cfg *LfSource, logger log.Logger, registry metrics.Registry,
 	if err != nil {
 		return nil, xerrors.Errorf("unable to make parser, err: %w", err)
 	}
+	rollbacks := util.Rollbacks{}
+	defer rollbacks.Do()
 	if resourceable, ok := parser.(resources.Resourceable); ok {
 		resourceable.ResourcesObj().RunWatcher()
+		rollbacks.Add(resourceable.ResourcesObj().Close)
 	}
 
 	if cfg.UsePqv1 {
-		return newPqv1Source(cfg, logger, registry, opts, parser)
+		if source, err := newPqv1Source(cfg, logger, registry, opts, parser); err != nil {
+			return nil, xerrors.Errorf("unable to create pqv1 source: %w", err)
+		} else {
+			rollbacks.Cancel()
+			return source, nil
+		}
 	}
 
 	currReader := persqueue.NewReader(opts)
 	ctx, cancel := context.WithCancel(context.Background())
-	rollbacks := util.Rollbacks{}
 	rollbacks.Add(cancel)
-	defer rollbacks.Do()
 	counter := 0
 	for {
 		if init, err := currReader.Start(ctx); err != nil {
