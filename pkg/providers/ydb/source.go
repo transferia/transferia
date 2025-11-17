@@ -92,9 +92,9 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[[]batchWithSize]) err
 		}
 
 		ydbBatch, err := func() (*topicreader.Batch, error) {
-			cloudResolvingCtx, cancel := context.WithTimeout(s.ctx, 10*time.Millisecond)
+			currCtx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
 			defer cancel()
-			return s.reader.ReadMessageBatch(cloudResolvingCtx)
+			return s.reader.ReadMessageBatch(currCtx)
 		}()
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 			return xerrors.Errorf("read returned error, err: %w", err)
