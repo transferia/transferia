@@ -59,7 +59,12 @@ func (s *Spec) Differs(another *Spec) (bool, error) {
 		return false, xerrors.Errorf("cannot marshal another spec: %w", err)
 	}
 
-	return string(this) != string(that), nil
+	if string(this) != string(that) {
+		logger.Log.Info("Transfer spec differs after update", log.String("old_spec", string(this)), log.String("new_spec", string(that)))
+		return true, nil
+	}
+
+	return false, nil
 }
 
 const ReplicationStatusMessagesCategory string = "replication"
