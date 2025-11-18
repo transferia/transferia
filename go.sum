@@ -1624,6 +1624,7 @@ github.com/grpc-ecosystem/go-grpc-middleware v1.0.0/go.mod h1:FiyG127CGDf3tlThmg
 github.com/grpc-ecosystem/go-grpc-middleware v1.3.0/go.mod h1:z0ButlSOZa5vEBq9m2m2hlwIgKw+rp3sdCBRoJY+30Y=
 github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgfV/d3M/q6VIi02HzZEHgUlZvzk=
 github.com/grpc-ecosystem/grpc-gateway v1.9.0/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
+github.com/grpc-ecosystem/grpc-gateway v1.16.0 h1:gmcG1KaJ57LophUzW0Hy8NmPhnMZb4M0+kPpLofRdBo=
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0/go.mod h1:hgWBS7lorOAVIJEQMi4ZsPv9hVvWI6+ch50m39Pf2Ks=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3/go.mod h1:o//XUCC/F+yRGJoPO/VU0GSB0f8Nhgmxx0VIRUvaC0w=
@@ -2488,8 +2489,8 @@ go.uber.org/zap v1.27.0 h1:aJMhYGrd5QSmlpLMr2MftRKl7t8J8PTZPA732ud/XR8=
 go.uber.org/zap v1.27.0/go.mod h1:GB2qFLM7cTU87MWRP2mPIjqfIDnGu+VIO4V/SdhGo2E=
 go.ytsaurus.tech/library/go/blockcodecs v0.0.3 h1:JXCfuzDx4yoJgV0eWA+3zLAT0Mex3Y1Rh2bkUhdd5Hg=
 go.ytsaurus.tech/library/go/blockcodecs v0.0.3/go.mod h1:CtkA8XKuqwax4aPBEorIpz84gW3ijEHsnzlkODYERfU=
-go.ytsaurus.tech/library/go/core/buildinfo v0.0.0-20250128064255-bfed144851b6 h1:BkaOQ1CcpX8PU4ByCbflQvI12FCJkeYdhHWozp9nLNo=
-go.ytsaurus.tech/library/go/core/buildinfo v0.0.0-20250128064255-bfed144851b6/go.mod h1:B2jpR0ps1cNzricypyZd2PQsXriMU47rIHMLh+HvLjY=
+go.ytsaurus.tech/library/go/core/buildinfo v0.0.0-20250809130132-fa050e73ac17 h1:URFcNi38TYQpvUA/cUY2j+w+qX0djmh1fJ/iDYFVbys=
+go.ytsaurus.tech/library/go/core/buildinfo v0.0.0-20250809130132-fa050e73ac17/go.mod h1:BfQ81zAp18zqVhndHyoigZS+pMW+x7WJdcZIBSwTs5k=
 go.ytsaurus.tech/library/go/core/log v0.0.4 h1:HQqRd2cw6TdbD0iMCmHxE+hLEES5LUFaj2Mc6rePAuc=
 go.ytsaurus.tech/library/go/core/log v0.0.4/go.mod h1:CmXfXw+wMmxr2NYdHWRLYww7WiVYdcJx0RRkt14Dmc8=
 go.ytsaurus.tech/library/go/core/xerrors v0.0.4 h1:KDZdCGiS/Lg641TIA3s8JCg7ZgxAvtFITTeG3Kb+SoE=
@@ -2502,8 +2503,8 @@ go.ytsaurus.tech/library/go/x/xreflect v0.0.3 h1:LCOjVDGKjKMTaFtn+iudhPAdvcjeJSX
 go.ytsaurus.tech/library/go/x/xreflect v0.0.3/go.mod h1:D57na+z+EjaRuBo+nxgq6KPw5wfdHtO50MdcwBAzhq0=
 go.ytsaurus.tech/library/go/x/xruntime v0.0.4 h1:VNstd2dkPZEN6nsJ3C+q/fVc4b2hajQ6ZYBS7+k7aBg=
 go.ytsaurus.tech/library/go/x/xruntime v0.0.4/go.mod h1:fS4AUByc8QIHG06qxEjXYYs8B41eDh+yo2Q1Pk+msoA=
-go.ytsaurus.tech/yt/go v0.0.28 h1:R4mUIGuF5bqi+nR1fqihO80rFTMnaGKs+43rsnGUo1k=
-go.ytsaurus.tech/yt/go v0.0.28/go.mod h1:Lm1+KyATKXVpbV1ZzuhrU1sX3sqcAiqXuXBpmvxliZM=
+go.ytsaurus.tech/yt/go v0.0.29 h1:lZqWGz/eY0Wedf9I22oUS4JpNnmojEwvDQJ9QuwfCV8=
+go.ytsaurus.tech/yt/go v0.0.29/go.mod h1:/I4QzkGzYc9+R84SwBAZwM78lZCEP90UtyX4Qjgm110=
 golang.org/x/crypto v0.0.0-20171113213409-9f005a07e0d3/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20180723164146-c126467f60eb/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20180904163835-0709b304e793/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
@@ -3441,7 +3442,6 @@ gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b/go.mod h1:K4uyk7z7BCEPqu6E+C
 gopkg.in/yaml.v3 v3.0.0/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-gotest.tools v2.2.0+incompatible h1:VsBPFP1AI068pPrMxtb/S8Zkgf9xEmTLJjfM+P5UIEo=
 gotest.tools v2.2.0+incompatible/go.mod h1:DsYFclhRJ6vuDpmuTbkuFWG+y2sxOXAzmJt81HFBacw=
 gotest.tools/v3 v3.0.2/go.mod h1:3SzNCllyD9/Y+b5r9JIKQ474KzkZyqLqEfYqMsX94Bk=
 gotest.tools/v3 v3.0.3/go.mod h1:Z7Lb0S5l+klDB31fvDQX8ss/FlKDxtlFlw3Oa8Ymbl8=
