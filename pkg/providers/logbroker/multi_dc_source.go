@@ -22,7 +22,6 @@ var (
 			"klg.logbroker.yandex.net",
 		},
 		LogbrokerPrestable: {
-			"myt.logbroker-prestable.yandex.net",
 			"vla.logbroker-prestable.yandex.net",
 			"klg.logbroker-prestable.yandex.net",
 			"sas.logbroker-prestable.yandex.net",
