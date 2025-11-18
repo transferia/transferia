@@ -41,6 +41,10 @@ type Storage struct {
 
 	checkConnection checkConnectionFunc
 	newFlavor       newFlavorFunc
+
+	// disableCheckReplIdentity indicates that postgres storages should have DisableCheckReplIdentity set to same value.
+	// This is used for gpfdist transfers where replica identity checks are not needed.
+	disableCheckReplIdentity bool
 }
 
 func defaultNewFlavor(in *Storage) postgres.DBFlavour {
@@ -64,11 +68,24 @@ func NewStorageImpl(config *GpSource, mRegistry metrics.Registry, checkConnectio
 
 		checkConnection: checkConnection,
 		newFlavor:       newFlavor,
+
+		disableCheckReplIdentity: false,
 	}
 }
 
 func NewStorage(config *GpSource, mRegistry metrics.Registry) *Storage {
 	return NewStorageImpl(config, mRegistry, checkConnection, defaultNewFlavor)
+}
+
+// setDisableReplIdentityCheck allows to disable REPLICA IDENTITY FULL checks.
+// Useful for gpfdist transfers where replica identity checks are not needed.
+func (s *Storage) setDisableReplIdentityCheck(value bool) {
+	s.postgreses.mutex.Lock()
+	defer s.postgreses.mutex.Unlock()
+	s.disableCheckReplIdentity = value
+	for _, pg := range s.postgreses.storages {
+		pg.DisableCheckReplIdentity = value
+	}
 }
 
 const PingTimeout = 5 * time.Minute

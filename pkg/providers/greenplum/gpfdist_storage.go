@@ -29,8 +29,10 @@ type GpfdistStorage struct {
 }
 
 func NewGpfdistStorage(src *GpSource, mRegistry metrics.Registry, params gpfdistbin.GpfdistParams) *GpfdistStorage {
+	baseStorage := NewStorage(src, mRegistry)
+	baseStorage.setDisableReplIdentityCheck(true)
 	return &GpfdistStorage{
-		storage: NewStorage(src, mRegistry),
+		storage: baseStorage,
 		src:     src,
 		params:  params,
 	}

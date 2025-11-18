@@ -39,24 +39,26 @@ func pgSystemTableNames() []string {
 }
 
 type SchemaExtractor struct {
-	excludeViews          bool
-	useFakePrimaryKey     bool
-	forbiddenSchemas      []string
-	forbiddenTables       []string
-	flavour               DBFlavour
-	collapseInheritTables bool
-	logger                log.Logger
+	excludeViews             bool
+	useFakePrimaryKey        bool
+	forbiddenSchemas         []string
+	forbiddenTables          []string
+	flavour                  DBFlavour
+	collapseInheritTables    bool
+	disableCheckReplIdentity bool
+	logger                   log.Logger
 }
 
 func NewSchemaExtractor() *SchemaExtractor {
 	return &SchemaExtractor{
-		excludeViews:          false,
-		useFakePrimaryKey:     false,
-		forbiddenSchemas:      pgSystemSchemas(),
-		forbiddenTables:       pgSystemTableNames(),
-		flavour:               NewPostgreSQLFlavour(),
-		collapseInheritTables: false,
-		logger:                logger.Log,
+		excludeViews:             false,
+		useFakePrimaryKey:        false,
+		forbiddenSchemas:         pgSystemSchemas(),
+		forbiddenTables:          pgSystemTableNames(),
+		flavour:                  NewPostgreSQLFlavour(),
+		collapseInheritTables:    false,
+		logger:                   logger.Log,
+		disableCheckReplIdentity: false,
 	}
 }
 
@@ -95,6 +97,14 @@ func (e *SchemaExtractor) WithLogger(logger log.Logger) *SchemaExtractor {
 	return e
 }
 
+// WithDisableReplicaIdentityFull disables checking REPLICA IDENTITY FULL for tables.
+// This is useful for gpfdist transfers where replica identity checks are not needed.
+// When set to true, the replicaIdentityFullTables query is skipped during schema loading.
+func (e *SchemaExtractor) WithDisableReplicaIdentityFull(isDisable bool) *SchemaExtractor {
+	e.disableCheckReplIdentity = isDisable
+	return e
+}
+
 // LoadSchema returns a settings-customized schema(s) of table(s) in PostgreSQL
 func (e *SchemaExtractor) LoadSchema(ctx context.Context, conn *pgx.Conn, specificTable *abstract.TableID) (abstract.DBSchema, error) {
 	tableColumns, err := e.tableToColumnsMapping(ctx, conn, specificTable)
@@ -108,16 +118,17 @@ func (e *SchemaExtractor) LoadSchema(ctx context.Context, conn *pgx.Conn, specif
 	}
 
 	replIdentFullTables := make(map[abstract.TableID]bool)
-	for tID := range tableColumns {
-		if _, ok := tablePKs[tID]; !ok {
-			// query REPLICA IDENTITY FULL only when there is at least one table for which this can be useful
-			if replIdentFullTables, err = e.replicaIdentityFullTables(ctx, conn, specificTable); err != nil {
-				return nil, xerrors.Errorf("failed to list tables with REPLICA IDENTITY FULL: %w", err)
+	if !e.disableCheckReplIdentity {
+		for tID := range tableColumns {
+			if _, ok := tablePKs[tID]; !ok {
+				// query REPLICA IDENTITY FULL only when there is at least one table for which this can be useful
+				if replIdentFullTables, err = e.replicaIdentityFullTables(ctx, conn, specificTable); err != nil {
+					return nil, xerrors.Errorf("failed to list tables with REPLICA IDENTITY FULL: %w", err)
+				}
+				break
 			}
-			break
 		}
 	}
-
 	result := make(abstract.DBSchema)
 	for k, v := range tableColumns {
 		ts := makeTableSchema(v, tablePKs[k])

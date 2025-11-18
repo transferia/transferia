@@ -50,21 +50,22 @@ type SnapshotState struct {
 }
 
 type Storage struct {
-	Config              *PgStorageParams
-	Conn                *pgxpool.Pool
-	version             PgVersion
-	snapshotConnection  *pgxpool.Conn
-	snapshotTransaction pgx.Tx
-	IsHomo              bool
-	once                sync.Once
-	metrics             *stats.SourceStats
-	ForbiddenSchemas    []string
-	ForbiddenTables     []string
-	Flavour             DBFlavour
-	typeNameToOID       TypeNameToOIDMap
-	ShardedStateLSN     string
-	ShardedStateTS      time.Time
-	sExTime             time.Time
+	Config                   *PgStorageParams
+	Conn                     *pgxpool.Pool
+	version                  PgVersion
+	snapshotConnection       *pgxpool.Conn
+	snapshotTransaction      pgx.Tx
+	IsHomo                   bool
+	once                     sync.Once
+	metrics                  *stats.SourceStats
+	ForbiddenSchemas         []string
+	ForbiddenTables          []string
+	Flavour                  DBFlavour
+	typeNameToOID            TypeNameToOIDMap
+	ShardedStateLSN          string
+	ShardedStateTS           time.Time
+	sExTime                  time.Time
+	DisableCheckReplIdentity bool // Disables checks of replica identity full.
 }
 
 func (s *Storage) SnapshotLSN() string {
@@ -374,7 +375,8 @@ func (s *Storage) tableListImpl(ctx context.Context, tx pgx.Tx, filter abstract.
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
-		WithCollapseInheritTables(s.Config.CollapseInheritTables)
+		WithCollapseInheritTables(s.Config.CollapseInheritTables).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity)
 
 	tablesListUnfiltered, ts, err := sEx.TablesList(ctx, tx)
 	if err != nil {
@@ -719,6 +721,7 @@ func (s *Storage) LoadSchema() (abstract.DBSchema, error) {
 			WithForbiddenSchemas(s.ForbiddenSchemas).
 			WithForbiddenTables(s.ForbiddenTables).
 			WithFlavour(s.Flavour).
+			WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 			LoadSchema(ctx, conn.Conn(), nil)
 	}
 }
@@ -732,6 +735,7 @@ func (s *Storage) LoadSchemaForTable(ctx context.Context, conn *pgx.Conn, table 
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
 		WithCollapseInheritTables(s.Config.CollapseInheritTables).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, conn, &tableID)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to query schema from the source database: %w", err)
@@ -829,6 +833,7 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, tx.Conn(), nil)
 	if err != nil {
 		return xerrors.Errorf("unable to load schema: %w", err)
@@ -872,6 +877,7 @@ func (s *Storage) loadSampleBySet(ctx context.Context, tx pgx.Tx, startTime time
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, tx.Conn(), nil)
 	if err != nil {
 		return xerrors.Errorf("unable to load schema: %w", err)
@@ -940,6 +946,7 @@ func (s *Storage) loadTopBottomSample(ctx context.Context, tx pgx.Tx, startTime 
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, tx.Conn(), nil)
 	if err != nil {
 		return xerrors.Errorf("Failed to load schema: %w", err)
@@ -1380,21 +1387,22 @@ func NewStorage(config *PgStorageParams, opts ...StorageOpt) (*Storage, error) {
 	version := ResolveVersion(conn)
 
 	storage := &Storage{
-		Config:              config,
-		Conn:                conn,
-		version:             version,
-		snapshotConnection:  nil,
-		snapshotTransaction: nil,
-		IsHomo:              false,
-		once:                sync.Once{},
-		metrics:             currMetrics,
-		ForbiddenSchemas:    pgSystemSchemas(),
-		ForbiddenTables:     pgSystemTableNames(),
-		Flavour:             NewPostgreSQLFlavour(),
-		typeNameToOID:       typeNameToOID,
-		ShardedStateLSN:     "",
-		ShardedStateTS:      time.Time{},
-		sExTime:             time.Time{},
+		Config:                   config,
+		Conn:                     conn,
+		version:                  version,
+		snapshotConnection:       nil,
+		snapshotTransaction:      nil,
+		IsHomo:                   false,
+		once:                     sync.Once{},
+		metrics:                  currMetrics,
+		ForbiddenSchemas:         pgSystemSchemas(),
+		ForbiddenTables:          pgSystemTableNames(),
+		Flavour:                  NewPostgreSQLFlavour(),
+		typeNameToOID:            typeNameToOID,
+		ShardedStateLSN:          "",
+		ShardedStateTS:           time.Time{},
+		sExTime:                  time.Time{},
+		DisableCheckReplIdentity: false,
 	}
 	return storage, nil
 }
