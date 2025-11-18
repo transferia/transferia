@@ -94,3 +94,20 @@ func TestClient(t *testing.T) {
 		require.NoError(t, strictify.Strictify(&item, abstract.MakeFastTableSchema(item.TableSchema.Columns())))
 	}
 }
+
+func TestIncorrectMagicByte(t *testing.T) {
+	schemaRegistryMock := confluentsrmock.NewConfluentSRMock(idToBuf, nil)
+	defer schemaRegistryMock.Close()
+
+	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
+
+	for i := 1; i < 255; i++ {
+		buf := make([]byte, 0)
+		buf = append(buf, byte(i))
+		buf = append(buf, []byte("\u0000\u0000\u0000{}")...)
+
+		result := parser.Do(makePersqueueReadMessage(0, buf), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		require.Len(t, result, 1)
+		require.True(t, strings.HasSuffix(result[0].Table, "_unparsed"))
+	}
+}

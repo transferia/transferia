@@ -20,8 +20,9 @@ import (
 )
 
 type DebeziumImpl struct {
-	logger           log.Logger
-	debeziumReceiver *debezium.Receiver
+	logger               log.Logger
+	isUsedSchemaRegistry bool
+	debeziumReceiver     *debezium.Receiver
 
 	threadsNumber             uint64
 	schemaRegistryClientMutex sync.Mutex
@@ -31,6 +32,13 @@ type DebeziumImpl struct {
 // Contains multiple debezium events only if messages are
 // serialized using schema registry and started with magic zero-byte
 func (p *DebeziumImpl) DoOne(partition abstract.Partition, buf []byte, offset uint64, writeTime time.Time) ([]byte, abstract.ChangeItem) {
+	if len(buf) == 0 {
+		return nil, generic.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), "", "debezium parser received empty message", 0, offset, writeTime)
+	}
+	if p.isUsedSchemaRegistry && buf[0] != 0 {
+		return nil, generic.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), string(buf), fmt.Sprintf("debezium parser configured with SR, but magic byte is not NULL, byte:%d", buf[0]), 0, offset, writeTime)
+	}
+
 	msgLen := len(buf)
 	if len(buf) != 0 {
 		if buf[0] == 0 {
@@ -134,6 +142,7 @@ func (p *DebeziumImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem
 func NewDebeziumImpl(logger log.Logger, schemaRegistry *confluent.SchemaRegistryClient, threads uint64) *DebeziumImpl {
 	return &DebeziumImpl{
 		logger:                    logger,
+		isUsedSchemaRegistry:      schemaRegistry != nil,
 		debeziumReceiver:          debezium.NewReceiver(nil, schemaRegistry),
 		threadsNumber:             threads,
 		schemaRegistryClientMutex: sync.Mutex{},
