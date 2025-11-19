@@ -1,8 +1,6 @@
 package ytdict
 
 import (
-	"fmt"
-
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/yt/provider/table"
 	"github.com/transferia/transferia/pkg/transformer"
@@ -83,9 +81,6 @@ func (t *YtDictTransformer) processChangeItem(item abstract.ChangeItem) (abstrac
 	columns := item.TableSchema.Columns()
 	colNameToIndex := abstract.MakeMapColNameToIndex(columns)
 	for i, columnName := range item.ColumnNames {
-		if columnName == "dict" {
-			fmt.Println("ok")
-		}
 		column := columns[colNameToIndex[columnName]]
 		ytType, found := column.Properties[table.YtOriginalTypePropertyKey]
 		if !found || item.ColumnValues[i] == nil {
