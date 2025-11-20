@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsequeue"
 	"github.com/transferia/transferia/pkg/parsers"
 	gp "github.com/transferia/transferia/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/parsers/resources"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -250,6 +251,23 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 	}
 }
 
+func (p *Source) watchParserResource(parser parsers.Parser) {
+	var resource resources.AbstractResources
+	if resourceable, ok := parser.(resources.Resourceable); ok {
+		resource = resourceable.ResourcesObj()
+	} else {
+		return
+	}
+
+	select {
+	case <-resource.OutdatedCh():
+		p.logger.Warn("Parser resource is outdated, stop source")
+		p.Stop()
+	case <-p.stopCh:
+		return
+	}
+}
+
 func (p *Source) lockPartition(lock *persqueue.LockV1) {
 	partName := fmt.Sprintf("%v@%v", lock.Topic, lock.Partition)
 	p.logger.Infof("Lock partition:%v ReadOffset:%v, EndOffset:%v", partName, lock.ReadOffset, lock.EndOffset)
@@ -382,6 +400,8 @@ func NewSourceWithOpts(transferID string, cfg *YDSSource, logger log.Logger, reg
 		logger:           logger,
 		executor:         executor,
 	}
+
+	go yds.watchParserResource(parser)
 
 	return yds, nil
 }

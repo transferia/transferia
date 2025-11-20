@@ -266,9 +266,16 @@ func (s *oneDCSource) run(parseQ *parsequeue.WaitableParseQueue[batch]) error {
 	}
 }
 
-func (s *oneDCSource) WatchResource(resources resources.AbstractResources) {
+func (s *oneDCSource) watchParserResource(parser parsers.Parser) {
+	var resource resources.AbstractResources
+	if resourceable, ok := parser.(resources.Resourceable); ok {
+		resource = resourceable.ResourcesObj()
+	} else {
+		return
+	}
+
 	select {
-	case <-resources.OutdatedCh():
+	case <-resource.OutdatedCh():
 		s.logger.Warn("Parser resource is outdated, stop oneDCSource")
 		s.Stop()
 	case <-s.stopCh:
@@ -457,7 +464,7 @@ func NewOneDCSource(cfg *LfSource, logger log.Logger, registry metrics.Registry,
 
 	stopCh := make(chan bool)
 
-	p := oneDCSource{
+	p := &oneDCSource{
 		config:           cfg,
 		parser:           parser,
 		offsetsValidator: lbyds.NewLbOffsetsSourceValidator(logger),
@@ -479,7 +486,9 @@ func NewOneDCSource(cfg *LfSource, logger log.Logger, registry metrics.Registry,
 	}
 
 	rollbacks.Cancel()
-	return &p, nil
+	go p.watchParserResource(parser)
+
+	return p, nil
 }
 
 func checkInstanceValidity(configInstance LogbrokerInstance) bool {
