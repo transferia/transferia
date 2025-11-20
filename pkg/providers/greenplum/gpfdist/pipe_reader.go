@@ -14,75 +14,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"go.ytsaurus.tech/library/go/core/log"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
-	changeItemsBatchSize = 250 * humanize.MiByte // Total amount of RAM used for prepared changeitems.
-	changeItemsBatchCap  = 1000
-
-	// Size of one file block (used when reading pipe). Its not recommended to change that setting.
-	fileBlockSize       = 25 * humanize.MiByte
-	fileBlocksBatchSize = 250 * humanize.MiByte // Total amount of RAM used to store file blocks.
+	fileBlockSize = 50 * humanize.MiByte // Size of one file block (used when reading pipe).
 )
-
-type AsyncSplitter struct {
-	quotesCnt int
-	buffer    []byte
-	ResCh     chan [][]byte
-	DoneCh    chan error
-}
-
-func InitAsyncSplitter(input <-chan []byte) *AsyncSplitter {
-	s := &AsyncSplitter{
-		quotesCnt: 0,
-		buffer:    nil,
-		ResCh:     make(chan [][]byte, fileBlocksBatchSize/fileBlockSize),
-		DoneCh:    make(chan error, 1),
-	}
-	go func() {
-		defer close(s.ResCh)
-		defer close(s.DoneCh)
-		for bytes := range input {
-			if res := s.doPart(bytes); len(res) > 0 {
-				s.ResCh <- res
-			}
-		}
-		if len(s.buffer) > 0 {
-			s.DoneCh <- xerrors.New("buffer is not empty")
-		}
-	}()
-	return s
-}
-
-func (s *AsyncSplitter) doPart(bytes []byte) [][]byte {
-	res := make([][]byte, 0, 100_000)
-	lineStartIndex := 0
-	for i := range bytes {
-		if bytes[i] == '"' {
-			s.quotesCnt++
-			continue
-		}
-		if bytes[i] != '\n' || s.quotesCnt%2 != 0 {
-			continue
-		}
-		// Found '\n' which is not escaped by '"', flush line.
-		var curRes []byte
-		if len(s.buffer) > 0 {
-			curRes = append(s.buffer, bytes[lineStartIndex:i+1]...)
-		} else {
-			curRes = bytes[lineStartIndex : i+1]
-		}
-		if len(curRes) > 0 {
-			res = append(res, curRes)
-		}
-		s.quotesCnt = 0
-		s.buffer = nil
-		lineStartIndex = i + 1
-	}
-	s.buffer = append(s.buffer, bytes[lineStartIndex:]...)
-	return res
-}
 
 type PipeReader struct {
 	ctx       context.Context
@@ -95,54 +31,34 @@ type PipeReader struct {
 
 func (r *PipeReader) readFromPipe(file *os.File, pusher abstract.Pusher) (int64, error) {
 	pushedCnt := int64(0)
-	parseQueue := make(chan []byte, fileBlocksBatchSize/fileBlockSize)
-	splitter := InitAsyncSplitter(parseQueue)
+	splitter := NewLinesSplitter()
+	batch := make([]abstract.ChangeItem, 0, 5000)
 
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		batch := make([]abstract.ChangeItem, 0, changeItemsBatchCap)
-		batchSize := 0
-		for lines := range splitter.ResCh {
-			for _, line := range lines {
-				batch = append(batch, r.itemFromTemplate(line))
-				batchSize += len(line) * humanize.Byte
-				if len(batch) < cap(batch) && batchSize < changeItemsBatchSize {
-					continue
-				}
-				if err := pusher(batch); err != nil {
-					return xerrors.Errorf("unable to push %d-elements batch: %w", len(batch), err)
-				}
-				pushedCnt += int64(len(batch))
-				batch = make([]abstract.ChangeItem, 0, changeItemsBatchCap)
-			}
+	buffer := make([]byte, fileBlockSize)
+	for {
+		n, err := io.ReadAtLeast(file, buffer[:fileBlockSize], fileBlockSize)
+		if n == 0 && err == io.EOF {
+			break
+		}
+		if err != nil && err != io.ErrUnexpectedEOF {
+			logger.Log.Errorf("Unable to read pipe %s: %s", file.Name(), err.Error())
+			return pushedCnt, xerrors.Errorf("unable to read pipe: %w", err)
+		}
+		logger.Log.Debugf("Read %d bytes from pipe", n)
+		splitted := splitter.Do(buffer[:n])
+		for _, line := range splitted {
+			batch = append(batch, r.itemFromTemplate(line))
 		}
 		if len(batch) > 0 {
 			if err := pusher(batch); err != nil {
-				return xerrors.Errorf("unable to push last %d-elements batch: %w", len(batch), err)
+				return pushedCnt, xerrors.Errorf("unable to push %d-elements batch: %w", len(batch), err)
 			}
-			pushedCnt += int64(len(batch))
 		}
-		return nil
-	})
+		pushedCnt += int64(len(batch))
+		batch = batch[:0]
+	}
 
-	eg.Go(func() error {
-		defer close(parseQueue)
-		for {
-			b := make([]byte, fileBlockSize)
-			n, err := io.ReadAtLeast(file, b, len(b))
-			if err == io.EOF {
-				break
-			}
-			if err != nil && err != io.ErrUnexpectedEOF {
-				return xerrors.Errorf("unable to read file: %w", err)
-			}
-			parseQueue <- b[:n]
-		}
-		return nil
-	})
-
-	err := eg.Wait()
-	return pushedCnt, err
+	return pushedCnt, splitter.Done()
 }
 
 func (r *PipeReader) itemFromTemplate(columnValues []byte) abstract.ChangeItem {

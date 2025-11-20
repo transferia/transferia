@@ -2,9 +2,11 @@ package gpfdist
 
 import (
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 )
@@ -36,6 +38,9 @@ func (w *PipeWriter) Write(input [][]byte) error {
 	}
 	for _, line := range input {
 		if _, err := w.pipe.Write(line); err != nil {
+			if strings.Contains(err.Error(), "broken pipe") {
+				err = backoff.Permanent(err)
+			}
 			return xerrors.Errorf("unable to write to %s: %w", w.pipe.Name(), err)
 		}
 		w.pushedCnt.Add(1)

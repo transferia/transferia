@@ -16,7 +16,7 @@ func getEth0Addrs() ([]net.Addr, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get net interfaces: %w", err)
 	}
-	eth0Idx := slices.IndexFunc(interfaces, func(i net.Interface) bool { return i.Name == "eth0" })
+	eth0Idx := slices.IndexFunc(interfaces, func(i net.Interface) bool { return i.Name == "eth0" || i.Name == "veth0" })
 	if eth0Idx < 0 {
 		names := make([]string, len(interfaces))
 		for i, iface := range interfaces {

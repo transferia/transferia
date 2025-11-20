@@ -75,7 +75,7 @@ func (s *GpfdistSink) getOrCreateTableSink(table abstract.TableID, schema *abstr
 	return nil
 }
 
-func (s *GpfdistSink) pushToTableSink(table abstract.TableID, items []*abstract.ChangeItem) error {
+func (s *GpfdistSink) pushToTableSink(table abstract.TableID, items []abstract.ChangeItem) error {
 	s.tableSinksMu.RLock()
 	defer s.tableSinksMu.RUnlock()
 	tableSink, ok := s.tableSinks[table]
@@ -86,11 +86,14 @@ func (s *GpfdistSink) pushToTableSink(table abstract.TableID, items []*abstract.
 }
 
 func (s *GpfdistSink) Push(items []abstract.ChangeItem) error {
+	if ok, table := isOneTableInserts(items); ok && table != nil {
+		return s.pushToTableSink(*table, items)
+	}
 	// systemKindCtx is used to cancel system actions (cleanup or init table load)
 	// and do not applies to inserts.
 	systemKindCtx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
-	insertItems := make(map[abstract.TableID][]*abstract.ChangeItem)
+	insertItems := make(map[abstract.TableID][]abstract.ChangeItem)
 	for _, item := range items {
 		table := item.TableID()
 		switch item.Kind {
@@ -103,13 +106,13 @@ func (s *GpfdistSink) Push(items []abstract.ChangeItem) error {
 				return xerrors.Errorf("unable to stop sink for table %s: %w", table, err)
 			}
 		case abstract.InsertKind:
-			insertItems[table] = append(insertItems[table], &item)
+			insertItems[table] = append(insertItems[table], item)
 		case abstract.TruncateTableKind, abstract.DropTableKind:
 			if err := s.processCleanupChangeItem(systemKindCtx, &item); err != nil {
 				return xerrors.Errorf("failed to process %s: %w", item.Kind, err)
 			}
 		case abstract.InitShardedTableLoad:
-			if err := s.processInitTableLoad(systemKindCtx, &item); err != nil {
+			if err := s.createTargetTable(systemKindCtx, &item); err != nil {
 				return xerrors.Errorf("sinker failed to initialize table load for table %s: %w", item.PgName(), err)
 			}
 		case abstract.DoneShardedTableLoad, abstract.SynchronizeKind:
@@ -120,6 +123,7 @@ func (s *GpfdistSink) Push(items []abstract.ChangeItem) error {
 	}
 
 	for table, items := range insertItems {
+		logger.Log.Warnf("Got %d insert items for table %s with other item kinds", len(items), table.String())
 		if err := s.pushToTableSink(table, items); err != nil {
 			return xerrors.Errorf("unable to push to table %s: %w", table, err)
 		}
@@ -127,7 +131,21 @@ func (s *GpfdistSink) Push(items []abstract.ChangeItem) error {
 	return nil
 }
 
-func (s *GpfdistSink) processInitTableLoad(ctx context.Context, ci *abstract.ChangeItem) error {
+// isOneTableInserts checks that all items are InsertKind to only one table.
+func isOneTableInserts(items []abstract.ChangeItem) (bool, *abstract.TableID) {
+	if len(items) == 0 {
+		return false, nil
+	}
+	table := items[0].TableID()
+	for _, item := range items {
+		if item.Kind != abstract.InsertKind || item.TableID() != table {
+			return false, nil
+		}
+	}
+	return true, &table
+}
+
+func (s *GpfdistSink) createTargetTable(ctx context.Context, ci *abstract.ChangeItem) error {
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 	tx, err := s.conn.Begin(ctx)

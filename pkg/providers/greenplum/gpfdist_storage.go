@@ -102,7 +102,9 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 	eg := errgroup.Group{}
 	for _, pipeReader := range pipeReaders {
 		eg.Go(func() error {
+			beforeStop := time.Now()
 			rows, err := pipeReader.Stop(10 * time.Minute)
+			logger.Log.Infof("Pipe reader stopped in %s", time.Since(beforeStop))
 			pipeRows.Add(rows)
 			return err
 		})

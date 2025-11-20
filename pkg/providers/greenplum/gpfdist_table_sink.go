@@ -39,7 +39,9 @@ func (s *GpfdistTableSink) Close() error {
 	}
 
 	logger.Log.Info("Pipes writers stopped, stopping external table writer")
-	tableRows, err := s.stopExtWriter(time.Minute)
+	beforeStop := time.Now()
+	tableRows, err := s.stopExtWriter(10 * time.Minute)
+	logger.Log.Infof("External table writer stopped in %s", time.Since(beforeStop))
 	if err != nil {
 		logger.Log.Error("External table writer stopped with error", log.Error(err))
 	}
@@ -59,7 +61,7 @@ func (s *GpfdistTableSink) Close() error {
 	return nil
 }
 
-func (s *GpfdistTableSink) Push(items []*abstract.ChangeItem) error {
+func (s *GpfdistTableSink) Push(items []abstract.ChangeItem) error {
 	lines := make([][]byte, len(items))
 	for i, item := range items {
 		if item.Kind != abstract.InsertKind {

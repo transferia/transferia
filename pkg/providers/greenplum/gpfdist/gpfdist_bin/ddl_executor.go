@@ -79,11 +79,11 @@ func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 		return 0, xerrors.Errorf("%s: %w", msg, err)
 	}
 	defer func() {
-		dropTableQuery := fmt.Sprintf("DROP EXTERNAL TABLE %s", externalTableName)
+		dropTableQuery := fmt.Sprintf("DROP EXTERNAL TABLE IF EXISTS %s", externalTableName)
 		if _, err := d.conn.Exec(ctx, dropTableQuery); err != nil {
 			logger.Log.Error("Unable to drop external table", log.Error(err), log.String("sql", dropTableQuery))
 		} else {
-			logger.Log.Debugf("External table %s dropped", externalTableName)
+			logger.Log.Infof("External table %s dropped", externalTableName)
 		}
 	}()
 

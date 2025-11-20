@@ -45,6 +45,16 @@ func (m GpfdistMode) ToExternalTableMode() externalTableMode {
 	return ""
 }
 
+func (m GpfdistMode) toLogTag() string {
+	switch m {
+	case ExportTable:
+		return "src"
+	case ImportTable:
+		return "dst"
+	}
+	return ""
+}
+
 type Gpfdist struct {
 	cmd           *exec.Cmd // cmd is a command to run gpfdist executable.
 	localAddr     net.IP
@@ -142,7 +152,12 @@ func InitGpfdist(params GpfdistParams, localAddr net.IP, mode GpfdistMode, id in
 		return nil, xerrors.Errorf("unable to create temp dir: %w", err)
 	}
 	gpfdist := &Gpfdist{
-		cmd:           exec.Command(params.GpfdistBinPath, "-d", tmpDir, "-p", fmt.Sprint(minPort), "-P", fmt.Sprint(maxPort), "-w", "10"),
+		cmd: exec.Command(params.GpfdistBinPath, "-d", tmpDir,
+			"-p", fmt.Sprint(minPort), "-P", fmt.Sprint(maxPort),
+			// "-w", "10", // delay before closing file after writing in seconds [0; 7200]
+			"-t", "900", // connection establishment timeout in seconds [2; 7200]
+			"-m", "2097152", // max data row length expected, in bytes [32768; 268435456]
+		),
 		localAddr:     localAddr,
 		workingDir:    tmpDir,
 		serviceSchema: params.ServiceSchema,
@@ -166,13 +181,13 @@ func (g *Gpfdist) startCmd(id int) error {
 	if err != nil {
 		return xerrors.Errorf("unable to get stderr pipe: %w", err)
 	}
-	go processLog(stderr, log.ErrorLevel, strconv.Itoa(id), nil)
+	go processLog(stderr, log.ErrorLevel, g.mode.toLogTag()+strconv.Itoa(id), nil)
 
 	stdout, err := g.cmd.StdoutPipe()
 	if err != nil {
 		return xerrors.Errorf("unable to get stdout pipe: %w", err)
 	}
-	go processLog(stdout, log.InfoLevel, strconv.Itoa(id), portChannel)
+	go processLog(stdout, log.InfoLevel, g.mode.toLogTag()+strconv.Itoa(id), portChannel)
 
 	logger.Log.Debugf("Will start gpfdist command")
 	if err = g.cmd.Start(); err != nil {
@@ -222,14 +237,14 @@ func processLog(pipe io.ReadCloser, level log.Level, prefix string, portChannel 
 		}
 		switch level {
 		case log.ErrorLevel:
-			logger.Log.Errorf("gpfdist-%s: %s", prefix, line)
+			logger.Log.Errorf("gpfdist-%s stderr: %s", prefix, line)
 		default:
-			if strings.Contains(line, " INFO ") {
-				logger.Log.Debugf("gpfdist-%s: %s", prefix, line)
-			} else if strings.Contains(line, " ERROR ") {
+			if strings.Contains(line, " ERROR ") {
 				logger.Log.Errorf("gpfdist-%s: %s", prefix, line)
-			} else {
+			} else if strings.Contains(line, " WARN ") {
 				logger.Log.Warnf("gpfdist-%s: %s", prefix, line)
+			} else {
+				logger.Log.Debugf("gpfdist-%s: %s", prefix, line)
 			}
 		}
 	}
