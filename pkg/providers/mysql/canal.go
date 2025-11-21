@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -274,7 +275,7 @@ func (c *Canal) GetTable(db string, table string) (*schema.Table, error) {
 
 	if len(t.PKColumns) == 0 || len(t.PKColumns) > 1 {
 		// load unique and primary keys constraints
-		constraints, err := c.loadTableConstraints(db, table)
+		constraints, constraintCols, err := c.loadTableConstraints(db, table)
 		if err != nil {
 			return nil, xerrors.Errorf("Unable to load contraints for table without primary key %v.%v: %w", db, table, err)
 		}
@@ -310,6 +311,13 @@ func (c *Canal) GetTable(db string, table string) (*schema.Table, error) {
 			}
 		}
 
+		tableID := abstract.TableID{Namespace: db, Name: table}
+		newWayInferredKeys := keyNamesFromConstraints(constraintCols)[tableID]
+		if slices.Compare(constraintColumns, newWayInferredKeys) != 0 {
+			logger.Log.Info("DEBUG TM-9031 REPLICATION: new inferred key columns differs from current cols",
+				log.String("table", tableID.String()), log.Strings("old_keys", constraintColumns), log.Strings("new_keys", newWayInferredKeys))
+		}
+
 		for _, colName := range constraintColumns {
 			idx, ok := colsIdx[colName]
 			if !ok {
@@ -335,7 +343,7 @@ func (c *Canal) logTable(table *schema.Table) {
 	c.logger.Info(fmt.Sprintf("got table schema, tableName: %s", table.String()), log.ByteString("table", marshaledTable))
 }
 
-func (c *Canal) loadTableConstraints(db, table string) (map[string][]string, error) {
+func (c *Canal) loadTableConstraints(db, table string) (map[string][]string, []constraintColumn, error) {
 	connConf := mysql_driver.NewConfig()
 	connConf.Addr = c.cfg.Addr
 	connConf.User = c.cfg.User
@@ -345,12 +353,12 @@ func (c *Canal) loadTableConstraints(db, table string) (map[string][]string, err
 	if c.cfg.TLSConfig != nil {
 		connConf.TLSConfig = "custom"
 		if err := mysql_driver.RegisterTLSConfig("custom", c.cfg.TLSConfig); err != nil {
-			return nil, xerrors.Errorf("unable to set tls: %w", err)
+			return nil, nil, xerrors.Errorf("unable to set tls: %w", err)
 		}
 	}
 	connector, err := mysql_driver.NewConnector(connConf)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to init connector to source storage: %w", err)
+		return nil, nil, xerrors.Errorf("unable to init connector to source storage: %w", err)
 	}
 
 	dbConn := sql.OpenDB(connector)

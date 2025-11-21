@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -104,6 +105,12 @@ type queryExecutor interface {
 	Query(sql string, args ...interface{}) (*sql.Rows, error)
 }
 
+type constraintColumn struct {
+	Col            abstract.ColSchema
+	ConstraintName sql.NullString
+	Position       int
+}
+
 func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, database string) (abstract.DBSchema, error) {
 	includeViewsSQL := baseTablesAndViews
 	if !includeViews {
@@ -143,10 +150,6 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, dat
 		}
 		tableCols[col.TableID()] = append(tableCols[col.TableID()], col)
 	}
-	hasPrimaryKey := make(map[abstract.TableID]bool)
-	tmpConstraintNames := make(map[abstract.TableID][]string)
-	tmpColumnNames := make(map[abstract.TableID][]string)
-	tmpColumnPositions := make(map[abstract.TableID][]int)
 	pKeys := make(map[abstract.TableID][]string)
 	uKeys := make(map[abstract.TableID][]string)
 	query = fmt.Sprintf(constraintList, "")
@@ -159,48 +162,45 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, dat
 		logger.Log.Error(msg, log.Error(err))
 		return nil, xerrors.Errorf("%v: %w", msg, err)
 	}
+
+	var constraintCols []constraintColumn
 	for keyRows.Next() {
-		var col abstract.ColSchema
-		var pos int
-		var constraintName sql.NullString
-		err := keyRows.Scan(
-			&col.TableSchema,
-			&col.TableName,
-			&col.ColumnName,
-			&pos,
-			&constraintName,
-		)
-		if err != nil {
+		var constraintCol constraintColumn
+		if err := keyRows.Scan(
+			&constraintCol.Col.TableSchema,
+			&constraintCol.Col.TableName,
+			&constraintCol.Col.ColumnName,
+			&constraintCol.Position,
+			&constraintCol.ConstraintName,
+		); err != nil {
 			msg := "unable to scan constraint list"
 			logger.Log.Error(msg, log.Error(err))
 			return nil, xerrors.Errorf("%v: %w", msg, err)
 		}
-		if constraintName.Valid && constraintName.String == "PRIMARY" {
+
+		col := constraintCol.Col
+		if constraintCol.ConstraintName.Valid && constraintCol.ConstraintName.String == "PRIMARY" {
 			pKeys[col.TableID()] = append(pKeys[col.TableID()], col.ColumnName)
-			hasPrimaryKey[col.TableID()] = true
 		} else {
 			uKeys[col.TableID()] = append(uKeys[col.TableID()], col.ColumnName)
-			tmpConstraintNames[col.TableID()] = append(tmpConstraintNames[col.TableID()], constraintName.String)
-			tmpColumnNames[col.TableID()] = append(tmpColumnNames[col.TableID()], col.ColumnName)
-			tmpColumnPositions[col.TableID()] = append(tmpColumnPositions[col.TableID()], pos)
 		}
+		constraintCols = append(constraintCols, constraintCol)
 	}
 
-	// TODO remove after TM-9031
-	for tableID, ok := range hasPrimaryKey {
-		if !ok || len(tmpConstraintNames[tableID]) == 0 {
-			continue
-		}
-
-		logger.Log.Infof("DEBUG TM-9031: table %s.%s has no primary key on SNAPSHOT, constraints: %v, columns: %v, postitions: %v", tableID.Namespace, tableID.Name, tmpConstraintNames[tableID], tmpColumnNames[tableID], tmpColumnPositions[tableID])
-	}
-
+	newWayInferredTableKeys := keyNamesFromConstraints(constraintCols)
 	for tID, currSchema := range tableCols {
 		keys := pKeys[tID]
 		if len(keys) == 0 {
 			keys = uKeys[tID]
 		}
-		tableSchema := makeTableSchema(currSchema, uniq(keys))
+		uniqueKeys := uniq(keys)
+		tableSchema := makeTableSchema(currSchema, uniqueKeys)
+
+		newWayInferredKeys := newWayInferredTableKeys[tID]
+		if slices.Compare(uniqueKeys, newWayInferredKeys) != 0 {
+			logger.Log.Info("DEBUG TM-9031 SNAPSHOT: new inferred key columns differs from current cols",
+				log.String("table", tID.String()), log.Strings("old_keys", uniqueKeys), log.Strings("new_keys", newWayInferredKeys))
+		}
 
 		if useFakePrimaryKey && !tableSchema.HasPrimaryKey() {
 			for i := range tableSchema {
@@ -217,55 +217,38 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, dat
 	return dbSchema, nil
 }
 
-func LoadTableConstraints(tx queryExecutor, table abstract.TableID) (map[string][]string, error) {
-	hasPrimaryKey := false
-	tmpConstraintNames := make([]string, 0)
-	tmpColumnNames := make([]string, 0)
-	tmpColumnPositions := make([]int, 0)
-
+func LoadTableConstraints(tx queryExecutor, table abstract.TableID) (map[string][]string, []constraintColumn, error) {
 	constraints := make(map[string][]string)
 	cRows, err := tx.Query(tableConstraintList, table.Namespace, table.Name)
 	if err != nil {
 		errMsg := fmt.Sprintf("cannot fetch constraints for table %v.%v", table.Namespace, table.Name)
 		logger.Log.Errorf("%v: %v", errMsg, err)
-		return constraints, xerrors.Errorf("%v: %w", errMsg, err)
+		return nil, nil, xerrors.Errorf("%v: %w", errMsg, err)
 	}
+
+	var constraintCols []constraintColumn
 	for cRows.Next() {
-		var col abstract.ColSchema
-		var pos int
-		var constraintName sql.NullString
-		err := cRows.Scan(
-			&col.TableSchema,
-			&col.TableName,
-			&col.ColumnName,
-			&pos,
-			&constraintName,
-		)
-		if err != nil {
+		var constraintCol constraintColumn
+		if err := cRows.Scan(
+			&constraintCol.Col.TableSchema,
+			&constraintCol.Col.TableName,
+			&constraintCol.Col.ColumnName,
+			&constraintCol.Position,
+			&constraintCol.ConstraintName,
+		); err != nil {
 			errMsg := fmt.Sprintf("unable to scan constraint list for table %v.%v", table.Namespace, table.Name)
 			logger.Log.Errorf("%v: %v", errMsg, err)
-			return constraints, xerrors.Errorf("%v: %w", errMsg, err)
-		}
-		if constraintName.Valid {
-			cName := constraintName.String
-			constraints[cName] = append(constraints[cName], col.ColumnName)
+			return nil, nil, xerrors.Errorf("%v: %w", errMsg, err)
 		}
 
-		if constraintName.Valid && constraintName.String == "PRIMARY" {
-			hasPrimaryKey = true
-		} else {
-			tmpConstraintNames = append(tmpConstraintNames, constraintName.String)
-			tmpColumnNames = append(tmpColumnNames, col.ColumnName)
-			tmpColumnPositions = append(tmpColumnPositions, pos)
+		if constraintCol.ConstraintName.Valid {
+			cName := constraintCol.ConstraintName.String
+			constraints[cName] = append(constraints[cName], constraintCol.Col.ColumnName)
 		}
+		constraintCols = append(constraintCols, constraintCol)
 	}
 
-	// TODO remove after TM-9031
-	if !hasPrimaryKey && len(tmpConstraintNames) == 0 {
-		logger.Log.Infof("DEBUG TM-9031: table %s.%s has no primary key on REPLICATION, constraints: %v, columns: %v, postitions: %v", table.Namespace, table.Name, tmpConstraintNames, tmpColumnNames, tmpColumnPositions)
-	}
-
-	return constraints, nil
+	return constraints, constraintCols, nil
 }
 
 func enrichExpressions(tx queryExecutor, schema map[abstract.TableID]abstract.TableColumns, database string) map[abstract.TableID]abstract.TableColumns {
@@ -300,6 +283,45 @@ func enrichExpressions(tx queryExecutor, schema map[abstract.TableID]abstract.Ta
 		}
 	}
 	return schema
+}
+
+func keyNamesFromConstraints(constraintCols []constraintColumn) map[abstract.TableID][]string {
+	primaryKeys := make(map[abstract.TableID][]string)
+	uniqueConstraintKeys := make(map[abstract.TableID][]string)
+
+	sort.Slice(constraintCols, func(i, j int) bool {
+		if constraintCols[i].Col.TableSchema != constraintCols[j].Col.TableSchema {
+			return constraintCols[i].Col.TableSchema < constraintCols[j].Col.TableSchema
+		}
+		if constraintCols[i].Col.TableName != constraintCols[j].Col.TableName {
+			return constraintCols[i].Col.TableName < constraintCols[j].Col.TableName
+		}
+		if constraintCols[i].Position != constraintCols[j].Position {
+			return constraintCols[i].Position < constraintCols[j].Position
+		}
+		return constraintCols[i].ConstraintName.String < constraintCols[j].ConstraintName.String
+	})
+
+	for _, constraintCol := range constraintCols {
+		col := constraintCol.Col
+		if constraintCol.ConstraintName.Valid && constraintCol.ConstraintName.String == "PRIMARY" {
+			primaryKeys[col.TableID()] = append(primaryKeys[col.TableID()], col.ColumnName)
+		} else {
+			uniqueConstraintKeys[col.TableID()] = append(uniqueConstraintKeys[col.TableID()], col.ColumnName)
+		}
+	}
+
+	tableKeys := make(map[abstract.TableID][]string)
+	for tableID, keys := range primaryKeys {
+		tableKeys[tableID] = uniq(keys)
+	}
+	for tableID, keys := range uniqueConstraintKeys {
+		if len(tableKeys[tableID]) == 0 {
+			tableKeys[tableID] = uniq(keys)
+		}
+	}
+
+	return tableKeys
 }
 
 func uniq(items []string) []string {

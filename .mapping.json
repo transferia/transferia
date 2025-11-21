@@ -1656,6 +1656,7 @@
   "pkg/providers/mysql/schema.go":"transfer_manager/go/pkg/providers/mysql/schema.go",
   "pkg/providers/mysql/schema_copy.go":"transfer_manager/go/pkg/providers/mysql/schema_copy.go",
   "pkg/providers/mysql/schema_copy_test.go":"transfer_manager/go/pkg/providers/mysql/schema_copy_test.go",
+  "pkg/providers/mysql/schema_test.go":"transfer_manager/go/pkg/providers/mysql/schema_test.go",
   "pkg/providers/mysql/schematized_rows.go":"transfer_manager/go/pkg/providers/mysql/schematized_rows.go",
   "pkg/providers/mysql/sink.go":"transfer_manager/go/pkg/providers/mysql/sink.go",
   "pkg/providers/mysql/sink_test.go":"transfer_manager/go/pkg/providers/mysql/sink_test.go",
