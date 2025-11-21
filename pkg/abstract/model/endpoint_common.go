@@ -15,7 +15,7 @@ const (
 )
 
 type (
-	BytesSize    uint32
+	BytesSize    uint64
 	SecretString string
 )
 
