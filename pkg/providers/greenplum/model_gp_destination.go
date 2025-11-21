@@ -8,7 +8,6 @@ import (
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	ch_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 )
 
@@ -23,12 +22,18 @@ type GpDestination struct {
 	BufferTriggingSize     uint64
 	BufferTriggingInterval time.Duration
 
-	QueryTimeout  time.Duration
-	gpfdistParams gpfdistbin.GpfdistParams
+	QueryTimeout time.Duration
+
+	enableGpfdist bool // enableGpfdist could be set by FillDependentFields based on the source settings.
+}
+
+func (d *GpDestination) EnabledGpfdist() bool {
+	return d.enableGpfdist
 }
 
 var _ dp_model.Destination = (*GpDestination)(nil)
 var _ dp_model.WithConnectionID = (*GpDestination)(nil)
+var _ dp_model.LegacyFillDependentFields = (*GpDestination)(nil)
 
 func (d *GpDestination) GetConnectionID() string {
 	return d.Connection.ConnectionID
@@ -60,7 +65,7 @@ func (d *GpDestination) WithDefaults() {
 }
 
 func (d *GpDestination) BuffererConfig() *bufferer.BuffererConfig {
-	if d.gpfdistParams.IsEnabled {
+	if d.enableGpfdist {
 		// Since gpfdist is only supported for Greenplum source with gpfdist
 		// enabled, there is no need in custom bufferer at all.
 		return nil
@@ -103,10 +108,16 @@ func (d *GpDestination) ToGpSource() *GpSource {
 		AdvancedProps: *(func() *GpSourceAdvancedProps {
 			result := new(GpSourceAdvancedProps)
 			result.WithDefaults()
-			result.DisableGpfdist = !d.gpfdistParams.IsEnabled
+			result.DisableGpfdist = !d.enableGpfdist
 			return result
 		}()),
 		SubnetID:         "",
 		SecurityGroupIDs: nil,
+	}
+}
+
+func (d *GpDestination) FillDependentFields(transfer *dp_model.Transfer) {
+	if src, isHomo := transfer.Src.(*GpSource); isHomo {
+		d.enableGpfdist = !src.AdvancedProps.DisableGpfdist
 	}
 }
