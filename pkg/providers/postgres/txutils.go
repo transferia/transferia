@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -81,8 +80,7 @@ func BeginTxWithSnapshot(ctx context.Context, conn *pgx.Conn, options pgx.TxOpti
 	qry := fmt.Sprintf("SET TRANSACTION SNAPSHOT '%s'", snapshot)
 	if _, err := tx.Exec(ctx, qry); err != nil {
 		rollbacks.Do()
-		var pgErr *pgconn.PgError
-		if xerrors.As(err, &pgErr) && pgErr.Code == string(ErrcInvalidSnapshotIdentifier) {
+		if IsPgError(err, ErrcInvalidSnapshotIdentifier) {
 			return nil, nil, coded.Errorf(codes.PostgresInvalidSnapshot, "failed to execute %s: %w", qry, err)
 		}
 		return nil, nil, xerrors.Errorf("failed to execute %s: %w", qry, err)

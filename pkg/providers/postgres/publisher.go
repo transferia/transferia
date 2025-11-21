@@ -231,6 +231,9 @@ func newWalSource(config *PgSource, objects *model.DataObjects, transferID strin
 		if err == nil {
 			return publisher, nil
 		}
+		if abstract.IsFatal(err) {
+			return nil, xerrors.Errorf("fatal error while starting replication: %w", err)
+		}
 		if !canFallbackToPolling {
 			return nil, xerrors.Errorf("unable to use pg logical replication: %w", err)
 		}

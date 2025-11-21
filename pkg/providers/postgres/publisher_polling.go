@@ -190,6 +190,17 @@ func (p *poller) processWindow(
 	return nil
 }
 
+func (p *poller) slotInvalidation(err error) error {
+	if err == nil {
+		return nil
+	}
+	if IsPgError(err, ErrcObjectNotInPrerequisiteState) {
+		p.metrics.Fatal.Inc()
+		return abstract.NewFatalError(err)
+	}
+	return err
+}
+
 func (p *poller) CheckSlot() error {
 	if _, err := p.conn.Exec(context.TODO(), p.peekQ()); err != nil {
 		var e *pgconn.PgError
@@ -198,6 +209,11 @@ func (p *poller) CheckSlot() error {
 			if e.Code == "XX000" {
 				p.metrics.Fatal.Inc()
 				p.logger.Error("Fatal WAL inconsistency", log.Error(e))
+				return abstract.NewFatalError(err)
+			}
+			if e.Code == string(ErrcObjectNotInPrerequisiteState) {
+				p.metrics.Fatal.Inc()
+				p.logger.Error("Replication slot invalidated", log.Error(e))
 				return abstract.NewFatalError(err)
 			}
 			p.metrics.Error.Inc()
@@ -226,7 +242,7 @@ func (p *poller) commitOffset(lsn string, slotName string) error {
 		p.wal2jsonArgs.toSQLFormat(),
 	)
 	r, err := p.conn.Exec(context.TODO(), q)
-	if err != nil {
+	if err := p.slotInvalidation(err); err != nil {
 		p.logger.Warnf("Unable to commit offset Query:\n%v\nError:%v", q, err)
 		//nolint:descriptiveerrors
 		return err
@@ -316,7 +332,7 @@ func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 		p.logger.Warn("Unable to preclean slotID", log.Error(err))
 	}
 	rows, err := p.conn.Query(context.TODO(), peekQ)
-	if err != nil {
+	if err := p.slotInvalidation(err); err != nil {
 		p.logger.Error("Get WAL", log.Error(err))
 		//nolint:descriptiveerrors
 		return nil, nil, err
