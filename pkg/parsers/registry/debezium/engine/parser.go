@@ -120,11 +120,8 @@ func (p *DebeziumImpl) warmUpSRCache(batch parsers.MessageBatch) {
 	var schemaRegistryClient *confluent.SchemaRegistryClient
 	if sr, ok := p.debeziumReceiver.Unpacker.(SRClient); ok {
 		schemaRegistryClient = sr.SchemaRegistryClient()
-	} else {
-		return
+		warmup.WarmUpSRCache(p.logger, &p.schemaRegistryClientMutex, batch, schemaRegistryClient, false)
 	}
-
-	warmup.WarmUpSRCache(p.logger, &p.schemaRegistryClientMutex, batch, schemaRegistryClient, false)
 }
 
 func (p *DebeziumImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem {

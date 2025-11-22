@@ -106,8 +106,23 @@ func TestIncorrectMagicByte(t *testing.T) {
 		buf = append(buf, byte(i))
 		buf = append(buf, []byte("\u0000\u0000\u0000{}")...)
 
+		// parser.Do
+
 		result := parser.Do(makePersqueueReadMessage(0, buf), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		require.True(t, strings.HasSuffix(result[0].Table, "_unparsed"))
+
+		// parser.DoBatch
+
+		currMessageBatch := parsers.MessageBatch{
+			Topic:     "",
+			Partition: 0,
+			Messages: []parsers.Message{
+				makePersqueueReadMessage(0, buf),
+			},
+		}
+		result2 := parser.DoBatch(currMessageBatch)
+		require.Len(t, result2, 1)
+		require.True(t, strings.HasSuffix(result2[0].Table, "_unparsed"))
 	}
 }
