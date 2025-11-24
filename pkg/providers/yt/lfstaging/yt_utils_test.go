@@ -58,7 +58,7 @@ func TestListUnlockedNodes(t *testing.T) {
 	defer cancel()
 
 	config := defaultSinkConfig()
-	config.tmpPath = "//yt-utils-test/list-unlocked-nodes"
+	config.tmpPath = "//home/data-transfer/tmp"
 
 	iw, err := newIntermediateWriter(config, env.YT, env.L.Logger())
 	require.NoError(t, err, "newIntermediateWriter throws")

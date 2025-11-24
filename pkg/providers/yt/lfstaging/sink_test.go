@@ -17,5 +17,6 @@ func defaultSinkConfig() *sinkConfig {
 		ytPool:             "default",
 		aggregationPeriod:  time.Second * 10,
 		useNewMetadataFlow: false,
+		secondsPerTmpTable: 10,
 	}
 }
