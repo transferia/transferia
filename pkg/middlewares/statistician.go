@@ -78,7 +78,7 @@ func (s *statistician) monitorSuspicioslyMissingPushes() {
 		func() {
 			s.statsMtx.Lock()
 			defer s.statsMtx.Unlock()
-			s.stats.MaxLag.Set(0)
+			s.stats.ResetMaxLag()
 		}()
 	}
 }
