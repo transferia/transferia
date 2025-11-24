@@ -68,6 +68,21 @@ func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create ClickHouse sinker: %w", err)
 	}
+	dst, ok := p.transfer.Dst.(*model.ChDestination)
+	if !ok {
+		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
+	}
+	if dst.ExactlyOnce {
+		db, err := makeShardConnection(dst.ToStorageParams(), "")
+		if err != nil {
+			return nil, xerrors.Errorf("unable to init keeper db connection: %w", err)
+		}
+		keeperStore, err := NewKeeperBlockStore("exactly_once_keeper", db)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to init keeper block store: %w", err)
+		}
+		return NewExactlyOnce(s, keeperStore, log.With(p.logger, log.Any("component", "exactly_once"))), nil
+	}
 	return s, nil
 }
 

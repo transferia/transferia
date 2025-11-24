@@ -98,6 +98,8 @@ type ChDestination struct {
 	InflightBuffer     int    // deprecated: use BufferTriggingSize instead. Items' count triggering a buffer flush
 	BufferTriggingSize uint64
 	RootCACertPaths    []string
+
+	ExactlyOnce bool // experimental: enables keeper map to store offsets and keep consistence block of inserts.
 }
 
 type InsertParams struct {

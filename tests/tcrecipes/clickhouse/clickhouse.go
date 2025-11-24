@@ -213,7 +213,7 @@ func WithZookeeper(container *ZookeeperContainer) testcontainers.CustomizeReques
 		<distributed_ddl>
 			<path>/clickhouse/task_queue/ddl</path>
 		</distributed_ddl>
-
+		<keeper_map_path_prefix>/keeper_map_tables</keeper_map_path_prefix>
 		<format_schema_path>/var/lib/clickhouse/format_schemas/</format_schema_path>
 	</clickhouse>
 	`, container.IP()))
