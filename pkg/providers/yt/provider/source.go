@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/transferia/transferia/library/go/core/metrics"
@@ -32,6 +33,8 @@ type source struct {
 // To verify providers contract implementation
 var (
 	_ base.SnapshotProvider = (*source)(nil)
+
+	mainTxTimeout = yson.Duration(10 * time.Minute)
 )
 
 func NewSource(logger log.Logger, registry metrics.Registry, cfg yt2.YtSourceModel) (*source, error) {
@@ -63,7 +66,7 @@ func (s *source) Close() error {
 }
 
 func (s *source) BeginSnapshot() error {
-	tx, err := s.yt.BeginTx(context.Background(), nil)
+	tx, err := s.yt.BeginTx(context.Background(), &yt.StartTxOptions{Timeout: &mainTxTimeout})
 	if err != nil {
 		return xerrors.Errorf("error starting snapshot TX: %w", err)
 	}
