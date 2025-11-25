@@ -248,10 +248,28 @@ func TestMaxLagWithParallelSinkers(t *testing.T) {
 	require.Equal(t, expected, stored, "should store the maximum lag across all parallel sinkers")
 }
 
+func TestRegisterNonHashableRegistryPanic(t *testing.T) {
+	type NonHashableRegistry struct {
+		metrics.Registry
+		nonHashable []int
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Log("panic occurred:", r)
+			t.Fail()
+		}
+	}()
+	_ = NewWrapperStats(&NonHashableRegistry{
+		Registry:    solomon.NewRegistry(solomon.NewRegistryOpts()),
+		nonHashable: []int{1, 2, 3},
+	})
+}
+
 func resetMaxLagForTest() {
 	// Clear global state before test
 	maxLagValue.Store(0)
 	maxLagGaugeMutex.Lock()
-	maxLagGaugeRegistry = make(map[metrics.Registry]metrics.FuncGauge)
+	maxLagGaugeRegistry = make(map[uintptr]metrics.FuncGauge)
 	maxLagGaugeMutex.Unlock()
 }

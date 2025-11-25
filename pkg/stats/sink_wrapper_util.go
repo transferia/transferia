@@ -1,8 +1,10 @@
 package stats
 
 import (
+	"reflect"
 	"time"
 
+	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -48,4 +50,20 @@ func batchStats(logger log.Logger, input []abstract.ChangeItem) (oldestTime time
 		logger.Infof("%d of %d row-items have no CommitTime", itemsWithoutCommitTime, rowEvents)
 	}
 	return oldestTime, freshestTime, rowEvents, bytes
+}
+
+// getRegistryKey returns a unique key for the registry.
+// This function requires that the registry is passed as a pointer (e.g., *solomon.Registry).
+// Passing a registry by value (struct) or nil will return 0.
+func getRegistryKey(registry metrics.Registry) uintptr {
+	if registry == nil {
+		return 0
+	}
+
+	rv := reflect.ValueOf(registry)
+	if rv.Kind() == reflect.Ptr {
+		return rv.Pointer()
+	}
+
+	return 0
 }

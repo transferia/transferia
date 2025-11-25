@@ -16,8 +16,9 @@ import (
 var maxLagValue atomic.Uint64
 
 // maxLagGaugeRegistry stores registered FuncGauge instances per registry to avoid duplicate registration
+// Uses uintptr as key because metrics.Registry interface implementations may contain non-hashable fields
 var (
-	maxLagGaugeRegistry = make(map[metrics.Registry]metrics.FuncGauge)
+	maxLagGaugeRegistry = make(map[uintptr]metrics.FuncGauge)
 	maxLagGaugeMutex    sync.Mutex
 )
 
@@ -74,7 +75,11 @@ func getOrCreateMaxLagGauge(registry metrics.Registry) metrics.FuncGauge {
 	maxLagGaugeMutex.Lock()
 	defer maxLagGaugeMutex.Unlock()
 
-	if gauge, exists := maxLagGaugeRegistry[registry]; exists {
+	// Get the pointer value of the registry interface to use as a unique key
+	// This works because the same registry instance will always have the same pointer
+	registryKey := getRegistryKey(registry)
+
+	if gauge, exists := maxLagGaugeRegistry[registryKey]; exists {
 		return gauge
 	}
 
@@ -86,7 +91,7 @@ func getOrCreateMaxLagGauge(registry metrics.Registry) metrics.FuncGauge {
 		return float64(nanos) / float64(time.Second)
 	})
 
-	maxLagGaugeRegistry[registry] = gauge
+	maxLagGaugeRegistry[registryKey] = gauge
 	return gauge
 }
 
