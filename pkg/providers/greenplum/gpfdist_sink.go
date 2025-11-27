@@ -164,10 +164,6 @@ func (s *GpfdistSink) createTargetTable(ctx context.Context, ci *abstract.Change
 		return xerrors.Errorf("failed to ensure target table existence: %w", err)
 	}
 
-	if err := recreateTmpTable(ctx, ci, tx.Conn(), abstract.PgName(temporaryTable(ci.Schema, ci.Table))); err != nil {
-		return xerrors.Errorf("failed to (re)create the temporary data transfer table: %w", err)
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return xerrors.Errorf("failed to COMMIT a transaction on sink %s: %w", Coordinator(), err)
 	}
