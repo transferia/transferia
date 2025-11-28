@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/spf13/cast"
-	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/mysql/unmarshaller/types"
 	"github.com/transferia/transferia/pkg/util/castx"
@@ -85,7 +84,6 @@ func unmarshalHetero(value interface{}, colSchema *abstract.ColSchema) (any, err
 	default:
 		return nil, abstract.NewFatalError(xerrors.Errorf("unexpected target type %s (original type %q, value of type %T), unmarshalling is not implemented", colSchema.DataType, colSchema.OriginalType, value))
 	}
-	logger.Log.Debugf("parsed %[1]v [%[1]T] into %[2]v [%[2]T]; error: %[3]v", value, result, err)
 
 	if err != nil {
 		return nil, abstract.NewStrictifyError(colSchema, schema.Type(colSchema.DataType), err)
