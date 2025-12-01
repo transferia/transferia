@@ -29,7 +29,8 @@ type Storage struct {
 	config      *GpSource
 	sourceStats *stats.SourceStats
 
-	postgreses mutexedPostgreses
+	postgreses    mutexedPostgreses
+	postgresesCfg pgStorageConfig
 
 	coordinatorTx   *gpTx
 	livenessMonitor *livenessMonitor
@@ -41,10 +42,15 @@ type Storage struct {
 
 	checkConnection checkConnectionFunc
 	newFlavor       newFlavorFunc
+}
 
+type pgStorageConfig struct {
 	// disableCheckReplIdentity indicates that postgres storages should have DisableCheckReplIdentity set to same value.
 	// This is used for gpfdist transfers where replica identity checks are not needed.
-	disableCheckReplIdentity bool
+	DisableCheckReplIdentity bool
+	// disableViewsExtraction indicates that postgres storages should have DisableViewsExtraction set to same value.
+	// This is used for gpfdist transfers where views cannot be properly migrated.
+	DisableViewsExtraction bool
 }
 
 func defaultNewFlavor(in *Storage) postgres.DBFlavour {
@@ -57,6 +63,10 @@ func NewStorageImpl(config *GpSource, mRegistry metrics.Registry, checkConnectio
 		sourceStats: stats.NewSourceStats(mRegistry),
 
 		postgreses: newMutexedPostgreses(),
+		postgresesCfg: pgStorageConfig{
+			DisableCheckReplIdentity: false,
+			DisableViewsExtraction:   false,
+		},
 
 		coordinatorTx:   nil,
 		livenessMonitor: nil,
@@ -68,8 +78,6 @@ func NewStorageImpl(config *GpSource, mRegistry metrics.Registry, checkConnectio
 
 		checkConnection: checkConnection,
 		newFlavor:       newFlavor,
-
-		disableCheckReplIdentity: false,
 	}
 }
 
@@ -77,14 +85,13 @@ func NewStorage(config *GpSource, mRegistry metrics.Registry) *Storage {
 	return NewStorageImpl(config, mRegistry, checkConnection, defaultNewFlavor)
 }
 
-// setDisableReplIdentityCheck allows to disable REPLICA IDENTITY FULL checks.
-// Useful for gpfdist transfers where replica identity checks are not needed.
-func (s *Storage) setDisableReplIdentityCheck(value bool) {
+func (s *Storage) overridePostgresesCfg(cfg pgStorageConfig) {
 	s.postgreses.mutex.Lock()
 	defer s.postgreses.mutex.Unlock()
-	s.disableCheckReplIdentity = value
+	s.postgresesCfg = cfg
 	for _, pg := range s.postgreses.storages {
-		pg.DisableCheckReplIdentity = value
+		pg.DisableCheckReplIdentity = s.postgresesCfg.DisableCheckReplIdentity
+		pg.DisableViewsExtraction = s.postgresesCfg.DisableViewsExtraction
 	}
 }
 

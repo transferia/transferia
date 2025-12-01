@@ -30,7 +30,10 @@ type GpfdistStorage struct {
 
 func NewGpfdistStorage(src *GpSource, mRegistry metrics.Registry, params gpfdistbin.GpfdistParams) *GpfdistStorage {
 	baseStorage := NewStorage(src, mRegistry)
-	baseStorage.setDisableReplIdentityCheck(true)
+	baseStorage.overridePostgresesCfg(pgStorageConfig{
+		DisableCheckReplIdentity: true,
+		DisableViewsExtraction:   true,
+	})
 	return &GpfdistStorage{
 		storage: baseStorage,
 		src:     src,

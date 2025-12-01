@@ -66,6 +66,7 @@ type Storage struct {
 	ShardedStateTS           time.Time
 	sExTime                  time.Time
 	DisableCheckReplIdentity bool // Disables checks of replica identity full.
+	DisableViewsExtraction   bool // Do not transfers views if true.
 }
 
 func (s *Storage) SnapshotLSN() string {
@@ -371,7 +372,7 @@ func (s *Storage) tableListImpl(ctx context.Context, tx pgx.Tx, filter abstract.
 
 	sEx := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
@@ -717,7 +718,7 @@ func (s *Storage) LoadSchema() (abstract.DBSchema, error) {
 		defer conn.Release()
 		return NewSchemaExtractor().
 			WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-			WithExcludeViews(s.IsHomo).
+			WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 			WithForbiddenSchemas(s.ForbiddenSchemas).
 			WithForbiddenTables(s.ForbiddenTables).
 			WithFlavour(s.Flavour).
@@ -730,7 +731,7 @@ func (s *Storage) LoadSchemaForTable(ctx context.Context, conn *pgx.Conn, table 
 	tableID := table.ID()
 	schemas, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
@@ -829,7 +830,7 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 
 	schema, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
@@ -873,7 +874,7 @@ func (s *Storage) loadSampleBySet(ctx context.Context, tx pgx.Tx, startTime time
 
 	schema, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
@@ -942,7 +943,7 @@ func (s *Storage) loadTopBottomSample(ctx context.Context, tx pgx.Tx, startTime 
 
 	schema, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
@@ -1403,6 +1404,7 @@ func NewStorage(config *PgStorageParams, opts ...StorageOpt) (*Storage, error) {
 		ShardedStateTS:           time.Time{},
 		sExTime:                  time.Time{},
 		DisableCheckReplIdentity: false,
+		DisableViewsExtraction:   false,
 	}
 	return storage, nil
 }

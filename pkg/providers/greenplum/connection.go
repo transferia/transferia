@@ -82,7 +82,8 @@ func openPGStorage(config *postgres.PgStorageParams) (*postgres.Storage, error) 
 func (s *Storage) configurePGStorageForGreenplum(storage *postgres.Storage) {
 	storage.ForbiddenSchemas = append(storage.ForbiddenSchemas, "gp_toolkit", "mdb_toolkit")
 	storage.Flavour = s.newFlavor(s)
-	storage.DisableCheckReplIdentity = s.disableCheckReplIdentity
+	storage.DisableCheckReplIdentity = s.postgresesCfg.DisableCheckReplIdentity
+	storage.DisableViewsExtraction = s.postgresesCfg.DisableViewsExtraction
 }
 
 func (s *Storage) getPgStorageParams(role GPRole) *postgres.PgStorageParams {
