@@ -70,7 +70,6 @@ func (s *TPPSetterAsync) AsyncLoadPartsIfNeeded(
 		storage,
 		tables,
 		s.sharedMemory,
-		transferID,
 		operationID,
 	)
 	if err != nil {

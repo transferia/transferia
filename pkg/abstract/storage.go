@@ -403,7 +403,7 @@ type NextArrTableDescriptionGetter interface {
 // key IsAsyncPartsUploadedStateKey, which is used by control code and should be not changed by storage.
 type NextArrTableDescriptionGetterBuilder interface {
 	ShardingContextStorage
-	BuildNextArrTableDescriptionGetter(operationID string, tables []TableDescription) (NextArrTableDescriptionGetter, error)
+	BuildNextArrTableDescriptionGetter(tables []TableDescription) (NextArrTableDescriptionGetter, error)
 }
 
 // This is special workaround for partitioned_tables in postgres
