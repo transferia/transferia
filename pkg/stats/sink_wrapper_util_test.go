@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/library/go/core/metrics"
-	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
@@ -40,29 +38,5 @@ func TestBatchStats(t *testing.T) {
 		require.True(t, freshestDiff < time.Second)
 		require.Equal(t, int64(0), rowEvents)
 		require.Equal(t, uint64(0x0), bytes)
-	})
-}
-
-func TestGetRegistryKey(t *testing.T) {
-	t.Run("nil registry", func(t *testing.T) {
-		registryKey := getRegistryKey(nil)
-		require.Equal(t, uintptr(0), registryKey)
-	})
-
-	t.Run("non-pointer registry", func(t *testing.T) {
-		notHashableRegistry := struct {
-			metrics.Registry
-		}{}
-		registryKey := getRegistryKey(notHashableRegistry)
-		require.Equal(t, uintptr(0), registryKey)
-	})
-
-	t.Run("pointer registry", func(t *testing.T) {
-		registry := solomon.NewRegistry(solomon.NewRegistryOpts())
-		registryKey := getRegistryKey(registry)
-		require.NotEqual(t, uintptr(0), registryKey)
-
-		otherRegistryKey := getRegistryKey(registry)
-		require.Equal(t, registryKey, otherRegistryKey)
 	})
 }

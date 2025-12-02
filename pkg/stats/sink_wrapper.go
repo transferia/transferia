@@ -2,8 +2,6 @@ package stats
 
 import (
 	"fmt"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -12,20 +10,10 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-// if we have parallel sinkers, we need to use global atomic.Uint64 to store the max lag by all sinkers
-var maxLagValue atomic.Uint64
-
-// maxLagGaugeRegistry stores registered FuncGauge instances per registry to avoid duplicate registration
-// Uses uintptr as key because metrics.Registry interface implementations may contain non-hashable fields
-var (
-	maxLagGaugeRegistry = make(map[uintptr]metrics.FuncGauge)
-	maxLagGaugeMutex    sync.Mutex
-)
-
 type WrapperStats struct {
 	registry          metrics.Registry
 	Lag               metrics.Timer
-	MaxLag            metrics.FuncGauge
+	MaxLag            metrics.Gauge
 	Timer             metrics.Timer
 	RowEventsPushed   metrics.Counter
 	ChangeItemsPushed metrics.Counter
@@ -54,72 +42,21 @@ var sinkerBuckets = metrics.NewDurationBuckets(
 )
 
 func NewWrapperStats(registry metrics.Registry) *WrapperStats {
-	// Get or create FuncGauge for this registry to avoid duplicate registration
-	maxLagGauge := getOrCreateMaxLagGauge(registry)
-
-	ws := &WrapperStats{
+	return &WrapperStats{
 		registry:          registry,
 		Lag:               registry.DurationHistogram("sinker.pusher.time.row_lag_sec", sinkerBuckets),
-		MaxLag:            maxLagGauge,
+		MaxLag:            registry.Gauge("sinker.pusher.time.row_max_lag_sec"),
 		MaxReadLag:        registry.Gauge("sinker.pusher.time.row_max_read_lag_sec"),
 		Timer:             registry.DurationHistogram("sinker.pusher.time.batch_push_distribution_sec", sinkerBuckets),
 		RowEventsPushed:   registry.Counter("sinker.pusher.data.row_events_pushed"),
 		ChangeItemsPushed: registry.Counter("sinker.pusher.data.changeitems"),
 	}
-	return ws
-}
-
-// getOrCreateMaxLagGauge returns existing FuncGauge for the registry or creates a new one
-// This prevents "duplicate metrics collector registration" panic when multiple sinks are created
-func getOrCreateMaxLagGauge(registry metrics.Registry) metrics.FuncGauge {
-	maxLagGaugeMutex.Lock()
-	defer maxLagGaugeMutex.Unlock()
-
-	// Get the pointer value of the registry interface to use as a unique key
-	// This works because the same registry instance will always have the same pointer
-	registryKey := getRegistryKey(registry)
-
-	if gauge, exists := maxLagGaugeRegistry[registryKey]; exists {
-		return gauge
-	}
-
-	gauge := registry.FuncGauge("sinker.pusher.time.row_max_lag_sec", func() float64 {
-		nanos := maxLagValue.Swap(0)
-		if nanos == 0 {
-			return 0
-		}
-		return float64(nanos) / float64(time.Second)
-	})
-
-	maxLagGaugeRegistry[registryKey] = gauge
-	return gauge
 }
 
 func (s *WrapperStats) LogMaxReadLag(logger log.Logger, input []abstract.ChangeItem) {
 	oldestRow, _, _, _ := batchStats(logger, input)
 	if !oldestRow.IsZero() {
 		s.MaxReadLag.Set(time.Since(oldestRow).Seconds())
-	}
-}
-
-func (s *WrapperStats) ResetMaxLag() {
-	maxLagValue.Store(0)
-}
-
-func (s *WrapperStats) storeMaxLag(maxLag time.Duration) {
-	if maxLag == 0 {
-		return
-	}
-
-	for {
-		current := maxLagValue.Load()
-		newValue := uint64(maxLag.Nanoseconds())
-		if newValue <= current {
-			break
-		}
-		if maxLagValue.CompareAndSwap(current, newValue) {
-			break
-		}
 	}
 }
 
@@ -133,8 +70,10 @@ func (s *WrapperStats) Log(logger log.Logger, startTime time.Time, input []abstr
 	s.ChangeItemsPushed.Add(int64(len(input)))
 	s.RowEventsPushed.Add(dataRowEvents)
 	if !oldestRow.IsZero() {
-		inputMaxLag := time.Since(oldestRow) // max lag for the input batch
-		s.storeMaxLag(inputMaxLag)
+		maxLag := time.Since(oldestRow)
+		if maxLag.Seconds() > 0 {
+			s.MaxLag.Set(maxLag.Seconds())
+		}
 	}
 	s.Timer.RecordDuration(time.Since(startTime))
 	logLine := fmt.Sprintf("Sink Committed %v row events (%v data row events, inflight: %s) in %v with %v - %v Lag. Catch up lag: %v in %v",

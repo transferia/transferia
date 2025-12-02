@@ -2227,7 +2227,6 @@
   "pkg/stats/repository.go":"transfer_manager/go/pkg/stats/repository.go",
   "pkg/stats/server.go":"transfer_manager/go/pkg/stats/server.go",
   "pkg/stats/sink_wrapper.go":"transfer_manager/go/pkg/stats/sink_wrapper.go",
-  "pkg/stats/sink_wrapper_test.go":"transfer_manager/go/pkg/stats/sink_wrapper_test.go",
   "pkg/stats/sink_wrapper_util.go":"transfer_manager/go/pkg/stats/sink_wrapper_util.go",
   "pkg/stats/sink_wrapper_util_test.go":"transfer_manager/go/pkg/stats/sink_wrapper_util_test.go",
   "pkg/stats/sinker.go":"transfer_manager/go/pkg/stats/sinker.go",
