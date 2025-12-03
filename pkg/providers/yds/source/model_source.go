@@ -1,44 +1,50 @@
 package source
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	ydstype "github.com/transferia/transferia/pkg/providers/yds/type"
+	"go.uber.org/zap/zapcore"
 )
 
 type YDSSource struct {
-	Endpoint         string
-	Database         string
-	Stream           string
-	Consumer         string
-	S3BackupBucket   string `model:"ObjectStorageBackupBucket"`
-	Port             int
-	BackupMode       model.BackupMode
-	Transformer      *model.DataTransformOptions
-	SubNetworkID     string
-	SecurityGroupIDs []string
-	SupportedCodecs  []YdsCompressionCodec // TODO: Replace with pq codecs?
-	AllowTTLRewind   bool
+	Endpoint         string                      `log:"true"`
+	Database         string                      `log:"true"`
+	Stream           string                      `log:"true"`
+	Consumer         string                      `log:"true"`
+	S3BackupBucket   string                      `model:"ObjectStorageBackupBucket" log:"true"`
+	Port             int                         `log:"true"`
+	BackupMode       model.BackupMode            `log:"true"`
+	Transformer      *model.DataTransformOptions `log:"true"`
+	SubNetworkID     string                      `log:"true"`
+	SecurityGroupIDs []string                    `log:"true"`
+	SupportedCodecs  []YdsCompressionCodec       `log:"true"` // TODO: Replace with pq codecs?
+	AllowTTLRewind   bool                        `log:"true"`
 
-	IsLbSink bool // it's like IsHomo
+	IsLbSink bool `log:"true"` // it's like IsHomo
 
-	TLSEnalbed  bool
+	TLSEnalbed  bool `log:"true"`
 	RootCAFiles []string
 
-	ParserConfig map[string]interface{}
-	Underlay     bool
+	ParserConfig map[string]interface{} `log:"true"`
+	Underlay     bool                   `log:"true"`
 
 	// Auth properties
 	Credentials           ydb.TokenCredentials
-	ServiceAccountID      string `model:"ServiceAccountId"`
+	ServiceAccountID      string `model:"ServiceAccountId" log:"true"`
 	SAKeyContent          string
-	TokenServiceURL       string
+	TokenServiceURL       string `log:"true"`
 	Token                 model.SecretString
-	UserdataAuth          bool
-	ParseQueueParallelism int
+	UserdataAuth          bool `log:"true"`
+	ParseQueueParallelism int  `log:"true"`
+}
+
+func (s *YDSSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *YDSSource) IsUnderlayOnlyEndpoint() {}

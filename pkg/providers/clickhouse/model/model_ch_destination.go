@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	chConn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -37,21 +38,21 @@ var (
 // ChDestination - see description of fields in sink_params.go
 type ChDestination struct {
 	// ChSinkServerParams
-	MdbClusterID  string `json:"Cluster"`
-	ChClusterName string // Name of the ClickHouse cluster to which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
-	User          string
+	MdbClusterID  string `json:"Cluster" log:"true"`
+	ChClusterName string `log:"true"` // Name of the ClickHouse cluster to which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
+	User          string `log:"true"`
 	Password      model.SecretString
-	Database      string
-	Partition     string
-	SSLEnabled    bool
-	HTTPPort      int
-	NativePort    int
-	TTL           string
-	InferSchema   bool
+	Database      string `log:"true"`
+	Partition     string `log:"true"`
+	SSLEnabled    bool   `log:"true"`
+	HTTPPort      int    `log:"true"`
+	NativePort    int    `log:"true"`
+	TTL           string `log:"true"`
+	InferSchema   bool   `log:"true"`
 	// MigrationOptions deprecated
-	MigrationOptions          *ChSinkMigrationOptions
-	ConnectionID              string
-	IsSchemaMigrationDisabled bool
+	MigrationOptions          *ChSinkMigrationOptions `log:"true"`
+	ConnectionID              string                  `log:"true"`
+	IsSchemaMigrationDisabled bool                    `log:"true"`
 	// ForceJSONMode forces JSON protocol at sink:
 	// - allows upload records without 'required'-fields, clickhouse fills them via defaults.
 	//         BUT IF THEY ARE 'REQUIRED' - WHAT THE POINT?
@@ -63,40 +64,40 @@ type ChDestination struct {
 	//
 	// JSON protocol implementation currently only supports InsertKind items.
 	// This option used to be public.
-	ForceJSONMode           bool `json:"ForceHTTP"`
-	ProtocolUnspecified     bool // Denotes that the original proto configuration does not specify the protocol
-	AnyAsString             bool
-	SystemColumnsFirst      bool
-	IsUpdateable            bool
-	UpsertAbsentToastedRows bool
+	ForceJSONMode           bool `json:"ForceHTTP" log:"true"`
+	ProtocolUnspecified     bool `log:"true"` // Denotes that the original proto configuration does not specify the protocol
+	AnyAsString             bool `log:"true"`
+	SystemColumnsFirst      bool `log:"true"`
+	IsUpdateable            bool `log:"true"`
+	UpsertAbsentToastedRows bool `log:"true"`
 
 	// Insert settings
-	InsertParams InsertParams
+	InsertParams InsertParams `log:"true"`
 
 	// AltHosts
-	Hosts []string
+	Hosts []string `log:"true"`
 
 	// ChSinkShardParams
-	UseSchemaInTableName bool
-	ShardCol             string
-	Interval             time.Duration
-	AltNamesList         []model.AltName
+	UseSchemaInTableName bool            `log:"true"`
+	ShardCol             string          `log:"true"`
+	Interval             time.Duration   `log:"true"`
+	AltNamesList         []model.AltName `log:"true"`
 
 	// ChSinkParams
-	ShardByTransferID          bool
-	ShardByRoundRobin          bool
-	Rotation                   *model.RotatorConfig
-	ShardsList                 []ClickHouseShard
-	ColumnValueToShardNameList []ClickHouseColumnValueToShardName
+	ShardByTransferID          bool                               `log:"true"`
+	ShardByRoundRobin          bool                               `log:"true"`
+	Rotation                   *model.RotatorConfig               `log:"true"`
+	ShardsList                 []ClickHouseShard                  `log:"true"`
+	ColumnValueToShardNameList []ClickHouseColumnValueToShardName `log:"true"`
 
 	// fields used only in wrapper-over-sink
-	TransformerConfig  map[string]string
-	SubNetworkID       string
-	SecurityGroupIDs   []string
-	Cleanup            model.CleanupType
-	PemFileContent     string // timmyb32r: this field is not used in sinker! It seems we are not able to transfer into on-premise ch with cert
-	InflightBuffer     int    // deprecated: use BufferTriggingSize instead. Items' count triggering a buffer flush
-	BufferTriggingSize uint64
+	TransformerConfig  map[string]string `log:"true"`
+	SubNetworkID       string            `log:"true"`
+	SecurityGroupIDs   []string          `log:"true"`
+	Cleanup            model.CleanupType `log:"true"`
+	PemFileContent     string            // timmyb32r: this field is not used in sinker! It seems we are not able to transfer into on-premise ch with cert
+	InflightBuffer     int               `log:"true"` // deprecated: use BufferTriggingSize instead. Items' count triggering a buffer flush
+	BufferTriggingSize uint64            `log:"true"`
 	RootCACertPaths    []string
 }
 
@@ -121,6 +122,10 @@ func (p InsertParams) ToQueryOption() clickhouse.QueryOption {
 		settings["materialized_views_ignore_errors"] = "1"
 	}
 	return clickhouse.WithSettings(settings)
+}
+
+func (d *ChDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
 }
 
 func (d *ChDestination) IsAlterable() {}

@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/exp/maps"
@@ -23,19 +25,23 @@ func proxy(clusterID string) string {
 }
 
 type YTSaurusStaticDestination struct {
-	TablePath             string
-	TableOptimizeFor      string
-	UserPool              string // pool for running merge and sort operations for static tables
-	DoDiscardBigValues    bool
-	TableCustomAttributes map[string]string
-	Cleanup               dp_model.CleanupType
-	Connection            ConnectionData
-	IsSortedStatic        bool // true, if we need to sort static tables
+	TablePath             string               `log:"true"`
+	TableOptimizeFor      string               `log:"true"`
+	UserPool              string               `log:"true"` // pool for running merge and sort operations for static tables
+	DoDiscardBigValues    bool                 `log:"true"`
+	TableCustomAttributes map[string]string    `log:"true"`
+	Cleanup               dp_model.CleanupType `log:"true"`
+	Connection            ConnectionData       `log:"true"`
+	IsSortedStatic        bool                 `log:"true"` // true, if we need to sort static tables
 }
 
 var (
 	_ dp_model.Destination = (*YTSaurusStaticDestination)(nil)
 )
+
+func (d *YTSaurusStaticDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 // TODO: Remove in march
 func (d *YTSaurusStaticDestination) DisableDatetimeHack() bool {

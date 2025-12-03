@@ -22,14 +22,14 @@ func init() {
 
 	model.RegisterDestination(ProviderType, destinationModelFactory)
 
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(ElasticSearchSource)
 	})
 
 	providers.Register(ProviderType, New)
 }
 
-func destinationModelFactory() model.Destination {
+func destinationModelFactory() model.LoggableDestination {
 	return new(ElasticSearchDestination)
 }
 

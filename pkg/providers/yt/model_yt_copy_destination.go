@@ -1,25 +1,31 @@
 package yt
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
 type YtCopyDestination struct {
-	Cluster            string
+	Cluster            string `log:"true"`
 	YtToken            string
-	Prefix             string
-	Parallelism        uint64
-	Pool               string
-	UsePushTransaction bool
-	ResourceLimits     *spec.ResourceLimits
-	Cleanup            model.CleanupType
+	Prefix             string               `log:"true"`
+	Parallelism        uint64               `log:"true"`
+	Pool               string               `log:"true"`
+	UsePushTransaction bool                 `log:"true"`
+	ResourceLimits     *spec.ResourceLimits `log:"true"`
+	Cleanup            model.CleanupType    `log:"true"`
 }
 
 var _ model.Destination = (*YtCopyDestination)(nil)
+
+func (y *YtCopyDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(y, enc)
+}
 
 func (y *YtCopyDestination) IsDestination() {}
 

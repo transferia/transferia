@@ -3,7 +3,9 @@ package model
 import (
 	"encoding/json"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
+	"go.uber.org/zap/zapcore"
 )
 
 type MockDestination struct {
@@ -12,6 +14,12 @@ type MockDestination struct {
 }
 
 var _ Destination = (*MockDestination)(nil)
+
+func (d *MockDestination) SafeToLog() {}
+
+func (d *MockDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *MockDestination) MarshalJSON() ([]byte, error) { // custom JSON serializer - to be able to marshal MockDestination (default isn't working bcs of SinkerFactory)
 	return json.Marshal(&struct {

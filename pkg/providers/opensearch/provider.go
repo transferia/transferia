@@ -22,14 +22,14 @@ func init() {
 	abstract.RegisterProviderName(ProviderType, "OpenSearch")
 
 	model.RegisterDestination(ProviderType, destinationModelFactory)
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(OpenSearchSource)
 	})
 
 	providers.Register(ProviderType, New)
 }
 
-func destinationModelFactory() model.Destination {
+func destinationModelFactory() model.LoggableDestination {
 	return new(OpenSearchDestination)
 }
 

@@ -5,9 +5,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -37,25 +39,29 @@ var (
 )
 
 type ChSource struct {
-	MdbClusterID     string `json:"ClusterID"`
-	ChClusterName    string // Name of the ClickHouse cluster from which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
-	ShardsList       []ClickHouseShard
-	HTTPPort         int
-	NativePort       int
-	User             string
+	MdbClusterID     string            `json:"ClusterID" log:"true"`
+	ChClusterName    string            `log:"true"` // Name of the ClickHouse cluster from which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
+	ShardsList       []ClickHouseShard `log:"true"`
+	HTTPPort         int               `log:"true"`
+	NativePort       int               `log:"true"`
+	User             string            `log:"true"`
 	Password         model.SecretString
-	SSLEnabled       bool
+	SSLEnabled       bool `log:"true"`
 	PemFileContent   string
-	Database         string
-	SubNetworkID     string
-	SecurityGroupIDs []string
-	IncludeTables    []string
-	ExcludeTables    []string
-	IsHomo           bool
-	BufferSize       uint64
-	IOHomoFormat     ClickhouseIOFormat // one of - https://clickhouse.com/docs/en/interfaces/formats
+	Database         string             `log:"true"`
+	SubNetworkID     string             `log:"true"`
+	SecurityGroupIDs []string           `log:"true"`
+	IncludeTables    []string           `log:"true"`
+	ExcludeTables    []string           `log:"true"`
+	IsHomo           bool               `log:"true"`
+	BufferSize       uint64             `log:"true"`
+	IOHomoFormat     ClickhouseIOFormat `log:"true"` // one of - https://clickhouse.com/docs/en/interfaces/formats
 	RootCACertPaths  []string
-	ConnectionID     string
+	ConnectionID     string `log:"true"`
+}
+
+func (s *ChSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *ChSource) Describe() model.Doc {

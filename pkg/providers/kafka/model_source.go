@@ -4,35 +4,37 @@ import (
 	"context"
 	"net"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
 	"github.com/transferia/transferia/pkg/parsers"
+	"go.uber.org/zap/zapcore"
 )
 
 const DefaultAuth = "admin"
 
 type KafkaSource struct {
-	Connection  *KafkaConnectionOptions
-	Auth        *KafkaAuth
-	Topic       string
-	GroupTopics []string
-	Transformer *model.DataTransformOptions
+	Connection  *KafkaConnectionOptions     `log:"true"`
+	Auth        *KafkaAuth                  `log:"true"`
+	Topic       string                      `log:"true"`
+	GroupTopics []string                    `log:"true"`
+	Transformer *model.DataTransformOptions `log:"true"`
 
 	// DialFunc can be used to intercept connections made by driver and replace hosts if needed,
 	// for instance, in cloud-specific network topology
 	DialFunc func(ctx context.Context, network string, address string) (net.Conn, error) `json:"-"`
 
-	BufferSize model.BytesSize // it's not some real buffer size - see comments to waitLimits() method in kafka-source
+	BufferSize model.BytesSize `log:"true"` // it's not some real buffer size - see comments to waitLimits() method in kafka-source
 
-	SecurityGroupIDs []string
+	SecurityGroupIDs []string `log:"true"`
 
-	ParserConfig        map[string]interface{}
-	SynchronizeIsNeeded bool // true, if we need to send synchronize events on releasing partitions
+	ParserConfig        map[string]interface{} `log:"true"`
+	SynchronizeIsNeeded bool                   `log:"true"` // true, if we need to send synchronize events on releasing partitions
 
-	OffsetPolicy          OffsetPolicy // specify from what topic part start message consumption
-	ParseQueueParallelism int
+	OffsetPolicy          OffsetPolicy `log:"true"` // specify from what topic part start message consumption
+	ParseQueueParallelism int          `log:"true"`
 }
 
 type OffsetPolicy string
@@ -45,6 +47,10 @@ const (
 
 var _ model.Source = (*KafkaSource)(nil)
 var _ model.WithConnectionID = (*KafkaSource)(nil)
+
+func (s *KafkaSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *KafkaSource) MDBClusterID() string {
 	if s.Connection != nil {

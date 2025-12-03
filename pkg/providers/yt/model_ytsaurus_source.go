@@ -2,20 +2,26 @@ package yt
 
 import (
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
 type YTSaurusSource struct {
-	Paths []string
+	Paths []string `log:"true"`
 
-	DesiredPartSizeBytes int64
-	Connection           ConnectionData
+	DesiredPartSizeBytes int64          `log:"true"`
+	Connection           ConnectionData `log:"true"`
 }
 
 var _ model.Source = (*YTSaurusSource)(nil)
+
+func (s *YTSaurusSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *YTSaurusSource) IsSource()       {}
 func (s *YTSaurusSource) IsStrictSource() {}

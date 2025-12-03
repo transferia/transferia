@@ -3,10 +3,12 @@ package eventhub
 import (
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -17,16 +19,16 @@ const (
 var _ model.Source = (*EventHubSource)(nil)
 
 type EventHubSource struct {
-	NamespaceName     string
-	HubName           string
-	ConsumerGroup     string
-	Topic             string
-	StartingOffset    string
-	StartingTimeStamp *time.Time
+	NamespaceName     string     `log:"true"`
+	HubName           string     `log:"true"`
+	ConsumerGroup     string     `log:"true"`
+	Topic             string     `log:"true"`
+	StartingOffset    string     `log:"true"`
+	StartingTimeStamp *time.Time `log:"true"`
 	Auth              *EventHubAuth
-	Transformer       *model.DataTransformOptions
+	Transformer       *model.DataTransformOptions `log:"true"`
 
-	ParserConfig map[string]interface{}
+	ParserConfig map[string]interface{} `log:"true"`
 }
 
 var _ model.Source = (*EventHubSource)(nil)
@@ -34,6 +36,10 @@ var _ model.Source = (*EventHubSource)(nil)
 type EventHubAuth struct {
 	Method, KeyName string
 	KeyValue        model.SecretString
+}
+
+func (s *EventHubSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *EventHubSource) WithDefaults() {

@@ -22,10 +22,10 @@ func init() {
 	gobwrapper.RegisterName("*server.LfSource", new(LfSource))
 	gobwrapper.RegisterName("*server.LbSource", new(LbSource))
 	gobwrapper.RegisterName("*server.LbDestination", new(LbDestination))
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(LbSource)
 	})
-	model.RegisterSource(ProviderWithParserType, func() model.Source {
+	model.RegisterSource(ProviderWithParserType, func() model.LoggableSource {
 		return new(LfSource)
 	})
 	model.RegisterDestination(ProviderType, newDestinationModel)
@@ -35,7 +35,7 @@ func init() {
 	providers.Register(ProviderWithParserType, New(ProviderWithParserType))
 }
 
-func newDestinationModel() model.Destination {
+func newDestinationModel() model.LoggableDestination {
 	return new(LbDestination)
 }
 

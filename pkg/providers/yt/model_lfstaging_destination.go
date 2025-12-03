@@ -3,29 +3,35 @@ package yt
 import (
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 var _ model.Destination = (*LfStagingDestination)(nil)
 
 type LfStagingDestination struct {
-	Cluster           string
-	Topic             string
-	YtAccount         string
-	LogfellerHomePath string
-	TmpBasePath       string
+	Cluster           string `log:"true"`
+	Topic             string `log:"true"`
+	YtAccount         string `log:"true"`
+	LogfellerHomePath string `log:"true"`
+	TmpBasePath       string `log:"true"`
 
-	AggregationPeriod time.Duration
+	AggregationPeriod time.Duration `log:"true"`
 
-	SecondsPerTmpTable int64
-	BytesPerTmpTable   int64
+	SecondsPerTmpTable int64 `log:"true"`
+	BytesPerTmpTable   int64 `log:"true"`
 
 	YtToken string
 
-	UsePersistentIntermediateTables bool
-	UseNewMetadataFlow              bool
-	MergeYtPool                     string
+	UsePersistentIntermediateTables bool   `log:"true"`
+	UseNewMetadataFlow              bool   `log:"true"`
+	MergeYtPool                     string `log:"true"`
+}
+
+func (d *LfStagingDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
 }
 
 func (d *LfStagingDestination) CleanupMode() model.CleanupType {

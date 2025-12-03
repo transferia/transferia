@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -13,31 +14,32 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+	"go.uber.org/zap/zapcore"
 )
 
 type LbDestination struct {
-	Instance string
-	Database string
+	Instance string `log:"true"`
+	Database string `log:"true"`
 
 	Token             string
-	Shard             string
-	TLS               TLSMode
-	TransformerConfig map[string]string
-	Cleanup           model.CleanupType
-	MaxChunkSize      uint // Deprecated, can be deleted, but I'm scared by the GOB
-	WriteTimeoutSec   int  // Deprecated
+	Shard             string            `log:"true"`
+	TLS               TLSMode           `log:"true"`
+	TransformerConfig map[string]string `log:"true"`
+	Cleanup           model.CleanupType `log:"true"`
+	MaxChunkSize      uint              `log:"true"` // Deprecated, can be deleted, but I'm scared by the GOB
+	WriteTimeoutSec   int               `log:"true"` // Deprecated
 	Credentials       ydb.TokenCredentials
-	Port              int
-	CompressionCodec  CompressionCodec
+	Port              int              `log:"true"`
+	CompressionCodec  CompressionCodec `log:"true"`
 
-	Topic       string // full-name version
-	TopicPrefix string
+	Topic       string `log:"true"` // full-name version
+	TopicPrefix string `log:"true"`
 
-	AddSystemTables bool // private options - to not skip consumer_keeper & other system tables
-	SaveTxOrder     bool
+	AddSystemTables bool `log:"true"` // private options - to not skip consumer_keeper & other system tables
+	SaveTxOrder     bool `log:"true"`
 
 	// for now, 'FormatSettings' is private option - it's WithDefaults(): SerializationFormatAuto - 'Mirror' for queues, 'Debezium' for the rest
-	FormatSettings model.SerializationFormat
+	FormatSettings model.SerializationFormat `log:"true"`
 
 	RootCAFiles []string
 }
@@ -70,6 +72,10 @@ func (e CompressionCodec) ToTopicTypesCodec() topictypes.Codec {
 	default:
 		return topictypes.CodecRaw
 	}
+}
+
+func (d *LbDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
 }
 
 func (d *LbDestination) IsEmpty() bool {

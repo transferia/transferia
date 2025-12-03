@@ -7,22 +7,22 @@ import (
 )
 
 func init() {
-	destinationFactory := func() model.Destination {
+	destinationFactory := func() model.LoggableDestination {
 		return &YtDestinationWrapper{
 			Model:    new(YtDestination),
 			_pushWal: false,
 		}
 	}
-	destinationCopyFactory := func() model.Destination {
+	destinationCopyFactory := func() model.LoggableDestination {
 		return new(YtCopyDestination)
 	}
-	destinationManagedDynamicFactory := func() model.Destination {
+	destinationManagedDynamicFactory := func() model.LoggableDestination {
 		return new(YTSaurusDynamicDestination)
 	}
-	destinationManagedStaticFactory := func() model.Destination {
+	destinationManagedStaticFactory := func() model.LoggableDestination {
 		return new(YTSaurusStaticDestination)
 	}
-	stagingFactory := func() model.Destination {
+	stagingFactory := func() model.LoggableDestination {
 		return new(LfStagingDestination)
 	}
 
@@ -40,10 +40,10 @@ func init() {
 	model.RegisterDestination(ProviderType, destinationFactory)
 	model.RegisterDestination(StagingType, stagingFactory)
 	model.RegisterDestination(CopyType, destinationCopyFactory)
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(YtSource)
 	})
-	model.RegisterSource(ManagedProviderType, func() model.Source {
+	model.RegisterSource(ManagedProviderType, func() model.LoggableSource {
 		return new(YTSaurusSource)
 	})
 

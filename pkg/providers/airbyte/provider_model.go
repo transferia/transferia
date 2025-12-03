@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/runtime/shared/pod"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -25,7 +27,7 @@ func init() {
 	gobwrapper.RegisterName("*server.JSONSchema", new(JSONSchema))
 	gobwrapper.RegisterName("*server.JSONProperty", new(JSONProperty))
 	gobwrapper.RegisterName("*server.StringOrArray", new(StringOrArray))
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(AirbyteSource)
 	})
 	abstract.RegisterProviderName(ProviderType, "Airbyte")
@@ -33,13 +35,13 @@ func init() {
 
 type AirbyteSource struct {
 	Config         string
-	BaseDir        string
+	BaseDir        string `log:"true"`
 	ProtoConfig    string
-	BatchSizeLimit model.BytesSize
-	RecordsLimit   int
-	EndpointType   EndpointType
-	MaxRowSize     int
-	Image          string
+	BatchSizeLimit model.BytesSize `log:"true"`
+	RecordsLimit   int             `log:"true"`
+	EndpointType   EndpointType    `log:"true"`
+	MaxRowSize     int             `log:"true"`
+	Image          string          `log:"true"`
 }
 
 var _ model.Source = (*AirbyteSource)(nil)
@@ -152,6 +154,10 @@ type JSONProperty struct {
 	Type        []string `json:"type"`
 	Format      string   `json:"format"`
 	AirbyteType string   `json:"airbyte_type"`
+}
+
+func (s *AirbyteSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *AirbyteSource) WithDefaults() {

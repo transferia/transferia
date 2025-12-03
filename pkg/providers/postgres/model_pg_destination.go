@@ -3,43 +3,45 @@ package postgres
 import (
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/postgres/utils"
+	"go.uber.org/zap/zapcore"
 )
 
 type PgDestination struct {
 	// oneof
-	ClusterID string `json:"Cluster"`
-	Host      string // legacy field for back compatibility; for now, we are using only 'Hosts' field
-	Hosts     []string
+	ClusterID string   `json:"Cluster" log:"true"`
+	Host      string   `log:"true"` // legacy field for back compatibility; for now, we are using only 'Hosts' field
+	Hosts     []string `log:"true"`
 
-	Database                  string `json:"Name"`
-	User                      string
+	Database                  string `json:"Name" log:"true"`
+	User                      string `log:"true"`
 	Password                  dp_model.SecretString
-	Port                      int
+	Port                      int `log:"true"`
 	TLSFile                   string
-	EnableTLS                 bool
-	MaintainTables            bool
-	IsSchemaMigrationDisabled bool
-	AllowDuplicates           bool
-	LoozeMode                 bool
-	IgnoreUniqueConstraint    bool
-	Tables                    map[string]string
-	TransformerConfig         map[string]string
-	SubNetworkID              string
-	SecurityGroupIDs          []string
-	CopyUpload                bool // THIS IS NOT PARAMETER. If you set it on endpoint into true/false - nothing happened. It's workaround, this flag is set by common code (Activate/UploadTable) automatically. You have not options to turn-off CopyUpload behaviour.
-	PerTransactionPush        bool
-	Cleanup                   dp_model.CleanupType
-	BatchSize                 int // deprecated: use BufferTriggingSize instead
-	BufferTriggingSize        uint64
-	BufferTriggingInterval    time.Duration
-	QueryTimeout              time.Duration
-	DisableSQLFallback        bool
-	ConnectionID              string
+	EnableTLS                 bool                 `log:"true"`
+	MaintainTables            bool                 `log:"true"`
+	IsSchemaMigrationDisabled bool                 `log:"true"`
+	AllowDuplicates           bool                 `log:"true"`
+	LoozeMode                 bool                 `log:"true"`
+	IgnoreUniqueConstraint    bool                 `log:"true"`
+	Tables                    map[string]string    `log:"true"`
+	TransformerConfig         map[string]string    `log:"true"`
+	SubNetworkID              string               `log:"true"`
+	SecurityGroupIDs          []string             `log:"true"`
+	CopyUpload                bool                 `log:"true"` // THIS IS NOT PARAMETER. If you set it on endpoint into true/false - nothing happened. It's workaround, this flag is set by common code (Activate/UploadTable) automatically. You have not options to turn-off CopyUpload behaviour.
+	PerTransactionPush        bool                 `log:"true"`
+	Cleanup                   dp_model.CleanupType `log:"true"`
+	BatchSize                 int                  `log:"true"` // deprecated: use BufferTriggingSize instead
+	BufferTriggingSize        uint64               `log:"true"`
+	BufferTriggingInterval    time.Duration        `log:"true"`
+	QueryTimeout              time.Duration        `log:"true"`
+	DisableSQLFallback        bool                 `log:"true"`
+	ConnectionID              string               `log:"true"`
 }
 
 var (
@@ -49,6 +51,10 @@ var (
 )
 
 const PGDefaultQueryTimeout time.Duration = 30 * time.Minute
+
+func (d *PgDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *PgDestination) MDBClusterID() string {
 	return d.ClusterID

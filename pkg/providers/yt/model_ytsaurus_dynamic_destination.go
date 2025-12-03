@@ -3,36 +3,42 @@ package yt
 import (
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/exp/maps"
 )
 
 type YTSaurusDynamicDestination struct {
-	TablePath                      string
-	TableTTL                       int64 // it's in milliseconds
-	TableOptimizeFor               string
-	IsTableSchemaMigrationDisabled bool
-	TablePrimaryMedium             string
-	UserPool                       string // pool for running merge and sort operations for static tables
-	AtomicityFull                  bool   // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
-	DoDiscardBigValues             bool
+	TablePath                      string `log:"true"`
+	TableTTL                       int64  `log:"true"` // it's in milliseconds
+	TableOptimizeFor               string `log:"true"`
+	IsTableSchemaMigrationDisabled bool   `log:"true"`
+	TablePrimaryMedium             string `log:"true"`
+	UserPool                       string `log:"true"` // pool for running merge and sort operations for static tables
+	AtomicityFull                  bool   `log:"true"` // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
+	DoDiscardBigValues             bool   `log:"true"`
 
-	DoUseStaticTableOnSnapshot bool // optional.Optional[bool] breaks compatibility
-	Cleanup                    dp_model.CleanupType
+	DoUseStaticTableOnSnapshot bool                 `log:"true"` // optional.Optional[bool] breaks compatibility
+	Cleanup                    dp_model.CleanupType `log:"true"`
 
-	Connection            ConnectionData
-	TableCustomAttributes map[string]string
+	Connection            ConnectionData    `log:"true"`
+	TableCustomAttributes map[string]string `log:"true"`
 }
 
 var (
 	_ dp_model.Destination = (*YTSaurusDynamicDestination)(nil)
 )
+
+func (d *YTSaurusDynamicDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 // TODO: Remove in march
 func (d *YTSaurusDynamicDestination) DisableDatetimeHack() bool {

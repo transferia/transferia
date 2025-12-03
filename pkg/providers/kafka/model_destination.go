@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -12,12 +13,13 @@ import (
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
+	"go.uber.org/zap/zapcore"
 )
 
 type KafkaDestination struct {
-	Connection       *KafkaConnectionOptions
+	Connection       *KafkaConnectionOptions `log:"true"`
 	Auth             *KafkaAuth
-	SecurityGroupIDs []string
+	SecurityGroupIDs []string `log:"true"`
 
 	// DialFunc can be used to intercept connections made by driver and replace hosts if needed,
 	// for instance, in cloud-specific network topology
@@ -28,35 +30,39 @@ type KafkaDestination struct {
 	// Msg size: len(key)+len(val)+14
 	// By default is 0 - then kafka-go set it into 1048576.
 	// When set it to not default - remember than managed kafka (server-side) has default max.message.bytes == 1048588
-	BatchBytes          int64
-	ParralelWriterCount int
+	BatchBytes          int64 `log:"true"`
+	ParralelWriterCount int   `log:"true"`
 
-	Topic       string // full-name version
-	TopicPrefix string
+	Topic       string `log:"true"` // full-name version
+	TopicPrefix string `log:"true"`
 
-	AddSystemTables bool // private options - to not skip consumer_keeper & other system tables
-	SaveTxOrder     bool
+	AddSystemTables bool `log:"true"` // private options - to not skip consumer_keeper & other system tables
+	SaveTxOrder     bool `log:"true"`
 
 	// for now, 'FormatSettings' is private option - it's WithDefaults(): SerializationFormatAuto - 'Mirror' for queues, 'Debezium' for the rest
-	FormatSettings model.SerializationFormat
+	FormatSettings model.SerializationFormat `log:"true"`
 
-	TopicConfigEntries []TopicConfigEntry
+	TopicConfigEntries []TopicConfigEntry `log:"true"`
 
 	// Compression which compression mechanism use for writer, default - None
-	Compression Encoding
+	Compression Encoding `log:"true"`
 }
 
 var _ model.Destination = (*KafkaDestination)(nil)
 var _ model.WithConnectionID = (*KafkaDestination)(nil)
 
 type TopicConfigEntry struct {
-	ConfigName, ConfigValue string
+	ConfigName, ConfigValue string `log:"true"`
 }
 
 func topicConfigEntryToSlices(t []TopicConfigEntry) [][2]string {
 	return yslices.Map(t, func(tt TopicConfigEntry) [2]string {
 		return [2]string{tt.ConfigName, tt.ConfigValue}
 	})
+}
+
+func (d *KafkaDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
 }
 
 func (d *KafkaDestination) MDBClusterID() string {

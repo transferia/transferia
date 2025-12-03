@@ -2,20 +2,20 @@ package mongo
 
 type MongoStorageParams struct {
 	TLSFile           string
-	ClusterID         string
-	Hosts             []string
-	Port              int
-	ReplicaSet        string
-	AuthSource        string
-	User              string
+	ClusterID         string   `log:"true"`
+	Hosts             []string `log:"true"`
+	Port              int      `log:"true"`
+	ReplicaSet        string   `log:"true"`
+	AuthSource        string   `log:"true"`
+	User              string   `log:"true"`
 	Password          string
-	Collections       []MongoCollection
-	DesiredPartSize   uint64
-	PreventJSONRepack bool
-	Direct            bool
+	Collections       []MongoCollection `log:"true"`
+	DesiredPartSize   uint64            `log:"true"`
+	PreventJSONRepack bool              `log:"true"`
+	Direct            bool              `log:"true"`
 	RootCAFiles       []string
-	SRVMode           bool
-	ConnectionID      string
+	SRVMode           bool   `log:"true"`
+	ConnectionID      string `log:"true"`
 }
 
 func (s *MongoStorageParams) ConnectionOptions(defaultCACertPaths []string) MongoConnectionOptions {

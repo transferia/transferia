@@ -1,30 +1,36 @@
 package coralogix
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 type CoralogixDestination struct {
 	Token  model.SecretString
-	Domain string
+	Domain string `log:"true"`
 
-	MessageTemplate string
-	ChunkSize       int
-	SubsystemColumn string
-	ApplicationName string
+	MessageTemplate string `log:"true"`
+	ChunkSize       int    `log:"true"`
+	SubsystemColumn string `log:"true"`
+	ApplicationName string `log:"true"`
 
 	// mapping to columns
-	TimestampColumn string
-	SourceColumn    string
-	CategoryColumn  string
-	ClassColumn     string
-	MethodColumn    string
-	ThreadIDColumn  string
-	SeverityColumn  string
-	HostColumn      string
-	KnownSevereties map[string]Severity
+	TimestampColumn string              `log:"true"`
+	SourceColumn    string              `log:"true"`
+	CategoryColumn  string              `log:"true"`
+	ClassColumn     string              `log:"true"`
+	MethodColumn    string              `log:"true"`
+	ThreadIDColumn  string              `log:"true"`
+	SeverityColumn  string              `log:"true"`
+	HostColumn      string              `log:"true"`
+	KnownSevereties map[string]Severity `log:"true"`
+}
+
+func (d *CoralogixDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
 }
 
 func (d *CoralogixDestination) GetProviderType() abstract.ProviderType {

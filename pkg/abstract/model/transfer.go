@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	transformers_registry "github.com/transferia/transferia/pkg/transformer"
 	"github.com/transferia/transferia/pkg/util"
+	"go.uber.org/zap/zapcore"
 )
 
 type Transfer struct {
@@ -51,6 +52,58 @@ const (
 	// 3. The second PR increases NewTransfersVersion. When a controlplane with this change is deployed, dataplanes already have the required fallbacks.
 	NewTransfersVersion int = 10
 )
+
+func (f *Transfer) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("ID", f.ID)
+	enc.AddString("TransferName", f.TransferName)
+	enc.AddString("Description", f.Description)
+	enc.AddString("Labels", f.Labels)
+	enc.AddString("Type", string(f.Type))
+	enc.AddString("FolderID", f.FolderID)
+	enc.AddString("CloudID", f.CloudID)
+	if err := enc.AddReflected("SnapshotRuntime", f.Runtime); err != nil {
+		return xerrors.Errorf("snapshot runtime log serialization failed: %w", err)
+	}
+	if err := enc.AddReflected("ReplicationRuntime", f.ReplicationRuntime); err != nil {
+		return xerrors.Errorf("replication runtime log serialization failed: %w", err)
+	}
+	if s, ok := f.Src.(zapcore.ObjectMarshaler); ok {
+		if err := enc.AddObject("Source", s); err != nil {
+			return xerrors.Errorf("transfer source serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("Source", "***HIDDEN***")
+	}
+	if d, ok := f.Dst.(zapcore.ObjectMarshaler); ok {
+		if err := enc.AddObject("Destination", d); err != nil {
+			return xerrors.Errorf("transfer destination serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("Destination", "***HIDDEN***")
+	}
+	if f.RegularSnapshot != nil {
+		if err := enc.AddReflected("RegularSnapshot", *f.RegularSnapshot); err != nil {
+			return xerrors.Errorf("regular snapshot serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("RegularSnapshot", "nil")
+	}
+	if f.Transformation != nil {
+		if err := enc.AddReflected("Transformation", *f.Transformation); err != nil {
+			return xerrors.Errorf("transfer transformation serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("Transformation", "nil")
+	}
+	if f.TmpPolicy != nil {
+		if err := enc.AddReflected("TmpPolicy", *f.TmpPolicy); err != nil {
+			return xerrors.Errorf("tmp policy serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("TmpPolicy", "nil")
+	}
+	return nil
+}
 
 func (f *Transfer) SnapshotOnly() bool {
 	return f.Type == abstract.TransferTypeSnapshotOnly

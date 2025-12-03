@@ -25,10 +25,10 @@ import (
 func init() {
 	gobwrapper.RegisterName("*server.ChSource", new(model.ChSource))
 	gobwrapper.RegisterName("*server.ChDestination", new(model.ChDestination))
-	dp_model.RegisterDestination(ProviderType, func() dp_model.Destination {
+	dp_model.RegisterDestination(ProviderType, func() dp_model.LoggableDestination {
 		return new(model.ChDestination)
 	})
-	dp_model.RegisterSource(ProviderType, func() dp_model.Source {
+	dp_model.RegisterSource(ProviderType, func() dp_model.LoggableSource {
 		return new(model.ChSource)
 	})
 

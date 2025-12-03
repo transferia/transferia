@@ -1,27 +1,33 @@
 package opensearch
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/elastic"
+	"go.uber.org/zap/zapcore"
 )
 
 type OpenSearchSource struct {
-	ClusterID            string
-	DataNodes            []OpenSearchHostPort
-	User                 string
+	ClusterID            string               `log:"true"`
+	DataNodes            []OpenSearchHostPort `log:"true"`
+	User                 string               `log:"true"`
 	Password             model.SecretString
-	SSLEnabled           bool
+	SSLEnabled           bool `log:"true"`
 	TLSFile              string
-	SubNetworkID         string
-	SecurityGroupIDs     []string
-	DumpIndexWithMapping bool
-	ConnectionID         string
+	SubNetworkID         string   `log:"true"`
+	SecurityGroupIDs     []string `log:"true"`
+	DumpIndexWithMapping bool     `log:"true"`
+	ConnectionID         string   `log:"true"`
 }
 
 var _ model.Source = (*OpenSearchSource)(nil)
 var _ model.WithConnectionID = (*OpenSearchSource)(nil)
+
+func (s *OpenSearchSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *OpenSearchSource) MDBClusterID() string {
 	return s.ClusterID

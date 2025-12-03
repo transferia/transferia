@@ -3,41 +3,43 @@ package logbroker
 import (
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/providers/ydb"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/exp/maps"
 )
 
 type LfSource struct {
-	Instance             LogbrokerInstance
-	Cluster              LogbrokerCluster
-	Database             string
+	Instance             LogbrokerInstance `log:"true"`
+	Cluster              LogbrokerCluster  `log:"true"`
+	Database             string            `log:"true"`
 	Token                string
-	Consumer             string
-	MaxReadSize          model.BytesSize
-	MaxMemory            model.BytesSize
-	MaxTimeLag           time.Duration
-	Topics               []string
-	MaxIdleTime          time.Duration
-	MaxReadMessagesCount uint32
-	OnlyLocal            bool
-	LfParser             bool
+	Consumer             string          `log:"true"`
+	MaxReadSize          model.BytesSize `log:"true"`
+	MaxMemory            model.BytesSize `log:"true"`
+	MaxTimeLag           time.Duration   `log:"true"`
+	Topics               []string        `log:"true"`
+	MaxIdleTime          time.Duration   `log:"true"`
+	MaxReadMessagesCount uint32          `log:"true"`
+	OnlyLocal            bool            `log:"true"`
+	LfParser             bool            `log:"true"`
 	Credentials          ydb.TokenCredentials
-	Port                 int
-	AllowTTLRewind       bool
+	Port                 int  `log:"true"`
+	AllowTTLRewind       bool `log:"true"`
 
-	IsLbSink bool // it's like IsHomo
+	IsLbSink bool `log:"true"` // it's like IsHomo
 
-	ParserConfig map[string]interface{}
+	ParserConfig map[string]interface{} `log:"true"`
 
-	TLS                   TLSMode
+	TLS                   TLSMode `log:"true"`
 	RootCAFiles           []string
-	ParseQueueParallelism int
+	ParseQueueParallelism int `log:"true"`
 
-	UsePqv1 bool
+	UsePqv1 bool `log:"true"`
 }
 
 var _ model.Source = (*LfSource)(nil)
@@ -51,6 +53,10 @@ func (s *LfSource) IsLbMirror() bool {
 	} else {
 		return maps.Keys(s.ParserConfig)[0] == "blank.lb"
 	}
+}
+
+func (s *LfSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *LfSource) WithDefaults() {

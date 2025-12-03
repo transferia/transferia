@@ -3,45 +3,47 @@ package ydb
 import (
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	v3credential "github.com/ydb-platform/ydb-go-sdk/v3/credentials"
+	"go.uber.org/zap/zapcore"
 )
 
 type YdbDestination struct {
 	Token                     model.SecretString
-	Database                  string
-	Path                      string
-	Instance                  string
-	LegacyWriter              bool
-	ShardCount                int64
-	Rotation                  *model.RotatorConfig
-	TransformerConfig         map[string]string
-	AltNames                  map[string]string
-	StoragePolicy             string
-	CompactionPolicy          string
-	SubNetworkID              string
-	SecurityGroupIDs          []string
-	Cleanup                   model.CleanupType
-	DropUnknownColumns        bool
-	IsSchemaMigrationDisabled bool
-	Underlay                  bool
-	ServiceAccountID          string
-	IgnoreRowTooLargeErrors   bool
-	FitDatetime               bool // will crop date-time to allowed time range (with data-loss)
+	Database                  string               `log:"true"`
+	Path                      string               `log:"true"`
+	Instance                  string               `log:"true"`
+	LegacyWriter              bool                 `log:"true"`
+	ShardCount                int64                `log:"true"`
+	Rotation                  *model.RotatorConfig `log:"true"`
+	TransformerConfig         map[string]string    `log:"true"`
+	AltNames                  map[string]string    `log:"true"`
+	StoragePolicy             string               `log:"true"`
+	CompactionPolicy          string               `log:"true"`
+	SubNetworkID              string               `log:"true"`
+	SecurityGroupIDs          []string             `log:"true"`
+	Cleanup                   model.CleanupType    `log:"true"`
+	DropUnknownColumns        bool                 `log:"true"`
+	IsSchemaMigrationDisabled bool                 `log:"true"`
+	Underlay                  bool                 `log:"true"`
+	ServiceAccountID          string               `log:"true"`
+	IgnoreRowTooLargeErrors   bool                 `log:"true"`
+	FitDatetime               bool                 `log:"true"` // will crop date-time to allowed time range (with data-loss)
 	SAKeyContent              string
-	TriggingInterval          time.Duration
-	TriggingSize              uint64
-	IsTableColumnOriented     bool
-	DefaultCompression        string
+	TriggingInterval          time.Duration `log:"true"`
+	TriggingSize              uint64        `log:"true"`
+	IsTableColumnOriented     bool          `log:"true"`
+	DefaultCompression        string        `log:"true"`
 
-	Primary bool // if worker is first, i.e. primary, will run background jobs
+	Primary bool `log:"true"` // if worker is first, i.e. primary, will run background jobs
 
-	TLSEnabled      bool
+	TLSEnabled      bool `log:"true"`
 	RootCAFiles     []string
-	TokenServiceURL string
-	UserdataAuth    bool // allow fallback to Instance metadata Auth
+	TokenServiceURL string `log:"true"`
+	UserdataAuth    bool   `log:"true"` // allow fallback to Instance metadata Auth
 	OAuth2Config    *v3credential.OAuth2Config
 }
 
@@ -49,6 +51,10 @@ var (
 	_ model.Destination          = (*YdbDestination)(nil)
 	_ model.AlterableDestination = (*YdbDestination)(nil)
 )
+
+func (d *YdbDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *YdbDestination) IsAlterable() {}
 

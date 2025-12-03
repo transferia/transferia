@@ -1,7 +1,9 @@
 package model
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
+	"go.uber.org/zap/zapcore"
 )
 
 type MockSource struct {
@@ -11,6 +13,12 @@ type MockSource struct {
 }
 
 var _ Source = (*MockSource)(nil)
+
+func (s *MockSource) SafeToLog() {}
+
+func (s *MockSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *MockSource) WithDefaults() {}
 

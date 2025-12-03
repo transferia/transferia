@@ -3,35 +3,41 @@ package mongo
 import (
 	"sort"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 type MongoDestination struct {
-	ClusterID         string
-	Hosts             []string
-	Port              int
-	Database          string
-	ReplicaSet        string
-	AuthSource        string
+	ClusterID         string   `log:"true"`
+	Hosts             []string `log:"true"`
+	Port              int      `log:"true"`
+	Database          string   `log:"true"`
+	ReplicaSet        string   `log:"true"`
+	AuthSource        string   `log:"true"`
 	User              string
 	Password          model.SecretString
-	TransformerConfig map[string]string
-	Cleanup           model.CleanupType
-	SubNetworkID      string
-	SecurityGroupIDs  []string
+	TransformerConfig map[string]string `log:"true"`
+	Cleanup           model.CleanupType `log:"true"`
+	SubNetworkID      string            `log:"true"`
+	SecurityGroupIDs  []string          `log:"true"`
 	TLSFile           string
-	ConnectionID      string
+	ConnectionID      string `log:"true"`
 	// make a `direct` connection to mongo, see: https://www.mongodb.com/docs/drivers/go/current/fundamentals/connections/connection-guide/
-	Direct bool
+	Direct bool `log:"true"`
 
 	RootCAFiles []string
 	// indicates whether the mongoDB client uses a mongodb+srv connection
-	SRVMode bool
+	SRVMode bool `log:"true"`
 }
 
 var _ model.Destination = (*MongoDestination)(nil)
 var _ model.WithConnectionID = (*MongoDestination)(nil)
+
+func (d *MongoDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *MongoDestination) MDBClusterID() string {
 	return d.ClusterID

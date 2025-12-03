@@ -14,7 +14,7 @@ import (
 func init() {
 	gobwrapper.RegisterName("*server.EventHubSource", new(EventHubSource))
 	gobwrapper.RegisterName("*server.EventHubAuth", new(EventHubAuth))
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(EventHubSource)
 	})
 	abstract.RegisterProviderName(ProviderType, "Eventhub")

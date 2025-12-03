@@ -3,25 +3,27 @@ package logbroker
 import (
 	"strings"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/ydb"
+	"go.uber.org/zap/zapcore"
 )
 
 type LbSource struct {
-	Instance       string
-	Topic          string
+	Instance       string `log:"true"`
+	Topic          string `log:"true"`
 	Token          string
-	Consumer       string
-	Database       string
-	AllowTTLRewind bool
+	Consumer       string `log:"true"`
+	Database       string `log:"true"`
+	AllowTTLRewind bool   `log:"true"`
 	Credentials    ydb.TokenCredentials
-	Port           int
+	Port           int `log:"true"`
 
-	IsLbSink bool // it's like IsHomo
+	IsLbSink bool `log:"true"` // it's like IsHomo
 
 	RootCAFiles []string
-	TLS         TLSMode
+	TLS         TLSMode `log:"true"`
 }
 
 var _ model.Source = (*LbSource)(nil)
@@ -35,6 +37,10 @@ const (
 	YcLogbroker          LogbrokerCluster = "yc-logbroker"
 	YcLogbrokerPrestable LogbrokerCluster = "yc-logbroker-prestable"
 )
+
+func (s *LbSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *LbSource) WithDefaults() {
 }

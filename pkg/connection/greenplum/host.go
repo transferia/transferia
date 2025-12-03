@@ -1,9 +1,9 @@
 package greenplum
 
 type Host struct {
-	Name string
-	Port int
-	Role Role
+	Name string `log:"true"`
+	Port int    `log:"true"`
+	Role Role   `log:"true"`
 }
 
 type Role string

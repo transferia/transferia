@@ -20,10 +20,10 @@ import (
 func init() {
 	gobwrapper.RegisterName("*server.MysqlSource", new(MysqlSource))
 	gobwrapper.RegisterName("*server.MysqlDestination", new(MysqlDestination))
-	model.RegisterDestination(ProviderType, func() model.Destination {
+	model.RegisterDestination(ProviderType, func() model.LoggableDestination {
 		return new(MysqlDestination)
 	})
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(MysqlSource)
 	})
 

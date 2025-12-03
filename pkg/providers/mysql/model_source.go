@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 type MysqlFlavorType string
@@ -21,41 +23,41 @@ const (
 type MysqlTrackerStorage string
 
 type MysqlSource struct {
-	Host              string
-	User              string
+	Host              string `log:"true"`
+	User              string `log:"true"`
 	Password          model.SecretString
-	ClusterID         string
-	ServerID          uint32
-	IncludeTableRegex []string
-	ExcludeTableRegex []string
-	IsPublic          bool
-	Database          string
+	ClusterID         string   `log:"true"`
+	ServerID          uint32   `log:"true"`
+	IncludeTableRegex []string `log:"true"`
+	ExcludeTableRegex []string `log:"true"`
+	IsPublic          bool     `log:"true"`
+	Database          string   `log:"true"`
 	TLSFile           string
-	SubNetworkID      string
-	SecurityGroupIDs  []string
-	Port              int
-	Timezone          string
-	BufferLimit       uint32
-	UseFakePrimaryKey bool
-	IsHomo            bool `json:"-"`
-	PreSteps          *MysqlDumpSteps
-	PostSteps         *MysqlDumpSteps
-	TrackerDatabase   string
+	SubNetworkID      string          `log:"true"`
+	SecurityGroupIDs  []string        `log:"true"`
+	Port              int             `log:"true"`
+	Timezone          string          `log:"true"`
+	BufferLimit       uint32          `log:"true"`
+	UseFakePrimaryKey bool            `log:"true"`
+	IsHomo            bool            `json:"-" log:"true"`
+	PreSteps          *MysqlDumpSteps `log:"true"`
+	PostSteps         *MysqlDumpSteps `log:"true"`
+	TrackerDatabase   string          `log:"true"`
 
-	ConsistentSnapshot          bool
-	SnapshotDegreeOfParallelism int
-	AllowDecimalAsFloat         bool
+	ConsistentSnapshot          bool `log:"true"`
+	SnapshotDegreeOfParallelism int  `log:"true"`
+	AllowDecimalAsFloat         bool `log:"true"`
 
-	NoTracking  bool // deprecated: use Tracker
-	YtTracking  bool // deprecated: use Tracker
-	YdbTracking bool // deprecated: use Tracker
+	NoTracking  bool `log:"true"` // deprecated: use Tracker
+	YtTracking  bool `log:"true"` // deprecated: use Tracker
+	YdbTracking bool `log:"true"` // deprecated: use Tracker
 
-	Tracker      MysqlTrackerStorage // deprecated: we only have one tracker now
-	PlzNoHomo    bool                // forcefully disable homo features, mostly for tests
+	Tracker      MysqlTrackerStorage `log:"true"` // deprecated: we only have one tracker now
+	PlzNoHomo    bool                `log:"true"` // forcefully disable homo features, mostly for tests
 	RootCAFiles  []string
-	ConnectionID string
+	ConnectionID string `log:"true"`
 
-	ReplicationFlushInterval time.Duration
+	ReplicationFlushInterval time.Duration `log:"true"`
 }
 
 var _ model.Source = (*MysqlSource)(nil)
@@ -84,6 +86,10 @@ func DefaultMysqlDumpPostSteps() *MysqlDumpSteps {
 		Routine: false,
 		Trigger: false,
 	}
+}
+
+func (s *MysqlSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *MysqlSource) InitServerID(transferID string) {

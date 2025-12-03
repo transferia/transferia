@@ -19,7 +19,7 @@ func init() {
 	model.RegisterDestination(ProviderType, destinationModelFactory)
 }
 
-func destinationModelFactory() model.Destination {
+func destinationModelFactory() model.LoggableDestination {
 	return new(BigQueryDestination)
 }
 

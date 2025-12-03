@@ -1,13 +1,19 @@
 package stdout
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 type EmptySource struct{}
 
 var _ model.Source = (*EmptySource)(nil)
+
+func (s *EmptySource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (EmptySource) WithDefaults() {
 }

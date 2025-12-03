@@ -1,9 +1,11 @@
 package kinesis
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -11,14 +13,18 @@ var (
 )
 
 type KinesisSource struct {
-	Endpoint              string
-	Region                string
-	Stream                string
-	BufferSize            int
+	Endpoint              string `log:"true"`
+	Region                string `log:"true"`
+	Stream                string `log:"true"`
+	BufferSize            int    `log:"true"`
 	AccessKey             string
 	SecretKey             model.SecretString
-	ParserConfig          map[string]interface{}
-	ParseQueueParallelism int
+	ParserConfig          map[string]interface{} `log:"true"`
+	ParseQueueParallelism int                    `log:"true"`
+}
+
+func (k *KinesisSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(k, enc)
 }
 
 func (k *KinesisSource) GetProviderType() abstract.ProviderType {

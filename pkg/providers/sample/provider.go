@@ -15,7 +15,7 @@ import (
 
 func init() {
 	gobwrapper.Register(new(SampleSource))
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(SampleSource)
 	})
 	abstract.RegisterProviderName(ProviderType, "Sample")

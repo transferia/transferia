@@ -16,9 +16,9 @@ import (
 )
 
 type KafkaAuth struct {
-	Enabled   bool
-	Mechanism kafka.KafkaSaslSecurityMechanism
-	User      string
+	Enabled   bool                             `log:"true"`
+	Mechanism kafka.KafkaSaslSecurityMechanism `log:"true"`
+	User      string                           `log:"true"`
 	Password  string
 }
 
@@ -55,12 +55,12 @@ func (a *KafkaAuth) GetFranzAuthMechanism() franzsasl.Mechanism {
 }
 
 type KafkaConnectionOptions struct {
-	ClusterID    string
-	TLS          model.TLSMode
-	TLSFile      string `model:"PemFileContent"`
-	Brokers      []string
-	SubNetworkID string
-	ConnectionID string
+	ClusterID    string        `log:"true"`
+	TLS          model.TLSMode `log:"true"`
+	TLSFile      string        `model:"PemFileContent"`
+	Brokers      []string      `log:"true"`
+	SubNetworkID string        `log:"true"`
+	ConnectionID string        `log:"true"`
 }
 
 func (o *KafkaConnectionOptions) TLSConfig() (*tls.Config, error) {

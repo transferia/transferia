@@ -15,19 +15,24 @@ import (
 	"github.com/transferia/transferia/pkg/connection/greenplum"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/utils"
+	"go.uber.org/zap/zapcore"
 )
 
 type GpSource struct {
-	Connection       GpConnection
-	IncludeTables    []string
-	ExcludeTables    []string
-	AdvancedProps    GpSourceAdvancedProps
-	SubnetID         string
-	SecurityGroupIDs []string
+	Connection       GpConnection          `log:"true"`
+	IncludeTables    []string              `log:"true"`
+	ExcludeTables    []string              `log:"true"`
+	AdvancedProps    GpSourceAdvancedProps `log:"true"`
+	SubnetID         string                `log:"true"`
+	SecurityGroupIDs []string              `log:"true"`
 }
 
 var _ model.Source = (*GpSource)(nil)
 var _ model.WithConnectionID = (*GpSource)(nil)
+
+func (s *GpSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *GpSource) GetConnectionID() string {
 	return s.Connection.ConnectionID
@@ -45,15 +50,15 @@ func (s *GpSource) IsStrictSource() {}
 
 type GpSourceAdvancedProps struct {
 	// EnforceConsistency enables *enforcement* of consistent snapshot. When it is not set, the user is responsible for snapshot consistency
-	EnforceConsistency bool
+	EnforceConsistency bool `log:"true"`
 
-	ServiceSchema string
+	ServiceSchema string `log:"true"`
 
 	// AllowCoordinatorTxFailure disables coordinator TX monitoring (liveness monitor) and enables the transfer to finish snapshot successfully even if the coordinator TX fails
-	AllowCoordinatorTxFailure    bool
-	LivenessMonitorCheckInterval time.Duration
-	DisableGpfdist               bool
-	GpfdistBinPath               string
+	AllowCoordinatorTxFailure    bool          `log:"true"`
+	LivenessMonitorCheckInterval time.Duration `log:"true"`
+	DisableGpfdist               bool          `log:"true"`
+	GpfdistBinPath               string        `log:"true"`
 }
 
 func (p *GpSourceAdvancedProps) Validate() error {
@@ -71,12 +76,12 @@ func (p *GpSourceAdvancedProps) WithDefaults() {
 
 // fields can be empty if connectionID is set
 type GpConnection struct {
-	MDBCluster   *MDBClusterCreds
-	OnPremises   *GpCluster
-	Database     string
-	User         string
+	MDBCluster   *MDBClusterCreds `log:"true"`
+	OnPremises   *GpCluster       `log:"true"`
+	Database     string           `log:"true"`
+	User         string           `log:"true"`
 	AuthProps    PgAuthProps
-	ConnectionID string
+	ConnectionID string `log:"true"`
 }
 
 type PgAuthProps struct {
@@ -85,7 +90,7 @@ type PgAuthProps struct {
 }
 
 type MDBClusterCreds struct {
-	ClusterID string
+	ClusterID string `log:"true"`
 }
 
 func (s *GpHP) Validate() error {
@@ -201,8 +206,8 @@ func (c *GpConnection) ResolveCredsFromConnectionID() error {
 }
 
 type GpCluster struct {
-	Coordinator *GpHAP
-	Segments    []*GpHAP
+	Coordinator *GpHAP   `log:"true"`
+	Segments    []*GpHAP `log:"true"`
 }
 
 func (s *GpCluster) SegByID(id int) *GpHAP {
@@ -218,8 +223,8 @@ func (s *GpCluster) SegByID(id int) *GpHAP {
 
 // GpHAP stands for "Greenplum Highly Available host Pair"
 type GpHAP struct {
-	Primary *GpHP
-	Mirror  *GpHP
+	Primary *GpHP `log:"true"`
+	Mirror  *GpHP `log:"true"`
 }
 
 func (s *GpHAP) AnyAvailable() (*GpHP, error) {
@@ -271,8 +276,8 @@ func GpHAPFromGreenplumUIHAPair(hap greenplumHAPair) *GpHAP {
 
 // GpHP stands for "Greenplum Host/Port"
 type GpHP struct {
-	Host string
-	Port int
+	Host string `log:"true"`
+	Port int    `log:"true"`
 }
 
 func NewGpHP(host string, port int) *GpHP {

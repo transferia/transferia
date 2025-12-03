@@ -324,7 +324,13 @@ func (s *sinker) pushOneBatch(table string, batch []abstract.ChangeItem) error {
 		if err := s.pushSlice(batch, table); err != nil {
 			return xerrors.Errorf("unable to upload batch: %w", err)
 		}
-		s.logger.Infof("Upload %v changes delay %v", len(batch), time.Since(start))
+		s.logger.Info(
+			"Committed",
+			log.Any("elapsed", time.Since(start)),
+			log.Any("ops", len(batch)),
+			log.Any("sorce_table", batch[0].TableID().Fqtn()),
+			log.Any("table", table),
+		)
 	} else {
 		// YT have a-b-a problem with PKey update, this would split such changes in sub-batches without PKey updates.
 		for _, subslice := range abstract.SplitUpdatedPKeys(batch) {
@@ -334,7 +340,11 @@ func (s *sinker) pushOneBatch(table string, batch []abstract.ChangeItem) error {
 			if err := s.pushSlice(subslice, table); err != nil {
 				return xerrors.Errorf("unable to upload batch: %w", err)
 			}
-			s.logger.Infof("Upload %v changes delay %v", len(subslice), time.Since(start))
+			s.logger.Info(
+				fmt.Sprintf("Upload %v changes delay %v", len(subslice), time.Since(start)),
+				log.Any("sorce_table", batch[0].TableID().Fqtn()),
+				log.Any("table", table),
+			)
 		}
 	}
 	return nil

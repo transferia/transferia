@@ -5,12 +5,12 @@ import (
 )
 
 type Connection struct {
-	Hosts          []*Host
-	User           string
+	Hosts          []*Host `log:"true"`
+	User           string  `log:"true"`
 	Password       model.SecretString
-	HasTLS         bool
+	HasTLS         bool `log:"true"`
 	CACertificates string
-	ClusterID      string
+	ClusterID      string `log:"true"`
 }
 
 func (ch *Connection) GetDatabases() []string {

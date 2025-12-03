@@ -18,11 +18,11 @@ import (
 )
 
 func init() {
-	destinationFactory := func() model.Destination {
+	destinationFactory := func() model.LoggableDestination {
 		return new(GpDestination)
 	}
 	model.RegisterDestination(ProviderType, destinationFactory)
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(GpSource)
 	})
 

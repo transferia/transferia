@@ -18,10 +18,10 @@ func init() {
 	gobwrapper.RegisterName("*server.MongoCollection", new(MongoCollection))
 	gobwrapper.RegisterName("*server.MongoSource", new(MongoSource))
 	gobwrapper.RegisterName("*server.MongoDestination", new(MongoDestination))
-	model.RegisterDestination(ProviderType, func() model.Destination {
+	model.RegisterDestination(ProviderType, func() model.LoggableDestination {
 		return new(MongoDestination)
 	})
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(MongoSource)
 	})
 

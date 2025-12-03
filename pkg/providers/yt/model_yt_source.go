@@ -2,25 +2,27 @@ package yt
 
 import (
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/config/env"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
 type ConnectionData struct {
-	Hosts                 []string
-	Subnet                string
-	SecurityGroups        []string
-	DisableProxyDiscovery bool
-	UseTLS                bool
+	Hosts                 []string `log:"true"`
+	Subnet                string   `log:"true"`
+	SecurityGroups        []string `log:"true"`
+	DisableProxyDiscovery bool     `log:"true"`
+	UseTLS                bool     `log:"true"`
 	TLSFile               string
-	ProxyRole             string
+	ProxyRole             string `log:"true"`
 
 	// For YTSaurus only
-	ClusterID        string
-	ServiceAccountID string
+	ClusterID        string `log:"true"`
+	ServiceAccountID string `log:"true"`
 }
 
 type YtSourceModel interface {
@@ -38,17 +40,21 @@ type YtSourceModel interface {
 }
 
 type YtSource struct {
-	Cluster          string
-	YtProxy          string
-	Paths            []string
+	Cluster          string   `log:"true"`
+	YtProxy          string   `log:"true"`
+	Paths            []string `log:"true"`
 	YtToken          string
-	RowIdxColumnName string
+	RowIdxColumnName string `log:"true"`
 
-	DesiredPartSizeBytes int64
-	Connection           ConnectionData
+	DesiredPartSizeBytes int64          `log:"true"`
+	Connection           ConnectionData `log:"true"`
 }
 
 var _ model.Source = (*YtSource)(nil)
+
+func (s *YtSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *YtSource) IsSource()       {}
 func (s *YtSource) IsStrictSource() {}

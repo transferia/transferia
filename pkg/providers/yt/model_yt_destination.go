@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
@@ -11,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/exp/maps"
@@ -86,45 +88,51 @@ type YtDestinationModel interface {
 }
 
 type YtDestination struct {
-	Path                      string
-	Cluster                   string
+	Path                      string `log:"true"`
+	Cluster                   string `log:"true"`
 	Token                     string
-	PushWal                   bool
-	NeedArchive               bool
-	CellBundle                string
-	TTL                       int64 // it's in milliseconds
-	OptimizeFor               string
-	IsSchemaMigrationDisabled bool
-	TimeShardCount            int
-	Index                     []string
-	HashColumn                string
-	PrimaryMedium             string
-	Pool                      string       // pool for running merge and sort operations for static tables
-	Strict                    bool         // DEPRECATED, UNUSED IN NEW DATA PLANE - use LoseDataOnError and Atomicity
-	Atomicity                 yt.Atomicity // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
+	PushWal                   bool         `log:"true"`
+	NeedArchive               bool         `log:"true"`
+	CellBundle                string       `log:"true"`
+	TTL                       int64        `log:"true"` // it's in milliseconds
+	OptimizeFor               string       `log:"true"`
+	IsSchemaMigrationDisabled bool         `log:"true"`
+	TimeShardCount            int          `log:"true"`
+	Index                     []string     `log:"true"`
+	HashColumn                string       `log:"true"`
+	PrimaryMedium             string       `log:"true"`
+	Pool                      string       `log:"true"` // pool for running merge and sort operations for static tables
+	Strict                    bool         `log:"true"` // DEPRECATED, UNUSED IN NEW DATA PLANE - use LoseDataOnError and Atomicity
+	Atomicity                 yt.Atomicity `log:"true"` // Atomicity for the dynamic tables being created in YT. See https://yt.yandex-team.ru/docs/description/dynamic_tables/sorted_dynamic_tables#atomarnost
 
-	DiscardBigValues         bool
-	Rotation                 *dp_model.RotatorConfig
-	VersionColumn            string
-	Ordered                  bool
-	UseStaticTableOnSnapshot bool // optional.Optional[bool] breaks compatibility
-	AltNames                 map[string]string
-	Cleanup                  dp_model.CleanupType
-	Spec                     YTSpec
-	TolerateKeyChanges       bool
-	InitialTabletCount       uint32
-	WriteTimeoutSec          uint32
-	ChunkSize                uint32 // ChunkSize defines the number of items in a single request to YT for dynamic sink and chunk size in bytes for static sink
-	BufferTriggingSize       uint64
-	BufferTriggingInterval   time.Duration
-	CompressionCodec         yt.ClientCompressionCodec
-	DisableDatetimeHack      bool // This disable old hack for inverting time.Time columns as int64 timestamp for LF>YT
+	DiscardBigValues         bool                      `log:"true"`
+	Rotation                 *dp_model.RotatorConfig   `log:"true"`
+	VersionColumn            string                    `log:"true"`
+	Ordered                  bool                      `log:"true"`
+	UseStaticTableOnSnapshot bool                      `log:"true"` // optional.Optional[bool] breaks compatibility
+	AltNames                 map[string]string         `log:"true"`
+	Cleanup                  dp_model.CleanupType      `log:"true"`
+	Spec                     YTSpec                    `log:"true"`
+	TolerateKeyChanges       bool                      `log:"true"`
+	InitialTabletCount       uint32                    `log:"true"`
+	WriteTimeoutSec          uint32                    `log:"true"`
+	ChunkSize                uint32                    `log:"true"` // ChunkSize defines the number of items in a single request to YT for dynamic sink and chunk size in bytes for static sink
+	BufferTriggingSize       uint64                    `log:"true"`
+	BufferTriggingInterval   time.Duration             `log:"true"`
+	CompressionCodec         yt.ClientCompressionCodec `log:"true"`
+	DisableDatetimeHack      bool                      `log:"true"` // This disable old hack for inverting time.Time columns as int64 timestamp for LF>YT
 	Connection               ConnectionData
-	CustomAttributes         map[string]string
+	CustomAttributes         map[string]string `log:"true"`
 
-	Static          bool
-	SortedStatic    bool // true, if we need to sort static tables
-	StaticChunkSize int  // desired size of static table chunk in bytes
+	Static          bool `log:"true"`
+	SortedStatic    bool `log:"true"` // true, if we need to sort static tables
+	StaticChunkSize int  `log:"true"` // desired size of static table chunk in bytes
+}
+
+func (d *YtDestination) SafeToLog() {}
+
+func (d *YtDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
 }
 
 func (d *YtDestination) GetUseStaticTableOnSnapshot() bool {
@@ -132,15 +140,19 @@ func (d *YtDestination) GetUseStaticTableOnSnapshot() bool {
 }
 
 type YtDestinationWrapper struct {
-	Model *YtDestination
+	Model *YtDestination `log:"true"`
 	// This is for pre/post-snapshot hacks (to be removed)
-	_pushWal bool
+	_pushWal bool `log:"true"`
 }
 
 var (
 	_ dp_model.Destination          = (*YtDestinationWrapper)(nil)
 	_ dp_model.AlterableDestination = (*YtDestinationWrapper)(nil)
 )
+
+func (d *YtDestinationWrapper) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *YtDestinationWrapper) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.Model)

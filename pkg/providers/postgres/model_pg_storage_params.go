@@ -10,29 +10,29 @@ import (
 )
 
 type PgStorageParams struct {
-	AllHosts                    []string // should be non-empty only one field: Hosts/ClusterID
-	Port                        int
-	User                        string
+	AllHosts                    []string `log:"true"` // should be non-empty only one field: Hosts/ClusterID
+	Port                        int      `log:"true"`
+	User                        string   `log:"true"`
 	Password                    string
-	Database                    string
-	ClusterID                   string // should be non-empty only one field: Hosts/ClusterID
+	Database                    string `log:"true"`
+	ClusterID                   string `log:"true"` // should be non-empty only one field: Hosts/ClusterID
 	TLSFile                     string
-	EnableTLS                   bool
-	CollapseInheritTables       bool
-	UseFakePrimaryKey           bool
-	DBFilter                    []string
-	IgnoreUserTypes             bool
-	PreferReplica               bool // has the meaning only if ClusterID not empty. Choosing replica is implemented via mdb api. If set as 'true' - it expects you initialized dbaas.Initialize*Cloud
-	ExcludeDescendants          bool
-	DesiredTableSize            uint64
-	SnapshotDegreeOfParallelism int
-	ConnString                  string // used in greenplum
-	TableFilter                 abstract.Includeable
-	TryHostCACertificates       bool // will force SSL connection with host-provided SSL certificates
-	UseBinarySerialization      bool // Whether binary serialization format should be used. Defaults to true in homogeneous pg->pg transfers.
-	SlotID                      string
-	ShardingKeyFields           map[string][]string
-	ConnectionID                string
+	EnableTLS                   bool                 `log:"true"`
+	CollapseInheritTables       bool                 `log:"true"`
+	UseFakePrimaryKey           bool                 `log:"true"`
+	DBFilter                    []string             `log:"true"`
+	IgnoreUserTypes             bool                 `log:"true"`
+	PreferReplica               bool                 `log:"true"` // has the meaning only if ClusterID not empty. Choosing replica is implemented via mdb api. If set as 'true' - it expects you initialized dbaas.Initialize*Cloud
+	ExcludeDescendants          bool                 `log:"true"`
+	DesiredTableSize            uint64               `log:"true"`
+	SnapshotDegreeOfParallelism int                  `log:"true"`
+	ConnString                  string               // used in greenplum
+	TableFilter                 abstract.Includeable `log:"true"`
+	TryHostCACertificates       bool                 `log:"true"` // will force SSL connection with host-provided SSL certificates
+	UseBinarySerialization      bool                 `log:"true"` // Whether binary serialization format should be used. Defaults to true in homogeneous pg->pg transfers.
+	SlotID                      string               `log:"true"`
+	ShardingKeyFields           map[string][]string  `log:"true"`
+	ConnectionID                string               `log:"true"`
 }
 
 // TLSConfigTemplate returns a TLS configuration template without ServerName set.

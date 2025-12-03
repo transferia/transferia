@@ -1,14 +1,16 @@
 package oracle
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
+	"go.uber.org/zap/zapcore"
 )
 
 func init() {
 	gobwrapper.RegisterName("*server.OracleSource", new(OracleSource))
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(OracleSource)
 	})
 	abstract.RegisterProviderName(ProviderType, "Oracle")
@@ -20,39 +22,39 @@ type OracleSource struct {
 	// Public properties
 
 	// Connection type
-	ConnectionType OracleConnectionType
+	ConnectionType OracleConnectionType `log:"true"`
 
 	// Instance connection
-	Host        string
-	Port        int
-	SID         string
-	ServiceName string
+	Host        string `log:"true"`
+	Port        int    `log:"true"`
+	SID         string `log:"true"`
+	ServiceName string `log:"true"`
 
 	// TNS connection string connection
-	TNSConnectString string
+	TNSConnectString string `log:"true"`
 
 	// Credentials
-	User     string
+	User     string `log:"true"`
 	Password model.SecretString
 
 	// Other settings
-	SubNetworkID     string   // Yandex Cloud VPC Network
-	SecurityGroupIDs []string // Yandex Cloud VPC Security Groups
-	PDB              string   // Used in CDB environment
+	SubNetworkID     string   `log:"true"` // Yandex Cloud VPC Network
+	SecurityGroupIDs []string `log:"true"` // Yandex Cloud VPC Security Groups
+	PDB              string   `log:"true"` // Used in CDB environment
 
 	// Tables filter
-	IncludeTables []string
-	ExcludeTables []string
+	IncludeTables []string `log:"true"`
+	ExcludeTables []string `log:"true"`
 
-	ConvertNumberToInt64 bool
+	ConvertNumberToInt64 bool `log:"true"`
 
 	// Hidden properties
-	TrackerType                          OracleLogTrackerType
-	CLOBReadingStrategy                  OracleCLOBReadingStrategy
-	UseUniqueIndexesAsKeys               bool
-	IsNonConsistentSnapshot              bool // Do not use flashback
-	UseParallelTableLoad                 bool // Split tables to parts by ROWID
-	ParallelTableLoadDegreeOfParallelism int  // Works with UseParallelTableLoad, how many readers for table
+	TrackerType                          OracleLogTrackerType      `log:"true"`
+	CLOBReadingStrategy                  OracleCLOBReadingStrategy `log:"true"`
+	UseUniqueIndexesAsKeys               bool                      `log:"true"`
+	IsNonConsistentSnapshot              bool                      `log:"true"` // Do not use flashback
+	UseParallelTableLoad                 bool                      `log:"true"` // Split tables to parts by ROWID
+	ParallelTableLoadDegreeOfParallelism int                       `log:"true"` // Works with UseParallelTableLoad, how many readers for table
 }
 
 var _ model.Source = (*OracleSource)(nil)
@@ -81,6 +83,10 @@ const (
 	OracleReadCLOBAsBLOB                 = OracleCLOBReadingStrategy("ReadCLOBAsBLOB")
 	OracleReadCLOBAsBLOBIfFunctionExists = OracleCLOBReadingStrategy("ReadCLOBAsBLOBIfFunctionExists")
 )
+
+func (oracle *OracleSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(oracle, enc)
+}
 
 func (oracle *OracleSource) CDB() bool {
 	return oracle.PDB != ""

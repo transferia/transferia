@@ -7,10 +7,10 @@ import (
 var _ connection.ManagedConnection = (*Connection)(nil)
 
 type Host struct {
-	Name string
-	Port int
-	Type HostType
-	Role HostRole
+	Name string   `log:"true"`
+	Port int      `log:"true"`
+	Type HostType `log:"true"`
+	Role HostRole `log:"true"`
 }
 
 type HostType int
@@ -31,16 +31,16 @@ const (
 )
 
 type Connection struct {
-	Hosts          []*Host
-	User           string
+	Hosts          []*Host `log:"true"`
+	User           string  `log:"true"`
 	Password       string
-	HasTLS         bool
+	HasTLS         bool `log:"true"`
 	CACertificates string
-	ClusterID      string
-	DatabaseNames  []string
+	ClusterID      string   `log:"true"`
+	DatabaseNames  []string `log:"true"`
 
 	// if exist MONGOS/MONGOINFRA hosts then it is sharded cluster
-	Sharded bool
+	Sharded bool `log:"true"`
 }
 
 func (c *Connection) GetClusterID() string {

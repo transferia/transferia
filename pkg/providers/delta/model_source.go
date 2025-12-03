@@ -1,9 +1,11 @@
 package delta
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	s3_provider "github.com/transferia/transferia/pkg/providers/s3"
+	"go.uber.org/zap/zapcore"
 )
 
 // To verify providers contract implementation
@@ -12,21 +14,21 @@ var (
 )
 
 type DeltaSource struct {
-	Bucket           string
+	Bucket           string `log:"true"`
 	AccessKey        string
-	S3ForcePathStyle bool
+	S3ForcePathStyle bool `log:"true"`
 	SecretKey        model.SecretString
-	PathPrefix       string
-	Endpoint         string
-	UseSSL           bool
-	VersifySSL       bool
-	Region           string
+	PathPrefix       string `log:"true"`
+	Endpoint         string `log:"true"`
+	UseSSL           bool   `log:"true"`
+	VersifySSL       bool   `log:"true"`
+	Region           string `log:"true"`
 
-	HideSystemCols bool // to hide system cols `__delta_file_name` and `__delta_row_index` cols from out struct
+	HideSystemCols bool `log:"true"` // to hide system cols `__delta_file_name` and `__delta_row_index` cols from out struct
 
 	// delta lake hold always single table, and TableID of such table defined by user
-	TableName      string
-	TableNamespace string
+	TableName      string `log:"true"`
+	TableNamespace string `log:"true"`
 }
 
 func (d *DeltaSource) ConnectionConfig() s3_provider.ConnectionConfig {
@@ -40,6 +42,10 @@ func (d *DeltaSource) ConnectionConfig() s3_provider.ConnectionConfig {
 		Region:           d.Region,
 		ServiceAccountID: "",
 	}
+}
+
+func (d *DeltaSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
 }
 
 func (d *DeltaSource) GetProviderType() abstract.ProviderType {

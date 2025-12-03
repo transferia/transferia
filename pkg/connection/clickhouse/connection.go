@@ -6,18 +6,18 @@ import (
 
 type Connection struct {
 	// TODO: add shard params
-	Hosts    []*Host
-	User     string
+	Hosts    []*Host `log:"true"`
+	User     string  `log:"true"`
 	Password model.SecretString
 	// currently filled with user data, not from db list in managed connection
-	Database       string
-	HasTLS         bool
+	Database       string `log:"true"`
+	HasTLS         bool   `log:"true"`
 	CACertificates string
-	ClusterID      string
+	ClusterID      string `log:"true"`
 	// field in manage connection with applicable databases, currently used for info only.
 	// in the future we may want to check that DatabaseNames if defined includes Database from user input
-	DatabaseNames []string
-	ShardGroups   map[string][]string
+	DatabaseNames []string            `log:"true"`
+	ShardGroups   map[string][]string `log:"true"`
 }
 
 func (ch *Connection) GetDatabases() []string {

@@ -6,11 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	v3credential "github.com/ydb-platform/ydb-go-sdk/v3/credentials"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"go.uber.org/zap/zapcore"
 )
 
 type YdbColumnsFilterType string
@@ -44,41 +46,45 @@ type YdbColumnsFilter struct {
 }
 
 type YdbSource struct {
-	Database           string
-	Instance           string
-	Tables             []string // actually it's 'paths', but migrating...
-	TableColumnsFilter []YdbColumnsFilter
-	SubNetworkID       string
-	SecurityGroupIDs   []string
-	Underlay           bool
-	UseFullPaths       bool // can be useful to deal with names collision
+	Database           string             `log:"true"`
+	Instance           string             `log:"true"`
+	Tables             []string           `log:"true"` // actually it's 'paths', but migrating...
+	TableColumnsFilter []YdbColumnsFilter `log:"true"`
+	SubNetworkID       string             `log:"true"`
+	SecurityGroupIDs   []string           `log:"true"`
+	Underlay           bool               `log:"true"`
+	UseFullPaths       bool               `log:"true"` // can be useful to deal with names collision
 
-	TLSEnabled  bool
+	TLSEnabled  bool `log:"true"`
 	RootCAFiles []string
 
 	// replication stuff:
-	ChangeFeedMode               ChangeFeedModeType
-	ChangeFeedRetentionPeriod    *time.Duration // not suitable for pre-created (custom) changefeed
-	ChangeFeedCustomName         string         // user can specify pre-created feed's name, otherwise it will created with name == transferID
-	ChangeFeedCustomConsumerName string
-	BufferSize                   model.BytesSize // it's not some real buffer size - see comments to waitLimits() method in kafka-source
-	CommitMode                   CommitMode
+	ChangeFeedMode               ChangeFeedModeType `log:"true"`
+	ChangeFeedRetentionPeriod    *time.Duration     `log:"true"` // not suitable for pre-created (custom) changefeed
+	ChangeFeedCustomName         string             `log:"true"` // user can specify pre-created feed's name, otherwise it will created with name == transferID
+	ChangeFeedCustomConsumerName string             `log:"true"`
+	BufferSize                   model.BytesSize    `log:"true"` // it's not some real buffer size - see comments to waitLimits() method in kafka-source
+	CommitMode                   CommitMode         `log:"true"`
 
 	// auth stuff:
 	Token            model.SecretString
-	UserdataAuth     bool
-	ServiceAccountID string
-	TokenServiceURL  string
+	UserdataAuth     bool   `log:"true"`
+	ServiceAccountID string `log:"true"`
+	TokenServiceURL  string `log:"true"`
 	SAKeyContent     string
 	OAuth2Config     *v3credential.OAuth2Config
 
 	// storage
-	IsSnapshotSharded     bool
-	CopyFolder            string
-	ParseQueueParallelism int
+	IsSnapshotSharded     bool   `log:"true"`
+	CopyFolder            string `log:"true"`
+	ParseQueueParallelism int    `log:"true"`
 }
 
 var _ model.Source = (*YdbSource)(nil)
+
+func (s *YdbSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *YdbSource) MDBClusterID() string {
 	return s.Instance + s.Database

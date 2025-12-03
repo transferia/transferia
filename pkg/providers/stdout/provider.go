@@ -24,11 +24,11 @@ func init() {
 	providers.Register(ProviderTypeStdout, New(ProviderTypeStdout))
 }
 
-func destinationModelFactory() model.Destination {
+func destinationModelFactory() model.LoggableDestination {
 	return new(StdoutDestination)
 }
 
-func sourceModelFactory() model.Source {
+func sourceModelFactory() model.LoggableSource {
 	return new(EmptySource)
 }
 

@@ -3,11 +3,11 @@ package greenplum
 import "github.com/transferia/transferia/pkg/abstract/model"
 
 type Connection struct {
-	ClusterId        string
-	CoordinatorHosts []*Host
-	User             string
+	ClusterId        string  `log:"true"`
+	CoordinatorHosts []*Host `log:"true"`
+	User             string  `log:"true"`
 	Password         model.SecretString
-	Databases        []string
+	Databases        []string `log:"true"`
 	CACertificates   string
 }
 

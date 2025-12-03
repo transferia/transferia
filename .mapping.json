@@ -539,6 +539,8 @@
   "internal/logger/logger.go":"transfer_manager/go/internal/logger/logger.go",
   "internal/logger/mutable_registry.go":"transfer_manager/go/internal/logger/mutable_registry.go",
   "internal/logger/mutable_registry_test.go":"transfer_manager/go/internal/logger/mutable_registry_test.go",
+  "internal/logger/sanitizer_encoder.go":"transfer_manager/go/internal/logger/sanitizer_encoder.go",
+  "internal/logger/sanitizer_encoder_test.go":"transfer_manager/go/internal/logger/sanitizer_encoder_test.go",
   "internal/logger/writers/abstract.go":"transfer_manager/go/internal/logger/writers/abstract.go",
   "internal/logger/writers/buffered_writer.go":"transfer_manager/go/internal/logger/writers/buffered_writer.go",
   "internal/logger/writers/leaky_writer.go":"transfer_manager/go/internal/logger/writers/leaky_writer.go",

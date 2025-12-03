@@ -9,7 +9,7 @@ const (
 )
 
 type Host struct {
-	Name  string
-	Port  int
-	Roles []GroupRole
+	Name  string      `log:"true"`
+	Port  int         `log:"true"`
+	Roles []GroupRole `log:"true"`
 }

@@ -244,7 +244,15 @@ func Run(ctx context.Context, task model.TransferOperation, command abstract.Run
 		close(done)
 		wg.Wait()
 	}()
-	logger.Log.Infof("Transfer %v -> %v (%v)", transfer.SrcType(), transfer.DstType(), transfer.ID)
+
+	logger.Log.Info("Transfer operation",
+		log.Any("transfer_id", transfer.ID),
+		log.Any("src_type", transfer.SrcType()),
+		log.Any("dst_type", transfer.DstType()),
+		log.Any("task_id", task.OperationID),
+		log.Any("task_type", task.TaskType),
+		log.Object("transfer", &transfer),
+	)
 
 	commandName := fmt.Sprintf("%T", command)
 	err, _ := command.VisitRunnable(visitor).(error)

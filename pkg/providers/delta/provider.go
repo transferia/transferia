@@ -13,7 +13,7 @@ import (
 const ProviderType = abstract.ProviderType("delta")
 
 func init() {
-	sourceFactory := func() model.Source {
+	sourceFactory := func() model.LoggableSource {
 		return new(DeltaSource)
 	}
 

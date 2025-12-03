@@ -1,25 +1,31 @@
 package elastic
 
 import (
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 type ElasticSearchSource struct {
-	ClusterID            string // Deprecated: new endpoints should be on premise only
-	DataNodes            []ElasticSearchHostPort
-	User                 string
+	ClusterID            string                  `log:"true"` // Deprecated: new endpoints should be on premise only
+	DataNodes            []ElasticSearchHostPort `log:"true"`
+	User                 string                  `log:"true"`
 	Password             model.SecretString
-	SSLEnabled           bool
+	SSLEnabled           bool `log:"true"`
 	TLSFile              string
-	SubNetworkID         string
-	SecurityGroupIDs     []string
-	DumpIndexWithMapping bool
-	ConnectionID         string
+	SubNetworkID         string   `log:"true"`
+	SecurityGroupIDs     []string `log:"true"`
+	DumpIndexWithMapping bool     `log:"true"`
+	ConnectionID         string   `log:"true"`
 }
 
 var _ model.Source = (*ElasticSearchSource)(nil)
+
+func (s *ElasticSearchSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *ElasticSearchSource) ToElasticSearchSource() (*ElasticSearchSource, ServerType) {
 	return s, ElasticSearch

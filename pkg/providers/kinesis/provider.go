@@ -15,7 +15,7 @@ import (
 
 func init() {
 	gobwrapper.Register(new(KinesisSource))
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(KinesisSource)
 	})
 	abstract.RegisterProviderName(ProviderType, "Kinesis")

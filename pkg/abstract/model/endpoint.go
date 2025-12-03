@@ -5,6 +5,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
+	"go.uber.org/zap/zapcore"
 )
 
 type EndpointParams interface {
@@ -20,6 +21,11 @@ type Source interface {
 	IsSource()
 }
 
+type LoggableSource interface {
+	Source
+	zapcore.ObjectMarshaler
+}
+
 type Describable interface {
 	Describe() Doc
 }
@@ -33,6 +39,11 @@ type Destination interface {
 	EndpointParams
 	CleanupMode() CleanupType
 	IsDestination()
+}
+
+type LoggableDestination interface {
+	Destination
+	zapcore.ObjectMarshaler
 }
 
 type AlterableDestination interface {

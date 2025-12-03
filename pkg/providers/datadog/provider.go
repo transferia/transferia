@@ -21,7 +21,7 @@ func init() {
 	providers.Register(ProviderType, New)
 }
 
-func destinationModelFactory() model.Destination {
+func destinationModelFactory() model.LoggableDestination {
 	return new(DatadogDestination)
 }
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -19,6 +20,7 @@ import (
 	"github.com/transferia/transferia/pkg/storage"
 	"github.com/transferia/transferia/pkg/transformer/registry/rename"
 	"github.com/transferia/transferia/pkg/util"
+	"go.uber.org/zap/zapcore"
 )
 
 const pgDesiredTableSize = 1024 * 1024 * 1024
@@ -29,42 +31,42 @@ var PGGlobalExclude = []abstract.TableID{
 
 type PgSource struct {
 	// oneof
-	ClusterID string `json:"Cluster"`
-	Host      string // legacy field for back compatibility; for now, we are using only 'Hosts' field
-	Hosts     []string
+	ClusterID string   `json:"Cluster" log:"true"`
+	Host      string   `log:"true"` // legacy field for back compatibility; for now, we are using only 'Hosts' field
+	Hosts     []string `log:"true"`
 
-	Database                    string
-	User                        string
+	Database                    string `log:"true"`
+	User                        string `log:"true"`
 	Password                    model.SecretString
-	Port                        int
-	DBTables                    []string
-	BatchSize                   uint32 // BatchSize is a limit on the number of rows in the replication (not snapshot) source internal buffer
-	SlotID                      string
-	SlotByteLagLimit            int64
+	Port                        int      `log:"true"`
+	DBTables                    []string `log:"true"`
+	BatchSize                   uint32   `log:"true"` // BatchSize is a limit on the number of rows in the replication (not snapshot) source internal buffer
+	SlotID                      string   `log:"true"`
+	SlotByteLagLimit            int64    `log:"true"`
 	TLSFile                     string
-	EnableTLS                   bool
-	KeeperSchema                string
-	SubNetworkID                string
-	SecurityGroupIDs            []string
-	CollapseInheritTables       bool
-	UsePolling                  bool
-	ExcludedTables              []string
-	IsHomo                      bool
-	NoHomo                      bool // force hetero relations instead of homo-haram-stuff
-	AutoActivate                bool
-	PreSteps                    *PgDumpSteps
-	PostSteps                   *PgDumpSteps
-	UseFakePrimaryKey           bool
-	IgnoreUserTypes             bool
-	IgnoreUnknownTables         bool            // see: if table schema unknown - ignore it TM-3104 and TM-2934
-	MaxBufferSize               model.BytesSize // Deprecated: is not used anymore
-	ExcludeDescendants          bool            // Deprecated: is not used more, use CollapseInheritTables instead
-	DesiredTableSize            uint64          // desired table part size for snapshot sharding
-	SnapshotDegreeOfParallelism int             // desired table parts count for snapshot sharding
-	EmitTimeTypes               bool            // Deprecated: is not used anymore
+	EnableTLS                   bool            `log:"true"`
+	KeeperSchema                string          `log:"true"`
+	SubNetworkID                string          `log:"true"`
+	SecurityGroupIDs            []string        `log:"true"`
+	CollapseInheritTables       bool            `log:"true"`
+	UsePolling                  bool            `log:"true"`
+	ExcludedTables              []string        `log:"true"`
+	IsHomo                      bool            `log:"true"`
+	NoHomo                      bool            `log:"true"` // force hetero relations instead of homo-haram-stuff
+	AutoActivate                bool            `log:"true"`
+	PreSteps                    *PgDumpSteps    `log:"true"`
+	PostSteps                   *PgDumpSteps    `log:"true"`
+	UseFakePrimaryKey           bool            `log:"true"`
+	IgnoreUserTypes             bool            `log:"true"`
+	IgnoreUnknownTables         bool            `log:"true"` // see: if table schema unknown - ignore it TM-3104 and TM-2934
+	MaxBufferSize               model.BytesSize `log:"true"` // Deprecated: is not used anymore
+	ExcludeDescendants          bool            `log:"true"` // Deprecated: is not used more, use CollapseInheritTables instead
+	DesiredTableSize            uint64          `log:"true"` // desired table part size for snapshot sharding
+	SnapshotDegreeOfParallelism int             `log:"true"` // desired table parts count for snapshot sharding
+	EmitTimeTypes               bool            `log:"true"` // Deprecated: is not used anymore
 
-	DBLogEnabled bool   // force DBLog snapshot instead of common
-	ChunkSize    uint64 // number of rows in chunk, this field needed for DBLog snapshot, if it is 0, it will be calculated automatically
+	DBLogEnabled bool   `log:"true"` // force DBLog snapshot instead of common
+	ChunkSize    uint64 `log:"true"` // number of rows in chunk, this field needed for DBLog snapshot, if it is 0, it will be calculated automatically
 
 	// Whether text or binary serialization format should be used when readeing
 	// snapshot from PostgreSQL storage snapshot (see
@@ -74,16 +76,20 @@ type PgSource struct {
 	// cases. Binary is preferred for pg->pg transfers since we use CopyFrom
 	// function from pgx driver and it requires all values to be binary
 	// serializable.
-	SnapshotSerializationFormat PgSerializationFormat
-	ShardingKeyFields           map[string][]string
-	PgDumpCommand               []string
-	ConnectionID                string
+	SnapshotSerializationFormat PgSerializationFormat `log:"true"`
+	ShardingKeyFields           map[string][]string   `log:"true"`
+	PgDumpCommand               []string              `log:"true"`
+	ConnectionID                string                `log:"true"`
 }
 
 var (
 	_ model.Source           = (*PgSource)(nil)
 	_ model.WithConnectionID = (*PgSource)(nil)
 )
+
+func (s *PgSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *PgSource) MDBClusterID() string {
 	return s.ClusterID
@@ -102,15 +108,15 @@ const (
 )
 
 type PgDumpSteps struct {
-	Table, PrimaryKey, View, Sequence         bool
-	SequenceOwnedBy, Rule, Type               bool
-	Constraint, FkConstraint, Index, Function bool
-	Collation, Trigger, Policy, Cast          bool
-	Default                                   bool
-	MaterializedView                          bool
-	SequenceSet                               *bool
-	TableAttach                               bool
-	IndexAttach                               bool
+	Table, PrimaryKey, View, Sequence         bool  `log:"true"`
+	SequenceOwnedBy, Rule, Type               bool  `log:"true"`
+	Constraint, FkConstraint, Index, Function bool  `log:"true"`
+	Collation, Trigger, Policy, Cast          bool  `log:"true"`
+	Default                                   bool  `log:"true"`
+	MaterializedView                          bool  `log:"true"`
+	SequenceSet                               *bool `log:"true"`
+	TableAttach                               bool  `log:"true"`
+	IndexAttach                               bool  `log:"true"`
 }
 
 func DefaultPgDumpPreSteps() *PgDumpSteps {

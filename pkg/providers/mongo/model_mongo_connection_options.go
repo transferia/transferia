@@ -10,21 +10,21 @@ import (
 )
 
 type HostWithPort struct {
-	Host string
-	Port int
+	Host string `log:"true"`
+	Port int    `log:"true"`
 }
 
 type MongoConnectionOptions struct {
-	ClusterID     string
-	HostsWithPort []HostWithPort
-	ReplicaSet    string
-	AuthSource    string
-	User          string
+	ClusterID     string         `log:"true"`
+	HostsWithPort []HostWithPort `log:"true"`
+	ReplicaSet    string         `log:"true"`
+	AuthSource    string         `log:"true"`
+	User          string         `log:"true"`
 	Password      string
 	CACert        TrustedCACertificate
-	Direct        bool
-	SRVMode       bool
-	ConnectionID  string
+	Direct        bool   `log:"true"`
+	SRVMode       bool   `log:"true"`
+	ConnectionID  string `log:"true"`
 }
 
 // IsDocDB check if we connect to amazon doc DB

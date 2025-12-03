@@ -19,12 +19,12 @@ import (
 )
 
 func init() {
-	destinationFactory := func() model.Destination {
+	destinationFactory := func() model.LoggableDestination {
 		return new(KafkaDestination)
 	}
 	gobwrapper.RegisterName("*server.KafkaSource", new(KafkaSource))
 	gobwrapper.RegisterName("*server.KafkaDestination", new(KafkaDestination))
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(KafkaSource)
 	})
 	model.RegisterDestination(ProviderType, destinationFactory)

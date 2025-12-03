@@ -27,10 +27,10 @@ import (
 func init() {
 	gobwrapper.RegisterName("*server.PgSource", new(PgSource))
 	gobwrapper.RegisterName("*server.PgDestination", new(PgDestination))
-	model.RegisterDestination(ProviderType, func() model.Destination {
+	model.RegisterDestination(ProviderType, func() model.LoggableDestination {
 		return new(PgDestination)
 	})
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(PgSource)
 	})
 

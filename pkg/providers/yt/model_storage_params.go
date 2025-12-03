@@ -6,10 +6,10 @@ import (
 
 type YtStorageParams struct {
 	Token                 string
-	Cluster               string
-	Path                  string
-	Spec                  map[string]interface{}
-	DisableProxyDiscovery bool
+	Cluster               string                 `log:"true"`
+	Path                  string                 `log:"true"`
+	Spec                  map[string]interface{} `log:"true"`
+	DisableProxyDiscovery bool                   `log:"true"`
 	ConnParams            ytclient.ConnParams
 }
 

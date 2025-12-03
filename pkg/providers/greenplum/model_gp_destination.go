@@ -3,28 +3,30 @@ package greenplum
 import (
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	ch_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
+	"go.uber.org/zap/zapcore"
 )
 
 type GpDestination struct {
-	Connection GpConnection
+	Connection GpConnection `log:"true"`
 
-	CleanupPolicy dp_model.CleanupType
+	CleanupPolicy dp_model.CleanupType `log:"true"`
 
-	SubnetID         string
-	SecurityGroupIDs []string
+	SubnetID         string   `log:"true"`
+	SecurityGroupIDs []string `log:"true"`
 
-	BufferTriggingSize     uint64
-	BufferTriggingInterval time.Duration
+	BufferTriggingSize     uint64        `log:"true"`
+	BufferTriggingInterval time.Duration `log:"true"`
 
-	QueryTimeout time.Duration
+	QueryTimeout time.Duration `log:"true"`
 
-	enableGpfdist bool // enableGpfdist could be set by FillDependentFields based on the source settings.
+	enableGpfdist bool `log:"true"` // enableGpfdist could be set by FillDependentFields based on the source settings.
 }
 
 func (d *GpDestination) EnabledGpfdist() bool {
@@ -34,6 +36,10 @@ func (d *GpDestination) EnabledGpfdist() bool {
 var _ dp_model.Destination = (*GpDestination)(nil)
 var _ dp_model.WithConnectionID = (*GpDestination)(nil)
 var _ dp_model.LegacyFillDependentFields = (*GpDestination)(nil)
+
+func (d *GpDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *GpDestination) GetConnectionID() string {
 	return d.Connection.ConnectionID

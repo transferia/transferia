@@ -7,11 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -27,27 +29,27 @@ const (
 )
 
 type MongoSource struct {
-	ClusterID              string
-	Hosts                  []string
-	Port                   int
-	ReplicaSet             string
-	AuthSource             string
-	User                   string
+	ClusterID              string   `log:"true"`
+	Hosts                  []string `log:"true"`
+	Port                   int      `log:"true"`
+	ReplicaSet             string   `log:"true"`
+	AuthSource             string   `log:"true"`
+	User                   string   `log:"true"`
 	Password               model.SecretString
-	Collections            []MongoCollection
-	ExcludedCollections    []MongoCollection
-	SubNetworkID           string
-	SecurityGroupIDs       []string
-	TechnicalDatabase      string // deprecated: should be always ""
-	IsHomo                 bool
-	SlotID                 string // It's synthetic entity. Always equal to transfer_id!
-	SecondaryPreferredMode bool
+	Collections            []MongoCollection `log:"true"`
+	ExcludedCollections    []MongoCollection `log:"true"`
+	SubNetworkID           string            `log:"true"`
+	SecurityGroupIDs       []string          `log:"true"`
+	TechnicalDatabase      string            `log:"true"` // deprecated: should be always ""
+	IsHomo                 bool              `log:"true"`
+	SlotID                 string            `log:"true"` // It's synthetic entity. Always equal to transfer_id!
+	SecondaryPreferredMode bool              `log:"true"`
 	TLSFile                string
-	ReplicationSource      MongoReplicationSource
-	BatchingParams         *BatcherParameters // for now this is private params
-	DesiredPartSize        uint64
-	PreventJSONRepack      bool // should not be used, use cases for migration: DTSUPPORT-1596
-	ConnectionID           string
+	ReplicationSource      MongoReplicationSource `log:"true"`
+	BatchingParams         *BatcherParameters     `log:"true"` // for now this is private params
+	DesiredPartSize        uint64                 `log:"true"`
+	PreventJSONRepack      bool                   `log:"true"` // should not be used, use cases for migration: DTSUPPORT-1596
+	ConnectionID           string                 `log:"true"`
 
 	// FilterOplogWithRegexp is matters when ReplicationSource==MongoReplicationSourceOplog
 	//
@@ -59,22 +61,22 @@ type MongoSource struct {
 	// + Advantage of this mode: network efficiency
 	// - Disadvantage of this mode: when there are no changes on listened database, oplog will be lost
 	//   TODO(@kry127) Consider turning on consumer keeper in this case (separate tech db + filtering will be enough)
-	FilterOplogWithRegexp bool
+	FilterOplogWithRegexp bool `log:"true"`
 	// make a `direct` connection to mongo, see: https://www.mongodb.com/docs/drivers/go/current/fundamentals/connections/connection-guide/
-	Direct bool
+	Direct bool `log:"true"`
 
 	RootCAFiles []string
 	// indicates whether the mongoDB client uses a mongodb+srv connection
-	SRVMode bool
+	SRVMode bool `log:"true"`
 }
 
 var _ model.Source = (*MongoSource)(nil)
 var _ model.WithConnectionID = (*MongoSource)(nil)
 
 type BatcherParameters struct {
-	BatchSizeLimit     uint
-	KeySizeThreshold   uint64
-	BatchFlushInterval time.Duration
+	BatchSizeLimit     uint          `log:"true"`
+	KeySizeThreshold   uint64        `log:"true"`
+	BatchFlushInterval time.Duration `log:"true"`
 }
 
 type MongoCollectionFilter struct {
@@ -83,8 +85,8 @@ type MongoCollectionFilter struct {
 }
 
 type MongoCollection struct {
-	DatabaseName   string
-	CollectionName string
+	DatabaseName   string `log:"true"`
+	CollectionName string `log:"true"`
 }
 
 func (c MongoCollection) String() string {
@@ -113,6 +115,10 @@ func NewMongoCollection(planeName string) *MongoCollection {
 		DatabaseName:   planeName[:id],
 		CollectionName: planeName[id+1:],
 	}
+}
+
+func (s *MongoSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *MongoSource) MDBClusterID() string {

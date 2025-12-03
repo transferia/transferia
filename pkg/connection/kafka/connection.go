@@ -17,15 +17,15 @@ const (
 )
 
 type Connection struct {
-	ClusterID string
-	Hosts     []*Host
-	User      string
+	ClusterID string  `log:"true"`
+	Hosts     []*Host `log:"true"`
+	User      string  `log:"true"`
 	Password  model.SecretString
 	// currently filled with user data, not from db list in managed connection
-	Database       string
-	HasTLS         bool
+	Database       string `log:"true"`
+	HasTLS         bool   `log:"true"`
 	CACertificates string
-	Mechanisms     []KafkaSaslSecurityMechanism
+	Mechanisms     []KafkaSaslSecurityMechanism `log:"true"`
 }
 
 func (c *Connection) GetClusterID() string {
@@ -50,8 +50,8 @@ func (c *Connection) GetUsername() string {
 }
 
 type Host struct {
-	Name string
-	Port int
+	Name string `log:"true"`
+	Port int    `log:"true"`
 }
 
 func (c *Connection) ToBrokersUrls() []string {
