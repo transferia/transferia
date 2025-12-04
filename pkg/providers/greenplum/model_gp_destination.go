@@ -26,11 +26,7 @@ type GpDestination struct {
 
 	QueryTimeout time.Duration `log:"true"`
 
-	enableGpfdist bool `log:"true"` // enableGpfdist could be set by FillDependentFields based on the source settings.
-}
-
-func (d *GpDestination) EnabledGpfdist() bool {
-	return d.enableGpfdist
+	EnableGpfdist bool `log:"true"` // EnableGpfdist could be set by FillDependentFields based on the source settings.
 }
 
 var _ dp_model.Destination = (*GpDestination)(nil)
@@ -71,7 +67,7 @@ func (d *GpDestination) WithDefaults() {
 }
 
 func (d *GpDestination) BuffererConfig() *bufferer.BuffererConfig {
-	if d.enableGpfdist {
+	if d.EnableGpfdist {
 		// Since gpfdist is only supported for Greenplum source with gpfdist
 		// enabled, there is no need in custom bufferer at all.
 		return nil
@@ -114,7 +110,7 @@ func (d *GpDestination) ToGpSource() *GpSource {
 		AdvancedProps: *(func() *GpSourceAdvancedProps {
 			result := new(GpSourceAdvancedProps)
 			result.WithDefaults()
-			result.DisableGpfdist = !d.enableGpfdist
+			result.DisableGpfdist = !d.EnableGpfdist
 			return result
 		}()),
 		SubnetID:         "",
@@ -124,6 +120,8 @@ func (d *GpDestination) ToGpSource() *GpSource {
 
 func (d *GpDestination) FillDependentFields(transfer *dp_model.Transfer) {
 	if src, isHomo := transfer.Src.(*GpSource); isHomo {
-		d.enableGpfdist = !src.AdvancedProps.DisableGpfdist
+		d.EnableGpfdist = !src.AdvancedProps.DisableGpfdist
+	} else {
+		d.EnableGpfdist = false
 	}
 }
