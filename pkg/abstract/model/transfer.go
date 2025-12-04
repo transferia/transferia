@@ -222,7 +222,7 @@ func (f *Transfer) Validate() error {
 		}
 	}
 	if src, ok := f.Src.(DestinationCompatibility); ok {
-		if err := src.Compatible(f.Dst); err != nil {
+		if err := src.Compatible(f.Dst, f.Type); err != nil {
 			return xerrors.Errorf("source is not compatible with target: %w", err)
 		}
 	}

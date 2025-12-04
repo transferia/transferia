@@ -183,7 +183,7 @@ type SourceCompatibility interface {
 
 // DestinationCompatibility for source to check is it compatible with transfer destination
 type DestinationCompatibility interface {
-	Compatible(dst Destination) error
+	Compatible(dst Destination, transferType abstract.TransferType) error
 }
 
 // AsyncPartSource designates that source:
