@@ -110,7 +110,8 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 	require.NoError(t, err)
 	for _, message := range strings.Split(string(messages), "\n") {
 		err = srcSink.Push(
-			[]abstract.ChangeItem{abstract.MakeRawMessage([]byte("_"), currSource.Topic, time.Time{}, currSource.Topic, 0, 0, []byte(message))})
+			[]abstract.ChangeItem{abstract.MakeRawMessage([]byte("_"), currSource.Topic, time.Time{}, currSource.Topic, 0, 0, []byte(message))},
+		)
 		require.NoError(t, err)
 	}
 

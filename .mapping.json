@@ -1131,6 +1131,7 @@
   "pkg/parsers/registry/confluentschemaregistry/engine/types_protobuf.go":"transfer_manager/go/pkg/parsers/registry/confluentschemaregistry/engine/types_protobuf.go",
   "pkg/parsers/registry/confluentschemaregistry/engine/types_protobuf_test.go":"transfer_manager/go/pkg/parsers/registry/confluentschemaregistry/engine/types_protobuf_test.go",
   "pkg/parsers/registry/confluentschemaregistry/engine/utils_json.go":"transfer_manager/go/pkg/parsers/registry/confluentschemaregistry/engine/utils_json.go",
+  "pkg/parsers/registry/confluentschemaregistry/engine/utils_json_test.go":"transfer_manager/go/pkg/parsers/registry/confluentschemaregistry/engine/utils_json_test.go",
   "pkg/parsers/registry/confluentschemaregistry/engine/utils_protobuf.go":"transfer_manager/go/pkg/parsers/registry/confluentschemaregistry/engine/utils_protobuf.go",
   "pkg/parsers/registry/confluentschemaregistry/parser_config_confluent_schema_registry_common.go":"transfer_manager/go/pkg/parsers/registry/confluentschemaregistry/parser_config_confluent_schema_registry_common.go",
   "pkg/parsers/registry/confluentschemaregistry/parser_config_confluent_schema_registry_lb.go":"transfer_manager/go/pkg/parsers/registry/confluentschemaregistry/parser_config_confluent_schema_registry_lb.go",

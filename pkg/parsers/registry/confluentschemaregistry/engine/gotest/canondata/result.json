@@ -254,7 +254,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -324,7 +324,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -336,7 +336,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -348,7 +348,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -416,7 +416,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -428,7 +428,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -440,7 +440,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -658,7 +658,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -878,7 +878,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -947,7 +947,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -959,7 +959,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -971,7 +971,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1193,7 +1193,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -1263,7 +1263,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1275,7 +1275,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1287,7 +1287,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1509,7 +1509,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -1577,7 +1577,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1589,7 +1589,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1601,7 +1601,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1823,7 +1823,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -1892,7 +1892,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1904,7 +1904,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -1916,7 +1916,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2138,7 +2138,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -2206,7 +2206,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2218,7 +2218,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2230,7 +2230,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2448,7 +2448,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -2517,7 +2517,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2529,7 +2529,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2541,7 +2541,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2679,7 +2679,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -2749,7 +2749,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2761,7 +2761,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2773,7 +2773,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2914,7 +2914,7 @@
                     "name": "col0_bool",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_VlgTe",
                     "table_schema": "schema_ObCsN",
                     "type": "boolean"
@@ -2983,7 +2983,7 @@
                     "name": "col0_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -2995,7 +2995,7 @@
                     "name": "col1_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
@@ -3007,7 +3007,7 @@
                     "name": "col2_integer",
                     "original_type": "",
                     "path": "",
-                    "required": true,
+                    "required": false,
                     "table_name": "table_JjPjz",
                     "table_schema": "schema_YzRyW",
                     "type": "int64"
