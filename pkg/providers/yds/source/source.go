@@ -47,6 +47,13 @@ type Source struct {
 	executor *functions.Executor
 }
 
+func (p *Source) YSRNamespaceID() string {
+	if srParser, ok := p.parser.(*parsers.YSRableParser); ok {
+		return srParser.YSRNamespaceID()
+	}
+	return ""
+}
+
 func (p *Source) Run(sink abstract.AsyncSink) error {
 	parseWrapper := func(batch committableBatch) []abstract.ChangeItem {
 		if len(batch.Batches) == 0 {

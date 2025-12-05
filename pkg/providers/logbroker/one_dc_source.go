@@ -50,6 +50,13 @@ type oneDCSource struct {
 	maxBatchSize int
 }
 
+func (s *oneDCSource) YSRNamespaceID() string {
+	if srParser, ok := s.parser.(*parsers.YSRableParser); ok {
+		return srParser.YSRNamespaceID()
+	}
+	return ""
+}
+
 func (s *oneDCSource) Fetch() ([]abstract.ChangeItem, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

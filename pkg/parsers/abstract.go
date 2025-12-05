@@ -50,6 +50,10 @@ type AbstractParserConfig interface {
 	Validate() error
 }
 
+type YSRable interface {
+	YSRNamespaceID() string
+}
+
 // now only one parser builder is supported
 // /transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/proto_parser_lazy_builder.go
 type ParserBuilder interface {

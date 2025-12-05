@@ -127,6 +127,21 @@ func (s *KafkaSource) IsAppendOnly() bool {
 	}
 }
 
+func (s *KafkaSource) YSRNamespaceID() string {
+	if s.ParserConfig == nil {
+		return ""
+	} else {
+		parserConfigStruct, _ := parsers.ParserConfigMapToStruct(s.ParserConfig)
+		if parserConfigStruct == nil {
+			return ""
+		}
+		if parserConfigStructYSRable, ok := parserConfigStruct.(parsers.YSRable); ok {
+			return parserConfigStructYSRable.YSRNamespaceID()
+		}
+		return ""
+	}
+}
+
 func (s *KafkaSource) IsDefaultMirror() bool {
 	return s.ParserConfig == nil
 }

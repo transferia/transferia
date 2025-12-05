@@ -14,28 +14,51 @@ import (
 func NewParserDebezium(inWrapped interface{}, _ bool, logger log.Logger, _ *stats.SourceStats) (parsers.Parser, error) {
 	var client *confluent.SchemaRegistryClient = nil
 	var err error
+	var namespaceID string
 	switch in := inWrapped.(type) {
 	case *ParserConfigDebeziumLb:
-		if in.SchemaRegistryURL == "" {
+		srURL, username, password := in.SchemaRegistryURL, in.Username, in.Password
+		namespaceID = in.NamespaceID
+		if namespaceID != "" {
+			params, err := confluent.ResolveYSRNamespaceIDToConnectionParams(namespaceID)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to resolve namespace id: %w", err)
+			}
+			srURL, username, password = params.URL, params.Username, params.Password
+		}
+		if srURL == "" {
 			break
 		}
-		client, err = confluent.NewSchemaRegistryClientWithTransport(in.SchemaRegistryURL, in.TLSFile, logger)
+		client, err = confluent.NewSchemaRegistryClientWithTransport(srURL, in.TLSFile, logger)
 		if err != nil {
 			return nil, xerrors.Errorf("Unable to create schema registry client: %w", err)
 		}
-		client.SetCredentials(in.Username, in.Password)
+		client.SetCredentials(username, password)
 	case *ParserConfigDebeziumCommon:
-		if in.SchemaRegistryURL == "" {
+		srURL, username, password := in.SchemaRegistryURL, in.Username, in.Password
+		namespaceID = in.NamespaceID
+		if namespaceID != "" {
+			params, err := confluent.ResolveYSRNamespaceIDToConnectionParams(namespaceID)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to resolve namespace id: %w", err)
+			}
+			srURL, username, password = params.URL, params.Username, params.Password
+		}
+		if srURL == "" {
 			break
 		}
-		client, err = confluent.NewSchemaRegistryClientWithTransport(in.SchemaRegistryURL, in.TLSFile, logger)
+		client, err = confluent.NewSchemaRegistryClientWithTransport(srURL, in.TLSFile, logger)
 		if err != nil {
 			return nil, xerrors.Errorf("Unable to create schema registry client: %w", err)
 		}
-		client.SetCredentials(in.Username, in.Password)
+		client.SetCredentials(username, password)
 	}
 
-	return debeziumengine.NewDebeziumImpl(logger, client, uint64(runtime.NumCPU()*4)), nil
+	parserImpl := debeziumengine.NewDebeziumImpl(logger, client, uint64(runtime.NumCPU()*4))
+	if namespaceID != "" {
+		return parsers.WithYSRNamespaceIDs(parserImpl, namespaceID), nil
+	}
+	return parserImpl, nil
 }
 
 func init() {

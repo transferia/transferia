@@ -25,7 +25,6 @@ func NewKeyPackerFromDebeziumParameters(connectorParameters map[string]string, l
 			}
 			srClient.SetCredentials(userAndPassword[0], userAndPassword[1])
 		}
-
 		return NewPackerCacheFinalSchema(NewPackerSchemaRegistry(
 			srClient,
 			debeziumparameters.GetKeySubjectNameStrategy(connectorParameters),
@@ -57,6 +56,26 @@ func NewValuePackerFromDebeziumParameters(connectorParameters map[string]string,
 			}
 			srClient.SetCredentials(userAndPassword[0], userAndPassword[1])
 		}
+		return NewPackerCacheFinalSchema(NewPackerSchemaRegistry(
+			srClient,
+			debeziumparameters.GetValueSubjectNameStrategy(connectorParameters),
+			false,
+			debeziumparameters.UseWriteIntoOneFullTopicName(connectorParameters),
+			debeziumparameters.GetTopicPrefix(connectorParameters),
+			debeziumparameters.GetValueConverterDTJSONGenerateClosedContentSchema(connectorParameters),
+		)), nil
+	}
+	if namespaceID := debeziumparameters.GetYSRNamespaceID(connectorParameters); namespaceID != "" {
+		srConnectionParameters, err := confluent.ResolveYSRNamespaceIDToConnectionParams(namespaceID)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to resolve namespace id: %w", err)
+		}
+		caCert := debeziumparameters.GetValueConverterSslCa(connectorParameters) // TODO(@kry127)  is it needed?
+		srClient, err := confluent.NewSchemaRegistryClientWithTransport(srConnectionParameters.URL, caCert, logger)
+		if err != nil {
+			return nil, xerrors.Errorf("Unable to create schema registry client: %w", err)
+		}
+		srClient.SetCredentials(srConnectionParameters.Username, srConnectionParameters.Password)
 		return NewPackerCacheFinalSchema(NewPackerSchemaRegistry(
 			srClient,
 			debeziumparameters.GetValueSubjectNameStrategy(connectorParameters),

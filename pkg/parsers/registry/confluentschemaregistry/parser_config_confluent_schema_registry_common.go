@@ -6,6 +6,7 @@ type ParserConfigConfluentSchemaRegistryCommon struct {
 	Username          string
 	Password          string
 	TLSFile           string
+	NamespaceID       string // when specified, all other connection settings are ignored
 
 	IsGenerateUpdates bool
 }
@@ -18,4 +19,8 @@ func (c *ParserConfigConfluentSchemaRegistryCommon) IsAppendOnly() bool {
 
 func (c *ParserConfigConfluentSchemaRegistryCommon) Validate() error {
 	return nil
+}
+
+func (c *ParserConfigConfluentSchemaRegistryCommon) YSRNamespaceID() string {
+	return c.NamespaceID
 }

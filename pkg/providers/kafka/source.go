@@ -54,6 +54,13 @@ type Source struct {
 	partitionReleased bool // becomes true, when consumer loses partitions
 }
 
+func (p *Source) YSRNamespaceID() string {
+	if srParser, ok := p.parser.(*parsers.YSRableParser); ok {
+		return srParser.YSRNamespaceID()
+	}
+	return ""
+}
+
 // inflightBytes - increased with every new message, but decreased only after AsyncPush returned something,
 //     what is a bit counterintuitively at first sight
 // so, inflightBytes - it's not some real buffer size, but size of 'virtual' buffer - which includes messages, sent to AsyncPush

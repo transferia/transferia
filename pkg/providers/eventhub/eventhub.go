@@ -38,6 +38,13 @@ type Source struct {
 	parser                         parsers.Parser
 }
 
+func (s *Source) YSRNamespaceID() string {
+	if srParser, ok := s.parser.(*parsers.YSRableParser); ok {
+		return srParser.YSRNamespaceID()
+	}
+	return ""
+}
+
 func (s *Source) Run(sink abstract.AsyncSink) error {
 	defer func() {
 		s.Stop()

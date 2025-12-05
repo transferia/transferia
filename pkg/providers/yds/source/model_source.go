@@ -126,6 +126,21 @@ func (s *YDSSource) IsAppendOnly() bool {
 	}
 }
 
+func (s *YDSSource) YSRNamespaceID() string {
+	if s.ParserConfig == nil {
+		return ""
+	} else {
+		parserConfigStruct, _ := parsers.ParserConfigMapToStruct(s.ParserConfig)
+		if parserConfigStruct == nil {
+			return ""
+		}
+		if parserConfigStructYSRable, ok := parserConfigStruct.(parsers.YSRable); ok {
+			return parserConfigStructYSRable.YSRNamespaceID()
+		}
+		return ""
+	}
+}
+
 func (s *YDSSource) IsDefaultMirror() bool {
 	return s.ParserConfig == nil
 }

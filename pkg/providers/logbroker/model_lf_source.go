@@ -93,6 +93,17 @@ func (s *LfSource) IsAppendOnly() bool {
 	return parserConfigStruct.IsAppendOnly()
 }
 
+func (s *LfSource) YSRNamespaceID() string {
+	parserConfigStruct, _ := parsers.ParserConfigMapToStruct(s.ParserConfig)
+	if parserConfigStruct == nil {
+		return ""
+	}
+	if parserConfigStructYSRable, ok := parserConfigStruct.(parsers.YSRable); ok {
+		return parserConfigStructYSRable.YSRNamespaceID()
+	}
+	return ""
+}
+
 func (s *LfSource) Parser() map[string]interface{} {
 	return s.ParserConfig
 }
