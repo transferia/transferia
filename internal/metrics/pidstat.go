@@ -37,7 +37,7 @@ type Stat struct {
 var (
 	platform    string
 	history     map[int]Stat
-	historyLock sync.Mutex
+	historyLock sync.RWMutex
 	eol         string
 )
 
@@ -57,7 +57,10 @@ func parseFloat(val string) float64 {
 }
 
 func stat(pid int, statType string) (*SysInfo, error) {
+	historyLock.RLock()
 	_history := history[pid]
+	historyLock.RUnlock()
+
 	if statType == "ps" {
 		args := "-o pcpu,rss -p"
 		if platform == "aix" {
