@@ -273,7 +273,7 @@ func fetchToastedRows(table *sinkTable, changeItems []abstract.ChangeItem) ([]ab
 			queryTemplate,
 			len(result),
 			len(changeItems),
-			keyValuesToString(result),
+			keyValuesToString(changeItems),
 		)
 	}
 
