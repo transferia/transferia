@@ -52,7 +52,7 @@ func (o *shardingDataObject) part() *Part {
 		lastIdx = o.table.RowCount
 	}
 	r := ypath.Interval(ypath.RowIndex(o.idx), ypath.RowIndex(lastIdx))
-	return NewPart(o.table.Name, *o.table.NodeID, r, o.txID)
+	return NewPart(o.table.Name, *o.table.NodeID, r, o.txID, o.table.Columns)
 }
 
 func (o *shardingDataObject) ToOldTableID() (*abstract.TableID, error) {

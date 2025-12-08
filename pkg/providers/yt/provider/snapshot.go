@@ -65,7 +65,7 @@ func (s *snapshotSource) Start(ctx context.Context, target base.EventTarget) err
 	s.isDone = false
 
 	s.lgr.Debug("Starting snapshot source")
-	tbl, err := schema.Load(ctx, s.yt, s.txID, s.part.NodeID(), s.part.Name())
+	tbl, err := schema.Load(ctx, s.yt, s.txID, s.part.NodeID(), s.part.Name(), s.part.Columns())
 	if err != nil {
 		return xerrors.Errorf("error loading table schema: %w", err)
 	}
@@ -197,7 +197,7 @@ func (s *snapshotSource) runReaders(ctx context.Context, batchSize uint64, stopC
 					if !ok {
 						return
 					}
-					if err = s.readTableRange(ctx, rng.lower, rng.upper, stopCh); err != nil {
+					if err = s.readTableRange(ctx, rng.lower, rng.upper, stopCh, s.part.Columns()); err != nil {
 						return
 					}
 				case <-stopCh:

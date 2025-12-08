@@ -2,6 +2,7 @@ package schema
 
 import (
 	"context"
+	"slices"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	basetypes "github.com/transferia/transferia/pkg/base/types"
@@ -22,7 +23,7 @@ func AddRowIdxColumn(tbl table.YtTable, colName string) {
 	tbl.AddColumn(table.NewColumn(cl.Name, basetypes.NewInt64Type(), cl.Type, cl, false))
 }
 
-func Load(ctx context.Context, ytc yt.Client, txID yt.TxID, nodeID yt.NodeID, origName string) (table.YtTable, error) {
+func Load(ctx context.Context, ytc yt.Client, txID yt.TxID, nodeID yt.NodeID, origName string, includeCols []string) (table.YtTable, error) {
 	var sch schema.Schema
 	if err := ytc.GetNode(ctx, nodeID.YPath().Attr("schema"), &sch, &yt.GetNodeOptions{
 		TransactionOptions: &yt.TransactionOptions{TransactionID: txID},
@@ -36,6 +37,9 @@ func Load(ctx context.Context, ytc yt.Client, txID yt.TxID, nodeID yt.NodeID, or
 
 	t := table.NewTable(origName)
 	for _, cl := range sch.Columns {
+		if len(includeCols) > 0 && !slices.Contains(includeCols, cl.Name) {
+			continue
+		}
 		ytType, isOptional := types.UnwrapOptional(cl.ComplexType)
 		typ, err := types.Resolve(ytType)
 		if err != nil {

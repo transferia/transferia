@@ -40,7 +40,7 @@ func (o *preshardedDataObject) Part() (base.DataObjectPart, error) {
 		return nil, xerrors.Errorf("part index %d out of range %d", o.idx, l)
 	}
 	k := o.partKeys[o.idx]
-	return NewPart(k.Table, k.NodeID, k.Rng, o.txID), nil
+	return NewPart(k.Table, k.NodeID, k.Rng, o.txID, k.Columns), nil
 }
 
 func (o *preshardedDataObject) ToOldTableID() (*abstract.TableID, error) {

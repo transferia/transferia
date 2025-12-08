@@ -14,9 +14,10 @@ type PartKey interface {
 }
 
 type partKey struct {
-	NodeID yt.NodeID   `yson:"id"`
-	Table  string      `yson:"t"`
-	Rng    ypath.Range `yson:"r"`
+	NodeID  yt.NodeID   `yson:"id"`
+	Table   string      `yson:"t"`
+	Rng     ypath.Range `yson:"r"`
+	Columns []string    `yson:"c"`
 }
 
 func (k *partKey) TableKey() string {

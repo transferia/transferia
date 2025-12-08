@@ -214,7 +214,7 @@ func (objs *YTDataObjects) ToTableParts() ([]abstract.TableDescription, error) {
 	for i, t := range objs.tbls {
 		lock, err := objs.tx.LockNode(context.Background(), t.OriginalYPath(), yt.LockSnapshot, nil)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to lock table '%v': %w", t.OriginalYPath(), objs.err)
+			return nil, xerrors.Errorf("unable to lock table '%v': %w", t.OriginalYPath(), err)
 		}
 		t.NodeID = &lock.NodeID
 

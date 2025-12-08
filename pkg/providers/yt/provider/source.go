@@ -88,7 +88,7 @@ func (s *source) TableSchema(part base.DataObjectPart) (*abstract.TableSchema, e
 	if !ok {
 		return nil, xerrors.Errorf("part %T is not yt dataobject part: %s", part, part.FullName())
 	}
-	yttable, err := schema.Load(context.Background(), s.yt, s.tx.ID(), p.NodeID(), p.Name())
+	yttable, err := schema.Load(context.Background(), s.yt, s.tx.ID(), p.NodeID(), p.Name(), p.Columns())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load yt schema: %w", err)
 	}
@@ -125,7 +125,7 @@ func (s *source) TablePartToDataObjectPart(tableDescription *abstract.TableDescr
 	if err != nil {
 		return nil, xerrors.Errorf("Can't parse part key: %w", err)
 	}
-	return dataobjects.NewPart(key.Table, key.NodeID, key.Range(), s.txID), nil
+	return dataobjects.NewPart(key.Table, key.NodeID, key.Range(), s.txID, key.Columns), nil
 }
 
 func (s *source) ShardingContext() ([]byte, error) {
