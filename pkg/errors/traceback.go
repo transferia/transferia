@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -43,15 +44,19 @@ func extractStackTrace(err error) string {
 		return ""
 	}
 
+	const maxDepth = 64
 	seen := make(map[string]bool)
 	var result []string
+	depth := maxDepth
 
-	for err != nil {
-		errStr := err.Error()
-		if seen[errStr] {
+	for err != nil && depth > 0 {
+		depth--
+
+		key := fmt.Sprintf("%T:%s", err, err.Error())
+		if seen[key] {
 			break
 		}
-		seen[errStr] = true
+		seen[key] = true
 
 		if errStack, ok := err.(xerrors.ErrorStackTrace); ok {
 			frames := errStack.StackTrace().Frames()
