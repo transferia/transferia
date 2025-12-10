@@ -1870,6 +1870,7 @@
   "pkg/providers/s3/reader/registry/json/reader_json_line.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/reader_json_line.go",
   "pkg/providers/s3/reader/registry/json/reader_json_line_test.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/reader_json_line_test.go",
   "pkg/providers/s3/reader/registry/json/reader_json_parser.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/reader_json_parser.go",
+  "pkg/providers/s3/reader/registry/json/reader_json_parser_test.go":"transfer_manager/go/pkg/providers/s3/reader/registry/json/reader_json_parser_test.go",
   "pkg/providers/s3/reader/registry/line/README.md":"transfer_manager/go/pkg/providers/s3/reader/registry/line/README.md",
   "pkg/providers/s3/reader/registry/line/gotest/dump/data.log":"transfer_manager/go/pkg/providers/s3/reader/registry/line/gotest/dump/data.log",
   "pkg/providers/s3/reader/registry/line/reader_line.go":"transfer_manager/go/pkg/providers/s3/reader/registry/line/reader_line.go",

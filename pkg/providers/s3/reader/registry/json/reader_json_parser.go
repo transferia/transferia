@@ -138,16 +138,22 @@ func (r *JSONParserReader) Read(ctx context.Context, filePath string, pusher chu
 		if chunkReader.IsEOF() && len(chunkReader.Data()) > 0 {
 			lastRound = true
 		}
+		data := chunkReader.Data()
 		if r.newlinesInValue {
-			lines, readBytes = readAllMultilineLines(chunkReader.Data())
+			lines, readBytes = readAllMultilineLines(data)
 		} else {
-			lines, readBytes, err = readAllLines(chunkReader.Data())
+			lines, readBytes, err = readAllLines(data)
 			if err != nil {
 				return xerrors.Errorf("failed to read lines from file: %w", err)
 			}
 		}
 
-		chunkReader.FillBuffer(chunkReader.Data()[readBytes:])
+		// Limit readBytes to data length to prevent slice bounds out of range
+		if readBytes > len(data) {
+			readBytes = len(data)
+		}
+
+		chunkReader.FillBuffer(data[readBytes:])
 		offset += readBytes
 		var buff []abstract.ChangeItem
 		var currentSize int64

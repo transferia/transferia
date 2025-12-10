@@ -81,6 +81,13 @@ func TestResolveJSONLineSchema(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to validate json line")
 	})
 
+	t.Run("valid json without newline", func(t *testing.T) {
+		currSchema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/without_new_line_one_json.json")
+		require.NoError(t, err)
+		require.Equal(t, []string{"Item"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"any"}, abstract_reader.DataTypes(currSchema.Columns()))
+	})
+
 	jsonlineReader.newlinesInValue = true
 
 	t.Run("newline in value", func(t *testing.T) {
@@ -89,6 +96,14 @@ func TestResolveJSONLineSchema(t *testing.T) {
 		require.Equal(t, []string{"Cookie_Enabled", "Date", "Gender", "Hit_ID", "Region_ID", "Technology", "Time_Spent"}, currSchema.Columns().ColumnNames())
 		require.Equal(t, []string{"boolean", "timestamp", "any", "double", "double", "utf8", "any"}, abstract_reader.DataTypes(currSchema.Columns()))
 	})
+
+	t.Run("valid json without newline one json", func(t *testing.T) {
+		currSchema, err := jsonlineReader.resolveSchema(context.Background(), "test_jsonline_schemas/without_new_line_one_json.json")
+		require.NoError(t, err)
+		require.Equal(t, []string{"Item"}, currSchema.Columns().ColumnNames())
+		require.Equal(t, []string{"any"}, abstract_reader.DataTypes(currSchema.Columns()))
+	})
+
 }
 
 func TestTypes(t *testing.T) {

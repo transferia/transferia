@@ -344,7 +344,7 @@ func (r *JSONLineReader) resolveSchema(ctx context.Context, key string) (*abstra
 		}
 	} else {
 		line, err = reader.ReadString('\n')
-		if err != nil {
+		if err != nil && !xerrors.Is(err, io.EOF) {
 			return nil, xerrors.Errorf("could not read sample data for schema deduction from %s: %w", r.pathPrefix+key, err)
 		}
 	}
@@ -413,7 +413,7 @@ func guessType(value interface{}) (schema.Type, string, error) {
 
 func readSingleJSONObject(reader *bufio.Reader) (string, error) {
 	content, err := io.ReadAll(reader)
-	if err != nil {
+	if err != nil && !xerrors.Is(err, io.EOF) {
 		return "", xerrors.Errorf("failed to read sample content for schema deduction: %w", err)
 	}
 
