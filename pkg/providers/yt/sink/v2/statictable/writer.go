@@ -57,7 +57,8 @@ func (w *Writer) Write(items []changeitem.ChangeItem) error {
 			}
 		}
 		if err := w.writer.Write(row); err != nil {
-			w.logger.Error("cannot write changeItem to static table", log.Any("table", item.Table), log.Error(err))
+			w.logger.Error("cannot write changeItem to static table", log.Any("table", item.Table),
+				log.String("sub_tx_id", w.tx.ID().String()), log.Error(err))
 			return err
 		}
 	}
