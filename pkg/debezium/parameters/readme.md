@@ -135,7 +135,8 @@ https://debezium.io/documentation/reference/stable/connectors/postgresql.html#po
 Существует в виде заглушки) как понадобится - реализуем
 
 ### tombstones.on.delete
-Существует в виде заглушки) как понадобится - реализуем
+
+Позволяет не генерировать tombstone-евенты на delete'ах.
 
 ### key.converter
 см value.converter
