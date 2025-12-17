@@ -1084,3 +1084,9 @@ func TestRemoveLessThanWithNegativeKeys(t *testing.T) {
 	require.True(t, m.Contains(0))
 	require.True(t, m.Contains(10))
 }
+
+func TestMigrate(t *testing.T) {
+	orderedMultimap := NewOrderedMultimap()
+	err := orderedMultimap.Deserialize([]byte(`{"NS":1636990841931000000,"Files":["csv_sample_100MB_no_header.csv"]}`))
+	require.NoError(t, err)
+}

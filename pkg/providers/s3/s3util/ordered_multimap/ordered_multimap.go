@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type OrderedMultimap struct {
@@ -245,10 +247,18 @@ func (m *OrderedMultimap) Deserialize(in []byte) error {
 	}
 
 	stateForSerDe := make(map[int64][]string)
+	var err error
 
-	err := json.Unmarshal(in, &stateForSerDe)
-	if err != nil {
-		return fmt.Errorf("unable to unmarshal map, json:%s, err:%s", in, err.Error())
+	if isOldState(in) {
+		stateForSerDe, err = migrate(in)
+		if err != nil {
+			return fmt.Errorf("migrate old state failed, err: %w", err)
+		}
+	} else {
+		err := json.Unmarshal(in, &stateForSerDe)
+		if err != nil {
+			return fmt.Errorf("unable to unmarshal map, json:%s, err:%s", in, err.Error())
+		}
 	}
 
 	for rKey := range stateForSerDe {
@@ -261,4 +271,36 @@ func (m *OrderedMultimap) Deserialize(in []byte) error {
 	}
 
 	return nil
+}
+
+//---
+
+func migrate(in []byte) (map[int64][]string, error) {
+	var state stateUtilStructForSerDeForMigration
+	err := json.Unmarshal(in, &state)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to deserialize json (2), err: %w", err)
+	}
+	return map[int64][]string{
+		state.NS: state.Files,
+	}, nil
+}
+
+type stateUtilStructForSerDeForMigration struct {
+	NS    int64    `json:"NS"`
+	Files []string `json:"Files"`
+}
+
+func isOldState(in []byte) bool {
+	var rawMap map[string]any
+	err := json.Unmarshal(in, &rawMap)
+	if err != nil {
+		return false
+	}
+
+	if _, ok := rawMap["NS"]; ok && len(rawMap) == 2 {
+		return true
+	} else {
+		return false
+	}
 }

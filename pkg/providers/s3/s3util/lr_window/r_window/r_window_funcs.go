@@ -51,54 +51,28 @@ func buildRightWindow(in []file.File, listTime time.Duration, overlapWindowTimeS
 }
 
 func deserializeWithMigration(in []byte) (*ordered_multimap.OrderedMultimap, error) {
-	var rawMap map[string]any
-	err := json.Unmarshal(in, &rawMap)
+	// not need to migrate
+	stateForSerDe := stateUtilStructForSerDe{
+		RWindow: make(map[int64][]string),
+	}
+
+	err := json.Unmarshal(in, &stateForSerDe)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to deserialize json, err: %w", err)
+		return nil, xerrors.Errorf("unable to unmarshal serialized state, err: %w", err)
 	}
 
 	result := ordered_multimap.NewOrderedMultimap()
-
-	if _, ok := rawMap["NS"]; ok && len(rawMap) == 2 {
-		// migrate
-		var state stateUtilStructForSerDeForMigration
-		err = json.Unmarshal(in, &state)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to deserialize json (2), err: %w", err)
-		}
-		for _, currFile := range state.Files {
-			err = result.Add(state.NS, currFile)
+	for rKey := range stateForSerDe.RWindow {
+		for _, rVal := range stateForSerDe.RWindow[rKey] {
+			err = result.Add(rKey, rVal)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to add the value for key: %d, value: %s, err: %w", state.NS, currFile, err)
-			}
-		}
-	} else {
-		// not need to migrate
-		stateForSerDe := stateUtilStructForSerDe{
-			RWindow: make(map[int64][]string),
-		}
-
-		err = json.Unmarshal(in, &stateForSerDe)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to unmarshal serialized state, err: %w", err)
-		}
-
-		for rKey := range stateForSerDe.RWindow {
-			for _, rVal := range stateForSerDe.RWindow[rKey] {
-				err = result.Add(rKey, rVal)
-				if err != nil {
-					return nil, xerrors.Errorf("failed to add the value for key %d, err: %w", rKey, err)
-				}
+				return nil, xerrors.Errorf("failed to add the value for key %d, err: %w", rKey, err)
 			}
 		}
 	}
 	return result, nil
 }
 
-type stateUtilStructForSerDeForMigration struct {
-	NS    int64    `json:"NS"`
-	Files []string `json:"Files"`
-}
 type stateUtilStructForSerDe struct {
 	RWindow map[int64][]string
 }
