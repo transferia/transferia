@@ -98,6 +98,21 @@ func (s *EventHubSource) IsAppendOnly() bool {
 	}
 }
 
+func (s *EventHubSource) YSRNamespaceID() string {
+	if s.ParserConfig == nil {
+		return ""
+	} else {
+		parserConfigStruct, _ := parsers.ParserConfigMapToStruct(s.ParserConfig)
+		if parserConfigStruct == nil {
+			return ""
+		}
+		if parserConfigStructYSRable, ok := parserConfigStruct.(parsers.YSRable); ok {
+			return parserConfigStructYSRable.YSRNamespaceID()
+		}
+		return ""
+	}
+}
+
 func (s *EventHubSource) IsDefaultMirror() bool {
 	return s.ParserConfig == nil
 }

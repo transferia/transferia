@@ -135,6 +135,10 @@ func (d *KafkaDestination) Validate() error {
 	return nil
 }
 
+func (d *KafkaDestination) YSRNamespaceID() string {
+	return debeziumparameters.GetYSRNamespaceID(d.FormatSettings.Settings)
+}
+
 func (d *KafkaDestination) Compatible(src model.Source, transferType abstract.TransferType) error {
 	return coherence_check.SourceCompatible(src, transferType, d.FormatSettings.Name)
 }

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -66,24 +67,27 @@ func NewValuePackerFromDebeziumParameters(connectorParameters map[string]string,
 		)), nil
 	}
 	if namespaceID := debeziumparameters.GetYSRNamespaceID(connectorParameters); namespaceID != "" {
-		srConnectionParameters, err := confluent.ResolveYSRNamespaceIDToConnectionParams(namespaceID)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to resolve namespace id: %w", err)
-		}
-		caCert := debeziumparameters.GetValueConverterSslCa(connectorParameters) // TODO(@kry127)  is it needed?
-		srClient, err := confluent.NewSchemaRegistryClientWithTransport(srConnectionParameters.URL, caCert, logger)
-		if err != nil {
-			return nil, xerrors.Errorf("Unable to create schema registry client: %w", err)
-		}
-		srClient.SetCredentials(srConnectionParameters.Username, srConnectionParameters.Password)
-		return NewPackerCacheFinalSchema(NewPackerSchemaRegistry(
-			srClient,
-			debeziumparameters.GetValueSubjectNameStrategy(connectorParameters),
-			false,
-			debeziumparameters.UseWriteIntoOneFullTopicName(connectorParameters),
-			debeziumparameters.GetTopicPrefix(connectorParameters),
-			debeziumparameters.GetValueConverterDTJSONGenerateClosedContentSchema(connectorParameters),
-		)), nil
+		return NewPackerRenewableOnExpiration(func() (Packer, abstract.Expirer, error) {
+			ysrConnectionParameters, err := confluent.ResolveYSRNamespaceIDToConnectionParams(namespaceID)
+			if err != nil {
+				return nil, nil, xerrors.Errorf("failed to resolve namespace id: %w", err)
+			}
+			caCert := debeziumparameters.GetValueConverterSslCa(connectorParameters)
+			srClient, err := confluent.NewSchemaRegistryClientWithTransport(ysrConnectionParameters.URL, caCert, logger)
+			if err != nil {
+				return nil, nil, xerrors.Errorf("Unable to create schema registry client: %w", err)
+			}
+			srClient.SetCredentials(ysrConnectionParameters.Username, ysrConnectionParameters.Password)
+
+			return NewPackerCacheFinalSchema(NewPackerSchemaRegistry(
+				srClient,
+				debeziumparameters.GetValueSubjectNameStrategy(connectorParameters),
+				false,
+				debeziumparameters.UseWriteIntoOneFullTopicName(connectorParameters),
+				debeziumparameters.GetTopicPrefix(connectorParameters),
+				debeziumparameters.GetValueConverterDTJSONGenerateClosedContentSchema(connectorParameters),
+			)), &ysrConnectionParameters, nil
+		}, logger)
 	}
 
 	if debeziumparameters.IsValueSchemaDisabled(connectorParameters) {
