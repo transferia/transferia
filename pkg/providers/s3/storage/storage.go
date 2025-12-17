@@ -2,18 +2,23 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/library/go/yandex/cloud/filter"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/predicate"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
 	reader_factory "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util/coordinator_utils"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util/effective_worker_num"
+	"github.com/transferia/transferia/pkg/providers/s3/storage/s3_shared_memory"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -21,14 +26,15 @@ import (
 var _ abstract.Storage = (*Storage)(nil)
 
 type Storage struct {
-	cfg           *s3.S3Source
-	transferID    string
-	isIncremental bool
-	client        s3iface.S3API
-	logger        log.Logger
-	tableSchema   *abstract.TableSchema
-	reader        reader.Reader
-	registry      metrics.Registry
+	cfg         *s3.S3Source
+	transferID  string
+	client      s3iface.S3API
+	logger      log.Logger
+	tableSchema *abstract.TableSchema
+	reader      reader.Reader
+	registry    metrics.Registry
+
+	shardingContext []byte
 }
 
 func (s *Storage) Close() {
@@ -43,124 +49,42 @@ func (s *Storage) TableSchema(ctx context.Context, table abstract.TableID) (*abs
 }
 
 func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription, inPusher abstract.Pusher) error {
-	if s.cfg.ShardingParams != nil { // TODO: Remove that `if` in TM-8537.
-		// @booec branch
-
-		// With enabled sharding params, common-known cloud filter parser is used.
-		// Unfortunatelly, for default sharding (when ShardingParams == nil) self-written pkg/predicate is used.
-		// Since there are no purposes to use self-written filter parser, it should be refactored in TM-8537.
-		syncPusher := pusher.New(func(items []abstract.ChangeItem) error {
-			for i, item := range items {
-				if item.IsRowEvent() {
-					items[i].Schema = s.cfg.TableNamespace
-					items[i].Table = s.cfg.TableName
-				}
-			}
-			return inPusher(items)
-		}, nil, s.logger, 0)
-		if err := s.readFiles(ctx, table, syncPusher); err != nil {
-			return xerrors.Errorf("unable to read many files: %w", err)
-		}
-		return nil
-	} else {
-		// @tserakhau branch
-
-		fileOps, err := predicate.InclusionOperands(table.Filter, s3FileNameCol)
-		if err != nil {
-			return xerrors.Errorf("unable to extract: %s: filter: %w", s3FileNameCol, err)
-		}
-		if len(fileOps) > 0 {
-			return s.readFile(ctx, table, inPusher)
-		}
-		parts, err := s.ShardTable(ctx, table)
-		if err != nil {
-			return xerrors.Errorf("unable to load files to read: %w", err)
-		}
-		totalRows := uint64(0)
-		for _, part := range parts {
-			totalRows += part.EtaRow
-		}
-		for _, part := range parts {
-			if err := s.readFile(ctx, part, inPusher); err != nil {
-				return xerrors.Errorf("unable to read part: %v: %w", part.String(), err)
-			}
-		}
-		return nil
-	}
-}
-
-// readFiles read files extracted from IN-operator of part.Filter.
-// For now, readFiles is used only with s.cfg.ShardingParams != nil and should be fixed in TM-8537.
-func (s *Storage) readFiles(ctx context.Context, part abstract.TableDescription, syncPusher pusher.Pusher) error {
-	terms, err := filter.Parse(string(part.Filter))
-	if err != nil {
-		return xerrors.Errorf("unable to parse filter: %w", err)
-	}
-	if len(terms) != 1 {
-		return xerrors.Errorf("expected filter with only one 'IN' operator, got '%s'", part.Filter)
-	}
-	term := terms[0]
-	if term.Operator != filter.In {
-		return xerrors.Errorf("unexpected operator '%s' in filter '%s'", term.Operator.String(), part.Filter)
-	}
-	if term.Attribute != s3FileNameCol {
-		return xerrors.Errorf("expected attr '%s', got '%s' in filter '%s'", s3FileNameCol, term.Attribute, part.Filter)
-	}
-	if !term.Value.IsStringList() {
-		return xerrors.Errorf("expected []string value, got '%s' in filter '%s'", term.Value.Type(), part.Filter)
-	}
-	for _, filePath := range term.Value.AsStringList() {
-		s.logger.Infof("Start loading file %s", filePath)
-		if err := s.reader.Read(ctx, filePath, syncPusher); err != nil {
-			return xerrors.Errorf("unable to read file %s: %w", filePath, err)
-		}
-		s.logger.Infof("Done loading file %s", filePath)
-	}
-	return nil
-}
-
-func (s *Storage) readFile(ctx context.Context, part abstract.TableDescription, inPusher abstract.Pusher) error {
-	fileOps, err := predicate.InclusionOperands(part.Filter, s3FileNameCol)
-	if err != nil {
-		return xerrors.Errorf("unable to extract: %s: filter: %w", s3FileNameCol, err)
-	}
-	if len(fileOps) != 1 {
-		return xerrors.Errorf("expect single col in filter: %s, but got: %v", part.Filter, len(fileOps))
-	}
-	fileOp := fileOps[0]
-	if fileOp.Op != predicate.EQ {
-		return xerrors.Errorf("file predicate expected to be `=`, but got: %s", fileOp)
-	}
-	fileName, ok := fileOp.Val.(string)
-	if !ok {
-		return xerrors.Errorf("%s expected to be string, but got: %T", s3FileNameCol, fileOp.Val)
-	}
-
 	wrappedPusher := func(items []abstract.ChangeItem) error {
+		partID := table.GeneratePartID()
 		for i, item := range items {
 			if item.IsRowEvent() {
 				items[i].Schema = s.cfg.TableNamespace
 				items[i].Table = s.cfg.TableName
-				items[i].PartID = part.PartID()
+				items[i].PartID = partID
 			}
 		}
 		return inPusher(items)
 	}
 
 	syncPusher := pusher.New(wrappedPusher, nil, s.logger, 0)
-	if err := s.reader.Read(ctx, fileName, syncPusher); err != nil {
-		return xerrors.Errorf("unable to read file: %s: %w", part.Filter, err)
+
+	// array here - to 'Metrika' source can batch many files into one 'abstract.TableDescription'
+	var fileList []string
+	err := json.Unmarshal([]byte(table.Filter), &fileList)
+	if err != nil {
+		return xerrors.Errorf("unable to unmarshal filter, val:%s, err: %w", string(table.Filter), err)
+	}
+
+	for _, currFile := range fileList {
+		if err := s.reader.Read(ctx, currFile, syncPusher); err != nil {
+			return xerrors.Errorf("unable to read file: %s: %w", table.Filter, err)
+		}
 	}
 	return nil
 }
 
 func (s *Storage) TableList(_ abstract.IncludeTableList) (abstract.TableMap, error) {
+	// 'tableID' here - fake, whole s3-source is like one big virtual table
 	tableID := *abstract.NewTableID(s.cfg.TableNamespace, s.cfg.TableName)
 	rows, err := s.EstimateTableRowsCount(tableID)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to estimate row count: %w", err)
 	}
-
 	return map[abstract.TableID]abstract.TableInfo{
 		tableID: {
 			EtaRow: rows,
@@ -189,7 +113,95 @@ func (s *Storage) TableExists(table abstract.TableID) (bool, error) {
 	return table == *abstract.NewTableID(s.cfg.TableNamespace, s.cfg.TableName), nil
 }
 
-func New(src *s3.S3Source, transferID string, isIncremental bool, lgr log.Logger, registry metrics.Registry) (*Storage, error) {
+func (s *Storage) ShardingContext() ([]byte, error) {
+	result, err := coordinator_utils.BuildShardingContext(
+		context.Background(),
+		s.logger,
+		s.registry,
+		s.cfg,
+	)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get sharding context: %w", err)
+	}
+
+	return result, nil
+}
+
+func (s *Storage) SetShardingContext(shardingContext []byte) error {
+	s.shardingContext = shardingContext
+	return nil
+}
+
+func (s *Storage) BuildSharedMemory(
+	ctx context.Context,
+	transfer any,
+	workerType abstract.WorkerType,
+	cp any,
+) (abstract.SharedMemory, error) {
+	transferUnwrapped, ok := transfer.(*model.Transfer)
+	if !ok {
+		return nil, xerrors.Errorf("invalid transfer type: %T", transfer)
+	}
+	cpUnwrapped, ok := cp.(coordinator.Coordinator)
+	if !ok {
+		return nil, xerrors.Errorf("invalid transfer coordinator: %T", cp)
+	}
+
+	// RESET WORKERS DONE (in TransferState)
+	if workerType == abstract.WorkerTypeMain {
+		runtimeUnwrapped, ok := transferUnwrapped.Runtime.(abstract.ShardingTaskRuntime)
+		if !ok {
+			return nil, xerrors.Errorf("runtime is unsupported type, %T", transferUnwrapped.Runtime)
+		}
+		err := coordinator_utils.ResetWorkersDone(cpUnwrapped, transferUnwrapped.ID, runtimeUnwrapped)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to reset workers, err: %w", err)
+		}
+	}
+
+	result, err := s3_shared_memory.NewSharedMemory(
+		ctx,
+		s.logger,
+		s.registry,
+		transferUnwrapped,
+		workerType,
+		cpUnwrapped,
+		s.shardingContext,
+	)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to build s3_shared_memory, err: %w", err)
+	}
+	return result, nil
+}
+
+func (s *Storage) CheckSecondaryWorkersDone(startTime time.Time, cp any, transfer any) (bool, error) {
+	cpUnwrapped, ok := cp.(coordinator.Coordinator)
+	if !ok {
+		return false, xerrors.Errorf("invalid transfer coordinator, err: %T", cp)
+	}
+	transferUnwrapped, ok := transfer.(*model.Transfer)
+	if !ok {
+		return false, xerrors.Errorf("invalid transfer type: %T", transfer)
+	}
+	runtimeUnwrapped, ok := transferUnwrapped.Runtime.(abstract.ShardingTaskRuntime)
+	if !ok {
+		return false, xerrors.Errorf("runtime is unsupported type, %T", transferUnwrapped.Runtime)
+	}
+	maxEffectiveWorkersCount := effective_worker_num.DetermineMaxEffectiveWorkerNum(runtimeUnwrapped)
+	count, err := coordinator_utils.WorkersDoneCount(startTime, cpUnwrapped, s.transferID, maxEffectiveWorkersCount)
+	if err != nil {
+		return false, xerrors.Errorf("unable to check workers, err: %w", err)
+	}
+	if count == maxEffectiveWorkersCount {
+		s.logger.Infof("wait while secondary_workers done - done %d/%d (DONE)", count, maxEffectiveWorkersCount)
+		return true, nil
+	} else {
+		s.logger.Infof("wait while secondary_workers done - done %d/%d (NOT_DONE)", count, maxEffectiveWorkersCount)
+		return false, nil
+	}
+}
+
+func New(src *s3.S3Source, transferID string, lgr log.Logger, registry metrics.Registry) (*Storage, error) {
 	sess, err := s3.NewAWSSession(lgr, src.Bucket, src.ConnectionConfig)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create aws session: %w", err)
@@ -203,13 +215,13 @@ func New(src *s3.S3Source, transferID string, isIncremental bool, lgr log.Logger
 		return nil, xerrors.Errorf("unable to resolve schema: %w", err)
 	}
 	return &Storage{
-		cfg:           src,
-		transferID:    transferID,
-		isIncremental: isIncremental,
-		client:        aws_s3.New(sess),
-		logger:        lgr,
-		tableSchema:   tableSchema,
-		reader:        currReader,
-		registry:      registry,
+		cfg:             src,
+		transferID:      transferID,
+		client:          aws_s3.New(sess),
+		logger:          lgr,
+		tableSchema:     tableSchema,
+		reader:          currReader,
+		registry:        registry,
+		shardingContext: nil,
 	}, nil
 }

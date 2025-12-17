@@ -43,6 +43,10 @@ func (m *Local) UpdateOperationTablesParts(operationID string, tables []*abstrac
 	return nil
 }
 
+func (m *Local) Close() error {
+	return nil
+}
+
 func (m *Local) GetShardStateNoWait(_ context.Context, operationID string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

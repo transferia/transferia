@@ -19,11 +19,11 @@ import (
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/predicate"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
+	"github.com/transferia/transferia/pkg/providers/s3/storage/s3_shared_memory"
 )
 
 func TestCanonParquet(t *testing.T) {
@@ -35,7 +35,7 @@ func TestCanonParquet(t *testing.T) {
 		logger.Log.Info("dir uploaded")
 	}
 	cfg.ReadBatchSize = 100_000
-	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	schema, err := storage.TableList(nil)
 	require.NoError(t, err)
@@ -47,14 +47,26 @@ func TestCanonParquet(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Infof("estimate %v rows", totalRows)
 	require.Equal(t, 12554664, int(totalRows))
-	tdesc, err := storage.ShardTable(context.Background(), abstract.TableDescription{Name: tid.Name, Schema: tid.Namespace})
+
+	ctx := context.Background()
+	sharedMemory, err := s3_shared_memory.NewS3SharedMemorySingleWorker(
+		ctx,
+		logger.Log,
+		solomon.NewRegistry(solomon.NewRegistryOpts()),
+		cfg,
+	)
 	require.NoError(t, err)
-	require.Equal(t, len(tdesc), 4)
+
 	wg := sync.WaitGroup{}
-	wg.Add(len(tdesc))
 	cntr := &atomic.Int64{}
 	fileSnippets := map[abstract.TableDescription]abstract.TypedChangeItem{}
-	for _, desc := range tdesc {
+	for {
+		nextTablePart, err := sharedMemory.NextOperationTablePart(ctx)
+		require.NoError(t, err)
+		if nextTablePart == nil {
+			break
+		}
+		wg.Add(1)
 		go func(desc abstract.TableDescription) {
 			defer wg.Done()
 			require.NoError(
@@ -68,7 +80,7 @@ func TestCanonParquet(t *testing.T) {
 					return nil
 				}),
 			)
-		}(desc)
+		}(*nextTablePart.ToTableDescription())
 	}
 	wg.Wait()
 	require.Equal(t, int(totalRows), int(cntr.Load()))
@@ -78,11 +90,13 @@ func TestCanonParquet(t *testing.T) {
 		sample.CommitTime = 0
 		rawJSON, err := json.MarshalIndent(&sample, "", "    ")
 		require.NoError(t, err)
-		operands, err := predicate.InclusionOperands(desc.Filter, s3FileNameCol)
-		require.NoError(t, err)
-		require.Len(t, operands, 1)
 
-		canonData := fmt.Sprintf("file: %s\n%s", operands[0].Val, string(rawJSON))
+		var files []string
+		err = json.Unmarshal([]byte(desc.Filter), &files)
+		require.NoError(t, err)
+		require.Len(t, files, 1)
+
+		canonData := fmt.Sprintf("file: %s\n%s", files[0], string(rawJSON))
 		require.NoError(t, err)
 		fmt.Println(canonData)
 		totalCanon = append(totalCanon, canonData)
@@ -102,7 +116,7 @@ func TestCanonJsonline(t *testing.T) {
 	cfg.ReadBatchSize = 100_000
 	cfg.Format.JSONLSetting = new(s3.JSONLSetting)
 	cfg.Format.JSONLSetting.BlockSize = 100_000
-	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	schema, err := storage.TableList(nil)
 	require.NoError(t, err)
@@ -111,13 +125,25 @@ func TestCanonJsonline(t *testing.T) {
 		logger.Log.Infof("resolved schema: %s (%s) %v", col.ColumnName, col.DataType, col.PrimaryKey)
 	}
 
-	tdesc, err := storage.ShardTable(context.Background(), abstract.TableDescription{Name: tid.Name, Schema: tid.Namespace})
+	ctx := context.Background()
+	sharedMemory, err := s3_shared_memory.NewS3SharedMemorySingleWorker(
+		ctx,
+		logger.Log,
+		solomon.NewRegistry(solomon.NewRegistryOpts()),
+		cfg,
+	)
 	require.NoError(t, err)
+
 	wg := sync.WaitGroup{}
-	wg.Add(len(tdesc))
 	cntr := &atomic.Int64{}
 	fileSnippets := map[abstract.TableDescription]abstract.TypedChangeItem{}
-	for _, desc := range tdesc {
+	for {
+		nextTablePart, err := sharedMemory.NextOperationTablePart(ctx)
+		require.NoError(t, err)
+		if nextTablePart == nil {
+			break
+		}
+		wg.Add(1)
 		go func(desc abstract.TableDescription) {
 			defer wg.Done()
 			require.NoError(
@@ -131,7 +157,7 @@ func TestCanonJsonline(t *testing.T) {
 					return nil
 				}),
 			)
-		}(desc)
+		}(*nextTablePart.ToTableDescription())
 	}
 	wg.Wait()
 
@@ -140,11 +166,13 @@ func TestCanonJsonline(t *testing.T) {
 		sample.CommitTime = 0
 		rawJSON, err := json.MarshalIndent(&sample, "", "    ")
 		require.NoError(t, err)
-		operands, err := predicate.InclusionOperands(desc.Filter, s3FileNameCol)
-		require.NoError(t, err)
-		require.Len(t, operands, 1)
 
-		canonData := fmt.Sprintf("file: %s\n%s", operands[0].Val, string(rawJSON))
+		var files []string
+		err = json.Unmarshal([]byte(desc.Filter), &files)
+		require.NoError(t, err)
+		require.Len(t, files, 1)
+
+		canonData := fmt.Sprintf("file: %s\n%s", files[0], string(rawJSON))
 		require.NoError(t, err)
 		fmt.Println(canonData)
 		totalCanon = append(totalCanon, canonData)
@@ -167,7 +195,7 @@ func TestCanonCsv(t *testing.T) {
 	cfg.Format.CSVSetting.Delimiter = ","
 	cfg.Format.CSVSetting.QuoteChar = "\""
 	cfg.Format.CSVSetting.EscapeChar = "\\"
-	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	schema, err := storage.TableList(nil)
 	require.NoError(t, err)
@@ -176,13 +204,25 @@ func TestCanonCsv(t *testing.T) {
 		logger.Log.Infof("resolved schema: %s (%s) %v", col.ColumnName, col.DataType, col.PrimaryKey)
 	}
 
-	tdesc, err := storage.ShardTable(context.Background(), abstract.TableDescription{Name: tid.Name, Schema: tid.Namespace})
+	ctx := context.Background()
+	sharedMemory, err := s3_shared_memory.NewS3SharedMemorySingleWorker(
+		ctx,
+		logger.Log,
+		solomon.NewRegistry(solomon.NewRegistryOpts()),
+		cfg,
+	)
 	require.NoError(t, err)
+
 	wg := sync.WaitGroup{}
-	wg.Add(len(tdesc))
 	cntr := &atomic.Int64{}
 	fileSnippets := map[abstract.TableDescription]abstract.TypedChangeItem{}
-	for _, desc := range tdesc {
+	for {
+		nextTablePart, err := sharedMemory.NextOperationTablePart(ctx)
+		require.NoError(t, err)
+		if nextTablePart == nil {
+			break
+		}
+		wg.Add(1)
 		go func(desc abstract.TableDescription) {
 			defer wg.Done()
 			require.NoError(
@@ -196,7 +236,7 @@ func TestCanonCsv(t *testing.T) {
 					return nil
 				}),
 			)
-		}(desc)
+		}(*nextTablePart.ToTableDescription())
 	}
 	wg.Wait()
 
@@ -240,7 +280,7 @@ func TestEstimateTableRowsCount(t *testing.T) {
 		QueueName: "test",
 	}
 
-	storage, err := New(cfg, "", false, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	storage, err := New(cfg, "", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
 	zeroRes, err := storage.EstimateTableRowsCount(*abstract.NewTableID("test", "name"))
@@ -283,11 +323,11 @@ func TestReadFileCorrectPartID(t *testing.T) {
 	tableDesc := abstract.TableDescription{
 		Name:   "table-desc-name",
 		Schema: "table-desc-schema",
-		Filter: abstract.WhereStatement(`"s3_file_name" = 'test.csv'`),
+		Filter: abstract.WhereStatement(`["test.csv"]`),
 	}
-	require.NoError(t, storage.readFile(context.Background(), tableDesc, func(items []abstract.ChangeItem) error {
+	require.NoError(t, storage.LoadTable(context.Background(), tableDesc, func(items []abstract.ChangeItem) error {
 		for _, item := range items {
-			require.Equal(t, tableDesc.PartID(), item.PartID)
+			require.Equal(t, tableDesc.GeneratePartID(), item.PartID)
 			require.Equal(t, abstract.InsertKind, item.Kind)
 			require.Equal(t, "test", item.Schema)
 			require.Equal(t, "name", item.Table)

@@ -9,7 +9,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
-	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/util"
@@ -116,85 +115,29 @@ func (l *SnapshotLoader) SetShardedStateToSource(source interface{}, shardedStat
 	return nil
 }
 
-func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, workersCount int) error {
-	start := time.Now()
+func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, sourceStorage abstract.Storage, workersCount int) error {
+	startTime := time.Now()
 	if err := l.WaitWorkersInitiated(ctx); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to wait workers initiated: %w", err)
 	}
 	for {
-		totalProgress, err := l.cp.GetOperationProgress(l.operationID)
-		if err != nil {
-			return errors.CategorizedErrorf(categories.Internal, "can't to get progress for operation '%v': %w", l.operationID, err)
-		}
-		workers, err := l.cp.GetOperationWorkers(l.operationID)
-		if err != nil {
-			return errors.CategorizedErrorf(categories.Internal, "can't to get workers for operation '%v': %w", l.operationID, err)
-		}
-
-		if workersCount != len(workers) {
-			return errors.CategorizedErrorf(categories.Internal, "expected workers count '%v' not equal real workers count '%v' for operation '%v'",
-				workersCount, len(workers), l.operationID)
-		}
-
-		completedWorkersCount := 0
-		partsInProgress := int64(0)
-		var errs util.Errors
-		progress := model.NewAggregatedProgress()
-		progress.PartsCount = totalProgress.PartsCount
-		progress.ETARowsCount = totalProgress.ETARowsCount
-		for _, worker := range workers {
-			if worker.Completed {
-				completedWorkersCount++
+		if customCheck, ok := sourceStorage.(abstract.CustomCheckSecondaryWorkersDone); !ok {
+			isDone, err := defaultCheckAreWorkersDone(startTime, l.cp, l.operationID, workersCount)
+			if err != nil {
+				return errors.CategorizedErrorf(categories.Internal, "an error occured during default waiting if secondary workers completed, err: %w", err)
 			}
-
-			if worker.Err != "" {
-				errs = append(errs, xerrors.Errorf("secondary worker [%v] of operation '%v' failed: %v",
-					worker.WorkerIndex, l.operationID, worker.Err))
+			if isDone {
+				return nil
 			}
-
-			if worker.Progress != nil {
-				partsInProgress += worker.Progress.PartsCount - worker.Progress.CompletedPartsCount
-				progress.CompletedPartsCount += worker.Progress.CompletedPartsCount
-				progress.CompletedRowsCount += worker.Progress.CompletedRowsCount
+		} else {
+			isDone, err := customCheck.CheckSecondaryWorkersDone(startTime, l.cp, l.transfer)
+			if err != nil {
+				return xerrors.Errorf("an error occured during custom waiting if secondary workers completed: %w", err)
+			}
+			if isDone {
+				return nil
 			}
 		}
-
-		completedWorkersCountPercent := float64(0)
-		if workersCount != 0 {
-			completedWorkersCountPercent = (float64(completedWorkersCount) / float64(workersCount)) * 100
-		}
-
-		completed := (completedWorkersCount == workersCount)
-
-		status := "running"
-		if completed {
-			status = "completed"
-		}
-		logger.Log.Infof(
-			"Secondary workers are %v, workers: %v in progress, %v completed, %v total (%.2f%% completed), parts: %v in progress, %v completed, %v total (%.2f%% completed), rows: %v / %v (%.2f%%), elapsed time: %v",
-			status,
-			workersCount-completedWorkersCount,
-			completedWorkersCount,
-			workersCount,
-			completedWorkersCountPercent,
-			partsInProgress,
-			progress.CompletedPartsCount,
-			progress.PartsCount,
-			progress.PartsPercent(),
-			progress.CompletedRowsCount,
-			progress.ETARowsCount,
-			progress.RowsPercent(),
-			time.Since(start),
-		)
-
-		if len(errs) > 0 {
-			return xerrors.Errorf("errors detected on secondary workers: %v", errs)
-		}
-
-		if completed {
-			return nil
-		}
-
 		time.Sleep(metaCheckInterval)
 	}
 }

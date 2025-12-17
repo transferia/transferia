@@ -10,45 +10,45 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-type PusherState struct {
+type progress struct {
+	ReadOffsets []any
+	Done        bool
+}
+
+type pusherState struct {
 	mu            sync.Mutex
 	logger        log.Logger
 	inflightLimit int64
 	inflightBytes int64
-	PushProgress  map[string]Progress
+	PushProgress  map[string]progress
 	counter       int
 }
 
-func (s *PusherState) IsEmpty() bool {
+func (s *pusherState) IsEmpty() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.counter == 0
 }
 
-type Progress struct {
-	ReadOffsets []any
-	Done        bool
-}
-
 // setPushProgress stores some useful information for tracking the read progress.
-// For each file a Progress struct is kept in memory indicating which offsets where already read.
+// For each file a progress struct is kept in memory indicating which offsets where already read.
 // Additionally a Done holds information if a file is fully read.
 // The counterpart to setPushProgress is the ackPushProgress where the processed chunks are removed form state.
-func (s *PusherState) setPushProgress(filePath string, offset any, isLast bool) {
+func (s *pusherState) setPushProgress(filePath string, offset any, isLast bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.counter++
 
-	progress, ok := s.PushProgress[filePath]
+	currProgress, ok := s.PushProgress[filePath]
 	if ok {
-		progress.ReadOffsets = append(progress.ReadOffsets, offset)
-		progress.Done = isLast
-		s.PushProgress[filePath] = progress
+		currProgress.ReadOffsets = append(currProgress.ReadOffsets, offset)
+		currProgress.Done = isLast
+		s.PushProgress[filePath] = currProgress
 	} else {
 		// new file processing
-		s.PushProgress[filePath] = Progress{
+		s.PushProgress[filePath] = progress{
 			ReadOffsets: []any{offset},
 			Done:        isLast,
 		}
@@ -57,7 +57,7 @@ func (s *PusherState) setPushProgress(filePath string, offset any, isLast bool) 
 
 // ackPushProgress removes already processed chunks form state.
 // It returns an error if chunk is double ack or missing.
-func (s *PusherState) ackPushProgress(filePath string, offset any, isLast bool) (bool, error) {
+func (s *pusherState) ackPushProgress(filePath string, offset any, isLast bool) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -88,7 +88,7 @@ func (s *PusherState) ackPushProgress(filePath string, offset any, isLast bool) 
 	}
 }
 
-func (s *PusherState) removeOffset(toRemove any, offsets []any) []any {
+func (s *pusherState) removeOffset(toRemove any, offsets []any) []any {
 	var remaining []any
 	for _, offset := range offsets {
 		if offset == toRemove {
@@ -101,7 +101,7 @@ func (s *PusherState) removeOffset(toRemove any, offsets []any) []any {
 }
 
 // DeleteDone delete's a processed files form state if the read process is completed
-func (s *PusherState) deleteDone(filePath string) {
+func (s *pusherState) deleteDone(filePath string) {
 	// to be called on commit of state to, to keep map as small as possible
 	progress, ok := s.PushProgress[filePath]
 	if ok && progress.Done {
@@ -109,7 +109,7 @@ func (s *PusherState) deleteDone(filePath string) {
 	}
 }
 
-func (s *PusherState) waitLimits(ctx context.Context) {
+func (s *pusherState) waitLimits(ctx context.Context) {
 	backoffTimer := backoff.NewExponentialBackOff()
 	// Configure backoff to reduce log noise
 	backoffTimer.InitialInterval = 1 * time.Second
@@ -141,20 +141,31 @@ func (s *PusherState) waitLimits(ctx context.Context) {
 	}
 }
 
-func (s *PusherState) inLimits() bool {
+func (s *pusherState) inLimits() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.inflightLimit == 0 || s.inflightLimit > s.inflightBytes
 }
 
-func (s *PusherState) addInflight(size int64) {
+func (s *pusherState) addInflight(size int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.inflightBytes += size
 }
 
-func (s *PusherState) reduceInflight(size int64) {
+func (s *pusherState) reduceInflight(size int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.inflightBytes = s.inflightBytes - size
+}
+
+func newPusherState(logger log.Logger, inflightLimit int64) *pusherState {
+	return &pusherState{
+		mu:            sync.Mutex{},
+		logger:        logger,
+		inflightLimit: inflightLimit,
+		inflightBytes: 0,
+		PushProgress:  map[string]progress{},
+		counter:       0,
+	}
 }

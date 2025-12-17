@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/abstract/typesystem"
 	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/providers/delta/action"
 	"github.com/transferia/transferia/pkg/providers/delta/protocol"
 	"github.com/transferia/transferia/pkg/providers/delta/store"
 	"github.com/transferia/transferia/pkg/providers/delta/types"
@@ -60,8 +61,8 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		return xerrors.Errorf("delta lake works only with enabled filter: %s", table.ID().String())
 	}
 
-	pusher := pusher.New(abstractPusher, nil, s.logger, 0)
-	return s.reader.Read(ctx, fmt.Sprintf("%s/%s", s.cfg.PathPrefix, string(table.Filter)), pusher)
+	currPusher := pusher.New(abstractPusher, nil, s.logger, 0)
+	return s.reader.Read(ctx, fmt.Sprintf("%s/%s", s.cfg.PathPrefix, string(table.Filter)), currPusher)
 }
 
 func (s *Storage) TableList(_ abstract.IncludeTableList) (abstract.TableMap, error) {
@@ -117,18 +118,28 @@ func (s *Storage) ExactTableRowsCount(_ abstract.TableID) (uint64, error) {
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
-	totalByteSize := int64(0)
-	totalRowCount := int64(0)
-	for _, file := range files {
-		totalByteSize += file.Size
-		filePath := fmt.Sprintf("%s/%s", s.cfg.PathPrefix, file.Path)
+
+	numRowsFunc := func(inFile *action.AddFile) (int64, int64, error) {
+		filePath := fmt.Sprintf("%s/%s", s.cfg.PathPrefix, inFile.Path)
 		sr, err := s3raw.NewS3RawReader(context.TODO(), s.client, s.cfg.Bucket, filePath, stats.NewSourceStats(s.registry))
 		if err != nil {
-			return 0, xerrors.Errorf("unable to create reader at: %w", err)
+			return 0, 0, xerrors.Errorf("unable to create reader at: %w", err)
 		}
 		pr := parquet.NewReader(sr)
 		defer pr.Close()
-		totalRowCount += pr.NumRows()
+
+		return pr.NumRows(), inFile.Size, nil
+	}
+
+	totalByteSize := int64(0)
+	totalRowCount := int64(0)
+	for _, file := range files {
+		numRows, numBytes, err := numRowsFunc(file)
+		if err != nil {
+			return 0, xerrors.Errorf("unable to get num rows: %w", err)
+		}
+		totalByteSize += numBytes
+		totalRowCount += numRows
 	}
 	s.logger.Infof("extract total row count: %d in %d files with total size: %s", totalRowCount, len(files), format.SizeUInt64(uint64(totalByteSize)))
 	return uint64(totalRowCount), nil

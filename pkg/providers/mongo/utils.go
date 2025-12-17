@@ -26,7 +26,7 @@ func (s Storage) readRowsAndPushByChunks(
 	chunkByteSize uint64,
 	pusher abstract.Pusher,
 ) error {
-	partID := table.PartID()
+	partID := table.GeneratePartID()
 	inflight := make([]abstract.ChangeItem, 0)
 	globalIdx := uint64(0)
 	byteSize := uint64(0)

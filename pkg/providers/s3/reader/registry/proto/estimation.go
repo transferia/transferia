@@ -74,7 +74,7 @@ func countLines(ctx context.Context, r *ProtoReader, key string) (int, error) {
 		return nil
 	}
 
-	if err := r.Read(ctx, key, chunk_pusher.NewSyncPusher(counter)); err != nil {
+	if err := r.Read(ctx, key, chunk_pusher.NewSynchronousPusher(counter)); err != nil {
 		return 0, xerrors.Errorf("unable to read file '%s': %w", key, err)
 	}
 

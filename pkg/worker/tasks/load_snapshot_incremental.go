@@ -66,7 +66,7 @@ func (l *SnapshotLoader) mergeIncrementWithTables(currentState []abstract.TableD
 func (l *SnapshotLoader) getIncrementalStateAndMergeWithTables(tables []abstract.TableDescription, incrementalStorage abstract.IncrementalStorage) ([]abstract.TableDescription, error) {
 	currTables := slices.Clone(tables)
 	if !l.transfer.CanReloadFromState() {
-		logger.Log.Info("Transfer cannot load  snapshot from state!")
+		logger.Log.Info("Transfer cannot load snapshot from state!")
 		return currTables, nil
 	}
 

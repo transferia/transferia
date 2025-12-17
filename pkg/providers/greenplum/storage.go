@@ -290,7 +290,7 @@ func (s *Storage) segmentLoadTable(ctx context.Context, storage *postgres.Storag
 			Kind:             abstract.InsertKind,
 			Schema:           table.Schema,
 			Table:            table.Name,
-			PartID:           table.PartID(),
+			PartID:           table.GeneratePartID(),
 			ColumnNames:      schema.Columns().ColumnNames(),
 			ColumnValues:     nil,
 			TableSchema:      schema,

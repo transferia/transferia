@@ -83,7 +83,7 @@ func (s *Storage) LoadTable(ctx context.Context, t abstract.TableDescription, pu
 	st := util.GetTimestampFromContextOrNow(ctx)
 
 	tablePath := ytprovider.SafeChild(ypath.Path(s.path), getTableName(t))
-	partID := t.PartID()
+	partID := t.GeneratePartID()
 
 	var scheme schema.Schema
 	if err := s.ytClient.GetNode(ctx, tablePath.Attr("schema"), &scheme, nil); err != nil {

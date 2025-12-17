@@ -289,7 +289,7 @@ func (s *Storage) readRowsAndPushByChunks(reader *rowsReader, pusher abstract.Pu
 		colsNames[i] = col.ColumnName
 	}
 
-	partID := tDescr.PartID()
+	partID := tDescr.GeneratePartID()
 
 	rowsCount := uint64(0)
 	inflightBytes := uint64(0)

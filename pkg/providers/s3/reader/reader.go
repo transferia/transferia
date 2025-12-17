@@ -9,10 +9,8 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var (
-	// registred reader implementations by model.ParsingFormat
-	readerImpls = map[model.ParsingFormat]func(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (Reader, error){}
-)
+// registred reader implementations by model.ParsingFormat
+var readerImpls = map[model.ParsingFormat]func(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (Reader, error){}
 
 type NewReader func(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (Reader, error)
 

@@ -127,8 +127,7 @@ func TestDoUploadTables_CtxCancelledNoErr(t *testing.T) {
 		logger.Log,
 		storage,
 		tablesMap.ConvertToTableDescriptions(),
-		true,
-		true,
+		abstract.WorkerTypeSingleWorker,
 	)
 	require.NoError(t, err)
 

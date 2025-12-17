@@ -141,7 +141,7 @@ file: yellow_taxi/yellow_tripdata_2022-07.parquet
     },
     "PartID": {
         "type": "string",
-        "value": "157a99af55b766d93c80dac9b29d94e6"
+        "value": "e1f85b3bb4cdbe652ca716bced1ef6f8"
     },
     "Query": {
         "type": "string",
@@ -571,7 +571,7 @@ file: yellow_taxi/yellow_tripdata_2022-12.parquet
     },
     "PartID": {
         "type": "string",
-        "value": "563237943f5a8052ff0ff0ddc1cb42b8"
+        "value": "c9ee800265f1a1a4875831c7e3fd26ed"
     },
     "Query": {
         "type": "string",
@@ -1001,7 +1001,7 @@ file: yellow_taxi/yellow_tripdata_2023-01.parquet
     },
     "PartID": {
         "type": "string",
-        "value": "4e3afa92097a1da424da677f8163b869"
+        "value": "c346b0345d12272386fc35513a948270"
     },
     "Query": {
         "type": "string",
@@ -1431,7 +1431,7 @@ file: yellow_taxi/yellow_tripdata_2023-02.parquet
     },
     "PartID": {
         "type": "string",
-        "value": "63bf82bb104773bab47269a397290a79"
+        "value": "a22733668133cbbe0fe048298e5491dc"
     },
     "Query": {
         "type": "string",

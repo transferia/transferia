@@ -43,8 +43,7 @@ func TestSnapshotLoader_doUploadTablesV2(t *testing.T) {
 		logger.Log,
 		srcStorage,
 		tablesMap.ConvertToTableDescriptions(),
-		true,
-		true,
+		abstract.WorkerTypeSingleWorker,
 	)
 	require.NoError(t, err)
 

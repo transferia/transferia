@@ -62,25 +62,14 @@ type S3Source struct {
 	EventSource    EventSource    `log:"true"`
 	UnparsedPolicy UnparsedPolicy `log:"true"`
 
-	// ShardingParams describes configuration of sharding logic.
-	// 	When nil, each file is a separate table part.
-	// 	When enabled, each part grows depending on configuration.
-	ShardingParams *ShardingParams `log:"true"`
-
 	// Concurrency - amount of parallel goroutines into one worker on REPLICATION
-	Concurrency            int64 `log:"true"`
-	SyntheticPartitionsNum int   `log:"true"`
+	Concurrency            int64
+	SyntheticPartitionsNum int
+	OverlapDuration        time.Duration // for LWindow & RWindow how much time we should take additionally, just in case
+	ThrottleCPDuration     time.Duration
 
 	// FetchInterval - fixed interval for fetching objects. If set to 0, exponential backoff is used
 	FetchInterval time.Duration `log:"true"`
-}
-
-// TODO: Add sharding of one file to bytes ranges.
-type ShardingParams struct {
-	// PartBytesLimit limits total files sizes (in bytes) per part.
-	// NOTE: It could be exceeded, but not more than the size of last file in part.
-	PartBytesLimit uint64 `log:"true"`
-	PartFilesLimit uint64 `log:"true"` // PartFilesLimit limits total files count per part.
 }
 
 type ConnectionConfig struct {
@@ -213,6 +202,12 @@ func (s *S3Source) WithDefaults() {
 	}
 	if s.SyntheticPartitionsNum == 0 {
 		s.SyntheticPartitionsNum = 128
+	}
+	if s.OverlapDuration == 0 {
+		s.OverlapDuration = 10 * time.Minute
+	}
+	if s.ThrottleCPDuration == 0 {
+		s.ThrottleCPDuration = time.Minute
 	}
 	s.ConnectionConfig.S3ForcePathStyle = true
 

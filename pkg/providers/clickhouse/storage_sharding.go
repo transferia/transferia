@@ -142,7 +142,7 @@ func (s *ShardStorage) LoadTable(ctx context.Context, table abstract.TableDescri
 		return s.defaultShard().LoadTable(ctx, table, pusher)
 	}
 
-	partID := table.PartID()
+	partID := table.GeneratePartID()
 
 	subCtx, cancel := context.WithCancel(ctx)
 	errCh := make(chan error, len(s.shards))

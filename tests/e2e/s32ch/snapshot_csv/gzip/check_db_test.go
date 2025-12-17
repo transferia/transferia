@@ -1,13 +1,10 @@
 package gzip
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
@@ -41,7 +38,7 @@ func buildSourceModel(t *testing.T) *s3.S3Source {
 }
 
 func testNativeS3(t *testing.T, src *s3.S3Source) {
-	var dst = model.ChDestination{
+	dst := model.ChDestination{
 		ShardsList: []model.ClickHouseShard{
 			{
 				Name: "_",
@@ -63,36 +60,6 @@ func testNativeS3(t *testing.T, src *s3.S3Source) {
 	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
 	helpers.Activate(t, transfer)
 	helpers.CheckRowsCount(t, &dst, "people", "data", 500000)
-}
-
-func testNativeS3ManualSchemaWithPkey(t *testing.T, src *s3.S3Source) {
-	sink := &helpers.MockSink{}
-	sink.PushCallback = func(input []abstract.ChangeItem) error {
-		for _, el := range input {
-			if el.IsRowEvent() {
-				fmt.Println("ROW_EVENT", el.ToJSONString())
-				for _, currColSchema := range el.TableSchema.Columns() {
-					if currColSchema.PrimaryKey {
-						currColumnValue := el.ColumnValues[el.ColumnNameIndex(currColSchema.ColumnName)]
-						if currColumnValue == nil {
-							t.Fail()
-						} else {
-							return abstract.NewFatalError(xerrors.New("to immediately exit"))
-						}
-					}
-				}
-			}
-		}
-		return nil
-	}
-	dst := &dp_model.MockDestination{
-		SinkerFactory: func() abstract.Sinker { return sink },
-		Cleanup:       dp_model.DisabledCleanup,
-	}
-
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
-	_, err := helpers.ActivateErr(transfer)
-	require.Error(t, err)
 }
 
 func TestAll(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
-	objectfetcher "github.com/transferia/transferia/pkg/providers/s3/source/object_fetcher"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -30,7 +30,7 @@ type S3Source struct {
 	transferID    string
 	metrics       *stats.SourceStats
 	reader        reader.Reader
-	objectFetcher objectfetcher.ObjectFetcher
+	objectFetcher object_fetcher.ObjectFetcher
 	errCh         chan error
 	pusher        pusher.Pusher
 	inflightLimit int64
@@ -131,10 +131,11 @@ func (s *S3Source) run(parseQ *parsequeue.ParseQueue[pusher.Chunk]) error {
 		nextFetchDelay = fetchDelayTimer.NextBackOff()
 		s.logger.Infof("New files found (%d), next fetch delay: %v", len(objectList), nextFetchDelay)
 
-		if err := util.ParallelDoWithContextAbort(s.ctx, len(objectList), int(s.srcModel.Concurrency), func(i int, ctx context.Context) error {
-			singleObject := objectList[i]
+		err = util.ParallelDoWithContextAbort(s.ctx, len(objectList), int(s.srcModel.Concurrency), func(i int, ctx context.Context) error {
+			singleObject := objectList[i].FileName
 			return s.reader.Read(ctx, singleObject, currPusher)
-		}); err != nil {
+		})
+		if err != nil {
 			return xerrors.Errorf("failed to read and push object: %w", err)
 		}
 
@@ -185,15 +186,14 @@ func NewSource(
 	cp coordinator.Coordinator,
 	runtimeParallelism abstract.ShardingTaskRuntime,
 ) (abstract.Source, error) {
-	fetcher, ctx, cancel, currReader, currMetrics, err := objectfetcher.NewWrapper(
+	fetcher, ctx, cancel, currReader, currMetrics, err := object_fetcher.NewWrapped(
 		context.Background(),
-		srcModel,
-		transferID,
 		logger,
 		registry,
+		srcModel,
+		transferID,
 		cp,
 		runtimeParallelism,
-		true,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create object fetcher, err: %w", err)

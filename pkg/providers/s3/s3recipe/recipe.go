@@ -1,8 +1,10 @@
 package s3recipe
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	s4 "github.com/transferia/transferia/pkg/providers/s3"
+	s3provider "github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/tests/tcrecipes"
 	"github.com/transferia/transferia/tests/tcrecipes/objectstorage"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -29,7 +31,7 @@ var (
 	testSecret    = EnvOrDefault("TEST_SECRET_ACCESS_KEY", "abcdefabcdef")
 )
 
-func createBucket(t *testing.T, cfg *s4.S3Destination) {
+func createBucket(t *testing.T, cfg *s3provider.S3Destination) {
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         aws.String(cfg.Endpoint),
 		Region:           aws.String(cfg.Region),
@@ -47,12 +49,12 @@ func createBucket(t *testing.T, cfg *s4.S3Destination) {
 	logger.Log.Info("create bucket result", log.Any("res", res))
 }
 
-func PrepareS3(t *testing.T, bucket string, format model.ParsingFormat, encoding s4.Encoding) *s4.S3Destination {
+func PrepareS3(t *testing.T, bucket string, format model.ParsingFormat, encoding s3provider.Encoding) *s3provider.S3Destination {
 	if tcrecipes.Enabled() {
 		_, err := objectstorage.Prepare(context.Background())
 		require.NoError(t, err)
 	}
-	cfg := &s4.S3Destination{
+	cfg := &s3provider.S3Destination{
 		OutputFormat:     format,
 		OutputEncoding:   encoding,
 		BufferSize:       1 * 1024 * 1024,
@@ -97,12 +99,12 @@ func EnvOrDefault(key string, def string) string {
 	return def
 }
 
-func PrepareCfg(t *testing.T, bucket string, format model.ParsingFormat) *s4.S3Source {
+func PrepareCfg(t *testing.T, bucket string, format model.ParsingFormat) *s3provider.S3Source {
 	if tcrecipes.Enabled() {
 		_, err := objectstorage.Prepare(context.Background())
 		require.NoError(t, err)
 	}
-	cfg := new(s4.S3Source)
+	cfg := new(s3provider.S3Source)
 	if bucket != "" {
 		cfg.Bucket = bucket
 	} else {
@@ -135,10 +137,11 @@ func PrepareCfg(t *testing.T, bucket string, format model.ParsingFormat) *s4.S3S
 	if os.Getenv("S3MDS_PORT") != "" {
 		CreateBucket(t, cfg)
 	}
+	cfg.WithDefaults()
 	return cfg
 }
 
-func PrepareTestCase(t *testing.T, cfg *s4.S3Source, casePath string) {
+func PrepareTestCase(t *testing.T, cfg *s3provider.S3Source, casePath string) {
 	absPath, err := filepath.Abs(casePath)
 	require.NoError(t, err)
 	files, err := os.ReadDir(absPath)
@@ -147,7 +150,7 @@ func PrepareTestCase(t *testing.T, cfg *s4.S3Source, casePath string) {
 	uploadDir(t, cfg, cfg.PathPrefix, files)
 }
 
-func uploadDir(t *testing.T, cfg *s4.S3Source, prefix string, files []os.DirEntry) {
+func uploadDir(t *testing.T, cfg *s3provider.S3Source, prefix string, files []os.DirEntry) {
 	for _, file := range files {
 		fullName := fmt.Sprintf("%s/%s", prefix, file.Name())
 		if file.IsDir() {
@@ -162,7 +165,7 @@ func uploadDir(t *testing.T, cfg *s4.S3Source, prefix string, files []os.DirEntr
 	}
 }
 
-func UploadOne(t *testing.T, cfg *s4.S3Source, fname string) {
+func UploadOneFromMemoryImpl(t *testing.T, cfg *s3provider.S3Source, fileName string, ioReader io.Reader) {
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         aws.String(cfg.ConnectionConfig.Endpoint),
 		Region:           aws.String(cfg.ConnectionConfig.Region),
@@ -172,22 +175,31 @@ func UploadOne(t *testing.T, cfg *s4.S3Source, fname string) {
 		),
 	})
 	require.NoError(t, err)
-	uploader := s3manager.NewUploader(sess)
+	logger.Log.Infof("will upload file:%s to bucket:%s", fileName, cfg.Bucket)
+	currUploader := s3manager.NewUploader(sess)
+	_, err = currUploader.Upload(&s3manager.UploadInput{
+		Body:   ioReader,
+		Bucket: aws.String(cfg.Bucket),
+		Key:    aws.String(fileName),
+	})
+	require.NoError(t, err)
+}
+
+func UploadOneFromMemory(t *testing.T, cfg *s3provider.S3Source, fileName string, buf []byte) {
+	ioReader := bytes.NewBuffer(buf)
+	UploadOneFromMemoryImpl(t, cfg, fileName, ioReader)
+}
+
+func UploadOne(t *testing.T, cfg *s3provider.S3Source, fname string) {
 	absPath, err := filepath.Abs(fname)
 	require.NoError(t, err)
 	buff, err := os.Open(absPath)
 	require.NoError(t, err)
 	defer buff.Close()
-	logger.Log.Infof("will upload to bucket %s", cfg.Bucket)
-	_, err = uploader.Upload(&s3manager.UploadInput{
-		Body:   buff,
-		Bucket: aws.String(cfg.Bucket),
-		Key:    aws.String(fname),
-	})
-	require.NoError(t, err)
+	UploadOneFromMemoryImpl(t, cfg, fname, buff)
 }
 
-func CreateBucket(t *testing.T, cfg *s4.S3Source) {
+func CreateBucket(t *testing.T, cfg *s3provider.S3Source) {
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         aws.String(cfg.ConnectionConfig.Endpoint),
 		Region:           aws.String(cfg.ConnectionConfig.Region),

@@ -217,7 +217,7 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 	st := util.GetTimestampFromContextOrNow(ctx)
 
 	tablePath := s.makeTablePath(tableDescr.Schema, tableDescr.Name)
-	partID := tableDescr.PartID()
+	partID := tableDescr.GeneratePartID()
 
 	var res result.StreamResult
 	var schema *abstract.TableSchema

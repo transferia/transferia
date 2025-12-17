@@ -5,7 +5,7 @@ import (
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/util/glob"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -13,7 +13,7 @@ import (
 // SkipObject returns true if an object should be skipped.
 // An object is skipped if the file type does not match the one covered by the reader or
 // if the objects name/path is not included in the path pattern or if custom filter returned false.
-func SkipObject(file *aws_s3.Object, pathPattern, splitter string, filter abstract_reader.ObjectsFilter) bool {
+func SkipObject(file *aws_s3.Object, pathPattern, splitter string, filter reader.ObjectsFilter) bool {
 	if file == nil {
 		return true
 	}
@@ -23,7 +23,7 @@ func SkipObject(file *aws_s3.Object, pathPattern, splitter string, filter abstra
 
 // ListFiles lists all files matching the pathPattern in a bucket.
 // A fast circuit breaker is built in for schema resolution where we do not need the full list of objects.
-func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, logger log.Logger, limit *int, filter abstract_reader.ObjectsFilter) ([]*aws_s3.Object, error) {
+func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, logger log.Logger, limit *int, filter reader.ObjectsFilter) ([]*aws_s3.Object, error) {
 	var currentMarker *string
 	var res []*aws_s3.Object
 	fastStop := false

@@ -130,7 +130,7 @@ func itemTemplate(table abstract.TableDescription, schema *abstract.TableSchema)
 		Kind:             abstract.InsertKind,
 		Schema:           table.Schema,
 		Table:            table.Name,
-		PartID:           table.PartID(),
+		PartID:           table.GeneratePartID(),
 		ColumnNames:      schema.Columns().ColumnNames(),
 		ColumnValues:     nil,
 		TableSchema:      schema,

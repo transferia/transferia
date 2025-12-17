@@ -1,4 +1,4 @@
-file: "s3_file_name" = 'test_csv_large/people-500000.csv'
+file: ["test_csv_large/people-500000.csv"]
 {
     "ColumnNames": {
         "type": "[]string",
@@ -91,7 +91,7 @@ file: "s3_file_name" = 'test_csv_large/people-500000.csv'
     },
     "PartID": {
         "type": "string",
-        "value": "98810bc150e38d330cb0b513427c10d5"
+        "value": "523523d3f3878b7d4d020458fd50410e"
     },
     "Query": {
         "type": "string",

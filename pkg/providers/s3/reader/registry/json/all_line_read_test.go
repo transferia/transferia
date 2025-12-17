@@ -121,7 +121,6 @@ func TestReadAllMultilineLines_InvalidContent(t *testing.T) {
 }
 
 func TestReadAllMultilineLines_CurlyBracketsInTheValue(t *testing.T) {
-
 	t.Run("simple case", func(t *testing.T) {
 		content := []byte(`{"value": "{{some text}}}}}}]]]]]{{}}"}`)
 		lines, readBytes := readAllMultilineLines(content)

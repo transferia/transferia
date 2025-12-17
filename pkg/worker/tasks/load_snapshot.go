@@ -43,8 +43,8 @@ type SnapshotLoader struct {
 	transfer    *model.Transfer
 	registry    metrics.Registry
 
-	cancelUpload context.CancelFunc
-	waitErrCh    chan error
+	cancelUpload    context.CancelFunc
+	waitErrOrDoneCh chan error
 
 	// Transfer params
 	parallelismParams *abstract.ShardUploadParams
@@ -68,8 +68,8 @@ func NewSnapshotLoader(cp coordinator.Coordinator, operationID string, transfer 
 		transfer:    transfer,
 		registry:    registry,
 
-		cancelUpload: nil,
-		waitErrCh:    make(chan error),
+		cancelUpload:    nil,
+		waitErrOrDoneCh: make(chan error),
 
 		parallelismParams: transfer.ParallelismParams(),
 		workerIndex:       transfer.CurrentJobIndex(),
@@ -425,8 +425,7 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		logger.Log,
 		sourceStorage,
 		tables,
-		true,
-		true,
+		abstract.WorkerTypeSingleWorker,
 	)
 	if err != nil {
 		return xerrors.Errorf("failed to create table part provider, err: %w", err)
@@ -438,13 +437,13 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		return errors.CategorizedErrorf(categories.Source, "unable to start loading tables: %w", err)
 	}
 
-	l.waitErrCh = make(chan error, 1)
+	l.waitErrOrDoneCh = make(chan error, 1)
 	asyncProviderCtx, cancelAsyncPartsLoading := context.WithCancel(ctx)
 	go func() {
-		defer close(l.waitErrCh)
+		defer close(l.waitErrOrDoneCh)
 		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from asyncLoadParts.
 		logger.Log.Info("Start uploading tables on single worker")
-		l.waitErrCh <- l.DoUploadTables(ctx, sourceStorage, tppGetter)
+		l.waitErrOrDoneCh <- l.DoUploadTables(ctx, sourceStorage, tppGetter)
 		logger.Log.Info("Uploading tables process on single worker finished")
 	}()
 
@@ -462,7 +461,7 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		return errors.CategorizedErrorf(categories.Internal, "unable to async load parts: %w", err)
 	}
 
-	if err := l.waitLoaderError(); err != nil {
+	if err := l.waitLoaderErrorOrDone(); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "upload of %d tables failed: %w", len(tables), err)
 	}
 
@@ -551,8 +550,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		logger.Log,
 		sourceStorage,
 		tables,
-		false,
-		true,
+		abstract.WorkerTypeMain,
 	)
 	if err != nil {
 		return xerrors.Errorf("failed to create table part provider, err: %w", err)
@@ -574,15 +572,15 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to create operation workers for operation '%v': %w", l.operationID, err)
 	}
 
-	l.waitErrCh = make(chan error, 1)
+	l.waitErrOrDoneCh = make(chan error, 1)
 	asyncProviderCtx, cancelAsyncPartsLoading := context.WithCancel(ctx)
-	go func() {
-		defer close(l.waitErrCh)
+	go func(inSourceStorage abstract.Storage, inRuntime abstract.ShardingTaskRuntime) {
+		defer close(l.waitErrOrDoneCh)
 		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from asyncLoadParts.
 		logger.Log.Info("Start uploading tables on many workers", log.Int("parallelism", l.parallelismParams.ProcessCount))
-		l.waitErrCh <- l.WaitWorkersCompleted(ctx, runtime.SnapshotWorkersNum())
+		l.waitErrOrDoneCh <- l.WaitWorkersCompleted(ctx, inSourceStorage, inRuntime.SnapshotWorkersNum())
 		logger.Log.Info("Uploading tables process on many workers finished")
-	}()
+	}(sourceStorage, runtime)
 
 	err = tppSetter.AsyncLoadPartsIfNeeded(
 		asyncProviderCtx,
@@ -598,7 +596,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to async load parts: %w", err)
 	}
 
-	if err := l.waitLoaderError(); err != nil {
+	if err := l.waitLoaderErrorOrDone(); err != nil { // wait secondary workers here
 		return errors.CategorizedErrorf(categories.Internal, "failed to upload %d tables: %w", len(tables), err)
 	}
 
@@ -676,8 +674,7 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 		logger.Log,
 		sourceStorage,
 		nil, // nil - bcs 'tables' needed only for setter
-		false,
-		false,
+		abstract.WorkerTypeSecondary,
 	)
 	if err != nil {
 		return xerrors.Errorf("failed to create table part provider, err: %w", err)
@@ -775,16 +772,16 @@ func (l *SnapshotLoader) handleSlotKillerError(err error) error {
 	// the context passed to DoUploadTables has been cancelled, so it is reasonable to wait for the routines to finish
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	if uploadErrs := extractErrorsUntil(ctx, l.waitErrCh); uploadErrs != nil {
+	if uploadErrs := extractErrorsUntil(ctx, l.waitErrOrDoneCh); uploadErrs != nil {
 		logger.Log.Warn("errors during upload", log.Error(uploadErrs))
 	}
 	return errors.CategorizedErrorf(categories.Source, "slot monitor detected an error: %w", err)
 }
 
-func (l *SnapshotLoader) waitLoaderError() error {
+func (l *SnapshotLoader) waitLoaderErrorOrDone() error {
 	var err error
 	select {
-	case err = <-l.waitErrCh:
+	case err = <-l.waitErrOrDoneCh:
 	case err = <-l.slotKillerErrorChannel:
 		if err != nil {
 			err = xerrors.Errorf("slot killer error: %w", l.handleSlotKillerError(err))
@@ -796,7 +793,7 @@ func (l *SnapshotLoader) waitLoaderError() error {
 func (l *SnapshotLoader) checkLoaderError() error {
 	var err error
 	select {
-	case err = <-l.waitErrCh:
+	case err = <-l.waitErrOrDoneCh:
 	case err = <-l.slotKillerErrorChannel:
 		if err != nil {
 			err = xerrors.Errorf("slot killer error: %w", l.handleSlotKillerError(err))
@@ -1107,16 +1104,23 @@ func (l *SnapshotLoader) BuildTPP(
 	lgr log.Logger,
 	inStorage abstract.Storage,
 	tables []abstract.TableDescription,
-	isLocal bool,
-	isBuildSetter bool,
+	workerType abstract.WorkerType,
 ) (table_part_provider.AbstractTablePartProviderGetter, table_part_provider.AbstractTablePartProviderSetter, error) {
-	var sharedMemoryForAsyncTPP abstract.SharedMemory
-	if isLocal {
-		lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewLocal")
-		sharedMemoryForAsyncTPP = shared_memory.NewLocal(l.operationID)
+	var sharedMemory abstract.SharedMemory
+	if sharedMemoryBuilder, ok := inStorage.(abstract.SharedMemoryBuilder); ok {
+		var err error
+		sharedMemory, err = sharedMemoryBuilder.BuildSharedMemory(ctx, l.transfer, workerType, l.cp)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to build custom shared memory, err: %w", err)
+		}
 	} else {
-		lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewRemote")
-		sharedMemoryForAsyncTPP = shared_memory.NewRemote(l.cp, l.operationID, l.workerIndex)
+		if workerType == abstract.WorkerTypeSingleWorker {
+			lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewLocal")
+			sharedMemory = shared_memory.NewLocal(l.operationID)
+		} else {
+			lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewRemote")
+			sharedMemory = shared_memory.NewRemote(l.cp, l.operationID, l.workerIndex)
+		}
 	}
 
 	tablePartProviderGetter := table_part_provider.NewTPPGetter(
@@ -1126,10 +1130,10 @@ func (l *SnapshotLoader) BuildTPP(
 		l.transfer.ID,
 		l.operationID,
 		l.workerIndex,
-		sharedMemoryForAsyncTPP,
+		sharedMemory,
 	)
 	var tablePartProviderSetter table_part_provider.AbstractTablePartProviderSetter
-	if isBuildSetter {
+	if workerType == abstract.WorkerTypeSingleWorker || workerType == abstract.WorkerTypeMain {
 		var err error
 		tablePartProviderSetter, err = table_part_provider.NewTPPSetter(
 			ctx,
@@ -1139,7 +1143,7 @@ func (l *SnapshotLoader) BuildTPP(
 			tables,
 			l.transfer.TmpPolicy,
 			l.operationID,
-			sharedMemoryForAsyncTPP,
+			sharedMemory,
 		)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("failed to build TPPSetter, err: %w", err)

@@ -139,8 +139,7 @@ func Snapshot(t *testing.T) {
 		logger.Log,
 		currStorage,
 		tables.ConvertToTableDescriptions(),
-		true,
-		true,
+		abstract.WorkerTypeSingleWorker,
 	)
 	require.NoError(t, err)
 

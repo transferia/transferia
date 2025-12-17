@@ -18,27 +18,27 @@
         "uri": "file://parquet.parquet.TestCanonSource_data_index_bloom_encoding_stats.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/datapage_v1-snappy-compressed-checksum.parquet/canon_0": {
-        "checksum": "b805465c437a2d536d7ea00c141baec8",
+        "checksum": "dd9da5b5275988aabd758aacd9a2c9d4",
         "size": 481711,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_datapage_v1-snappy-compressed-checksum.parquet_canon_0/extracted"
+        "uri": "https://storage.yandex-team.ru/get-devtools/1903885/b6db09775c2c9e0a143770e8b464d64b63142e8a/resource.tar.gz#parquet.parquet.TestCanonSource_datapage_v1-snappy-compressed-checksum.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/datapage_v1-uncompressed-checksum.parquet/canon_0": {
-        "checksum": "f492dcdb6c37362a1fa4ac5bc79faeac",
+        "checksum": "948aa5d9bae92e21b17ee4a8eb5f69da",
         "size": 480511,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_datapage_v1-uncompressed-checksum.parquet_canon_0/extracted"
+        "uri": "https://storage.yandex-team.ru/get-devtools/1903885/b6db09775c2c9e0a143770e8b464d64b63142e8a/resource.tar.gz#parquet.parquet.TestCanonSource_datapage_v1-uncompressed-checksum.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/datapage_v2.snappy.parquet/canon_0": {
         "uri": "file://parquet.parquet.TestCanonSource_datapage_v2.snappy.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/delta_binary_packed.parquet/canon_0": {
-        "checksum": "006974859bf73cfa83dfa70795f31a0e",
+        "checksum": "2c0e75acf6be9a9f0cb1fda3ff063f83",
         "size": 243761,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_delta_binary_packed.parquet_canon_0/extracted"
+        "uri": "https://storage.yandex-team.ru/get-devtools/1903885/b6db09775c2c9e0a143770e8b464d64b63142e8a/resource.tar.gz#parquet.parquet.TestCanonSource_delta_binary_packed.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/delta_byte_array.parquet/canon_0": {
-        "checksum": "4e95ba32c42e1ec566c63d80fa26d0da",
+        "checksum": "74ae788a612c9bcad46afec1ed13dc9d",
         "size": 194261,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_delta_byte_array.parquet_canon_0/extracted"
+        "uri": "https://storage.yandex-team.ru/get-devtools/1903885/b6db09775c2c9e0a143770e8b464d64b63142e8a/resource.tar.gz#parquet.parquet.TestCanonSource_delta_byte_array.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/delta_encoding_optional_column.parquet/canon_0": {
         "uri": "file://parquet.parquet.TestCanonSource_delta_encoding_optional_column.parquet_canon_0/extracted"
@@ -77,9 +77,9 @@
         "uri": "file://parquet.parquet.TestCanonSource_lz4_raw_compressed.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/lz4_raw_compressed_larger.parquet/canon_0": {
-        "checksum": "739bf45f6d9172889cd7e7d314ab2168",
+        "checksum": "268373dbb59bccc36ab2e9cfb0f5e13a",
         "size": 810284,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1942173/e97258bfcea9fdb2801911d8a76e2beef344cd0a/resource.tar.gz#parquet.parquet.TestCanonSource_lz4_raw_compressed_larger.parquet_canon_0/extracted"
+        "uri": "https://storage.yandex-team.ru/get-devtools/1903885/b6db09775c2c9e0a143770e8b464d64b63142e8a/resource.tar.gz#parquet.parquet.TestCanonSource_lz4_raw_compressed_larger.parquet_canon_0/extracted"
     },
     "parquet.parquet.TestCanonSource/nested_lists.snappy.parquet/canon_0": {
         "uri": "file://parquet.parquet.TestCanonSource_nested_lists.snappy.parquet_canon_0/extracted"

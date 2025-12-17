@@ -12,9 +12,9 @@ import (
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	_ "github.com/transferia/transferia/pkg/providers/s3/fallback"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	s3_sink "github.com/transferia/transferia/pkg/providers/s3/sink"
 	"github.com/transferia/transferia/pkg/providers/s3/source"
-	objectfetcher "github.com/transferia/transferia/pkg/providers/s3/source/object_fetcher"
 	"github.com/transferia/transferia/pkg/providers/s3/storage"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -55,9 +55,8 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 		if !ok {
 			return xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 		}
-		runtimeStub := abstract.NewFakeShardingTaskRuntime(0, 1, 1, 1)
-		if objectfetcher.DeriveObjectFetcherType(srcModel) == objectfetcher.Poller {
-			err := objectfetcher.FetchAndCommit(ctx, srcModel, p.transfer.ID, p.logger, p.registry, p.cp, runtimeStub, false)
+		if object_fetcher.DeriveObjectFetcherType(srcModel) == object_fetcher.Poller {
+			err := object_fetcher.FetchAndCommit(ctx, srcModel, p.transfer.ID, p.logger, p.registry, p.cp)
 			if err != nil {
 				return xerrors.Errorf("Failed to fetch and commit: %w", err)
 			}
@@ -71,7 +70,7 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	return storage.New(src, p.transfer.ID, p.transfer.IsIncremental(), p.logger, p.registry)
+	return storage.New(src, p.transfer.ID, p.logger, p.registry)
 }
 
 func (p *Provider) Type() abstract.ProviderType {

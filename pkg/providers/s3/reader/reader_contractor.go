@@ -9,6 +9,10 @@ import (
 	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 )
 
+// ReaderContractor - guarantees contract:
+//     * Read() should end with 'Chunk' with offset=-1
+// that allows us to implement each reader (format), not keep in thoughts this contract
+
 type ReaderContractor struct {
 	impl Reader
 }

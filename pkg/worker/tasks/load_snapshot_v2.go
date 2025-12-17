@@ -236,8 +236,7 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ba
 		logger.Log,
 		nil,
 		descriptions,
-		true,
-		true,
+		abstract.WorkerTypeSingleWorker,
 	)
 	if err != nil {
 		return xerrors.Errorf("unable to build TPP: %w", err)
@@ -385,8 +384,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		logger.Log,
 		nil,
 		descriptions,
-		false,
-		true,
+		abstract.WorkerTypeMain,
 	)
 	if err != nil {
 		return xerrors.Errorf("unable to build TPP: %w", err)
@@ -417,7 +415,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider base
 		return xerrors.Errorf("unable to create operation workers for operation '%v': %w", l.operationID, err)
 	}
 
-	if err := l.WaitWorkersCompleted(ctx, paralleledRuntime.SnapshotWorkersNum()); err != nil {
+	if err := l.WaitWorkersCompleted(ctx, nil, paralleledRuntime.SnapshotWorkersNum()); err != nil {
 		return xerrors.Errorf("unable to wait shard completed: %w", err)
 	}
 

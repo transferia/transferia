@@ -24,3 +24,5 @@ func SplitToChunks[T any](slice []T, n int) [][]T {
 	}
 	return res
 }
+
+// if you need something like 'SplitToChunksByMaxChunkSize' - in golang exists 'slices.Chunk'

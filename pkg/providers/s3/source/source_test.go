@@ -12,7 +12,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
-	objectfetcher "github.com/transferia/transferia/pkg/providers/s3/source/object_fetcher"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util/file"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	"github.com/transferia/transferia/pkg/stats"
 )
 
@@ -30,21 +31,17 @@ func (m *mockSink) Close() error {
 }
 
 type mockObjectFetcher struct {
-	objectfetcher.ObjectFetcher
+	object_fetcher.ObjectFetcher
 
 	cntFetchObjects int
 }
 
-func (m *mockObjectFetcher) FetchObjects(reader reader.Reader) ([]string, error) {
+func (m *mockObjectFetcher) FetchObjects(reader reader.Reader) ([]file.File, error) {
 	m.cntFetchObjects++
-	return []string{}, nil
+	return []file.File{}, nil
 }
 
 func (m *mockObjectFetcher) Commit(fileName string) error {
-	return nil
-}
-
-func (m *mockObjectFetcher) FetchAndCommitAll(reader reader.Reader) error {
 	return nil
 }
 

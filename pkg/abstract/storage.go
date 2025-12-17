@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/errors/coded"
@@ -246,7 +247,7 @@ func (t *TableDescription) ID() TableID {
 	return TableID{Namespace: t.Schema, Name: t.Name}
 }
 
-func (t *TableDescription) PartID() string {
+func (t *TableDescription) GeneratePartID() string {
 	if t.Offset == 0 && t.Filter == "" {
 		// This needed for s3, see: https://github.com/transferia/transferia/review/3538625
 		return ""
@@ -376,20 +377,25 @@ type SnapshotableStorage interface {
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-// async table part provider
 
-type SharedMemory interface {
-	// main methods - add, get, update:
-
-	Store(in []*OperationTablePart) error
-	NextOperationTablePart(ctx context.Context) (*OperationTablePart, error)
-	UpdateOperationTablesParts(operationID string, tables []*OperationTablePart) error
-
-	// additional work with OperationState:
-
-	GetShardStateNoWait(ctx context.Context, operationID string) (string, error)
-	SetOperationState(operationID string, newState string) error
+type SharedMemoryBuilder interface {
+	BuildSharedMemory(
+		ctx context.Context,
+		transfer any,
+		workerType WorkerType,
+		cp any,
+	) (SharedMemory, error)
 }
+
+type CustomCheckSecondaryWorkersDone interface {
+	// startTime stores time, when main-worker started waiting secondary workers.
+	// so, when all workers are done, 'time.Now()-startTime' will show snapshotting time.
+	// startTime needed here just for intermediate logging.
+	CheckSecondaryWorkersDone(startTime time.Time, cp any, transfer any) (bool, error)
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// async table part provider
 
 // NextArrTableDescriptionGetter is used in async_table_parts (tpp_*_async.go) to get tasks
 type NextArrTableDescriptionGetter interface {

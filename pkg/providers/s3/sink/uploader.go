@@ -19,9 +19,7 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var (
-	FatalAWSCodes = set.New("InvalidAccessKeyId")
-)
+var FatalAWSCodes = set.New("InvalidAccessKeyId")
 
 type replicationUploader struct {
 	cfg      *s3_provider.S3Destination

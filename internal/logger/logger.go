@@ -9,6 +9,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/transferia/transferia/internal/logger/batching_logger"
+	"github.com/transferia/transferia/tests/helpers/testsflag"
 	_ "go.opentelemetry.io/contrib/bridges/otelzap"
 	zp "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -135,7 +136,7 @@ func init() {
 		cfg = zap.JSONConfig(level.Log)
 	}
 
-	if os.Getenv("CI") == "1" || strings.Contains(os.Args[0], "gotest") {
+	if testsflag.IsTest() {
 		cfg = zp.Config{
 			Level:            zp.NewAtomicLevelAt(zp.DebugLevel),
 			Encoding:         "console",

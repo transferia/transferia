@@ -37,19 +37,6 @@ func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 }
 
-type numColStats struct {
-	MinValue string `json:"min_value"`
-	MaxValue string `json:"max_value"`
-	UniqCnt  string `json:"uniq_cnt"`
-}
-
-type tableRow struct {
-	RowIdx     string `json:"row_idx"` // CH JSON output for Int64 is string
-	SomeNumber string `json:"some_number"`
-	TextVal    string `json:"text_val"`
-	YsonVal    string `json:"yson_val"`
-}
-
 func init() {
 	_ = os.Setenv("YT_LOG_LEVEL", "trace")
 }

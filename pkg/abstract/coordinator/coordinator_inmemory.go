@@ -42,9 +42,11 @@ func (f *CoordinatorInMemory) GetTransferState(transferID string) (map[string]*T
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	logger.Log.Info("CoordinatorInMemory.SetTransferState", log.Any("transfer_id", transferID))
+	result := f.state[transferID]
 
-	return f.state[transferID], nil
+	logger.Log.Info("CoordinatorInMemory.GetTransferState", log.Any("transfer_id", transferID), log.Any("state", result))
+
+	return result, nil
 }
 
 func (f *CoordinatorInMemory) SetTransferState(transferID string, state map[string]*TransferStateData) error {

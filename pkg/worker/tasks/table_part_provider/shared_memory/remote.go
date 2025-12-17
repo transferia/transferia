@@ -40,6 +40,10 @@ func (m *Remote) UpdateOperationTablesParts(operationID string, tables []*abstra
 	return m.cp.UpdateOperationTablesParts(operationID, tables)
 }
 
+func (m *Remote) Close() error {
+	return nil
+}
+
 func (m *Remote) GetShardStateNoWait(ctx context.Context, operationID string) (string, error) {
 	return GetShardStateNoWait(ctx, m.cp, operationID)
 }
