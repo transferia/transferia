@@ -19,6 +19,7 @@ type ElasticSearchSource struct {
 	SecurityGroupIDs     []string `log:"true"`
 	DumpIndexWithMapping bool     `log:"true"`
 	ConnectionID         string   `log:"true"`
+	UserEnabledTls       *bool
 }
 
 var _ model.Source = (*ElasticSearchSource)(nil)
@@ -39,6 +40,7 @@ func (s *ElasticSearchSource) SourceToElasticSearchDestination() *ElasticSearchD
 		Password:         s.Password,
 		SSLEnabled:       s.SSLEnabled,
 		TLSFile:          s.TLSFile,
+		UserEnabledTls:   s.UserEnabledTls,
 		SubNetworkID:     s.SubNetworkID,
 		SecurityGroupIDs: s.SecurityGroupIDs,
 		Cleanup:          "",

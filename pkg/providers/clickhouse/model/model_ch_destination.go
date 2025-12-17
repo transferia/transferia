@@ -99,6 +99,7 @@ type ChDestination struct {
 	InflightBuffer     int               `log:"true"` // deprecated: use BufferTriggingSize instead. Items' count triggering a buffer flush
 	BufferTriggingSize uint64            `log:"true"`
 	RootCACertPaths    []string
+	UserEnabledTls     *bool // tls config set by user explicitly
 }
 
 type InsertParams struct {

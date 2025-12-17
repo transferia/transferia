@@ -26,6 +26,7 @@ type ElasticSearchDestination struct {
 	ConnectionID     string            `log:"true"`
 
 	SanitizeDocKeys bool `log:"true"`
+	UserEnabledTls  *bool
 }
 
 var _ model.Destination = (*ElasticSearchDestination)(nil)

@@ -88,6 +88,7 @@ func RecipeSource(options ...RecipeOption) *MongoSource {
 		FilterOplogWithRegexp:  false,
 		Direct:                 os.Getenv(opts.prefix+"MONGO_LOCAL_DIRECT") == "1",
 		RootCAFiles:            nil,
+		UserEnabledTls:         nil,
 	}
 }
 
@@ -121,6 +122,7 @@ func RecipeTarget(options ...RecipeOption) *MongoDestination {
 		TLSFile:           "",
 		Direct:            os.Getenv(opts.prefix+"MONGO_LOCAL_DIRECT") == "1",
 		RootCAFiles:       nil,
+		UserEnabledTls:    nil,
 	}
 }
 

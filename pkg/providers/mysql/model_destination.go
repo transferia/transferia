@@ -45,6 +45,8 @@ type MysqlDestination struct {
 	prevPerTransactionPush    bool   `log:"true"`
 	ConnectionID              string `log:"true"`
 	IsSchemaMigrationDisabled bool   `log:"true"`
+
+	UserEnabledTls *bool // tls config set by user explicitly
 }
 
 var (

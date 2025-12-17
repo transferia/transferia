@@ -26,7 +26,8 @@ type OpenSearchDestination struct {
 	Cleanup          model.CleanupType `log:"true"`
 	ConnectionID     string            `log:"true"`
 
-	SanitizeDocKeys bool `log:"true"`
+	SanitizeDocKeys bool  `log:"true"`
+	UserEnabledTls  *bool // tls config set by user explicitly
 }
 
 var _ model.Destination = (*OpenSearchDestination)(nil)
@@ -57,6 +58,7 @@ func (d *OpenSearchDestination) ToElasticSearchDestination() (*elastic.ElasticSe
 		Cleanup:          d.Cleanup,
 		SanitizeDocKeys:  d.SanitizeDocKeys,
 		ConnectionID:     d.ConnectionID,
+		UserEnabledTls:   d.UserEnabledTls,
 	}, elastic.OpenSearch
 }
 

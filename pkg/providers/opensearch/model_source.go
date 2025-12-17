@@ -20,6 +20,7 @@ type OpenSearchSource struct {
 	SecurityGroupIDs     []string `log:"true"`
 	DumpIndexWithMapping bool     `log:"true"`
 	ConnectionID         string   `log:"true"`
+	UserEnabledTls       *bool    // tls config set by user explicitly
 }
 
 var _ model.Source = (*OpenSearchSource)(nil)
@@ -49,6 +50,7 @@ func (s *OpenSearchSource) ToElasticSearchSource() (*elastic.ElasticSearchSource
 		SecurityGroupIDs:     s.SecurityGroupIDs,
 		DumpIndexWithMapping: s.DumpIndexWithMapping,
 		ConnectionID:         s.ConnectionID,
+		UserEnabledTls:       s.UserEnabledTls,
 	}, elastic.OpenSearch
 }
 

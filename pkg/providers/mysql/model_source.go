@@ -58,6 +58,7 @@ type MysqlSource struct {
 	ConnectionID string `log:"true"`
 
 	ReplicationFlushInterval time.Duration `log:"true"`
+	UserEnabledTls           *bool         // tls config set by user explicitly
 }
 
 var _ model.Source = (*MysqlSource)(nil)

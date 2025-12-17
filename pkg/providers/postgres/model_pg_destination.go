@@ -42,6 +42,8 @@ type PgDestination struct {
 	QueryTimeout              time.Duration        `log:"true"`
 	DisableSQLFallback        bool                 `log:"true"`
 	ConnectionID              string               `log:"true"`
+
+	UserEnabledTls *bool // tls config set by user explicitly
 }
 
 var (

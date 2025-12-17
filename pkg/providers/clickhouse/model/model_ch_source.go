@@ -58,6 +58,7 @@ type ChSource struct {
 	IOHomoFormat     ClickhouseIOFormat `log:"true"` // one of - https://clickhouse.com/docs/en/interfaces/formats
 	RootCACertPaths  []string
 	ConnectionID     string `log:"true"`
+	UserEnabledTls   *bool  // tls config set by user explicitly
 }
 
 func (s *ChSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {

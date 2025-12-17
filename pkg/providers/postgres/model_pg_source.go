@@ -80,6 +80,8 @@ type PgSource struct {
 	ShardingKeyFields           map[string][]string   `log:"true"`
 	PgDumpCommand               []string              `log:"true"`
 	ConnectionID                string                `log:"true"`
+
+	UserEnabledTls *bool // tls config set by user explicitly
 }
 
 var (

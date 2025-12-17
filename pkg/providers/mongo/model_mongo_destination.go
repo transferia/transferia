@@ -30,6 +30,8 @@ type MongoDestination struct {
 	RootCAFiles []string
 	// indicates whether the mongoDB client uses a mongodb+srv connection
 	SRVMode bool `log:"true"`
+	// tls config set by user explicitly
+	UserEnabledTls *bool
 }
 
 var _ model.Destination = (*MongoDestination)(nil)

@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/connection/kafka"
 	"github.com/transferia/transferia/pkg/dbaas"
 	"github.com/transferia/transferia/pkg/providers/kafka/client"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 func ResolveBrokers(s *KafkaConnectionOptions) ([]string, error) {
@@ -107,12 +108,13 @@ func ResolveConnectionOptions(connection *KafkaConnectionOptions, kafkaConnectio
 	}
 
 	kafkaOptions := &KafkaConnectionOptions{
-		ClusterID:    kafkaConnection.ClusterID,
-		TLS:          tls,
-		TLSFile:      kafkaConnection.CACertificates,
-		Brokers:      kafkaConnection.ToBrokersUrls(),
-		SubNetworkID: connection.SubNetworkID,
-		ConnectionID: connection.ConnectionID,
+		ClusterID:      kafkaConnection.ClusterID,
+		TLS:            tls,
+		TLSFile:        kafkaConnection.CACertificates,
+		UserEnabledTls: util.BoolPtr(kafkaConnection.CACertificates != ""),
+		Brokers:        kafkaConnection.ToBrokersUrls(),
+		SubNetworkID:   connection.SubNetworkID,
+		ConnectionID:   connection.ConnectionID,
 	}
 
 	return kafkaOptions

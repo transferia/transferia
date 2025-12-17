@@ -73,12 +73,13 @@ func (s *KafkaSource) GetConnectionID() string {
 func (s *KafkaSource) WithDefaults() {
 	if s.Connection == nil {
 		s.Connection = &KafkaConnectionOptions{
-			ClusterID:    "",
-			ConnectionID: "",
-			TLS:          "",
-			TLSFile:      "",
-			Brokers:      nil,
-			SubNetworkID: "",
+			ClusterID:      "",
+			ConnectionID:   "",
+			TLS:            "",
+			TLSFile:        "",
+			UserEnabledTls: nil,
+			Brokers:        nil,
+			SubNetworkID:   "",
 		}
 	}
 	if s.Auth == nil {

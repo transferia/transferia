@@ -24,12 +24,13 @@ func SourceRecipe() (*KafkaSource, error) {
 	brokers := os.Getenv("KAFKA_RECIPE_BROKER_LIST")
 	src := new(KafkaSource)
 	src.Connection = &KafkaConnectionOptions{
-		ClusterID:    "",
-		TLS:          model.DisabledTLS,
-		TLSFile:      "",
-		Brokers:      []string{brokers},
-		SubNetworkID: "",
-		ConnectionID: "",
+		ClusterID:      "",
+		TLS:            model.DisabledTLS,
+		TLSFile:        "",
+		UserEnabledTls: nil,
+		Brokers:        []string{brokers},
+		SubNetworkID:   "",
+		ConnectionID:   "",
 	}
 	src.Auth = &KafkaAuth{
 		Enabled:   false,
@@ -74,12 +75,13 @@ func DestinationRecipe() (*KafkaDestination, error) {
 
 	dst := new(KafkaDestination)
 	dst.Connection = &KafkaConnectionOptions{
-		ClusterID:    "",
-		TLS:          model.DisabledTLS,
-		TLSFile:      "",
-		Brokers:      []string{brokers},
-		SubNetworkID: "",
-		ConnectionID: "",
+		ClusterID:      "",
+		TLS:            model.DisabledTLS,
+		TLSFile:        "",
+		UserEnabledTls: nil,
+		Brokers:        []string{brokers},
+		SubNetworkID:   "",
+		ConnectionID:   "",
 	}
 	dst.Auth = &KafkaAuth{
 		Enabled:   false,
