@@ -641,6 +641,7 @@
   "library/go/slices/shuffle.go":"library/go/slices/shuffle.go",
   "library/go/slices/sort.go":"library/go/slices/sort.go",
   "library/go/slices/subtract.go":"library/go/slices/subtract.go",
+  "library/go/slices/sum.go":"library/go/slices/sum.go",
   "library/go/slices/union.go":"library/go/slices/union.go",
   "library/go/slices/zip.go":"library/go/slices/zip.go",
   "library/go/test/canon/canon.go":"library/go/test/canon/canon.go",
