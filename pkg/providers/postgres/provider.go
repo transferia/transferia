@@ -335,6 +335,7 @@ func (p *Provider) srcParamsFromTransfer() (*PgSource, error) {
 	if src.NoHomo {
 		src.IsHomo = false
 	}
+
 	return &src, nil
 }
 

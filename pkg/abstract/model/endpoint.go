@@ -13,7 +13,29 @@ type EndpointParams interface {
 	Validate() error
 
 	// WithDefaults sets default values for MISSING parameters of the endpoint
+	// generally withDefauts is called in 3 situation types:
+	// 1) to correctly display missing params in UI
+	// 2) to fill important params which are not specified and save it to db - WithEssentialDefaults
+	// 3) during actual usage in DP: to use default param values if empty
+	// this method covers all 3 situations
 	WithDefaults()
+}
+
+// sometimes we save default param values in db, sometimes we do not want that
+// this interface only populates essential defaults
+type EndpointParamsDbDefaults interface {
+	EndpointParams
+
+	// WithEssentialDefaults sets only essential defaults which will be saved to db
+	WithEssentialDefaults()
+}
+
+func WithEssentialDefaults(params EndpointParams) {
+	if dbDefaults, ok := params.(EndpointParamsDbDefaults); ok {
+		dbDefaults.WithEssentialDefaults()
+	} else {
+		params.WithDefaults()
+	}
 }
 
 type Source interface {

@@ -85,8 +85,9 @@ type PgSource struct {
 }
 
 var (
-	_ model.Source           = (*PgSource)(nil)
-	_ model.WithConnectionID = (*PgSource)(nil)
+	_ model.Source                   = (*PgSource)(nil)
+	_ model.WithConnectionID         = (*PgSource)(nil)
+	_ model.EndpointParamsDbDefaults = (*PgSource)(nil)
 )
 
 func (s *PgSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -268,6 +269,11 @@ func (s *PgSource) AuxTables() []string {
 }
 
 func (s *PgSource) WithDefaults() {
+	s.WithEssentialDefaults()
+	s.WithPGDumpDefaults()
+}
+
+func (s *PgSource) WithEssentialDefaults() {
 	if s.SlotByteLagLimit == 0 {
 		s.SlotByteLagLimit = 50 * 1024 * 1024 * 1024
 	}
@@ -284,17 +290,20 @@ func (s *PgSource) WithDefaults() {
 		s.KeeperSchema = "public"
 	}
 
-	if s.PreSteps == nil {
-		s.PreSteps = DefaultPgDumpPreSteps()
-	}
-	if s.PostSteps == nil {
-		s.PostSteps = DefaultPgDumpPostSteps()
-	}
 	if s.DesiredTableSize == 0 {
 		s.DesiredTableSize = pgDesiredTableSize
 	}
 	if s.SnapshotDegreeOfParallelism == 0 {
 		s.SnapshotDegreeOfParallelism = 4 // old magic number which was hardcoded in shard table func
+	}
+}
+
+func (s *PgSource) WithPGDumpDefaults() {
+	if s.PreSteps == nil {
+		s.PreSteps = DefaultPgDumpPreSteps()
+	}
+	if s.PostSteps == nil {
+		s.PostSteps = DefaultPgDumpPostSteps()
 	}
 }
 

@@ -65,3 +65,18 @@ func TestSource_Include(t *testing.T) {
 		})
 	})
 }
+
+func TestMyslDumpDefaults(t *testing.T) {
+	src := MysqlSource{
+		ClusterID: "my_cluster",
+	}
+	src.WithEssentialDefaults()
+	require.NoError(t, src.Validate())
+	require.Nil(t, src.PreSteps)
+	require.Nil(t, src.PostSteps)
+
+	src.WithDefaults()
+	require.NoError(t, src.Validate())
+	require.NotNil(t, src.PreSteps)
+	require.NotNil(t, src.PostSteps)
+}

@@ -30,6 +30,21 @@ func TestIncludeEmptyTable(t *testing.T) {
 	require.True(t, src.Include(*abstract.NewTableID("myspace", "")))
 }
 
+func TestPgDumpDefaults(t *testing.T) {
+	src := PgSource{
+		ClusterID: "my_cluster",
+	}
+	src.WithEssentialDefaults()
+	require.NoError(t, src.Validate())
+	require.Nil(t, src.PreSteps)
+	require.Nil(t, src.PostSteps)
+
+	src.WithDefaults()
+	require.NoError(t, src.Validate())
+	require.NotNil(t, src.PreSteps)
+	require.NotNil(t, src.PostSteps)
+}
+
 func TestIsPreferReplica(t *testing.T) {
 	tests := []struct {
 		name     string

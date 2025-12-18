@@ -63,6 +63,7 @@ type MysqlSource struct {
 
 var _ model.Source = (*MysqlSource)(nil)
 var _ model.WithConnectionID = (*MysqlSource)(nil)
+var _ model.EndpointParamsDbDefaults = (*MysqlSource)(nil)
 
 type MysqlDumpSteps struct {
 	View    bool
@@ -156,17 +157,16 @@ func (s *MysqlSource) GetConnectionID() string {
 }
 
 func (s *MysqlSource) WithDefaults() {
+	s.WithEssentialDefaults()
+	s.WithMysqlDumpDefaults()
+}
+
+func (s *MysqlSource) WithEssentialDefaults() {
 	if s.Port == 0 {
 		s.Port = 3306
 	}
 	if s.BufferLimit == 0 {
 		s.BufferLimit = 4 * 1024 * 1024
-	}
-	if s.PreSteps == nil {
-		s.PreSteps = DefaultMysqlDumpPreSteps()
-	}
-	if s.PostSteps == nil {
-		s.PostSteps = DefaultMysqlDumpPostSteps()
 	}
 	if s.Timezone == "" {
 		s.Timezone = "Local"
@@ -176,6 +176,15 @@ func (s *MysqlSource) WithDefaults() {
 	}
 	if s.ReplicationFlushInterval == 0 {
 		s.ReplicationFlushInterval = DefaultReplicationFlushInterval
+	}
+}
+
+func (s *MysqlSource) WithMysqlDumpDefaults() {
+	if s.PreSteps == nil {
+		s.PreSteps = DefaultMysqlDumpPreSteps()
+	}
+	if s.PostSteps == nil {
+		s.PostSteps = DefaultMysqlDumpPostSteps()
 	}
 }
 
