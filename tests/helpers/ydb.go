@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/ydb"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -269,7 +270,7 @@ func YDBPullDataFromTable(t *testing.T, token, database, instance, table string)
 		ChangeFeedMode:     "",
 		BufferSize:         0,
 	}
-	sinkMock := &MockSink{}
+	sinkMock := mocksink.NewMockSink(nil)
 	targetMock := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       model.DisabledCleanup,

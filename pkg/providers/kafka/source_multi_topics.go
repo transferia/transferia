@@ -35,7 +35,7 @@ func (t *sourceMultiTopics) Fetch() ([]abstract.ChangeItem, error) {
 		srcCopy := *t.src
 		srcCopy.Topic = topic
 		srcCopy.GroupTopics = nil
-		sniffer, err := NewSource(topic, &srcCopy, t.logger, t.registry)
+		sniffer, err := NewSource(topic, &srcCopy, nil, t.logger, t.registry)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create source: %w", err)
 		}

@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 const ExpectedRowCount = 1000000
@@ -54,7 +55,7 @@ func TestConnLimit1Worker4ThreadsSnapshotAndReplication(t *testing.T) {
 		return nil
 	}
 
-	sinker := &helpers.MockSink{PushCallback: pushCallback}
+	sinker := mocksink.NewMockSink(pushCallback)
 	target := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,

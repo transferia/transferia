@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -55,13 +56,11 @@ func TestReplication(t *testing.T) {
 	// prepare additional transfer: from dst to mock
 
 	result := make([]abstract.ChangeItem, 0)
-	mockSink := &helpers.MockSink{
-		PushCallback: func(in []abstract.ChangeItem) error {
-			abstract.Dump(in)
-			result = append(result, in...)
-			return nil
-		},
-	}
+	mockSink := mocksink.NewMockSink(func(in []abstract.ChangeItem) error {
+		abstract.Dump(in)
+		result = append(result, in...)
+		return nil
+	})
 	mockTarget := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return mockSink },
 		Cleanup:       model.DisabledCleanup,

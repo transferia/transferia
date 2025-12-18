@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -96,7 +97,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	// no_collapse (CollapseInheritTables = false)
 
-	sinkerNoCollapse := &helpers.MockSink{}
+	sinkerNoCollapse := mocksink.NewMockSink(nil)
 	sinkerNoCollapseMutex := sync.Mutex{}
 	targetNoCollapse := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkerNoCollapse },
@@ -147,7 +148,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	// collapse (CollapseInheritTables = true)
 
-	sinkerCollapse := &helpers.MockSink{}
+	sinkerCollapse := mocksink.NewMockSink(nil)
 	sinkerCollapseMutex := sync.Mutex{}
 	targetCollapse := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkerCollapse },

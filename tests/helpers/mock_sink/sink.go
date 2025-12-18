@@ -1,4 +1,4 @@
-package helpers
+package mocksink
 
 import "github.com/transferia/transferia/pkg/abstract"
 
@@ -12,4 +12,10 @@ func (s *MockSink) Close() error {
 
 func (s *MockSink) Push(input []abstract.ChangeItem) error {
 	return s.PushCallback(input)
+}
+
+func NewMockSink(callback func([]abstract.ChangeItem) error) *MockSink {
+	return &MockSink{
+		PushCallback: callback,
+	}
 }

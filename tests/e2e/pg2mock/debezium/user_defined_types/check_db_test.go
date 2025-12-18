@@ -18,6 +18,7 @@ import (
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var (
@@ -57,7 +58,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 
 	// extract changeItems
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	target := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,

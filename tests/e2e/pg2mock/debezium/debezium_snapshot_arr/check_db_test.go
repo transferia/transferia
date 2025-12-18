@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/debezium/testutil"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var Source = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("init_source"))
@@ -39,7 +40,7 @@ func TestSnapshot(t *testing.T) {
 
 	//------------------------------------------------------------------------------
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	target := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,

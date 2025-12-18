@@ -16,7 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	eventhub2 "github.com/transferia/transferia/pkg/providers/eventhub"
-	"github.com/transferia/transferia/pkg/util"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/library/go/core/log/zap"
 )
@@ -41,9 +41,6 @@ type (
 	}
 	eventhubSender struct {
 		hub *eventhubs.Hub
-	}
-	mockSink struct {
-		src map[string]*stat
 	}
 )
 
@@ -126,7 +123,38 @@ func TestNewSource(t *testing.T) {
 		}
 	}()
 
-	err = src.Run(newSinker(cases))
+	sink := mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
+		for _, in := range items {
+			dataColumnIdx := -1
+			for idx, columnName := range in.ColumnNames {
+				if columnName == "data" {
+					dataColumnIdx = idx
+					break
+				}
+			}
+			if dataColumnIdx < 0 {
+				return xerrors.Errorf("there is no \"data\" column in event")
+			}
+
+			if len(in.ColumnValues) < dataColumnIdx {
+				return xerrors.Errorf("there is no %d'th column in ColumnValues", dataColumnIdx)
+			}
+
+			value, ok := in.ColumnValues[dataColumnIdx].(string)
+			if !ok {
+				return xerrors.Errorf("wrong type of interface: %v", in.ColumnValues[dataColumnIdx])
+			}
+
+			counters, ok := cases[value]
+			if !ok {
+				return xerrors.Errorf("unknown message: %s", value)
+			}
+			counters.received += 1
+		}
+		return nil
+	})
+
+	err = src.Run(sink)
 	require.NoError(t, err)
 	logger.Info("eventhub source was started")
 
@@ -137,45 +165,6 @@ func TestNewSource(t *testing.T) {
 			}
 		}
 	})
-}
-
-func newSinker(src map[string]*stat) *mockSink {
-	return &mockSink{src}
-}
-
-func (sinker *mockSink) Close() error {
-	return nil
-}
-
-func (sinker *mockSink) AsyncPush(input []abstract.ChangeItem) chan error {
-	for _, in := range input {
-		dataColumnIdx := -1
-		for idx, columnName := range in.ColumnNames {
-			if columnName == "data" {
-				dataColumnIdx = idx
-				break
-			}
-		}
-		if dataColumnIdx < 0 {
-			return util.MakeChanWithError(xerrors.Errorf("there is no \"data\" column in event"))
-		}
-
-		if len(in.ColumnValues) < dataColumnIdx {
-			return util.MakeChanWithError(xerrors.Errorf("there is no %d'th column in ColumnValues", dataColumnIdx))
-		}
-
-		value, ok := in.ColumnValues[dataColumnIdx].(string)
-		if !ok {
-			return util.MakeChanWithError(xerrors.Errorf("wrong type of interface: %v", in.ColumnValues[dataColumnIdx]))
-		}
-
-		counters, ok := sinker.src[value]
-		if !ok {
-			return util.MakeChanWithError(xerrors.Errorf("unknown message: %s", value))
-		}
-		counters.received += 1
-	}
-	return util.MakeChanWithError(nil)
 }
 
 func newEventhubSender(cfg *eventhub2.EventHubSource) (*eventhubSender, error) {

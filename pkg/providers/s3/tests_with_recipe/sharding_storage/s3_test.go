@@ -16,7 +16,7 @@ import (
 	s3provider "github.com/transferia/transferia/pkg/providers/s3/provider"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -51,16 +51,15 @@ func TestShardingTransfer(t *testing.T) {
 	s3recipe.UploadOneFromMemory(t, cfg, "file_0.jsonl", []byte(line))
 	s3recipe.UploadOneFromMemory(t, cfg, "file_1.jsonl", []byte(line))
 
-	mockSink := helpers.MockSink{}
-	mockSink.PushCallback = func(_ []abstract.ChangeItem) error {
+	mockSink := mocksink.NewMockSink(func(_ []abstract.ChangeItem) error {
 		return nil
-	}
+	})
 
 	transfer := &model.Transfer{
 		Src: cfg,
 		Dst: &model.MockDestination{
 			SinkerFactory: func() abstract.Sinker {
-				return &mockSink
+				return mockSink
 			},
 		},
 	}

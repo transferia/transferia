@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 const testTableName = "test_table/my_lovely_table"
@@ -30,7 +31,7 @@ func TestGroup(t *testing.T) {
 		UseFullPaths:       false,
 	}
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	dst := &model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,

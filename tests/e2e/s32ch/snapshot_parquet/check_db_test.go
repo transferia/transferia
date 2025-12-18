@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 const testCasePath = "fhv_taxi"
@@ -58,7 +59,7 @@ func testNativeS3(t *testing.T, src *s3.S3Source) {
 }
 
 func testNativeS3ManualSchemaWithPkey(t *testing.T, src *s3.S3Source) {
-	sink := &helpers.MockSink{}
+	sink := mocksink.NewMockSink(nil)
 	sink.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, el := range input {
 			if el.IsRowEvent() {

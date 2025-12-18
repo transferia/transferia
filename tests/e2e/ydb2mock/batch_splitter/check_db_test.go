@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/transformer"
 	batchsplitter "github.com/transferia/transferia/pkg/transformer/registry/batch_splitter"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var expectedChangeItemsCount = 10
@@ -50,7 +51,7 @@ func TestGroup(t *testing.T) {
 		require.NoError(t, sinker.Push(changes))
 	})
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	dst := &model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,

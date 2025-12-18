@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var path = "dectest/timmyb32r-test"
@@ -84,7 +85,7 @@ func TestGroup(t *testing.T) {
 	//-----------------------------------------------------------------------------------------------------------------
 	// check
 
-	sinkMock := &helpers.MockSink{}
+	sinkMock := mocksink.NewMockSink(nil)
 	targetMock := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       model.DisabledCleanup,

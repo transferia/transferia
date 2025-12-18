@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var (
@@ -48,7 +49,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		return nil
 	}
 	target = &model.MockDestination{
-		SinkerFactory: func() abstract.Sinker { return &helpers.MockSink{PushCallback: pushCallback} },
+		SinkerFactory: func() abstract.Sinker { return mocksink.NewMockSink(pushCallback) },
 		Cleanup:       model.Drop,
 	}
 

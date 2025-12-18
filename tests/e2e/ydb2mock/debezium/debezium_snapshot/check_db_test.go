@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/debezium/testutil"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -59,7 +60,7 @@ func TestGroup(t *testing.T) {
 	//-----------------------------------------------------------------------------------------------------------------
 	// activate
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	target := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,

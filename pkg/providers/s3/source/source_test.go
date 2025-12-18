@@ -15,20 +15,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/file"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	"github.com/transferia/transferia/pkg/stats"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
-
-type mockSink struct {
-	abstract.AsyncSink
-	push func(items []abstract.ChangeItem) chan error
-}
-
-func (m *mockSink) AsyncPush(items []abstract.ChangeItem) chan error {
-	return m.push(items)
-}
-
-func (m *mockSink) Close() error {
-	return nil
-}
 
 type mockObjectFetcher struct {
 	object_fetcher.ObjectFetcher
@@ -72,14 +60,10 @@ func TestS3Source_run_fetch_delay(t *testing.T) {
 	pushCnt := 0
 
 	go func() {
-		sink := &mockSink{push: func(items []abstract.ChangeItem) chan error {
+		sink := mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
 			pushCnt++
-			ch := make(chan error)
-			go func() {
-				ch <- nil
-			}()
-			return ch
-		}}
+			return nil
+		})
 		require.NoError(t, source.Run(sink))
 	}()
 	defer func() {
@@ -108,14 +92,10 @@ func TestS3Source_run_default_delay(t *testing.T) {
 	pushCnt := 0
 
 	go func() {
-		sink := &mockSink{push: func(items []abstract.ChangeItem) chan error {
+		sink := mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
 			pushCnt++
-			ch := make(chan error)
-			go func() {
-				ch <- nil
-			}()
-			return ch
-		}}
+			return nil
+		})
 		require.NoError(t, source.Run(sink))
 	}()
 	defer func() {

@@ -13,6 +13,7 @@ import (
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	proxy "github.com/transferia/transferia/tests/helpers/proxies/pg_proxy"
 )
 
@@ -61,9 +62,9 @@ func TestPollingFailsOnSlotInvalidation(t *testing.T) {
 		source,
 		&model.MockDestination{
 			SinkerFactory: func() abstract.Sinker {
-				return &helpers.MockSink{
-					PushCallback: func([]abstract.ChangeItem) error { return nil },
-				}
+				return mocksink.NewMockSink(
+					func([]abstract.ChangeItem) error { return nil },
+				)
 			},
 			Cleanup: model.DisabledCleanup,
 		},

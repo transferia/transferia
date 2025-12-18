@@ -12,20 +12,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
-
-type mockSink struct {
-	PushCallback func([]abstract.ChangeItem)
-}
-
-func (s *mockSink) Close() error {
-	return nil
-}
-
-func (s *mockSink) Push(input []abstract.ChangeItem) error {
-	s.PushCallback(input)
-	return nil
-}
 
 func TestYDBCleanupPaths(t *testing.T) {
 	type ydbTableType struct {
@@ -70,18 +58,17 @@ func testCaseYDBCleanupPaths(
 		tableID: {},
 	}
 
-	sinker := new(mockSink)
-	dst := &model.MockDestination{
-		SinkerFactory: func() abstract.Sinker { return sinker },
-		Cleanup:       model.Drop,
-	}
-
-	sinker.PushCallback = func(items []abstract.ChangeItem) {
+	sinker := mocksink.NewMockSink(func(items []abstract.ChangeItem) error {
 		require.Len(t, items, 1, "Expecting cleanup batch of size 1")
 		item := items[0]
 		require.Equal(t, item.Kind, abstract.DropTableKind, "should receive only drop table kind")
 		actualTableID := item.TableID()
 		require.Equal(t, expectedTransformedTableID, actualTableID)
+		return nil
+	})
+	dst := &model.MockDestination{
+		SinkerFactory: func() abstract.Sinker { return sinker },
+		Cleanup:       model.Drop,
 	}
 
 	transferID := "dttlohpidr"

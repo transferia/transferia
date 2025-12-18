@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	ydbsdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
@@ -43,17 +44,15 @@ func TestYDBIncrementalSnapshot(t *testing.T) {
 
 	var readItems []abstract.ChangeItem
 	var sinkLock sync.Mutex
-	sinker := &helpers.MockSink{
-		PushCallback: func(items []abstract.ChangeItem) error {
-			items = yslices.Filter(items, func(i abstract.ChangeItem) bool {
-				return i.IsRowEvent()
-			})
-			sinkLock.Lock()
-			defer sinkLock.Unlock()
-			readItems = append(readItems, items...)
-			return nil
-		},
-	}
+	sinker := mocksink.NewMockSink(func(items []abstract.ChangeItem) error {
+		items = yslices.Filter(items, func(i abstract.ChangeItem) bool {
+			return i.IsRowEvent()
+		})
+		sinkLock.Lock()
+		defer sinkLock.Unlock()
+		readItems = append(readItems, items...)
+		return nil
+	})
 	dst := &model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,

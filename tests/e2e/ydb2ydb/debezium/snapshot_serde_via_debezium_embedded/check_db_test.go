@@ -13,6 +13,7 @@ import (
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"github.com/transferia/transferia/tests/helpers/serde"
 	simple_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
@@ -72,7 +73,7 @@ func TestSnapshotSerDeViaDebeziumEmbedded(t *testing.T) {
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// check
-	sinkMock := &helpers.MockSink{}
+	sinkMock := mocksink.NewMockSink(nil)
 	targetMock := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       model.DisabledCleanup,

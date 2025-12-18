@@ -15,6 +15,7 @@ import (
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 func init() {
@@ -24,7 +25,7 @@ func init() {
 func TestExcludeTablesWithEmptyWhitelist(t *testing.T) {
 	source := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
 	source.WithDefaults()
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	target := &model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 	}

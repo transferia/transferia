@@ -17,6 +17,7 @@ import (
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -84,28 +85,26 @@ func TestBigTable(t *testing.T) {
 	minVal := int64(math.MaxInt64)
 	maxVal := int64(math.MinInt64)
 	var someItem changeitem.ChangeItem
-	sinkMock := &helpers.MockSink{
-		PushCallback: func(items []changeitem.ChangeItem) error {
-			mu.Lock()
-			defer mu.Unlock()
-			for _, item := range items {
-				if !item.IsRowEvent() {
-					continue
-				}
-
-				values := item.AsMap()
-				if v := values["some_number"].(int64); v > maxVal {
-					maxVal = v
-				}
-				if v := values["some_number"].(int64); v < minVal {
-					minVal = v
-				}
-				someItem = item
-				totalCnt++
+	sinkMock := mocksink.NewMockSink(func(items []changeitem.ChangeItem) error {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, item := range items {
+			if !item.IsRowEvent() {
+				continue
 			}
-			return nil
-		},
-	}
+
+			values := item.AsMap()
+			if v := values["some_number"].(int64); v > maxVal {
+				maxVal = v
+			}
+			if v := values["some_number"].(int64); v < minVal {
+				minVal = v
+			}
+			someItem = item
+			totalCnt++
+		}
+		return nil
+	})
 	targetMock := &dp_model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       dp_model.DisabledCleanup,

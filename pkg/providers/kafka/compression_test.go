@@ -26,7 +26,7 @@ func TestReadWriteWithCompression(t *testing.T) {
 		require.NoError(t, currSink.Push([]abstract.ChangeItem{*sinkTestMirrorChangeItem}))
 		time.Sleep(time.Second) // just in case
 
-		src, err := NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewSource("asd", kafkaSource, nil, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 		items, err := src.Fetch()
 		require.NoError(t, err)

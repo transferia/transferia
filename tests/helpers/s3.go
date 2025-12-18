@@ -11,6 +11,7 @@ import (
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -96,7 +97,7 @@ func testS3SchemaAndPkeyCase(t *testing.T, src *s3.S3Source) {
 		}
 	}
 
-	sink := &MockSink{}
+	sink := mocksink.NewMockSink(nil)
 	sink.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, el := range input {
 			if el.IsRowEvent() {

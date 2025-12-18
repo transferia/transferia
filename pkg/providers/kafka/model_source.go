@@ -98,7 +98,7 @@ func (s *KafkaSource) WithDefaults() {
 	}
 }
 
-func (KafkaSource) IsSource() {
+func (*KafkaSource) IsSource() {
 }
 
 func (s *KafkaSource) GetProviderType() abstract.ProviderType {

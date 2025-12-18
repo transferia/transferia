@@ -17,6 +17,7 @@ import (
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"github.com/transferia/transferia/tests/helpers/serde"
 	simple_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
@@ -53,7 +54,7 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 		*helpers.YDBStmtDelete(t, path, 1),
 	}))
 	// replication
-	sinkMock := &helpers.MockSink{}
+	sinkMock := mocksink.NewMockSink(nil)
 	sinkMock.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, currItem := range input {
 			if currItem.Kind == abstract.UpdateKind {

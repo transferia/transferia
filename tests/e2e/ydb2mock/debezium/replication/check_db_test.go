@@ -16,6 +16,7 @@ import (
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 func checkIfDebeziumConvertorWorks(t *testing.T, currChangeItem *abstract.ChangeItem) {
@@ -55,7 +56,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 		UseFullPaths:       true,
 	}
 
-	sink := &helpers.MockSink{}
+	sink := mocksink.NewMockSink(nil)
 	dst := &model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sink },
 		Cleanup:       model.DisabledCleanup,
