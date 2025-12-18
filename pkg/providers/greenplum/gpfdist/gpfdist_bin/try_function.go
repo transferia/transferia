@@ -1,6 +1,7 @@
 package gpfdistbin
 
 import (
+	"context"
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -20,11 +21,11 @@ func newCancelFailedError(err error) error {
 	return nil
 }
 
-// tryFunction runs `function` and `cancel` it if timeout exceeds.
-// If timeout reached - `function` will leak in detached goroutine.
-// CancelFailedError is returned if `cancel` failed.
-// TODO: Move to go/pkg/util or invent other solution.
-func tryFunction(function, cancel func() error, timeout time.Duration) error {
+// tryFunction runs `function` and if context canceled cancels it with `cancel`.
+// If canceled - `function` will leak in detached goroutine.
+// Returns ctx.Err if function successfully canceled.
+// Returns CancelFailedError if `cancel` failed.
+func tryFunction(ctx context.Context, function, cancel func() error) error {
 	fooResCh := make(chan error, 1)
 	go func() {
 		defer close(fooResCh)
@@ -33,15 +34,13 @@ func tryFunction(function, cancel func() error, timeout time.Duration) error {
 		logger.Log.Debugf("tryFunction: Got function return value after %s", time.Since(startedAt).String())
 	}()
 
-	timer := time.NewTimer(timeout)
-	var fooErr error
 	select {
-	case fooErr = <-fooResCh:
-	case <-timer.C:
+	case err := <-fooResCh:
+		return err
+	case <-ctx.Done():
 		if err := cancel(); err != nil {
 			return newCancelFailedError(xerrors.Errorf("unable to cancel function: %w", err))
 		}
-		return xerrors.Errorf("function successfully cancelled after its run timeout %s exceeded", timeout.String())
+		return nil
 	}
-	return fooErr
 }

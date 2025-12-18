@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync/atomic"
-	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/transferia/transferia/internal/logger"
@@ -22,11 +20,12 @@ const (
 
 type PipeReader struct {
 	ctx       context.Context
+	cancel    context.CancelFunc
 	gpfdist   *gpfdistbin.Gpfdist
 	template  abstract.ChangeItem
-	batchSize int
-	pushedCnt atomic.Int64
-	errCh     chan error
+	pushedCnt int64
+	err       error
+	done      chan struct{}
 }
 
 func (r *PipeReader) readFromPipe(file *os.File, pusher abstract.Pusher) (int64, error) {
@@ -67,23 +66,37 @@ func (r *PipeReader) itemFromTemplate(columnValues []byte) abstract.ChangeItem {
 	return item
 }
 
-func (r *PipeReader) Stop(timeout time.Duration) (int64, error) {
-	var cancel context.CancelFunc
-	r.ctx, cancel = context.WithTimeout(r.ctx, timeout)
-	defer cancel()
-	err := <-r.errCh
-	return r.pushedCnt.Load(), err
+// Cancel can be called when all data was transferred.
+// In such case, if PipeReader stucked on gpfdist.OpenPipe than pipe will never be opened
+// because gpfdist have no data for that thread to transfer. Returning (0, nil) here is valid.
+func (r *PipeReader) Close(ctx context.Context) (int64, error) {
+	r.cancel()
+	// Wait till Run finishes.
+	select {
+	case <-r.done:
+		return r.pushedCnt, r.err
+	case <-ctx.Done():
+		return r.pushedCnt, xerrors.Errorf("context is done when waiting pipe reader closing")
+	}
+}
+
+func (r *PipeReader) Status() (int64, error) {
+	return r.pushedCnt, r.err
 }
 
 // Run should be called once per PipeReader life, it is not guaranteed that more calls will proceed.
 func (r *PipeReader) Run(pusher abstract.Pusher) {
-	r.errCh <- r.runImpl(pusher)
+	defer close(r.done)
+	r.err = r.runImpl(pusher)
 }
 
 func (r *PipeReader) runImpl(pusher abstract.Pusher) error {
-	pipe, err := r.gpfdist.OpenPipe()
+	pipe, err := r.gpfdist.OpenPipe(r.ctx)
 	if err != nil {
 		return xerrors.Errorf("unable to open pipe: %w", err)
+	}
+	if pipe == nil {
+		return nil // No data to transfer for that pipe (thread).
 	}
 	defer func() {
 		if err := pipe.Close(); err != nil {
@@ -94,7 +107,7 @@ func (r *PipeReader) runImpl(pusher abstract.Pusher) error {
 	go func() {
 		defer close(errCh)
 		curRows, err := r.readFromPipe(pipe, pusher)
-		r.pushedCnt.Add(curRows)
+		r.pushedCnt += curRows
 		errCh <- err
 	}()
 	select {
@@ -105,13 +118,15 @@ func (r *PipeReader) runImpl(pusher abstract.Pusher) error {
 	}
 }
 
-func NewPipeReader(gpfdist *gpfdistbin.Gpfdist, template abstract.ChangeItem, batchSize int) *PipeReader {
+func NewPipeReader(gpfdist *gpfdistbin.Gpfdist, template abstract.ChangeItem) *PipeReader {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &PipeReader{
-		ctx:       context.Background(),
+		ctx:       ctx,
+		cancel:    cancel,
 		gpfdist:   gpfdist,
 		template:  template,
-		batchSize: batchSize,
-		pushedCnt: atomic.Int64{},
-		errCh:     make(chan error, 1),
+		pushedCnt: 0,
+		err:       nil,
+		done:      make(chan struct{}),
 	}
 }

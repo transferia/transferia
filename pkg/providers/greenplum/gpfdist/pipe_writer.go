@@ -1,6 +1,7 @@
 package gpfdist
 
 import (
+	"context"
 	"os"
 	"strings"
 	"sync"
@@ -49,7 +50,9 @@ func (w *PipeWriter) Write(input [][]byte) error {
 }
 
 func InitPipeWriter(gpfdist *gpfdistbin.Gpfdist) (*PipeWriter, error) {
-	pipe, err := gpfdist.OpenPipe()
+	ctx, cancel := context.WithTimeout(context.Background(), gpfdistbin.DefaultOpenPipeTimeout)
+	defer cancel()
+	pipe, err := gpfdist.OpenPipe(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to open pipe: %w", err)
 	}

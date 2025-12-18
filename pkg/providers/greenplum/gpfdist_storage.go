@@ -18,8 +18,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const pushBatchSize = 10000
-
 var _ abstract.Storage = (*GpfdistStorage)(nil)
 
 type GpfdistStorage struct {
@@ -78,7 +76,7 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 		}
 		locations[i] = gpfdists[i].Location()
 		// Async run PipesReader which will parse data from pipes and push it.
-		pipeReaders[i] = gpfdist.NewPipeReader(gpfdists[i], itemTemplate(table, schema), pushBatchSize)
+		pipeReaders[i] = gpfdist.NewPipeReader(gpfdists[i], itemTemplate(table, schema))
 		go pipeReaders[i].Run(pusher)
 	}
 	logger.Log.Debugf("%d gpfdists for storage initialized", len(gpfdists))
@@ -100,13 +98,27 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 		return xerrors.Errorf("unable to create external table and insert rows: %w", err)
 	}
 
-	// Step 3. Close PipeReaders and check that their rows count is equal to external table rows count.
+	// Step 3. Wait PipeReaders rows count is equal to external table rows count and close them.
+	waitReadersCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	if err := waitPipeReaders(waitReadersCtx, pipeReaders, extRows); err != nil {
+		return xerrors.Errorf("unable to wait pipe readers: %w", err)
+	}
+	return nil
+}
+
+func waitPipeReaders(ctx context.Context, pipeReaders []*gpfdist.PipeReader, extRows int64) error {
+	// Wait until all data is transfered.
+	if err := waitRowsCount(ctx, pipeReaders, extRows); err != nil {
+		return xerrors.Errorf("unable to wait pipe readers rows count: %w", err)
+	}
+	// Needed number of rows transfered, close all readers and get final exact pipe rows count.
 	pipeRows := atomic.Int64{}
 	eg := errgroup.Group{}
 	for _, pipeReader := range pipeReaders {
 		eg.Go(func() error {
 			beforeStop := time.Now()
-			rows, err := pipeReader.Stop(10 * time.Minute)
+			rows, err := pipeReader.Close(ctx)
 			logger.Log.Infof("Pipe reader stopped in %s", time.Since(beforeStop))
 			pipeRows.Add(rows)
 			return err
@@ -119,6 +131,29 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 		return xerrors.Errorf("to pipe pushed %d rows, to external table - %d", pipeRows.Load(), extRows)
 	}
 	return nil
+}
+
+func waitRowsCount(ctx context.Context, readers []*gpfdist.PipeReader, needRows int64) error {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+		sum := int64(0)
+		for _, reader := range readers {
+			cur, err := reader.Status()
+			if err != nil {
+				return xerrors.Errorf("pipe reader failed: %w", err)
+			}
+			sum += cur
+		}
+		if sum >= needRows {
+			return nil
+		}
+	}
 }
 
 func itemTemplate(table abstract.TableDescription, schema *abstract.TableSchema) abstract.ChangeItem {

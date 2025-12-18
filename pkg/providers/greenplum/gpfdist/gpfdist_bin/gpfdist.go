@@ -2,6 +2,7 @@ package gpfdistbin
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -22,10 +23,10 @@ import (
 )
 
 const (
-	openFifoTimeout = 600 * time.Second
-	defaultPipeMode = uint32(0644)
-	minPort         = 8500
-	maxPort         = 8600
+	DefaultOpenPipeTimeout = 10 * time.Minute
+	defaultPipeMode        = uint32(0644)
+	minPort                = 8500
+	maxPort                = 8600
 )
 
 type GpfdistMode string
@@ -87,7 +88,9 @@ func (g *Gpfdist) pipeOpenFlag() int {
 	return os.O_WRONLY
 }
 
-func (g *Gpfdist) OpenPipe() (*os.File, error) {
+// OpenPipe can block on pipe opening, e.g. if gpfdist have no data to transfer.
+// In such cases it can be cancelled by `ctx` causing return of (nil, nil).
+func (g *Gpfdist) OpenPipe(ctx context.Context) (*os.File, error) {
 	var cancelFlag int
 	switch g.pipeOpenFlag() {
 	case os.O_RDONLY:
@@ -111,7 +114,7 @@ func (g *Gpfdist) OpenPipe() (*os.File, error) {
 		return file.Close()
 	}
 
-	if err := tryFunction(openFile, cancelOpenFile, openFifoTimeout); err != nil {
+	if err := tryFunction(ctx, openFile, cancelOpenFile); err != nil {
 		if xerrors.As(err, new(CancelFailedError)) {
 			err = abstract.NewFatalError(err)
 		}
