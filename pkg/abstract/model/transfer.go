@@ -43,7 +43,7 @@ const (
 	// Zero value is reserved and MUST NOT be used.
 	//
 	// When incrementing this value, DO ADD a link to the function(s) implementing this fallback to CHANGELOG.md in the current directory
-	LatestVersion int = 10
+	LatestVersion int = 11
 	// NewTransfersVersion is the version of the typesystem set for new transfers. It must be less or equal to the LatestVersion.
 	//
 	// To upgrade typesystem version, the following process should be applied:

@@ -23,6 +23,7 @@ import (
 const (
 	tableName         = "__test1"
 	timezoneTableName = "__test2"
+	fallbackTableName = "__test3"
 )
 
 var (
@@ -70,8 +71,8 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 	storage, err := mysql_storage.NewStorage(source.ToStorageParams())
 	require.NoError(t, err)
 
-	var rowsValuesOnSnapshot []any
-	var rowsValuesOnReplication []any
+	var rowsValuesOnSnapshot []map[string]any
+	var rowsValuesOnReplication []map[string]any
 
 	table := abstract.TableDescription{Name: tableName, Schema: source.Database}
 	err = storage.LoadTable(context.Background(), table, func(input []abstract.ChangeItem) error {
@@ -79,7 +80,12 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 			if item.Kind != "insert" {
 				continue
 			}
-			rowsValuesOnSnapshot = append(rowsValuesOnSnapshot, item.ColumnValues)
+
+			row := make(map[string]any)
+			for idx, colName := range item.ColumnNames {
+				row[colName] = item.ColumnValues[idx]
+			}
+			rowsValuesOnSnapshot = append(rowsValuesOnSnapshot, row)
 		}
 		return nil
 	})
@@ -90,9 +96,10 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 		return &sinker
 	}}
 	transfer := model.Transfer{
-		ID:  "test",
-		Src: source,
-		Dst: &target,
+		ID:                "test",
+		Src:               source,
+		Dst:               &target,
+		TypeSystemVersion: 11,
 	}
 
 	fakeClient := coordinator.NewStatefulFakeClient()
@@ -106,7 +113,12 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 			if item.Kind != "insert" {
 				continue
 			}
-			rowsValuesOnReplication = append(rowsValuesOnReplication, item.ColumnValues)
+
+			row := make(map[string]any)
+			for idx, colName := range item.ColumnNames {
+				row[colName] = item.ColumnValues[idx]
+			}
+			rowsValuesOnReplication = append(rowsValuesOnReplication, row)
 		}
 
 		if len(rowsValuesOnSnapshot)+len(rowsValuesOnReplication) >= 4 {
@@ -134,9 +146,9 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.Query(fmt.Sprintf(`
-		INSERT INTO %s (ts) VALUES
-			('2020-12-23 10:11:12'),
-			('2020-12-23 14:15:16');
+		INSERT INTO %s (ts, dt) VALUES
+			('2020-12-23 10:11:12', '2020-12-23 10:11:12'),
+			('2020-12-23 14:15:16', '2020-12-23 14:15:16');
 	`, tableName))
 	require.NoError(t, err)
 
@@ -145,17 +157,19 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 
 	require.NoError(t, <-errCh)
 
+	colNamesForCheck := []string{"dt", "ts"}
 	require.Len(t, rowsValuesOnSnapshot, len(rowsValuesOnReplication))
-	for i := range rowsValuesOnSnapshot {
-		snapshotColumnValues, ok := rowsValuesOnSnapshot[i].([]any)
-		require.True(t, ok)
-		replicationColumnValues, ok := rowsValuesOnReplication[i].([]any)
-		require.True(t, ok)
-		require.Equal(t, snapshotColumnValues[1], replicationColumnValues[1])
+	for idx := range rowsValuesOnSnapshot {
+		for _, colName := range colNamesForCheck {
+			require.Equal(t, rowsValuesOnSnapshot[idx][colName], rowsValuesOnReplication[idx][colName])
+		}
 	}
 
-	allValues := append(rowsValuesOnSnapshot, rowsValuesOnReplication...)
-	canon.SaveJSON(t, allValues)
+	dataForCanon := map[string][]map[string]any{
+		"snapshot":    rowsValuesOnSnapshot,
+		"replication": rowsValuesOnReplication,
+	}
+	canon.SaveJSON(t, dataForCanon)
 }
 
 func TestDifferentTimezones(t *testing.T) {
@@ -227,4 +241,83 @@ func TestDifferentTimezones(t *testing.T) {
 		[]any{int32(1), t1},
 		[]any{int32(2), t2},
 	})
+}
+
+func TestDatetimeTimeZoneFallback(t *testing.T) {
+	defer func() {
+		require.NoError(t, helpers.CheckConnections(
+			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
+		))
+	}()
+
+	currentSrcCfg := *source
+	currentSrcCfg.Timezone = "Europe/Moscow"
+	currentSrcCfg.IncludeTableRegex = []string{fallbackTableName}
+
+	var sinker mockSinker
+	target := model.MockDestination{
+		SinkerFactory: func() abstract.Sinker {
+			return &sinker
+		},
+		Cleanup: model.DisabledCleanup,
+	}
+	transfer := &model.Transfer{
+		ID:   "test",
+		Src:  &currentSrcCfg,
+		Dst:  &target,
+		Type: abstract.TransferTypeSnapshotOnly,
+	}
+
+	makePushCallback := func(result *[]abstract.ChangeItem) func(input []abstract.ChangeItem) error {
+		return func(input []abstract.ChangeItem) error {
+			for _, item := range input {
+				if item.IsRowEvent() {
+					*result = append(*result, item)
+				}
+			}
+			return nil
+		}
+	}
+
+	// check for type system version 10
+	transfer.TypeSystemVersion = 10
+	insertedRowsVersion10 := make([]abstract.ChangeItem, 0)
+	sinker.pushCallback = makePushCallback(&insertedRowsVersion10)
+
+	helpers.Activate(t, transfer, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// check for type system version 11
+	transfer.TypeSystemVersion = 11
+	insertedRowsVersion11 := make([]abstract.ChangeItem, 0)
+	sinker.pushCallback = makePushCallback(&insertedRowsVersion11)
+
+	helpers.Activate(t, transfer, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// compare results
+	require.Equal(t, len(insertedRowsVersion10), len(insertedRowsVersion11))
+	for i := range insertedRowsVersion10 {
+		require.Equal(t, len(insertedRowsVersion10[i].ColumnNames), len(insertedRowsVersion11[i].ColumnNames))
+
+		version10TsColIndex := insertedRowsVersion10[i].ColumnNameIndex("ts")
+		version11TsColIndex := insertedRowsVersion11[i].ColumnNameIndex("ts")
+		require.Equal(t, insertedRowsVersion10[i].ColumnValues[version10TsColIndex], insertedRowsVersion11[i].ColumnValues[version11TsColIndex])
+	}
+
+	timezone := "Europe/Moscow"
+	loc, err := time.LoadLocation(timezone)
+	require.NoError(t, err)
+	t1Version10, _ := time.ParseInLocation(time.DateTime, "2020-12-31 10:00:00", time.UTC)
+	t2Version10, _ := time.ParseInLocation(time.DateTime, "2020-12-31 14:00:00", time.UTC)
+	t1Version11, _ := time.ParseInLocation(time.DateTime, "2020-12-31 10:00:00", loc)
+	t2Version11, _ := time.ParseInLocation(time.DateTime, "2020-12-31 14:00:00", loc)
+
+	dtColIndex := insertedRowsVersion10[0].ColumnNameIndex("dt")
+	require.Equal(t, t1Version10, insertedRowsVersion10[0].ColumnValues[dtColIndex])
+	require.Equal(t, t2Version10, insertedRowsVersion10[1].ColumnValues[dtColIndex])
+	require.Equal(t, t1Version11, insertedRowsVersion11[0].ColumnValues[dtColIndex])
+	require.Equal(t, t2Version11, insertedRowsVersion11[1].ColumnValues[dtColIndex])
 }
