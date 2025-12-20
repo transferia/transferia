@@ -22,5 +22,3 @@
     * [pkg/providers/s3/fallback/fallback_add_underscore_to_tablename_if_namespace_empty.go](../../../pkg/providers/s3/fallback/fallback_add_underscore_to_tablename_if_namespace_empty.go)
 * `10` to `9`:
     * [pkg/providers/yt/fallback/add_underscore_to_tablename_with_empty_namespace.go](../../../pkg/providers/yt/fallback/add_underscore_to_tablename_with_empty_namespace.go)
-* `11` to `10`:
-    * [pkg/providers/mysql/fallback_storage_hetero_datetime_timezone.go](../../../pkg/providers/mysql/fallback_storage_hetero_datetime_timezone.go)

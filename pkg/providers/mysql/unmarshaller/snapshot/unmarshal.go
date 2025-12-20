@@ -20,9 +20,9 @@ func NewValueReceiver(k *sql.ColumnType, originalTypeName string, location *time
 		}
 	case "JSON":
 		return new(types.JSON)
-	case "DATE":
+	case "DATE", "DATETIME":
 		return types.NewTemporal()
-	case "DATETIME", "TIMESTAMP":
+	case "TIMESTAMP":
 		return types.NewTemporalInLocation(location)
 	}
 	return reflect.New(k.ScanType()).Interface()
