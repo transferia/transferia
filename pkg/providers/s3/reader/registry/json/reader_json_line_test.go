@@ -103,7 +103,6 @@ func TestResolveJSONLineSchema(t *testing.T) {
 		require.Equal(t, []string{"Item"}, currSchema.Columns().ColumnNames())
 		require.Equal(t, []string{"any"}, abstract_reader.DataTypes(currSchema.Columns()))
 	})
-
 }
 
 func TestTypes(t *testing.T) {

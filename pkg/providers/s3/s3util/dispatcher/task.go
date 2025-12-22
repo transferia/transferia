@@ -83,7 +83,7 @@ func (t *Task) FilesSorted() []file.File {
 func (t *Task) SyntheticPartitionToState() map[string]string {
 	result := make(map[string]string)
 	for _, currSyntheticPartition := range t.mySyntheticPartitions {
-		result[currSyntheticPartition.SyntheticPartitionStr()] = currSyntheticPartition.LastCommittedStateToString()
+		result[currSyntheticPartition.SyntheticPartitionStr()] = currSyntheticPartition.LWindowToString()
 	}
 	return result
 }
@@ -93,7 +93,7 @@ func (t *Task) SetState(syntheticPartitionNum int, state string) error {
 	if !ok {
 		return fmt.Errorf("no such syntheticPartition: %d", syntheticPartitionNum)
 	}
-	return currSyntheticPartition.LastCommittedStateFromString(state)
+	return currSyntheticPartition.LWindowFromString(state)
 }
 
 func (t *Task) CommitAll() error {

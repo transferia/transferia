@@ -7,13 +7,14 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/effective_worker_num"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/synthetic_partition"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 type DispatcherImmutablePart struct {
 	numberOfSyntheticPartitions int // number of synthetic_partitions
 	overlapDuration             time.Duration
 	effectiveWorkerNum          *effective_worker_num.EffectiveWorkerNum
-	mySyntheticPartitions       map[int]*synthetic_partition.SyntheticPartition
+	mySyntheticPartitionsNums   *set.Set[int]
 }
 
 func (d *DispatcherImmutablePart) DetermineSyntheticPartitionNum(fileName string) int {
@@ -30,16 +31,15 @@ func (d *DispatcherImmutablePart) IsMyFileName(fileName string) bool {
 }
 
 func (d *DispatcherImmutablePart) Contains(syntheticPartitionNum int) bool {
-	_, ok := d.mySyntheticPartitions[syntheticPartitionNum]
-	return ok
-}
-
-func (d *DispatcherImmutablePart) generateAllSyntheticPartitions() []*synthetic_partition.SyntheticPartition {
-	return generateAllSyntheticPartitions(d.numberOfSyntheticPartitions, d.overlapDuration)
+	return d.mySyntheticPartitionsNums.Contains(syntheticPartitionNum)
 }
 
 func (d *DispatcherImmutablePart) generateMySyntheticPartitions() *Task {
-	return NewTask(generateMySyntheticPartitions(d.effectiveWorkerNum, d.numberOfSyntheticPartitions, d.overlapDuration))
+	mySyntheticPartitions := make([]*synthetic_partition.SyntheticPartition, 0)
+	for _, num := range d.mySyntheticPartitionsNums.Slice() {
+		mySyntheticPartitions = append(mySyntheticPartitions, synthetic_partition.NewSyntheticPartition(num, d.overlapDuration))
+	}
+	return NewTask(mySyntheticPartitions)
 }
 
 func NewDispatcherImmutablePart(
@@ -51,6 +51,6 @@ func NewDispatcherImmutablePart(
 		numberOfSyntheticPartitions: numberOfSyntheticPartitions,
 		overlapDuration:             overlapDuration,
 		effectiveWorkerNum:          inEffectiveWorkerNum,
-		mySyntheticPartitions:       generateMySyntheticPartitionsMap(inEffectiveWorkerNum, numberOfSyntheticPartitions, overlapDuration),
+		mySyntheticPartitionsNums:   generateMySyntheticPartitionsSet(inEffectiveWorkerNum, numberOfSyntheticPartitions, overlapDuration),
 	}
 }

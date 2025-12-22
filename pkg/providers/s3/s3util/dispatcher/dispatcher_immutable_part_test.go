@@ -17,12 +17,6 @@ func TestDispatcherStatelessPart(t *testing.T) {
 	dispatcher := NewDispatcherImmutablePart(5, effectiveWorkerNum, 0)
 	require.Equal(t, 5, dispatcher.numberOfSyntheticPartitions)
 
-	all := dispatcher.generateAllSyntheticPartitions()
-	require.Equal(t, 5, len(all))
-	for i := 0; i < 5; i++ {
-		require.Equal(t, i, all[i].SyntheticPartitionNum())
-	}
-
 	myTask := dispatcher.generateMySyntheticPartitions()
 	require.Equal(t, 3, len(myTask.mySyntheticPartitions))
 	require.Equal(t, 0, myTask.mySyntheticPartitions[0].SyntheticPartitionNum())

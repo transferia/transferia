@@ -1090,3 +1090,129 @@ func TestMigrate(t *testing.T) {
 	err := orderedMultimap.Deserialize([]byte(`{"NS":1636990841931000000,"Files":["csv_sample_100MB_no_header.csv"]}`))
 	require.NoError(t, err)
 }
+
+func TestKeysInRange_EmptyMap(t *testing.T) {
+	m := NewOrderedMultimap()
+	result := m.KeysInRange(0, 100)
+	require.Empty(t, result, "Empty map should return empty slice")
+}
+
+func TestKeysInRange_SingleKey(t *testing.T) {
+	m := NewOrderedMultimap()
+	require.NoError(t, m.Add(100, "file1.txt"))
+
+	// Key in range
+	result := m.KeysInRange(100, 100)
+	require.Equal(t, []int64{100}, result, "Should return key when it's in range")
+
+	// Key before range
+	result = m.KeysInRange(0, 50)
+	require.Empty(t, result, "Should return empty when key is before range")
+
+	// Key after range
+	result = m.KeysInRange(200, 300)
+	require.Empty(t, result, "Should return empty when key is after range")
+}
+
+func TestKeysInRange_MultipleKeys(t *testing.T) {
+	m := NewOrderedMultimap()
+	require.NoError(t, m.Add(100, "file1.txt"))
+	require.NoError(t, m.Add(200, "file2.txt"))
+	require.NoError(t, m.Add(300, "file3.txt"))
+	require.NoError(t, m.Add(400, "file4.txt"))
+	require.NoError(t, m.Add(500, "file5.txt"))
+
+	// Range in the middle
+	result := m.KeysInRange(150, 450)
+	require.Equal(t, []int64{200, 300, 400}, result, "Should return keys in range [150, 450]")
+
+	// Range with exact boundaries
+	result = m.KeysInRange(200, 400)
+	require.Equal(t, []int64{200, 300, 400}, result, "Should return keys in range [200, 400]")
+
+	// Range including all keys
+	result = m.KeysInRange(100, 500)
+	require.Equal(t, []int64{100, 200, 300, 400, 500}, result, "Should return all keys")
+
+	// Range from first key
+	result = m.KeysInRange(100, 300)
+	require.Equal(t, []int64{100, 200, 300}, result, "Should return keys from first key")
+
+	// Range to last key
+	result = m.KeysInRange(300, 500)
+	require.Equal(t, []int64{300, 400, 500}, result, "Should return keys to last key")
+
+	// Range before all keys
+	result = m.KeysInRange(0, 50)
+	require.Empty(t, result, "Should return empty when range is before all keys")
+
+	// Range after all keys
+	result = m.KeysInRange(600, 700)
+	require.Empty(t, result, "Should return empty when range is after all keys")
+
+	// Range between keys
+	result = m.KeysInRange(250, 250)
+	require.Empty(t, result, "Should return empty when range is between keys")
+
+	// Range with single key
+	result = m.KeysInRange(200, 200)
+	require.Equal(t, []int64{200}, result, "Should return single key when range is single key")
+}
+
+func TestKeysInRange_EdgeCases(t *testing.T) {
+	m := NewOrderedMultimap()
+	require.NoError(t, m.Add(100, "file1.txt"))
+	require.NoError(t, m.Add(200, "file2.txt"))
+	require.NoError(t, m.Add(300, "file3.txt"))
+
+	// Range starting before first key
+	result := m.KeysInRange(50, 250)
+	require.Equal(t, []int64{100, 200}, result, "Should return keys from first key to boundary")
+
+	// Range ending after last key
+	result = m.KeysInRange(250, 500)
+	require.Equal(t, []int64{300}, result, "Should return keys from boundary to last key")
+
+	// Range with l > r (invalid range)
+	result = m.KeysInRange(300, 100)
+	require.Empty(t, result, "Should return empty when left > right")
+
+	// Range with negative values
+	require.NoError(t, m.Add(-100, "file0.txt"))
+	result = m.KeysInRange(-150, -50)
+	require.Equal(t, []int64{-100}, result, "Should handle negative keys")
+}
+
+func TestKeysInRange_LargeRange(t *testing.T) {
+	m := NewOrderedMultimap()
+	// Add keys with gaps
+	require.NoError(t, m.Add(100, "file1.txt"))
+	require.NoError(t, m.Add(500, "file2.txt"))
+	require.NoError(t, m.Add(1000, "file3.txt"))
+	require.NoError(t, m.Add(2000, "file4.txt"))
+	require.NoError(t, m.Add(5000, "file5.txt"))
+
+	// Large range covering all keys
+	result := m.KeysInRange(0, 10000)
+	require.Equal(t, []int64{100, 500, 1000, 2000, 5000}, result, "Should return all keys in large range")
+
+	// Range covering some keys
+	result = m.KeysInRange(200, 1500)
+	require.Equal(t, []int64{500, 1000}, result, "Should return keys in range with gaps")
+}
+
+func TestKeysInRange_WithMultipleValuesPerKey(t *testing.T) {
+	m := NewOrderedMultimap()
+	// Add multiple values to same keys
+	require.NoError(t, m.Add(100, "file1.txt"))
+	require.NoError(t, m.Add(100, "file1b.txt"))
+	require.NoError(t, m.Add(200, "file2.txt"))
+	require.NoError(t, m.Add(300, "file3.txt"))
+	require.NoError(t, m.Add(300, "file3b.txt"))
+	require.NoError(t, m.Add(300, "file3c.txt"))
+
+	// Range should return keys, not values (each key appears only once)
+	result := m.KeysInRange(100, 300)
+	require.Equal(t, []int64{100, 200, 300}, result, "Should return unique keys in range, not values")
+	require.Len(t, result, 3, "Should return 3 unique keys")
+}

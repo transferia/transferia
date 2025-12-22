@@ -70,7 +70,7 @@ func TestObjectFetcherPoller(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(objects))
 		require.NoError(t, poller0.Commit(objects[0].FileName)) // file_4
-		require.Equal(t, `{"2":["file_4"]}`, dpClient.GetTransferStateForTests(t)["0"].Generic)
+		require.Equal(t, `{"ToHandle":{},"Handled":{"2":["file_4"]}}`, dpClient.GetTransferStateForTests(t)["0"].Generic)
 	})
 
 	//------------------------------------------------------------------
@@ -103,7 +103,7 @@ func TestObjectFetcherPoller(t *testing.T) {
 
 		err = poller0.Commit("file_6")
 		require.NoError(t, err)
-		require.Equal(t, `{"1000000000002":["file_6"]}`, dpClient.GetTransferStateForTests(t)["0"].Generic) // cleaned to TTL: {"2":["file_4"]}
+		require.Equal(t, `{"ToHandle":{},"Handled":{"1000000000002":["file_6"],"2":["file_4"]}}`, dpClient.GetTransferStateForTests(t)["0"].Generic) // cleaned to TTL: {"2":["file_4"]}
 	})
 
 	fakeS3Client.AddFile(fake_s3.NewFile("file_7", []byte("STUB"), 1000000000003))
@@ -122,14 +122,14 @@ func TestObjectFetcherPoller(t *testing.T) {
 			objects,
 		)
 
-		require.Equal(t, `{"1000000000002":["file_6"]}`, dpClient.GetTransferStateForTests(t)["0"].Generic)
+		require.Equal(t, `{"ToHandle":{},"Handled":{"1000000000002":["file_6"],"2":["file_4"]}}`, dpClient.GetTransferStateForTests(t)["0"].Generic)
 		err = poller0.Commit("file_D")
 		require.NoError(t, err)
-		require.Equal(t, `{"1000000000002":["file_6"],"1000000000005":["file_D"]}`, dpClient.GetTransferStateForTests(t)["0"].Generic)
+		require.Equal(t, `{"ToHandle":{"1000000000003":["file_7"]},"Handled":{"1000000000002":["file_6"],"1000000000005":["file_D"],"2":["file_4"]}}`, dpClient.GetTransferStateForTests(t)["0"].Generic)
 
 		err = poller0.Commit("file_7")
 		require.NoError(t, err)
-		require.Equal(t, `{"1000000000002":["file_6"],"1000000000003":["file_7"],"1000000000005":["file_D"]}`, dpClient.GetTransferStateForTests(t)["0"].Generic)
+		require.Equal(t, `{"ToHandle":{},"Handled":{"1000000000002":["file_6"],"1000000000003":["file_7"],"1000000000005":["file_D"],"2":["file_4"]}}`, dpClient.GetTransferStateForTests(t)["0"].Generic)
 	})
 }
 

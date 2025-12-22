@@ -20,8 +20,8 @@ type SyntheticPartition struct {
 	beforeListTime time.Time
 	listDuration   time.Duration
 
-	queueToHandle *ordered_multimap.OrderedMultimap
-	committed     *l_window.LWindow
+	fullQueueToHandle *ordered_multimap.OrderedMultimap
+	lWindow           *l_window.LWindow
 }
 
 func (f *SyntheticPartition) SyntheticPartitionNum() int {
@@ -37,8 +37,8 @@ func (f *SyntheticPartition) SyntheticPartitionStr() string {
 
 func (f *SyntheticPartition) BeforeListing() error {
 	f.beforeListTime = time.Now()
-	if f.queueToHandle.Size() != 0 {
-		return xerrors.Errorf("contract is broken - on 'listing' stage, queueToHandle should be empty")
+	if f.fullQueueToHandle.Size() != 0 {
+		return xerrors.Errorf("contract is broken - on 'listing' stage, fullQueueToHandle should be empty")
 	}
 	return nil
 }
@@ -48,8 +48,8 @@ func (f *SyntheticPartition) AfterListing() {
 }
 
 func (f *SyntheticPartition) Files() []file.File {
-	result := make([]file.File, 0, f.queueToHandle.Size()*2)
-	f.queueToHandle.ForEach(func(key int64, value string) {
+	result := make([]file.File, 0, f.fullQueueToHandle.Size()*2)
+	f.fullQueueToHandle.ForEach(func(key int64, value string) {
 		result = append(result, file.File{
 			FileName:       value,
 			FileSize:       0,
@@ -60,57 +60,61 @@ func (f *SyntheticPartition) Files() []file.File {
 }
 
 func (f *SyntheticPartition) AddIfNew(newFile *file.File) (bool, error) {
-	if f.committed.IsNewFile(newFile.LastModifiedNS, newFile.FileName) {
+	isNewFile, err := f.lWindow.IsNewFile(newFile.LastModifiedNS, newFile.FileName)
+	if err != nil {
+		return false, xerrors.Errorf("failed to determine if a new file is new: %w", err)
+	}
+	if isNewFile {
 		// ADD
-		err := f.queueToHandle.Add(newFile.LastModifiedNS, newFile.FileName)
+		err := f.fullQueueToHandle.Add(newFile.LastModifiedNS, newFile.FileName)
 		if err != nil {
-			return false, xerrors.Errorf("unable to add file into queueToHandle, err: %w", err)
+			return false, xerrors.Errorf("unable to add file into fullQueueToHandle, err: %w", err)
 		}
 		return true, nil
 	}
 
-	// SKIP, we already committed it
+	// SKIP, we already lWindow it
 	return false, nil
 }
 
 func (f *SyntheticPartition) Commit(fileName string) error {
 	// find 'File' object
-	currFileNS, err := f.queueToHandle.GetKeyByValue(fileName)
+	currFileNS, err := f.fullQueueToHandle.GetKeyByValue(fileName)
 	if err != nil {
 		return xerrors.Errorf("unable to get file, err: %w", err)
 	}
 
-	// remove 'File' from queueToHandle
-	err = f.queueToHandle.RemoveValue(fileName)
+	// remove 'File' from fullQueueToHandle
+	err = f.fullQueueToHandle.RemoveValue(fileName)
 	if err != nil {
 		return xerrors.Errorf("unable to remove file, err: %w", err)
 	}
 
 	// commit
-	err = f.committed.Commit(currFileNS, fileName, f.listDuration, f.queueToHandle)
+	err = f.lWindow.Commit(currFileNS, fileName, f.listDuration)
 	if err != nil {
-		return xerrors.Errorf("unable to add file into committed, err: %w", err)
+		return xerrors.Errorf("unable to add file into lWindow, err: %w", err)
 	}
 
 	return nil
 }
 
 func (f *SyntheticPartition) CommitAll() error {
-	f.queueToHandle.ForEachKey(func(key int64, values []string) {
+	f.fullQueueToHandle.ForEachKey(func(key int64, values []string) {
 		for _, value := range values {
-			_ = f.committed.Commit(key, value, f.listDuration, f.queueToHandle)
+			_ = f.lWindow.Commit(key, value, f.listDuration)
 		}
 	})
-	f.queueToHandle.Clear()
+	f.fullQueueToHandle.Clear()
 	return nil
 }
 
-func (f *SyntheticPartition) LastCommittedStateFromString(in string) error {
-	return f.committed.Deserialize([]byte(in))
+func (f *SyntheticPartition) LWindowFromString(in string) error {
+	return f.lWindow.Deserialize([]byte(in))
 }
 
-func (f *SyntheticPartition) LastCommittedStateToString() string {
-	result, _ := f.committed.Serialize()
+func (f *SyntheticPartition) LWindowToString() string {
+	result := f.lWindow.Serialize()
 	return string(result)
 }
 
@@ -121,7 +125,7 @@ func NewSyntheticPartition(syntheticPartitionNum int, overlapDuration time.Durat
 		syntheticPartitionNum: syntheticPartitionNum,
 		beforeListTime:        time.Time{},
 		listDuration:          0,
-		queueToHandle:         ordered_multimap.NewOrderedMultimap(),
-		committed:             l_window.NewLWindow(overlapDuration),
+		fullQueueToHandle:     ordered_multimap.NewOrderedMultimap(),
+		lWindow:               l_window.NewLWindow(overlapDuration, 10),
 	}
 }

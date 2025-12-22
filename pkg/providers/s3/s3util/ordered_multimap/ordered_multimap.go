@@ -3,11 +3,10 @@ package ordered_multimap
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"strings"
-
-	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type OrderedMultimap struct {
@@ -22,6 +21,26 @@ func NewOrderedMultimap() *OrderedMultimap {
 		keys:       make([]int64, 0),
 		valueToKey: make(map[string]int64),
 	}
+}
+
+func NewOrderedMultimapFromMap(in map[int64][]string) (*OrderedMultimap, error) {
+	result := NewOrderedMultimap()
+	for key, values := range in {
+		for _, value := range values {
+			err := result.Add(key, value)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return result, nil
+}
+
+func (m *OrderedMultimap) LR() (int64, int64) {
+	if len(m.keys) == 0 {
+		return math.MaxInt64, math.MinInt64
+	}
+	return m.keys[0], m.keys[len(m.keys)-1]
 }
 
 func (m *OrderedMultimap) insertKeySorted(key int64) {
@@ -142,6 +161,34 @@ func (m *OrderedMultimap) RemoveLessThan(key int64) {
 	m.keys = m.keys[pos:]
 }
 
+func (m *OrderedMultimap) RemoveLessThanWithMinElements(key int64, minAmountElementsShouldBeLeaved int) {
+	for {
+		// Get first pair
+		firstKey, values, err := m.FirstPair()
+		if err != nil {
+			// Multimap is empty, stop
+			return
+		}
+
+		// If we reached or passed the key boundary, stop
+		if firstKey >= key {
+			return
+		}
+
+		// Check if removing this key would leave enough elements
+		currentTotalSize := m.TotalSize()
+		elementsAfterRemoval := currentTotalSize - len(values)
+
+		// If after removal we would have less than minAmountElementsShouldBeLeaved, stop
+		if elementsAfterRemoval < minAmountElementsShouldBeLeaved {
+			return
+		}
+
+		// Remove the key (this will remove all its values)
+		_ = m.Remove(firstKey)
+	}
+}
+
 func (m *OrderedMultimap) Size() int {
 	return len(m.keys)
 }
@@ -163,6 +210,43 @@ func (m *OrderedMultimap) Clear() {
 func (m *OrderedMultimap) Keys() []int64 {
 	result := make([]int64, len(m.keys))
 	copy(result, m.keys)
+	return result
+}
+
+func (m *OrderedMultimap) KeysInRange(l, r int64) []int64 {
+	if len(m.keys) == 0 {
+		return []int64{}
+	}
+
+	// Find the first key >= l (left boundary, inclusive)
+	leftPos := sort.Search(len(m.keys), func(i int) bool {
+		return m.keys[i] >= l
+	})
+
+	// Find the first key > r, then subtract 1 to get the last key <= r (right boundary, inclusive)
+	rightPos := sort.Search(len(m.keys), func(i int) bool {
+		return m.keys[i] > r
+	})
+	rightPos--
+
+	// If no keys in range, return empty slice
+	if leftPos > rightPos || leftPos >= len(m.keys) {
+		return []int64{}
+	}
+
+	// Extract keys in the range [l, r] inclusive
+	result := make([]int64, rightPos-leftPos+1)
+	copy(result, m.keys[leftPos:rightPos+1])
+	return result
+}
+
+func (m *OrderedMultimap) MapByRange(l, r int64) map[int64][]string {
+	result := make(map[int64][]string)
+	keys := m.KeysInRange(l, r)
+	for _, key := range keys {
+		values, _ := m.Get(key)
+		result[key] = values
+	}
 	return result
 }
 
@@ -252,7 +336,7 @@ func (m *OrderedMultimap) Deserialize(in []byte) error {
 	if isOldState(in) {
 		stateForSerDe, err = migrate(in)
 		if err != nil {
-			return fmt.Errorf("migrate old state failed, err: %w", err)
+			return fmt.Errorf("migrate old state failed, err: %s", err.Error())
 		}
 	} else {
 		err := json.Unmarshal(in, &stateForSerDe)
@@ -279,7 +363,7 @@ func migrate(in []byte) (map[int64][]string, error) {
 	var state stateUtilStructForSerDeForMigration
 	err := json.Unmarshal(in, &state)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to deserialize json (2), err: %w", err)
+		return nil, fmt.Errorf("failed to deserialize json (2), err: %w", err)
 	}
 	return map[int64][]string{
 		state.NS: state.Files,

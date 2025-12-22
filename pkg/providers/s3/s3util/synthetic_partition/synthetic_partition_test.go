@@ -19,26 +19,26 @@ func TestSyntheticPartitionStatefulPart(t *testing.T) {
 	// init implicit
 	syntheticPartition := NewSyntheticPartition(33, 0)
 	require.Equal(t, 33, syntheticPartition.SyntheticPartitionNum())
-	require.Equal(t, 0, syntheticPartition.queueToHandle.Size())
+	require.Equal(t, 0, syntheticPartition.fullQueueToHandle.Size())
 
 	nsecToTime := func(nsec int64) time.Time {
 		return time.Unix(0, nsec)
 	}
 
 	t.Run("add 'file' with ns=4", func(t *testing.T) {
-		require.Equal(t, 0, syntheticPartition.queueToHandle.Size())
+		require.Equal(t, 0, syntheticPartition.fullQueueToHandle.Size())
 		q, err := syntheticPartition.AddIfNew(file.NewFile("file2", 1, nsecToTime(4)))
 		require.NoError(t, err)
 		require.True(t, q)
-		require.Equal(t, 1, syntheticPartition.queueToHandle.Size())
+		require.Equal(t, 1, syntheticPartition.fullQueueToHandle.Size())
 	})
 
 	t.Run("add 'file' with ns=5", func(t *testing.T) {
-		require.Equal(t, 1, syntheticPartition.queueToHandle.Size())
+		require.Equal(t, 1, syntheticPartition.fullQueueToHandle.Size())
 		q, err := syntheticPartition.AddIfNew(file.NewFile("file3", 1, nsecToTime(5)))
 		require.NoError(t, err)
 		require.True(t, q)
-		require.Equal(t, 2, syntheticPartition.queueToHandle.Size())
+		require.Equal(t, 2, syntheticPartition.fullQueueToHandle.Size())
 	})
 }
 
@@ -59,13 +59,13 @@ func TestSyntheticPartitionCommitOrder(t *testing.T) {
 	_, _ = syntheticPartition.AddIfNew(makeFile("2b"))
 	_, _ = syntheticPartition.AddIfNew(makeFile("3a"))
 	_, _ = syntheticPartition.AddIfNew(makeFile("4a"))
-	require.Equal(t, 5, syntheticPartition.queueToHandle.TotalSize())
+	require.Equal(t, 5, syntheticPartition.fullQueueToHandle.TotalSize())
 
 	check := func(syntheticPartition *SyntheticPartition, commitFileName string, afterProgressShouldBe int) {
-		oldLen := syntheticPartition.queueToHandle.TotalSize()
+		oldLen := syntheticPartition.fullQueueToHandle.TotalSize()
 		err := syntheticPartition.Commit(commitFileName)
 		require.NoError(t, err)
-		newLen := syntheticPartition.queueToHandle.TotalSize()
+		newLen := syntheticPartition.fullQueueToHandle.TotalSize()
 		require.Equal(t, 1, oldLen-newLen)
 	}
 
