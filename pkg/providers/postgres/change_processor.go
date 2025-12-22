@@ -38,6 +38,9 @@ type changeProcessor struct {
 
 	config   *PgSource
 	location *time.Location
+
+	// Cache for resolved parent tables to avoid repetitive queries when new partitions appear.
+	resolvedParents map[abstract.TableID]abstract.TableID
 }
 
 func defaultChangeProcessor() *changeProcessor {
@@ -49,7 +52,8 @@ func defaultChangeProcessor() *changeProcessor {
 		schemasToEmit:   abstract.DBSchema{},
 		fastSchemas:     fastSchemasFromDBSchema(abstract.DBSchema{}),
 
-		config: new(PgSource),
+		config:          new(PgSource),
+		resolvedParents: make(map[abstract.TableID]abstract.TableID),
 	}
 }
 
@@ -58,6 +62,7 @@ func newChangeProcessor(
 	dbSchema abstract.DBSchema,
 	schemaTimestamp time.Time,
 	config *PgSource,
+	resolvedParents map[abstract.TableID]abstract.TableID,
 ) (*changeProcessor, error) {
 	connTimezone := conn.PgConn().ParameterStatus(TimeZoneParameterStatusKey)
 	if config.IsHomo {
@@ -78,7 +83,8 @@ func newChangeProcessor(
 		schemaTimestamp: schemaTimestamp,
 		fastSchemas:     fastSchemasFromDBSchema(dbSchema),
 
-		config: config,
+		config:          config,
+		resolvedParents: resolvedParents,
 	}, nil
 }
 
@@ -285,6 +291,11 @@ func (c *changeProcessor) restoreType(value any, oid pgtype.OID, colSchema *abst
 }
 
 func (c *changeProcessor) resolveParentTable(ctx context.Context, connPool *pgxpool.Pool, id abstract.TableID) (res abstract.TableID, err error) {
+	// Memoize to avoid repetitive queries for the same table.
+	if parent, ok := c.resolvedParents[id]; ok {
+		return parent, nil
+	}
+
 	conn, err := connPool.Acquire(ctx)
 	if err != nil {
 		return res, xerrors.Errorf("unable to acquire conn: %w", err)
@@ -305,8 +316,11 @@ func (c *changeProcessor) resolveParentTable(ctx context.Context, connPool *pgxp
 		if err != nil {
 			return res, xerrors.Errorf("unable to parse parent table name: %w", err)
 		}
-		return *tid, nil
+		res = *tid
+		c.resolvedParents[id] = res
+		return res, nil
 	}
+	c.resolvedParents[id] = id
 	return id, nil
 }
 

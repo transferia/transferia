@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -36,6 +37,19 @@ var (
 			pg.CollapseInheritTables = true
 			pg.UseFakePrimaryKey = true // PK constraint for partitioned tables is disabled for PostgreSQL < 12
 			pg.SlotID = "testslot_collapse"
+		}),
+	)
+
+	SourceCollapseDBLogEnabled = *pgrecipe.RecipeSource(
+		pgrecipe.WithPrefix(""),
+		pgrecipe.WithInitDir("init_source"),
+		pgrecipe.WithEdit(func(pg *postgres.PgSource) {
+			pg.CollapseInheritTables = true
+			pg.UseFakePrimaryKey = true // PK constraint for partitioned tables is disabled for PostgreSQL < 12
+			pg.SlotID = "testslot_collapse_dblog_enabled"
+			pg.DBLogEnabled = true
+			pg.ChunkSize = 1
+			pg.DBTables = []string{"public.log_table_declarative_partitioning"}
 		}),
 	)
 )
@@ -81,6 +95,12 @@ func waitForLoaded(t *testing.T, v *[]abstract.ChangeItem, mux *sync.Mutex, expe
 	}
 	t.Fail()
 	require.Fail(t, "waitForLoaded")
+}
+
+func requireAllNamesSame(t *testing.T, expectedName string, items []abstract.ChangeItem) {
+	for _, item := range items {
+		require.Equal(t, expectedName, fmt.Sprintf("%s.%s", item.TableID().Namespace, item.TableID().Name))
+	}
 }
 
 func TestSnapshotAndIncrement(t *testing.T) {
@@ -225,4 +245,100 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	tableItemsCollapse = splitByTables(changeItemsCollapse[30:])
 	require.Equal(t, 2, len(tableItemsCollapse))
+
+	// check new partition replication
+	changeItemsCollapse = changeItemsCollapse[:0] // clear changeItemsCollapse
+
+	srcConn, err := postgres.MakeConnPoolFromSrc(&SourceCollapse, logger.Log)
+	require.NoError(t, err)
+	defer srcConn.Close()
+
+	_, err = srcConn.Exec(context.Background(), "CREATE TABLE log_table_partition_y2022m03 PARTITION OF log_table_declarative_partitioning FOR VALUES FROM ('2022-03-01') TO ('2022-04-01');")
+	require.NoError(t, err)
+
+	_, err = srcConn.Exec(context.Background(), "INSERT INTO log_table_partition_y2022m03(id, logdate, msg) VALUES (103, '2022-03-07', 'repl_msg')")
+	require.NoError(t, err)
+
+	waitForLoaded(t, &changeItemsCollapse, &sinkerCollapseMutex, 1, 30*time.Second)
+
+	// DBLog enabled (CollapseInheritTables = true)
+	t.Run("dblog enabled", testDBLogEnabled)
+}
+
+func testDBLogEnabled(t *testing.T) {
+	sinkerCollapse := &mocksink.MockSink{}
+	sinkerCollapseMutex := sync.Mutex{}
+	targetCollapse := model.MockDestination{
+		SinkerFactory: func() abstract.Sinker { return sinkerCollapse },
+		Cleanup:       model.Drop,
+	}
+	srcConn, err := postgres.MakeConnPoolFromSrc(&SourceCollapse, logger.Log)
+	require.NoError(t, err)
+	defer srcConn.Close()
+
+	schema := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "id", DataType: ytschema.TypeInt32.String(), PrimaryKey: true},
+		{ColumnName: "logdate", DataType: ytschema.TypeDate.String(), PrimaryKey: false},
+		{ColumnName: "msg", DataType: ytschema.TypeString.String(), PrimaryKey: false},
+	})
+	valuesForPartitions := []map[string]interface{}{
+		{"id": 300, "logdate": "2022-03-07", "msg": "repl_msg"},
+		{"id": 400, "logdate": "2022-04-07", "msg": "repl_msg"},
+		{"id": 401, "logdate": "2022-04-07", "msg": "repl_msg"},
+		{"id": 402, "logdate": "2022-04-08", "msg": "repl_msg"},
+		{"id": 403, "logdate": "2022-04-09", "msg": "repl_msg"},
+	}
+	changeItemBuilderParent := helpers.NewChangeItemsBuilder("public", "log_table_declarative_partitioning", schema)
+	sinkToSource, err := postgres.NewSink(logger.Log, helpers.TransferID, SourceCollapseDBLogEnabled.ToSinkParams(), helpers.EmptyRegistry())
+	require.NoError(t, err)
+
+	var changeItemsCollapse []abstract.ChangeItem
+	once := sync.Once{}
+	sinkerCollapse.PushCallback = func(input []abstract.ChangeItem) error {
+		sinkerCollapseMutex.Lock()
+		defer sinkerCollapseMutex.Unlock()
+		for _, i := range input {
+			if i.Table == "__consumer_keeper" {
+				continue
+			}
+			logger.Log.Infof("DBLOG::EL::%s", i.ToJSONString())
+			changeItemsCollapse = append(changeItemsCollapse, i)
+
+			if len(changeItemsCollapse) >= 2 {
+				once.Do(func() {
+					_, err := srcConn.Exec(context.Background(), "CREATE TABLE log_table_partition_y2022m04 PARTITION OF log_table_declarative_partitioning FOR VALUES FROM ('2022-04-01') TO ('2022-05-01');")
+					require.NoError(t, err)
+					require.NoError(t, sinkToSource.Push(changeItemBuilderParent.Inserts(t, valuesForPartitions)))
+					logger.Log.Infof("DBLOG::CREATED PARTITION log_table_partition_y2022m04")
+				})
+			}
+		}
+		return nil
+	}
+
+	transferDBLogEnabled := helpers.MakeTransfer("fake_collapse_dblog_enabled", &SourceCollapseDBLogEnabled, &targetCollapse, abstract.TransferTypeSnapshotAndIncrement)
+	workerDBLogEnabled := helpers.Activate(t, transferDBLogEnabled)
+	defer workerDBLogEnabled.Close(t)
+
+	waitForLoaded(t, &changeItemsCollapse, &sinkerCollapseMutex, 28, 30*time.Second) // 1 drop table + 12 values before snapshot + 5 * 3 values during snapshot
+	// multiple inserts it`s from one replication stage and one from snapshot dblog stage, and 1 from replication stage
+	requireAllNamesSame(t, SourceCollapseDBLogEnabled.DBTables[0], changeItemsCollapse)
+
+	time.Sleep(5 * time.Second) // wait for snapshot stage to finish
+
+	// insert for replication stage
+	valuesForPartitionsNewPartition := []map[string]interface{}{
+		{"id": 500, "logdate": "2022-05-07", "msg": "repl_msg"},
+		{"id": 501, "logdate": "2022-05-07", "msg": "repl_msg"},
+		{"id": 502, "logdate": "2022-05-08", "msg": "repl_msg"},
+		{"id": 503, "logdate": "2022-05-09", "msg": "repl_msg"},
+	}
+
+	changeItemsCollapse = changeItemsCollapse[:0] // clear changeItemsCollapse
+	_, err = srcConn.Exec(context.Background(), "CREATE TABLE log_table_partition_y2022m05 PARTITION OF log_table_declarative_partitioning FOR VALUES FROM ('2022-05-01') TO ('2022-06-01');")
+	require.NoError(t, err)
+	require.NoError(t, sinkToSource.Push(changeItemBuilderParent.Inserts(t, valuesForPartitionsNewPartition)))
+
+	waitForLoaded(t, &changeItemsCollapse, &sinkerCollapseMutex, 4, 30*time.Second)
+	requireAllNamesSame(t, SourceCollapseDBLogEnabled.DBTables[0], changeItemsCollapse)
 }

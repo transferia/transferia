@@ -57,7 +57,7 @@ type replication struct {
 	objects         *model.DataObjects
 	sequencer       *sequencer2.Sequencer
 	parseQ          *parsequeue.ParseQueue[[]abstract.ChangeItem]
-	objectsMap      map[abstract.TableID]bool //tables to include in transfer
+	objectsFilter   abstract.Includeable
 
 	skippedTables map[abstract.TableID]bool
 }
@@ -86,7 +86,7 @@ func (p *replication) Run(sink abstract.AsyncSink) error {
 		includedObjects = append(includedObjects, p.config.AuxTables()...)
 	}
 
-	if p.objectsMap, err = abstract.BuildIncludeMap(includedObjects); err != nil {
+	if p.objectsFilter, err = abstract.BuildIncludeableFromObjects(includedObjects); err != nil {
 		return xerrors.Errorf("unable to build transfer data-objects: %w", err)
 	}
 
@@ -154,21 +154,11 @@ func (p *replication) ack(data []abstract.ChangeItem, pushSt time.Time, err erro
 
 func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) []abstract.ChangeItem {
 	var changes []abstract.ChangeItem
+	inlcludeable := abstract.NewIntersectionIncludeable(p.objectsFilter, p.config)
 	for _, change := range items {
-		if _, ok := p.includeCache[change.TableID()]; !ok {
-			p.includeCache[change.TableID()] = p.config.Include(change.TableID())
-		}
-		if len(p.objectsMap) > 0 { // if we have transfer include objects we should strictly push only them
-			_, tablePresent := p.objectsMap[change.TableID()]
-			// Let's imagine that we work with partitioned tables and CollapseInheritTables is on
-			// How our code works: 1) we rename partitioned tables using transformers and this happens when we push ChangeItems
-			// 2) IncludeObjects may include name of parent table(this is how it worked previously so this behaviour should be preserved)
-			// 3) therefore when we check if table is present in IncludeObjects we should also check if it's parent is present
-			// otherwise we will just skip all partition tables during replication
-			_, parentPresent := p.objectsMap[p.altNames[change.TableID()]]
-			if !parentPresent && !tablePresent {
-				continue
-			}
+		tableID := change.TableID()
+		if _, ok := p.includeCache[tableID]; !ok {
+			p.includeCache[tableID] = isTableOrParentIncluded(p.altNames, tableID, inlcludeable, p.config.CollapseInheritTables)
 		}
 		if p.includeCache[change.TableID()] {
 			changes = append(changes, change)
@@ -177,7 +167,22 @@ func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) []abstract.
 	return changes
 }
 
+// isTableOrParentIncluded checks if table or its parent is explicitly included in source configuration
+// or is a child of an included parent when CollapseInheritTables is enabled.
+func isTableOrParentIncluded(altNames map[abstract.TableID]abstract.TableID, tableID abstract.TableID, includeable abstract.Includeable, collapseInheritTables bool) bool {
+	if includeable.Include(tableID) {
+		return true
+	}
+	if collapseInheritTables && altNames != nil {
+		if parentID, ok := altNames[tableID]; ok {
+			return includeable.Include(parentID)
+		}
+	}
+	return false
+}
+
 func (p *replication) reloadSchema() error {
+	p.logger.Info("Reloading schema")
 	storage, err := NewStorage(p.config.ToStorageParams(nil)) // source includes all data transfer system tables
 	if err != nil {
 		return xerrors.Errorf("failed to create PostgreSQL storage object at source endpoint: %w", err)
@@ -220,7 +225,7 @@ func (p *replication) reloadSchema() error {
 	}
 	defer conn.Release()
 
-	changeProcessor, err := newChangeProcessor(conn.Conn(), p.schema, storage.sExTime, p.config)
+	changeProcessor, err := newChangeProcessor(conn.Conn(), p.schema, storage.sExTime, p.config, p.altNames)
 	if err != nil {
 		return xerrors.Errorf("unable to initialize change processor: %w", err)
 	}
@@ -363,7 +368,7 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 					}()
 					var res []abstract.ChangeItem
 					for _, d := range data {
-						changeItems, err := p.parseWal2JsonChanges(p.changeProcessor, d)
+						changeItems, err := p.parseWal2JsonChanges(d)
 						if err != nil {
 							p.sendError(xerrors.Errorf("Cannot parse logical replication message: %w", err))
 							return
@@ -421,17 +426,14 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 	}
 }
 
-func (p *replication) parseWal2JsonChanges(cp *changeProcessor, xld *pglogrepl.XLogData) ([]abstract.ChangeItem, error) {
+func (p *replication) parseWal2JsonChanges(xld *pglogrepl.XLogData) ([]abstract.ChangeItem, error) {
 	st := time.Now()
 	items, err := p.wal2jsonParser.Parse(xld.WALData)
 	if err != nil {
 		logger.Log.Error("Cannot parse wal2json message", log.Error(err), log.String("data", walDataSample(xld.WALData)))
 		return nil, xerrors.Errorf("Cannot parse wal2json message: %w", err)
 	}
-	objIncleadable, err := abstract.BuildIncludeMap(p.objects.GetIncludeObjects())
-	if err != nil {
-		return nil, xerrors.Errorf("failed to filter table list extracted from source by objects set in transfer: %w", err)
-	}
+	includeableFilter := abstract.NewIntersectionIncludeable(p.objectsFilter, p.config)
 	if err := validateChangeItemsPtrs(items); err != nil {
 		p.logger.Error(err.Error())
 		//nolint:descriptiveerrors
@@ -440,42 +442,50 @@ func (p *replication) parseWal2JsonChanges(cp *changeProcessor, xld *pglogrepl.X
 	changes := make([]abstract.ChangeItem, 0, 1)
 	for i, item := range items {
 		changeItem := item.toChangeItem()
+		tableID := changeItem.TableID()
 		if err := abstract.ValidateChangeItem(&changeItem); err != nil {
 			logger.Log.Error(err.Error())
 		}
-		if !cp.hasSchemaForTable(changeItem.TableID()) {
-			if p.skippedTables[changeItem.TableID()] {
-				p.logger.Debug("skipping changes for a table added after replication had started", log.String("table", changeItem.TableID().String()))
-				continue
-			}
+		if p.skippedTables[tableID] {
+			p.logger.Debug("skipping changes for a table added after replication had started", log.String("table", tableID.String()))
+			continue
+		}
+		if !p.changeProcessor.hasSchemaForTable(tableID) {
 			if p.config.CollapseInheritTables {
-				parentID, err := p.changeProcessor.resolveParentTable(p.sharedCtx, p.conn, changeItem.TableID())
+				parentID, err := p.changeProcessor.resolveParentTable(p.sharedCtx, p.conn, tableID)
 				if err != nil {
 					return nil, xerrors.Errorf("unable to resolve parent: %w", err)
 				}
-				if p.objects != nil && len(p.objects.IncludeObjects) > 0 && !objIncleadable[parentID] {
-					p.skippedTables[changeItem.TableID()] = true // to prevent next time resolve for parent
+				if !isTableOrParentIncluded(p.altNames, parentID, includeableFilter, p.config.CollapseInheritTables) {
+					p.skippedTables[tableID] = true // to prevent next time resolve for parent
 					p.logger.Warn(
-						"skipping changes for a table, since itself or its parent is not included in data-objects",
-						log.String("table", changeItem.TableID().String()),
+						"skipping changes for a table, since itself or its parent is not included",
+						log.String("table", tableID.String()),
 						log.String("parent_table", parentID.String()),
 					)
 					continue
 				}
+				// set schema like parent table
+				changeItem.SetTableSchema(p.changeProcessor.schemasToEmit[parentID])
+				changeItem.SetTableID(parentID)
 			}
-			if err := p.reloadSchema(); err != nil {
-				return nil, xerrors.Errorf("failed to reload schema: %w", abstract.NewFatalError(err))
-			}
-			if !cp.hasSchemaForTable(changeItem.TableID()) {
-				if !p.config.IgnoreUnknownTables {
-					return nil, xerrors.Errorf("failed to load schema for a table %s added after replication had started", changeItem.TableID().String())
+			if len(p.changeProcessor.resolvedParents) != 0 {
+				if _, ok := p.changeProcessor.resolvedParents[tableID]; !ok {
+					if err := p.reloadSchema(); err != nil {
+						return nil, xerrors.Errorf("failed to reload schema: %w", abstract.NewFatalError(err))
+					}
 				}
-				p.logger.Warn("failed to get a schema for a table added after replication started, skipping changes for this table", log.String("table", changeItem.TableID().String()))
-				p.skippedTables[changeItem.TableID()] = true
+			}
+			if !p.changeProcessor.hasSchemaForTable(changeItem.TableID()) {
+				if !p.config.IgnoreUnknownTables {
+					return nil, xerrors.Errorf("failed to load schema for a table %s added after replication had started", tableID.String())
+				}
+				p.logger.Warn("failed to get a schema for a table added after replication started, skipping changes for this table", log.String("table", tableID.String()))
+				p.skippedTables[tableID] = true
 				continue
 			}
 		}
-		if err := cp.fixupChange(&changeItem, item.ColumnTypeOIDs, item.OldKeys.KeyTypeOids, i, xld.WALStart); err != nil {
+		if err := p.changeProcessor.fixupChange(&changeItem, item.ColumnTypeOIDs, item.OldKeys.KeyTypeOids, i, xld.WALStart); err != nil {
 			//nolint:descriptiveerrors
 			return nil, err
 		}
@@ -551,7 +561,7 @@ func newReplicationPublisher(
 		objects:         objects,
 		sequencer:       sequencer2.NewSequencer(),
 		parseQ:          nil,
-		objectsMap:      nil,
+		objectsFilter:   nil,
 
 		skippedTables: make(map[abstract.TableID]bool),
 	}, nil

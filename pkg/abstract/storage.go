@@ -43,6 +43,20 @@ func BuildIncludeMap(objects []string) (map[TableID]bool, error) {
 	return includeObjects, nil
 }
 
+func BuildIncludeableFromObjects(objects []string) (Includeable, error) {
+	includeObjects, err := BuildIncludeMap(objects)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to build include map: %w", err)
+	}
+	return IncludeableFunc(func(tID TableID) bool {
+		if len(includeObjects) == 0 {
+			return true
+		}
+		_, ok := includeObjects[tID]
+		return ok
+	}), nil
+}
+
 func SchemaFilterByObjects(schema DBSchema, objects []string) (DBSchema, error) {
 	if objects == nil {
 		return schema, nil

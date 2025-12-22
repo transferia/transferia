@@ -123,3 +123,21 @@ func TestNewWal2jsonArgumentsDBLog(t *testing.T) {
 		require.False(t, isIncludesSignalTable(wal2jsonArguments, cfg))
 	})
 }
+
+func TestIsTableOrParentIncludedCollapseInherit(t *testing.T) {
+	parent := abstract.TableID{Namespace: "public", Name: "parent"}
+	child := abstract.TableID{Namespace: "public", Name: "child"}
+	other := abstract.TableID{Namespace: "public", Name: "other"}
+	cfg := &PgSource{
+		DBTables:              []string{parent.Fqtn()},
+		CollapseInheritTables: true,
+		KeeperSchema:          "public",
+	}
+	altNames := map[abstract.TableID]abstract.TableID{
+		child: parent,
+	}
+
+	require.True(t, isTableOrParentIncluded(altNames, parent, cfg, true))
+	require.True(t, isTableOrParentIncluded(altNames, child, cfg, true))
+	require.False(t, isTableOrParentIncluded(altNames, other, cfg, true))
+}

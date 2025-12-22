@@ -34,6 +34,7 @@ type poller struct {
 	lastWindow      time.Time
 	batchSize       uint32
 	schema          abstract.DBSchema
+	altNames        map[abstract.TableID]abstract.TableID
 	once            sync.Once
 	config          *PgSource
 	transferID      string
@@ -46,6 +47,7 @@ type poller struct {
 	cp              coordinator.Coordinator
 	changeProcessor *changeProcessor
 	objects         *model.DataObjects
+	objectsFilter   abstract.Includeable
 
 	skippedTables map[abstract.TableID]bool
 }
@@ -119,7 +121,7 @@ func (p *poller) reloadSchema() error {
 	}
 	defer conn.Release()
 
-	changeProcessor, err := newChangeProcessor(conn.Conn(), p.schema, storage.sExTime, p.config)
+	changeProcessor, err := newChangeProcessor(conn.Conn(), p.schema, storage.sExTime, p.config, p.altNames)
 	if err != nil {
 		return xerrors.Errorf("unable to initialize change processor: %w", err)
 	}
@@ -322,10 +324,11 @@ func (p *poller) Run(sink abstract.AsyncSink) error {
 func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 	pullStart := time.Now()
 	peekQ := p.peekQ()
-	objIncleadable, err := abstract.BuildIncludeMap(p.objects.GetIncludeObjects())
+	objectsFilter, err := abstract.BuildIncludeableFromObjects(p.objects.GetIncludeObjects())
 	if err != nil {
 		return nil, nil, xerrors.Errorf("failed to filter table list extracted from source by objects set in transfer: %w", err)
 	}
+	p.objectsFilter = abstract.NewIntersectionIncludeable(objectsFilter, p.config)
 	p.logger.Debug("Start " + peekQ)
 	p.logger.Debug("Start pull")
 	if _, err := p.conn.Exec(context.TODO(), "select pg_terminate_backend(active_pid) from pg_replication_slots where slot_name = $1 and active_pid is not null;", p.config.SlotID); err != nil {
@@ -379,7 +382,8 @@ func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 		}
 		for _, item := range changes {
 			changeItem := item.toChangeItem()
-			if !p.config.Include(changeItem.TableID()) {
+			tableID := changeItem.TableID()
+			if !isTableOrParentIncluded(p.altNames, tableID, abstract.NewIntersectionIncludeable(p.objectsFilter, p.config), p.config.CollapseInheritTables) {
 				continue
 			}
 
@@ -387,31 +391,43 @@ func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 				logger.Log.Error(err.Error())
 			}
 
-			if !p.changeProcessor.hasSchemaForTable(changeItem.TableID()) {
-				if p.skippedTables[changeItem.TableID()] {
-					p.logger.Warn("skipping changes for a table added after replication had started", log.String("table", changeItem.TableID().String()))
+			if !p.changeProcessor.hasSchemaForTable(tableID) {
+				if p.skippedTables[tableID] {
+					p.logger.Warn("skipping changes for a table added after replication had started", log.String("table", tableID.String()))
 					continue
 				}
 				if p.config.CollapseInheritTables {
-					parentID, err := p.changeProcessor.resolveParentTable(context.TODO(), p.conn, changeItem.TableID())
+					parentID, err := p.changeProcessor.resolveParentTable(context.TODO(), p.conn, tableID)
 					if err != nil {
 						return nil, nil, xerrors.Errorf("unable to resolve parent: %w", err)
 					}
-					if p.objects != nil && len(p.objects.IncludeObjects) > 0 && !objIncleadable[parentID] {
-						p.skippedTables[changeItem.TableID()] = true // to prevent next time resolve for parent
-						p.logger.Warn("skipping changes for a table, since itself or its parent is not included in data-objects", log.String("table", changeItem.TableID().String()))
+					if !isTableOrParentIncluded(p.altNames, parentID, p.objectsFilter, p.config.CollapseInheritTables) {
+						p.skippedTables[tableID] = true // to prevent next time resolve for parent
+						p.logger.Warn(
+							"skipping changes for a table, since itself or its parent is not included",
+							log.String("table", tableID.String()),
+							log.String("parent_table", parentID.String()),
+						)
 						continue
 					}
+
+					// set schema like parent table
+					changeItem.SetTableSchema(p.changeProcessor.schemasToEmit[parentID])
+					changeItem.SetTableID(parentID)
 				}
-				if err := p.reloadSchema(); err != nil {
-					return nil, nil, xerrors.Errorf("failed to reload schema: %w", abstract.NewFatalError(err))
+				if len(p.changeProcessor.resolvedParents) != 0 {
+					if _, ok := p.changeProcessor.resolvedParents[tableID]; !ok {
+						if err := p.reloadSchema(); err != nil {
+							return nil, nil, xerrors.Errorf("failed to reload schema: %w", abstract.NewFatalError(err))
+						}
+					}
 				}
 				if !p.changeProcessor.hasSchemaForTable(changeItem.TableID()) {
 					if !p.config.IgnoreUnknownTables {
-						return nil, nil, abstract.NewFatalError(xerrors.Errorf("failed to load schema for a table %s added after replication had started", changeItem.TableID().String()))
+						return nil, nil, abstract.NewFatalError(xerrors.Errorf("failed to load schema for a table %s added after replication had started", tableID.String()))
 					}
-					p.logger.Warn("failed to get a schema for a table added after replication started, skipping changes for this table", log.String("table", changeItem.TableID().String()))
-					p.skippedTables[changeItem.TableID()] = true
+					p.logger.Warn("failed to get a schema for a table added after replication started, skipping changes for this table", log.String("table", tableID.String()))
+					p.skippedTables[tableID] = true
 					continue
 				}
 			}
@@ -581,6 +597,7 @@ func newPollingPublisher(
 		lastWindow:      time.Now(),
 		batchSize:       cfg.BatchSize,
 		schema:          nil,
+		altNames:        make(map[abstract.TableID]abstract.TableID),
 		once:            sync.Once{},
 		config:          cfg,
 		transferID:      transferID,
@@ -593,8 +610,8 @@ func newPollingPublisher(
 		cp:              cp,
 		changeProcessor: nil,
 		objects:         objects,
-
-		skippedTables: make(map[abstract.TableID]bool),
+		objectsFilter:   nil,
+		skippedTables:   make(map[abstract.TableID]bool),
 	}
 
 	if err := plr.reloadSchema(); err != nil {

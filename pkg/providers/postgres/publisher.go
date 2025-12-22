@@ -119,8 +119,9 @@ func addTablesList(config *PgSource, objects *model.DataObjects, dbLogSnapshot b
 		result = append(result, signalTableID)
 	}
 
-	// since inherit table appear dynamically we need to filter tables on our side instead of push-list to postgres
-	if config.CollapseInheritTables && objects != nil && len(objects.IncludeObjects) > 0 {
+	// When working with partitioned tables (CollapseInheritTables=true) new partitions may appear after the transfer starts.
+	// To avoid losing their changes we send schema-wide wildcards to wal2json and filter precise tables on our side.
+	if config.CollapseInheritTables {
 		return nil, nil
 	}
 	return result, nil
