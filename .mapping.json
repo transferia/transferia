@@ -1832,6 +1832,7 @@
   "pkg/providers/postgres/tests/test_scripts/dump.sql":"transfer_manager/go/pkg/providers/postgres/tests/test_scripts/dump.sql",
   "pkg/providers/postgres/tests/test_scripts/parent_child.sql":"transfer_manager/go/pkg/providers/postgres/tests/test_scripts/parent_child.sql",
   "pkg/providers/postgres/tests/test_scripts/sequence_test.sql":"transfer_manager/go/pkg/providers/postgres/tests/test_scripts/sequence_test.sql",
+  "pkg/providers/postgres/tests/toast_value_test.go":"transfer_manager/go/pkg/providers/postgres/tests/toast_value_test.go",
   "pkg/providers/postgres/timestamp.go":"transfer_manager/go/pkg/providers/postgres/timestamp.go",
   "pkg/providers/postgres/timestamptz.go":"transfer_manager/go/pkg/providers/postgres/timestamptz.go",
   "pkg/providers/postgres/timetz.go":"transfer_manager/go/pkg/providers/postgres/timetz.go",

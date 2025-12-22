@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 )
@@ -319,4 +320,23 @@ func (r *CyclicReader) Read(b []byte) (n int, err error) {
 	copyFrom = copyFrom[:n]
 	r.pos += n
 	return copy(b, copyFrom), nil
+}
+
+func TestFillToastValuesFromOldKeys(t *testing.T) {
+	item := &Wal2JSONItem{
+		ColumnNames:    []string{"aid", "bid", "abalance", "filler"},
+		ColumnValues:   []interface{}{json.Number("90651"), json.Number("1"), json.Number("689"), "asdasd"},
+		ColumnTypeOIDs: []pgtype.OID{100, 100, 100, 100},
+		OldKeys: OldKeysType{
+			OldKeysType: abstract.OldKeysType{
+				KeyNames:  []string{"aid", "bid", "abalance", "filler", "toast_value"},
+				KeyValues: []interface{}{json.Number("90651"), json.Number("1"), json.Number("689"), "asdasd", "toast_value"},
+				KeyTypes:  []string{"integer", "integer", "integer", "text", "text"},
+			},
+			KeyTypeOids: []pgtype.OID{100, 100, 100, 100, 1000},
+		},
+	}
+	fillToastValuesFromOldKeys(item)
+	require.Equal(t, []interface{}{json.Number("90651"), json.Number("1"), json.Number("689"), "asdasd", "toast_value"}, item.ColumnValues)
+	require.Equal(t, []pgtype.OID{100, 100, 100, 100, 1000}, item.ColumnTypeOIDs)
 }

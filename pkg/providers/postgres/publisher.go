@@ -263,7 +263,7 @@ func validateChangeItemsPtrs(wal2jsonItems []*Wal2JSONItem) error {
 			return xerrors.Errorf("column and OID counts differ; columns: %v; oids: %v", wal2jsonItem.ColumnNames, wal2jsonItem.ColumnTypeOIDs)
 		}
 		if len(wal2jsonItem.OldKeys.KeyNames) != len(wal2jsonItem.OldKeys.KeyTypeOids) {
-			return xerrors.Errorf("column and OID counts differ; columns: %v; oids: %v", wal2jsonItem.ColumnNames, wal2jsonItem.ColumnTypeOIDs)
+			return xerrors.Errorf("column and OID counts differ in old keys; columns: %v; oids: %v", wal2jsonItem.OldKeys.KeyNames, wal2jsonItem.OldKeys.KeyTypeOids)
 		}
 	}
 	return nil
