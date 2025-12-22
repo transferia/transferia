@@ -383,7 +383,6 @@ func RestoreWithLengthLimitCheck(colSchema abstract.ColSchema, val any, ignoreBi
 			return res, xerrors.Errorf("string of type %v is larger than allowed for dynamic table size", colSchema.DataType)
 		}
 	default:
-		logger.Log.Debugf("variable of type %T is detected, skip length assertion (it is okay if target is a static table)", res)
 	}
 	return res, nil
 }
