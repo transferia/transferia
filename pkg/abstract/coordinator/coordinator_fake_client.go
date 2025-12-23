@@ -64,7 +64,7 @@ func (f *CoordinatorNoOp) UploadTable(transferID string, tables []abstract.Table
 	return nil
 }
 
-func (f *CoordinatorNoOp) FinishOperation(operationID string, taskType string, shardIndex int, taskErr error) error {
+func (f *CoordinatorNoOp) FinishOperation(operationID string, taskType string, runID string, shardIndex int, taskErr error) error {
 	return nil
 }
 

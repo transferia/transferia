@@ -324,7 +324,7 @@ func (c *CoordinatorS3) UpdateOperationTablesParts(operationID string, tables []
 	return nil
 }
 
-func (c *CoordinatorS3) FinishOperation(operationID string, taskType string, shardIndex int, taskErr error) error {
+func (c *CoordinatorS3) FinishOperation(operationID string, taskType string, runID string, shardIndex int, taskErr error) error {
 	workers, err := c.GetOperationWorkers(operationID)
 	if err != nil {
 		return xerrors.Errorf("failed to load operation parts: %w", err)

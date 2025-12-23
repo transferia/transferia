@@ -179,7 +179,7 @@ func (f *CoordinatorInMemory) GetOperationWorkers(operationID string) ([]*model.
 	return f.operationIdToWorkers[operationID], nil
 }
 
-func (f *CoordinatorInMemory) FinishOperation(operationID, _ string, shardIndex int, _ error) error {
+func (f *CoordinatorInMemory) FinishOperation(operationID, _, _ string, shardIndex int, _ error) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
