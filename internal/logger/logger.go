@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/mattn/go-isatty"
-	"github.com/transferia/transferia/internal/logger/batching_logger"
 	"github.com/transferia/transferia/tests/helpers/testsflag"
 	_ "go.opentelemetry.io/contrib/bridges/otelzap"
 	zp "go.uber.org/zap"
@@ -181,9 +179,4 @@ func init() {
 	logger := zap.Must(cfg)
 	ytLogger := zap.Must(ytCfg)
 	Log = log.With(NewYtLogBundle(logger, ytLogger), log.Any("host", host)).(YtLogBundle)
-	Log = batching_logger.NewBatchingLogger(Log, &batching_logger.BatchingOptions{
-		FlushInterval: 1 * time.Minute,
-		Threshold:     32,
-		MaxKeys:       1024,
-	})
 }
