@@ -35,8 +35,9 @@ func (d *DispatcherImmutablePart) Contains(syntheticPartitionNum int) bool {
 }
 
 func (d *DispatcherImmutablePart) generateMySyntheticPartitions() *Task {
-	mySyntheticPartitions := make([]*synthetic_partition.SyntheticPartition, 0)
-	for _, num := range d.mySyntheticPartitionsNums.Slice() {
+	nums := d.mySyntheticPartitionsNums.SortedSliceFunc(func(a, b int) bool { return a < b })
+	mySyntheticPartitions := make([]*synthetic_partition.SyntheticPartition, 0, len(nums))
+	for _, num := range nums {
 		mySyntheticPartitions = append(mySyntheticPartitions, synthetic_partition.NewSyntheticPartition(num, d.overlapDuration))
 	}
 	return NewTask(mySyntheticPartitions)
