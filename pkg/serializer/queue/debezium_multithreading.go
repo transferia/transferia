@@ -4,7 +4,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/debezium/packer"
-	"github.com/transferia/transferia/pkg/util/pool"
+	"github.com/transferia/transferia/pkg/util/worker_pool"
 )
 
 //---
@@ -112,7 +112,7 @@ func MultithreadingSerialize(serializer serializerOneThread, sessionPackers pack
 		currTask.Serialize()
 	}
 
-	currPool := pool.NewDefaultPool(currWork, uint64(threadsNum))
+	currPool := worker_pool.NewDefaultWorkerPool(currWork, uint64(threadsNum))
 	_ = currPool.Run()
 	for currTask := range tasks {
 		_ = currPool.Add(currTask)

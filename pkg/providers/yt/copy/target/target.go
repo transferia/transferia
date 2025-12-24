@@ -15,7 +15,7 @@ import (
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/pkg/providers/yt/copy/events"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/pool"
+	"github.com/transferia/transferia/pkg/util/worker_pool"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -26,7 +26,7 @@ type YtCopyTarget struct {
 	cfg        *yt_provider.YtCopyDestination
 	yt         yt.Client
 	snapshotTX yt.Tx
-	pool       pool.Pool
+	pool       worker_pool.WorkerPool
 	logger     log.Logger
 	metrics    metrics.Registry
 	transferID string
@@ -207,7 +207,7 @@ func NewTarget(logger log.Logger, metrics metrics.Registry, cfg *yt_provider.YtC
 		metrics:    metrics,
 		transferID: transferID,
 	}
-	t.pool = pool.NewDefaultPool(func(in interface{}) {
+	t.pool = worker_pool.NewDefaultWorkerPool(func(in interface{}) {
 		task, ok := in.(copyTask)
 		if !ok {
 			task.onFinish(xerrors.Errorf("unknown task type %T", in))

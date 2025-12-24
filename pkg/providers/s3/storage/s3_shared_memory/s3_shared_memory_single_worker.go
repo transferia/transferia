@@ -90,7 +90,7 @@ func NewS3SharedMemorySingleWorker(
 	}
 
 	logger.Infof("listed all files in s3 - finished, found %d files", len(files))
-	batching_logger.LogFileList(logger, fmt.Sprintf("found %d files: ", len(files)), file.FileArr(files))
+	batching_logger.LogLines(logger, fmt.Sprintf("found %d files: ", len(files)), file.FileArr(files))
 
 	return &S3SharedMemorySingleWorker{
 		cfg:     cfg,

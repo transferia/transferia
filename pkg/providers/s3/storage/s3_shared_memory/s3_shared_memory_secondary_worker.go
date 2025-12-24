@@ -143,7 +143,7 @@ func NewS3SharedMemorySecondaryWorker(
 		return nil, xerrors.Errorf("failed to fetch files, err: %w", err)
 	}
 
-	batching_logger.LogFileList(logger, fmt.Sprintf("found %d files: ", len(files)), file.FileArr(files))
+	batching_logger.LogLines(logger, fmt.Sprintf("found %d files: ", len(files)), file.FileArr(files))
 
 	return &S3SharedMemorySecondaryWorker{
 		cfg:                cfg,

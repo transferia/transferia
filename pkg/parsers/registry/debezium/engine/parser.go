@@ -15,7 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	"github.com/transferia/transferia/pkg/schemaregistry/warmup"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/pool"
+	"github.com/transferia/transferia/pkg/util/worker_pool"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -89,7 +89,7 @@ func (p *DebeziumImpl) doMultiThread(batch parsers.MessageBatch) []abstract.Chan
 	if p.threadsNumber == 0 {
 		threadsNumber = 1
 	}
-	currPool := pool.NewDefaultPool(currWork, threadsNumber)
+	currPool := worker_pool.NewDefaultWorkerPool(currWork, threadsNumber)
 	_ = currPool.Run()
 	for currTask := range batch.Messages {
 		_ = currPool.Add(currTask)

@@ -1,4 +1,4 @@
-package pool
+package worker_pool
 
 import (
 	"sync"
@@ -48,9 +48,9 @@ func (t *defaultPool) worker() {
 	}
 }
 
-// NewDefaultPool creates simple task pool.
+// NewDefaultWorkerPool creates simple task pool.
 // taskFn is called to process each task. Capacity sets maximum number of tasks to be processed simultaneously
-func NewDefaultPool(taskFn TaskFn, capacity uint64) Pool {
+func NewDefaultWorkerPool(taskFn TaskFn, capacity uint64) WorkerPool {
 	return &defaultPool{
 		taskCh:   make(chan interface{}),
 		workerWG: sync.WaitGroup{},

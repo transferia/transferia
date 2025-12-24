@@ -10,7 +10,7 @@ type BatchingLoggerable interface {
 	ToBatchingLines() []string
 }
 
-func LogLineInfo(inLoggingFunc loggingFunc, msg string, fields ...log.Field) {
+func LogLine(inLoggingFunc loggingFunc, msg string, fields ...log.Field) {
 	currLogger := NewBatchingLogger(inLoggingFunc, "", "", false)
 	defer currLogger.Close()
 	fieldsArr := make([]string, 0)
@@ -20,7 +20,7 @@ func LogLineInfo(inLoggingFunc loggingFunc, msg string, fields ...log.Field) {
 	sumStr := msg + strings.Join(fieldsArr, " ")
 	currLogger.Log(sumStr)
 }
-func LogFileList(inLogger log.Logger, header string, inFiles BatchingLoggerable) {
+func LogLines(inLogger log.Logger, header string, inLines BatchingLoggerable) {
 	currLogger := NewBatchingLogger(
 		func(in string) { inLogger.Info(in) },
 		header,
@@ -28,8 +28,8 @@ func LogFileList(inLogger log.Logger, header string, inFiles BatchingLoggerable)
 		false,
 	)
 	defer currLogger.Close()
-	inFilesLines := inFiles.ToBatchingLines()
-	for _, currLine := range inFilesLines {
+	lines := inLines.ToBatchingLines()
+	for _, currLine := range lines {
 		currLogger.Log(currLine)
 	}
 }

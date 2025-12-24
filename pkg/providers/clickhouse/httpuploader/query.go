@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/multibuf"
-	"github.com/transferia/transferia/pkg/util/pool"
+	"github.com/transferia/transferia/pkg/util/worker_pool"
 )
 
 type query = *multibuf.PooledMultiBuffer
@@ -30,7 +30,7 @@ func marshalQuery(batch []abstract.ChangeItem, rules *MarshallingRules, q query,
 		row abstract.ChangeItem
 	}
 
-	taskPool := pool.NewDefaultPool(func(row interface{}) {
+	taskPool := worker_pool.NewDefaultWorkerPool(func(row interface{}) {
 		task := row.(*marshalTask)
 		if err := MarshalCItoJSON(task.row, rules, task.buf); err != nil {
 			errs = util.AppendErr(errs, err)

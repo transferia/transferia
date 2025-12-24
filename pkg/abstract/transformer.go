@@ -30,11 +30,11 @@ type TransformationRuntimeOpts struct {
 type TransformerType string
 
 type Transformer interface {
-	Apply(input []ChangeItem) TransformerResult
+	Type() TransformerType
+	Description() string
 	Suitable(table TableID, schema *TableSchema) bool
 	ResultSchema(original *TableSchema) (*TableSchema, error)
-	Description() string
-	Type() TransformerType
+	Apply(input []ChangeItem) TransformerResult
 }
 
 type TransformerResult struct {

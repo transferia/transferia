@@ -178,7 +178,7 @@ func FetchAndCommit(
 		return xerrors.Errorf("unable to commit objects, err: %w", err)
 	}
 	currState := dispatcher.SerializeState()
-	batching_logger.LogLineInfo(func(in string) { logger.Info(in) }, "state serialized (bcs commit_all)", log.Any("state", currState))
+	batching_logger.LogLine(func(in string) { logger.Info(in) }, "state serialized (bcs commit_all)", log.Any("state", currState))
 	logger.Info("will set state")
 
 	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(cp, srcModel.ThrottleCPDuration, transferID)

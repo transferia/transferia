@@ -1,4 +1,4 @@
-package pool
+package worker_pool
 
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -10,9 +10,9 @@ var ErrPoolClosed = xerrors.New("pool is closed")
 // which are put into pool
 type TaskFn func(interface{})
 
-// Pool should be used to process set of homogeneous items (called tasks)
+// WorkerPool should be used to process set of homogeneous items (called tasks)
 // in parallel
-type Pool interface {
+type WorkerPool interface {
 	// Add puts task into pool and waits until task processing is started.
 	// Error is returned if task cannot be put into pool (ex. pool is closed), not if the processing itself has failed
 	Add(task interface{}) error
