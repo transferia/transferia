@@ -8,6 +8,7 @@ type RegularSnapshot struct {
 	CronExpression        string             `json:"CronExpression" yaml:"cron_expression"`
 	IncrementDelaySeconds int64              `json:"IncrementDelaySeconds" yaml:"increment_delay_seconds"`
 	Incremental           []IncrementalTable `json:"Incremental" yaml:"incremental"`
+	RetryConfig           *RetryConfig       `json:"RetryConfig" yaml:"retry_config"`
 }
 
 type IncrementalTable struct {
@@ -15,6 +16,10 @@ type IncrementalTable struct {
 	Namespace    string `yaml:"namespace"`
 	CursorField  string `yaml:"cursor_field"`
 	InitialState string `yaml:"initial_state"`
+}
+
+type RetryConfig struct {
+	MaxAttempts int64 `yaml:"max_attempts"`
 }
 
 func (t IncrementalTable) Initialized() bool {
