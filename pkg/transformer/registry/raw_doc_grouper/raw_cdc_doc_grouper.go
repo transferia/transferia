@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/exp/slices"
@@ -157,7 +157,7 @@ func (r *CdcHistoryGroupTransformer) collectParsedData(changeItem abstract.Chang
 		columnValues = changeItem.ColumnValues
 	}
 
-	//firstly adding data from original columns and collecting doc
+	// Firstly adding data from original columns and collecting doc
 	for idx, colName := range columnNames {
 		colValue := columnValues[idx]
 		docData[colName] = colValue
@@ -166,7 +166,19 @@ func (r *CdcHistoryGroupTransformer) collectParsedData(changeItem abstract.Chang
 			newValues = append(newValues, colValue)
 		}
 	}
-	//adding system columns
+
+	// Adding key columns that were absent in original changeItem
+	for _, colSchema := range changeItem.TableSchema.Columns() {
+		if !r.keySet.Contains(colSchema.ColumnName) {
+			continue
+		}
+		if _, ok := docData[colSchema.ColumnName]; !ok {
+			newCols = append(newCols, colSchema.ColumnName)
+			newValues = append(newValues, nil) // that is how it used to work
+		}
+	}
+
+	// Adding system columns
 	newCols = append(newCols, etlUpdatedField)
 	newValues = append(newValues, time.Unix(0, int64(changeItem.CommitTime)))
 

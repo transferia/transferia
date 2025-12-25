@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	logger "github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers"
 	"github.com/stretchr/testify/require"
+	logger "github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers"
 )
 
 func TestDo(t *testing.T) {

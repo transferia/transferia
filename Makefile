@@ -13,6 +13,9 @@ API ?= trcli
 build:
 	go build -o  binaries/$(API) ./cmd/trcli/*.go
 
+docker: build
+	cp binaries/$(API) . && docker build -t transfer
+
 .PHONY: test
 test:
 	USE_TESTCONTAINERS=1 gotestsum --rerun-fails --format github-actions --packages="./cmd/..." -- -timeout=30m
@@ -54,7 +57,7 @@ run-tests:
 
 # Define variables
 HELM_CHART_PATH := ./helm/transfer
-IMAGE_NAME := ghcr.io/doublecloud/transfer-helm
+IMAGE_NAME := ghcr.io/transferia/transferia-helm
 VERSION := $(shell grep '^version:' $(HELM_CHART_PATH)/Chart.yaml | awk '{print $$2}')
 
 # Login to GitHub Container Registry

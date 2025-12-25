@@ -1,0 +1,74 @@
+{
+  "name": "website",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@diplodoc/transform": "^4.42.3",
+    "@gravity-ui/icons": "^2.12.0",
+    "@gravity-ui/page-constructor": "^5.32.0",
+    "@gravity-ui/uikit": "^6.40.0",
+    "bem-cn-lite": "^4.1.0",
+    "cra-template-gravity-ui-pure": "1.1.1",
+    "js-yaml-loader": "^1.2.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-scripts": "5.0.1",
+    "url": "^0.11.4"
+  },
+  "scripts": {
+    "prebuild": "js-yaml ./src/content.yaml > ./src/content.json",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "lint:js": "eslint --ext .js,.jsx,.ts,.tsx . --fix",
+    "lint:styles": "stylelint '{styles,src}/**/*.scss'",
+    "lint:prettier": "prettier --check '**/*.md'",
+    "lint": "npm run lint:js && npm run lint:styles && npm run lint:prettier"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": [
+    "extends @gravity-ui/browserslist-config"
+  ],
+  "browser": {
+    "url": false
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@gravity-ui/browserslist-config": "^4.1.0",
+    "@gravity-ui/eslint-config": "^3.1.1",
+    "@gravity-ui/prettier-config": "^1.1.0",
+    "@gravity-ui/stylelint-config": "^4.0.0",
+    "@gravity-ui/tsconfig": "^1.0.0",
+    "@types/node": "^20.7.0",
+    "@types/react": "^18.2.23",
+    "@types/react-dom": "^18.2.8",
+    "eslint": "^8.50.0",
+    "lint-staged": "^14.0.1",
+    "prettier": "^3.0.3",
+    "sass": "^1.68.0",
+    "sass-loader": "^13.3.2",
+    "stylelint": "^15.10.3",
+    "typescript": "^5.3.2"
+  },
+  "lint-staged": {
+    "*.{scss}": [
+      "stylelint --fix --quiet"
+    ],
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix --quiet",
+      "prettier --write"
+    ],
+    "*.md": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "overrides": {
+    "typescript": "^5.3.2"
+  }
+}

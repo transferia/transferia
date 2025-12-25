@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -19,7 +20,7 @@ var cleanupKinds = map[model.CleanupType]abstract.Kind{
 func CleanupTables(sink abstract.AsyncSink, tables abstract.TableMap, cleanupType model.CleanupType) error {
 	var toDelete abstract.TableMap
 	var nextToDelete abstract.TableMap
-	var errors map[string]string
+	var errByTable map[string]error
 
 	if cleanupType == model.DisabledCleanup {
 		logger.Log.Info("Cleanup is disabled, nothing to do")
@@ -58,7 +59,7 @@ func CleanupTables(sink abstract.AsyncSink, tables abstract.TableMap, cleanupTyp
 
 		i += 1
 		logger.Log.Infof("start %v iteration to cleanup (%v) tables", i, string(cleanupType))
-		errors = map[string]string{}
+		errByTable = map[string]error{}
 		prevToDelete = len(toDelete)
 		nextToDelete = abstract.TableMap{}
 		for tID, tInfo := range toDelete {
@@ -67,14 +68,18 @@ func CleanupTables(sink abstract.AsyncSink, tables abstract.TableMap, cleanupTyp
 				{Kind: kind, Schema: tID.Namespace, Table: tID.Name, CommitTime: uint64(time.Now().UnixNano())},
 			}); err != nil {
 				logger.Log.Warn(fmt.Sprintf("%v failed, try on next iteration", string(cleanupType)), log.Any("table", tID.Name), log.Error(err))
-				errors[tID.Name] = err.Error()
+				errByTable[tID.Name] = xerrors.Errorf("failed to cleanup table %s: %w", tID.Name, err)
 				nextToDelete[tID] = tInfo
 			}
 		}
 		toDelete = nextToDelete
 	}
+	errsFlat := make([]error, 0, len(errByTable))
+	for _, err := range errByTable {
+		errsFlat = append(errsFlat, err)
+	}
 	if len(toDelete) > 0 {
-		return fmt.Errorf("%v", errors)
+		return fmt.Errorf("failed to cleanup tables: %w", multierr.Combine(errsFlat...))
 	}
 	return nil
 }

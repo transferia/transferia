@@ -1,6 +1,6 @@
 package sequencer
 
-import "github.com/doublecloud/transfer/library/go/core/xerrors"
+import "github.com/transferia/transferia/library/go/core/xerrors"
 
 // lsnTransaction contains all message lsns and ensures correct order
 type lsnTransaction struct {
@@ -8,10 +8,11 @@ type lsnTransaction struct {
 	lsns    []uint64 // all the message lsns that were added, must go in increasing order
 }
 
-// appendLsn checks that we append lsns in increasing order only.
+// appendLsn checks that we append lsns in nondecreasing order only.
+// same lsn may appear in a transaction when COPY TO/FROM is used
 // This is required because we read messages from server synchronously
 func (p *lsnTransaction) appendLsn(newLsn uint64) error {
-	if p.lastLsn >= newLsn {
+	if p.lastLsn > newLsn {
 		return xerrors.Errorf("tried to add lsns in decreasing order. Last lsn: %v, new lsn: %v", p.lastLsn, newLsn)
 	}
 	p.lastLsn = newLsn
@@ -61,7 +62,7 @@ func newLsnTransaction() *lsnTransaction {
 func checkOrder(lsns []uint64) error {
 	var last uint64
 	for _, lsn := range lsns {
-		if lsn <= last {
+		if lsn < last {
 			return xerrors.New("the order of lsns is broken")
 		}
 		last = lsn

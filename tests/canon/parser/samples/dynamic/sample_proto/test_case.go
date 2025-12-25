@@ -3,15 +3,15 @@ package sampleproto
 import (
 	"bytes"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf"
-	"github.com/doublecloud/transfer/tests/canon/parser/samples/dynamic/sample_proto/sample_proto"
-	"github.com/doublecloud/transfer/tests/canon/parser/testcase"
 	"github.com/golang/protobuf/descriptor"
-	"github.com/golang/protobuf/proto"
 	"github.com/jhump/protoreflect/desc"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf"
+	"github.com/transferia/transferia/tests/canon/parser/samples/dynamic/sample_proto/sample_proto"
+	"github.com/transferia/transferia/tests/canon/parser/testcase"
 	"go.ytsaurus.tech/library/go/core/log"
+	"google.golang.org/protobuf/proto"
 )
 
 func makeDesc() ([]byte, error) {

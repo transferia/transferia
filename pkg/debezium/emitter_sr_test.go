@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	confluentsrmock "github.com/doublecloud/transfer/tests/helpers/confluent_schema_registry_mock"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 )
 
 func checkFoo(t *testing.T, additionalParams map[string]string) {

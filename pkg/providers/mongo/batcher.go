@@ -7,10 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readconcern"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -140,7 +139,6 @@ func (f *keyBatcher) PushKeyChangeEvent(keyEvent *keyChangeEvent) error {
 			defer f.batchMutex.Unlock()
 			return f.flush() // f.batchMutex taken
 		}()
-
 		if err != nil {
 			return xerrors.Errorf("Couldn't flush batch: %w", err)
 		}
@@ -219,7 +217,7 @@ func (f *keyBatcher) putInBatch(chEvent *keyChangeEvent) error {
 	}
 
 	if oplogEvent, exists := f.batch[kd]; exists {
-		if primitive.CompareTimestamp(oplogEvent.keyEvent.ClusterTime, event.ClusterTime) <= 0 {
+		if oplogEvent.keyEvent.ClusterTime.Compare(event.ClusterTime) <= 0 {
 			// refresh key time to newer time and register collapse
 			oplogEvent.keyEvent.OperationType = event.OperationType
 			oplogEvent.keyEvent.ClusterTime = event.ClusterTime
@@ -317,7 +315,7 @@ func (f *keyBatcher) pushUnorderedChangeEvents(changeEventSlice []*changeEvent) 
 	sort.Slice(changeEventSlice, func(i, j int) bool {
 		tsi := changeEventSlice[i].event.ClusterTime
 		tsj := changeEventSlice[j].event.ClusterTime
-		return primitive.CompareTimestamp(tsi, tsj) > 0
+		return tsi.Compare(tsj) > 0
 	})
 	// serially provide events to pusher
 	for _, ce := range changeEventSlice {

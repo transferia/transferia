@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/helpers"
-	"github.com/doublecloud/transfer/tests/helpers/serde"
-	simple_transformer "github.com/doublecloud/transfer/tests/helpers/transformer"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/serde"
+	simple_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
 var (
@@ -157,7 +157,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}, "1.1.2.Final", false, logger.Log)
 	require.NoError(t, err)
 	originalTypes := map[abstract.TableID]map[string]*debeziumcommon.OriginalTypeInfo{
-		abstract.TableID{Namespace: "public", Name: "basic_types"}: {
+		{Namespace: "public", Name: "basic_types"}: {
 			"i":                    {OriginalType: "pg:integer"},
 			"bl":                   {OriginalType: "pg:boolean"},
 			"b":                    {OriginalType: "pg:bit(1)"},

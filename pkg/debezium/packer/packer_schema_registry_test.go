@@ -3,9 +3,9 @@ package packer
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 type PackerSchemaRegistryMocked struct {
@@ -52,7 +52,7 @@ func NewPackerSchemaRegistryMocked(t *testing.T, packer Packer) *PackerSchemaReg
 //---
 
 func TestPackerSchemaRegistry(t *testing.T) {
-	packerSchemaRegistry := NewPackerSchemaRegistry(nil, debeziumparameters.SubjectTopicRecordNameStrategy, true, true, "my_topic_name")
+	packerSchemaRegistry := NewPackerSchemaRegistry(nil, debeziumparameters.SubjectTopicRecordNameStrategy, true, true, "my_topic_name", false)
 	packerSchemaRegistryMocked := NewPackerSchemaRegistryMocked(t, packerSchemaRegistry)
 	result, err := packerSchemaRegistryMocked.Pack(
 		getTestChangeItem(),

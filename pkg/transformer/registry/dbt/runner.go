@@ -1,17 +1,23 @@
 package dbt
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/runtime/shared/pod"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/container"
+	"github.com/transferia/transferia/pkg/runtime/shared/pod"
 	"go.ytsaurus.tech/library/go/core/log"
 	"gopkg.in/yaml.v3"
+	v1 "k8s.io/api/core/v1"
 )
 
 type runner struct {
@@ -19,26 +25,35 @@ type runner struct {
 	cfg *Config
 
 	transfer *model.Transfer
+
+	cw container.ContainerImpl
 }
 
-func newRunner(dst SupportedDestination, cfg *Config, transfer *model.Transfer) *runner {
+func newRunner(dst SupportedDestination, cfg *Config, transfer *model.Transfer) (*runner, error) {
+	containerImpl, err := container.NewContainerImpl(logger.Log)
+	if err != nil {
+		return nil, err
+	}
+
 	return &runner{
 		dst: dst,
 		cfg: cfg,
 
 		transfer: transfer,
-	}
+
+		cw: containerImpl,
+	}, nil
 }
 
 func (r *runner) Run(ctx context.Context) error {
-	r.cleanupConfiguration(ctx)
+	r.cleanupConfiguration()
 	if err := r.initializeDocker(ctx); err != nil {
 		return xerrors.Errorf("failed to initialize docker for DBT: %w", err)
 	}
 	if err := r.initializeConfiguration(ctx); err != nil {
 		return xerrors.Errorf("failed to initialize DBT configuration files: %w", err)
 	}
-	defer r.cleanupConfiguration(ctx)
+	defer r.cleanupConfiguration()
 	if err := r.run(ctx); err != nil {
 		return xerrors.Errorf("failed to run DBT: %w", err)
 	}
@@ -46,27 +61,9 @@ func (r *runner) Run(ctx context.Context) error {
 }
 
 func (r *runner) initializeDocker(ctx context.Context) error {
-	if err := executeCommand(ctx, "docker", "pull", r.fullImageID()); err != nil {
+	if err := r.cw.Pull(ctx, r.fullImageID(), types.ImagePullOptions{}); err != nil {
 		return xerrors.Errorf("docker initialization failed: %w", err)
 	}
-	return nil
-}
-
-// executeCommand executes the given command, automatically logs its stdout and stderr and returns a detailed error if a command failed.
-//
-// The command itself is logged partially: only its name and the first arg are logged. Stdout and stderr are logged completely.
-func executeCommand(ctx context.Context, name string, args ...string) error {
-	commandNameToLog := name
-	if len(args) > 0 {
-		commandNameToLog = commandNameToLog + " " + args[0]
-	}
-	cmd := exec.CommandContext(ctx, name, args...)
-	output, err := cmd.CombinedOutput() // note this method also executes the command!
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("failed to execute `%s`\nstdout:%s", commandNameToLog, string(output)), log.String("stdout", string(output)), log.Error(err))
-		return xerrors.Errorf("failed to execute `%s`, see logs for the detailed command output. Direct cause: %w", commandNameToLog, err)
-	}
-	logger.Log.Info(fmt.Sprintf("successfully executed `%s`", commandNameToLog), log.String("stdout", string(output)))
 	return nil
 }
 
@@ -110,9 +107,15 @@ func (r *runner) initializeConfiguration(ctx context.Context) error {
 		return xerrors.Errorf("failed to write the profile file to '%s': %w", pathProfiles(), err)
 	}
 
-	if err := executeCommand(ctx, "git", r.gitCloneCommands()...); err != nil {
+	outBuf := new(bytes.Buffer)
+	opts := r.gitCloneCommands()
+	opts.Progress = outBuf
+
+	if _, err := git.PlainClone(pathProject(), false, opts); err != nil {
 		return xerrors.Errorf("failed to clone a remote repository: %w", err)
 	}
+	logger.Log.Info(fmt.Sprintf("successfully executed `git clone %s %s`",
+		r.cfg.GitRepositoryLink, pathProject()), log.String("stdout", outBuf.String()))
 
 	return nil
 }
@@ -136,41 +139,72 @@ func pathProject() string {
 	return fmt.Sprintf("%s/%s", dataDirectory(), "project")
 }
 
-func (r *runner) gitCloneCommands() []string {
-	result := []string{"clone", "--depth", "1"}
-	if branch := r.cfg.GitBranch; len(branch) > 0 {
-		result = append(result, "--branch", branch)
+func (r *runner) gitCloneCommands() *git.CloneOptions {
+	opts := &git.CloneOptions{
+		URL:   r.cfg.GitRepositoryLink,
+		Depth: 1,
 	}
-	result = append(result, r.cfg.GitRepositoryLink, pathProject())
-	return result
+
+	if branch := r.cfg.GitBranch; len(branch) > 0 {
+		opts.ReferenceName = plumbing.NewBranchReferenceName(branch)
+		opts.SingleBranch = true
+	}
+
+	return opts
 }
 
-func (r *runner) cleanupConfiguration(ctx context.Context) {
-	if err := executeCommand(ctx, "rm", "-r", "-f", pathProject()); err != nil {
+func (r *runner) cleanupConfiguration() {
+	if err := os.RemoveAll(pathProject()); err != nil {
 		logger.Log.Warn("DBT project cleanup failed", log.Error(err))
 	}
-	if err := executeCommand(ctx, "rm", "-f", pathProfiles()); err != nil {
+	if err := os.Remove(pathProfiles()); err != nil {
 		logger.Log.Warn("DBT profiles cleanup failed", log.Error(err))
 	}
 }
 
 func (r *runner) run(ctx context.Context) error {
-	if err := executeCommand(
-		ctx,
-		"docker", "run",
-		"--rm",
-		"--network", "host",
-		"--add-host", "host.docker.internal:host-gateway",
-		"--mount", fmt.Sprintf("type=bind,source=%s,target=/usr/app", pathProject()),
-		"--mount", fmt.Sprintf("type=bind,source=%s,target=/root/.dbt/profiles.yml", pathProfiles()),
-		"--env", "AWS_EC2_METADATA_DISABLED=true", // this will disable going into metadata for IAM tokens
-		"--log-driver", "local", // log driver options are needed to avoid disk overfill by container logs
-		"--log-opt", "max-size=100m",
-		"--log-opt", "max-file=3",
-		r.fullImageID(),
-		r.cfg.Operation,
-	); err != nil {
+	opts := container.ContainerOpts{
+		Env: map[string]string{
+			"AWS_EC2_METADATA_DISABLED": "true",
+		},
+		LogOptions: map[string]string{
+			"max-size": "100m",
+			"max-file": "3",
+		},
+		Namespace:     "",
+		RestartPolicy: v1.RestartPolicyNever,
+		PodName:       "",
+		Image:         r.fullImageID(),
+		LogDriver:     "local",
+		Network:       "host",
+		ContainerName: "",
+		Volumes: []container.Volume{
+			{
+				Name:          "project",
+				VolumeType:    string(mount.TypeBind),
+				HostPath:      pathProject(),
+				ContainerPath: "/usr/app",
+			},
+			{
+				Name:          "profiles",
+				VolumeType:    string(mount.TypeBind),
+				HostPath:      pathProfiles(),
+				ContainerPath: "/root/.dbt/profiles.yml",
+			},
+		},
+		Command: []string{
+			r.cfg.Operation,
+		},
+		Args:         nil,
+		Timeout:      0,
+		AttachStdout: true,
+		AttachStderr: true,
+		AutoRemove:   true,
+	}
+
+	if _, _, err := r.cw.Run(ctx, opts); err != nil {
 		return xerrors.Errorf("docker run failed: %w", err)
 	}
+
 	return nil
 }

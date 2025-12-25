@@ -19,5 +19,6 @@
     * [pkg/providers/yt/fallback/bytes_as_string_go_type.go](../../../pkg/providers/yt/fallback/bytes_as_string_go_type.go)
 * `9` to `8`:
     * [pkg/providers/ydb/fallback_date_and_datetime_as_timestamp.go](../../../pkg/providers/ydb/fallback_date_and_datetime_as_timestamp.go)
+    * [pkg/providers/s3/fallback/fallback_add_underscore_to_tablename_if_namespace_empty.go](../../../pkg/providers/s3/fallback/fallback_add_underscore_to_tablename_if_namespace_empty.go)
 * `10` to `9`:
     * [pkg/providers/yt/fallback/add_underscore_to_tablename_with_empty_namespace.go](../../../pkg/providers/yt/fallback/add_underscore_to_tablename_with_empty_namespace.go)

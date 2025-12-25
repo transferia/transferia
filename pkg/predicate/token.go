@@ -80,11 +80,3 @@ func (tok Token) Precedence() int {
 
 // isOperator returns true for operator tokens.
 func (tok Token) isOperator() bool { return tok > operatorBegin && tok < operatorEnd }
-
-// tokstr returns a literal if provided, otherwise returns the token string.
-func tokstr(tok Token, lit string) string {
-	if lit != "" {
-		return lit
-	}
-	return tok.String()
-}

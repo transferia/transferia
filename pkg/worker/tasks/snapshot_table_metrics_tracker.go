@@ -5,22 +5,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 const MaxTableStatCount = 1000
+
+type etaParams struct {
+	totalETA   float64
+	tablesETAs map[string]float64
+}
 
 type SnapshotTableMetricsTracker struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
 	pushTicker      *time.Ticker
 	waitForComplete sync.WaitGroup
-	closed          bool
+	closeOnce       sync.Once
 
 	transfer     *model.Transfer
 	registry     metrics.Registry
@@ -32,7 +37,7 @@ type SnapshotTableMetricsTracker struct {
 	sharded bool
 
 	// For non-sharded snapshot
-	parts               []*model.OperationTablePart
+	parts               []*abstract.OperationTablePart
 	progressUpdateMutex *sync.Mutex
 
 	// For sharded snapshot
@@ -44,16 +49,16 @@ func NewNotShardedSnapshotTableMetricsTracker(
 	ctx context.Context,
 	transfer *model.Transfer,
 	registry metrics.Registry,
-	parts []*model.OperationTablePart,
+	parts []*abstract.OperationTablePart,
 	progressUpdateMutex *sync.Mutex,
-) (*SnapshotTableMetricsTracker, error) {
+) *SnapshotTableMetricsTracker {
 	ctx, cancel := context.WithCancel(ctx)
 	tracker := &SnapshotTableMetricsTracker{
 		ctx:             ctx,
 		cancel:          cancel,
 		pushTicker:      nil,
 		waitForComplete: sync.WaitGroup{},
-		closed:          false,
+		closeOnce:       sync.Once{},
 
 		sharded: false,
 
@@ -71,15 +76,14 @@ func NewNotShardedSnapshotTableMetricsTracker(
 		cpClient:    nil,
 	}
 
-	if err := tracker.init(); err != nil {
-		return nil, xerrors.Errorf("Failed to init metrics tracker: %w", err)
-	}
+	// TODO: TM-8654: Add passing of initParams to constructor.
+	tracker.init(nil)
 
 	tracker.waitForComplete.Add(1)
 	tracker.pushTicker = time.NewTicker(time.Second * 15)
 	go tracker.run()
 
-	return tracker, nil
+	return tracker
 }
 
 func NewShardedSnapshotTableMetricsTracker(
@@ -88,14 +92,14 @@ func NewShardedSnapshotTableMetricsTracker(
 	registry metrics.Registry,
 	operationID string,
 	cpClient coordinator.Coordinator,
-) (*SnapshotTableMetricsTracker, error) {
+) *SnapshotTableMetricsTracker {
 	ctx, cancel := context.WithCancel(ctx)
 	tracker := &SnapshotTableMetricsTracker{
 		ctx:             ctx,
 		cancel:          cancel,
 		pushTicker:      nil,
 		waitForComplete: sync.WaitGroup{},
-		closed:          false,
+		closeOnce:       sync.Once{},
 
 		sharded: true,
 
@@ -113,15 +117,14 @@ func NewShardedSnapshotTableMetricsTracker(
 		cpClient:    cpClient,
 	}
 
-	if err := tracker.init(); err != nil {
-		return nil, xerrors.Errorf("Failed to init metrics tracker: %w", err)
-	}
+	// TODO: TM-8654: Add passing of initParams to constructor.
+	tracker.init(nil)
 
 	tracker.waitForComplete.Add(1)
 	tracker.pushTicker = time.NewTicker(time.Second * 15)
 	go tracker.run()
 
-	return tracker, nil
+	return tracker
 }
 
 func (t *SnapshotTableMetricsTracker) run() {
@@ -136,33 +139,34 @@ func (t *SnapshotTableMetricsTracker) run() {
 	}
 }
 
-// Close
-// Safe to close few time, not thread safe;
-// But safe to use with defer and standalone call in same time;
+// Close is thread-safe and could be called many times (only first call matters).
 func (t *SnapshotTableMetricsTracker) Close() {
-	if t.closed {
-		return
-	}
-
-	t.pushTicker.Stop()
-	t.cancel()
-	t.waitForComplete.Wait()
-
-	t.setMetrics()
-	t.closed = true
+	t.closeOnce.Do(func() {
+		t.pushTicker.Stop()
+		t.cancel()
+		t.waitForComplete.Wait()
+		t.setMetrics()
+	})
 }
 
-func (t *SnapshotTableMetricsTracker) getTablesPartsNotSharded() []*model.OperationTablePart {
+// TODO: TM-8654.
+// func (t *SnapshotTableMetricsTracker) appendPartsNotSharded(parts []*model.OperationTablePart) {
+// 	t.progressUpdateMutex.Lock()
+// 	defer t.progressUpdateMutex.Unlock()
+// 	t.parts = append(t.parts, parts...)
+// }
+
+func (t *SnapshotTableMetricsTracker) getTablesPartsNotSharded() []*abstract.OperationTablePart {
 	t.progressUpdateMutex.Lock()
 	defer t.progressUpdateMutex.Unlock()
-	partsCopy := make([]*model.OperationTablePart, 0, len(t.parts))
+	partsCopy := make([]*abstract.OperationTablePart, 0, len(t.parts))
 	for _, table := range t.parts {
 		partsCopy = append(partsCopy, table.Copy())
 	}
 	return partsCopy
 }
 
-func (t *SnapshotTableMetricsTracker) getTablesParts() []*model.OperationTablePart {
+func (t *SnapshotTableMetricsTracker) getTablesParts() []*abstract.OperationTablePart {
 	if t.sharded {
 		parts, err := t.cpClient.GetOperationTablesParts(t.operationID)
 		if err != nil {
@@ -175,17 +179,40 @@ func (t *SnapshotTableMetricsTracker) getTablesParts() []*model.OperationTablePa
 	return t.getTablesPartsNotSharded()
 }
 
-func (t *SnapshotTableMetricsTracker) init() error {
+func (t *SnapshotTableMetricsTracker) calculateETAs() {
 	parts := t.getTablesParts()
 	for _, part := range parts {
 		t.totalETA += float64(part.ETARows)
-
 		tableKey := part.TableFQTN()
 		if _, ok := t.tablesETAs[tableKey]; ok {
 			t.tablesETAs[tableKey] += float64(part.ETARows)
 		} else if len(t.tablesETAs) < MaxTableStatCount {
 			t.tablesETAs[tableKey] = float64(part.ETARows)
 		}
+	}
+}
+
+func (t *SnapshotTableMetricsTracker) assignETAs(initParams etaParams) {
+	t.totalETA = initParams.totalETA
+	if len(initParams.tablesETAs) < MaxTableStatCount {
+		t.tablesETAs = initParams.tablesETAs
+		return
+	}
+	// Move only `MaxTableStatCount` elements from `initParams.tablesETAs`.
+	for key, value := range initParams.tablesETAs {
+		if len(t.tablesETAs) >= MaxTableStatCount {
+			break
+		}
+		t.tablesETAs[key] = value
+	}
+}
+
+// init uses initParams if passed, otherwise ETAs calculates from parts list.
+func (t *SnapshotTableMetricsTracker) init(initParams *etaParams) {
+	if initParams != nil {
+		t.assignETAs(*initParams)
+	} else {
+		t.calculateETAs()
 	}
 
 	t.totalGauge = t.registry.Gauge("task.snapshot.reminder.total")
@@ -198,8 +225,6 @@ func (t *SnapshotTableMetricsTracker) init() error {
 		gauge.Set(tableETA)
 		t.tablesGauges[tableKey] = gauge
 	}
-
-	return nil
 }
 
 func (t *SnapshotTableMetricsTracker) setMetrics() {

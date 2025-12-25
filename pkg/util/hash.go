@@ -11,7 +11,7 @@ import (
 
 var (
 	hasher   *HasherSha256
-	hasherMu sync.Mutex = sync.Mutex{}
+	hasherMu = sync.Mutex{}
 )
 
 func Hash(content string) string {

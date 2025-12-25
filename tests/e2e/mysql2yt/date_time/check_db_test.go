@@ -8,17 +8,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	mysql_source "github.com/doublecloud/transfer/pkg/providers/mysql"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	mysql_source "github.com/transferia/transferia/pkg/providers/mysql"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -33,17 +33,11 @@ const (
 
 var (
 	source        = *helpers.WithMysqlInclude(helpers.RecipeMysqlSource(), []string{tableName})
-	tablePath     = ypath.Path(fmt.Sprintf("//home/cdc/test/mysql2yt/date_time/%s_%s", source.Database, tableName))
 	targetCluster = os.Getenv("YT_PROXY")
 )
 
 func init() {
 	source.WithDefaults()
-}
-
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
 }
 
 func makeConnConfig() *mysql.Config {
@@ -86,7 +80,7 @@ func TestDateTime(t *testing.T) {
 		))
 	}()
 
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 
 	ctx := context.Background()
 

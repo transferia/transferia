@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/config"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferia/transferia/internal/config"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -47,28 +47,11 @@ type Keeper struct {
 }
 
 type (
-	txOp  func(conn pgx.Tx) error
 	sqlOp func(conn *pgxpool.Pool) error
 )
 
 func (k *Keeper) tx(operation txOp) error {
-	tx, err := k.conn.Begin(context.TODO())
-	if err != nil {
-		return xerrors.Errorf("unable to begin transaction: %w", err)
-	}
-	if err := operation(tx); err != nil {
-		if err := tx.Rollback(context.TODO()); err != nil {
-			k.logger.Warn("Unable to rollback", log.Error(err))
-		}
-
-		return xerrors.Errorf("unable to execute operation: %w", err)
-	}
-
-	if err := tx.Commit(context.TODO()); err != nil {
-		return xerrors.Errorf("unable to commit transaction: %w", err)
-	}
-
-	return nil
+	return doUnderTransaction(context.TODO(), k.conn, operation, k.logger)
 }
 
 func (k *Keeper) do(operation sqlOp) error {
@@ -87,19 +70,19 @@ func (k *Keeper) Init(sink abstract.AsyncSink) error {
 }
 
 func (k *Keeper) init() error {
-	return k.tx(func(tx pgx.Tx) error {
+	return k.tx(func(ctx context.Context, tx pgx.Tx) error {
 		var keeperSchemaExists bool
-		if err := tx.QueryRow(context.TODO(), "SELECT EXISTS(SELECT * FROM information_schema.schemata WHERE schema_name = $1)", k.schema).Scan(&keeperSchemaExists); err != nil {
+		if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT * FROM information_schema.schemata WHERE schema_name = $1)", k.schema).Scan(&keeperSchemaExists); err != nil {
 			return xerrors.Errorf("failed to check existence of the service schema %q: %w", k.schema, err)
 		}
 
 		if !keeperSchemaExists {
-			if _, err := tx.Exec(context.TODO(), fmt.Sprintf(`CREATE SCHEMA %s`, k.schema)); err != nil {
+			if _, err := tx.Exec(ctx, fmt.Sprintf(`CREATE SCHEMA %s`, k.schema)); err != nil {
 				return xerrors.Errorf("failed to create service schema %q: %w", k.schema, err)
 			}
 		}
 
-		if _, err := tx.Exec(context.TODO(), KeeperDDL(k.schema)); err != nil {
+		if _, err := tx.Exec(ctx, KeeperDDL(k.schema)); err != nil {
 			return xerrors.Errorf("failed to ensure existence of the consumer keeper service table: %w", err)
 		}
 
@@ -108,8 +91,8 @@ func (k *Keeper) init() error {
 }
 
 func (k *Keeper) tryLock(consumer string) error {
-	return k.tx(func(conn pgx.Tx) error {
-		row := conn.QueryRow(context.TODO(), fmt.Sprintf(`
+	return k.tx(func(ctx context.Context, conn pgx.Tx) error {
+		row := conn.QueryRow(ctx, fmt.Sprintf(`
 select exists(
    select *
    	from "%s"."%s"
@@ -128,7 +111,7 @@ select exists(
 			return ErrConsumerLocked
 		}
 
-		if _, err = conn.Exec(context.TODO(), fmt.Sprintf(`
+		if _, err = conn.Exec(ctx, fmt.Sprintf(`
 insert into "%s"."%s" (consumer, locked_till, locked_by) values (($1), now(), ($2))
 on conflict (consumer) do update set locked_till = EXCLUDED.locked_till, locked_by = EXCLUDED.locked_by
 ;

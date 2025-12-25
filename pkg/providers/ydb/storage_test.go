@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -69,7 +69,7 @@ func TestYdbStorage_TableLoad(t *testing.T) {
 		ServiceAccountID: "",
 	}
 
-	st, err := NewStorage(src.ToStorageParams())
+	st, err := NewStorage(src.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 
 	require.NoError(t, err)
 
@@ -144,7 +144,7 @@ func TestYdbStorage_TableList(t *testing.T) {
 		ServiceAccountID:   "",
 	}
 
-	st, err := NewStorage(src.ToStorageParams())
+	st, err := NewStorage(src.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 
 	require.NoError(t, err)
 

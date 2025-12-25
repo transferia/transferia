@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/providers/postgres/sqltimestamp"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/jackc/pgtype"
+	"github.com/transferia/transferia/pkg/providers/postgres/sqltimestamp"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 // TimeZoneParameterStatusKey is the identifier of the PostgreSQL connection property containing time zone

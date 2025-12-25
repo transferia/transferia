@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers/generic"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
-	tostring "github.com/doublecloud/transfer/pkg/transformer/registry/to_string"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	tostring "github.com/transferia/transferia/pkg/transformer/registry/to_string"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

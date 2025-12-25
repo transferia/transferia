@@ -5,6 +5,13 @@ type Includeable interface {
 	Include(tID TableID) bool
 }
 
+// alias for function that implements Includeable interface
+type IncludeableFunc func(tID TableID) bool
+
+func (f IncludeableFunc) Include(tID TableID) bool {
+	return f(tID)
+}
+
 type IncludeTableList interface {
 	Includeable
 	IncludeTableList() ([]TableID, error)

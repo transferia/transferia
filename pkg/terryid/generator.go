@@ -1,7 +1,7 @@
 package terryid
 
 import (
-	"github.com/doublecloud/transfer/pkg/randutil"
+	"github.com/transferia/transferia/pkg/randutil"
 )
 
 const (
@@ -13,6 +13,7 @@ const (
 	jobPrefix           = "dtj"
 	statusMessagePrefix = "tsm"
 	transformerPrefix   = "dtr"
+	migrationPrefix     = "dtm"
 )
 
 func GenerateSuffix() string {
@@ -32,6 +33,11 @@ func GenerateEndpointID() string {
 func GenerateJobID() string {
 	suffix := GenerateSuffix()
 	return jobPrefix + suffix
+}
+
+func GenerateMigrationID() string {
+	suffix := GenerateSuffix()
+	return migrationPrefix + suffix
 }
 
 func GenerateTransferStatusMessageID() string {

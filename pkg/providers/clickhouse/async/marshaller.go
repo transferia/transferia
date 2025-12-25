@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/db"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
 	"github.com/shopspring/decimal"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 )
 
 type marshallingError struct {
@@ -41,7 +41,7 @@ func colMarshallingError(code coded.Code, name string, val any, text string) *ma
 func genericMarshallingError(err error) *marshallingError {
 	return &marshallingError{
 		err:  err,
-		code: providers.DataValueError,
+		code: codes.DataValueError,
 	}
 }
 
@@ -96,11 +96,11 @@ func marshalChangeItem(row abstract.ChangeItem, schema map[string]abstract.ColSc
 				val = decimal.NewFromFloat(v)
 			default:
 				//nolint:descriptiveerrors
-				return nil, colMarshallingError(providers.UnsupportedConversion, col, v, "unknown type for decimal column")
+				return nil, colMarshallingError(codes.UnsupportedConversion, col, v, "unknown type for decimal column")
 			}
 			if err != nil {
 				//nolint:descriptiveerrors
-				return nil, colMarshallingError(providers.DataValueError, col, rowVal, fmt.Sprintf("error converting to decimal: %s", err))
+				return nil, colMarshallingError(codes.DataValueError, col, rowVal, fmt.Sprintf("error converting to decimal: %s", err))
 			}
 			vals[i] = val
 		} else {

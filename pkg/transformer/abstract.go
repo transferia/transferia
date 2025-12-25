@@ -1,9 +1,9 @@
 package transformer
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/terryid"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/terryid"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type Config any

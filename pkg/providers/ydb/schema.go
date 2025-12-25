@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"go.ytsaurus.tech/yt/go/schema"
 )
@@ -60,6 +60,8 @@ func buildColumnDescription(col *column, isPkey bool) abstract.ColSchema {
 		dataType = schema.TypeTimestamp
 	case "Interval":
 		dataType = schema.TypeInterval
+	case "Uuid":
+		dataType = schema.TypeString
 	default:
 		dataType = schema.TypeAny
 	}

@@ -3,9 +3,9 @@ package postgres
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 )
 
 func TestGenericArray_DecodeText(t *testing.T) {

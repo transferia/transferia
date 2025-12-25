@@ -1,7 +1,7 @@
 package typeutil
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func TimestampPgParamsTypeToKafkaType(colSchema *abstract.ColSchema, intoArr, _ bool, _ map[string]string) (string, string, map[string]interface{}) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"math/big"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,15 +14,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/parsequeue"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/providers/kinesis/consumer"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/parsequeue"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/providers/kinesis/consumer"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -88,7 +87,7 @@ func (s *Source) reduceInflight(size int) {
 }
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
-	parseQ := parsequeue.NewWaitable(s.logger, 10, sink, s.parse, s.ack)
+	parseQ := parsequeue.NewWaitable(s.logger, s.config.ParseQueueParallelism, sink, s.parse, s.ack)
 	defer parseQ.Close()
 
 	return s.run(parseQ)
@@ -196,6 +195,7 @@ func (s *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, a
 
 func (s *Source) makeRawChangeItem(msg *consumer.Record) abstract.ChangeItem {
 	return abstract.MakeRawMessage(
+		[]byte("stub"),
 		s.config.Stream,
 		*msg.ApproximateArrivalTimestamp,
 		s.config.Stream,
@@ -215,21 +215,6 @@ const (
 	ExpectedBitLength = 186
 	SequenceMask      = (1 << 4) - 1
 )
-
-// parseSeqNo try to extract lsn from seq-no
-// the sequenceNumber in Kinesis streams is only guaranteed to be unique within each shard (partition key is what determines the shard).
-// but we know that for certain version (186 bit length) we can extract sequence mask
-// this code is extracted from here: https://github.com/awslabs/amazon-kinesis-client/blob/master/amazon-kinesis-client/src/main/java/software/amazon/kinesis/checkpoint/SequenceNumberValidator.java#L39
-func parseSeqNo(id string) int64 {
-	bigint, ok := new(big.Int).SetString(id, 10)
-	if !ok {
-		return hash(id)
-	}
-	if bigint.BitLen() != ExpectedBitLength {
-		return hash(id)
-	}
-	return bigint.Rsh(bigint, SequenceMask).Int64()
-}
 
 func hash(id string) int64 {
 	algorithm := fnv.New64a()
@@ -321,5 +306,4 @@ func NewSource(
 		consumer:      c,
 		lastError:     nil,
 	}, nil
-
 }

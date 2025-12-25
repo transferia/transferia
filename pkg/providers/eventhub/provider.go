@@ -1,21 +1,20 @@
 package eventhub
 
 import (
-	"encoding/gob"
-
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.EventHubSource", new(EventHubSource))
-	gob.RegisterName("*server.EventHubAuth", new(EventHubAuth))
-	model.RegisterSource(ProviderType, func() model.Source {
+	gobwrapper.RegisterName("*server.EventHubSource", new(EventHubSource))
+	gobwrapper.RegisterName("*server.EventHubAuth", new(EventHubAuth))
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(EventHubSource)
 	})
 	abstract.RegisterProviderName(ProviderType, "Eventhub")

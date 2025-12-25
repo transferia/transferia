@@ -11,23 +11,24 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/errors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/schema"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/topology"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/set"
-	"github.com/doublecloud/transfer/pkg/util/size"
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/schema"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/set"
+	"github.com/transferia/transferia/pkg/util/size"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/exp/maps"
 )
@@ -56,7 +57,7 @@ var (
 
 type ClickhouseStorage interface {
 	abstract.SampleableStorage
-	LoadTablesDDL(tables []abstract.TableID) ([]schema.TableDDL, error)
+	LoadTablesDDL(tables []abstract.TableID) ([]*schema.TableDDL, error)
 	BuildTableQuery(table abstract.TableDescription) (*abstract.TableSchema, string, string, error)
 	GetRowsCount(tableID abstract.TableID) (uint64, error)
 	TableParts(ctx context.Context, table abstract.TableID) ([]TablePart, error)
@@ -288,7 +289,7 @@ func (s *Storage) readRowsAndPushByChunks(reader *rowsReader, pusher abstract.Pu
 		colsNames[i] = col.ColumnName
 	}
 
-	partID := tDescr.PartID()
+	partID := tDescr.GeneratePartID()
 
 	rowsCount := uint64(0)
 	inflightBytes := uint64(0)
@@ -302,21 +303,22 @@ func (s *Storage) readRowsAndPushByChunks(reader *rowsReader, pusher abstract.Pu
 		values, bytes := MarshalFields(rowValues, reader.tableFilteredColumns.Columns())
 
 		inflight = append(inflight, abstract.ChangeItem{
-			CommitTime:   reader.ts,
-			Kind:         abstract.InsertKind,
-			Schema:       reader.table.Schema,
-			Table:        reader.table.Name,
-			PartID:       partID,
-			ColumnNames:  colsNames,
-			ColumnValues: values,
-			TableSchema:  reader.tableAllColumns,
-			ID:           0,
-			LSN:          0,
-			Counter:      0,
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(bytes),
+			ID:               0,
+			LSN:              0,
+			CommitTime:       reader.ts,
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           reader.table.Schema,
+			Table:            reader.table.Name,
+			PartID:           partID,
+			ColumnNames:      colsNames,
+			ColumnValues:     values,
+			TableSchema:      reader.tableAllColumns,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.RawEventSize(bytes),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		})
 		rowsCount++
 		inflightBytes += bytes
@@ -497,6 +499,7 @@ func (s *Storage) listTables(schema, name string) ([]table, error) {
 	}
 	defer tablesRes.Close()
 
+	systemSchema := systemDBs.Contains(schema)
 	tables := make([]table, 0)
 	for tablesRes.Next() {
 		var database, name, pkeys, engine string
@@ -507,7 +510,7 @@ func (s *Storage) listTables(schema, name string) ([]table, error) {
 			return nil, xerrors.Errorf("unable to parse table list query result: %w", err)
 		}
 
-		if systemDBs.Contains(database) {
+		if !systemSchema && systemDBs.Contains(database) {
 			continue
 		}
 		if totalRows != nil {
@@ -563,10 +566,6 @@ func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstr
 	sortedTablesForLog := make([]string, 0)
 
 	for _, table := range allTables {
-		if table.database == "system" {
-			continue
-		}
-
 		id := abstract.TableID{
 			Namespace: table.database,
 			Name:      table.name,
@@ -611,7 +610,7 @@ func (s *Storage) checkTables(tables abstract.TableMap) error {
 		return nil
 	}
 	return xerrors.Errorf("the following tables have not Distributed or Replicated engines and are not yet supported: %s",
-		strings.Join(slices.Map(badTables, func(id abstract.TableID) string { return id.Fqtn() }), ", "))
+		strings.Join(yslices.Map(badTables, func(id abstract.TableID) string { return id.Fqtn() }), ", "))
 }
 
 func (s *Storage) getTableSchema(tID abstract.TableID, isHomo bool) (*abstract.TableSchema, *abstract.TableSchema, error) {
@@ -661,10 +660,10 @@ func makeFilters(tables []abstract.TableID) (string, string) {
 	return dbs, names
 }
 
-func (s *Storage) LoadTablesDDL(tables []abstract.TableID) ([]schema.TableDDL, error) {
+func (s *Storage) LoadTablesDDL(tables []abstract.TableID) ([]*schema.TableDDL, error) {
 	dbFilter, nameFilter := makeFilters(tables)
 	q := fmt.Sprintf("select database, name, create_table_query, engine from system.tables where database in %v and name in %v", dbFilter, nameFilter)
-	foundDdls := make(map[abstract.TableID]schema.TableDDL)
+	foundDdls := make(map[abstract.TableID]*schema.TableDDL)
 	if err := backoff.Retry(func() error {
 		tablesRes, err := s.db.Query(q)
 		if err != nil {
@@ -695,9 +694,9 @@ func (s *Storage) LoadTablesDDL(tables []abstract.TableID) ([]schema.TableDDL, e
 		return nil, xerrors.Errorf("unable to load table DDL: %w", err)
 	}
 
-	ddls := make([]schema.TableDDL, 0)
+	ddls := make([]*schema.TableDDL, 0)
 	missedTables := make([]string, 0)
-	materializedViews := make([]schema.TableDDL, 0)
+	materializedViews := make([]*schema.TableDDL, 0)
 	for _, tID := range tables {
 		ddl, ok := foundDdls[tID]
 		if !ok {
@@ -868,29 +867,15 @@ func parseSemver(version string) (*semver.Version, error) {
 
 func NewStorage(config *model.ChStorageParams, transfer *dp_model.Transfer, opts ...StorageOpt) (ClickhouseStorage, error) {
 	singleHost := false
-	if config.IsManaged() {
-		shards, err := model.ShardFromCluster(config.MdbClusterID, config.ChClusterName)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve cluster from shards: %w", err)
-		}
-		if len(shards) > 1 {
-			res, err := NewShardedFromUrls(shards, config, transfer, opts...)
-			if err != nil {
-				return nil, xerrors.Errorf("unable to create sharded storage from urls: %w", err)
-			}
-			return res, nil
-		}
-		singleHost = topology.IsSingleNode(shards)
-	}
-	if len(config.Shards) > 1 {
-		res, err := NewShardedFromUrls(config.Shards, config, transfer, opts...)
+	if len(config.ConnectionParams.Shards) > 1 {
+		res, err := NewShardedFromUrls(config, transfer, opts...)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create sharded storage from urls: %w", err)
 		}
 		return res, nil
 	}
 
-	singleHost = singleHost || topology.IsSingleNode(config.Shards) || len(config.Hosts) > 1
+	singleHost = singleHost || topology.IsSingleNode(config.ConnectionParams.Shards) || len(config.ConnectionParams.Hosts) > 1
 
 	db, err := MakeConnection(config)
 	if err != nil {
@@ -903,7 +888,7 @@ func NewStorage(config *model.ChStorageParams, transfer *dp_model.Transfer, opts
 			if errors.IsFatalClickhouseError(err) {
 				return "", backoff.Permanent(xerrors.Errorf("unable to select clickhouse version: %w", err))
 			}
-			return "", xerrors.Errorf("unable to select clickhouse version: %w", err)
+			return "", xerrors.Errorf("unable to select clickhouse %s version: %w", config.String(), err)
 		}
 		return version, nil
 	}, backoff.NewExponentialBackOff(), util.BackoffLoggerWarn(logger.Log, "version resolver"))
@@ -917,7 +902,7 @@ func NewStorage(config *model.ChStorageParams, transfer *dp_model.Transfer, opts
 	}
 	return WithOpts(&Storage{
 		db:        db,
-		database:  config.Database,
+		database:  config.ConnectionParams.Database,
 		cluster:   config.ChClusterName,
 		bufSize:   config.BufferSize,
 		logger:    logger.Log,

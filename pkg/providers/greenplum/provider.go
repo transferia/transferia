@@ -2,34 +2,35 @@ package greenplum
 
 import (
 	"context"
-	"encoding/gob"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
+	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	destinationFactory := func() model.Destination {
+	destinationFactory := func() model.LoggableDestination {
 		return new(GpDestination)
 	}
 	model.RegisterDestination(ProviderType, destinationFactory)
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(GpSource)
 	})
 
 	abstract.RegisterProviderName(ProviderType, "Greenplum")
 	providers.Register(ProviderType, New)
 
-	gob.RegisterName("*server.GpSource", new(GpSource))
-	gob.RegisterName("*server.GpDestination", new(GpDestination))
+	gobwrapper.RegisterName("*server.GpSource", new(GpSource))
+	gobwrapper.RegisterName("*server.GpDestination", new(GpDestination))
 
 	typesystem.AddFallbackSourceFactory(func() typesystem.Fallback {
 		return typesystem.Fallback{
@@ -90,6 +91,21 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 }
 
 func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
+	dst, ok := p.transfer.Dst.(*GpDestination)
+	if !ok {
+		return nil, xerrors.Errorf("unexpected dst type: %T", p.transfer.Dst)
+	}
+	if err := dst.Connection.ResolveCredsFromConnectionID(); err != nil {
+		return nil, xerrors.Errorf("failed to resolve creds from connection ID: %w", err)
+	}
+	if gpfdistParams := p.asGpfdist(); gpfdistParams != nil {
+		sink, err := NewGpfdistSink(dst, p.registry, p.logger, p.transfer.ID, *gpfdistParams)
+		if err == nil {
+			p.logger.Warn("Using experimental gfpdist sink")
+			return sink, nil
+		}
+		p.logger.Warn("Cannot use experimental gfpdist sink", log.Error(err))
+	}
 	return NewSink(p.transfer, p.registry, p.logger, config)
 }
 
@@ -98,7 +114,30 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected src type: %T", p.transfer.Src)
 	}
+	if err := src.Connection.ResolveCredsFromConnectionID(); err != nil {
+		return nil, xerrors.Errorf("failed to resolve creds from connection ID: %w", err)
+	}
+	if gpfdistParams := p.asGpfdist(); gpfdistParams != nil {
+		p.logger.Warn("Using experimental gfpdist storage")
+		return NewGpfdistStorage(src, p.registry, *gpfdistParams), nil
+	}
 	return NewStorage(src, p.registry), nil
+}
+
+// asGpfdist checks that gpfdist could be used and returns gpfdist params or nil.
+// For now, gpfdist is used only for GP->GP transfers if GpSource.AdvancedProps.DisableGpfdist is false.
+func (p *Provider) asGpfdist() *gpfdistbin.GpfdistParams {
+	src, isGpSrc := p.transfer.Src.(*GpSource)
+	_, isGpDst := p.transfer.Dst.(*GpDestination)
+	if !isGpSrc || !isGpDst || src.AdvancedProps.DisableGpfdist {
+		return nil
+	}
+	gpfdistParams := gpfdistbin.NewGpfdistParams(
+		src.AdvancedProps.GpfdistBinPath,
+		src.AdvancedProps.ServiceSchema,
+		p.transfer.ParallelismParams().ProcessCount,
+	)
+	return gpfdistParams
 }
 
 func (p *Provider) Type() abstract.ProviderType {

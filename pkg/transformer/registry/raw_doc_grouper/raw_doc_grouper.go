@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/exp/slices"
@@ -37,9 +37,10 @@ func init() {
 }
 
 type RawDocGrouperConfig struct {
-	Tables filter.Tables `json:"tables"`
-	Keys   []string      `json:"keys"`
-	Fields []string      `json:"fields"`
+	Tables              filter.Tables `json:"tables"`
+	Keys                []string      `json:"keys"`
+	Fields              []string      `json:"fields"`
+	ShouldUpdateOldKeys bool          `json:"shouldUpdateOldKeys,omitempty"`
 }
 
 type RawDocGroupTransformer struct {
@@ -47,8 +48,14 @@ type RawDocGroupTransformer struct {
 	Keys          []string
 	Fields        []string
 	keySet        *set.Set[string]
-	targetSchemas map[string]*abstract.TableSchema
+	targetSchemas map[string]*abstract.TableSchema // key - schema.Hash, value - transformed schema
 	schemasLock   sync.RWMutex
+
+	// ShouldUpdateOldKeys variable to avoid changing the key for update
+	// if it's guaranteed to change the additional key only together with the present
+	ShouldUpdateOldKeys bool
+	// additionalKeys used only when ShouldUpdateOldKeys == true, key - schema.Hash, value - slice of keys that were not key in the original schema
+	additionalKeys map[string][]string
 }
 
 func (r *RawDocGroupTransformer) Type() abstract.TransformerType {
@@ -81,7 +88,8 @@ func (r *RawDocGroupTransformer) Apply(input []abstract.ChangeItem) abstract.Tra
 			changeItem.ColumnValues = values
 		}
 
-		resultSchema, _ := r.ResultSchema(changeItem.TableSchema)
+		schemaHash, err := changeItem.TableSchema.Hash()
+		resultSchema, _ := r.resultSchema(changeItem.TableSchema, schemaHash, err)
 		if resultSchema == nil {
 			errors = append(errors, abstract.TransformerError{
 				Input: changeItem,
@@ -89,6 +97,7 @@ func (r *RawDocGroupTransformer) Apply(input []abstract.ChangeItem) abstract.Tra
 					"perhaps schema hash was empty. Required keyset: %s", r.keySet.String()),
 			})
 		} else {
+			changeItem = processUpdateItem(changeItem, r.additionalKeys[schemaHash], r.ShouldUpdateOldKeys)
 			changeItem.SetTableSchema(resultSchema)
 			transformed = append(transformed, changeItem)
 		}
@@ -113,8 +122,13 @@ func (r *RawDocGroupTransformer) Suitable(table abstract.TableID, schema *abstra
 
 func (r *RawDocGroupTransformer) ResultSchema(original *abstract.TableSchema) (*abstract.TableSchema, error) {
 	schemaHash, err := original.Hash()
-	if err != nil || schemaHash == "" {
-		logger.Log.Error("Can't get original schema hash!", log.Error(err))
+
+	return r.resultSchema(original, schemaHash, err)
+}
+
+func (r *RawDocGroupTransformer) resultSchema(original *abstract.TableSchema, schemaHash string, schemaHashError error) (*abstract.TableSchema, error) {
+	if schemaHashError != nil || schemaHash == "" {
+		logger.Log.Error("Can't get original schema hash!", log.Error(schemaHashError))
 		return nil, nil
 	}
 
@@ -129,7 +143,9 @@ func (r *RawDocGroupTransformer) ResultSchema(original *abstract.TableSchema) (*
 
 	keys := CollectFieldsForTransformer(r.Keys, original.Columns(), true, colNameToIdx, rawDocFields)
 	fields := CollectFieldsForTransformer(r.Fields, original.Columns(), false, colNameToIdx, rawDocFields)
-
+	if r.ShouldUpdateOldKeys {
+		r.additionalKeys[schemaHash] = CollectAdditionalKeysForTransformer(r.Keys, abstract.KeyNames(original.Columns()))
+	}
 	tableTargetSchema = abstract.NewTableSchema(append(keys, fields...))
 	r.targetSchemas[schemaHash] = tableTargetSchema
 	return tableTargetSchema, nil
@@ -207,12 +223,14 @@ func NewRawDocGroupTransformer(config RawDocGrouperConfig) (*RawDocGroupTransfor
 		return nil, xerrors.Errorf("unable to init table filter: %w", err)
 	}
 	return &RawDocGroupTransformer{
-		Keys:          keys,
-		Fields:        fields,
-		keySet:        keySet,
-		Tables:        tables,
-		targetSchemas: make(map[string]*abstract.TableSchema),
-		schemasLock:   sync.RWMutex{},
+		Keys:                keys,
+		Fields:              fields,
+		keySet:              keySet,
+		Tables:              tables,
+		ShouldUpdateOldKeys: config.ShouldUpdateOldKeys,
+		additionalKeys:      make(map[string][]string),
+		targetSchemas:       make(map[string]*abstract.TableSchema),
+		schemasLock:         sync.RWMutex{},
 	}, nil
 
 }

@@ -3,10 +3,11 @@ package provider
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/types"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/types"
 	"go.ytsaurus.tech/yt/go/yson"
 )
 
@@ -48,25 +49,26 @@ func (e *event) ToOldChangeItem() (*abstract.ChangeItem, error) {
 
 	cnt := e.parentBatch.table.ColumnsCount()
 	changeItem := &abstract.ChangeItem{
-		Kind:         abstract.InsertKind,
-		Schema:       e.parentBatch.table.Schema(),
-		Table:        e.parentBatch.table.Name(),
-		PartID:       e.parentBatch.part,
-		TableSchema:  oldTable,
-		ColumnNames:  colNames,
-		ColumnValues: make([]interface{}, cnt),
 		ID:           0,
 		LSN:          0,
 		CommitTime:   0,
 		Counter:      0,
+		Kind:         abstract.InsertKind,
+		Schema:       e.parentBatch.table.Schema(),
+		Table:        e.parentBatch.table.Name(),
+		PartID:       e.parentBatch.part,
+		ColumnNames:  colNames,
+		ColumnValues: make([]interface{}, cnt),
+		TableSchema:  oldTable,
 		OldKeys: abstract.OldKeysType{
 			KeyNames:  nil,
 			KeyTypes:  nil,
 			KeyValues: nil,
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.RawEventSize(e.rawSize),
+		Size:             abstract.RawEventSize(e.rawSize),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 
 	for i := 0; i < cnt; i++ {

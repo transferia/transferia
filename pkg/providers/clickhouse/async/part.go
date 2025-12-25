@@ -6,15 +6,14 @@ import (
 	"sync"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/core/xerrors/multierr"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/dao"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/parts"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
-	chsink "github.com/doublecloud/transfer/pkg/providers/clickhouse/errors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/sharding"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/dao"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/parts"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	chsink "github.com/transferia/transferia/pkg/providers/clickhouse/errors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -109,7 +108,7 @@ func (p *part) Commit() error {
 func (p *part) Close() error {
 	var err error
 	for _, shard := range p.shards {
-		logger.Log.Debug("part: closing shard")
+		p.lgr.Debug("part: closing shard")
 		err = multierr.Append(err, shard.Close())
 	}
 	p.shards = nil
@@ -124,7 +123,7 @@ func (p *part) getOrCreateShardPart(shardID sharding.ShardID) (*shardPart, error
 		return shard, nil
 	}
 
-	logger.Log.Infof("Starting stream inserting for part %s of table %s.%s shard %d", p.id.PartID, p.dbName, p.id.Name, shardID)
+	p.lgr.Infof("Starting stream inserting for part %s of table %s.%s shard %d", p.id.PartID, p.dbName, p.id.Name, shardID)
 	if err := backoff.Retry(func() error {
 		s, err := p.createShardPart(shardID)
 		if err != nil {
@@ -198,7 +197,8 @@ func (p *part) createShardPart(shardID sharding.ShardID) (*shardPart, error) {
 		return nil, xerrors.Errorf("error getting table cols for table '%s': %w", p.id.Name, err)
 	}
 
-	shardPart, err := newShardPart(p.dbName, p.id.Name, p.dbName, p.tmpTableName(), p.query, hostDB, cols)
+	shardLgr := log.With(p.lgr, log.String("shardID", fmt.Sprint(shardID)))
+	shardPart, err := newShardPart(shardLgr, p.dbName, p.id.Name, p.dbName, p.tmpTableName(), p.query, hostDB, cols)
 	if err != nil {
 		return nil, xerrors.Errorf("error making new part for shard %d: %w", shardID, err)
 	}
@@ -226,7 +226,7 @@ func NewPart(
 		shardsMu:    sync.RWMutex{},
 		dbName:      dbName,
 		id:          partID,
-		lgr:         lgr,
+		lgr:         log.With(lgr, log.String("partID", partID.PartID), log.String("table", partID.TableID.Fqtn())),
 		query:       "",
 		transferID:  transferID,
 		tableCols:   make(map[abstract.TableID]columntypes.TypeMapping),

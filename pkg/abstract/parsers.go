@@ -12,7 +12,8 @@ type TableSplitter struct {
 type LfLineSplitter string
 
 const (
-	LfLineSplitterNewLine    LfLineSplitter = "\n"
-	LfLineSplitterDoNotSplit LfLineSplitter = "do-not-split"
-	LfLineSplitterProtoseq   LfLineSplitter = "protoseq"
+	LfLineSplitterNewLine       LfLineSplitter = "\n"
+	LfLineSplitterDoNotSplit    LfLineSplitter = "do-not-split"
+	LfLineSplitterProtoseq      LfLineSplitter = "protoseq"
+	LfLineSplitterOtelLogsProto LfLineSplitter = "otel-logs-proto"
 )

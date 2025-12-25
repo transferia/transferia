@@ -1,7 +1,7 @@
 package postgres
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 const EnumAllValues = abstract.PropertyKey("pg:enum_all_values")

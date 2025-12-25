@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/debezium/typeutil"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/typeutil"
 )
 
 var debeziumMsg = `{"schema":{"type":"struct","fields":[{"type":"struct","fields":[{"type":"int32","optional":false,"field":"id"},{"type":"int64","optional":true,"field":"val"}],"optional":true,"name":"fullfillment.public.basic_types.Value","field":"before"},{"type":"struct","fields":[{"type":"int32","optional":false,"field":"id"},{"type":"int64","optional":true,"field":"val"}],"optional":true,"name":"fullfillment.public.basic_types.Value","field":"after"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false,incremental"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":true,"field":"sequence"},{"type":"string","optional":false,"field":"schema"},{"type":"string","optional":false,"field":"table"},{"type":"int64","optional":true,"field":"txId"},{"type":"int64","optional":true,"field":"lsn"},{"type":"int64","optional":true,"field":"xmin"}],"optional":false,"name":"io.debezium.connector.postgresql.Source","field":"source"},{"type":"string","optional":false,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"},{"type":"int64","optional":false,"field":"total_order"},{"type":"int64","optional":false,"field":"data_collection_order"}],"optional":true,"field":"transaction"}],"optional":false,"name":"fullfillment.public.basic_types.Envelope"},"payload":{"before":null,"after":{"id":1,"val":2},"source":{"version":"1.8.0.Final","connector":"postgresql","name":"fullfillment","ts_ms":1643471295802,"snapshot":"false","db":"pguser","sequence":"[\"23725184\",\"23725240\"]","schema":"public","table":"basic_types","txId":555,"lsn":23725240,"xmin":null},"op":"c","ts_ms":1643471296262,"transaction":null}}`
@@ -27,7 +27,7 @@ func TestUnmarshalMessage(t *testing.T) {
 //---------------------------------------------------------------------------------------------------------------------
 // utils
 
-func synthesizeDebeziumMessage(t *testing.T, changeItem *abstract.ChangeItem) string {
+func synthesizeDebeziumMessage(t require.TestingT, changeItem *abstract.ChangeItem) string {
 	emitter, err := debezium.NewMessagesEmitter(map[string]string{
 		debeziumparameters.DatabaseDBName:   "pguser",
 		debeziumparameters.TopicPrefix:      "fullfillment",
@@ -73,7 +73,7 @@ func ReceiveStr(r *debezium.Receiver, in string) (string, error) {
 	return changeItem.ToJSONString(), err
 }
 
-func receiveWrapper(t *testing.T, debeziumMsg, canonizedChangeItem string, originalTypes map[abstract.TableID]map[string]*debeziumcommon.OriginalTypeInfo) {
+func receiveWrapper(t require.TestingT, debeziumMsg, canonizedChangeItem string, originalTypes map[abstract.TableID]map[string]*debeziumcommon.OriginalTypeInfo) {
 	canonDebeziumMsgWithoutSequence := wipeSequenceAndIncremental(debeziumMsg)
 	receiver := debezium.NewReceiver(originalTypes, nil)
 	changeItemStr, err := ReceiveStr(receiver, canonDebeziumMsgWithoutSequence)

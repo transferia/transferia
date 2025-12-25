@@ -8,15 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	mysql_source "github.com/doublecloud/transfer/pkg/providers/mysql"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	mysql_source "github.com/transferia/transferia/pkg/providers/mysql"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 const tableName = "test"

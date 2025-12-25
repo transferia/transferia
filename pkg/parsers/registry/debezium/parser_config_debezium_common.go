@@ -6,6 +6,7 @@ type ParserConfigDebeziumCommon struct {
 	Username          string
 	Password          string
 	TLSFile           string
+	NamespaceID       string // when specified, all other connection settings are ignored
 }
 
 func (c *ParserConfigDebeziumCommon) IsNewParserConfig() {}
@@ -16,4 +17,8 @@ func (c *ParserConfigDebeziumCommon) IsAppendOnly() bool {
 
 func (c *ParserConfigDebeziumCommon) Validate() error {
 	return nil
+}
+
+func (c *ParserConfigDebeziumCommon) YSRNamespaceID() string {
+	return c.NamespaceID
 }

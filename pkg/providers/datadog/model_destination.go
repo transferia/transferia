@@ -1,25 +1,31 @@
 package datadog
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 type DatadogDestination struct {
 	ClientAPIKey model.SecretString
-	DatadogHost  string
+	DatadogHost  string `log:"true"`
 
 	// mapping to columns
-	SourceColumn    string
-	TagColumns      []string
-	HostColumn      string
-	ServiceColumn   string
-	MessageTemplate string
-	ChunkSize       int
+	SourceColumn    string   `log:"true"`
+	TagColumns      []string `log:"true"`
+	HostColumn      string   `log:"true"`
+	ServiceColumn   string   `log:"true"`
+	MessageTemplate string   `log:"true"`
+	ChunkSize       int      `log:"true"`
 }
 
 var _ model.Destination = (*DatadogDestination)(nil)
+
+func (d *DatadogDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *DatadogDestination) GetProviderType() abstract.ProviderType {
 	return ProviderType

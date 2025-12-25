@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -166,7 +166,7 @@ var YtColumns = []schema.Column{
 func TestCanonSource(t *testing.T) {
 	Source := &yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//home/cdc/junk/test_table"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -190,7 +190,7 @@ func TestCanonSource(t *testing.T) {
 func TestCanonSourceWithDataObjects(t *testing.T) {
 	Source := &yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//home/cdc/junk/test_parent_dir"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -215,7 +215,7 @@ func TestCanonSourceWithDataObjects(t *testing.T) {
 func TestCanonSourceWithDirInDataObjects(t *testing.T) {
 	Source := &yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//home/cdc/junk/test_parent_dir"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -238,7 +238,7 @@ func TestCanonSourceWithDirInDataObjects(t *testing.T) {
 }
 
 func createTestData(t *testing.T, Source *yt_provider.YtSource, path string) {
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy})
 	require.NoError(t, err)
 	_ = ytc.RemoveNode(context.Background(), ypath.NewRich(path).YPath(), nil)
 

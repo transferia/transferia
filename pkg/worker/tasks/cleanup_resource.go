@@ -3,27 +3,43 @@ package tasks
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/cleanup"
-	"github.com/doublecloud/transfer/pkg/providers"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/cleanup"
+	"github.com/transferia/transferia/pkg/providers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+// fast check whether cleanup may be skipped
+// if returns false, it can be skipped definitely
+// if returns true, we should run cleanup just in case  - this keeps old logic
+func CleanupNeeded(transfer model.Transfer) bool {
+	if _, ok := transfer.Dst.(model.TmpPolicyProvider); ok && transfer.TmpPolicy != nil {
+		return true
+	}
+
+	cleanuper, ok := providers.SourceAs[providers.Cleanuper](&transfer)
+	if !ok {
+		return false
+	}
+
+	return cleanuper.CleanupSuitable(transfer.Type)
+}
+
 func CleanupResource(ctx context.Context, task model.TransferOperation, transfer model.Transfer, logger log.Logger, cp coordinator.Coordinator) error {
+	if !CleanupNeeded(transfer) {
+		return nil
+	}
+
 	err := cleanupTmp(ctx, transfer, logger, cp, task)
 	if err != nil {
 		return xerrors.Errorf("unable to cleanup tmp: %w", err)
 	}
 
-	if transfer.SnapshotOnly() {
-		return nil
-	}
-
 	cleanuper, ok := providers.Source[providers.Cleanuper](logger, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, &transfer)
-	if !ok {
+	if !ok || !cleanuper.CleanupSuitable(transfer.Type) {
 		logger.Infof("CleanupResource(%v) for transfer(%v) has no active resource", task.OperationID, transfer.ID)
 		return nil
 	}

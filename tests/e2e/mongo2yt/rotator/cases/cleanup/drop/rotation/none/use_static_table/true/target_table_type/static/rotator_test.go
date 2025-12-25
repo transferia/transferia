@@ -1,21 +1,14 @@
 package case1
 
 import (
-	"os"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	ytcommon "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/tests/e2e/mongo2yt/rotator"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/tests/e2e/mongo2yt/rotator"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
-
-func TestMain(m *testing.M) {
-	ytcommon.InitExe()
-	os.Exit(m.Run())
-}
 
 func TestCases(t *testing.T) {
 	// fix time with modern but certain point

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.uber.org/atomic"
 )
 
@@ -29,7 +29,9 @@ type Histogram struct {
 	infValue     atomic.Int64
 	mutex        sync.Mutex
 	timestamp    *time.Time
-	useNameTag   bool
+
+	useNameTag bool
+	memOnly    bool
 }
 
 type histogram struct {
@@ -96,6 +98,13 @@ func (h *Histogram) Reset() {
 	h.infValue.Store(0)
 }
 
+func (h *Histogram) getID() string {
+	if h.timestamp != nil {
+		return h.name + "(" + h.timestamp.Format(time.RFC3339) + ")"
+	}
+	return h.name
+}
+
 func (h *Histogram) Name() string {
 	return h.name
 }
@@ -104,11 +113,11 @@ func (h *Histogram) getType() metricType {
 	return h.metricType
 }
 
-func (h *Histogram) getLabels() map[string]string {
+func (h *Histogram) Labels() map[string]string {
 	return h.tags
 }
 
-func (h *Histogram) getValue() interface{} {
+func (h *Histogram) Value() interface{} {
 	return histogram{
 		Bounds:  h.bucketBounds,
 		Buckets: h.bucketValues,
@@ -128,6 +137,14 @@ func (h *Histogram) getNameTag() string {
 	}
 }
 
+func (h *Histogram) isMemOnly() bool {
+	return h.memOnly
+}
+
+func (h *Histogram) setMemOnly() {
+	h.memOnly = true
+}
+
 // MarshalJSON implements json.Marshaler.
 func (h *Histogram) MarshalJSON() ([]byte, error) {
 	valuesCopy := make([]int64, len(h.bucketValues))
@@ -139,6 +156,7 @@ func (h *Histogram) MarshalJSON() ([]byte, error) {
 		Labels    map[string]string `json:"labels"`
 		Histogram histogram         `json:"hist"`
 		Timestamp *int64            `json:"ts,omitempty"`
+		MemOnly   bool              `json:"memOnly,omitempty"`
 	}{
 		Type: h.metricType.String(),
 		Histogram: histogram{
@@ -148,13 +166,14 @@ func (h *Histogram) MarshalJSON() ([]byte, error) {
 		},
 		Labels: func() map[string]string {
 			labels := make(map[string]string, len(h.tags)+1)
-			labels[h.getNameTag()] = h.Name()
+			labels[h.getNameTag()] = h.name
 			for k, v := range h.tags {
 				labels[k] = v
 			}
 			return labels
 		}(),
 		Timestamp: tsAsRef(h.timestamp),
+		MemOnly:   h.memOnly,
 	})
 }
 
@@ -175,7 +194,9 @@ func (h *Histogram) Snapshot() Metric {
 		bucketBounds: bucketBounds,
 		bucketValues: bucketValues,
 		infValue:     *atomic.NewInt64(h.infValue.Load()),
-		useNameTag:   h.useNameTag,
+
+		useNameTag: h.useNameTag,
+		memOnly:    h.memOnly,
 	}
 }
 

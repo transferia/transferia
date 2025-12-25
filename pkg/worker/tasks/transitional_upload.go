@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/storage"
-	"github.com/doublecloud/transfer/pkg/terryid"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/storage"
+	"github.com/transferia/transferia/pkg/terryid"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -29,7 +29,7 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 		}
 		return nil
 	}
-	if transfer.IsSharded() && transfer.IsTransitional() {
+	if transfer.IsSnapshotSharded() && transfer.IsTransitional() {
 		return xerrors.New("sharded upload on connected transfers not supported")
 	}
 
@@ -61,23 +61,25 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 	for _, src := range sources {
 		for _, dst := range destinations {
 			utTransfer := model.Transfer{
-				ID:                transfer.ID,
-				TransferName:      "",
-				Description:       "",
-				Labels:            "",
-				Author:            "",
-				Status:            model.Running,
-				Type:              abstract.TransferTypeSnapshotOnly,
-				FolderID:          "",
-				Runtime:           transfer.Runtime,
-				Src:               src,
-				Dst:               dst,
-				CloudID:           "",
-				RegularSnapshot:   nil,
-				Transformation:    transfer.Transformation,
-				TmpPolicy:         transfer.TmpPolicy,
-				DataObjects:       transfer.DataObjects,
-				TypeSystemVersion: transfer.TypeSystemVersion,
+				ID:                 transfer.ID,
+				TransferName:       "",
+				Description:        "",
+				Labels:             "",
+				Author:             "",
+				Status:             model.Running,
+				Type:               abstract.TransferTypeSnapshotOnly,
+				FolderID:           "",
+				Runtime:            transfer.Runtime,
+				ReplicationRuntime: transfer.ReplicationRuntime,
+				Src:                src,
+				Dst:                dst,
+				CloudID:            "",
+				RegularSnapshot:    nil,
+				Transformation:     transfer.Transformation,
+				TmpPolicy:          transfer.TmpPolicy,
+				DataObjects:        transfer.DataObjects,
+				TypeSystemVersion:  transfer.TypeSystemVersion,
+				AsyncOperations:    transfer.AsyncOperations,
 			}
 
 			if !transfer.IsAbstract2() {
@@ -97,7 +99,7 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 			transfers = append(transfers, utTransfer)
 		}
 	}
-	if transfer.IsSharded() && len(transfers) > 1 {
+	if transfer.IsSnapshotSharded() && len(transfers) > 1 {
 		return xerrors.New("sharded upload on connected transfers not supported")
 	}
 
@@ -162,7 +164,7 @@ func TransitReupload(ctx context.Context, cp coordinator.Coordinator, transfer m
 
 	for _, src := range srcs {
 		for _, dst := range dsts {
-			if err := checkReuploadAllowed(src, dst); err != nil {
+			if err := checkReuploadAllowed(src); err != nil {
 				return xerrors.Errorf("Reupload is forbidden: %w", err)
 			}
 
@@ -201,7 +203,7 @@ func TransitReupload(ctx context.Context, cp coordinator.Coordinator, transfer m
 				if xerrors.Is(err, storage.UnsupportedSourceErr) {
 					continue
 				}
-				return xerrors.Errorf(TableListErrorText, err)
+				return xerrors.Errorf(tableListErrorText, err)
 			}
 
 			if err := rutSnapshotLoader.CleanupSinker(tables); err != nil {

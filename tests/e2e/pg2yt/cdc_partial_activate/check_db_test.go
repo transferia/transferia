@@ -6,34 +6,29 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
-	pgrecipe "github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	ytcommon "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/tests/helpers"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	pgrecipe "github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
+	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
 
 var (
-	srcPort = helpers.GetIntFromEnv("PG_LOCAL_PORT")
-	Source  = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("dump"), pgrecipe.WithDBTables("public.__test"))
-	Target  = yt_helpers.RecipeYtTarget("//home/cdc/test/pg2yt_e2e")
+	Source = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("dump"), pgrecipe.WithDBTables("public.__test"))
+	Target = yt_helpers.RecipeYtTarget("//home/cdc/test/pg2yt_e2e")
 )
 
-const CursorField = "id"
-const CursorValue = "5"
+const (
+	CursorField = "id"
+	CursorValue = "5"
+)
 
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 	Source.WithDefaults()
-}
-
-func TestMain(m *testing.M) {
-	ytcommon.InitExe()
-	os.Exit(m.Run())
 }
 
 func TestGroup(t *testing.T) {
@@ -78,11 +73,11 @@ func Load(t *testing.T) {
 	]
 }
 `))
-	//start cdc
+	// start cdc
 	worker := helpers.Activate(t, transfer)
 	require.NotNil(t, worker, "Transfer is not activated")
 
-	//check snapshot loaded
+	// check snapshot loaded
 
 	conn, err := pgcommon.MakeConnPoolFromSrc(&Source, logger.Log)
 	require.NoError(t, err)
@@ -93,12 +88,12 @@ func Load(t *testing.T) {
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "__test",
 		storage, 60*time.Second, expectedYtRows), "Wrong row number after first snapshot round!")
 
-	//add some data to pg
+	// add some data to pg
 	expectedYtRows = addSomeDataAndGetExpectedCount(t, conn)
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "__test", helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second, expectedYtRows))
 	worker.Close(t)
 
-	//read data from target
+	// read data from target
 	require.NoError(t, storage.LoadTable(context.Background(), abstract.TableDescription{
 		Name:   "__test",
 		Schema: "",
@@ -144,7 +139,7 @@ func addSomeDataAndGetExpectedCount(t *testing.T, conn *pgxpool.Pool) uint64 {
 	extraItems += 3
 	_, err = conn.Exec(context.Background(), "delete from __test where str='rrr' or str='eee';")
 	require.NoError(t, err)
-	extraItems += 2 //item before deletion + deleted event
+	extraItems += 2 // item before deletion + deleted event
 
 	return currentDBRows + extraItems
 }

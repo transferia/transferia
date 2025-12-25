@@ -1,6 +1,6 @@
 package stats
 
-import "github.com/doublecloud/transfer/library/go/core/metrics"
+import "github.com/transferia/transferia/library/go/core/metrics"
 
 type NotificationStats struct {
 	registry metrics.Registry

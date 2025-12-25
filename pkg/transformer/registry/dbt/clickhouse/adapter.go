@@ -3,10 +3,10 @@ package clickhouse
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/dbt"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/transformer/registry/dbt"
 )
 
 func init() {
@@ -18,7 +18,11 @@ type Adapter struct {
 }
 
 func (d *Adapter) DBTConfiguration(_ context.Context) (any, error) {
-	hosts, err := model.ConnectionHosts(d.ToStorageParams(), "")
+	storageParams, err := d.ToStorageParams()
+	if err != nil {
+		return nil, xerrors.Errorf("failed to resolve storage params: %w", err)
+	}
+	hosts, err := model.ConnectionHosts(storageParams, "")
 	if err != nil {
 		return nil, xerrors.Errorf("failed to obtain a list of hosts for the destination ClickHouse: %w", err)
 	}
@@ -26,15 +30,15 @@ func (d *Adapter) DBTConfiguration(_ context.Context) (any, error) {
 		return nil, xerrors.New("hosts is required")
 	}
 	host := hosts[0]
-	if host == "localhost" {
-		host = "host.docker.internal" // DBT runs inside docker, so localhost there is a host.docker.internal
+	if host.Name == "localhost" {
+		host.Name = "host.docker.internal" // DBT runs inside docker, so localhost there is a host.docker.internal
 	}
 
 	return map[string]any{
 		"type":     "clickhouse",
 		"schema":   d.Database,
-		"host":     host,
-		"port":     d.HTTPPort,
+		"host":     host.Name,
+		"port":     host.HTTPPort,
 		"user":     d.User,
 		"password": string(d.Password),
 		"secure":   d.SSLEnabled || d.MdbClusterID != "",

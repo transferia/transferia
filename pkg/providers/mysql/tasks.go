@@ -3,14 +3,16 @@ package mysql
 import (
 	"strings"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/sink"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/sink"
 )
 
 func CheckMySQLBinlogRowImageFormat(source *MysqlSource) error {
@@ -129,7 +131,7 @@ func checkRestrictedColumnTypes(transfer *model.Transfer, tables abstract.TableM
 	for tableID, table := range tables {
 		for _, column := range table.Schema.Columns() {
 			if strings.HasPrefix(strings.ToLower(column.OriginalType), "mysql:decimal") {
-				return xerrors.Errorf("table %s contains column %q of type %s. Columns of decimal types currently are not supported. Please exclude the table from the transfer", tableID.Fqtn(), column.ColumnName, column.OriginalType)
+				return coded.Errorf(codes.MySQLDecimalNotAllowed, "table %s contains column %q of type %s. Columns of decimal types currently are not supported. Please exclude the table from the transfer", tableID.Fqtn(), column.ColumnName, column.OriginalType)
 			}
 		}
 	}

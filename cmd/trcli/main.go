@@ -5,23 +5,23 @@ import (
 	"os"
 	"strings"
 
-	"github.com/doublecloud/transfer/cmd/trcli/activate"
-	"github.com/doublecloud/transfer/cmd/trcli/check"
-	"github.com/doublecloud/transfer/cmd/trcli/describe"
-	"github.com/doublecloud/transfer/cmd/trcli/replicate"
-	"github.com/doublecloud/transfer/cmd/trcli/upload"
-	"github.com/doublecloud/transfer/cmd/trcli/validate"
-	"github.com/doublecloud/transfer/internal/logger"
-	internal_metrics "github.com/doublecloud/transfer/internal/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	coordinator "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/cobraaux"
-	"github.com/doublecloud/transfer/pkg/coordinator/s3coordinator"
-	_ "github.com/doublecloud/transfer/pkg/dataplane"
-	"github.com/doublecloud/transfer/pkg/serverutil"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"github.com/transferia/transferia/cmd/trcli/activate"
+	"github.com/transferia/transferia/cmd/trcli/check"
+	"github.com/transferia/transferia/cmd/trcli/describe"
+	"github.com/transferia/transferia/cmd/trcli/replicate"
+	"github.com/transferia/transferia/cmd/trcli/upload"
+	"github.com/transferia/transferia/cmd/trcli/validate"
+	"github.com/transferia/transferia/internal/logger"
+	internal_metrics "github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	coordinator "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/cobraaux"
+	"github.com/transferia/transferia/pkg/coordinator/s3coordinator"
+	_ "github.com/transferia/transferia/pkg/dataplane"
+	"github.com/transferia/transferia/pkg/serverutil"
 	zp "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -48,9 +48,10 @@ func main() {
 	runProfiler := false
 
 	promRegistry, registry := internal_metrics.NewPrometheusRegistryWithNameProcessor()
+
 	rootCommand := &cobra.Command{
 		Use:          "trcli",
-		Short:        "Transfer cli",
+		Short:        "Transferia cli",
 		Example:      "./trcli help",
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -58,7 +59,7 @@ func main() {
 				return nil
 			}
 			if runProfiler {
-				go serverutil.RunPprof()
+				go serverutil.RunPprof(8080)
 			}
 
 			go func() {
@@ -118,7 +119,7 @@ func main() {
 				}
 			case "s3":
 				var err error
-				cp, err = s3coordinator.NewS3(coordinatorS3Bucket)
+				cp, err = s3coordinator.NewS3(coordinatorS3Bucket, logger.Log)
 				if err != nil {
 					return xerrors.Errorf("unable to load s3 coordinator: %w", err)
 				}
@@ -143,8 +144,8 @@ func main() {
 	rootCommand.PersistentFlags().BoolVar(&runProfiler, "run-profiler", true, "Run go pprof for performance profiles on 8080 port")
 	rootCommand.PersistentFlags().IntVar(&rt.CurrentJob, "coordinator-job-index", 0, "Worker job index")
 	rootCommand.PersistentFlags().IntVar(&rt.ShardingUpload.JobCount, "coordinator-job-count", 0, "Worker job count, if more then 1 - run consider as sharded, coordinator is required to be non memory")
-	rootCommand.PersistentFlags().IntVar(&rt.ShardingUpload.ProcessCount, "coordinator-process-count", 1, "Worker process count, how many readers must be opened for each job, default is 1")
-	rootCommand.PersistentFlags().IntVar(&hcPort, "health-check-port", 3000, "Port to used as health-check API, default: 3000")
+	rootCommand.PersistentFlags().IntVar(&rt.ShardingUpload.ProcessCount, "coordinator-process-count", 1, "Worker process count, how many readers must be opened for each job")
+	rootCommand.PersistentFlags().IntVar(&hcPort, "health-check-port", 3000, "Port to used as health-check API")
 
 	err := rootCommand.Execute()
 	if err != nil {

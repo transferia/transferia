@@ -4,17 +4,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	jsonparser "github.com/doublecloud/transfer/pkg/parsers/registry/json"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	kafkasink "github.com/doublecloud/transfer/pkg/providers/kafka"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	kafkasink "github.com/transferia/transferia/pkg/providers/kafka"
+	"github.com/transferia/transferia/tests/helpers"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -22,9 +22,8 @@ var (
 	kafkaTopic = "topic1"
 	source     = *kafkasink.MustSourceRecipe()
 
-	chDatabase     = "public"
-	target         = *chrecipe.MustTarget(chrecipe.WithInitDir("dump/ch"), chrecipe.WithDatabase(chDatabase))
-	targetAsSource = *chrecipe.MustSource(chrecipe.WithInitDir("dump/ch"), chrecipe.WithDatabase(chDatabase))
+	chDatabase = "public"
+	target     = *chrecipe.MustTarget(chrecipe.WithInitDir("dump/ch"), chrecipe.WithDatabase(chDatabase))
 
 	timestampToUse = time.Date(2024, 03, 19, 0, 0, 0, 0, time.Local)
 )
@@ -95,13 +94,13 @@ func TestReplication(t *testing.T) {
 	)
 	require.NoError(t, err)
 	err = srcSink.Push([]abstract.ChangeItem{
-		kafkasink.MakeKafkaRawMessage(
+		abstract.MakeRawMessage(
+			[]byte(`any_key_2`),
 			source.Topic,
 			time.Time{},
 			source.Topic,
 			0,
 			1,
-			[]byte(`any_key_2`),
 			[]byte(`{"level": "my_level", "caller": "my_caller", "msg": "my_msg"}`), // no ID column, should fail matview.
 		),
 	})

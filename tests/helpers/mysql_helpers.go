@@ -5,102 +5,25 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/connection"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
 	mysqldriver "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func RecipeMysqlSource() *mysql.MysqlSource {
-	port, _ := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
-	src := mysql.MysqlSource{
-		Host:     os.Getenv("RECIPE_MYSQL_HOST"),
-		User:     os.Getenv("RECIPE_MYSQL_USER"),
-		Password: model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
-		Database: os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE"),
-		Port:     port,
-		ServerID: 1,
-	}
-	src.WithDefaults()
-	return &src
-}
-
-func RecipeMysqlTarget() *mysql.MysqlDestination {
-	port, _ := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
-	v := mysql.MysqlDestination{
-		Host:          os.Getenv("RECIPE_MYSQL_HOST"),
-		User:          os.Getenv("RECIPE_MYSQL_USER"),
-		Password:      model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
-		Database:      os.Getenv("RECIPE_MYSQL_TARGET_DATABASE"),
-		Port:          port,
-		SkipKeyChecks: false,
-	}
-	v.WithDefaults()
-	return &v
-}
-
-func RecipeMysqlSourceWithConnection(connID string) (*mysql.MysqlSource, *connection.ConnectionMySQL) {
-	port, _ := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
-	database := os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE")
-	src := mysql.MysqlSource{
-		ServerID:     1,
-		Database:     database,
-		ConnectionID: connID,
-	}
-	src.WithDefaults()
-
-	managedConnection := ManagedConnection(port, os.Getenv("RECIPE_MYSQL_HOST"), database, os.Getenv("RECIPE_MYSQL_USER"), os.Getenv("RECIPE_MYSQL_PASSWORD"))
-	return &src, managedConnection
-}
-
-func RecipeMysqlTargetWithConnection(connID string) (*mysql.MysqlDestination, *connection.ConnectionMySQL) {
-	port, _ := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
-	database := os.Getenv("RECIPE_MYSQL_TARGET_DATABASE")
-	v := mysql.MysqlDestination{
-		SkipKeyChecks: false,
-		Database:      database,
-		ConnectionID:  connID,
-	}
-	v.WithDefaults()
-
-	managedConnection := ManagedConnection(port, os.Getenv("RECIPE_MYSQL_HOST"), database, os.Getenv("RECIPE_MYSQL_USER"), os.Getenv("RECIPE_MYSQL_PASSWORD"))
-	return &v, managedConnection
-}
-
-func ManagedConnection(port int, host, dbName, user, password string) *connection.ConnectionMySQL {
-	return &connection.ConnectionMySQL{
-		BaseSQLConnection: &connection.BaseSQLConnection{
-			Hosts:          []*connection.Host{{Name: host, Port: port, Role: connection.RoleUnknown, ReplicaType: connection.ReplicaUndefined}},
-			User:           user,
-			Password:       model.SecretString(password),
-			Database:       dbName,
-			HasTLS:         false,
-			CACertificates: "",
-			ClusterID:      "",
-		},
-		DatabaseNames: nil,
-	}
-}
-
-func WithMysqlInclude(src *mysql.MysqlSource, regex []string) *mysql.MysqlSource {
-	src.IncludeTableRegex = regex
-	return src
-}
+var RecipeMysqlSource = mysqlrecipe.RecipeMysqlSource
+var RecipeMysqlTarget = mysqlrecipe.RecipeMysqlTarget
+var RecipeMysqlSourceWithConnection = mysqlrecipe.RecipeMysqlSourceWithConnection
+var RecipeMysqlTargetWithConnection = mysqlrecipe.RecipeMysqlTargetWithConnection
+var WithMysqlInclude = mysqlrecipe.WithMysqlInclude
 
 func ExecuteMySQLStatement(t *testing.T, statement string, connectionParams *mysql.ConnectionParams) {
-	conn, err := mysql.Connect(connectionParams, nil)
-	require.NoError(t, err)
-	defer conn.Close()
-
-	_, err = conn.Exec(statement)
-	require.NoError(t, err)
+	require.NoError(t, mysqlrecipe.Exec(statement, connectionParams))
 }
 
 func ExecuteMySQLStatementsLineByLine(t *testing.T, statements string, connectionParams *mysql.ConnectionParams) {

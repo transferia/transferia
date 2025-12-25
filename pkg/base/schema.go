@@ -1,7 +1,7 @@
 package base
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	yt_schema "go.ytsaurus.tech/yt/go/schema"
 )
 

@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -73,7 +74,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		helpers.LabeledPort{Label: "PG source", Port: SourceCollapse.Port},
 	))
 
-	sinkerNoCollapse := &helpers.MockSink{}
+	sinkerNoCollapse := mocksink.NewMockSink(nil)
 	sinkerNoCollapseMutex := sync.Mutex{}
 	targetNoCollapse := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkerNoCollapse },
@@ -81,7 +82,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}
 
 	var result []abstract.ChangeItem
-	sinkerNoCollapse.PushCallback = func(input []abstract.ChangeItem) {
+	sinkerNoCollapse.PushCallback = func(input []abstract.ChangeItem) error {
 		sinkerNoCollapseMutex.Lock()
 		defer sinkerNoCollapseMutex.Unlock()
 		for _, i := range input {
@@ -93,6 +94,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 			}
 			result = append(result, i)
 		}
+		return nil
 	}
 
 	transfer := helpers.MakeTransfer("data-objects", &SourceCollapse, &targetNoCollapse, abstract.TransferTypeSnapshotOnly)

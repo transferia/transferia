@@ -3,8 +3,8 @@ package ydb
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/credentials"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/credentials"
 	v3credential "github.com/ydb-platform/ydb-go-sdk/v3/credentials"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -84,5 +84,5 @@ func ResolveCredentials(
 	if userDataAuth {
 		return credentials.NewIamCreds(logger)
 	}
-	return nil, nil // no creds
+	return v3credential.NewAnonymousCredentials(), nil
 }

@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	yt2 "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/mapreduce"
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
@@ -138,9 +139,8 @@ func (t *StaticTable) commit(tableID abstract.TableID) error {
 			return xerrors.Errorf("unable to merge: %w", err)
 		}
 
-		if _, err := twr.runningTx.MoveNode(ctx, twr.tmp, twr.target, &yt.MoveNodeOptions{
-			Force: true,
-		}); err != nil {
+		moveOptions := yt2.ResolveMoveOptions(twr.runningTx, twr.tmp, false)
+		if _, err := twr.runningTx.MoveNode(ctx, twr.tmp, twr.target, moveOptions); err != nil {
 			t.logger.Error("cannot move tmp table, aborting transaction", log.Any("table", tableID.Fqtn()), log.Any("transaction", twr.runningTx.ID()), log.Any("path", twr.tmp))
 			_ = twr.runningTx.Abort()
 			//nolint:descriptiveerrors
@@ -172,7 +172,7 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 	mergeSpec.MergeMode = "ordered"
 	mergeSpec.InputTablePaths = []ypath.YPath{tableWriter.target, tableWriter.tmp}
 	mergeSpec.OutputTablePath = tableWriter.tmp
-	mergeSpec.Pool = "transfer_manager"
+	mergeSpec.Pool = t.config.Pool()
 	mergeOperation, err := mrClient.Merge(mergeSpec)
 	if err != nil {
 		return xerrors.Errorf("unable to start merge: %w", err)
@@ -187,23 +187,13 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 }
 
 func staticYTSchema(item abstract.ChangeItem) []schema.Column {
-	result := abstract.ToYtSchema(item.TableSchema.Columns(), false)
+	result := yt2.ToYtSchema(item.TableSchema.Columns(), false)
 
 	for i := range result {
 		// Static table should not be ordered
 		result[i].SortOrder = ""
-		result[i].Expression = ""
 	}
 	return result
-}
-
-func findCorrespondingIndex(cols []abstract.ColSchema, name string) int {
-	for i, colSchema := range cols {
-		if colSchema.ColumnName == name {
-			return i
-		}
-	}
-	return -1
 }
 
 func getNameFromTableID(tID abstract.TableID) string {
@@ -270,7 +260,7 @@ func (t *StaticTable) Push(items []abstract.ChangeItem) error {
 					return xerrors.Errorf("unknown column to get schema: %s", columnName)
 				}
 				var err error
-				row[columnName], err = Restore(colSchema, item.ColumnValues[i])
+				row[columnName], err = RestoreWithLengthLimitCheck(colSchema, item.ColumnValues[i], false, YtStatMaxStringLength)
 				if err != nil {
 					return xerrors.Errorf("failed to restore value for column '%s': %w", columnName, err)
 				}
@@ -325,6 +315,21 @@ func (t *StaticTable) getTableName(tID abstract.TableID, item abstract.ChangeIte
 
 func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, item abstract.ChangeItem) error {
 	ytSchema := staticYTSchema(item)
+	if ytSchema == nil {
+		return nil // or we should return error?
+	}
+
+	target := t.getTableName(tID, item)
+	tmpTablePath := ypath.Path(fmt.Sprintf("%v_%v", target, getRandomPostfix()))
+
+	tmpTableDirPath := getDirPath(tmpTablePath)
+	if _, err := t.ytClient.CreateNode(ctx, tmpTableDirPath, yt.NodeMap, &yt.CreateNodeOptions{
+		IgnoreExisting: true,
+		Recursive:      true,
+	}); err != nil {
+		return xerrors.Errorf("cannot create directory node for table %s: %w", tmpTablePath, err)
+	}
+
 	t.wrMutex.Lock()
 	defer t.wrMutex.Unlock()
 	if _, ok := t.tablesWriters[tID]; !ok {
@@ -334,12 +339,6 @@ func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, item 
 			return abstract.NewFatalError(xerrors.Errorf("cannot create table writer for table %v: transaction was not started", tID))
 		}
 
-		if ytSchema == nil {
-			return nil // or we should return error?
-		}
-		target := t.getTableName(tID, item)
-
-		tmp := ypath.Path(fmt.Sprintf("%v_%v", target, getRandomPostfix()))
 		createOptions := yt.CreateNodeOptions{
 			Attributes: map[string]interface{}{
 				"schema":      ytSchema,
@@ -356,29 +355,32 @@ func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, item 
 		}
 		logger.Log.Info(
 			"Creating YT table  with options",
-			log.String("tmpPath", tmp.String()),
+			log.String("tmpPath", tmpTablePath.String()),
 			log.Any("options", createOptions),
 		)
 
-		if _, err := tx.CreateNode(ctx, tmp, yt.NodeTable, &createOptions); err != nil {
+		if _, err := tx.CreateNode(ctx, tmpTablePath, yt.NodeTable, &createOptions); err != nil {
 			//nolint:descriptiveerrors
 			return err
 		}
 		opts := &yt.WriteTableOptions{TableWriter: t.spec}
-		w, err := tx.WriteTable(ctx, tmp, opts)
+		w, err := tx.WriteTable(ctx, tmpTablePath, opts)
 		if err != nil {
-			//nolint:descriptiveerrors
-			return err
+			return xerrors.Errorf("unable to create table writer: %w", err)
 		}
 		t.logger.Info("add new writer", log.Any("table", tID), log.Any("transaction", tx.ID()))
 		t.tablesWriters[tID] = &tableWriter{
 			runningTx: tx,
 			target:    target,
-			tmp:       tmp,
+			tmp:       tmpTablePath,
 			wr:        w,
 		}
 	}
 	return nil
+}
+
+func getDirPath(tablePath ypath.Path) ypath.Path {
+	return ypath.Path(ypath.Root.String() + path.Dir(tablePath.String()))
 }
 
 func getRandomPostfix() string {

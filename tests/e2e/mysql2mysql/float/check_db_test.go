@@ -5,15 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
 	Source = helpers.RecipeMysqlSource()
-	Target = helpers.RecipeMysqlTarget()
+	Target = helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 
 	//go:embed increment.sql
 	IncrementStatements string

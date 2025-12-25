@@ -1,10 +1,11 @@
 package rawdocgrouper
 
 import (
+	"reflect"
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/exp/slices"
 )
@@ -65,6 +66,79 @@ func CollectFieldsForTransformer(fields []string, columns abstract.TableColumns,
 		}
 	}
 	return result
+}
+
+// CollectAdditionalKeysForTransformer collecting additional keys that are not keys in the original table schema
+func CollectAdditionalKeysForTransformer(newKeys []string, originalKeyColumns []string) []string {
+	additionalKeys := make([]string, 0)
+	for _, newKey := range newKeys {
+		if !slices.Contains(originalKeyColumns, newKey) {
+			additionalKeys = append(additionalKeys, newKey)
+		}
+	}
+	return additionalKeys
+}
+
+// updateItemProcessing deleting unnecessary fields from oldKeys and add new oldKeys for update.
+// Usually, the OldKeys value is not filled in for columns that are not initially keyed,
+// which leads to the fact that after applying the raw_doc_crouper, changeItem.KeysChanged() returns true.
+// If default keys changed than we shouldn't to add new keys, because this will be an incorrect update.
+// We assume that the additional key changes only when the original one is updated.
+func processUpdateItem(item abstract.ChangeItem, additionalKeys []string, addAdditionalKeys bool) abstract.ChangeItem {
+	if item.Kind != abstract.UpdateKind {
+		return item
+	}
+
+	inPlaceRemoveOldKeys(&item.OldKeys, item.ColumnNames)
+	if !addAdditionalKeys {
+		return item
+	}
+
+	columnNameIndices := item.ColumnNameIndices()
+	if keysChanged(item.OldKeys, item, columnNameIndices) {
+		return item
+	}
+
+	for _, additionalKey := range additionalKeys {
+		if slices.Contains(item.OldKeys.KeyNames, additionalKey) {
+			continue
+		}
+
+		item.OldKeys.KeyNames = append(item.OldKeys.KeyNames, additionalKey)
+		columnIdx := columnNameIndices[additionalKey]
+		item.OldKeys.KeyValues = append(item.OldKeys.KeyValues, item.ColumnValues[columnIdx])
+	}
+
+	return item
+}
+
+// keysChanged compare the old keys with the current keys, and return true only if there is a new key != old key, but if the old keys don't contain any key, it's okay not to check it.
+func keysChanged(oldKeysType abstract.OldKeysType, item abstract.ChangeItem, columnNameIndices map[string]int) bool {
+	for i, keyName := range oldKeysType.KeyNames {
+		columnIdx := columnNameIndices[keyName]
+		if !reflect.DeepEqual(oldKeysType.KeyValues[i], item.ColumnValues[columnIdx]) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func inPlaceRemoveOldKeys(oldKeysType *abstract.OldKeysType, columnNames []string) {
+	if len(oldKeysType.KeyNames) != len(oldKeysType.KeyValues) {
+		return
+	}
+
+	n := 0
+	for i := range oldKeysType.KeyNames {
+		if slices.Contains(columnNames, oldKeysType.KeyNames[i]) {
+			oldKeysType.KeyNames[n] = oldKeysType.KeyNames[i]
+			oldKeysType.KeyValues[n] = oldKeysType.KeyValues[i]
+			n++
+		}
+	}
+	oldKeysType.KeyNames = oldKeysType.KeyNames[:n]
+	oldKeysType.KeyValues = oldKeysType.KeyValues[:n]
 }
 
 func allFieldsPresent(colNames []string, rawDocFields map[string]schema.Type, fields []string) bool {

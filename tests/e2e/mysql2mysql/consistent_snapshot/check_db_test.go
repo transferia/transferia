@@ -6,21 +6,23 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/storage"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
+	"github.com/transferia/transferia/pkg/storage"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotOnly
 	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget()
+	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
@@ -114,12 +116,13 @@ func Snapshot(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 	transfer = helpers.WithLocalRuntime(transfer, 1, 1)
 
-	storage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
+	currStorage, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
 	require.NoError(t, err)
-	defer storage.Close()
-	mysqlStorage, ok := storage.(*mysql.Storage)
+	defer currStorage.Close()
+
+	mysqlStorage, ok := currStorage.(*mysql.Storage)
 	require.True(t, ok)
-	tables, err := model.FilteredTableList(storage, transfer)
+	tables, err := model.FilteredTableList(currStorage, transfer)
 	require.NoError(t, err)
 
 	err = mysqlStorage.BeginSnapshot(context.TODO())
@@ -129,14 +132,18 @@ func Snapshot(t *testing.T) {
 
 	operationID := "test-operation"
 
-	operationTables := []*model.OperationTablePart{}
-	for _, table := range tables.ConvertToTableDescriptions() {
-		operationTables = append(operationTables, model.NewOperationTablePartFromDescription(operationID, &table))
-	}
-
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), operationID, transfer, helpers.EmptyRegistry())
 
-	err = snapshotLoader.DoUploadTables(context.TODO(), storage, snapshotLoader.GetLocalTablePartProvider(operationTables...))
+	tppGetter, _, err := snapshotLoader.BuildTPP(
+		context.Background(),
+		logger.Log,
+		currStorage,
+		tables.ConvertToTableDescriptions(),
+		abstract.WorkerTypeSingleWorker,
+	)
+	require.NoError(t, err)
+
+	err = snapshotLoader.DoUploadTables(context.TODO(), currStorage, tppGetter)
 	require.NoError(t, err)
 
 	err = mysqlStorage.EndSnapshot(context.TODO())

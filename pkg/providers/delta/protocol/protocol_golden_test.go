@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	store "github.com/doublecloud/transfer/pkg/providers/delta/store"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	store "github.com/transferia/transferia/pkg/providers/delta/store"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 // badGoldenTest it's a set of cases that doomed to fail

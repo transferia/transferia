@@ -7,21 +7,18 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/functions"
-	"github.com/doublecloud/transfer/pkg/parsequeue"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/queues/sequencer"
-	"github.com/twmb/franz-go/pkg/kerr"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/functions"
+	"github.com/transferia/transferia/pkg/parsequeue"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/providers/kafka/reader"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/queues/sequencer"
 	"github.com/twmb/franz-go/pkg/kgo"
-	"github.com/twmb/franz-go/pkg/kmsg"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -29,7 +26,7 @@ var (
 	noDataErr = xerrors.NewSentinel("no data")
 )
 
-type reader interface {
+type messageReader interface {
 	CommitMessages(ctx context.Context, msgs ...kgo.Record) error
 	FetchMessage(ctx context.Context) (kgo.Record, error)
 	Close() error
@@ -39,7 +36,7 @@ type Source struct {
 	config        *KafkaSource
 	metrics       *stats.SourceStats
 	logger        log.Logger
-	reader        reader
+	reader        messageReader
 	cancel        context.CancelFunc
 	ctx           context.Context
 	once          sync.Once
@@ -52,6 +49,13 @@ type Source struct {
 
 	pmx               sync.Mutex
 	partitionReleased bool // becomes true, when consumer loses partitions
+}
+
+func (p *Source) YSRNamespaceID() string {
+	if srParser, ok := p.parser.(*parsers.YSRableParser); ok {
+		return srParser.YSRNamespaceID()
+	}
+	return ""
 }
 
 // inflightBytes - increased with every new message, but decreased only after AsyncPush returned something,
@@ -99,7 +103,7 @@ func (p *Source) Run(sink abstract.AsyncSink) error {
 		}
 		return p.parse(buffer)
 	}
-	parseQ := parsequeue.NewWaitable(p.logger, 10, sink, parseWrapper, p.ack)
+	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, parseWrapper, p.ack)
 	defer parseQ.Close()
 
 	return p.run(parseQ)
@@ -134,14 +138,16 @@ func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[[]kgo.Record]) error 
 		fetchCtx, cancel := context.WithTimeout(p.ctx, nextFetchDuration)
 		m, err := p.reader.FetchMessage(fetchCtx)
 		cancel()
-		if err != nil && err != errNoInput {
-			return xerrors.Errorf("unable to fetch message: %w", err)
+		if err != nil {
+			if !xerrors.Is(err, reader.ErrNoInput) {
+				return xerrors.Errorf("unable to fetch message: %w", err)
+			} else if len(buffer) == 0 && len(m.Value) == 0 {
+				nextFetchDuration = backoffTimer.NextBackOff()
+				p.logger.Info("no input from kafka")
+				continue
+			}
 		}
-		if err == errNoInput && len(buffer) == 0 && len(m.Value) == 0 {
-			nextFetchDuration = backoffTimer.NextBackOff()
-			p.logger.Info("no input from kafka")
-			continue
-		}
+
 		backoffTimer.Reset()
 		if len(m.Value) != 0 {
 			p.addInflight(len(m.Value))
@@ -218,13 +224,13 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 	defer cancel()
 	var res []abstract.ChangeItem
 	var buffer []kgo.Record
-	defer p.reader.Close()
+	defer func() { _ = p.reader.Close() }()
 	for {
 		m, err := p.reader.FetchMessage(ctx)
 		if err == nil {
 			buffer = append(buffer, m)
 		}
-		if err == errNoInput || len(buffer) > 2 {
+		if xerrors.Is(err, reader.ErrNoInput) || len(buffer) > 2 {
 			var data []abstract.ChangeItem
 			for _, item := range buffer {
 				data = append(data, p.makeRawChangeItem(item))
@@ -314,7 +320,14 @@ func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
 		var converted []abstract.ChangeItem
 		for _, row := range data {
 			ci, part := p.changeItemAsMessage(row)
-			converted = append(converted, p.parser.Do(ci, part)...)
+			parsedMessages := p.parser.Do(ci, part)
+			// it's a workaround for the case when parser doesn't set LSN
+			for i := range parsedMessages {
+				if parsedMessages[i].LSN == 0 {
+					parsedMessages[i].LSN = row.LSN
+				}
+			}
+			converted = append(converted, parsedMessages...)
 		}
 		p.logger.Infof("convert done in %v, %v rows -> %v rows", time.Since(st), len(data), len(converted))
 		data = converted
@@ -330,19 +343,8 @@ func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
 }
 
 func (p *Source) makeRawChangeItem(msg kgo.Record) abstract.ChangeItem {
-	if p.config.IsHomo {
-		return MakeKafkaRawMessage(
-			msg.Topic,
-			msg.Timestamp,
-			msg.Topic,
-			int(msg.Partition),
-			msg.Offset,
-			msg.Key,
-			msg.Value,
-		)
-	}
-
 	return abstract.MakeRawMessage(
+		msg.Key,
 		msg.Topic,
 		msg.Timestamp,
 		msg.Topic,
@@ -413,45 +415,12 @@ func recordsFromQueueMessages(messages []sequencer.QueueMessage) []kgo.Record {
 	return records
 }
 
-func ensureTopicExists(cl *kgo.Client, topics []string) error {
-	req := kmsg.NewMetadataRequest()
-	for _, topic := range topics {
-		reqTopic := kmsg.NewMetadataRequestTopic()
-		reqTopic.Topic = kmsg.StringPtr(topic)
-		req.Topics = append(req.Topics, reqTopic)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	resp, err := req.RequestWith(ctx, cl)
-	if err != nil {
-		return xerrors.Errorf("unable to check topics existence: %w", err)
-	}
-	missedTopics := make([]string, 0)
-	for _, t := range resp.Topics {
-		if t.ErrorCode != kerr.UnknownTopicOrPartition.Code {
-			continue
-		}
-		// despite topic error we still got some partitions
-		if len(t.Partitions) > 0 {
-			continue
-		}
-
-		name := ""
-		if t.Topic != nil {
-			name = *t.Topic
-		}
-		missedTopics = append(missedTopics, name)
-	}
-	if len(missedTopics) != 0 {
-		return coded.Errorf(providers.MissingData, "%v not found, response: %v", missedTopics, resp.Topics)
-	}
-
-	return nil
-}
-
 func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (*Source, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	if err := cfg.WithConnectionID(); err != nil {
+		cancel()
+		return nil, xerrors.Errorf("unable to resolve connection: %w", err)
+	}
 
 	source := &Source{
 		config:            cfg,
@@ -475,6 +444,7 @@ func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (
 		executor, err := functions.NewExecutor(cfg.Transformer, cfg.Transformer.CloudFunctionsBaseURL, functions.YDS, logger, registry)
 		if err != nil {
 			logger.Error("init function executor", log.Error(err))
+			cancel()
 			return nil, xerrors.Errorf("unable to init functions transformer: %w", err)
 		}
 		source.executor = executor
@@ -483,6 +453,7 @@ func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (
 	if cfg.ParserConfig != nil {
 		parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, source.metrics)
 		if err != nil {
+			cancel()
 			return nil, xerrors.Errorf("unable to make parser, err: %w", err)
 		}
 		source.parser = parser
@@ -491,20 +462,10 @@ func newSource(cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (
 	return source, nil
 }
 
-func newSourceWithReader(cfg *KafkaSource, logger log.Logger, registry metrics.Registry, r reader) (*Source, error) {
+func newGroupSource(transferID string, cfg *KafkaSource, logger log.Logger, registry metrics.Registry, opts []kgo.Opt) (*Source, error) {
 	source, err := newSource(cfg, logger, registry)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to create Source: %w", err)
-	}
-	source.reader = r
-
-	return source, nil
-}
-
-func newSourceWithCallbacks(cfg *KafkaSource, logger log.Logger, registry metrics.Registry, opts []kgo.Opt) (*Source, error) {
-	source, err := newSource(cfg, logger, registry)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create Source: %w", err)
+		return nil, xerrors.Errorf("unable to create Source for group: %w", err)
 	}
 
 	var topics []string
@@ -523,32 +484,52 @@ func newSourceWithCallbacks(cfg *KafkaSource, logger log.Logger, registry metric
 			defer source.pmx.Unlock()
 			source.partitionReleased = true
 		}),
-		kgo.ConsumeTopics(topics...),
 	)
+
 	if cfg.OffsetPolicy == AtStartOffsetPolicy {
 		opts = append(opts, kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()))
 	} else if cfg.OffsetPolicy == AtEndOffsetPolicy {
 		opts = append(opts, kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()))
 	}
 
-	kfClient, err := kgo.NewClient(opts...)
+	r, err := reader.NewGroupReader(transferID, topics, opts)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to create kafka client: %w", err)
+		return nil, xerrors.Errorf("unable to create reader for group: %w", err)
 	}
-
-	if err := backoff.Retry(func() error {
-		return ensureTopicExists(kfClient, topics)
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5)); err != nil {
-		return nil, abstract.NewFatalError(xerrors.Errorf("unable to ensure topic exists: %w", err))
-	}
-
-	r := newFranzReader(kfClient)
 	source.reader = r
 
 	return source, nil
 }
 
-func NewSource(transferID string, cfg *KafkaSource, logger log.Logger, registry metrics.Registry) (*Source, error) {
+func newPartitionSource(transferID string, cfg *KafkaSource, partitionDesc *PartitionDescription, logger log.Logger, registry metrics.Registry, opts []kgo.Opt) (*Source, error) {
+	source, err := newSource(cfg, logger, registry)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create Source for partition: %w", err)
+	}
+
+	if len(cfg.GroupTopics) > 0 || cfg.Topic == "" {
+		return nil, abstract.NewFatalError(xerrors.New("only one topic has to be specified for partition source"))
+	}
+	if partitionDesc == nil {
+		return nil, abstract.NewFatalError(xerrors.New("partition required for partition source"))
+	}
+	partition := partitionDesc.Partition
+	topic := cfg.Topic
+
+	r, err := reader.NewPartitionReader(transferID, partition, topic, opts)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create reader for partition: %w", err)
+	}
+	source.reader = r
+
+	return source, nil
+}
+
+type PartitionDescription struct {
+	Partition int32
+}
+
+func NewSource(transferID string, cfg *KafkaSource, partitionDesc *PartitionDescription, logger log.Logger, registry metrics.Registry) (*Source, error) {
 	tlsConfig, err := cfg.Connection.TLSConfig()
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get TLS config: %w", err)
@@ -563,14 +544,13 @@ func NewSource(transferID string, cfg *KafkaSource, logger log.Logger, registry 
 		return nil, xerrors.Errorf("unable to resolve brokers: %w", err)
 	}
 
+	// common kafka client options
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(brokers...),
 		kgo.DialTLSConfig(tlsConfig),
-		kgo.ConsumerGroup(transferID),
 		kgo.FetchMaxBytes(10 * 1024 * 1024), // 10MB
 		kgo.ConnIdleTimeout(30 * time.Second),
 		kgo.RequestTimeoutOverhead(20 * time.Second),
-		kgo.DisableAutoCommit(),
 	}
 
 	if mechanism != nil {
@@ -581,5 +561,12 @@ func NewSource(transferID string, cfg *KafkaSource, logger log.Logger, registry 
 		cfg.BufferSize = 100 * 1024 * 1024
 	}
 
-	return newSourceWithCallbacks(cfg, logger, registry, opts)
+	if partitionDesc != nil {
+		source, err := newPartitionSource(transferID, cfg, partitionDesc, logger, registry, opts)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to create partition source: %w", err)
+		}
+		return source, nil
+	}
+	return newGroupSource(transferID, cfg, logger, registry, opts)
 }

@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -58,12 +58,13 @@ func TestListUnlockedNodes(t *testing.T) {
 	defer cancel()
 
 	config := defaultSinkConfig()
-	config.tmpPath = "//yt-utils-test/list-unlocked-nodes"
+	config.tmpPath = "//home/data-transfer/tmp"
 
 	iw, err := newIntermediateWriter(config, env.YT, env.L.Logger())
 	require.NoError(t, err, "newIntermediateWriter throws")
 	err = iw.Write([]abstract.ChangeItem{
 		abstract.MakeRawMessage(
+			[]byte("stub"),
 			"fake-topic",
 			time.Now(),
 			"fake-topic",

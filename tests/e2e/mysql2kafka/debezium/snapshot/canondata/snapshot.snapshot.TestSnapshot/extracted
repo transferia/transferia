@@ -1,1 +1,1150 @@
-{"payload":{"after":{"DECIMAL_":"AIvQODU=","DECIMAL_5":"W5s=","DECIMAL_5_2":"Wmk=","NUMERIC_":"SZYC0g==","NUMERIC_5":"MDk=","NUMERIC_5_2":"MDk=","bigint5":88,"bigint_":8,"bigint_u":888,"binary5":"nwAAAAA=","binary_":"nw==","bit":true,"bit16":"nwA=","blob_":"/w==","bool1":false,"bool2":true,"char5":"abc","char_":"a","date_":-354285,"datetime0":1577891410000,"datetime1":1577891410100,"datetime2":1577891410120,"datetime3":1577891410123,"datetime4":1577891410123400,"datetime5":1577891410123450,"datetime6":1577891410123456,"datetime_":1577891410000,"double_":2.34,"double_precision":2.34,"enum_":"x-small","float_":1.23,"float_53":1.23,"int_":9,"int_u":9999,"integer5":999,"integer_":99,"json_":"{\"k1\":\"v1\"}","longblob_":"q80=","longtext_":"my-longtext","mediumblob_":"q80=","mediumint5":11,"mediumint_":1,"mediumint_u":111,"mediumtext_":"my-mediumtext","pk":1,"real_":123.45,"real_10_2":99999.99,"set_":"a","smallint5":100,"smallint_":1000,"smallint_u":10,"text_":"my-text","time0":14706000000,"time1":14706100000,"time2":14706120000,"time3":14706123000,"time4":14706123400,"time5":14706123450,"time6":14706123456,"time_":14706000000,"tinyblob_":"n5+f","tinyint1":true,"tinyint1u":1,"tinyint_":1,"tinyint_def":22,"tinyint_u":255,"tinytext_":"qwerty12345","varbinary5":"n58=","varchar5":"blab","year4":2155,"year_":1901},"before":null,"op":"r","source":{"connector":"mysql","db":"source","file":"mysql-log.000002","gtid":null,"name":"dbserver1","pos":4228,"query":null,"row":0,"server_id":0,"snapshot":"true","table":"customers3","thread":null,"ts_ms":0,"version":"1.1.2.Final"},"transaction":null,"ts_ms":0},"schema":{"fields":[{"field":"before","fields":[{"field":"pk","optional":false,"type":"int64"},{"field":"bigint5","optional":true,"type":"int64"},{"field":"bigint_","optional":true,"type":"int64"},{"field":"bigint_u","optional":true,"type":"int64"},{"field":"binary5","optional":true,"type":"bytes"},{"field":"binary_","optional":true,"type":"bytes"},{"field":"bit","optional":true,"type":"boolean"},{"field":"bit16","name":"io.debezium.data.Bits","optional":true,"parameters":{"length":"16"},"type":"bytes","version":1},{"field":"blob_","optional":true,"type":"bytes"},{"field":"bool1","optional":true,"type":"boolean"},{"field":"bool2","optional":true,"type":"boolean"},{"field":"char5","optional":true,"type":"string"},{"field":"char_","optional":true,"type":"string"},{"field":"datetime0","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"datetime1","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"datetime2","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"datetime3","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"datetime4","name":"io.debezium.time.MicroTimestamp","optional":true,"type":"int64","version":1},{"field":"datetime5","name":"io.debezium.time.MicroTimestamp","optional":true,"type":"int64","version":1},{"field":"datetime6","name":"io.debezium.time.MicroTimestamp","optional":true,"type":"int64","version":1},{"field":"datetime_","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"date_","name":"io.debezium.time.Date","optional":true,"type":"int32","version":1},{"field":"DECIMAL_","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"10","scale":"0"},"type":"bytes","version":1},{"field":"DECIMAL_5","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"5","scale":"0"},"type":"bytes","version":1},{"field":"DECIMAL_5_2","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"5","scale":"2"},"type":"bytes","version":1},{"field":"double_","optional":true,"type":"double"},{"field":"double_precision","optional":true,"type":"double"},{"field":"enum_","name":"io.debezium.data.Enum","optional":true,"parameters":{"allowed":"x-small,small,medium,large,x-large"},"type":"string","version":1},{"field":"float_","optional":true,"type":"double"},{"field":"float_53","optional":true,"type":"double"},{"field":"integer5","optional":true,"type":"int32"},{"field":"integer_","optional":true,"type":"int32"},{"field":"int_","optional":true,"type":"int32"},{"field":"int_u","optional":true,"type":"int64"},{"field":"json_","name":"io.debezium.data.Json","optional":true,"type":"string","version":1},{"field":"longblob_","optional":true,"type":"bytes"},{"field":"longtext_","optional":true,"type":"string"},{"field":"mediumblob_","optional":true,"type":"bytes"},{"field":"mediumint5","optional":true,"type":"int32"},{"field":"mediumint_","optional":true,"type":"int32"},{"field":"mediumint_u","optional":true,"type":"int32"},{"field":"mediumtext_","optional":true,"type":"string"},{"field":"NUMERIC_","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"10","scale":"0"},"type":"bytes","version":1},{"field":"NUMERIC_5","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"5","scale":"0"},"type":"bytes","version":1},{"field":"NUMERIC_5_2","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"5","scale":"2"},"type":"bytes","version":1},{"field":"real_","optional":true,"type":"double"},{"field":"real_10_2","optional":true,"type":"double"},{"field":"set_","name":"io.debezium.data.EnumSet","optional":true,"parameters":{"allowed":"a,b,c,d"},"type":"string","version":1},{"field":"smallint5","optional":true,"type":"int16"},{"field":"smallint_","optional":true,"type":"int16"},{"field":"smallint_u","optional":true,"type":"int32"},{"field":"text_","optional":true,"type":"string"},{"field":"time0","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time1","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time2","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time3","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time4","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time5","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time6","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time_","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"tinyblob_","optional":true,"type":"bytes"},{"field":"tinyint1","optional":true,"type":"boolean"},{"field":"tinyint1u","optional":true,"type":"int16"},{"field":"tinyint_","optional":true,"type":"int16"},{"field":"tinyint_def","optional":true,"type":"int16"},{"field":"tinyint_u","optional":true,"type":"int16"},{"field":"tinytext_","optional":true,"type":"string"},{"field":"varbinary5","optional":true,"type":"bytes"},{"field":"varchar5","optional":true,"type":"string"},{"field":"year4","name":"io.debezium.time.Year","optional":true,"type":"int32","version":1},{"field":"year_","name":"io.debezium.time.Year","optional":true,"type":"int32","version":1}],"name":"dbserver1.source.customers3.Value","optional":true,"type":"struct"},{"field":"after","fields":[{"field":"pk","optional":false,"type":"int64"},{"field":"bigint5","optional":true,"type":"int64"},{"field":"bigint_","optional":true,"type":"int64"},{"field":"bigint_u","optional":true,"type":"int64"},{"field":"binary5","optional":true,"type":"bytes"},{"field":"binary_","optional":true,"type":"bytes"},{"field":"bit","optional":true,"type":"boolean"},{"field":"bit16","name":"io.debezium.data.Bits","optional":true,"parameters":{"length":"16"},"type":"bytes","version":1},{"field":"blob_","optional":true,"type":"bytes"},{"field":"bool1","optional":true,"type":"boolean"},{"field":"bool2","optional":true,"type":"boolean"},{"field":"char5","optional":true,"type":"string"},{"field":"char_","optional":true,"type":"string"},{"field":"datetime0","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"datetime1","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"datetime2","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"datetime3","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"datetime4","name":"io.debezium.time.MicroTimestamp","optional":true,"type":"int64","version":1},{"field":"datetime5","name":"io.debezium.time.MicroTimestamp","optional":true,"type":"int64","version":1},{"field":"datetime6","name":"io.debezium.time.MicroTimestamp","optional":true,"type":"int64","version":1},{"field":"datetime_","name":"io.debezium.time.Timestamp","optional":true,"type":"int64","version":1},{"field":"date_","name":"io.debezium.time.Date","optional":true,"type":"int32","version":1},{"field":"DECIMAL_","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"10","scale":"0"},"type":"bytes","version":1},{"field":"DECIMAL_5","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"5","scale":"0"},"type":"bytes","version":1},{"field":"DECIMAL_5_2","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"5","scale":"2"},"type":"bytes","version":1},{"field":"double_","optional":true,"type":"double"},{"field":"double_precision","optional":true,"type":"double"},{"field":"enum_","name":"io.debezium.data.Enum","optional":true,"parameters":{"allowed":"x-small,small,medium,large,x-large"},"type":"string","version":1},{"field":"float_","optional":true,"type":"double"},{"field":"float_53","optional":true,"type":"double"},{"field":"integer5","optional":true,"type":"int32"},{"field":"integer_","optional":true,"type":"int32"},{"field":"int_","optional":true,"type":"int32"},{"field":"int_u","optional":true,"type":"int64"},{"field":"json_","name":"io.debezium.data.Json","optional":true,"type":"string","version":1},{"field":"longblob_","optional":true,"type":"bytes"},{"field":"longtext_","optional":true,"type":"string"},{"field":"mediumblob_","optional":true,"type":"bytes"},{"field":"mediumint5","optional":true,"type":"int32"},{"field":"mediumint_","optional":true,"type":"int32"},{"field":"mediumint_u","optional":true,"type":"int32"},{"field":"mediumtext_","optional":true,"type":"string"},{"field":"NUMERIC_","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"10","scale":"0"},"type":"bytes","version":1},{"field":"NUMERIC_5","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"5","scale":"0"},"type":"bytes","version":1},{"field":"NUMERIC_5_2","name":"org.apache.kafka.connect.data.Decimal","optional":true,"parameters":{"connect.decimal.precision":"5","scale":"2"},"type":"bytes","version":1},{"field":"real_","optional":true,"type":"double"},{"field":"real_10_2","optional":true,"type":"double"},{"field":"set_","name":"io.debezium.data.EnumSet","optional":true,"parameters":{"allowed":"a,b,c,d"},"type":"string","version":1},{"field":"smallint5","optional":true,"type":"int16"},{"field":"smallint_","optional":true,"type":"int16"},{"field":"smallint_u","optional":true,"type":"int32"},{"field":"text_","optional":true,"type":"string"},{"field":"time0","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time1","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time2","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time3","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time4","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time5","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time6","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"time_","name":"io.debezium.time.MicroTime","optional":true,"type":"int64","version":1},{"field":"tinyblob_","optional":true,"type":"bytes"},{"field":"tinyint1","optional":true,"type":"boolean"},{"field":"tinyint1u","optional":true,"type":"int16"},{"field":"tinyint_","optional":true,"type":"int16"},{"field":"tinyint_def","optional":true,"type":"int16"},{"field":"tinyint_u","optional":true,"type":"int16"},{"field":"tinytext_","optional":true,"type":"string"},{"field":"varbinary5","optional":true,"type":"bytes"},{"field":"varchar5","optional":true,"type":"string"},{"field":"year4","name":"io.debezium.time.Year","optional":true,"type":"int32","version":1},{"field":"year_","name":"io.debezium.time.Year","optional":true,"type":"int32","version":1}],"name":"dbserver1.source.customers3.Value","optional":true,"type":"struct"},{"field":"source","fields":[{"field":"version","optional":false,"type":"string"},{"field":"connector","optional":false,"type":"string"},{"field":"name","optional":false,"type":"string"},{"field":"ts_ms","optional":false,"type":"int64"},{"default":"false","field":"snapshot","name":"io.debezium.data.Enum","optional":true,"parameters":{"allowed":"true,last,false"},"type":"string","version":1},{"field":"db","optional":false,"type":"string"},{"field":"table","optional":true,"type":"string"},{"field":"file","optional":false,"type":"string"},{"field":"gtid","optional":true,"type":"string"},{"field":"pos","optional":false,"type":"int64"},{"field":"query","optional":true,"type":"string"},{"field":"row","optional":false,"type":"int32"},{"field":"server_id","optional":false,"type":"int64"},{"field":"thread","optional":true,"type":"int64"}],"name":"io.debezium.connector.mysql.Source","optional":false,"type":"struct"},{"field":"op","optional":false,"type":"string"},{"field":"ts_ms","optional":true,"type":"int64"},{"field":"transaction","fields":[{"field":"id","optional":false,"type":"string"},{"field":"total_order","optional":false,"type":"int64"},{"field":"data_collection_order","optional":false,"type":"int64"}],"optional":true,"type":"struct"}],"name":"dbserver1.source.customers3.Envelope","optional":false,"type":"struct"}}
+{
+  "payload": {
+    "after": {
+      "DECIMAL_": "AIvQODU=",
+      "DECIMAL_5": "W5s=",
+      "DECIMAL_5_2": "Wmk=",
+      "NUMERIC_": "SZYC0g==",
+      "NUMERIC_5": "MDk=",
+      "NUMERIC_5_2": "MDk=",
+      "bigint5": 88,
+      "bigint_": 8,
+      "bigint_u": 888,
+      "binary5": "nwAAAAA=",
+      "binary_": "nw==",
+      "bit": true,
+      "bit16": "nwA=",
+      "blob_": "/w==",
+      "bool1": false,
+      "bool2": true,
+      "char5": "abc",
+      "char_": "a",
+      "date_": -354285,
+      "datetime0": 1577891410000,
+      "datetime1": 1577891410100,
+      "datetime2": 1577891410120,
+      "datetime3": 1577891410123,
+      "datetime4": 1577891410123400,
+      "datetime5": 1577891410123450,
+      "datetime6": 1577891410123456,
+      "datetime_": 1577891410000,
+      "double_": 2.34,
+      "double_10_2": 2.34,
+      "double_precision": 2.34,
+      "enum_": "x-small",
+      "float_": 1.23,
+      "float_10_2": 1.23,
+      "float_53": 1.23,
+      "int_": 9,
+      "int_u": 9999,
+      "integer5": 999,
+      "integer_": 99,
+      "json_": "{\"k1\":\"v1\"}",
+      "longblob_": "q80=",
+      "longtext_": "my-longtext",
+      "mediumblob_": "q80=",
+      "mediumint5": 11,
+      "mediumint_": 1,
+      "mediumint_u": 111,
+      "mediumtext_": "my-mediumtext",
+      "pk": 1,
+      "real_": 123.45,
+      "real_10_2": 99999.99,
+      "set_": "a",
+      "smallint5": 100,
+      "smallint_": 1000,
+      "smallint_u": 10,
+      "text_": "my-text",
+      "time0": 14706000000,
+      "time1": 14706100000,
+      "time2": 14706120000,
+      "time3": 14706123000,
+      "time4": 14706123400,
+      "time5": 14706123450,
+      "time6": 14706123456,
+      "time_": 14706000000,
+      "tinyblob_": "n5+f",
+      "tinyint1": true,
+      "tinyint1u": 1,
+      "tinyint_": 1,
+      "tinyint_def": 22,
+      "tinyint_u": 255,
+      "tinytext_": "qwerty12345",
+      "varbinary5": "n58=",
+      "varchar5": "blab",
+      "year4": 2155,
+      "year_": 1901
+    },
+    "before": null,
+    "op": "r",
+    "source": {
+      "connector": "mysql",
+      "db": "source",
+      "file": "mysql-log.000002",
+      "gtid": null,
+      "name": "dbserver1",
+      "pos": 4318,
+      "query": null,
+      "row": 0,
+      "server_id": 0,
+      "snapshot": "true",
+      "table": "customers3",
+      "thread": null,
+      "ts_ms": 0,
+      "version": "1.1.2.Final"
+    },
+    "transaction": null,
+    "ts_ms": 0
+  },
+  "schema": {
+    "fields": [
+      {
+        "field": "before",
+        "fields": [
+          {
+            "field": "pk",
+            "optional": false,
+            "type": "int64"
+          },
+          {
+            "field": "bigint5",
+            "optional": true,
+            "type": "int64"
+          },
+          {
+            "field": "bigint_",
+            "optional": true,
+            "type": "int64"
+          },
+          {
+            "field": "bigint_u",
+            "optional": true,
+            "type": "int64"
+          },
+          {
+            "field": "binary5",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "binary_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "bit",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "field": "bit16",
+            "name": "io.debezium.data.Bits",
+            "optional": true,
+            "parameters": {
+              "length": "16"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "blob_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "bool1",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "field": "bool2",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "field": "char5",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "char_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "datetime0",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime1",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime2",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime3",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime4",
+            "name": "io.debezium.time.MicroTimestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime5",
+            "name": "io.debezium.time.MicroTimestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime6",
+            "name": "io.debezium.time.MicroTimestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime_",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "date_",
+            "name": "io.debezium.time.Date",
+            "optional": true,
+            "type": "int32",
+            "version": 1
+          },
+          {
+            "field": "DECIMAL_",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "10",
+              "scale": "0"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "DECIMAL_5",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "5",
+              "scale": "0"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "DECIMAL_5_2",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "5",
+              "scale": "2"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "double_",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "double_10_2",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "double_precision",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "enum_",
+            "name": "io.debezium.data.Enum",
+            "optional": true,
+            "parameters": {
+              "allowed": "x-small,small,medium,large,x-large"
+            },
+            "type": "string",
+            "version": 1
+          },
+          {
+            "field": "float_",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "float_10_2",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "float_53",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "integer5",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "integer_",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "int_",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "int_u",
+            "optional": true,
+            "type": "int64"
+          },
+          {
+            "field": "json_",
+            "name": "io.debezium.data.Json",
+            "optional": true,
+            "type": "string",
+            "version": 1
+          },
+          {
+            "field": "longblob_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "longtext_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "mediumblob_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "mediumint5",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "mediumint_",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "mediumint_u",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "mediumtext_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "NUMERIC_",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "10",
+              "scale": "0"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "NUMERIC_5",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "5",
+              "scale": "0"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "NUMERIC_5_2",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "5",
+              "scale": "2"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "real_",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "real_10_2",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "set_",
+            "name": "io.debezium.data.EnumSet",
+            "optional": true,
+            "parameters": {
+              "allowed": "a,b,c,d"
+            },
+            "type": "string",
+            "version": 1
+          },
+          {
+            "field": "smallint5",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "smallint_",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "smallint_u",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "text_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "time0",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time1",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time2",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time3",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time4",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time5",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time6",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time_",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "tinyblob_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "tinyint1",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "field": "tinyint1u",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "tinyint_",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "tinyint_def",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "tinyint_u",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "tinytext_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "varbinary5",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "varchar5",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "year4",
+            "name": "io.debezium.time.Year",
+            "optional": true,
+            "type": "int32",
+            "version": 1
+          },
+          {
+            "field": "year_",
+            "name": "io.debezium.time.Year",
+            "optional": true,
+            "type": "int32",
+            "version": 1
+          }
+        ],
+        "name": "dbserver1.source.customers3.Value",
+        "optional": true,
+        "type": "struct"
+      },
+      {
+        "field": "after",
+        "fields": [
+          {
+            "field": "pk",
+            "optional": false,
+            "type": "int64"
+          },
+          {
+            "field": "bigint5",
+            "optional": true,
+            "type": "int64"
+          },
+          {
+            "field": "bigint_",
+            "optional": true,
+            "type": "int64"
+          },
+          {
+            "field": "bigint_u",
+            "optional": true,
+            "type": "int64"
+          },
+          {
+            "field": "binary5",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "binary_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "bit",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "field": "bit16",
+            "name": "io.debezium.data.Bits",
+            "optional": true,
+            "parameters": {
+              "length": "16"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "blob_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "bool1",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "field": "bool2",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "field": "char5",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "char_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "datetime0",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime1",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime2",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime3",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime4",
+            "name": "io.debezium.time.MicroTimestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime5",
+            "name": "io.debezium.time.MicroTimestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime6",
+            "name": "io.debezium.time.MicroTimestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "datetime_",
+            "name": "io.debezium.time.Timestamp",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "date_",
+            "name": "io.debezium.time.Date",
+            "optional": true,
+            "type": "int32",
+            "version": 1
+          },
+          {
+            "field": "DECIMAL_",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "10",
+              "scale": "0"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "DECIMAL_5",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "5",
+              "scale": "0"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "DECIMAL_5_2",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "5",
+              "scale": "2"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "double_",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "double_10_2",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "double_precision",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "enum_",
+            "name": "io.debezium.data.Enum",
+            "optional": true,
+            "parameters": {
+              "allowed": "x-small,small,medium,large,x-large"
+            },
+            "type": "string",
+            "version": 1
+          },
+          {
+            "field": "float_",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "float_10_2",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "float_53",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "integer5",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "integer_",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "int_",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "int_u",
+            "optional": true,
+            "type": "int64"
+          },
+          {
+            "field": "json_",
+            "name": "io.debezium.data.Json",
+            "optional": true,
+            "type": "string",
+            "version": 1
+          },
+          {
+            "field": "longblob_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "longtext_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "mediumblob_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "mediumint5",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "mediumint_",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "mediumint_u",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "mediumtext_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "NUMERIC_",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "10",
+              "scale": "0"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "NUMERIC_5",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "5",
+              "scale": "0"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "NUMERIC_5_2",
+            "name": "org.apache.kafka.connect.data.Decimal",
+            "optional": true,
+            "parameters": {
+              "connect.decimal.precision": "5",
+              "scale": "2"
+            },
+            "type": "bytes",
+            "version": 1
+          },
+          {
+            "field": "real_",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "real_10_2",
+            "optional": true,
+            "type": "double"
+          },
+          {
+            "field": "set_",
+            "name": "io.debezium.data.EnumSet",
+            "optional": true,
+            "parameters": {
+              "allowed": "a,b,c,d"
+            },
+            "type": "string",
+            "version": 1
+          },
+          {
+            "field": "smallint5",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "smallint_",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "smallint_u",
+            "optional": true,
+            "type": "int32"
+          },
+          {
+            "field": "text_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "time0",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time1",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time2",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time3",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time4",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time5",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time6",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "time_",
+            "name": "io.debezium.time.MicroTime",
+            "optional": true,
+            "type": "int64",
+            "version": 1
+          },
+          {
+            "field": "tinyblob_",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "tinyint1",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "field": "tinyint1u",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "tinyint_",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "tinyint_def",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "tinyint_u",
+            "optional": true,
+            "type": "int16"
+          },
+          {
+            "field": "tinytext_",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "varbinary5",
+            "optional": true,
+            "type": "bytes"
+          },
+          {
+            "field": "varchar5",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "year4",
+            "name": "io.debezium.time.Year",
+            "optional": true,
+            "type": "int32",
+            "version": 1
+          },
+          {
+            "field": "year_",
+            "name": "io.debezium.time.Year",
+            "optional": true,
+            "type": "int32",
+            "version": 1
+          }
+        ],
+        "name": "dbserver1.source.customers3.Value",
+        "optional": true,
+        "type": "struct"
+      },
+      {
+        "field": "source",
+        "fields": [
+          {
+            "field": "version",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "field": "connector",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "field": "name",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "field": "ts_ms",
+            "optional": false,
+            "type": "int64"
+          },
+          {
+            "default": "false",
+            "field": "snapshot",
+            "name": "io.debezium.data.Enum",
+            "optional": true,
+            "parameters": {
+              "allowed": "true,last,false"
+            },
+            "type": "string",
+            "version": 1
+          },
+          {
+            "field": "db",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "field": "table",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "file",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "field": "gtid",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "pos",
+            "optional": false,
+            "type": "int64"
+          },
+          {
+            "field": "query",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "field": "row",
+            "optional": false,
+            "type": "int32"
+          },
+          {
+            "field": "server_id",
+            "optional": false,
+            "type": "int64"
+          },
+          {
+            "field": "thread",
+            "optional": true,
+            "type": "int64"
+          }
+        ],
+        "name": "io.debezium.connector.mysql.Source",
+        "optional": false,
+        "type": "struct"
+      },
+      {
+        "field": "op",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "field": "ts_ms",
+        "optional": true,
+        "type": "int64"
+      },
+      {
+        "field": "transaction",
+        "fields": [
+          {
+            "field": "id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "field": "total_order",
+            "optional": false,
+            "type": "int64"
+          },
+          {
+            "field": "data_collection_order",
+            "optional": false,
+            "type": "int64"
+          }
+        ],
+        "optional": true,
+        "type": "struct"
+      }
+    ],
+    "name": "dbserver1.source.customers3.Envelope",
+    "optional": false,
+    "type": "struct"
+  }
+}

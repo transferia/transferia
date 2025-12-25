@@ -6,16 +6,16 @@ import (
 	"math"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/events"
-	yt2 "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/dataobjects"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/schema"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/table"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/events"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/dataobjects"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/schema"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/table"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -33,7 +33,7 @@ const (
 )
 
 type snapshotSource struct {
-	cfg  *yt2.YtSource
+	cfg  yt2.YtSourceModel
 	yt   yt.Client
 	txID yt.TxID
 	part *dataobjects.Part
@@ -65,12 +65,12 @@ func (s *snapshotSource) Start(ctx context.Context, target base.EventTarget) err
 	s.isDone = false
 
 	s.lgr.Debug("Starting snapshot source")
-	tbl, err := schema.Load(ctx, s.yt, s.txID, s.part.NodeID(), s.part.Name())
+	tbl, err := schema.Load(ctx, s.yt, s.txID, s.part.NodeID(), s.part.Name(), s.part.Columns())
 	if err != nil {
 		return xerrors.Errorf("error loading table schema: %w", err)
 	}
-	if s.cfg.RowIdxEnabled() {
-		schema.AddRowIdxColumn(tbl, s.cfg.RowIdxColumnName)
+	if s.cfg.GetRowIdxColumn() != "" {
+		schema.AddRowIdxColumn(tbl, s.cfg.GetRowIdxColumn())
 	}
 
 	s.lowerIdx = s.part.LowerBound()
@@ -197,7 +197,7 @@ func (s *snapshotSource) runReaders(ctx context.Context, batchSize uint64, stopC
 					if !ok {
 						return
 					}
-					if err = s.readTableRange(ctx, rng.lower, rng.upper, stopCh); err != nil {
+					if err = s.readTableRange(ctx, rng.lower, rng.upper, stopCh, s.part.Columns()); err != nil {
 						return
 					}
 				case <-stopCh:
@@ -228,7 +228,7 @@ func (s *snapshotSource) pusher(tbl table.YtTable, target base.EventTarget) {
 	partID := fmt.Sprintf("%d_%d", s.lowerIdx, s.upperIdx)
 
 	resetBatch := func(size int) {
-		batch = newEmptyBatch(tbl, size, partID, s.cfg.RowIdxColumnName)
+		batch = newEmptyBatch(tbl, size, partID, s.cfg.GetRowIdxColumn())
 		batchSize = 0
 	}
 
@@ -284,7 +284,7 @@ func (s *snapshotSource) Progress() (base.EventSourceProgress, error) {
 	return base.NewDefaultEventSourceProgress(s.isDone, s.doneCnt, s.totalCnt), nil
 }
 
-func NewSnapshotSource(cfg *yt2.YtSource, ytc yt.Client, part *dataobjects.Part,
+func NewSnapshotSource(cfg yt2.YtSourceModel, ytc yt.Client, part *dataobjects.Part,
 	lgr log.Logger, metrics *stats.SourceStats) *snapshotSource {
 	return &snapshotSource{
 		cfg:       cfg,

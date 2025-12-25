@@ -3,8 +3,8 @@ package postgres
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgtype"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func HstoreToMap(colVal string) (map[string]interface{}, error) {

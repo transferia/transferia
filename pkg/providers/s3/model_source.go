@@ -1,16 +1,19 @@
 package s3
 
 import (
-	"encoding/gob"
+	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoparser"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
+	"go.uber.org/zap/zapcore"
 )
 
 func init() {
-	gob.Register(new(S3Source))
-	model.RegisterSource(ProviderType, func() model.Source {
+	gobwrapper.Register(new(S3Source))
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(S3Source)
 	})
 }
@@ -37,72 +40,80 @@ var (
 )
 
 type S3Source struct {
-	Bucket           string
-	ConnectionConfig ConnectionConfig
-	PathPrefix       string
+	Bucket           string           `log:"true"`
+	ConnectionConfig ConnectionConfig `log:"true"`
+	PathPrefix       string           `log:"true"`
 
-	HideSystemCols bool // to hide system cols `__file_name` and `__row_index` cols from out struct
-	ReadBatchSize  int
-	InflightLimit  int64
+	HideSystemCols bool  `log:"true"` // to hide system cols `__file_name` and `__row_index` cols from out struct
+	ReadBatchSize  int   `log:"true"`
+	InflightLimit  int64 `log:"true"`
 
 	// s3 hold always single table, and TableID of such table defined by user
-	TableName      string
-	TableNamespace string
+	TableName      string `log:"true"`
+	TableNamespace string `log:"true"`
 
-	InputFormat  model.ParsingFormat
-	OutputSchema []abstract.ColSchema
+	InputFormat  model.ParsingFormat  `log:"true"`
+	OutputSchema []abstract.ColSchema `log:"true"`
 
-	AirbyteFormat string // this is for backward compatibility with airbyte. we store raw format for later parsing.
-	PathPattern   string
+	AirbyteFormat string `log:"true"` // this is for backward compatibility with airbyte. we store raw format for later parsing.
+	PathPattern   string `log:"true"`
 
-	Concurrency int64
+	Format         Format         `log:"true"`
+	EventSource    EventSource    `log:"true"`
+	UnparsedPolicy UnparsedPolicy `log:"true"`
 
-	Format         Format
-	EventSource    EventSource
-	UnparsedPolicy UnparsedPolicy
+	// Concurrency - amount of parallel goroutines into one worker on REPLICATION
+	Concurrency            int64
+	SyntheticPartitionsNum int
+	OverlapDuration        time.Duration // for LWindow & RWindow how much time we should take additionally, just in case
+	ThrottleCPDuration     time.Duration
+
+	// FetchInterval - fixed interval for fetching objects. If set to 0, exponential backoff is used
+	FetchInterval time.Duration `log:"true"`
 }
 
 type ConnectionConfig struct {
 	AccessKey        string
-	S3ForcePathStyle bool
+	S3ForcePathStyle bool `log:"true"`
 	SecretKey        model.SecretString
-	Endpoint         string
-	UseSSL           bool
-	VerifySSL        bool
-	Region           string
-	ServiceAccountID string
+	Endpoint         string `log:"true"`
+	UseSSL           bool   `log:"true"`
+	VerifySSL        bool   `log:"true"`
+	Region           string `log:"true"`
+	ServiceAccountID string `log:"true"`
 }
 
 type EventSource struct {
-	SQS    *SQS
-	SNS    *SNS
-	PubSub *PubSub
+	SQS    *SQS    `log:"true"`
+	SNS    *SNS    `log:"true"`
+	PubSub *PubSub `log:"true"`
 }
 
 type ProtoSetting struct {
 	DescFile         []byte
-	DescResourceName string
-	MessageName      string
+	DescResourceName string `log:"true"`
+	MessageName      string `log:"true"`
 
-	IncludeColumns []protoparser.ColParams
-	PrimaryKeys    []string
-	PackageType    protoparser.MessagePackageType
+	IncludeColumns []protoparser.ColParams        `log:"true"`
+	PrimaryKeys    []string                       `log:"true"`
+	PackageType    protoparser.MessagePackageType `log:"true"`
 
-	NullKeysAllowed bool
+	NullKeysAllowed    bool `log:"true"`
+	NotFillEmptyFields bool `log:"true"`
 }
 
 type Format struct {
-	CSVSetting     *CSVSetting
-	JSONLSetting   *JSONLSetting
-	ParquetSetting *ParquetSetting
-	ProtoParser    *ProtoSetting
+	CSVSetting     *CSVSetting     `log:"true"`
+	JSONLSetting   *JSONLSetting   `log:"true"`
+	ParquetSetting *ParquetSetting `log:"true"`
+	ProtoParser    *ProtoSetting   `log:"true"`
 }
 
 type (
 	SQS struct {
-		QueueName        string
-		OwnerAccountID   string
-		ConnectionConfig ConnectionConfig
+		QueueName        string           `log:"true"`
+		OwnerAccountID   string           `log:"true"`
+		ConnectionConfig ConnectionConfig `log:"true"`
 	}
 	SNS    struct{} // Will be implemented in ORION-3447
 	PubSub struct{} // Will be implemented in ORION-3448
@@ -110,20 +121,20 @@ type (
 
 type (
 	CSVSetting struct {
-		Delimiter               string
-		QuoteChar               string
-		EscapeChar              string
-		Encoding                string
-		DoubleQuote             bool
-		NewlinesInValue         bool
-		BlockSize               int64
-		AdditionalReaderOptions AdditionalOptions
-		AdvancedOptions         AdvancedOptions
+		Delimiter               string            `log:"true"`
+		QuoteChar               string            `log:"true"`
+		EscapeChar              string            `log:"true"`
+		Encoding                string            `log:"true"`
+		DoubleQuote             bool              `log:"true"`
+		NewlinesInValue         bool              `log:"true"`
+		BlockSize               int64             `log:"true"`
+		AdditionalReaderOptions AdditionalOptions `log:"true"`
+		AdvancedOptions         AdvancedOptions   `log:"true"`
 	}
 	JSONLSetting struct {
-		NewlinesInValue         bool
-		BlockSize               int64
-		UnexpectedFieldBehavior UnexpectedFieldBehavior
+		NewlinesInValue         bool                    `log:"true"`
+		BlockSize               int64                   `log:"true"`
+		UnexpectedFieldBehavior UnexpectedFieldBehavior `log:"true"`
 	}
 	ParquetSetting struct{}
 )
@@ -131,24 +142,24 @@ type (
 type AdditionalOptions struct {
 	// auto_dict_encode and auto_dict_max_cardinality check_utf8 are currently skipped for simplicity reasons
 
-	NullValues             []string `json:"null_values,omitempty"`
-	TrueValues             []string `json:"true_values,omitempty"`
-	FalseValues            []string `json:"false_values,omitempty"`
-	DecimalPoint           string   `json:"decimal_point,omitempty"`
-	StringsCanBeNull       bool     `json:"strings_can_be_null,omitempty"`        // default false
-	QuotedStringsCanBeNull bool     `json:"quoted_strings_can_be_null,omitempty"` // default true
-	IncludeColumns         []string `json:"include_columns,omitempty"`
-	IncludeMissingColumns  bool     `json:"include_missing_columns,omitempty"` // default false
-	TimestampParsers       []string `json:"timestamp_parsers,omitempty"`
+	NullValues             []string `json:"null_values,omitempty" log:"true"`
+	TrueValues             []string `json:"true_values,omitempty" log:"true"`
+	FalseValues            []string `json:"false_values,omitempty" log:"true"`
+	DecimalPoint           string   `json:"decimal_point,omitempty" log:"true"`
+	StringsCanBeNull       bool     `json:"strings_can_be_null,omitempty" log:"true"`        // default false
+	QuotedStringsCanBeNull bool     `json:"quoted_strings_can_be_null,omitempty" log:"true"` // default true
+	IncludeColumns         []string `json:"include_columns,omitempty" log:"true"`
+	IncludeMissingColumns  bool     `json:"include_missing_columns,omitempty" log:"true"` // default false
+	TimestampParsers       []string `json:"timestamp_parsers,omitempty" log:"true"`
 }
 
 type AdvancedOptions struct {
 	// bloc_size, use_threads and encoding are currently skipped for simplicity and handled separately
 
-	SkipRows                int64    `json:"skip_rows,omitempty"`
-	SkipRowsAfterNames      int64    `json:"skip_rows_after_names,omitempty"`
-	ColumnNames             []string `json:"column_names,omitempty"`
-	AutogenerateColumnNames bool     `json:"autogenerate_column_names,omitempty"` // default true
+	SkipRows                int64    `json:"skip_rows,omitempty" log:"true"`
+	SkipRowsAfterNames      int64    `json:"skip_rows_after_names,omitempty" log:"true"`
+	ColumnNames             []string `json:"column_names,omitempty" log:"true"`
+	AutogenerateColumnNames bool     `json:"autogenerate_column_names,omitempty" log:"true"` // default true
 }
 
 type UnexpectedFieldBehavior int
@@ -160,11 +171,22 @@ const (
 	Error
 )
 
+func (s *S3Source) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
+
 func (s *S3Source) GetProviderType() abstract.ProviderType {
 	return ProviderType
 }
 
 func (s *S3Source) Validate() error {
+	return nil
+}
+
+func (s *S3Source) ServiceAccountIDs() []string {
+	if s.ConnectionConfig.ServiceAccountID != "" {
+		return []string{s.ConnectionConfig.ServiceAccountID}
+	}
 	return nil
 }
 
@@ -177,6 +199,15 @@ func (s *S3Source) WithDefaults() {
 	}
 	if s.Concurrency == 0 {
 		s.Concurrency = 10
+	}
+	if s.SyntheticPartitionsNum == 0 {
+		s.SyntheticPartitionsNum = 128
+	}
+	if s.OverlapDuration == 0 {
+		s.OverlapDuration = 10 * time.Minute
+	}
+	if s.ThrottleCPDuration == 0 {
+		s.ThrottleCPDuration = time.Minute
 	}
 	s.ConnectionConfig.S3ForcePathStyle = true
 

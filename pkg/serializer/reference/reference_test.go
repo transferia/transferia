@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/serializer"
-	e2e "github.com/doublecloud/transfer/tests/canon"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/serializer"
+	e2e "github.com/transferia/transferia/tests/canon"
 	"golang.org/x/exp/slices"
 )
 
@@ -58,7 +58,7 @@ func TestSerialize(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			item := abstract.MakeRawMessage(
-				"table", time.Time{}, "topic", 42, 42, []byte("data"),
+				[]byte("stub"), "table", time.Time{}, "topic", 42, 42, []byte("data"),
 			)
 
 			data, err := test.Serializer.Serialize(&item)
@@ -252,6 +252,7 @@ func MakeChangeItems(n int) []*abstract.ChangeItem {
 	out := make([]*abstract.ChangeItem, n)
 	for i := range out {
 		item := abstract.MakeRawMessage(
+			[]byte("stub"),
 			fmt.Sprintf("table%d", i),
 			time.Time{},
 			fmt.Sprintf("topic%d", i),

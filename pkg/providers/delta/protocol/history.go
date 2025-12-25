@@ -3,10 +3,10 @@ package protocol
 import (
 	"math"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/providers/delta/action"
-	"github.com/doublecloud/transfer/pkg/providers/delta/store"
-	util_math "github.com/doublecloud/transfer/pkg/util/math"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/delta/action"
+	"github.com/transferia/transferia/pkg/providers/delta/store"
+	util_math "github.com/transferia/transferia/pkg/util/math"
 )
 
 type history struct {

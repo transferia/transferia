@@ -1,9 +1,9 @@
 package protobuf
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoparser"
-	"github.com/doublecloud/transfer/pkg/parsers/resources"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
+	"github.com/transferia/transferia/pkg/parsers/resources"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -16,10 +16,11 @@ type ParserConfigProtoLb struct {
 	PrimaryKeys    []string
 	PackageType    protoparser.MessagePackageType
 
-	NullKeysAllowed  bool
-	AddSystemColumns bool
-	SkipDedupKeys    bool
-	AddSyntheticKeys bool
+	NullKeysAllowed    bool
+	AddSystemColumns   bool
+	SkipDedupKeys      bool
+	AddSyntheticKeys   bool
+	NotFillEmptyFields bool
 }
 
 func (c *ParserConfigProtoLb) IsNewParserConfig() {}
@@ -62,13 +63,14 @@ func (c *ParserConfigProtoLb) ToProtoParserConfig(logger log.Logger) (*protopars
 		TableSplitter:      nil,
 		TimeField:          nil,
 		NullKeysAllowed:    c.NullKeysAllowed,
+		NotFillEmptyFields: c.NotFillEmptyFields,
 		AddSyntheticKeys:   c.AddSyntheticKeys,
 		AddSystemColumns:   c.AddSystemColumns,
 		SkipDedupKeys:      c.SkipDedupKeys,
 	}
 
 	if err := cfg.SetDescriptors(descFileContent, c.MessageName, c.PackageType); err != nil {
-		return nil, xerrors.Errorf("SetDescriptors error: %v", err)
+		return nil, xerrors.Errorf("SetDescriptors error: %w", err)
 	}
 
 	cfg.SetLineSplitter(c.PackageType)

@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/castx"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/util/strict"
 	"github.com/spf13/cast"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util/castx"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/strict"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -67,7 +67,7 @@ func unmarshalField(value any, colSchema *abstract.ColSchema) (any, error) {
 	case schema.TypeString:
 		result, err = strict.Expected[*json.RawMessage](value, castx.ToStringE)
 	case schema.TypeAny:
-		result, err = expectedAnyCast(value, colSchema)
+		result, err = expectedAnyCast(value)
 	default:
 		return nil, abstract.NewFatalError(xerrors.Errorf(
 			"unexpected target type %s (original type %q, value of type %T), unmarshalling is not implemented",
@@ -132,7 +132,7 @@ func handleTimestamp(value any, colSchema *abstract.ColSchema) (any, error) {
 	return result, nil
 }
 
-func expectedAnyCast(value any, colSchema *abstract.ColSchema) (any, error) {
+func expectedAnyCast(value any) (any, error) {
 	var result any
 	var err error
 

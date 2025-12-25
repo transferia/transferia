@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -14,7 +14,7 @@ import (
 type DValue struct {
 	bson.D
 	isHomo            bool // can be removed, if fallback knew it is homogeneous fallback
-	preventJSONRepack bool // remove when transfers will be gone: https://github.com/doublecloud/transfer/review/3604892/details#comment--5003594
+	preventJSONRepack bool // remove when transfers will be gone: https://github.com/transferia/transferia/review/3604892/details#comment--5003594
 }
 
 func MakeDValue(val bson.D, isHomo, preventJSONRepack bool) DValue {

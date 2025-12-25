@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // JobIndex calculates an index assigned to the current machine.

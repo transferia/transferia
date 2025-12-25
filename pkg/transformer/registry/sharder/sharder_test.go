@@ -1,14 +1,15 @@
 package sharder
 
 import (
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -125,4 +126,32 @@ func TestSharderTransformer(t *testing.T) {
 	}
 
 	canon.SaveJSON(t, result)
+}
+
+func TestSharderTransformerRandom(t *testing.T) {
+	t.Parallel()
+
+	currUUID := "9b7cef47-8e89-49b7-b7d9-38fae33f2570"
+
+	tf1, _ := filter.NewFilter(nil, []string{})
+	currColumns, _ := filter.NewFilter([]string{}, nil)
+	randomSharder := SharderTransformer{
+		Logger:        logger.Log,
+		Tables:        tf1,
+		Columns:       currColumns,
+		IsRandom:      true,
+		ShardsNum:     2,
+		uuidForRandom: currUUID,
+	}
+	result := randomSharder.Apply([]abstract.ChangeItem{
+		{Kind: "Insert", Schema: "db"},
+	})
+	require.Equal(t, 0, len(result.Errors))
+	partID := result.Transformed[0].PartID
+	require.True(t, strings.HasPrefix(partID, currUUID))
+	partID = strings.TrimPrefix(partID, currUUID)
+	require.Equal(t, '_', rune(partID[0]))
+	partID = partID[1:]
+	require.Equal(t, 1, len(partID))
+	require.True(t, partID[0] == '0' || partID[0] == '1')
 }

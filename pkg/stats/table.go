@@ -3,7 +3,7 @@ package stats
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics"
 )
 
 var cache = map[string]*TableStat{}

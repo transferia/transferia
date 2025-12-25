@@ -1,0 +1,54 @@
+title: "{{product-name}}"
+description:
+  - >-
+    <b>{{ data-transfer-name }}</b> is a tool designed for the logical transferring of data between storages. 
+    The service helps you quickly and safely perform logical migrations of your databases 
+    between other cloud platforms or local databases, and API source.
+  - >-
+    {{ data-transfer-name }} is an eventually consistent, event-driven data ingestion, synchronization, and processing service. It connects various databases and simplifies cross-system data synchronization.
+
+    {{ data-transfer-name }} bridges the gap between transactional databases and data warehouses, ensuring efficient data movement with minimal latency.
+
+  - >-
+    It supports several data transfer scenarios, with every scenario run at the logical level. This allows you to keep your source database running and
+    minimize the downtime of applications that use the service.
+
+  - >-
+    At its heart, the application follows a <strong>plugin-based architecture</strong>, enabling extensibility and modularity.
+    <img style="width: 100%" src="_assets/architecture.png" alt="alt_text" title="image_tooltip">
+    <br/>
+    The system is built around a <strong>core module</strong> that acts as the central part of the application, 
+    managing its internal logic and facilitating communication between components.
+    Users can interact with the system through either a <strong>Command-Line Interface (CLI)</strong> or via a 
+    <strong>Component Development Kit (CDK)</strong>, 
+    which serves as a library of interfaces for embedding functionality into external systems.
+meta:
+  title: "{{product-name}}"
+links:
+  - title: Get started
+    description: Create and configure your first transfer. Learn how to replicate data from an S3 bucket to ClickHouse
+    href: "getting_started.md"
+  - title: Deploy in k8s
+    description: Create and configure your first production ready transfer in k8s.
+    href: "deploy_k8s.md"
+  - title: Contributing
+    description: How to start developing {{product-name}}
+    href: "contributor-guide.md"
+  - title: Concepts
+    description: Familiarize yourself with {{product-name}} concepts.
+    href: "concepts/index.md"
+  - title: Connectors
+    description: See the list of all available connectors for {{product-name}}.
+    href: "connectors/index.md"
+  - title: Transformers
+    description: See the list of all available transformers for {{product-name}}.
+    href: "transformers/index.md"
+  - title: Integrations
+    description: See how to integrate {{product-name}} with other services
+    href: "integrations/index.md"
+  - title: Resolve issues with {{product-name}}
+    description: Follow these instructions to resolve the most common issues yourself
+    href: "transfer-self-help.md"
+  - title: Questions and answers
+    description: Find the answers to frequently asked questions
+    href: "transfer-faq.md"

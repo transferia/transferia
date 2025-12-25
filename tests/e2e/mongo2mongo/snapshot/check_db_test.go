@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	client2 "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	mongocommon "github.com/doublecloud/transfer/pkg/providers/mongo"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
+	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 const databaseName string = "db"

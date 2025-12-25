@@ -13,6 +13,7 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       version: dev
+      extra_args: '--snapshot'
 
   trigger-build-latest:
     permissions:
@@ -21,4 +22,5 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       version: latest
+      extra_args: '--snapshot'
 

@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -111,6 +111,8 @@ func (p *ParseQueue[TData]) ackLoop() {
 	}
 }
 
+const DefaultParallelism = 10
+
 func New[TData any](
 	lgr log.Logger,
 	parallelism int,
@@ -118,6 +120,9 @@ func New[TData any](
 	parseF ParseFunc[TData],
 	ackF AckFunc[TData],
 ) *ParseQueue[TData] {
+	if parallelism == 0 {
+		parallelism = DefaultParallelism
+	}
 	if parallelism < 2 {
 		parallelism = 2
 	}
@@ -144,7 +149,7 @@ func New[TData any](
 		//
 		// This is a bit of a messy situation, indeed.
 		pushCh: make(chan parseTask[TData], parallelism-2),
-		ackCh:  make(chan pushTask[TData], 1_000_000), // see: https://github.com/doublecloud/transfer/review/4480529/details#comment-6575167
+		ackCh:  make(chan pushTask[TData], 1_000_000), // see: https://github.com/transferia/transferia/review/4480529/details#comment-6575167
 
 		logger: lgr,
 

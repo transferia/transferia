@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/httpclient"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -87,7 +87,7 @@ func UploadCIBatch(
 	rd := io.TeeReader(q, st)
 
 	stats.UploadStartTime = time.Now()
-	if err := cl.Exec(context.Background(), lgr, *config.Host(), rd); err != nil {
+	if err := cl.Exec(context.Background(), lgr, config.Host(), rd); err != nil {
 		lgr.Error("Unable to insert", log.String("truncated_query", st.Sample()), log.Error(err))
 		return nil, xerrors.Errorf("error executing CH query: %w", err)
 	}

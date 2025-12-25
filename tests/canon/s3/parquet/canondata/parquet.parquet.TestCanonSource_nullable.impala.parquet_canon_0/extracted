@@ -418,11 +418,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nullable.impala.parquet"
+            "value": "a2245d6f1cae313dbb5157da2e42f12c"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1254,11 +1258,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nullable.impala.parquet"
+            "value": "a2245d6f1cae313dbb5157da2e42f12c"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1539,11 +1547,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nullable.impala.parquet"
+            "value": "a2245d6f1cae313dbb5157da2e42f12c"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

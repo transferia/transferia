@@ -4,7 +4,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type MiddlewareApplier interface {

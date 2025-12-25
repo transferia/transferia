@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/cloudevents/sdk-go/binding/format/protobuf/v2/pb"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func ChangeRegistryURL(t *testing.T, buf []byte, newURL string) []byte {

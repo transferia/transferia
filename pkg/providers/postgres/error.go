@@ -1,14 +1,15 @@
 package postgres
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
 	"github.com/jackc/pgconn"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 )
 
-var (
-	NoPrimaryKeyCode = coded.Register("postgres", "no_primary_key")
-)
+// No alias exports here; use codes from codespkg directly
+
+func init() {}
 
 type PgErrorCode string
 
@@ -18,9 +19,15 @@ const (
 	ErrcWrongObjectType              PgErrorCode = "42809"
 	ErrcRelationDoesNotExists        PgErrorCode = "42P01"
 	ErrcSchemaDoesNotExists          PgErrorCode = "3F000"
+	ErrcInvalidSnapshotIdentifier    PgErrorCode = "22023"
 	ErrcObjectNotInPrerequisiteState PgErrorCode = "55000"
 	ErrcInvalidPassword              PgErrorCode = "28P01"
 	ErrcInvalidAuthSpec              PgErrorCode = "28000"
+	ErrcDropTableWithDependencies    PgErrorCode = "2BP01"
+	ErrcGeneratedColumnWriteAttempt  PgErrorCode = "42P10"
+	ErrcTooManyConnections           PgErrorCode = "53300"
+	ErrcUndefinedFunction            PgErrorCode = "42883"
+	ErrcAdminShutdown                PgErrorCode = "57P01"
 )
 
 func IsPgError(err error, code PgErrorCode) bool {
@@ -35,7 +42,7 @@ func IsPgError(err error, code PgErrorCode) bool {
 func IsPKeyCheckError(err error) bool {
 	var codederr coded.CodedError
 	if xerrors.As(err, &codederr) {
-		return codederr.Code() == NoPrimaryKeyCode
+		return codederr.Code() == codes.PostgresNoPrimaryKeyCode
 	}
 	return false
 }

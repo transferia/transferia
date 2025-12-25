@@ -5,11 +5,41 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
+
+type txOp func(ctx context.Context, conn pgx.Tx) error
+
+func doUnderTransaction(ctx context.Context, conn *pgxpool.Pool, operation txOp, lgr log.Logger) error {
+	return doUnderTransactionWithOptions(ctx, conn, operation, pgx.TxOptions{}, lgr)
+}
+
+func doUnderTransactionWithOptions(ctx context.Context, conn *pgxpool.Pool, operation txOp, options pgx.TxOptions, lgr log.Logger) error {
+	tx, err := conn.BeginTx(ctx, options)
+	if err != nil {
+		return xerrors.Errorf("unable to begin transaction: %w", err)
+	}
+
+	if err := operation(ctx, tx); err != nil {
+		if err := tx.Rollback(ctx); err != nil {
+			lgr.Warn("Unable to rollback", log.Error(err))
+		}
+
+		return xerrors.Errorf("unable to execute operation: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return xerrors.Errorf("unable to commit transaction: %w", err)
+	}
+
+	return nil
+}
 
 // BeginTx starts a transaction for the given pool with the given options and automatically composes sufficient rollback object.
 func BeginTx(ctx context.Context, conn *pgx.Conn, options pgx.TxOptions, lgr log.Logger) (pgx.Tx, *util.Rollbacks, error) {
@@ -50,6 +80,9 @@ func BeginTxWithSnapshot(ctx context.Context, conn *pgx.Conn, options pgx.TxOpti
 	qry := fmt.Sprintf("SET TRANSACTION SNAPSHOT '%s'", snapshot)
 	if _, err := tx.Exec(ctx, qry); err != nil {
 		rollbacks.Do()
+		if IsPgError(err, ErrcInvalidSnapshotIdentifier) {
+			return nil, nil, coded.Errorf(codes.PostgresInvalidSnapshot, "failed to execute %s: %w", qry, err)
+		}
 		return nil, nil, xerrors.Errorf("failed to execute %s: %w", qry, err)
 	}
 

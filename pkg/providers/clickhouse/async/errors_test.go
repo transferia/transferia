@@ -3,14 +3,14 @@ package async
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/nop"
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/providers"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/nop"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -22,7 +22,7 @@ type testCase struct {
 
 var cases = []testCase{{
 	name:         "BrokenDecimal",
-	expectedCode: providers.DataValueError,
+	expectedCode: codes.DataValueError,
 	item: changeitem.ChangeItem{
 		Kind:         changeitem.InsertKind,
 		Table:        "decimal",
@@ -35,7 +35,7 @@ var cases = []testCase{{
 	},
 }, {
 	name:         "BoolToDecimal",
-	expectedCode: providers.UnsupportedConversion,
+	expectedCode: codes.UnsupportedConversion,
 	item: changeitem.ChangeItem{
 		Kind:         changeitem.InsertKind,
 		Table:        "decimal",

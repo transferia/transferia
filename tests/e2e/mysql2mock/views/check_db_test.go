@@ -7,13 +7,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 type testCaseParams struct {
@@ -72,7 +73,7 @@ func TestMySQLHeteroViewsInteraction(t *testing.T) {
 						helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
 					))
 				}()
-				sinker := &helpers.MockSink{PushCallback: func(items []abstract.ChangeItem) {
+				sinker := mocksink.NewMockSink(func(items []abstract.ChangeItem) error {
 					for _, item := range items {
 						if item.IsRowEvent() {
 							mutex.Lock()
@@ -80,7 +81,8 @@ func TestMySQLHeteroViewsInteraction(t *testing.T) {
 							mutex.Unlock()
 						}
 					}
-				}}
+					return nil
+				})
 				target := model.MockDestination{
 					SinkerFactory: func() abstract.Sinker { return sinker },
 					Cleanup:       model.DisabledCleanup,

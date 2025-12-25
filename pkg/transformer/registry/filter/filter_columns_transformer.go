@@ -5,10 +5,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -51,7 +53,6 @@ func (f *FilterColumnsTransformer) Apply(input []abstract.ChangeItem) abstract.T
 	errors := make([]abstract.TransformerError, 0)
 	for _, item := range input {
 		valueIndexes, filteredSchema, err := f.filterValueIndexes(item)
-		f.Logger.Debugf("Table %v: filtered indexes: %v\ncolumns names: %v", item.Table, valueIndexes, item.ColumnNames)
 		if err != nil {
 			f.Logger.Errorf("unable to filter columns indexes: %v", err)
 			errors = append(errors, abstract.TransformerError{
@@ -62,7 +63,6 @@ func (f *FilterColumnsTransformer) Apply(input []abstract.ChangeItem) abstract.T
 		}
 
 		if result, err := f.trimChangeItem(item, valueIndexes, filteredSchema); err == nil {
-			f.Logger.Debugf("Transform item for %v:\n before %v\nafter %v", item.Table, item, result)
 			transformed = append(transformed, result)
 		} else {
 			f.Logger.Errorf("unable to trim change item: %v", err)
@@ -180,8 +180,36 @@ func (f *FilterColumnsTransformer) trimChangeItem(original abstract.ChangeItem, 
 		transformed.ColumnValues[newIndex] = original.ColumnValues[origIndex]
 	}
 
-	transformed.OldKeys = copyOldKeys(&original.OldKeys)
+	transformed.OldKeys = copyAndTrimOldKeys(&original.OldKeys, filteredSchema.ColNames)
 	return transformed, nil
+}
+
+func copyAndTrimOldKeys(oldKeys *abstract.OldKeysType, filteredColumns set.Set[string]) abstract.OldKeysType {
+	newLen := 0
+	for _, keyName := range oldKeys.KeyNames {
+		if filteredColumns.Contains(keyName) {
+			newLen++
+		}
+	}
+	if newLen == len(oldKeys.KeyNames) {
+		return copyOldKeys(oldKeys)
+	}
+	trimmedOldKeys := abstract.OldKeysType{
+		KeyNames:  make([]string, 0, newLen),
+		KeyTypes:  make([]string, 0, newLen),
+		KeyValues: make([]interface{}, 0, newLen),
+	}
+	for i, keyName := range oldKeys.KeyNames {
+		if !filteredColumns.Contains(keyName) {
+			continue
+		}
+		trimmedOldKeys.KeyNames = append(trimmedOldKeys.KeyNames, oldKeys.KeyNames[i])
+		trimmedOldKeys.KeyValues = append(trimmedOldKeys.KeyValues, oldKeys.KeyValues[i])
+		if len(oldKeys.KeyTypes) == len(oldKeys.KeyNames) {
+			trimmedOldKeys.KeyTypes = append(trimmedOldKeys.KeyTypes, oldKeys.KeyTypes[i])
+		}
+	}
+	return trimmedOldKeys
 }
 
 func (f *FilterColumnsTransformer) Suitable(table abstract.TableID, schema *abstract.TableSchema) bool {
@@ -233,7 +261,7 @@ func NewFilterColumnsTransformer(config FilterColumnsConfig, lgr log.Logger) (*F
 	}
 
 	if config.Columns.IncludeColumns == nil && config.Columns.ExcludeColumns == nil {
-		return nil, xerrors.New("filter for columns cannot be empty in user defined transformation")
+		return nil, coded.Errorf(codes.FilterColumnsEmpty, "filter for columns cannot be empty in user defined transformation")
 	}
 
 	colFilter, err := NewFilter(config.Columns.IncludeColumns, config.Columns.ExcludeColumns)

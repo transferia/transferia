@@ -5,8 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -30,29 +33,36 @@ type ClickHouseShard struct {
 }
 
 var (
-	_ model.Source      = (*ChSource)(nil)
-	_ model.Describable = (*ChSource)(nil)
+	_ model.Source           = (*ChSource)(nil)
+	_ model.Describable      = (*ChSource)(nil)
+	_ model.WithConnectionID = (*ChSource)(nil)
 )
 
 type ChSource struct {
-	MdbClusterID     string `json:"ClusterID"`
-	ChClusterName    string // CH cluster from which data will be transfered. Other clusters would be ignored.
-	ShardsList       []ClickHouseShard
-	HTTPPort         int
-	NativePort       int
-	User             string
+	MdbClusterID     string            `json:"ClusterID" log:"true"`
+	ChClusterName    string            `log:"true"` // Name of the ClickHouse cluster from which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
+	ShardsList       []ClickHouseShard `log:"true"`
+	HTTPPort         int               `log:"true"`
+	NativePort       int               `log:"true"`
+	User             string            `log:"true"`
 	Password         model.SecretString
-	SSLEnabled       bool
+	SSLEnabled       bool `log:"true"`
 	PemFileContent   string
-	Database         string
-	SubNetworkID     string
-	SecurityGroupIDs []string
-	IncludeTables    []string
-	ExcludeTables    []string
-	IsHomo           bool
-	BufferSize       uint64
-	IOHomoFormat     ClickhouseIOFormat // one of - https://clickhouse.com/docs/en/interfaces/formats
+	Database         string             `log:"true"`
+	SubNetworkID     string             `log:"true"`
+	SecurityGroupIDs []string           `log:"true"`
+	IncludeTables    []string           `log:"true"`
+	ExcludeTables    []string           `log:"true"`
+	IsHomo           bool               `log:"true"`
+	BufferSize       uint64             `log:"true"`
+	IOHomoFormat     ClickhouseIOFormat `log:"true"` // one of - https://clickhouse.com/docs/en/interfaces/formats
 	RootCACertPaths  []string
+	ConnectionID     string `log:"true"`
+	UserEnabledTls   *bool  // tls config set by user explicitly
+}
+
+func (s *ChSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *ChSource) Describe() model.Doc {
@@ -167,9 +177,13 @@ func (s *ChSource) IsAbstract2(dst model.Destination) bool {
 // SinkParams
 
 type ChSourceWrapper struct {
-	Model    *ChSource
-	host     string   // host is here, bcs it needed only in SinkServer/SinkTable
-	altHosts []string // same
+	Model            *ChSource
+	host             *clickhouse.Host // host is here, bcs it needed only in SinkServer/SinkTable
+	connectionParams connectionParams
+}
+
+func (s ChSourceWrapper) GetIsSchemaMigrationDisabled() bool {
+	return false
 }
 
 func (s ChSourceWrapper) InsertSettings() InsertParams {
@@ -189,7 +203,7 @@ func (s ChSourceWrapper) Cleanup() model.CleanupType {
 }
 
 func (s ChSourceWrapper) MdbClusterID() string {
-	return s.Model.MdbClusterID
+	return s.connectionParams.ClusterID
 }
 
 func (s ChSourceWrapper) ChClusterName() string {
@@ -197,15 +211,26 @@ func (s ChSourceWrapper) ChClusterName() string {
 }
 
 func (s ChSourceWrapper) User() string {
-	return s.Model.User
+	if s.connectionParams.User == "" {
+		return s.Model.User
+	}
+	return s.connectionParams.User
 }
 
 func (s ChSourceWrapper) Password() string {
-	return string(s.Model.Password)
+	password := string(s.connectionParams.Password)
+	if password == "" {
+		password = string(s.Model.Password)
+	}
+	return password
 }
 
 func (s ChSourceWrapper) ResolvePassword() (string, error) {
-	password, err := ResolvePassword(s.MdbClusterID(), s.User(), string(s.Model.Password))
+	rawPassword := string(s.connectionParams.Password)
+	if rawPassword == "" {
+		rawPassword = string(s.Model.Password)
+	}
+	password, err := ResolvePassword(s.MdbClusterID(), s.User(), rawPassword)
 	return password, err
 }
 
@@ -217,20 +242,15 @@ func (s ChSourceWrapper) Partition() string {
 	return ""
 }
 
-func (s ChSourceWrapper) Host() *string {
-	return &s.host
+func (s ChSourceWrapper) Host() *clickhouse.Host {
+	if s.host == nil && len(s.AltHosts()) > 0 {
+		return s.AltHosts()[0]
+	}
+	return s.host
 }
 
 func (s ChSourceWrapper) SSLEnabled() bool {
-	return s.Model.SSLEnabled || s.MdbClusterID() != ""
-}
-
-func (s ChSourceWrapper) HTTPPort() int {
-	return s.Model.HTTPPort
-}
-
-func (s ChSourceWrapper) NativePort() int {
-	return s.Model.NativePort
+	return s.Model.SSLEnabled || s.MdbClusterID() != "" || s.connectionParams.Secure
 }
 
 func (s ChSourceWrapper) TTL() string {
@@ -265,12 +285,8 @@ func (s ChSourceWrapper) SystemColumnsFirst() bool {
 	return false
 }
 
-func (s ChSourceWrapper) AltHosts() []string {
-	return s.altHosts
-}
-
-func (s ChSourceWrapper) RetryCount() int {
-	return 10
+func (s ChSourceWrapper) AltHosts() []*clickhouse.Host {
+	return s.connectionParams.Hosts
 }
 
 func (s ChSourceWrapper) UseSchemaInTableName() bool {
@@ -301,12 +317,8 @@ func (s ChSourceWrapper) Rotation() *model.RotatorConfig {
 	return nil
 }
 
-func (s ChSourceWrapper) Shards() map[string][]string {
-	shardsMap := map[string][]string{}
-	for _, shard := range s.Model.ShardsList {
-		shardsMap[shard.Name] = shard.Hosts
-	}
-	return shardsMap
+func (s ChSourceWrapper) Shards() map[string][]*clickhouse.Host {
+	return s.connectionParams.Shards
 }
 
 func (s ChSourceWrapper) ColumnToShardName() map[string]string {
@@ -314,35 +326,44 @@ func (s ChSourceWrapper) ColumnToShardName() map[string]string {
 }
 
 func (s ChSourceWrapper) PemFileContent() string {
+	if s.connectionParams.PemFileContent != "" {
+		return s.connectionParams.PemFileContent
+	}
 	return s.Model.PemFileContent
 }
 
-func (s ChSourceWrapper) MakeChildServerParams(host string) ChSinkServerParams {
+func (s ChSourceWrapper) GetConnectionID() string {
+	return s.Model.GetConnectionID()
+}
+
+func (s ChSourceWrapper) MakeChildServerParams(host *clickhouse.Host) ChSinkServerParams {
 	newChSource := *s.Model
 	newChSourceWrapper := ChSourceWrapper{
-		Model:    &newChSource,
-		host:     host,
-		altHosts: s.altHosts,
+		Model:            &newChSource,
+		host:             host,
+		connectionParams: s.connectionParams,
 	}
 	return newChSourceWrapper
 }
 
-func (s ChSourceWrapper) MakeChildShardParams(altHosts []string) ChSinkShardParams {
+func (s ChSourceWrapper) MakeChildShardParams(altHosts []*clickhouse.Host) ChSinkShardParams {
 	newChSource := *s.Model
 	newChSourceWrapper := ChSourceWrapper{
-		Model:    &newChSource,
-		host:     s.host,
-		altHosts: altHosts,
+		Model:            &newChSource,
+		host:             s.host,
+		connectionParams: s.connectionParams,
 	}
+
+	newChSourceWrapper.connectionParams.Hosts = altHosts
+
 	return newChSourceWrapper
 }
 
-func (s ChSourceWrapper) SetShards(shards map[string][]string) {
-	s.Model.ShardsList = []ClickHouseShard{}
-	for shardName, hosts := range shards {
-		s.Model.ShardsList = append(s.Model.ShardsList, ClickHouseShard{
-			Name:  shardName,
-			Hosts: hosts,
-		})
-	}
+func (s ChSourceWrapper) SetShards(shards map[string][]*clickhouse.Host) {
+	s.connectionParams.Shards = make(map[string][]*clickhouse.Host)
+	s.connectionParams.SetShards(shards)
+}
+
+func (s *ChSource) GetConnectionID() string {
+	return s.ConnectionID
 }

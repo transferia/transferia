@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/stats"
 )
 
 var (
@@ -45,7 +45,7 @@ func TestCanonFetcherData(t *testing.T) {
 func runB(b *testing.B, data []byte, limit int) {
 	fetcher := new(ChangeItemsFetcher)
 	stubData := &stubRows{iter: 0, limit: limit}
-	require.NoError(b, json.Unmarshal(fetcherData, stubData))
+	require.NoError(b, json.Unmarshal(data, stubData))
 	stubData.init()
 	fetcher.connInfo = pgtype.NewConnInfo()
 	fetcher.parseSchema = stubData.ParseSchema

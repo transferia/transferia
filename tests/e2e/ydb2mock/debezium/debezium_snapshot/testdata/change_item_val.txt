@@ -11,13 +11,14 @@
                 "value": "ew=="
             },
             "Float_": 1.1,
-            "Int8_": 1,
             "Int16_": 2,
             "Int32_": 3,
             "Int64_": 4,
+            "Int8_": 1,
             "Interval_": 123000,
             "JsonDocument_": "{}",
             "Json_": "{}",
+            "Uuid_": "6af014ea-29dd-401c-a7e3-68a58305f4fb",
             "String_": "AQ==",
             "Timestamp_": 1580637742000000,
             "Uint16_": 6,
@@ -35,420 +36,354 @@
             "lsn": 0,
             "name": "fullfillment",
             "schema": "",
-            "snapshot": "true",
             "table": "dectest/timmyb32r-test",
-            "ts_ms": 1655749575794,
+            "ts_ms": 0,
             "txId": 0,
             "version": "1.1.2.Final",
             "xmin": null
         },
         "transaction": null,
-        "ts_ms": 1655749575794
+        "ts_ms": 0
     },
     "schema": {
-        "fields": [
-            {
-                "field": "before",
-                "fields": [
-                    {
-                        "field": "id",
-                        "optional": false,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "Bool_",
-                        "optional": true,
-                        "type": "boolean"
-                    },
-                    {
-                        "field": "Int8_",
-                        "optional": true,
-                        "type": "int8"
-                    },
-                    {
-                        "field": "Int16_",
-                        "optional": true,
-                        "type": "int16"
-                    },
-                    {
-                        "field": "Int32_",
-                        "optional": true,
-                        "type": "int32"
-                    },
-                    {
-                        "field": "Int64_",
-                        "optional": true,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "Uint8_",
-                        "optional": true,
-                        "type": "int8"
-                    },
-                    {
-                        "field": "Uint16_",
-                        "optional": true,
-                        "type": "int16"
-                    },
-                    {
-                        "field": "Uint32_",
-                        "optional": true,
-                        "type": "int32"
-                    },
-                    {
-                        "field": "Uint64_",
-                        "optional": true,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "Float_",
-                        "optional": true,
-                        "type": "float"
-                    },
-                    {
-                        "field": "Double_",
-                        "optional": true,
-                        "type": "double"
-                    },
-                    {
-                        "field": "Decimal_",
-                        "name": "org.apache.kafka.connect.data.Decimal",
-                        "optional": true,
-                        "parameters": {
-                            "scale": "9"
-                        },
-                        "type": "bytes",
-                        "version": 1
-                    },
-                    {
-                        "doc": "Variable scaled decimal",
-                        "field": "DyNumber_",
-                        "fields": [
-                            {
-                                "field": "scale",
-                                "optional": false,
-                                "type": "int32"
-                            },
-                            {
-                                "field": "value",
-                                "optional": false,
-                                "type": "bytes"
-                            }
-                        ],
-                        "name": "io.debezium.data.VariableScaleDecimal",
-                        "optional": true,
-                        "type": "struct",
-                        "version": 1
-                    },
-                    {
-                        "field": "String_",
-                        "optional": true,
-                        "type": "bytes"
-                    },
-                    {
-                        "field": "Utf8_",
-                        "optional": true,
-                        "type": "string"
-                    },
-                    {
-                        "field": "Json_",
-                        "name": "io.debezium.data.Json",
-                        "optional": true,
-                        "type": "string",
-                        "version": 1
-                    },
-                    {
-                        "field": "JsonDocument_",
-                        "name": "io.debezium.data.Json",
-                        "optional": true,
-                        "type": "string",
-                        "version": 1
-                    },
-                    {
-                        "field": "Date_",
-                        "name": "io.debezium.time.Date",
-                        "optional": true,
-                        "type": "int32",
-                        "version": 1
-                    },
-                    {
-                        "field": "Datetime_",
-                        "name": "io.debezium.time.Timestamp",
-                        "optional": true,
-                        "type": "int64",
-                        "version": 1
-                    },
-                    {
-                        "field": "Timestamp_",
-                        "name": "io.debezium.time.MicroTimestamp",
-                        "optional": true,
-                        "type": "int64",
-                        "version": 1
-                    },
-                    {
-                        "field": "Interval_",
-                        "name": "io.debezium.time.MicroDuration",
-                        "optional": true,
-                        "type": "int64",
-                        "version": 1
-                    }
-                ],
-                "name": "fullfillment..dectest/timmyb32r-test.Value",
+        "fields": [{
+            "field": "before",
+            "fields": [{
+                "doc": "Variable scaled decimal",
+                "field": "DyNumber_",
+                "fields": [{
+                    "field": "scale",
+                    "optional": false,
+                    "type": "int32"
+                }, {
+                    "field": "value",
+                    "optional": false,
+                    "type": "bytes"
+                }],
+                "name": "io.debezium.data.VariableScaleDecimal",
                 "optional": true,
-                "type": "struct"
-            },
-            {
-                "field": "after",
-                "fields": [
-                    {
-                        "field": "id",
-                        "optional": false,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "Bool_",
-                        "optional": true,
-                        "type": "boolean"
-                    },
-                    {
-                        "field": "Int8_",
-                        "optional": true,
-                        "type": "int8"
-                    },
-                    {
-                        "field": "Int16_",
-                        "optional": true,
-                        "type": "int16"
-                    },
-                    {
-                        "field": "Int32_",
-                        "optional": true,
-                        "type": "int32"
-                    },
-                    {
-                        "field": "Int64_",
-                        "optional": true,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "Uint8_",
-                        "optional": true,
-                        "type": "int8"
-                    },
-                    {
-                        "field": "Uint16_",
-                        "optional": true,
-                        "type": "int16"
-                    },
-                    {
-                        "field": "Uint32_",
-                        "optional": true,
-                        "type": "int32"
-                    },
-                    {
-                        "field": "Uint64_",
-                        "optional": true,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "Float_",
-                        "optional": true,
-                        "type": "float"
-                    },
-                    {
-                        "field": "Double_",
-                        "optional": true,
-                        "type": "double"
-                    },
-                    {
-                        "field": "Decimal_",
-                        "name": "org.apache.kafka.connect.data.Decimal",
-                        "optional": true,
-                        "parameters": {
-                            "scale": "9"
-                        },
-                        "type": "bytes",
-                        "version": 1
-                    },
-                    {
-                        "doc": "Variable scaled decimal",
-                        "field": "DyNumber_",
-                        "fields": [
-                            {
-                                "field": "scale",
-                                "optional": false,
-                                "type": "int32"
-                            },
-                            {
-                                "field": "value",
-                                "optional": false,
-                                "type": "bytes"
-                            }
-                        ],
-                        "name": "io.debezium.data.VariableScaleDecimal",
-                        "optional": true,
-                        "type": "struct",
-                        "version": 1
-                    },
-                    {
-                        "field": "String_",
-                        "optional": true,
-                        "type": "bytes"
-                    },
-                    {
-                        "field": "Utf8_",
-                        "optional": true,
-                        "type": "string"
-                    },
-                    {
-                        "field": "Json_",
-                        "name": "io.debezium.data.Json",
-                        "optional": true,
-                        "type": "string",
-                        "version": 1
-                    },
-                    {
-                        "field": "JsonDocument_",
-                        "name": "io.debezium.data.Json",
-                        "optional": true,
-                        "type": "string",
-                        "version": 1
-                    },
-                    {
-                        "field": "Date_",
-                        "name": "io.debezium.time.Date",
-                        "optional": true,
-                        "type": "int32",
-                        "version": 1
-                    },
-                    {
-                        "field": "Datetime_",
-                        "name": "io.debezium.time.Timestamp",
-                        "optional": true,
-                        "type": "int64",
-                        "version": 1
-                    },
-                    {
-                        "field": "Timestamp_",
-                        "name": "io.debezium.time.MicroTimestamp",
-                        "optional": true,
-                        "type": "int64",
-                        "version": 1
-                    },
-                    {
-                        "field": "Interval_",
-                        "name": "io.debezium.time.MicroDuration",
-                        "optional": true,
-                        "type": "int64",
-                        "version": 1
-                    }
-                ],
-                "name": "fullfillment..dectest/timmyb32r-test.Value",
+                "type": "struct",
+                "version": 1
+            }, {
+                "field": "Bool_",
                 "optional": true,
-                "type": "struct"
-            },
-            {
-                "field": "source",
-                "fields": [
-                    {
-                        "field": "version",
-                        "optional": false,
-                        "type": "string"
-                    },
-                    {
-                        "field": "connector",
-                        "optional": false,
-                        "type": "string"
-                    },
-                    {
-                        "field": "name",
-                        "optional": false,
-                        "type": "string"
-                    },
-                    {
-                        "field": "ts_ms",
-                        "optional": false,
-                        "type": "int64"
-                    },
-                    {
-                        "default": "false",
-                        "field": "snapshot",
-                        "name": "io.debezium.data.Enum",
-                        "optional": true,
-                        "parameters": {
-                            "allowed": "true,last,false"
-                        },
-                        "type": "string",
-                        "version": 1
-                    },
-                    {
-                        "field": "db",
-                        "optional": false,
-                        "type": "string"
-                    },
-                    {
-                        "field": "schema",
-                        "optional": false,
-                        "type": "string"
-                    },
-                    {
-                        "field": "table",
-                        "optional": false,
-                        "type": "string"
-                    },
-                    {
-                        "field": "txId",
-                        "optional": true,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "lsn",
-                        "optional": true,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "xmin",
-                        "optional": true,
-                        "type": "int64"
-                    }
-                ],
-                "name": "io.debezium.connector.postgresql.Source",
-                "optional": false,
-                "type": "struct"
-            },
-            {
-                "field": "op",
-                "optional": false,
-                "type": "string"
-            },
-            {
-                "field": "ts_ms",
+                "type": "boolean"
+            }, {
+                "field": "Date_",
+                "name": "io.debezium.time.Date",
+                "optional": true,
+                "type": "int32",
+                "version": 1
+            }, {
+                "field": "Datetime_",
+                "name": "io.debezium.time.Timestamp",
+                "optional": true,
+                "type": "int64",
+                "version": 1
+            }, {
+                "field": "Decimal_",
+                "name": "org.apache.kafka.connect.data.Decimal",
+                "optional": true,
+                "parameters": {
+                    "connect.decimal.precision": "22",
+                    "scale": "9"
+                },
+                "type": "bytes",
+                "version": 1
+            }, {
+                "field": "Double_",
+                "optional": true,
+                "type": "double"
+            }, {
+                "field": "Float_",
+                "optional": true,
+                "type": "float"
+            }, {
+                "field": "Int16_",
+                "optional": true,
+                "type": "int16"
+            }, {
+                "field": "Int32_",
+                "optional": true,
+                "type": "int32"
+            }, {
+                "field": "Int64_",
                 "optional": true,
                 "type": "int64"
-            },
-            {
-                "field": "transaction",
-                "fields": [
-                    {
-                        "field": "id",
-                        "optional": false,
-                        "type": "string"
-                    },
-                    {
-                        "field": "total_order",
-                        "optional": false,
-                        "type": "int64"
-                    },
-                    {
-                        "field": "data_collection_order",
-                        "optional": false,
-                        "type": "int64"
-                    }
-                ],
+            }, {
+                "field": "Int8_",
                 "optional": true,
-                "type": "struct"
-            }
-        ],
+                "type": "int8"
+            }, {
+                "field": "Interval_",
+                "name": "io.debezium.time.MicroDuration",
+                "optional": true,
+                "type": "int64",
+                "version": 1
+            }, {
+                "field": "JsonDocument_",
+                "name": "io.debezium.data.Json",
+                "optional": true,
+                "type": "string",
+                "version": 1
+            }, {
+                "field": "Json_",
+                "name": "io.debezium.data.Json",
+                "optional": true,
+                "type": "string",
+                "version": 1
+            }, {
+                "field": "Uuid_",
+                "optional": true,
+                "type": "string"
+            }, {
+                "field": "String_",
+                "optional": true,
+                "type": "bytes"
+            }, {
+                "field": "Timestamp_",
+                "name": "io.debezium.time.MicroTimestamp",
+                "optional": true,
+                "type": "int64",
+                "version": 1
+            }, {
+                "field": "Uint16_",
+                "optional": true,
+                "type": "int16"
+            }, {
+                "field": "Uint32_",
+                "optional": true,
+                "type": "int32"
+            }, {
+                "field": "Uint64_",
+                "optional": true,
+                "type": "int64"
+            }, {
+                "field": "Uint8_",
+                "optional": true,
+                "type": "int8"
+            }, {
+                "field": "Utf8_",
+                "optional": true,
+                "type": "string"
+            }, {
+                "field": "id",
+                "optional": false,
+                "type": "int64"
+            }],
+            "name": "fullfillment..dectest/timmyb32r-test.Value",
+            "optional": true,
+            "type": "struct"
+        }, {
+            "field": "after",
+            "fields": [{
+                "doc": "Variable scaled decimal",
+                "field": "DyNumber_",
+                "fields": [{
+                    "field": "scale",
+                    "optional": false,
+                    "type": "int32"
+                }, {
+                    "field": "value",
+                    "optional": false,
+                    "type": "bytes"
+                }],
+                "name": "io.debezium.data.VariableScaleDecimal",
+                "optional": true,
+                "type": "struct",
+                "version": 1
+            }, {
+                "field": "Bool_",
+                "optional": true,
+                "type": "boolean"
+            }, {
+                "field": "Date_",
+                "name": "io.debezium.time.Date",
+                "optional": true,
+                "type": "int32",
+                "version": 1
+            }, {
+                "field": "Datetime_",
+                "name": "io.debezium.time.Timestamp",
+                "optional": true,
+                "type": "int64",
+                "version": 1
+            }, {
+                "field": "Decimal_",
+                "name": "org.apache.kafka.connect.data.Decimal",
+                "optional": true,
+                "parameters": {
+                    "connect.decimal.precision": "22",
+                    "scale": "9"
+                },
+                "type": "bytes",
+                "version": 1
+            }, {
+                "field": "Double_",
+                "optional": true,
+                "type": "double"
+            }, {
+                "field": "Float_",
+                "optional": true,
+                "type": "float"
+            }, {
+                "field": "Int16_",
+                "optional": true,
+                "type": "int16"
+            }, {
+                "field": "Int32_",
+                "optional": true,
+                "type": "int32"
+            }, {
+                "field": "Int64_",
+                "optional": true,
+                "type": "int64"
+            }, {
+                "field": "Int8_",
+                "optional": true,
+                "type": "int8"
+            }, {
+                "field": "Interval_",
+                "name": "io.debezium.time.MicroDuration",
+                "optional": true,
+                "type": "int64",
+                "version": 1
+            }, {
+                "field": "JsonDocument_",
+                "name": "io.debezium.data.Json",
+                "optional": true,
+                "type": "string",
+                "version": 1
+            }, {
+                "field": "Json_",
+                "name": "io.debezium.data.Json",
+                "optional": true,
+                "type": "string",
+                "version": 1
+            }, {
+                "field": "Uuid_",
+                "optional": true,
+                "type": "string"
+            }, {
+                "field": "String_",
+                "optional": true,
+                "type": "bytes"
+            }, {
+                "field": "Timestamp_",
+                "name": "io.debezium.time.MicroTimestamp",
+                "optional": true,
+                "type": "int64",
+                "version": 1
+            }, {
+                "field": "Uint16_",
+                "optional": true,
+                "type": "int16"
+            }, {
+                "field": "Uint32_",
+                "optional": true,
+                "type": "int32"
+            }, {
+                "field": "Uint64_",
+                "optional": true,
+                "type": "int64"
+            }, {
+                "field": "Uint8_",
+                "optional": true,
+                "type": "int8"
+            }, {
+                "field": "Utf8_",
+                "optional": true,
+                "type": "string"
+            }, {
+                "field": "id",
+                "optional": false,
+                "type": "int64"
+            }],
+            "name": "fullfillment..dectest/timmyb32r-test.Value",
+            "optional": true,
+            "type": "struct"
+        }, {
+            "field": "source",
+            "fields": [{
+                "default": "false",
+                "field": "snapshot",
+                "name": "io.debezium.data.Enum",
+                "optional": true,
+                "parameters": {
+                    "allowed": "true,last,false"
+                },
+                "type": "string",
+                "version": 1
+            }, {
+                "field": "connector",
+                "optional": false,
+                "type": "string"
+            }, {
+                "field": "db",
+                "optional": false,
+                "type": "string"
+            }, {
+                "field": "lsn",
+                "optional": true,
+                "type": "int64"
+            }, {
+                "field": "name",
+                "optional": false,
+                "type": "string"
+            }, {
+                "field": "schema",
+                "optional": false,
+                "type": "string"
+            }, {
+                "field": "table",
+                "optional": false,
+                "type": "string"
+            }, {
+                "field": "ts_ms",
+                "optional": false,
+                "type": "int64"
+            }, {
+                "field": "txId",
+                "optional": true,
+                "type": "int64"
+            }, {
+                "field": "version",
+                "optional": false,
+                "type": "string"
+            }, {
+                "field": "xmin",
+                "optional": true,
+                "type": "int64"
+            }],
+            "name": "io.debezium.connector.postgresql.Source",
+            "optional": false,
+            "type": "struct"
+        }, {
+            "field": "op",
+            "optional": false,
+            "type": "string"
+        }, {
+            "field": "ts_ms",
+            "optional": true,
+            "type": "int64"
+        }, {
+            "field": "transaction",
+            "fields": [{
+                "field": "data_collection_order",
+                "optional": false,
+                "type": "int64"
+            }, {
+                "field": "id",
+                "optional": false,
+                "type": "string"
+            }, {
+                "field": "total_order",
+                "optional": false,
+                "type": "int64"
+            }],
+            "optional": true,
+            "type": "struct"
+        }],
         "name": "fullfillment..dectest/timmyb32r-test.Envelope",
         "optional": false,
         "type": "struct"

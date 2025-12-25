@@ -131,11 +131,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/delta_encoding_required_column.parquet"
+            "value": "77fa55e9d201549bc3f10cb7c1fc45c6"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -522,11 +526,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/delta_encoding_required_column.parquet"
+            "value": "77fa55e9d201549bc3f10cb7c1fc45c6"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -913,11 +921,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/delta_encoding_required_column.parquet"
+            "value": "77fa55e9d201549bc3f10cb7c1fc45c6"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

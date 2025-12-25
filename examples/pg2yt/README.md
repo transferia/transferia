@@ -9,31 +9,42 @@ Also we will run end to end docker compose sample with CDC real-time replication
 
 ## Architecture Diagram
 
-```plaintext
-+------------------+         
-|                  |         +--------+---------+
-|    Postgres      | <------ |   Load Generator |  # Generate random CRUD load
-|                  |         +--------+---------+
-+--------+---------+
-         |
-         | (CRUD Operations)
-         |
-         v
-+--------+---------+
-|                  |
-|   TRCLI          | <------ Copy and Replicates Data
-|  (CDC from PGSQL)|
-|                  |
-+--------+---------+
-         |
-         |
-         v
-+--------+---------+
-|                  |
-|     YTSaurus     | <------ Store data in with realtime updats
-|                  |
-+--------+---------+
+Here's an updated Mermaid diagram with a structure and flow more similar to the visual style in the referenced example:
+
+```mermaid
+graph LR
+    subgraph Source
+        A[Postgres]
+    end
+
+    subgraph Load_Generation
+        B[Load Generator]
+    end
+
+    subgraph TRCLI
+        C[Replication from PG]
+    end
+
+    subgraph Destination
+        D[YTSaurus]
+    end
+
+    B -- Generate random CRUD load --> A
+    A -- CRUD Operations --> C
+    C -- Replicates Data --> D
+
+    classDef source fill:#dff,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+    classDef load fill:#ffefaa,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+    classDef replication fill:#aaf,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+    classDef destination fill:#afa,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+
+    class A source
+    class B load
+    class C replication
+    class D destination
 ```
+
+This diagram introduces `subgraph` elements for grouping, rounded boxes, and adjusted colors to resemble the style and structure of the reference image. Let me know if further adjustments are needed!
 
 ## Overview
 
@@ -61,7 +72,7 @@ Also we will run end to end docker compose sample with CDC real-time replication
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/doublecloud/transfer
+   git clone https://github.com/transferia/transferia
    cd transfer/examples/pg2yt
    ```
 

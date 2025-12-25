@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	ytprovider "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	ytprovider "github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -82,7 +83,7 @@ func (s *Storage) LoadTable(ctx context.Context, t abstract.TableDescription, pu
 	st := util.GetTimestampFromContextOrNow(ctx)
 
 	tablePath := ytprovider.SafeChild(ypath.Path(s.path), getTableName(t))
-	partID := t.PartID()
+	partID := t.GeneratePartID()
 
 	var scheme schema.Schema
 	if err := s.ytClient.GetNode(ctx, tablePath.Attr("schema"), &scheme, nil); err != nil {
@@ -119,21 +120,22 @@ func (s *Storage) LoadTable(ctx context.Context, t abstract.TableDescription, pu
 			vals[i] = restore(r[colName], scheme.Columns[i])
 		}
 		changes = append(changes, abstract.ChangeItem{
-			ID:           0,
-			LSN:          0,
-			CommitTime:   uint64(st.UnixNano()),
-			Counter:      0,
-			Kind:         abstract.InsertKind,
-			Schema:       "",
-			Table:        getTableName(t),
-			PartID:       partID,
-			ColumnNames:  cols,
-			ColumnValues: vals,
-			TableSchema:  tableSchema,
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(util.DeepSizeof(vals)),
+			ID:               0,
+			LSN:              0,
+			CommitTime:       uint64(st.UnixNano()),
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           "",
+			Table:            getTableName(t),
+			PartID:           partID,
+			ColumnNames:      cols,
+			ColumnValues:     vals,
+			TableSchema:      tableSchema,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.RawEventSize(util.DeepSizeof(vals)),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		})
 		if wrapAroundIdx == 10000 {
 			if err := pusher(changes); err != nil {
@@ -272,18 +274,24 @@ func (s *Storage) TableExists(table abstract.TableID) (bool, error) {
 }
 
 func NewStorage(config *ytprovider.YtStorageParams) (*Storage, error) {
-	ytConfig := yt.Config{
-		Proxy:                 config.Cluster,
-		Logger:                nil,
-		Token:                 config.Token,
-		AllowRequestsFromJob:  true,
-		DisableProxyDiscovery: config.DisableProxyDiscovery,
+	var ytClient yt.Client
+	var err error
+	if config.ConnParams != nil {
+		ytClient, err = ytclient.FromConnParams(config.ConnParams, nil)
+	} else {
+		ytConfig := yt.Config{
+			Proxy:                 config.Cluster,
+			Logger:                nil,
+			Token:                 config.Token,
+			AllowRequestsFromJob:  true,
+			DisableProxyDiscovery: config.DisableProxyDiscovery,
+		}
+		ytClient, err = ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &ytConfig)
 	}
-	ytClient, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &ytConfig)
+
 	if err != nil {
 		return nil, err
 	}
-
 	return &Storage{
 		path:     config.Path,
 		ytClient: ytClient,

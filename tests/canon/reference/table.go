@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -85,7 +85,7 @@ func Table() []abstract.ChangeItem {
 		//{ColumnName: "t_yson", DataType: schema.Optional{Item: schema.TypeAny}},
 		//{ ColumnName: "t_decimal"},
 	})
-	colNames := slices.Map(cols.Columns(), func(colSchema abstract.ColSchema) string {
+	colNames := yslices.Map(cols.Columns(), func(colSchema abstract.ColSchema) string {
 		return colSchema.ColumnName
 	})
 	inRow := Row{

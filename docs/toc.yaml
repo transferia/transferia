@@ -1,0 +1,158 @@
+name: {{product-name}}
+items:
+  - name: Overview
+    href: index.yaml
+  - name: Get started
+    href: getting_started.md
+  - name: Deploy in K8S
+    href: deploy_k8s.md
+  - name: Architecture Overview
+    href: architecture-overview.md
+
+  - name: Contributor Guide
+    items:
+      - name: Getting Started
+        href: contributor-guide/getting-started.md
+      - name: Architecture
+        href: contributor-guide/architecture.md
+      - name: Development
+        href: contributor-guide/development.md
+      - name: Core Concepts
+        href: contributor-guide/core-concepts.md
+      - name: Advanced Topics
+        href: contributor-guide/advanced.md
+      - name: Data Loading
+        href: contributor-guide/data-loading.md
+      - name: Plugins
+        href: contributor-guide/plugins.md
+      - name: Transformers
+        href: contributor-guide/transformers.md
+
+  - name: Concepts
+    items:
+      - name: All concepts
+        href: concepts/index.md
+      - name: Data Model
+        href: concepts/data-model.md
+      - name: Data Integrity
+        href: concepts/data-integrity.md
+      - name: Data type system
+        href: concepts/data-type-system.md
+      - name: Extensibility
+        href: concepts/extensibility.md
+      - name: Transferia type system
+        href: concepts/transfer-types.md
+      - name: Transformations
+        href: concepts/transformations.md
+      - name: Runtimes
+        href: concepts/runtimes.md
+      - name: Replication Techniques
+        href: concepts/replication-techniques.md
+      - name: Monitoring and Alerting
+        href: concepts/monitoring-alerting.md
+      - name: Scaling
+        href: concepts/scaling.md
+      - name: Schema Management
+        href: concepts/schema-management.md
+      - name: Logs
+        href: concepts/logs.md
+      - name: Testing
+        href: concepts/testing.md
+
+  - name: Use Cases
+    items:
+      - name: Data Warehousing
+        href: use-cases/data-warehousing.md
+      - name: Log Delivery
+        href: use-cases/log-delivery.md
+      - name: Data Migration
+        href: use-cases/data-migration.md
+      - name: Event-Driven Updates
+        href: use-cases/event-driven-updates.md
+
+  - name: Step-by-step instructions
+    items:
+      - name: All instructions
+        href: step-by-step/index.md
+      - name: Airbyte compatibility
+        href: step-by-step/airbyte.md
+      - name: Postgres to YTsaurus
+        href: step-by-step/pg2yt.md
+
+  - name: Connectors
+    items:
+      - name: Overview
+        href: connectors/index.md
+      - name: ClickHouse
+        href: connectors/clickhouse.md
+      - name: Apache Kafka
+        href: connectors/kafka.md
+      - name: PostgreSQL
+        href: connectors/postgresql.md
+      - name: Airbyte compatibility
+        href: connectors/airbyte.md
+      - name: Delta Lake
+        href: connectors/delta.md
+      - name: MySQL
+        href: connectors/mysql.md
+      - name: S3-compatible Object Storage
+        href: connectors/object-storage.md
+      - name: MongoDB
+        href: connectors/mongodb.md
+      - name: ElasticSearch
+        href: connectors/elasticsearch.md
+      - name: OpenSearch
+        href: connectors/opensearch.md
+      - name: Kinesis Data Streams
+        href: connectors/kinesis.md
+      - name: YTSaurus
+        href: connectors/ytsaurus.md
+
+  - name: Transformers
+    items:
+      - name: Overview
+        href: transformers/index.md
+      - name: SQL
+        href: transformers/sql.md
+      - name: Convert to string
+        href: transformers/convert_to_string.md
+      - name: DBT
+        href: transformers/dbt.md
+      - name: Filter Columns
+        href: transformers/filter_columns.md
+      - name: Lambda
+        href: transformers/lambda.md
+      - name: Mask Field
+        href: transformers/mask_field.md
+      - name: Group Doc CDC
+        href: transformers/raw_cdc_doc_grouper.md
+      - name: Group Doc
+        href: transformers/raw_doc_grouper.md
+      - name: Rename Table
+        href: transformers/rename_tables.md
+      - name: Replace PKey
+        href: transformers/replace_primary_key.md
+
+  - name: Integrations
+    items:
+      - name: All integrations
+        href: integrations/index.md
+      - name: Connect Prometheus to Transferia
+        href: integrations/connect-prometheus-to-transfer.md
+
+  - name: Plans
+    items:
+      - name: Overview
+        href: roadmap/index.md
+      - name: "Roadmap 2024"
+        href: roadmap/roadmap_2024.md
+      - name: "Roadmap 2025"
+        href: roadmap/roadmap_2025.md
+  - name: Contributing
+    href: contributor-guide.md
+  - name: Resolve issues with Transferia
+    href: transfer-self-help.md
+  - name: Questions and answers
+    href: transfer-faq.md
+  - name: Benchmarking
+    href: benchmarks.md

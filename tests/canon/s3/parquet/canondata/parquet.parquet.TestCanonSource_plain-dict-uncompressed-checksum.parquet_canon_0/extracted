@@ -56,11 +56,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -192,11 +196,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -328,11 +336,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -464,11 +476,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -600,11 +616,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -736,11 +756,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -872,11 +896,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1008,11 +1036,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1144,11 +1176,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1280,11 +1316,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1416,11 +1456,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1552,11 +1596,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1688,11 +1736,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1824,11 +1876,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -1960,11 +2016,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -2096,11 +2156,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -2232,11 +2296,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -2368,11 +2436,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -2504,11 +2576,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -2640,11 +2716,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -2776,11 +2856,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -2912,11 +2996,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -3048,11 +3136,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -3184,11 +3276,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/plain-dict-uncompressed-checksum.parquet"
+            "value": "a99ba4f8ef38ce10a734dd90571eede8"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

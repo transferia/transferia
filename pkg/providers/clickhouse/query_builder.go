@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func buildSelectQuery(table *abstract.TableDescription, tableColumns abstract.TableColumns, isHomo, deletable bool, additionalCond string) string {
@@ -32,16 +32,17 @@ func buildSelectQuery(table *abstract.TableDescription, tableColumns abstract.Ta
 		query += fmt.Sprintf(" AND (%s)", additionalCond)
 	}
 	query += getDeleteTimeFilterExpr(deletable)
-	primaryKeys := make([]string, 0)
-	for _, col := range tableColumns {
-		if col.PrimaryKey {
-			primaryKeys = append(primaryKeys, col.ColumnName)
-		}
-	}
-	if len(primaryKeys) > 0 {
-		query += fmt.Sprintf(" ORDER BY %s", strings.Join(primaryKeys, ", "))
-	}
 	if table.Offset != 0 {
+		// OFFSET needs ORDER BY for deterministic results
+		primaryKeys := make([]string, 0)
+		for _, col := range tableColumns {
+			if col.PrimaryKey {
+				primaryKeys = append(primaryKeys, col.ColumnName)
+			}
+		}
+		if len(primaryKeys) > 0 {
+			query += fmt.Sprintf(" ORDER BY %s", strings.Join(primaryKeys, ", "))
+		}
 		query += fmt.Sprintf(" OFFSET %v", table.Offset)
 	}
 	return query

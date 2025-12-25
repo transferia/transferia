@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	ytprovider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	ytprovider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -90,21 +91,22 @@ func pushChanges(
 			vals[i] = r[colName]
 		}
 		changes = append(changes, abstract.ChangeItem{
-			CommitTime:   uint64(st.UnixNano()),
-			Kind:         abstract.InsertKind,
-			Table:        table.Name,
-			ColumnNames:  cols,
-			ColumnValues: vals,
-			TableSchema:  tableSchema,
-			PartID:       "",
-			ID:           0,
-			LSN:          0,
-			Counter:      0,
-			Schema:       "",
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(util.DeepSizeof(r)),
+			ID:               0,
+			LSN:              0,
+			CommitTime:       uint64(st.UnixNano()),
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           "",
+			Table:            table.Name,
+			PartID:           "",
+			ColumnNames:      cols,
+			ColumnValues:     vals,
+			TableSchema:      tableSchema,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.RawEventSize(util.DeepSizeof(r)),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		})
 		if cIdx == 10000 {
 			if err := pusher(changes); err != nil {

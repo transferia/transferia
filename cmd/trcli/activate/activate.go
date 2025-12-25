@@ -4,28 +4,31 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/cmd/trcli/config"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
 	"github.com/spf13/cobra"
+	"github.com/transferia/transferia/cmd/trcli/config"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/worker/tasks"
 )
 
 func ActivateCommand(cp *coordinator.Coordinator, rt abstract.Runtime, registry metrics.Registry) *cobra.Command {
 	var transferParams string
 	var activateDelay time.Duration
+	var metricsPrefix string
+
 	activationCommand := &cobra.Command{
 		Use:   "activate",
 		Short: "Activate transfer locally",
 		Args:  cobra.MatchAll(cobra.ExactArgs(0)),
-		RunE:  activate(cp, rt, &transferParams, registry, activateDelay),
+		RunE:  activate(cp, rt, &transferParams, registry, activateDelay, metricsPrefix),
 	}
 	activationCommand.Flags().StringVar(&transferParams, "transfer", "./transfer.yaml", "path to yaml file with transfer configuration")
-	activationCommand.Flags().DurationVar(&activateDelay, "min-delay", 10*time.Second, "minial delay for activation, use to ensure metrics got scrapped, default 10s")
+	activationCommand.Flags().DurationVar(&activateDelay, "min-delay", 10*time.Second, "minial delay for activation, use to ensure metrics got scrapped")
+	activationCommand.Flags().StringVar(&metricsPrefix, "metrics-prefix", "", "Optional prefix por Prometheus metrics")
 	return activationCommand
 }
 
@@ -35,6 +38,7 @@ func activate(
 	transferYaml *string,
 	registry metrics.Registry,
 	delay time.Duration,
+	metricsPrefix string,
 ) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		transfer, err := config.TransferFromYaml(transferYaml)
@@ -42,6 +46,11 @@ func activate(
 			return xerrors.Errorf("unable to load transfer: %w", err)
 		}
 		transfer.Runtime = rt
+
+		if metricsPrefix != "" {
+			registry = registry.WithPrefix(metricsPrefix)
+		}
+
 		return RunActivate(*cp, transfer, registry, delay)
 	}
 }
@@ -76,7 +85,6 @@ func RunActivate(
 			"name":        transfer.TransferName,
 		}),
 	)
-
 	if err != nil {
 		return xerrors.Errorf("activation failed with: %w", err)
 	}

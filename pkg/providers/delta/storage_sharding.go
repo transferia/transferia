@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/spf13/cast"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // To verify providers contract implementation
@@ -64,7 +64,7 @@ func (s *Storage) SetShardingContext(shardedState []byte) error {
 		return xerrors.Errorf("unable to load data scheam: %w", err)
 	}
 	s.tableSchema = s.asTableSchema(typ)
-	s.colNames = slices.Map(s.tableSchema.Columns(), func(t abstract.ColSchema) string {
+	s.colNames = yslices.Map(s.tableSchema.Columns(), func(t abstract.ColSchema) string {
 		return t.ColumnName
 	})
 	return nil

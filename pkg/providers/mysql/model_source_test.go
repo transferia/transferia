@@ -3,8 +3,8 @@ package mysql
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func TestSource_Include(t *testing.T) {
@@ -64,4 +64,19 @@ func TestSource_Include(t *testing.T) {
 			require.True(t, src.Include(abstract.TableID{Namespace: "partner_included", Name: "users"}))
 		})
 	})
+}
+
+func TestMyslDumpDefaults(t *testing.T) {
+	src := MysqlSource{
+		ClusterID: "my_cluster",
+	}
+	src.WithEssentialDefaults()
+	require.NoError(t, src.Validate())
+	require.Nil(t, src.PreSteps)
+	require.Nil(t, src.PostSteps)
+
+	src.WithDefaults()
+	require.NoError(t, src.Validate())
+	require.NotNil(t, src.PreSteps)
+	require.NotNil(t, src.PostSteps)
 }

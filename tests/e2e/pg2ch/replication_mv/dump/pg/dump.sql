@@ -1,11 +1,13 @@
 -- needs to be sure there is db1
-create table __test
+create table if not exists __test
 (
     id   int,
     val1 int,
     val2 varchar,
     primary key (id)
 );
+
+truncate table __test;
 
 insert into __test (id, val1, val2)
 values (1, 1, 'a'),

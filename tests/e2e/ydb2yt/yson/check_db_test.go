@@ -6,24 +6,19 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytstorage "github.com/doublecloud/transfer/pkg/providers/yt/storage"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	ytstorage "github.com/transferia/transferia/pkg/providers/yt/storage"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 )
-
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
 
 func TestGroup(t *testing.T) {
 	src := &ydb.YdbSource{
@@ -41,7 +36,7 @@ func TestGroup(t *testing.T) {
 		Cluster:                  os.Getenv("YT_PROXY"),
 		CellBundle:               "default",
 		PrimaryMedium:            "default",
-		UseStaticTableOnSnapshot: false, // TM-4444
+		UseStaticTableOnSnapshot: true, // TM-4444
 	})
 
 	sourcePort, err := helpers.GetPortFromStr(src.Instance)

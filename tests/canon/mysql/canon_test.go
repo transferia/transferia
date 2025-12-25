@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func execBatch(t *testing.T, conn *sql.DB, sqlCommands string) {
@@ -29,7 +29,7 @@ func execBatch(t *testing.T, conn *sql.DB, sqlCommands string) {
 }
 
 func TestCanonSource(t *testing.T) {
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 	Source := &mysql.MysqlSource{
 		ClusterID:           os.Getenv("CLUSTER_ID"),
 		Host:                os.Getenv("RECIPE_MYSQL_HOST"),
@@ -47,7 +47,6 @@ func TestCanonSource(t *testing.T) {
 	}()
 
 	tableCase := func(tableName string) func(t *testing.T) {
-
 		return func(t *testing.T) {
 			connParams, err := mysql.NewConnectionParams(Source.ToStorageParams())
 			require.NoError(t, err)
@@ -106,5 +105,5 @@ func TestCanonSource(t *testing.T) {
 	t.Run("numeric_types_int", tableCase("numeric_types_int"))
 	t.Run("string_types", tableCase("string_types"))
 	t.Run("string_types_emoji", tableCase("string_types_emoji"))
-	//t.Run("spatial_types", tableCase("spatial_types"))
+	// t.Run("spatial_types", tableCase("spatial_types"))
 }

@@ -1,25 +1,34 @@
 package opensearch
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/elastic"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/elastic"
+	"go.uber.org/zap/zapcore"
 )
 
 type OpenSearchSource struct {
-	ClusterID            string
-	DataNodes            []OpenSearchHostPort
-	User                 string
+	ClusterID            string               `log:"true"`
+	DataNodes            []OpenSearchHostPort `log:"true"`
+	User                 string               `log:"true"`
 	Password             model.SecretString
-	SSLEnabled           bool
+	SSLEnabled           bool `log:"true"`
 	TLSFile              string
-	SubNetworkID         string
-	SecurityGroupIDs     []string
-	DumpIndexWithMapping bool
+	SubNetworkID         string   `log:"true"`
+	SecurityGroupIDs     []string `log:"true"`
+	DumpIndexWithMapping bool     `log:"true"`
+	ConnectionID         string   `log:"true"`
+	UserEnabledTls       *bool    // tls config set by user explicitly
 }
 
 var _ model.Source = (*OpenSearchSource)(nil)
+var _ model.WithConnectionID = (*OpenSearchSource)(nil)
+
+func (s *OpenSearchSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *OpenSearchSource) MDBClusterID() string {
 	return s.ClusterID
@@ -40,6 +49,8 @@ func (s *OpenSearchSource) ToElasticSearchSource() (*elastic.ElasticSearchSource
 		SubNetworkID:         s.SubNetworkID,
 		SecurityGroupIDs:     s.SecurityGroupIDs,
 		DumpIndexWithMapping: s.DumpIndexWithMapping,
+		ConnectionID:         s.ConnectionID,
+		UserEnabledTls:       s.UserEnabledTls,
 	}, elastic.OpenSearch
 }
 
@@ -51,6 +62,9 @@ func (s *OpenSearchSource) GetProviderType() abstract.ProviderType {
 }
 
 func (s *OpenSearchSource) Validate() error {
+	if s.ConnectionID != "" {
+		return nil
+	}
 	if s.ClusterID == "" &&
 		len(s.DataNodes) == 0 {
 		return xerrors.Errorf("no host specified")
@@ -59,6 +73,10 @@ func (s *OpenSearchSource) Validate() error {
 		return xerrors.Errorf("can't use CA certificate with disabled SSL")
 	}
 	return nil
+}
+
+func (s *OpenSearchSource) GetConnectionID() string {
+	return s.ConnectionID
 }
 
 func (s *OpenSearchSource) WithDefaults() {

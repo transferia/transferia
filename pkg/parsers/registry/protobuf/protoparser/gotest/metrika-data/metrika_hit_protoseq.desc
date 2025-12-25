@@ -1,0 +1,138 @@
+
+è$
+metrika_hit_protoseq.protoru.yandex.metrika.cloud.proto"[
+CloudTransferHitListC
+Hits (2/.ru.yandex.metrika.cloud.proto.CloudTransferHitRHits"Ω"
+CloudTransferHit
+
+TransferID (R
+TransferID
+WatchID (RWatchID
+	CounterID (R	CounterID
+Sign (RSign
+
+HitVersion (R
+HitVersion$
+SchemaVersion (RSchemaVersion
+Title (RTitle
+	EventDate (R	EventDate
+ClientIP (RClientIP
+	ClientIP6 (R	ClientIP6
+RegionID (RRegionID,
+CounterUserIDHash (RCounterUserIDHash
+OS (ROS
+	UserAgent (R	UserAgent
+URL (RURL
+Referer (RReferer(
+ResolutionWidth (RResolutionWidth*
+ResolutionHeight (RResolutionHeight(
+ResolutionDepth (RResolutionDepth&
+UserAgentMajor (RUserAgentMajor"
+CookieEnable  (RCookieEnable*
+JavascriptEnable! (RJavascriptEnable"
+UserAgentStr" (RUserAgentStr
+OSStr# (ROSStr
+OSRoot$ (ROSRoot
+	OSRootStr% (R	OSRootStr6
+ThirdPartyCookieEnable& (RThirdPartyCookieEnable
+IsMobile, (RIsMobile
+IsTablet- (RIsTablet*
+MobilePhoneModel. (RMobilePhoneModel(
+TrafficSourceID/ (RTrafficSourceID&
+SearchEngineID0 (RSearchEngineID 
+AdvEngineID1 (RAdvEngineID 
+IsArtifical2 (RIsArtifical,
+WindowClientWidth3 (RWindowClientWidth.
+WindowClientHeight4 (RWindowClientHeight&
+ClientTimeZone5 (RClientTimeZone 
+PageCharset6 (RPageCharset
+IsLink7 (RIsLink
+
+IsDownload8 (R
+IsDownload 
+IsNotBounce9 (RIsNotBounce 
+IsParameter: (RIsParameter
+
+IsPageView; (R
+IsPageView"
+UTCEventTime< (RUTCEventTime(
+BrowserLanguage= (RBrowserLanguage&
+BrowserCountry> (RBrowserCountry
+	HTTPError? (R	HTTPError4
+SocialSourceNetworkID@ (RSocialSourceNetworkID*
+SocialSourcePageA (RSocialSourcePage"
+GoalsReachedB (RGoalsReached0
+OpenstatServiceNameC (ROpenstatServiceName.
+OpenstatCampaignIDD (ROpenstatCampaignID"
+OpenstatAdIDE (ROpenstatAdID*
+OpenstatSourceIDF (ROpenstatSourceID
+	UTMSourceG (R	UTMSource
+	UTMMediumH (R	UTMMedium 
+UTMCampaignI (RUTMCampaign
+
+UTMContentJ (R
+UTMContent
+UTMTermK (RUTMTerm
+FromTagL (RFromTag
+HasGCLIDM (RHasGCLID
+GCLIDN (RGCLID
+CLIDO (RCLID
+
+DirectCLIDP (R
+DirectCLID"
+ShareServiceQ (RShareService
+ShareURLR (RShareURL
+
+ShareTitleS (R
+ShareTitle.
+TrafficSourceStrIDT (RTrafficSourceStrID&
+AdvEngineStrIDU (RAdvEngineStrID:
+SocialSourceNetworkStrIDV (RSocialSourceNetworkStrID,
+SearchEngineStrIDW (RSearchEngineStrID.
+SearchEngineRootIDX (RSearchEngineRootID4
+SearchEngineRootStrIDY (RSearchEngineRootStrID
+
+PageViewIDZ (R
+PageViewID
+VisitID[ (RVisitID+
+ParsedParams_Key1d (RParsedParamsKey1+
+ParsedParams_Key2e (RParsedParamsKey2+
+ParsedParams_Key3f (RParsedParamsKey3+
+ParsedParams_Key4g (RParsedParamsKey4+
+ParsedParams_Key5h (RParsedParamsKey5+
+ParsedParams_Key6i (RParsedParamsKey6+
+ParsedParams_Key7j (RParsedParamsKey7+
+ParsedParams_Key8k (RParsedParamsKey8+
+ParsedParams_Key9l (RParsedParamsKey9-
+ParsedParams_Key10m (RParsedParamsKey103
+ParsedParams_Quantityn (RParsedParamsQuantity
+ParamsÇ (RParams
+	EcommerceÉ (R	Ecommerce+
+DevicePixelRatioç (RDevicePixelRatio)
+BrowserEngineIDé (RBrowserEngineID5
+BrowserEngineVersion1è (RBrowserEngineVersion15
+BrowserEngineVersion2ê (RBrowserEngineVersion25
+BrowserEngineVersion3ë (RBrowserEngineVersion35
+BrowserEngineVersion4í (RBrowserEngineVersion4
+IsTVì (RIsTV
+IsIFrameî (RIsIFrame+
+FirstPartyCookieï (RFirstPartyCookie-
+MobilePhoneVendorñ (RMobilePhoneVendor!
+OriginalURLó (ROriginalURL!
+NetworkTypeò (RNetworkType-
+UserAgentVersion2ô (RUserAgentVersion2-
+UserAgentVersion3ö (RUserAgentVersion3-
+UserAgentVersion4õ (RUserAgentVersion47
+RecommendationSystemIDù (RRecommendationSystemID!
+MessengerIDû (RMessengerID
+OSFamilyü (ROSFamily
+OSName† (ROSName
+YQRID° (RYQRID+
+QRCodeProviderID¢ (RQRCodeProviderID/
+BrowserEngineStrID£ (RBrowserEngineStrID3
+MobilePhoneVendorStr§ (RMobilePhoneVendorStr'
+NetworkTypeStr• (RNetworkTypeStr=
+RecommendationSystemStrID¶ (RRecommendationSystemStrID'
+MessengerStrIDß (RMessengerStrID1
+QRCodeProviderStrID® (RQRCodeProviderStrID
+ClientID© (RClientIDB-Z+a.yandex-team.ru/metrika/proto/cloud_exportbproto3

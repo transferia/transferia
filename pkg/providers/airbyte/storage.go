@@ -6,20 +6,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os/exec"
+	"io"
+	"os"
 	"sort"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/math"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/container"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/math"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -36,6 +39,8 @@ type Storage struct {
 	metrics  *stats.SourceStats
 	transfer *model.Transfer
 	state    map[string]*coordinator.TransferStateData
+
+	cw container.ContainerImpl
 }
 
 func (a *Storage) Close() {}
@@ -67,29 +72,22 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 	}
 	var lastAirbyteError error
 	var currentState json.RawMessage
-	args := append(
-		a.baseArgs(),
+
+	args := []string{
 		"read",
 		"--config",
 		"/data/config.json",
 		"--state",
-		"/data/"+stateFile,
+		fmt.Sprintf("/data/%s", stateFile),
 		"--catalog",
-		"/data/"+catalogFile,
-	)
-	a.logger.Infof("docker %v", strings.Join(args, " "))
-	cmd := exec.Command("docker", args...)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return xerrors.Errorf("%s unable to init stdout pipe: %w", table.ID().String(), err)
+		fmt.Sprintf("/data/%s", catalogFile),
 	}
-	stderr, err := cmd.StderrPipe()
+
+	stdout, stderr, err := a.runRawCommand(args...)
 	if err != nil {
-		return xerrors.Errorf("%s unable to init stderr pipe: %w", table.ID().String(), err)
-	}
-	if err := cmd.Start(); err != nil {
 		return xerrors.Errorf("%s unable to start: %w", table.ID().String(), err)
 	}
+
 	var batch *RecordBatch
 	cntr := 0
 	batch = NewRecordBatch(cntr, stream.Stream.AsModel())
@@ -164,21 +162,14 @@ func (a *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 	if err := a.storeState(table.ID(), currentState); err != nil {
 		return xerrors.Errorf("unable to store incremental state: %w", err)
 	}
-	data, err := ioutil.ReadAll(stderr)
+	data, err := io.ReadAll(stderr)
 	if err != nil {
 		return xerrors.Errorf("%s stderr read all failed: %w", table.ID().String(), err)
 	}
 	if len(data) > 0 {
 		a.logger.Warnf("stderr: %v\nlast error:%v", string(data), lastAirbyteError)
 	}
-	if cmd != nil && cmd.Process != nil {
-		if err := cmd.Process.Kill(); err != nil && !strings.Contains(err.Error(), "process already finished") {
-			return xerrors.Errorf("%s unable to kill container: %w", table.ID().String(), err)
-		}
-	}
-	if err := cmd.Wait(); err != nil {
-		return xerrors.Errorf("%s read command failed: %w", table.ID().String(), err)
-	}
+
 	return nil
 }
 
@@ -319,11 +310,12 @@ func (a *Storage) parse(data []byte) (*Message, []string) {
 
 func (a *Storage) writeFile(fileName, fileData string) error {
 	fullPath := fmt.Sprintf("%v/%v", a.config.DataDir(), fileName)
+	a.logger.Debugf("%s -> \n%s", fileName, fileData)
 	defer a.logger.Infof("file(%s) %s written", format.SizeInt(len(fileData)), fullPath)
-	return ioutil.WriteFile(
+	return os.WriteFile(
 		fullPath,
 		[]byte(fileData),
-		0644,
+		0664,
 	)
 }
 
@@ -347,7 +339,7 @@ func (a *Storage) check() error {
 		return xerrors.New("empty connection status")
 	}
 	if resp.ConnectionStatus.Status != "SUCCEEDED" {
-		return xerrors.Errorf("unexpected connection status: %v: %v", resp.ConnectionStatus.Status, resp.ConnectionStatus.Message)
+		return coded.Errorf(codes.AirbyteConnectionFailed, "unexpected connection status: %v: %v", resp.ConnectionStatus.Status, resp.ConnectionStatus.Message)
 	}
 	return nil
 }
@@ -377,38 +369,80 @@ func (a *Storage) discover() error {
 	return nil
 }
 
-func (a *Storage) baseArgs() []string {
-	return []string{
-		"run",
-		"-v",
-		fmt.Sprintf("%v:/data", a.config.DataDir()),
-		"--network",
-		"host",
-		"--env",
-		// this will disable going into metadata for IAM tokens
-		"AWS_EC2_METADATA_DISABLED=true",
-		"--rm",
-		// log driver options are needed to avoid disk overfill by container logs
-		"--log-driver", "local",
-		"--log-opt", "max-size=100m",
-		"--log-opt", "max-file=3",
-		a.config.DockerImage(),
+func (a *Storage) baseOpts() container.ContainerOpts {
+	return container.ContainerOpts{
+		Env: map[string]string{
+			"AWS_EC2_METADATA_DISABLED": "true",
+		},
+		LogOptions: map[string]string{
+			"max-size": "100m",
+			"max-file": "3",
+		},
+		Namespace:     "",
+		RestartPolicy: "Never",
+		PodName:       "",
+		Image:         a.config.DockerImage(),
+		LogDriver:     "local",
+		Network:       "host",
+		ContainerName: "",
+		Volumes: []container.Volume{
+			{
+				Name:          "data",
+				HostPath:      a.config.DataDir(),
+				ContainerPath: "/data",
+				VolumeType:    "bind",
+			},
+		},
+		Command:      nil,
+		Args:         nil,
+		Timeout:      0,
+		AttachStdout: true,
+		AttachStderr: true,
+		AutoRemove:   true,
 	}
 }
 
+func (a *Storage) runRawCommand(args ...string) (io.Reader, io.Reader, error) {
+	ctx := context.Background()
+
+	opts := a.baseOpts()
+	opts.Command = args
+
+	a.logger.Info(opts.String())
+
+	return a.cw.Run(ctx, opts)
+}
+
 func (a *Storage) runCommand(args ...string) ([]byte, error) {
-	dockerArgs := append(a.baseArgs(), args...)
-	a.logger.Infof("docker %v", strings.Join(dockerArgs, " "))
-	cmd := exec.Command("docker", dockerArgs...)
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	if err := cmd.Run(); err != nil {
-		a.logger.Errorf("command: %s stdout:\n%s", strings.Join(dockerArgs, " "), outBuf.String())
-		a.logger.Errorf("command: %s stderr:\n%s", strings.Join(dockerArgs, " "), errBuf.String())
+	outReader, errReader, err := a.runRawCommand(args...)
+
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+
+	if outReader != nil {
+		if _, err := outBuf.ReadFrom(outReader); err != nil {
+			return nil, xerrors.Errorf("failed to read stdout: %w", err)
+		}
+	}
+
+	if errReader != nil {
+		if _, err := errBuf.ReadFrom(outReader); err != nil {
+			return nil, xerrors.Errorf("failed to read stdout: %w", err)
+		}
+	}
+
+	if err != nil {
+		// TODO: duplicated code
+		opts := a.baseOpts()
+		opts.Command = args
+
+		a.logger.Errorf("command: %s stdout:\n%s", opts.String(), outBuf.String())
+		a.logger.Errorf("command: %s stderr:\n%s", opts.String(), errBuf.String())
+
 		return nil, xerrors.Errorf("failed: %w", err)
 	}
-	scr := bufio.NewScanner(&errBuf)
+
+	scr := bufio.NewScanner(errReader)
 	var errs util.Errors
 	for scr.Scan() {
 		errs = append(errs, xerrors.New(scr.Text()))
@@ -457,6 +491,12 @@ func NewStorage(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordi
 	if len(state) > 0 {
 		lgr.Info("airbyte storage constructed with state", log.Any("state", state))
 	}
+
+	containerImpl, err := container.NewContainerImpl(lgr)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to ensure dockerd running, please ensure you have specified supervisord with it: %w", err)
+	}
+
 	return &Storage{
 		registry: registry,
 		cp:       cp,
@@ -466,5 +506,6 @@ func NewStorage(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordi
 		metrics:  stats.NewSourceStats(registry),
 		transfer: transfer,
 		state:    state,
+		cw:       containerImpl,
 	}, nil
 }

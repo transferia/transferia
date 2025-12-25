@@ -8,16 +8,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var (
@@ -57,7 +58,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 
 	// extract changeItems
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	target := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
@@ -67,7 +68,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	myMap := make(map[string][]abstract.ChangeItem)
 	index := 0
 	myMutex := sync.Mutex{}
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		myMutex.Lock()
 		defer myMutex.Unlock()
 		for _, el := range input {
@@ -78,6 +79,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 			myMap[el.Table] = append(myMap[el.Table], el)
 			index++
 		}
+		return nil
 	}
 
 	worker := helpers.Activate(t, transfer)

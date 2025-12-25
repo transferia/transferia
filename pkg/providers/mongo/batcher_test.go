@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.ytsaurus.tech/library/go/core/log"
 )

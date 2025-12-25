@@ -20,8 +20,8 @@
                     "value": 1
                 },
                 {
-                    "type": "string",
-                    "value": "\u0000\u0000\u0000\u0000\u0000d"
+                    "type": "nil",
+                    "value": null
                 }
             ]
         },
@@ -51,11 +51,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_decimal_legacy.parquet"
+            "value": "a36dcc3f7ea40d6faaa2e48c64e703e0"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -64,8 +68,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 158,
-                "Values": 158
+                "Read": 136,
+                "Values": 136
             }
         },
         "Table": {
@@ -104,12 +108,12 @@
                     "table_name": "",
                     "path": "",
                     "name": "value",
-                    "type": "string",
+                    "type": "double",
                     "key": false,
                     "fake_key": false,
                     "required": false,
                     "expression": "",
-                    "original_type": "parquet:FIXED_LEN_BYTE_ARRAY(6)"
+                    "original_type": "parquet:DECIMAL(13,2)"
                 }
             ]
         },
@@ -139,8 +143,8 @@
                     "value": 2
                 },
                 {
-                    "type": "string",
-                    "value": "\u0000\u0000\u0000\u0000\u0000\ufffd"
+                    "type": "nil",
+                    "value": null
                 }
             ]
         },
@@ -170,11 +174,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_decimal_legacy.parquet"
+            "value": "a36dcc3f7ea40d6faaa2e48c64e703e0"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -183,8 +191,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 158,
-                "Values": 158
+                "Read": 136,
+                "Values": 136
             }
         },
         "Table": {
@@ -223,12 +231,12 @@
                     "table_name": "",
                     "path": "",
                     "name": "value",
-                    "type": "string",
+                    "type": "double",
                     "key": false,
                     "fake_key": false,
                     "required": false,
                     "expression": "",
-                    "original_type": "parquet:FIXED_LEN_BYTE_ARRAY(6)"
+                    "original_type": "parquet:DECIMAL(13,2)"
                 }
             ]
         },
@@ -258,8 +266,8 @@
                     "value": 3
                 },
                 {
-                    "type": "string",
-                    "value": "\u0000\u0000\u0000\u0000\u0001,"
+                    "type": "nil",
+                    "value": null
                 }
             ]
         },
@@ -289,11 +297,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/fixed_length_decimal_legacy.parquet"
+            "value": "a36dcc3f7ea40d6faaa2e48c64e703e0"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -302,8 +314,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 158,
-                "Values": 158
+                "Read": 136,
+                "Values": 136
             }
         },
         "Table": {
@@ -342,12 +354,12 @@
                     "table_name": "",
                     "path": "",
                     "name": "value",
-                    "type": "string",
+                    "type": "double",
                     "key": false,
                     "fake_key": false,
                     "required": false,
                     "expression": "",
-                    "original_type": "parquet:FIXED_LEN_BYTE_ARRAY(6)"
+                    "original_type": "parquet:DECIMAL(13,2)"
                 }
             ]
         },

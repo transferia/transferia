@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	server "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	server "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
@@ -130,32 +130,32 @@ func load(t *testing.T, transfer *server.Transfer, updateSource bool) {
 	compareParams := helpers.NewCompareStorageParams()
 	compareParams.TableFilter = func(tables abstract.TableMap) []abstract.TableDescription {
 		return []abstract.TableDescription{
-			abstract.TableDescription{
+			{
 				Name:   "measurement_inherited",
 				Schema: "postgres",
 			},
-			abstract.TableDescription{
+			{
 				Name:   "measurement_inherited_y2006m02",
 				Schema: "postgres",
 			},
-			abstract.TableDescription{
+			{
 				Name:   "measurement_inherited_y2006m03",
 				Schema: "postgres",
 			},
-			abstract.TableDescription{
+			{
 				Name:   "measurement_inherited_y2006m04",
 				Schema: "public",
 			},
 			//skip measurement_declarative because of turned UseFakePrimaryKey option on (limitation of outdated 10.5 PG version)
-			abstract.TableDescription{
+			{
 				Name:   "measurement_declarative_y2006m02",
 				Schema: "postgres",
 			},
-			abstract.TableDescription{
+			{
 				Name:   "measurement_declarative_y2006m03",
 				Schema: "postgres",
 			},
-			abstract.TableDescription{
+			{
 				Name:   "measurement_declarative_y2006m04",
 				Schema: "public",
 			},

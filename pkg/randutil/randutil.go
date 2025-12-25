@@ -1,12 +1,10 @@
 package randutil
 
 import (
-	"math/rand"
+	"crypto/rand"
 )
 
-var (
-	AlphanumericValues string
-)
+var AlphanumericValues string
 
 func init() {
 	var alphanumericValues []byte

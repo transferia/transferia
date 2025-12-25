@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 // Code define provider defined stable code. Each provider has own code-registry, but we have global registry to dedup them
@@ -29,6 +29,14 @@ func (c Code) Contains(err error) bool {
 }
 
 var knownCodes = set.New[Code]()
+var codeLinks = make(map[Code][]LinkData)
+var codeDescriptions = make(map[Code]string)
+
+// LinkData содержит информацию о ссылке на документацию
+type LinkData struct {
+	Text string
+	URL  string
+}
 
 func Register(parts ...string) Code {
 	code := Code(strings.Join(parts, "."))
@@ -37,6 +45,30 @@ func Register(parts ...string) Code {
 	}
 	knownCodes.Add(code)
 	return code
+}
+
+func RegisterLinkWithText(code Code, text, link string) {
+	if !knownCodes.Contains(code) {
+		panic(fmt.Sprintf("code: %s not registered, cannot register link", code))
+	}
+	codeLinks[code] = append(codeLinks[code], LinkData{Text: text, URL: link})
+}
+
+func RegisterShortDescription(code Code, description string) {
+	if !knownCodes.Contains(code) {
+		panic(fmt.Sprintf("code: %s not registered, cannot register description", code))
+	}
+	codeDescriptions[code] = description
+}
+
+func GetLinks(code Code) ([]LinkData, bool) {
+	links, exists := codeLinks[code]
+	return links, exists
+}
+
+func GetShortDescription(code Code) (string, bool) {
+	description, exists := codeDescriptions[code]
+	return description, exists
 }
 
 func All() []Code {

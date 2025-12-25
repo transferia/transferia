@@ -1,8 +1,8 @@
 package postgres
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgtype"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type textCoder interface {

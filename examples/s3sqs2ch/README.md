@@ -32,7 +32,7 @@ This example showcase how to integrate data from S3 to Clickhouse in replication
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/doublecloud/transfer
+   git clone https://github.com/transferia/transferia
    cd transfer/examples/s3sqs2ch
    ```
 

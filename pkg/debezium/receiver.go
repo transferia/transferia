@@ -4,19 +4,20 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/debezium/unpacker"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/format"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/unpacker"
+	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
+	"github.com/transferia/transferia/pkg/schemaregistry/format"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type Receiver struct {
 	originalTypes         map[abstract.TableID]map[string]*debeziumcommon.OriginalTypeInfo // map: table -> [fieldName -> originalType]
-	unpacker              unpacker.Unpacker
+	Unpacker              unpacker.Unpacker
 	schemaFormat          string
 	tableSchemaCache      map[string]tableSchemaCacheItem
 	tableSchemaCacheMutex *sync.RWMutex
@@ -126,7 +127,7 @@ func (r *Receiver) convertSchemaFormat(schema []byte) ([]byte, error) {
 		if err := json.Unmarshal(schema, &confluentSchema); err != nil {
 			return nil, xerrors.Errorf("can't unmarshal confluent schema: %w", err)
 		}
-		rawSchema, err := json.Marshal(confluentSchema.ToKafkaSchema())
+		rawSchema, err := json.Marshal(confluentSchema.ToKafkaJSONSchema())
 		if err != nil {
 			return nil, xerrors.Errorf("unable to marshal schema in confluent json format: %w", err)
 		}
@@ -139,7 +140,7 @@ func (r *Receiver) convertSchemaFormat(schema []byte) ([]byte, error) {
 }
 
 func (r *Receiver) Receive(in string) (*abstract.ChangeItem, error) {
-	schema, payload, err := r.unpacker.Unpack([]byte(in))
+	schema, payload, err := r.Unpacker.Unpack([]byte(in))
 	if err != nil {
 		return nil, xerrors.Errorf("can't unpack message: %w", err)
 	}
@@ -195,9 +196,10 @@ func (r *Receiver) receive(schema, payload []byte) (*abstract.ChangeItem, error)
 			KeyTypes:  nil,
 			KeyValues: nil,
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.RawEventSize(util.DeepSizeof(payload)),
+		Size:             abstract.RawEventSize(util.DeepSizeof(payload)),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	for i := range currDebeziumSchema.Fields {
 		if val, ok := currValuesMap[currDebeziumSchema.Fields[i].Field]; ok {
@@ -225,7 +227,7 @@ func NewReceiver(originalTypes map[abstract.TableID]map[string]*debeziumcommon.O
 	}
 	return &Receiver{
 		originalTypes:         originalTypes,
-		unpacker:              currUnpacker,
+		Unpacker:              currUnpacker,
 		schemaFormat:          schemaFormat,
 		tableSchemaCache:      make(map[string]tableSchemaCacheItem),
 		tableSchemaCacheMutex: new(sync.RWMutex),

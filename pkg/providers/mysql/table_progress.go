@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type LsnProgress interface {
@@ -36,6 +36,7 @@ func (t *TableProgress) GetCurrentState() (map[string]TableStatus, error) {
 		return nil, xerrors.Errorf("unable to select table transfer progress: %w", err)
 	}
 	res := map[string]TableStatus{}
+	defer rows.Close()
 	for rows.Next() {
 		var name, status string
 		var lsn uint64

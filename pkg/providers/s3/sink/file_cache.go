@@ -3,9 +3,9 @@ package sink
 import (
 	"math"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	mathutil "github.com/doublecloud/transfer/pkg/util/math"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	mathutil "github.com/transferia/transferia/pkg/util/math"
 )
 
 type FileCache struct {
@@ -37,7 +37,7 @@ func (f *FileCache) AddCopy(item abstract.ChangeItem) error {
 // and with consecutive LSNs and size that le than maxCacheSize
 // NB intervals range is expected to be sorted
 func (f *FileCache) Split(intervals []ObjectRange, maxCacheSize uint64) []*FileCache {
-	var parts = make([]*FileCache, 0)
+	parts := make([]*FileCache, 0)
 	if len(intervals) == 0 {
 		return parts
 	}

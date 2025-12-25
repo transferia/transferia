@@ -1,52 +1,68 @@
 package kafka
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
+	"context"
+	"net"
+
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
+	"go.uber.org/zap/zapcore"
 )
 
 type KafkaDestination struct {
-	Connection       *KafkaConnectionOptions
+	Connection       *KafkaConnectionOptions `log:"true"`
 	Auth             *KafkaAuth
-	SecurityGroupIDs []string
+	SecurityGroupIDs []string `log:"true"`
+
+	// DialFunc can be used to intercept connections made by driver and replace hosts if needed,
+	// for instance, in cloud-specific network topology
+	DialFunc func(ctx context.Context, network string, address string) (net.Conn, error) `json:"-"`
 
 	// The setting from segmentio/kafka-go Writer.
 	// Tunes max length of one message (see usages of BatchBytes in kafka-go)
 	// Msg size: len(key)+len(val)+14
 	// By default is 0 - then kafka-go set it into 1048576.
 	// When set it to not default - remember than managed kafka (server-side) has default max.message.bytes == 1048588
-	BatchBytes          int64
-	ParralelWriterCount int
+	BatchBytes          int64 `log:"true"`
+	ParralelWriterCount int   `log:"true"`
 
-	Topic       string // full-name version
-	TopicPrefix string
+	Topic       string `log:"true"` // full-name version
+	TopicPrefix string `log:"true"`
 
-	AddSystemTables bool // private options - to not skip consumer_keeper & other system tables
-	SaveTxOrder     bool
+	AddSystemTables bool `log:"true"` // private options - to not skip consumer_keeper & other system tables
+	SaveTxOrder     bool `log:"true"`
 
 	// for now, 'FormatSettings' is private option - it's WithDefaults(): SerializationFormatAuto - 'Mirror' for queues, 'Debezium' for the rest
-	FormatSettings model.SerializationFormat
+	FormatSettings model.SerializationFormat `log:"true"`
 
-	TopicConfigEntries []TopicConfigEntry
+	TopicConfigEntries []TopicConfigEntry `log:"true"`
 
 	// Compression which compression mechanism use for writer, default - None
-	Compression Encoding
+	Compression Encoding `log:"true"`
 }
 
 var _ model.Destination = (*KafkaDestination)(nil)
+var _ model.WithConnectionID = (*KafkaDestination)(nil)
 
 type TopicConfigEntry struct {
-	ConfigName, ConfigValue string
+	ConfigName, ConfigValue string `log:"true"`
 }
 
 func topicConfigEntryToSlices(t []TopicConfigEntry) [][2]string {
-	return slices.Map(t, func(tt TopicConfigEntry) [2]string {
+	return yslices.Map(t, func(tt TopicConfigEntry) [2]string {
 		return [2]string{tt.ConfigName, tt.ConfigValue}
 	})
+}
+
+func (d *KafkaDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
 }
 
 func (d *KafkaDestination) MDBClusterID() string {
@@ -56,20 +72,26 @@ func (d *KafkaDestination) MDBClusterID() string {
 	return ""
 }
 
+func (d *KafkaDestination) GetConnectionID() string {
+	return d.Connection.ConnectionID
+}
+
 func (d *KafkaDestination) WithDefaults() {
 	if d.Connection == nil {
 		d.Connection = &KafkaConnectionOptions{
-			ClusterID:    "",
-			TLS:          "",
-			TLSFile:      "",
-			Brokers:      nil,
-			SubNetworkID: "",
+			ClusterID:      "",
+			ConnectionID:   "",
+			TLS:            "",
+			TLSFile:        "",
+			UserEnabledTls: nil,
+			Brokers:        nil,
+			SubNetworkID:   "",
 		}
 	}
 	if d.Auth == nil {
 		d.Auth = &KafkaAuth{
 			Enabled:   true,
-			Mechanism: "SHA-512",
+			Mechanism: kafkaConn.KafkaSaslSecurityMechanism_SCRAM_SHA512,
 			User:      "",
 			Password:  "",
 		}
@@ -114,8 +136,12 @@ func (d *KafkaDestination) Validate() error {
 	return nil
 }
 
+func (d *KafkaDestination) YSRNamespaceID() string {
+	return debeziumparameters.GetYSRNamespaceID(d.FormatSettings.Settings)
+}
+
 func (d *KafkaDestination) Compatible(src model.Source, transferType abstract.TransferType) error {
-	return sourceCompatible(src, transferType, d.FormatSettings.Name)
+	return coherence_check.SourceCompatible(src, transferType, d.FormatSettings.Name)
 }
 
 func (d *KafkaDestination) Serializer() (model.SerializationFormat, bool) {
@@ -124,8 +150,8 @@ func (d *KafkaDestination) Serializer() (model.SerializationFormat, bool) {
 	return formatSettings, d.SaveTxOrder
 }
 
-func (d *KafkaDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *KafkaDestination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    d.FormatSettings.BatchingSettings.MaxChangeItems,
 		TriggingSize:     uint64(d.FormatSettings.BatchingSettings.MaxMessageSize),
 		TriggingInterval: d.FormatSettings.BatchingSettings.Interval,
@@ -138,5 +164,19 @@ func (d *KafkaDestination) HostsNames() ([]string, error) {
 	if d.Connection != nil && d.Connection.ClusterID != "" {
 		return nil, nil
 	}
-	return ResolveOnPremBrokers(d.Connection, d.Auth)
+	return ResolveOnPremBrokers(d.Connection, d.Auth, d.DialFunc)
+}
+
+func (d *KafkaDestination) WithConnectionID() error {
+	if d.Connection == nil || d.Connection.ConnectionID == "" {
+		return nil
+	}
+	kafkaConnection, err := resolveConnection(d.Connection.ConnectionID)
+	if err != nil {
+		return xerrors.Errorf("unable to resolve connection: %w", err)
+	}
+	d.Connection = ResolveConnectionOptions(d.Connection, kafkaConnection)
+	d.Auth = ResolveKafkaAuth(d.Auth, kafkaConnection)
+
+	return nil
 }

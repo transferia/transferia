@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/dataplane/provideradapter"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/dataplane/provideradapter"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -201,8 +201,9 @@ func (v runTaskVisitor) PushOperationHealthMeta(t time.Time) {
 }
 
 func Run(ctx context.Context, task model.TransferOperation, command abstract.RunnableTask, cp coordinator.Coordinator, transfer model.Transfer, params interface{}, registry metrics.Registry) error {
+	logger.Log.Info("Run task", log.Bool("async_operations", transfer.AsyncOperations))
 	if _, ok := command.(abstract.ShardableTask); !ok {
-		if rt, ok := transfer.Runtime.(abstract.ShardingTaskRuntime); ok && !rt.IsMain() {
+		if rt, ok := transfer.Runtime.(abstract.ShardingTaskRuntime); ok && !rt.SnapshotIsMain() {
 			logger.Log.Warn("run non sharding task inside sharding runtime secondary worker, will do nothing")
 			return nil
 		}
@@ -243,7 +244,15 @@ func Run(ctx context.Context, task model.TransferOperation, command abstract.Run
 		close(done)
 		wg.Wait()
 	}()
-	logger.Log.Infof("Transfer %v -> %v (%v)", transfer.SrcType(), transfer.DstType(), transfer.ID)
+
+	logger.Log.Info("Transfer operation",
+		log.Any("transfer_id", transfer.ID),
+		log.Any("src_type", transfer.SrcType()),
+		log.Any("dst_type", transfer.DstType()),
+		log.Any("task_id", task.OperationID),
+		log.Any("task_type", task.TaskType),
+		log.Object("transfer", &transfer),
+	)
 
 	commandName := fmt.Sprintf("%T", command)
 	err, _ := command.VisitRunnable(visitor).(error)

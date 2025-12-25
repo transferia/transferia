@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/debezium/typeutil"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/typeutil"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 var mapMysqlNotParametrizedTypeToKafkaType = map[string]debeziumcommon.KafkaTypeDescr{
@@ -21,9 +21,6 @@ var mapMysqlNotParametrizedTypeToKafkaType = map[string]debeziumcommon.KafkaType
 	}},
 	"mysql:date": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "int32", "io.debezium.time.Date", nil
-	}},
-	"mysql:float": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
-		return "double", "", nil
 	}},
 	"mysql:json": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "string", "io.debezium.data.Json", nil
@@ -67,6 +64,9 @@ var mapMysqlParametrizedTypePrefixToKafkaType = map[string]debeziumcommon.KafkaT
 	}},
 	"mysql:datetime": {KafkaTypeAndDebeziumNameAndExtra: typeutil.TimestampMysqlParamsTypeToKafkaType},
 	"mysql:decimal(": {KafkaTypeAndDebeziumNameAndExtra: typeutil.MysqlDecimalFieldDescr},
+	"mysql:float": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
+		return "double", "", nil
+	}},
 	"mysql:double": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "double", "", nil
 	}},

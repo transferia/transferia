@@ -1,18 +1,34 @@
 package abstract
 
 import (
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"reflect"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgtype"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 type TaskTypeName = string
 
 var TaskTypeByName map[TaskTypeName]TaskType = makeTaskTypeByNameMap()
+
+//nolint:exhaustivestruct
+var SupportedAsyncOperations = map[string]bool{
+	TaskType{Task: Activate{}}.String():              true,
+	TaskType{Task: Deactivate{}}.String():            true,
+	TaskType{Task: Start{}}.String():                 true,
+	TaskType{Task: Stop{}}.String():                  true,
+	TaskType{Task: Restart{}}.String():               true,
+	TaskType{Task: TransferVersionUpdate{}}.String(): true,
+	TaskType{Task: UpdateTransfer{}}.String():        true,
+	TaskType{Task: Termination{}}.String():           true,
+	TaskType{Task: AddTables{}}.String():             true,
+	TaskType{Task: RemoveTables{}}.String():          true,
+	TaskType{Task: Upload{}}.String():                true,
+	TaskType{Task: ReUpload{}}.String():              true,
+}
 
 type TaskType struct {
 	Task
@@ -20,6 +36,10 @@ type TaskType struct {
 
 func (t TaskType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
+}
+
+func (t TaskType) AsyncSupported() bool {
+	return SupportedAsyncOperations[t.String()]
 }
 
 func (t *TaskType) UnmarshalJSON(data []byte) error {
@@ -197,7 +217,7 @@ func makeTaskTypeByNameMap() map[TaskTypeName]TaskType {
 		if zeroValue == nil {
 			continue
 		}
-		gob.Register(zeroValue)
+		gobwrapper.Register(zeroValue)
 	}
 
 	return taskTypeMap

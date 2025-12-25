@@ -3,37 +3,44 @@ package replicate
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/cmd/trcli/activate"
-	"github.com/doublecloud/transfer/cmd/trcli/config"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/dataplane/provideradapter"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
 	"github.com/spf13/cobra"
+	"github.com/transferia/transferia/cmd/trcli/activate"
+	"github.com/transferia/transferia/cmd/trcli/config"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/dataplane/provideradapter"
+	"github.com/transferia/transferia/pkg/runtime/local"
 )
 
 func ReplicateCommand(cp *coordinator.Coordinator, rt abstract.Runtime, registry metrics.Registry) *cobra.Command {
 	var transferParams string
+	var metricsPrefix string
+
 	replicationCommand := &cobra.Command{
 		Use:   "replicate",
 		Short: "Start local replication",
-		RunE:  replicate(cp, rt, &transferParams, registry),
+		RunE:  replicate(cp, rt, &transferParams, registry, metricsPrefix),
 	}
 	replicationCommand.Flags().StringVar(&transferParams, "transfer", "./transfer.yaml", "path to yaml file with transfer configuration")
+	replicationCommand.Flags().StringVar(&metricsPrefix, "metrics-prefix", "", "Optional prefix por Prometheus metrics")
 	return replicationCommand
 }
 
-func replicate(cp *coordinator.Coordinator, rt abstract.Runtime, transferYaml *string, registry metrics.Registry) func(cmd *cobra.Command, args []string) error {
+func replicate(cp *coordinator.Coordinator, rt abstract.Runtime, transferYaml *string, registry metrics.Registry, metricsPrefix string) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		transfer, err := config.TransferFromYaml(transferYaml)
 		if err != nil {
 			return xerrors.Errorf("unable to load transfer: %w", err)
 		}
 		transfer.Runtime = rt
+
+		if metricsPrefix != "" {
+			registry = registry.WithPrefix(metricsPrefix)
+		}
 
 		return RunReplication(*cp, transfer, registry)
 	}

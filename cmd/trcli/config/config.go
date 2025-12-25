@@ -2,16 +2,17 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
-	"strings"
+	"reflect"
+	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
 	"github.com/mitchellh/mapstructure"
-	"gopkg.in/yaml.v2"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/transformer"
+	"gopkg.in/yaml.v3"
 	sig_yaml "sigs.k8s.io/yaml"
 )
 
@@ -52,42 +53,82 @@ func ParseTransfer(yaml []byte) (*model.Transfer, error) {
 	transfer := transfer(source, target, tr)
 
 	transfer.FillDependentFields()
-	if len(tr.Transformation.Transformers) > 0 {
+	if tr.Transformation != nil && len(tr.Transformation.Transformers) > 0 {
 		transfer.Transformation = &model.Transformation{
-			Transformers:      &tr.Transformation,
+			Transformers:      tr.Transformation,
 			ExtraTransformers: nil,
-			Executor:          nil,
 			RuntimeJobIndex:   0,
 		}
 	}
 	return transfer, nil
 }
 
-func fieldsMismatch(params []byte, dummy model.EndpointParams) ([]string, []string, error) {
+func StringToDurationHookFunc() mapstructure.DecodeHookFunc {
+	return func(
+		f reflect.Type,
+		t reflect.Type,
+		data interface{},
+	) (interface{}, error) {
+		// Check if the source is a string and the target is time.Duration
+		if f.Kind() == reflect.String && t == reflect.TypeOf(time.Duration(0)) {
+			return time.ParseDuration(data.(string))
+		}
+		return data, nil
+	}
+}
+
+func fieldsMismatch(params []byte, dummy model.EndpointParams) ([]byte, []string, []string, error) {
 	foomap := make(map[string]interface{})
 	err := json.Unmarshal(params, &foomap)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to remap model: %w", err)
+		return nil, nil, nil, xerrors.Errorf("failed to remap model: %w", err)
 	}
 
 	// create a mapstructure decoder
 	var md mapstructure.Metadata
 	decoder, err := mapstructure.NewDecoder(
 		&mapstructure.DecoderConfig{
-			Metadata: &md,
-			Result:   &dummy,
-			TagName:  "json",
+			Metadata:   &md,
+			Result:     &dummy,
+			TagName:    "json",
+			DecodeHook: mapstructure.ComposeDecodeHookFunc(StringToDurationHookFunc()),
 		})
 	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to prepare decoder: %w", err)
+		return nil, nil, nil, xerrors.Errorf("failed to prepare decoder: %w", err)
 	}
 
 	// decode the unmarshalled map into the given struct
 	if err := decoder.Decode(foomap); err != nil {
-		return nil, nil, xerrors.Errorf("failed to decode: %w", err)
+		return nil, nil, nil, xerrors.Errorf("failed to decode: %w", err)
 	}
 
-	return md.Unused, md.Unset, nil
+	raw, err := json.Marshal(dummy)
+	if err != nil {
+		return nil, nil, nil, xerrors.Errorf("unable to marshal struct to json: %w", err)
+	}
+
+	return raw, md.Unused, md.Unset, nil
+}
+
+// substituteEnv recursively iterates over an interface{} (which might be a string,
+// a map, or a slice) and applies os.ExpandEnv to all string values.
+func substituteEnv(val interface{}) interface{} {
+	switch v := val.(type) {
+	case string:
+		return os.ExpandEnv(v)
+	case map[string]interface{}:
+		for key, inner := range v {
+			v[key] = substituteEnv(inner)
+		}
+		return v
+	case []interface{}:
+		for i, inner := range v {
+			v[i] = substituteEnv(inner)
+		}
+		return v
+	default:
+		return v
+	}
 }
 
 func ParseTransferYaml(rawData []byte) (*TransferYamlView, error) {
@@ -95,11 +136,19 @@ func ParseTransferYaml(rawData []byte) (*TransferYamlView, error) {
 	if err := yaml.Unmarshal(rawData, &transfer); err != nil {
 		return nil, err
 	}
-	for _, v := range os.Environ() {
-		pair := strings.SplitN(v, "=", 2)
-		transfer.Src.Params = strings.ReplaceAll(transfer.Src.RawParams(), fmt.Sprintf("${%v}", pair[0]), pair[1])
-		transfer.Dst.Params = strings.ReplaceAll(transfer.Dst.RawParams(), fmt.Sprintf("${%v}", pair[0]), pair[1])
+
+	var srcParams map[string]interface{}
+	if err := yaml.Unmarshal([]byte(transfer.Src.RawParams()), &srcParams); err != nil {
+		return nil, xerrors.Errorf("unable to parse source params: %w", err)
 	}
+	transfer.Src.Params = substituteEnv(srcParams).(map[string]interface{})
+
+	var dstParams map[string]interface{}
+	if err := yaml.Unmarshal([]byte(transfer.Dst.RawParams()), &dstParams); err != nil {
+		return nil, xerrors.Errorf("unable to parse destination params: %w", err)
+	}
+	transfer.Dst.Params = substituteEnv(dstParams).(map[string]interface{})
+
 	res, err := sig_yaml.YAMLToJSON([]byte(transfer.Src.RawParams()))
 	if err == nil {
 		transfer.Src.Params = string(res)
@@ -108,7 +157,32 @@ func ParseTransferYaml(rawData []byte) (*TransferYamlView, error) {
 	if err == nil {
 		transfer.Dst.Params = string(res)
 	}
+	if transfer.Transformation != nil {
+		for _, tr := range transfer.Transformation.Transformers {
+			for k, v := range tr {
+				tr[k] = convertMap(v)
+			}
+		}
+	}
 	return &transfer, nil
+}
+
+func convertMap(input interface{}) interface{} {
+	switch value := input.(type) {
+	case map[interface{}]interface{}:
+		newMap := make(map[string]interface{})
+		for k, v := range value {
+			if key, ok := k.(string); ok {
+				newMap[key] = convertMap(v)
+			}
+		}
+		return newMap
+	case []interface{}:
+		for i, v := range value {
+			value[i] = convertMap(v)
+		}
+	}
+	return input
 }
 
 func TablesFromYaml(tablesParams *string) (*UploadTables, error) {
@@ -136,7 +210,7 @@ func source(tr *TransferYamlView) (model.Source, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init empty model: %s: %w", tr.Src.Type, err)
 	}
-	unused, unset, err := fieldsMismatch([]byte(tr.Src.RawParams()), dummy)
+	rawJSON, unused, unset, err := fieldsMismatch([]byte(tr.Src.RawParams()), dummy)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to construct missed fields: %w", err)
 	}
@@ -146,7 +220,8 @@ func source(tr *TransferYamlView) (model.Source, error) {
 	if len(unset) > 0 {
 		logger.Log.Infof("config for: %s source has %v unset fields", tr.Src.Type, unset)
 	}
-	return model.NewSource(tr.Src.Type, tr.Src.RawParams())
+
+	return model.NewSource(tr.Src.Type, string(rawJSON))
 }
 
 func target(tr *TransferYamlView) (model.Destination, error) {
@@ -154,7 +229,7 @@ func target(tr *TransferYamlView) (model.Destination, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init empty model: %s: %w", tr.Dst.Type, err)
 	}
-	unused, unset, err := fieldsMismatch([]byte(tr.Dst.RawParams()), dummy)
+	rawJSON, unused, unset, err := fieldsMismatch([]byte(tr.Dst.RawParams()), dummy)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to construct missed fields: %w", err)
 	}
@@ -164,7 +239,7 @@ func target(tr *TransferYamlView) (model.Destination, error) {
 	if len(unset) > 0 {
 		logger.Log.Infof("config for: %s destination has %v unset fields", tr.Dst.Type, unset)
 	}
-	return model.NewDestination(tr.Dst.Type, tr.Dst.RawParams())
+	return model.NewDestination(tr.Dst.Type, string(rawJSON))
 }
 
 func transfer(source model.Source, target model.Destination, tr *TransferYamlView) *model.Transfer {
@@ -185,5 +260,29 @@ func transfer(source model.Source, target model.Destination, tr *TransferYamlVie
 	transfer.RegularSnapshot = tr.RegularSnapshot
 	transfer.DataObjects = tr.DataObjects
 	transfer.TypeSystemVersion = tr.TypeSystemVersion
+	transfer.AsyncOperations = tr.AsyncOperations
 	return transfer
+}
+
+func NewYamlView(tr *model.Transfer) *TransferYamlView {
+	var transformations *transformer.Transformers
+	if tr.Transformation != nil {
+		transformations = tr.Transformation.Transformers
+	}
+	return &TransferYamlView{
+		ID:                tr.ID,
+		TransferName:      tr.TransferName,
+		Description:       tr.Description,
+		Labels:            tr.LabelsRaw(),
+		Status:            tr.Status,
+		Type:              tr.Type,
+		FolderID:          tr.FolderID,
+		CloudID:           tr.CloudID,
+		Src:               Endpoint{Type: tr.SrcType(), Params: tr.Src},
+		Dst:               Endpoint{Type: tr.DstType(), Params: tr.Dst},
+		RegularSnapshot:   tr.RegularSnapshot,
+		Transformation:    transformations,
+		DataObjects:       tr.DataObjects,
+		TypeSystemVersion: tr.TypeSystemVersion,
+	}
 }

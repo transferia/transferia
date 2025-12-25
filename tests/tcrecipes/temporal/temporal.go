@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/transferia/transferia/library/go/test/yatest"
 )
 
 const (
@@ -39,7 +39,7 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 	req := testcontainers.ContainerRequest{
 		Name: "temporal",
 		FromDockerfile: testcontainers.FromDockerfile{
-			Context:       yatest.SourcePath("cloud/doublecloud/transfer/resources/temporalite"),
+			Context:       yatest.SourcePath("cloud/dataplatform/testcontainer/temporal"),
 			PrintBuildLog: true,
 		},
 		ExposedPorts: []string{webUIPort.Port(), apiPort.Port()},

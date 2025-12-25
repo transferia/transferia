@@ -3,6 +3,7 @@ package sink
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,17 +11,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/format"
-	s3_provider "github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/format"
+	s3_provider "github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var (
-	FatalAWSCodes = set.New("InvalidAccessKeyId")
-)
+var FatalAWSCodes = set.New("InvalidAccessKeyId")
 
 type replicationUploader struct {
 	cfg      *s3_provider.S3Destination
@@ -59,7 +58,8 @@ func (u *replicationUploader) Upload(name string, lsns []uint64, data []byte) er
 	})
 	if err != nil {
 		u.logger.Error("upload: "+fileName, log.Any("res", res), log.Error(err))
-		if awsErr, ok := err.(awserr.Error); ok {
+		var awsErr awserr.Error
+		if errors.As(err, &awsErr) {
 			if FatalAWSCodes.Contains(awsErr.Code()) {
 				return abstract.NewFatalError(xerrors.Errorf("upload fatal error: %w", err))
 			}

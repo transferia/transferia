@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
@@ -60,7 +60,9 @@ func TestIncrementalSnapshot(t *testing.T) {
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount(databaseName, tableName, helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 7))
 	// 7 and not 5, because we had to specify the same host in two shards
 
-	conn, err := clickhouse.MakeConnection(Source.ToStorageParams())
+	storageParams, err := Source.ToStorageParams()
+	require.NoError(t, err)
+	conn, err := clickhouse.MakeConnection(storageParams)
 	require.NoError(t, err)
 
 	addData(t, conn)
@@ -72,7 +74,7 @@ func TestIncrementalSnapshot(t *testing.T) {
 	// 9 and not 8, because we had to specify the same host in two shards
 
 	ids := readIdsFromTarget(t, helpers.GetSampleableStorageByModel(t, Target))
-	require.True(t, slices.ContainsAll(ids, []uint16{1, 2, 3, 4, 5, 7}))
+	require.True(t, yslices.ContainsAll(ids, []uint16{1, 2, 3, 4, 5, 7}))
 }
 
 func addData(t *testing.T, conn *sql.DB) {

@@ -23,7 +23,7 @@ func NewEnv(t *testing.T, opts ...yttest.Option) (*yttest.Env, func()) {
 	}
 	proxy, err := container.ConnectionHost(ctx)
 	require.NoError(t, err)
-	require.NoError(t, os.Setenv("YT_PROXY", proxy))
+	t.Setenv("YT_PROXY", proxy)
 	ytClient, err := container.NewClient(ctx)
 	require.NoError(t, err)
 	logger, stopLogger := yttest.NewLogger(t)

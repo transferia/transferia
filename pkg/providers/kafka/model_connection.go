@@ -5,19 +5,20 @@ import (
 	"crypto/x509"
 	"net"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/util/validators"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/scram"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection/kafka"
+	"github.com/transferia/transferia/pkg/util/validators"
 	franzsasl "github.com/twmb/franz-go/pkg/sasl"
 	franzscram "github.com/twmb/franz-go/pkg/sasl/scram"
 )
 
 type KafkaAuth struct {
-	Enabled   bool
-	Mechanism string
-	User      string
+	Enabled   bool                             `log:"true"`
+	Mechanism kafka.KafkaSaslSecurityMechanism `log:"true"`
+	User      string                           `log:"true"`
 	Password  string
 }
 
@@ -26,7 +27,7 @@ func (a *KafkaAuth) GetAuthMechanism() (sasl.Mechanism, error) {
 		return nil, nil
 	}
 	var algo scram.Algorithm
-	if a.Mechanism == "SHA-512" {
+	if a.Mechanism == kafka.KafkaSaslSecurityMechanism_SCRAM_SHA512 {
 		algo = scram.SHA512
 	} else {
 		algo = scram.SHA256
@@ -46,7 +47,7 @@ func (a *KafkaAuth) GetFranzAuthMechanism() franzsasl.Mechanism {
 		User: a.User,
 		Pass: a.Password,
 	}
-	if a.Mechanism == "SHA-512" {
+	if a.Mechanism == kafka.KafkaSaslSecurityMechanism_SCRAM_SHA512 {
 		return auth.AsSha512Mechanism()
 	}
 
@@ -54,11 +55,13 @@ func (a *KafkaAuth) GetFranzAuthMechanism() franzsasl.Mechanism {
 }
 
 type KafkaConnectionOptions struct {
-	ClusterID    string
-	TLS          model.TLSMode
-	TLSFile      string `model:"PemFileContent"`
-	Brokers      []string
-	SubNetworkID string
+	ClusterID      string        `log:"true"`
+	TLS            model.TLSMode `log:"true"`
+	TLSFile        string        `model:"PemFileContent"`
+	UserEnabledTls *bool
+	Brokers        []string `log:"true"`
+	SubNetworkID   string   `log:"true"`
+	ConnectionID   string   `log:"true"`
 }
 
 func (o *KafkaConnectionOptions) TLSConfig() (*tls.Config, error) {

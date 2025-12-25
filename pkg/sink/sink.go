@@ -4,21 +4,22 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/config/env"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/middlewares/async"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
-	"github.com/doublecloud/transfer/pkg/middlewares/memthrottle"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/config/env"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/middlewares/async"
+	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/pkg/middlewares/memthrottle"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -153,6 +154,10 @@ func calculateBuffererConfig(transfer *model.Transfer, middlewaresConfig middlew
 	}
 
 	result := bufferableDst.BuffererConfig()
+	if result == nil {
+		logger.Log.Infof("Dst (type %T) is bufferable but decided not to use bufferer", transfer.Dst)
+		return nil
+	}
 
 	if middlewaresConfig.ReplicationStage {
 		if result.TriggingInterval == 0 {
@@ -167,11 +172,11 @@ func calculateBuffererConfig(transfer *model.Transfer, middlewaresConfig middlew
 
 	lgr.Info("bufferer config was calculated", log.Int("trigging_count", result.TriggingCount),
 		log.UInt64("trigging_size", result.TriggingSize), log.Float64("trigging_interval_seconds", result.TriggingInterval.Seconds()))
-	return &result
+	return result
 }
 
 func getMemoryThrottlerSettings(transfer *model.Transfer) (uint64, bool) {
-	if val, err := transfer.SystemLabel(model.SystemLabelMemThrottle); err == nil && val == "on" {
+	if val, err := transfer.FeatureLabel(model.FeatureLabelMemThrottle); err == nil && val == "on" {
 		if rt, ok := transfer.Runtime.(abstract.LimitedResourceRuntime); ok {
 			return rt.RAMGuarantee(), rt.RAMGuarantee() != 0
 		}

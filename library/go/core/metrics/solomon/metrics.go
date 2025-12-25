@@ -6,10 +6,10 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"golang.org/x/exp/slices"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // Gather collects all metrics data via snapshots.
@@ -33,12 +33,17 @@ func (r Registry) Gather() (*Metrics, error) {
 	return &Metrics{metrics: metrics}, nil
 }
 
-func NewMetrics(metrics []Metric) Metrics {
-	return Metrics{metrics: metrics}
-}
+func NewMetrics(metrics []Metric, opts ...MetricOpt) Metrics {
+	var mopts MetricsOpts
+	for _, opt := range opts {
+		opt(&mopts)
+	}
 
-func NewMetricsWithTimestamp(metrics []Metric, ts time.Time) Metrics {
-	return Metrics{metrics: metrics, timestamp: &ts}
+	return Metrics{
+		metrics:      metrics,
+		timestamp:    mopts.timestamp,
+		commonLabels: mopts.commonLabels,
+	}
 }
 
 type valueType uint8
@@ -85,14 +90,25 @@ func (k metricType) String() string {
 type Metric interface {
 	json.Marshaler
 
+	// Returns the metric name.
 	Name() string
+
+	// Returns metric labels.
+	// The returned value is for reading only. Do not try to modify it.
+	Labels() map[string]string
+
+	// Returns the metric value.
+	// The returned value is for reading only. Do not try to modify it.
+	Value() any
+
+	// Snapshot returns independent copy on metric.
+	Snapshot() Metric
+
 	getType() metricType
-	getLabels() map[string]string
-	getValue() interface{}
 	getNameTag() string
 	getTimestamp() *time.Time
-
-	Snapshot() Metric
+	isMemOnly() bool
+	getID() string
 }
 
 // Rated marks given Solomon metric or vector as rated.
@@ -105,7 +121,7 @@ type Metric interface {
 //	Rated(cntvec)
 //
 // For additional info: https://m.yandex-team.ru/docs/concepts/data-model#rate
-func Rated(s interface{}) {
+func Rated(s interface{}) interface{} {
 	switch st := s.(type) {
 	case *Counter:
 		st.metricType = typeRated
@@ -122,6 +138,15 @@ func Rated(s interface{}) {
 		st.vec.rated = true
 	}
 	// All other metric types cannot be rated
+	return s
+}
+
+// MemOnly marks given Solomon metric as mem-only.
+func MemOnly(m interface{}) interface{} {
+	if iface, ok := m.(interface{ setMemOnly() }); ok {
+		iface.setMemOnly()
+	}
+	return m
 }
 
 var (
@@ -130,8 +155,9 @@ var (
 )
 
 type Metrics struct {
-	metrics   []Metric
-	timestamp *time.Time
+	metrics      []Metric
+	timestamp    *time.Time
+	commonLabels map[string]string
 }
 
 // MarshalJSON implements json.Marshaler.
@@ -160,17 +186,24 @@ func (s Metrics) SplitToChunks(maxChunkSize int) []Metrics {
 	if maxChunkSize == 0 || len(s.metrics) == 0 {
 		return []Metrics{s}
 	}
-	chunks := make([]Metrics, 0, len(s.metrics)/maxChunkSize+1)
 
-	for leftBound := 0; leftBound < len(s.metrics); leftBound += maxChunkSize {
-		rightBound := leftBound + maxChunkSize
-		if rightBound > len(s.metrics) {
-			rightBound = len(s.metrics)
-		}
-		chunk := s.metrics[leftBound:rightBound]
-		chunks = append(chunks, Metrics{metrics: chunk})
+	chunks := make([]Metrics, 0, len(s.metrics)/maxChunkSize+1)
+	for chunk := range slices.Chunk(s.metrics, maxChunkSize) {
+		chunks = append(chunks, Metrics{metrics: chunk, timestamp: s.timestamp, commonLabels: s.commonLabels})
 	}
 	return chunks
+}
+
+func (s *Metrics) SetTimestamp(timestamp time.Time) {
+	s.timestamp = &timestamp
+}
+
+func (s *Metrics) SetCommonLabels(labels map[string]string) {
+	s.commonLabels = labels
+}
+
+func (s *Metrics) CommonLabels() map[string]string {
+	return s.commonLabels
 }
 
 // List return list of metrics

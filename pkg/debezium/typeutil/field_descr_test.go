@@ -3,9 +3,9 @@ package typeutil
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 func checkMysqlDatetime(t *testing.T, originalType, expectedDebeziumType, expectedName string) {

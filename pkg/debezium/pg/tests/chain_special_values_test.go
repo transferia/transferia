@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -237,8 +237,8 @@ func TestNegativeTimestamp(t *testing.T) {
 	require.Equal(t, 1, len(currDebeziumKV))
 
 	msg := currDebeziumKV[0]
-	fmt.Printf(msg.DebeziumKey)
-	fmt.Printf(*msg.DebeziumVal)
+	fmt.Print(msg.DebeziumKey)
+	fmt.Print(*msg.DebeziumVal)
 
 	receiver := debezium.NewReceiver(nil, nil)
 	recoveredChangeItem, err := receiver.Receive(*currDebeziumKV[0].DebeziumVal)

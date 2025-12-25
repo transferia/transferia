@@ -3,7 +3,7 @@ name: Run Build and Test
 on:
   push:
     branches:
-      - 'main'
+      - "main"
   pull_request:
     branches:
       - "*"
@@ -31,19 +31,29 @@ jobs:
       fail-fast: false
       matrix:
         suite: [
-          # CLI test suites
-          { group: "cmd", name: "cmd", path: "" },
-          # providers suites, some of the providers are too heavy to run as single test
-          { group: "pkg/providers", name: "yt", path: "yt", yt: true },
-          { group: "pkg/providers", name: "providers-postgres", path: "postgres" },
-          # e2e test suites
-          { group: "tests/e2e", name: "kafka2ch", path: "kafka2ch" },
-          { group: "tests/e2e", name: "pg2pg", path: "pg2pg" },
-          { group: "tests/e2e", name: "pg2ch", path: "pg2ch" },
-          { group: "tests/e2e", name: "mongo2ch", path: "mongo2ch" },
-          { group: "tests/e2e", name: "kinesis2ch", path: "kinesis2ch" },
-          { group: "tests/e2e", name: "ch2s3", path: "ch2s3" },
-        ]
+            # CLI test suites
+            { group: "cmd", name: "cmd", path: "" },
+            # providers suites, some of the providers are too heavy to run as single test
+            {
+              group: "pkg/providers",
+              name: "container",
+              path: "container",
+              container: true,
+            },
+            { group: "pkg/providers", name: "yt", path: "yt", yt: true },
+            {
+              group: "pkg/providers",
+              name: "providers-postgres",
+              path: "postgres",
+            },
+            # e2e test suites
+            { group: "tests/e2e", name: "kafka2ch", path: "kafka2ch" },
+            { group: "tests/e2e", name: "pg2pg", path: "pg2pg" },
+            { group: "tests/e2e", name: "pg2ch", path: "pg2ch" },
+            { group: "tests/e2e", name: "mongo2ch", path: "mongo2ch" },
+            { group: "tests/e2e", name: "kinesis2ch", path: "kinesis2ch" },
+            { group: "tests/e2e", name: "ch2s3", path: "ch2s3" },
+          ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,6 +75,14 @@ jobs:
       - shell: bash
         run: |
           pg_dump --version
+      - uses: engineerd/setup-kind@v0.6.2
+        if: matrix.suite.container
+        with:
+          version: "v0.26.0"
+          # Handled by the test code
+          skipClusterCreation: true
+          skipClusterDeletion: true
+          skipClusterLogsExport: true
       - shell: bash
         if: matrix.suite.yt
         name: prepare local YT
@@ -76,6 +94,8 @@ jobs:
       - shell: bash
         run: |
           make run-tests SUITE_GROUP="${{ matrix.suite.group }}" SUITE_PATH="${{ matrix.suite.path }}" SUITE_NAME="${{ matrix.suite.name }}"
+        env:
+          TEST_KUBERNETES_INTEGRATION: ${{ matrix.suite.container == true && '1' || '' }}
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
@@ -94,37 +114,58 @@ jobs:
       fail-fast: false
       matrix:
         suite: [
-          # canon test suites
-          { group: "tests/canon", name: "canon-parser", path: "parser" },
-          { group: "tests/storage", name: "storage-pg", path: "pg" },
-          # internal test suites
-          { group: "internal", name: "internal", path: "..." },
-          # provider test suites
-          { group: "pkg/providers", name: "providers-mongo", path: "mongo" },
-          { group: "pkg/providers", name: "providers-mysql", path: "mysql" },
-          { group: "pkg/providers", name: "providers-sample", path: "sample" },
-          { group: "pkg/providers", name: "providers-kafka", path: "kafka" },
-          { group: "pkg/providers", name: "providers-kinesis", path: "kinesis" },
-          { group: "pkg/providers", name: "providers-greenplum", path: "greenplum" },
-          { group: "pkg/providers", name: "providers-clickhouse", path: "clickhouse" },
-          { group: "pkg/providers", name: "providers-elastic", path: "elastic" },
-          # pkg test suites
-          { group: "pkg", name: "abstract", path: "abstract" },
-          { group: "pkg", name: "transformer", path: "transformer" },
-          { group: "pkg", name: "predicate", path: "predicate" },
-          { group: "pkg", name: "dblog", path: "dblog" },
-          { group: "pkg", name: "functions", path: "functions" },
-          { group: "pkg", name: "maplock", path: "maplock" },
-          { group: "pkg", name: "middlewares", path: "middlewares" },
-          { group: "pkg", name: "parsequeue", path: "parsequeue" },
-          { group: "pkg", name: "util", path: "util" },
-          { group: "pkg", name: "stringutil", path: "stringutil" },
-          { group: "pkg", name: "serializer", path: "serializer" },
-          { group: "pkg", name: "worker", path: "worker" },
-          { group: "pkg", name: "schemaregistry", path: "schemaregistry" },
-          { group: "pkg", name: "parsers-generic", path: "parsers/generic" },
-          { group: "pkg", name: "parsers-scanner", path: "parsers/scanner" }
-        ]
+            # canon test suites
+            { group: "tests/canon", name: "canon-parser", path: "parser" },
+            { group: "tests/storage", name: "storage-pg", path: "pg" },
+            # internal test suites
+            { group: "internal", name: "internal", path: "..." },
+            # provider test suites
+            { group: "pkg/providers", name: "providers-mongo", path: "mongo" },
+            { group: "pkg/providers", name: "providers-mysql", path: "mysql" },
+            {
+              group: "pkg/providers",
+              name: "providers-sample",
+              path: "sample",
+            },
+            { group: "pkg/providers", name: "providers-kafka", path: "kafka" },
+            {
+              group: "pkg/providers",
+              name: "providers-kinesis",
+              path: "kinesis",
+            },
+            {
+              group: "pkg/providers",
+              name: "providers-greenplum",
+              path: "greenplum",
+            },
+            {
+              group: "pkg/providers",
+              name: "providers-clickhouse",
+              path: "clickhouse",
+            },
+            {
+              group: "pkg/providers",
+              name: "providers-elastic",
+              path: "elastic",
+            },
+            # pkg test suites
+            { group: "pkg", name: "abstract", path: "abstract" },
+            { group: "pkg", name: "transformer", path: "transformer" },
+            { group: "pkg", name: "predicate", path: "predicate" },
+            { group: "pkg", name: "dblog", path: "dblog" },
+            { group: "pkg", name: "functions", path: "functions" },
+            { group: "pkg", name: "maplock", path: "maplock" },
+            { group: "pkg", name: "middlewares", path: "middlewares" },
+            { group: "pkg", name: "parsequeue", path: "parsequeue" },
+            { group: "pkg", name: "util", path: "util" },
+            { group: "pkg", name: "stringutil", path: "stringutil" },
+            { group: "pkg", name: "serializer", path: "serializer" },
+            { group: "pkg", name: "worker", path: "worker" },
+            { group: "pkg", name: "schemaregistry", path: "schemaregistry" },
+            { group: "pkg", name: "parsers-generic", path: "parsers/generic" },
+            { group: "pkg", name: "parsers-tests", path: "parsers/tests" },
+            { group: "pkg", name: "parsers-scanner", path: "parsers/scanner" },
+          ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -167,10 +208,7 @@ jobs:
         run: exit 1
 
   test-report:
-    needs: [
-      generic-tests,
-      e2e-tests,
-    ]
+    needs: [generic-tests, e2e-tests]
     name: test-report
     if: always() && !contains(needs.*.result, 'skipped')
     runs-on: ubuntu-latest

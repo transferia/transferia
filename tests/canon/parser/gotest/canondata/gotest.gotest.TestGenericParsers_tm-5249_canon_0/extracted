@@ -67,6 +67,10 @@
             "type": "string",
             "value": ""
         },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"tm-5249\",\"PartitionNum\":0,\"Offset\":123,\"Index\":0}"
+        },
         "Schema": {
             "type": "string",
             "value": ""
@@ -219,6 +223,10 @@
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"tm-5249\",\"PartitionNum\":0,\"Offset\":123,\"Index\":1}"
         },
         "Schema": {
             "type": "string",

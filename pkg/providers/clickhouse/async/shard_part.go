@@ -6,19 +6,19 @@ import (
 	"sync"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/core/xerrors/multierr"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/dao"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/db"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/dao"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type shardPart struct {
+	lgr        log.Logger
 	db         DDLStreamingClient
 	streamer   db.Streamer
 	dao        *dao.DDLDAO
@@ -37,7 +37,7 @@ func (s *shardPart) initQueryWMarshaller(row abstract.ChangeItem) error {
 	if s.query != "" {
 		return nil
 	}
-	colNames := slices.Map(row.ColumnNames, func(c string) string { return fmt.Sprintf("`%s`", c) })
+	colNames := yslices.Map(row.ColumnNames, func(c string) string { return fmt.Sprintf("`%s`", c) })
 	s.query = fmt.Sprintf("INSERT INTO `%s`.`%s` (%s)", s.tmpDB, s.tmpTable, strings.Join(colNames, ","))
 	s.marshaller = NewCHV2Marshaller(row.TableSchema.Columns(), s.cols)
 	return nil
@@ -56,7 +56,7 @@ func (s *shardPart) Append(row abstract.ChangeItem) error {
 			s.streamer = strm
 			return nil
 		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3),
-			util.BackoffLoggerWarn(logger.Log, "begin StreamInsert failed, retrying"))
+			util.BackoffLoggerWarn(s.lgr, "begin StreamInsert failed, retrying"))
 		if err != nil {
 			return xerrors.Errorf("error starting insert query: %w", err)
 		}
@@ -72,10 +72,10 @@ func (s *shardPart) Finish() error {
 // Merge merges temporary table to destination table.
 func (s *shardPart) Merge() error {
 	defer func() {
-		logger.Log.Debug("shardPart closing itself after Commit")
+		s.lgr.Debug("shardPart closing itself after Commit")
 		err := s.Close()
 		if err != nil {
-			logger.Log.Error("error closing shardPart", log.Error(err))
+			s.lgr.Error("error closing shardPart", log.Error(err))
 		}
 	}()
 	if err := s.partsDao.AttachTablePartsTo(s.baseDB, s.baseTable, s.tmpDB, s.tmpTable); err != nil {
@@ -89,7 +89,7 @@ func (s *shardPart) Close() error {
 	var res error
 	s.closeOnce.Do(func() {
 		if s.streamer != nil {
-			logger.Log.Debug("shardPart closing streamer")
+			s.lgr.Debug("shardPart closing streamer")
 			if err := s.streamer.Close(); err != nil {
 				res = multierr.Append(res, xerrors.Errorf("error closing streamer: %w", err))
 			}
@@ -104,9 +104,9 @@ func (s *shardPart) Close() error {
 }
 
 func newShardPart(
-	baseDB, baseTable, tmpDB, tmpTable, query string, hostDB DDLStreamingClient, cols columntypes.TypeMapping,
+	lgr log.Logger, baseDB, baseTable, tmpDB, tmpTable, query string, hostDB DDLStreamingClient, cols columntypes.TypeMapping,
 ) (*shardPart, error) {
-	ddldao := dao.NewDDLDAO(hostDB, logger.Log)
+	ddldao := dao.NewDDLDAO(hostDB, lgr)
 	if err := ddldao.DropTable(tmpDB, tmpTable); err != nil {
 		return nil, xerrors.Errorf("error dropping tmp table for part %s.%s: %w", tmpDB, tmpTable, err)
 	}
@@ -114,10 +114,11 @@ func newShardPart(
 		return nil, xerrors.Errorf("error creating tmp table for part %s.%s: %w", tmpDB, tmpTable, err)
 	}
 	return &shardPart{
+		lgr:        lgr,
 		db:         hostDB,
 		streamer:   nil,
 		dao:        ddldao,
-		partsDao:   dao.NewPartsDAO(hostDB, logger.Log),
+		partsDao:   dao.NewPartsDAO(hostDB, lgr),
 		baseDB:     baseDB,
 		baseTable:  baseTable,
 		tmpDB:      tmpDB,

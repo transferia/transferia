@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
@@ -164,6 +164,10 @@ func Snapshot(t *testing.T) {
 	// check function with regex with quote
 	itemTypToCnt = extractPgDumpTypToCnt(t, []string{"only_functions.table_for_functions"}, []string{"only_functions"})
 	require.Equal(t, 1, itemTypToCnt["FUNCTION"])
+
+	// table attach with regex included dbtables like schema.*
+	itemTypToCnt = extractPgDumpTypToCnt(t, []string{"public.*"}, []string{"public"})
+	require.Equal(t, 2, itemTypToCnt["TABLE_ATTACH"])
 }
 
 func extractPgDumpTypToCnt(t *testing.T, DBTables []string, schemas []string) map[string]int {

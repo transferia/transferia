@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	pg_provider "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	yt_recipe "github.com/doublecloud/transfer/pkg/providers/yt/recipe"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	pg_provider "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	yt_recipe "github.com/transferia/transferia/pkg/providers/yt/recipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestGroup(t *testing.T) {

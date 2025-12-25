@@ -3,12 +3,12 @@ package strictify
 import (
 	"math"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
-	"github.com/doublecloud/transfer/pkg/abstract/dterrors"
-	"github.com/doublecloud/transfer/pkg/util/castx"
-	"github.com/doublecloud/transfer/pkg/util/generics"
 	"github.com/spf13/cast"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/dterrors"
+	"github.com/transferia/transferia/pkg/util/castx"
+	"github.com/transferia/transferia/pkg/util/generics"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

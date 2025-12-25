@@ -5,7 +5,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -183,11 +183,4 @@ func GetKey(original interface{}, path []string) (interface{}, bool) {
 		return nil, false
 	}
 	return GetKey(value, path[1:])
-}
-
-func defaultizePathValue(original interface{}, path []string, value interface{}) interface{} {
-	if _, ok := GetKey(original, path); ok {
-		return OverridePathValue(original, path, value)
-	}
-	return original
 }

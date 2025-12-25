@@ -3,10 +3,10 @@ package dblog
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/google/uuid"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/exp/maps"
 )
@@ -90,10 +90,9 @@ func (s *IncrementalAsyncSink) AsyncPush(items []abstract.ChangeItem) chan error
 		}
 
 		if ok, watermarkType := s.signalTable.IsWatermark(&item, s.tableID, s.expectedUUID()); ok {
-			s.logger.Info("watermark found")
+			s.logger.Infof("watermark found: %s", watermarkType)
 
 			if !s.isExpectedWatermarkOfType(watermarkType) {
-				s.logger.Info("wrong watermark found")
 				continue
 			}
 
@@ -131,6 +130,11 @@ func (s *IncrementalAsyncSink) AsyncPush(items []abstract.ChangeItem) chan error
 			}
 
 		} else {
+			if abstract.IsSystemTable(item.Table) {
+				s.logger.Infof("skipping push of system table event: %s", item.Table)
+				continue
+			}
+
 			items[lastUnfilledItemIdx] = items[idx]
 			lastUnfilledItemIdx++
 
@@ -174,7 +178,7 @@ func (s *IncrementalAsyncSink) pushChunk() error {
 func (s *IncrementalAsyncSink) shiftRemainingItems(items []abstract.ChangeItem, lastFilledIdx, curIdx int) error {
 	for ; curIdx < len(items); curIdx++ {
 		curTableName := items[curIdx].Table
-		if curTableName == "__consumer_keeper" || curTableName == "__data_transfer_signal_table" {
+		if abstract.IsSystemTable(curTableName) {
 			continue
 		}
 

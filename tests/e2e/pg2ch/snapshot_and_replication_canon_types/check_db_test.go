@@ -3,20 +3,19 @@ package replication
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/canon/postgres"
-	"github.com/doublecloud/transfer/tests/e2e/pg2ch"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/canon/postgres"
+	"github.com/transferia/transferia/tests/e2e/pg2ch"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
@@ -25,11 +24,11 @@ var (
 )
 
 func TestSnapshotAndIncrement(t *testing.T) {
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 
 	Source := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
 	Target := chrecipe.MustTarget(chrecipe.WithInitDir("dump/ch"), chrecipe.WithDatabase(databaseName))
-	_ = os.Setenv("YC", "1")                                             // to not go to vanga
+	t.Setenv("YC", "1")                                                  // to not go to vanga
 	helpers.InitSrcDst(helpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(

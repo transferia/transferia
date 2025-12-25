@@ -9,36 +9,42 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/column"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/errors"
-	httpuploader2 "github.com/doublecloud/transfer/pkg/providers/clickhouse/httpuploader"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/schema"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/blang/semver/v4"
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	cherrors "github.com/transferia/transferia/pkg/providers/clickhouse/errors"
+	httpuploader2 "github.com/transferia/transferia/pkg/providers/clickhouse/httpuploader"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/schema"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type sinkTable struct {
-	server          *SinkServer
-	tableName       string
-	config          model.ChSinkServerParams
-	logger          log.Logger
-	colTypes        columntypes.TypeMapping
-	cols            *abstract.TableSchema // warn: schema can be changed inflight
-	metrics         *stats.ChStats
-	avgRowSize      int
-	cluster         *sinkCluster
-	timezoneFetched bool
-	timezone        *time.Location
+	server     *SinkServer
+	tableName  string
+	config     model.ChSinkServerParams
+	logger     log.Logger
+	colTypes   columntypes.TypeMapping
+	cols       *abstract.TableSchema // warn: schema can be changed inflight
+	metrics    *stats.ChStats
+	avgRowSize int
+	cluster    *sinkCluster
+	timezone   *time.Location
+	version    semver.Version
 }
+
+// see: https://github.com/Altinity/clickhouse-sink-connector/issues/206#issuecomment-1529968850
+var deleteableVersion = semver.MustParse("23.2.0")
 
 func normalizeTableName(table string) string {
 	res := strings.ReplaceAll(table, "-", "_")
@@ -53,7 +59,7 @@ func (t *sinkTable) Init(cols *abstract.TableSchema) error {
 		return xerrors.Errorf("failed to check existing of table %s: %w", t.tableName, err)
 	}
 	if t.config.InferSchema() || exist {
-		if t.config.MigrationOptions().AddNewColumns {
+		if !t.config.GetIsSchemaMigrationDisabled() && t.config.MigrationOptions().AddNewColumns {
 			targetCols, err := schema.DescribeTable(t.server.db, t.config.Database(), t.tableName, nil)
 			if err != nil {
 				return xerrors.Errorf("failed to discover existing schema of %s: %w", t.tableName, err)
@@ -74,7 +80,7 @@ func (t *sinkTable) Init(cols *abstract.TableSchema) error {
 		return t.createTable(sch.abstractCols(), distributed)
 	})
 	if err != nil {
-		if errors.IsFatalClickhouseError(err) {
+		if cherrors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
 		return xerrors.Errorf("failed to create table %s: %w", t.tableName, err)
@@ -133,6 +139,9 @@ func (t *sinkTable) generateDDL(cols []abstract.ColSchema, distributed bool) str
 	if t.config.IsUpdateable() {
 		columnDefinitions = append(columnDefinitions, "`__data_transfer_commit_time` UInt64")
 		columnDefinitions = append(columnDefinitions, "`__data_transfer_delete_time` UInt64")
+		if t.version.GTE(deleteableVersion) {
+			columnDefinitions = append(columnDefinitions, "`__data_transfer_is_deleted` UInt8 MATERIALIZED (if(__data_transfer_delete_time != 0, 1, 0))")
+		}
 	}
 	_, _ = result.WriteString(fmt.Sprintf(" (%s)", strings.Join(columnDefinitions, ", ")))
 
@@ -141,6 +150,9 @@ func (t *sinkTable) generateDDL(cols []abstract.ColSchema, distributed bool) str
 	if t.config.IsUpdateable() {
 		engine = fmt.Sprintf("Replacing%s", engine)
 		engineArgs = append(engineArgs, "__data_transfer_commit_time")
+		if t.version.GTE(deleteableVersion) {
+			engineArgs = append(engineArgs, "__data_transfer_is_deleted")
+		}
 	}
 	if distributed {
 		engine = fmt.Sprintf("Replicated%s", engine)
@@ -149,7 +161,7 @@ func (t *sinkTable) generateDDL(cols []abstract.ColSchema, distributed bool) str
 	result.WriteString(fmt.Sprintf(" ENGINE=%s(%s)", engine, strings.Join(engineArgs, ", ")))
 
 	if keys := keys(cols); len(keys) > 0 {
-		escapedKeys := slices.Map(keys, func(col string) string {
+		escapedKeys := yslices.Map(keys, func(col string) string {
 			return fmt.Sprintf("`%s`", col)
 		})
 		result.WriteString(fmt.Sprintf(" ORDER BY (%s)", strings.Join(escapedKeys, ", ")))
@@ -247,7 +259,7 @@ func (t *sinkTable) ApplyChangeItems(rows []abstract.ChangeItem) error {
 	batches := splitRowsBySchema(rows)
 	for i, batch := range batches {
 		if err := t.applyBatch(batch); err != nil {
-			if errors.UpdateToastsError.Contains(err) && t.config.UpsertAbsentToastedRows() {
+			if codes.ClickHouseToastUpdate.Contains(err) && t.config.UpsertAbsentToastedRows() {
 				t.logger.Warnf("batch insertion fail, fallback to one-by-one pushing (batch #%d)", i)
 				for j, batchElem := range batch {
 					if err := t.applyBatch([]abstract.ChangeItem{batchElem}); err != nil {
@@ -269,7 +281,7 @@ func (t *sinkTable) ApplyChangeItems(rows []abstract.ChangeItem) error {
 }
 
 func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
-	if t.config.MigrationOptions().AddNewColumns {
+	if !t.config.GetIsSchemaMigrationDisabled() && t.config.MigrationOptions().AddNewColumns {
 		if err := t.ApplySchemaDiffToDB(t.cols.Columns(), items[0].TableSchema.Columns()); err != nil {
 			return xerrors.Errorf("fail to alter table schema for new batch: %w", err)
 		}
@@ -304,24 +316,24 @@ func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
 	defer txRollbacks.Do()
 
 	if err := doOperation(t, tx, items); err != nil {
-		if errors.IsFatalClickhouseError(err) {
+		if cherrors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
 		return xerrors.Errorf("failed to process change items: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		if errors.IsFatalClickhouseError(err) {
+		if cherrors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
-		t.logger.Warn("Commit error", log.Any("ch_host", *t.config.Host()), log.Error(err))
+		t.logger.Warn("Commit error", log.Any("ch_host", t.config.Host().HostName()), log.Error(err))
 		return xerrors.Errorf("failed to commit: %w", err)
 	}
 	txRollbacks.Cancel()
 	t.metrics.Len.Add(int64(len(items)))
 	t.metrics.Count.Inc()
 
-	t.logger.Debugf("Committed %d changeItems (%s) in %v", len(items), *t.config.Host(), time.Since(start))
+	t.logger.Debugf("Committed %d changeItems (%s) in %v", len(items), t.config.Host().HostName(), time.Since(start))
 	return nil
 }
 
@@ -500,21 +512,22 @@ func normalizeColumnNamesOrder(changeItems []abstract.ChangeItem) ([]abstract.Ch
 				vals[colNameToIdx[colName]] = el.ColumnValues[i]
 			}
 			res[i] = abstract.ChangeItem{
-				ID:           changeItems[i].ID,
-				LSN:          changeItems[i].LSN,
-				CommitTime:   changeItems[i].CommitTime,
-				Counter:      changeItems[i].Counter,
-				Kind:         changeItems[i].Kind,
-				Schema:       changeItems[i].Schema,
-				Table:        changeItems[i].Table,
-				PartID:       changeItems[i].PartID,
-				ColumnNames:  masterChangeItem.ColumnNames,
-				ColumnValues: vals,
-				TableSchema:  masterChangeItem.TableSchema,
-				OldKeys:      changeItems[i].OldKeys,
-				TxID:         changeItems[i].TxID,
-				Query:        changeItems[i].Query,
-				Size:         changeItems[i].Size,
+				ID:               changeItems[i].ID,
+				LSN:              changeItems[i].LSN,
+				CommitTime:       changeItems[i].CommitTime,
+				Counter:          changeItems[i].Counter,
+				Kind:             changeItems[i].Kind,
+				Schema:           changeItems[i].Schema,
+				Table:            changeItems[i].Table,
+				PartID:           changeItems[i].PartID,
+				ColumnNames:      masterChangeItem.ColumnNames,
+				ColumnValues:     vals,
+				TableSchema:      masterChangeItem.TableSchema,
+				OldKeys:          changeItems[i].OldKeys,
+				Size:             changeItems[i].Size,
+				TxID:             changeItems[i].TxID,
+				Query:            changeItems[i].Query,
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			}
 		}
 	}
@@ -629,14 +642,15 @@ func doOperation(t *sinkTable, tx *sql.Tx, items []abstract.ChangeItem) (err err
 	}
 
 	q := fmt.Sprintf(
-		"INSERT INTO `%s`.`%s` (%s) %s VALUES (%s)",
+		"INSERT INTO `%s`.`%s` (%s) VALUES (%s)",
 		t.config.Database(),
 		t.tableName,
 		strings.Join(colNames, ","),
-		t.config.InsertSettings().AsQueryPart(),
 		strings.Join(colVals, ","),
 	)
-	insertQuery, err := tx.Prepare(q)
+
+	insertCtx := clickhouse.Context(context.Background(), t.config.InsertSettings().ToQueryOption())
+	insertQuery, err := tx.PrepareContext(insertCtx, q)
 	if err != nil {
 		if err.Error() == "Decimal128 is not supported" {
 			return abstract.NewFatalError(xerrors.New("Decimal128 is not supported by native clickhouse-go driver. try to switch on HTTP/JSON protocol in dst endpoint settings"))
@@ -672,28 +686,6 @@ func (t *sinkTable) checkExist() (bool, error) {
 		return exist, err
 	}
 	return exist, nil
-}
-
-func (t *sinkTable) resolveTimezone() error {
-	if !t.timezoneFetched {
-		row := t.server.db.QueryRow(`SELECT timezone();`)
-		var timezone string
-		err := row.Scan(&timezone)
-		if err != nil {
-			return xerrors.Errorf("failed to fetch CH timezone: %w", err)
-		}
-
-		t.logger.Infof("Fetched CH cluster timezone %s", timezone)
-
-		loc, err := time.LoadLocation(timezone)
-		if err != nil {
-			return xerrors.Errorf("failed to parse CH timezone %s: %w", timezone, err)
-		}
-		t.timezone = loc
-		t.timezoneFetched = true
-	}
-
-	return nil
 }
 
 func restoreVals(vals []interface{}, cols []abstract.ColSchema) []interface{} {

@@ -1,14 +1,4 @@
 {
-    "gotest.gotest.TestCustomColLayautFailures/TestCustomColLayautFailures_2022/01/01/test_table_part_1-1_8.csv.gz": {
-        "uri": "file://gotest.gotest.TestCustomColLayautFailures_TestCustomColLayautFailures_2022_01_01_test_table_part_1-1_8.csv.gz/extracted"
-    },
-    "gotest.gotest.TestCustomColLayautFailures/TestCustomColLayautFailures_2022/01/02/test_table_part_1-14_15.csv.gz": "2022-01-02 00:00:00 +0000 UTC,test1_value_14,test2_value_14\n2022-01-02 00:00:00 +0000 UTC,test1_value_15,test2_value_15\n",
-    "gotest.gotest.TestCustomColLayautFailures/TestCustomColLayautFailures_2022/01/02/test_table_part_1-4_10.csv.gz": {
-        "uri": "file://gotest.gotest.TestCustomColLayautFailures_TestCustomColLayautFailures_2022_01_02_test_table_part_1-4_10.csv.gz/extracted"
-    },
-    "gotest.gotest.TestCustomColLayautFailures/TestCustomColLayautFailures_2022/01/03/test_table_part_1-11_13.csv.gz": {
-        "uri": "file://gotest.gotest.TestCustomColLayautFailures_TestCustomColLayautFailures_2022_01_03_test_table_part_1-11_13.csv.gz/extracted"
-    },
     "gotest.gotest.TestParquetReplication/TestParquetReplication_2022/01/01/test_table_part_1-1_100.parquet.gz": {
         "uri": "file://gotest.gotest.TestParquetReplication_TestParquetReplication_2022_01_01_test_table_part_1-1_100.parquet.gz/extracted"
     }

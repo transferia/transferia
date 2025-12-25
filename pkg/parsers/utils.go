@@ -8,21 +8,19 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers/resources"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers/resources"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"golang.org/x/exp/maps"
 )
 
 type schema struct {
-	Path     ypath.Path
-	Fields   []abstract.ColSchema `json:"fields"`
-	revision int
-	dead     chan bool
+	Path   ypath.Path
+	Fields []abstract.ColSchema `json:"fields"`
 }
 
 func adjustType(s string) string {
@@ -164,4 +162,16 @@ func ExtractErrorFromUnparsed(unparsed abstract.ChangeItem) string {
 		}
 	}
 	return ""
+}
+
+func VerifyUnparsed(items ...abstract.ChangeItem) error {
+	for _, item := range items {
+		if !IsUnparsed(item) {
+			continue
+		}
+		partID := item.TablePartID()
+		cause := ExtractErrorFromUnparsed(item)
+		return xerrors.Errorf("'%s' has unparsed, cause: '%s'", partID.FqtnWithPartID(), cause)
+	}
+	return nil
 }

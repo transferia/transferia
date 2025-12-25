@@ -4,41 +4,42 @@ This repository demonstrates a Change Data Capture (CDC) scenario using a MySQL 
 
 ## Architecture Diagram
 
-```plaintext
-+------------------+
-|                  |
-|    MySQL DB      |
-|                  |
-+--------+---------+
-         |
-         | (CRUD Operations)
-         |
-         v
-+--------+---------+
-|                  |
-|   TRCLI          | <------> (Replicates Data)
-|  (CDC from MySQL)|
-|                  |
-+--------+---------+
-         |
-         | (Sends messages to)
-         |
-         v
-+--------+---------+
-|                  |
-|     Kafka        |
-|                  |
-+--------+---------+
-         |
-         | (Exposes Kafka Topics via)
-         |
-         v
-+--------+---------+
-|                  |
-|   Kafka UI       |
-|                  |
-+------------------+
+Here's the corresponding Mermaid diagram:
+
+```mermaid
+graph LR
+   subgraph Source
+      A[MySQL DB]
+   end
+
+   subgraph TRCLI
+      B[Replication from MySQL]
+   end
+
+   subgraph Messaging
+      C[Kafka]
+   end
+
+   subgraph User_Interface
+      D[Kafka UI]
+   end
+
+   A -- CRUD Operations --> B
+   B -- Replicates Data --> C
+   C -- Exposes Kafka Topics --> D
+
+   classDef source fill:#dff,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+   classDef replication fill:#aaf,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+   classDef messaging fill:#ffefaa,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+   classDef ui fill:#afa,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+
+   class A source
+   class B replication
+   class C messaging
+   class D ui
+
 ```
+
 
 ## Overview
 
@@ -72,7 +73,7 @@ This repository demonstrates a Change Data Capture (CDC) scenario using a MySQL 
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/doublecloud/transfer
+   git clone https://github.com/transferia/transferia
    cd transfer/examples/mysql2kafka
    ```
 

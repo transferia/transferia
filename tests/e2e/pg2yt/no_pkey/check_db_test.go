@@ -7,17 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -27,11 +27,6 @@ var (
 	ctx                  = context.Background()
 	expectedTableContent = makeExpectedTableContent()
 )
-
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
 
 func makeExpectedTableContent() (result []string) {
 	for i := 1; i <= 20; i++ {
@@ -121,11 +116,13 @@ func TestSnapshotOnlyWorksWithStaticTables(t *testing.T) {
 	}()
 
 	defer fixture.teardown()
-	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetStaticTable()
-	fixture.transfer.Type = abstract.TransferTypeSnapshotOnly
+	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.Static = true
+	transferType := abstract.TransferTypeSnapshotOnly
+	fixture.transfer.Type = transferType
+	helpers.InitSrcDst(helpers.GenerateTransferID("TestSnapshotOnlyWorksWithStaticTables"), fixture.transfer.Src, fixture.transfer.Dst, transferType)
 
-	err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
+	_ = helpers.Activate(t, &fixture.transfer)
+
 	require.EqualValues(t, expectedTableContent, fixture.readAll())
 }
 
@@ -141,19 +138,14 @@ func TestSnapshotOnlyFailsWithSortedTables(t *testing.T) {
 		))
 	}()
 
+	transferType := abstract.TransferTypeSnapshotOnly
+
+	transferID := helpers.GenerateTransferID("TestSnapshotOnlyFailsWithSortedTables")
+	fixture.transfer.Type = transferType
+	helpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
 	defer fixture.teardown()
-	fixture.transfer.Type = abstract.TransferTypeSnapshotOnly
 
-	err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())
-	require.Error(t, err)
-	require.Contains(t, strings.ToLower(err.Error()), "no key columns found")
-
-	err = postgres.CreateReplicationSlot(fixture.transfer.Src.(*postgres.PgSource))
-	require.NoError(t, err)
-	defer func() { _ = postgres.DropReplicationSlot(fixture.transfer.Src.(*postgres.PgSource)) }()
-
-	wrk := local.NewLocalWorker(coordinator.NewStatefulFakeClient(), &fixture.transfer, helpers.EmptyRegistry(), logger.Log)
-	err = wrk.Run()
+	_, err = helpers.ActivateErr(&fixture.transfer)
 	require.Error(t, err)
 	require.Contains(t, strings.ToLower(err.Error()), "no key columns found")
 }
@@ -171,8 +163,10 @@ func TestIncrementFails(t *testing.T) {
 			))
 		}()
 
-		defer fixture.teardown()
+		transferID := helpers.GenerateTransferID("TestIncrementFails")
 		fixture.transfer.Type = transferType
+		helpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
+		defer fixture.teardown()
 
 		err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())
 		require.Error(t, err)

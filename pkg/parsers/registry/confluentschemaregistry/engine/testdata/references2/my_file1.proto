@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/doublecloud/transfer/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references2";
+option go_package = "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references2";
 
 package ru.yandex.market.x_func_tech.temporal.business;
 

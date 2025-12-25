@@ -4,39 +4,38 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func PluggableTransformer(transfer *model.Transfer, _ metrics.Registry, cp coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker {
 	supportedDestination, err := ToSupportedDestination(transfer.Dst)
 	if err != nil {
-		return IdentityMiddleware
+		return middlewares.IdentityMiddleware
 	}
 
 	if transfer.Transformation == nil || transfer.Transformation.Transformers == nil {
-		return IdentityMiddleware
+		return middlewares.IdentityMiddleware
 	}
 	dbtConfigurations, _ := dbConfigs(transfer.Transformation.Transformers)
 	if dbtConfigurations == nil {
-		return IdentityMiddleware
+		return middlewares.IdentityMiddleware
 	}
 
 	return func(s abstract.Sinker) abstract.Sinker {
-		return newPluggableTransformer(s, cp, transfer, context.Background(), supportedDestination, dbtConfigurations)
+		return newPluggableTransformer(s, cp, transfer, supportedDestination, dbtConfigurations)
 	}
 }
-
-var IdentityMiddleware = func(s abstract.Sinker) abstract.Sinker { return s }
 
 func dbConfigs(transformers *transformer.Transformers) ([]*Config, error) {
 	result := make([]*Config, 0)
@@ -67,7 +66,6 @@ func newPluggableTransformer(
 	s abstract.Sinker,
 	cp coordinator.Coordinator,
 	transfer *model.Transfer,
-	ctx context.Context,
 	dst SupportedDestination,
 	configurations []*Config,
 ) *pluggableTransformer {
@@ -106,7 +104,11 @@ const dbtStatusMessageCategory = "dbt"
 func (r *pluggableTransformer) run() error {
 	ctx := context.Background()
 	for configurationI, configuration := range r.configurations {
-		if err := newRunner(r.dst, configuration, r.transfer).Run(ctx); err != nil {
+		runner, err := newRunner(r.dst, configuration, r.transfer)
+		if err != nil {
+			return err
+		}
+		if err := runner.Run(ctx); err != nil {
 			if errOSM := r.cp.OpenStatusMessage(
 				r.transfer.ID,
 				dbtStatusMessageCategory,

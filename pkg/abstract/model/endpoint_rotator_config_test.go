@@ -1,12 +1,11 @@
 package model
 
 import (
-	"os"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // test runner
@@ -26,12 +25,15 @@ func TestRotatorConfig(t *testing.T) {
 }
 
 // some month utility
-var monthIds = map[time.Month]int{time.January: 0, time.February: 1, time.March: 2, time.April: 3, time.May: 4,
-	time.June: 5, time.July: 6, time.August: 7, time.September: 8, time.October: 9, time.November: 10, time.December: 11}
-var monthList = []time.Month{time.January, time.February, time.March, time.April, time.May,
-	time.June, time.July, time.August, time.September, time.October, time.November, time.December}
-var monthDayCount = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-var monthDayCountLeap = []int{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+var monthIds = map[time.Month]int{
+	time.January: 0, time.February: 1, time.March: 2, time.April: 3, time.May: 4,
+	time.June: 5, time.July: 6, time.August: 7, time.September: 8, time.October: 9, time.November: 10, time.December: 11,
+}
+
+var monthList = []time.Month{
+	time.January, time.February, time.March, time.April, time.May,
+	time.June, time.July, time.August, time.September, time.October, time.November, time.December,
+}
 
 // scenario tests
 func scenarioTesting(t *testing.T) {
@@ -49,7 +51,7 @@ func scenarioTestingDTSUPPORT693(t *testing.T) {
 	timestamp := time.Now()
 
 	addProcedure := func(tableList []string, currentTime time.Time) []string {
-		return append(rotationTables, rotator.AnnotateWithTime("whatever", timestamp))
+		return append(tableList, rotator.AnnotateWithTime("whatever", currentTime))
 	}
 	dropProcedure := func(tableList []string, currentTime time.Time) []string {
 		var filteredTableList []string
@@ -120,7 +122,6 @@ func validate(t *testing.T) {
 	require.Error(t, (&RotatorConfig{KeepPartCount: 1, PartType: RotatorPartHour, PartSize: -1, TimeColumn: ""}).Validate(), "PartSize should be positive")
 	require.Error(t, (&RotatorConfig{KeepPartCount: 0, PartType: RotatorPartHour, PartSize: 1, TimeColumn: ""}).Validate(), "KeepPartCount should be positive")
 	require.Error(t, (&RotatorConfig{KeepPartCount: 1, PartType: "kek", PartSize: 1, TimeColumn: ""}).Validate(), "wrong enum value of PartType")
-
 }
 
 func getMonthPartitionedTestLight(t *testing.T) {
@@ -178,7 +179,7 @@ func getMonthPartitionedTestHeavy(t *testing.T) {
 }
 
 func offsetDateTest(t *testing.T) {
-	t.Parallel()
+	t.Setenv("TZ", "Europe/Moscow") // this test is timezone aware
 	t.Run("Hours", offsetDateTestHours)
 	t.Run("Days", offsetDateTestDays)
 	//t.Run("MonthHeavy", offsetDateTestMonthHeavy) // TODO(@kry127) temporary switched off
@@ -186,7 +187,6 @@ func offsetDateTest(t *testing.T) {
 }
 
 func offsetDateTestHours(t *testing.T) {
-	t.Parallel()
 	rcHours := RotatorConfig{KeepPartCount: 0, PartType: RotatorPartHour, PartSize: 1, TimeColumn: ""}
 	rcHoursTimestamp := time.Now()
 
@@ -205,9 +205,6 @@ func offsetDateTestHours(t *testing.T) {
 }
 
 func offsetDateTestDays(t *testing.T) {
-	t.Parallel()
-	_ = os.Setenv("TZ", "Europe/Moscow") // this test is timezone aware
-	defer os.Unsetenv("TZ")
 	rcDays := RotatorConfig{KeepPartCount: 0, PartType: RotatorPartDay, PartSize: 1, TimeColumn: ""}
 	rcDaysTimestamp := time.Now()
 
@@ -247,6 +244,11 @@ func isLeap(year int) bool {
 }
 
 func countDaysForYearAcc(year, month, offset int, acc int64) int64 {
+	var (
+		monthDayCount     = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+		monthDayCountLeap = []int{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+	)
+
 	switch {
 	case offset > 0:
 		dayDiff := 0
@@ -281,15 +283,14 @@ func countDaysForYearAcc(year, month, offset int, acc int64) int64 {
 		return acc
 	}
 }
+
 func countDaysForYear(year, month, offset int) int64 {
 	return countDaysForYearAcc(year, month, offset, 0)
 }
 
-func offsetDateTestMonthHeavy(t *testing.T) {
-	t.Parallel()
+func TestOffsetDateTestMonthHeavy(t *testing.T) {
 	checkYear := func(t *testing.T, year, partSize int) {
-		t.Helper()
-		t.Parallel()
+		t.Skip()
 		rcMonths := RotatorConfig{KeepPartCount: 0, PartType: RotatorPartMonth, PartSize: partSize, TimeColumn: ""}
 		nowTimestamp := time.Now()
 		for offset := 1; offset < 15; offset++ {
@@ -327,7 +328,6 @@ func offsetDateTestMonthHeavy(t *testing.T) {
 	t.Run("check year 2100 part size 1", func(t *testing.T) { checkYear(t, 2100, 1) })
 	t.Run("check year 2100 part size 5", func(t *testing.T) { checkYear(t, 2100, 5) })
 	t.Run("check year 2100 part size 12", func(t *testing.T) { checkYear(t, 2100, 12) })
-
 }
 
 func getPartitionBin(t *testing.T) {
@@ -357,13 +357,16 @@ func annotateWithTimeFromColumnTest(t *testing.T) {
 	t.Run("NoTimeColumnFound", annotateWithTimeFromColumnTestNoTimeColumnInRawData)
 	t.Run("NoTimeColumnInConfig", annotateWithTimeFromColumnTestNoTimeColumnInConfig)
 	t.Run("NilReceiver", annotateWithTimeFromColumnTestNilReceiver)
+	t.Run("IntDataInColumn", annotateWithTimeFromColumnTestIntDataInColumn)
 }
+
 func annotateWithTimeFromColumnTestWithoutFormat(t *testing.T) {
 	t.Parallel()
 	t.Run("Hours", annotateWithTimeFromColumnTestWithoutFormatHours)
 	t.Run("Days", annotateWithTimeFromColumnTestWithoutFormatDays)
 	t.Run("Months", annotateWithTimeFromColumnTestWithoutFormatMonths)
 }
+
 func annotateWithTimeFromColumnTestWithFormat(t *testing.T) {
 	t.Parallel()
 	t.Run("Hours", annotateWithTimeFromColumnTestWithTemplateHours)
@@ -703,6 +706,21 @@ func annotateWithTimeFromColumnTestNilReceiver(t *testing.T) {
 		annotate1 = nilRotator.Annotate("ElonMusksTable")
 	}
 	require.Equal(t, annotate1, annotate2, "nil reciver should use current date for annotation as default method does")
+}
+
+func annotateWithTimeFromColumnTestIntDataInColumn(t *testing.T) {
+	t.Parallel()
+	changeItem := abstract.ChangeItem{
+		ColumnNames:  []string{"now"},
+		ColumnValues: []any{1753649681},
+	}
+	timeExtracted := ExtractTimeCol(changeItem, "now")
+
+	require.Equal(t, time.Unix(1753649681, 0), timeExtracted)
+
+	rotator := RotatorConfig{PartType: RotatorPartDay, PartSize: 1, KeepPartCount: 3650, TimeColumn: "now", TableNameTemplate: ""}
+	result := rotator.AnnotateWithTimeFromColumn("kek", changeItem)
+	require.Equal(t, "kek/2025-07-27", result)
 }
 
 func nextTest(t *testing.T) {

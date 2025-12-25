@@ -13,7 +13,6 @@ This guide outlines the steps to benchmark database transfer services using a ro
 
 2. **Prepare the Source Database**
     - Set up a source database on ec2 instance.
-    - Use a pre-production serverless runtime environment.
 
 3. **Load the Data**  
    Import the prepared dataset into the source database, ensuring it aligns with the benchmarking scenario.
@@ -35,7 +34,7 @@ Baselines provide reference points to measure performance.
     - Document the metrics from this initial transfer.
     - Key metric: Rows per second for single-core throughput.
     - Example: Measure total transfer time or use metrics like rows/sec.
-    - ![bench_key_metrics.png](../assets/bench_key_metrics.png)
+    - ![bench_key_metrics.png](_assets/bench_key_metrics.png)
 
 ---
 
@@ -45,22 +44,22 @@ After setting baselines, fine-tune the transfer settings for better performance.
 
 ### Optimization Steps:
 1. **Activate the Transfer**  
-   Deploye transfer via [helm](./deploy_k8s.md) in your k8s cluster.
+   Deploye transferia via [helm](deploy_k8s.html) in your k8s cluster.
 
 2. **Expose pprof for Profiling**
     - Expose the pprof port for profiling, by default `--run-profiler` is true.
 
 3. **Download the pprof File**
     - CPU profiles are accessible at `http://localhost:{EXPOSED_PORT}/debug/pprof/`.
-    - ![bench_key_metrics.png](../assets/bench_pprof_lens.png)
+    - ![bench_key_metrics.png](_assets/bench_pprof_lens.png)
     - Profiles typically sample for 30 seconds.
-    - ![bench_key_metrics.png](../assets/bench_pprof_prifle.png)
+    - ![bench_key_metrics.png](_assets/bench_pprof_prifle.png)
 
 4. **Visualize the Profile**
     - Use tools like [Speedscope](https://www.speedscope.app/).
-    - ![bench_key_metrics.png](../assets/bench_speedscope_init.png)
+    - ![bench_key_metrics.png](_assets/bench_speedscope_init.png)
     - Upload the profile to analyze call stacks.
-    - ![bench_key_metrics.png](../assets/bench_results.png)
+    - ![bench_key_metrics.png](_assets/bench_results.png)
     - Use the "Left-Heavy" view to identify high-time-consuming paths.
 
 ---

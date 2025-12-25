@@ -14,7 +14,7 @@ type BuildInfo struct {
 	//
 	//     Other info:
 	//         Build by: prime
-	//         Top src dir: /home/prime/Code/go/src/github.com/doublecloud/transfer
+	//         Top src dir: /home/prime/Code/go/src/github.com/transferia/transferia
 	//         Top build dir: /home/prime/.ya/build/build_root/qbh0/000002
 	//         Hostname: 77.88.18.146-red.dhcp.yndx.net
 	//         Host information:

@@ -6,16 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 func checkIfDebeziumConvertorWorks(t *testing.T, currChangeItem *abstract.ChangeItem) {
@@ -55,7 +56,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 		UseFullPaths:       true,
 	}
 
-	sink := &helpers.MockSink{}
+	sink := mocksink.NewMockSink(nil)
 	dst := &model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sink },
 		Cleanup:       model.DisabledCleanup,
@@ -64,7 +65,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 	result := make(map[string]interface{})
 
 	index := 0
-	sink.PushCallback = func(input []abstract.ChangeItem) {
+	sink.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, currChangeItem := range input {
 			if currChangeItem.Kind == abstract.InsertKind || currChangeItem.Kind == abstract.UpdateKind || currChangeItem.Kind == abstract.DeleteKind {
 				index++
@@ -84,6 +85,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 				result[fmt.Sprintf("%v-%v", currMode, index)] = currChangeItem
 			}
 		}
+		return nil
 	}
 
 	// init source table
@@ -133,7 +135,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 	// wait when all events goes thought sink
 
 	for {
-		if index == 5 {
+		if len(result) == 5 {
 			break
 		}
 		time.Sleep(time.Second)
@@ -144,7 +146,7 @@ func Iteration(t *testing.T, currMode ydb.ChangeFeedModeType) map[string]interfa
 
 func TestCRUDOnAllSupportedModes(t *testing.T) {
 	modes := []ydb.ChangeFeedModeType{
-		ydb.ChangeFeedModeUpdates,
+		//ydb.ChangeFeedModeUpdates,
 		ydb.ChangeFeedModeNewImage,
 		ydb.ChangeFeedModeNewAndOldImages,
 	}

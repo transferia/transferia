@@ -1,6 +1,6 @@
 package tablequery
 
-import "github.com/doublecloud/transfer/pkg/abstract"
+import "github.com/transferia/transferia/pkg/abstract"
 
 type TableQuery struct {
 	TableID abstract.TableID

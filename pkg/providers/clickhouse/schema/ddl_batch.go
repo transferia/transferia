@@ -3,11 +3,11 @@ package schema
 import (
 	"encoding/binary"
 
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferia/transferia/pkg/base"
 )
 
 type DDLBatch struct {
-	DDLs []TableDDL
+	DDLs []*TableDDL
 	iter int
 }
 
@@ -28,7 +28,7 @@ func (b *DDLBatch) Event() (base.Event, error) {
 	return b.DDLs[b.iter], nil
 }
 
-func NewDDLBatch(ddls []TableDDL) *DDLBatch {
+func NewDDLBatch(ddls []*TableDDL) *DDLBatch {
 	return &DDLBatch{
 		DDLs: ddls,
 		iter: -1,

@@ -3,7 +3,7 @@ package logger
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics"
 )
 
 // mutableRegistry is a nasty hack, try not to use it. It overrides some metric
@@ -25,6 +25,7 @@ func NewMutableRegistry(registry metrics.Registry) metrics.Registry {
 func (r *mutableRegistry) WithTags(tags map[string]string) metrics.Registry {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
 	r.Registry = r.Registry.WithTags(tags)
 	for _, metric := range r.metrics {
 		metric.Init(r.Registry)
@@ -35,6 +36,7 @@ func (r *mutableRegistry) WithTags(tags map[string]string) metrics.Registry {
 func (r *mutableRegistry) Counter(name string) metrics.Counter {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
 	counter := newMutableCounter(name)
 	r.metrics = append(r.metrics, counter)
 	return counter
@@ -43,25 +45,25 @@ func (r *mutableRegistry) Counter(name string) metrics.Counter {
 func (r *mutableRegistry) Histogram(name string, buckets metrics.Buckets) metrics.Histogram {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
 	histogram := newMutableHistogram(name, buckets)
 	r.metrics = append(r.metrics, histogram)
 	return histogram
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// interface 'mutableMetric'
+
 type mutableMetric interface {
 	Init(registry metrics.Registry)
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// 1st implementation of 'mutableMetric' - counter
+
 type mutableCounter struct {
 	name    string
 	counter metrics.Counter
-}
-
-func newMutableCounter(name string) *mutableCounter {
-	return &mutableCounter{
-		name:    name,
-		counter: nil,
-	}
 }
 
 func (c *mutableCounter) Init(registry metrics.Registry) {
@@ -80,18 +82,20 @@ func (c *mutableCounter) Add(delta int64) {
 	}
 }
 
+func newMutableCounter(name string) *mutableCounter {
+	return &mutableCounter{
+		name:    name,
+		counter: nil,
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// 2nd implementation of 'mutableMetric' - histogram
+
 type mutableHistogram struct {
 	name      string
 	buckets   metrics.Buckets
 	histogram metrics.Histogram
-}
-
-func newMutableHistogram(name string, buckets metrics.Buckets) *mutableHistogram {
-	return &mutableHistogram{
-		name:      name,
-		buckets:   buckets,
-		histogram: nil,
-	}
 }
 
 func (h *mutableHistogram) Init(registry metrics.Registry) {
@@ -101,5 +105,13 @@ func (h *mutableHistogram) Init(registry metrics.Registry) {
 func (h *mutableHistogram) RecordValue(value float64) {
 	if h.histogram != nil {
 		h.histogram.RecordValue(value)
+	}
+}
+
+func newMutableHistogram(name string, buckets metrics.Buckets) *mutableHistogram {
+	return &mutableHistogram{
+		name:      name,
+		buckets:   buckets,
+		histogram: nil,
 	}
 }

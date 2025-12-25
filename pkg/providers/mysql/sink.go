@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -10,20 +9,21 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/go-sql-driver/mysql"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var ddlTemplate, _ = template.New("query").Parse(`
+var createTableTemplate, _ = template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 CREATE TABLE IF NOT EXISTS {{ .Table }} (
 {{ range .Cols }}{{ .Name }} {{ .Typ }} {{ .Comma }}
@@ -38,10 +38,12 @@ WHERE (TABLE_SCHEMA = ?) AND (TABLE_NAME = ?)
 `
 
 const (
-	ErrCodeDuplicateKey = 1062
-	ErrCodeSyntax       = 1064
-	ErrCodeLockTimeout  = 1205
-	ErrCodeDeadlock     = 1213
+	ErrCodeDuplicateKey      = 1062
+	ErrCodeSyntax            = 1064
+	ErrCodeLockTimeout       = 1205
+	ErrCodeDeadlock          = 1213
+	ErrCodeUnknownDatabase   = 1049
+	ErrCodeInvalidCredential = 1045
 )
 
 const maxSampleLen = 10000
@@ -98,7 +100,7 @@ func (t *txBatch) txQueries() []string {
 }
 
 type sinker struct {
-	cache              map[string]bool
+	cache              abstract.DBSchema
 	db                 *sql.DB
 	metrics            *stats.SinkerStats
 	config             *MysqlDestination
@@ -111,6 +113,7 @@ type sinker struct {
 	currentTX          *sql.Tx
 	currentTXID        string
 	pendingTableCounts map[abstract.TableID]int
+	database           string
 }
 
 func (s *sinker) fillUniqueConstraints() error {
@@ -186,7 +189,7 @@ func (s *sinker) prepareInputPerTables(input []abstract.ChangeItem) (map[abstrac
 			if _, err := s.db.Exec(ddlQ); err != nil {
 				s.logger.Warn("Unable to exec DDL:\n"+util.Sample(ddlQ, maxSampleLen), log.Error(err))
 				if IsErrorCode(err, ErrCodeSyntax) {
-					return nil, abstract.NewFatalError(coded.Errorf(CodeSyntax, "%w", err))
+					return nil, abstract.NewFatalError(coded.Errorf(codes.MySQLIncorrectSyntax, "%w", err))
 				}
 				return nil, xerrors.Errorf("unable to execute ddl: %w", err)
 			} else {
@@ -234,7 +237,7 @@ func (s *sinker) prepareInputPerTables(input []abstract.ChangeItem) (map[abstrac
 			} else {
 				s.logger.Infof("Done DDL:\n%v", util.Sample(ddlQ, maxSampleLen))
 			}
-		case abstract.InitShardedTableLoad:
+		case abstract.InitShardedTableLoad, abstract.SynchronizeKind:
 			// not needed for now
 		case abstract.InitTableLoad:
 			initQ := s.progress.BuildLSNQuery(tableID.Fqtn(), row.LSN, SnapshotWait)
@@ -266,7 +269,7 @@ func (s *sinker) prepareInputPerTables(input []abstract.ChangeItem) (map[abstrac
 		}
 	}
 	for tableID, rows := range tables {
-		if err := s.checkTable(tableID, rows[0]); err != nil {
+		if err := s.checkTable(tableID, rows[0].TableSchema); err != nil {
 			return nil, err
 		}
 	}
@@ -360,7 +363,7 @@ func (s *sinker) perTransactionPush(input []abstract.ChangeItem) error {
 				ddlQ := DisableFKQuery
 				ddlQ += fmt.Sprintf("TRUNCATE TABLE `%v`.`%v`", db, row.Table)
 				queries = append(queries, ddlQ)
-			case abstract.InitShardedTableLoad:
+			case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad, abstract.SynchronizeKind:
 				// not needed for now
 			case abstract.InitTableLoad:
 				initQ := s.progress.BuildLSNQuery(tableID.Fqtn(), row.LSN, SnapshotWait)
@@ -370,8 +373,6 @@ func (s *sinker) perTransactionPush(input []abstract.ChangeItem) error {
 				doneQ := s.progress.BuildLSNQuery(tableID.Fqtn(), row.LSN, SyncWait)
 				s.logger.Infof("done table load: %v", doneQ)
 				queries = append(queries, doneQ)
-			case abstract.DoneShardedTableLoad:
-				// not needed for now
 			default:
 				return xerrors.Errorf("not implemented change kind: %v", row.Kind)
 			}
@@ -493,7 +494,7 @@ func (s *sinker) perTablePush(tables map[abstract.TableID][]abstract.ChangeItem)
 	// will split traffic per table transactions
 	for tableID, rows := range tables {
 		wg.Add(1)
-		if err := s.checkTable(tableID, rows[0]); err != nil {
+		if err := s.checkTable(tableID, rows[0].TableSchema); err != nil {
 			return xerrors.Errorf("checking table %s failed: %w", tableID.Fqtn(), err)
 		}
 	}
@@ -714,7 +715,7 @@ func (s *sinker) pushQuires(tx *sql.Tx, queries []sinkQuery) error {
 		start := time.Now()
 		if _, err := tx.Exec(q.query); err != nil {
 			if IsErrorCode(err, ErrCodeDeadlock) {
-				return coded.Errorf(CodeDeadlock, "a deadlock occurred while executing query: %w", err)
+				return coded.Errorf(codes.MySQLDeadlock, "a deadlock occurred while executing query: %w", err)
 			}
 			s.logger.Error(fmt.Sprintf("exec error, query:\n%v", util.Sample(q.query, maxSampleLen)), log.Duration("elapsed", time.Since(start)), log.Error(err))
 			if tErr := tx.Rollback(); tErr != nil {
@@ -724,37 +725,6 @@ func (s *sinker) pushQuires(tx *sql.Tx, queries []sinkQuery) error {
 		}
 	}
 	return nil
-}
-
-func (s *sinker) prepareDDL(tableID abstract.TableID, changeItem abstract.ChangeItem) string {
-	tModel := TemplateModel{
-		Cols:  []TemplateCol{},
-		Keys:  []TemplateCol{},
-		Table: fmt.Sprintf("`%v`.`%v`", tableID.Namespace, tableID.Name),
-	}
-	for _, col := range changeItem.TableSchema.Columns() {
-		tModel.Cols = append(tModel.Cols, TemplateCol{
-			Name:  fmt.Sprintf("`%s`", col.ColumnName),
-			Typ:   TypeToMySQL(col),
-			Comma: ",",
-		})
-		if col.PrimaryKey {
-			tModel.Keys = append(tModel.Keys, TemplateCol{
-				Name:  fmt.Sprintf("`%s`", col.ColumnName),
-				Typ:   TypeToMySQL(col),
-				Comma: ",",
-			})
-		}
-	}
-	if len(tModel.Keys) > 0 {
-		tModel.Keys[len(tModel.Keys)-1].Comma = ""
-	} else {
-		tModel.Cols[len(tModel.Cols)-1].Comma = ""
-	}
-
-	buf := new(bytes.Buffer)
-	_ = ddlTemplate.Execute(buf, tModel)
-	return buf.String()
 }
 
 func (s *sinker) Close() error {
@@ -769,43 +739,71 @@ func (s *sinker) Close() error {
 	return nil
 }
 
-func (s *sinker) checkTable(tableID abstract.TableID, changeItem abstract.ChangeItem) error {
+func (s *sinker) checkTable(tableID abstract.TableID, tableSchema *abstract.TableSchema) error {
 	s.rw.Lock()
 	defer s.rw.Unlock()
-	if s.cache[tableID.Fqtn()] || s.config.MaintainTables {
+	// MaintainTables historically was used incorrectly. Have to keep it for backward compatibility until we move to
+	// GetIsSchemaMigrationDisabled flag completely
+	if s.config.IsSchemaMigrationDisabled || s.config.MaintainTables {
 		return nil
 	}
-	r, err := s.db.Query(fmt.Sprintf(`
-		select
-			table_schema,
-			table_name
-		from information_schema.tables
-		where table_schema = '%v' and table_name = '%v';
-	`, tableID.Namespace, tableID.Name))
-
-	if err == nil {
-		for r.Next() {
-			var schema, name string
-			if err := r.Scan(&schema, &name); err == nil && schema == tableID.Namespace && name == tableID.Name {
-				s.cache[tableID.Fqtn()] = true
-				_ = r.Close()
-				return nil
-			}
-			_ = r.Close()
-		}
+	if err := s.ensureTableSchema(tableID, tableSchema); err != nil {
+		return xerrors.Errorf("failed to ensure table schema: %w", err)
+	}
+	if s.cache[tableID].Equal(tableSchema) {
+		return nil
+	}
+	if err := s.createTable(tableID, tableSchema); err != nil {
+		return xerrors.Errorf("failed to create table: %w", err)
 	}
 
-	return s.createTable(tableID, changeItem)
+	if err := s.alterTable(tableID, tableSchema); err != nil {
+		return xerrors.Errorf("failed to alter table: %w", err)
+	}
+	return nil
 }
 
-func (s *sinker) createTable(tableID abstract.TableID, changeItem abstract.ChangeItem) error {
-	q := s.prepareDDL(tableID, changeItem)
-	if _, err := s.db.Exec(q); err != nil {
-		s.logger.Warnf("Unable to push DDL (%v):\n%v\n", err, util.Sample(q, maxSampleLen))
+func (s *sinker) ensureTableSchema(tableID abstract.TableID, input *abstract.TableSchema) error {
+	if schema, ok := s.cache[tableID]; ok && schema.Equal(input) {
+		return nil
+	}
+	tables, err := LoadSchema(s.db, false, false, s.database)
+	if err != nil {
+		return xerrors.Errorf("failed to load schema: %w", err)
+	}
+	s.cache = tables
+	return nil
+}
+
+func (s *sinker) createTable(tableID abstract.TableID, ts *abstract.TableSchema) error {
+	if _, ok := s.cache[tableID]; ok {
+		return nil
+	}
+	query := prepareCreateTableQuery(tableID, ts)
+	if len(query) == 0 {
+		return nil
+	}
+	if _, err := s.db.Exec(query); err != nil {
+		s.logger.Warnf("Unable to push DDL (%v):\n%v\n", err, util.Sample(query, maxSampleLen))
 		return abstract.NewFatalError(xerrors.Errorf("unable to execute ddl: %w", err))
 	}
-	s.cache[changeItem.Fqtn()] = true
+	s.cache[tableID] = ts
+	return nil
+}
 
+func (s *sinker) alterTable(tableID abstract.TableID, in *abstract.TableSchema) error {
+	curr := s.cache[tableID]
+	if curr.Equal(in) {
+		return nil
+	}
+	query := prepareAlterTableQuery(tableID, curr, in)
+	if len(query) == 0 {
+		return nil
+	}
+	if _, err := s.db.Exec(query); err != nil {
+		s.logger.Warnf("Unable to alter %s (%s): %s", tableID.Fqtn(), util.Sample(query, maxSampleLen), err)
+		return abstract.NewFatalError(xerrors.Errorf("unable to alter table %s: %w", tableID.Fqtn(), err))
+	}
 	return nil
 }
 
@@ -882,7 +880,7 @@ func NewSinker(lgr log.Logger, cfg *MysqlDestination, mtrcs metrics.Registry) (a
 
 	rollbacks.Cancel()
 	return &sinker{
-		cache:              map[string]bool{},
+		cache:              make(map[abstract.TableID]*abstract.TableSchema),
 		db:                 db,
 		metrics:            stats.NewSinkerStats(mtrcs),
 		config:             cfg,
@@ -895,5 +893,6 @@ func NewSinker(lgr log.Logger, cfg *MysqlDestination, mtrcs metrics.Registry) (a
 		currentTX:          nil,
 		currentTXID:        "",
 		pendingTableCounts: map[abstract.TableID]int{},
+		database:           cfg.Database,
 	}, nil
 }

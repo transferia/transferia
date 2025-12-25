@@ -2,9 +2,13 @@ package format
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/slices"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type JSONCompactValidator struct {
@@ -20,8 +24,9 @@ func (e *JSONCompactValidator) ReadAndValidate() (int64, error) {
 			xerrors.Errorf("string is invalid json, err: %w", err)
 	}
 	if e.expectedColumnsCount != len(tmp) {
-		return e.decoder.InputOffset() - startOffset,
-			xerrors.Errorf("json string contains wrong number of columns, expected: %d, real: %d", e.expectedColumnsCount, len(tmp))
+		msg := fmt.Sprintf("JSON string contains wrong number of columns, expected: %d, real: %d", e.expectedColumnsCount, len(tmp))
+		logger.Log.Warn(msg, log.Strings("rows", slices.Map(tmp, func(x json.RawMessage) string { return string(x) })))
+		return e.decoder.InputOffset() - startOffset, xerrors.New(msg)
 	}
 	return e.decoder.InputOffset() - startOffset, nil
 }

@@ -5,9 +5,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -19,7 +20,7 @@ func (s *Storage) readRowsAndPushByChunks(
 	chunkByteSize uint64,
 	pusher abstract.Pusher,
 ) error {
-	partID := table.PartID()
+	partID := table.GeneratePartID()
 	inflight := make([]abstract.ChangeItem, 0)
 	globalIdx := uint64(0)
 	byteSize := uint64(0)
@@ -41,21 +42,22 @@ func (s *Storage) readRowsAndPushByChunks(
 			}
 
 			inflight = append(inflight, abstract.ChangeItem{
-				CommitTime:   uint64(st.UnixNano()),
-				Kind:         abstract.InsertKind,
-				Schema:       table.Schema,
-				Table:        table.Name,
-				PartID:       partID,
-				ColumnNames:  names,
-				ColumnValues: values,
-				TableSchema:  abstract.NewTableSchema(schemaDescription.Columns),
-				OldKeys:      abstract.EmptyOldKeys(),
-				Counter:      0,
-				ID:           0,
-				LSN:          0,
-				TxID:         "",
-				Query:        "",
-				Size:         abstract.RawEventSize(uint64(len(doc.Source))),
+				ID:               0,
+				LSN:              0,
+				CommitTime:       uint64(st.UnixNano()),
+				Counter:          0,
+				Kind:             abstract.InsertKind,
+				Schema:           table.Schema,
+				Table:            table.Name,
+				PartID:           partID,
+				ColumnNames:      names,
+				ColumnValues:     values,
+				TableSchema:      abstract.NewTableSchema(schemaDescription.Columns),
+				OldKeys:          abstract.EmptyOldKeys(),
+				Size:             abstract.RawEventSize(uint64(len(doc.Source))),
+				TxID:             "",
+				Query:            "",
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			})
 			globalIdx++
 			byteSize += uint64(len(doc.Source))

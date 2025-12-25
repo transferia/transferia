@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type Stream struct {
@@ -224,6 +224,7 @@ const (
 	MessageTypeRecord           MessageType = "RECORD"
 	MessageTypeState            MessageType = "STATE"
 	MessageTypeLog              MessageType = "LOG"
+	MessageTypeTrace            MessageType = "TRACE"
 	MessageTypeSpec             MessageType = "SPEC"
 	MessageTypeConnectionStatus MessageType = "CONNECTION_STATUS"
 	MessageTypeCatalog          MessageType = "CATALOG"

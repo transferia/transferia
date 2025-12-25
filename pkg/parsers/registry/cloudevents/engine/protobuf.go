@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"github.com/cloudevents/sdk-go/binding/format/protobuf/v2/pb"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/golang/protobuf/proto"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"google.golang.org/protobuf/proto"
 )
 
 func unpackCloudEventsProtoMessage(buf []byte) (*cloudEventsProtoFields, []byte, string, error) {

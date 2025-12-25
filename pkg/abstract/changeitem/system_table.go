@@ -3,7 +3,7 @@ package changeitem
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 var (

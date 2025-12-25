@@ -6,11 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/set"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -19,9 +21,10 @@ type JSONProperties struct {
 	OneOf      []*JSONProperties          `json:"oneOf"`
 	Properties map[string]*JSONProperties `json:"properties"`
 	Title      string                     `json:"title"`
+	Required   []string                   `json:"required"`
 }
 
-func makeChangeItemsFromMessageWithJSON(schema *confluent.Schema, buf []byte, offset uint64, writeTime time.Time) ([]abstract.ChangeItem, int, error) {
+func makeChangeItemsFromMessageWithJSON(schema *confluent.Schema, buf []byte, offset uint64, writeTime time.Time, isGenerateUpdates bool) ([]abstract.ChangeItem, int, error) {
 	var jsonProperties JSONProperties
 	err := json.Unmarshal([]byte(schema.Schema), &jsonProperties)
 	if err != nil {
@@ -41,31 +44,36 @@ func makeChangeItemsFromMessageWithJSON(schema *confluent.Schema, buf []byte, of
 		msgLen = zeroIndex
 	}
 
-	tableColumns, names, values, err := processPayload(schemaName, tableName, &jsonProperties, buf[0:msgLen])
+	tableColumns, names, values, err := processPayload(schemaName, tableName, &jsonProperties, buf[0:msgLen], isGenerateUpdates)
 	if err != nil {
 		return nil, 0, xerrors.Errorf("Can't process payload:%w", err)
 	}
+	kind := abstract.InsertKind
+	if isGenerateUpdates {
+		kind = abstract.UpdateKind
+	}
 	changeItem := abstract.ChangeItem{
-		ID:           0,
-		LSN:          offset,
-		CommitTime:   uint64(writeTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.UpdateKind,
-		Schema:       schemaName,
-		Table:        tableName,
-		PartID:       "",
-		ColumnNames:  names,
-		ColumnValues: values,
-		TableSchema:  tableColumns,
-		OldKeys:      abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.RawEventSize(uint64(len(buf))),
+		ID:               0,
+		LSN:              offset,
+		CommitTime:       uint64(writeTime.UnixNano()),
+		Counter:          0,
+		Kind:             kind,
+		Schema:           schemaName,
+		Table:            tableName,
+		PartID:           "",
+		ColumnNames:      names,
+		ColumnValues:     values,
+		TableSchema:      tableColumns,
+		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
+		Size:             abstract.RawEventSize(uint64(len(buf))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	return []abstract.ChangeItem{changeItem}, msgLen, nil
 }
 
-func processPayload(schemaName, tableName string, jsonSchema *JSONProperties, payload []byte) (*abstract.TableSchema, []string, []interface{}, error) {
+func processPayload(schemaName, tableName string, jsonSchema *JSONProperties, payload []byte, isGenerateUpdates bool) (*abstract.TableSchema, []string, []interface{}, error) {
 	var rows []abstract.ColSchema
 	var names []string
 	var values []interface{}
@@ -77,9 +85,11 @@ func processPayload(schemaName, tableName string, jsonSchema *JSONProperties, pa
 		return nil, nil, nil, xerrors.Errorf("json schema type must be 'object'")
 	}
 
+	requiredSet := set.New(jsonSchema.Required...)
+
 	schemaRowNames := util.MapKeysInOrder(jsonSchema.Properties)
 	for _, name := range schemaRowNames {
-		rows = append(rows, jsonPropertyToJSONSchemaRow(schemaName, tableName, name, jsonSchema.Properties[name]))
+		rows = append(rows, jsonPropertyToJSONSchemaRow(schemaName, tableName, name, jsonSchema.Properties[name], requiredSet.Contains(name)))
 	}
 	var dataChanges map[string]interface{}
 	if err := jsonx.NewDefaultDecoder(bytes.NewReader(payload)).Decode(&dataChanges); err != nil {
@@ -87,6 +97,7 @@ func processPayload(schemaName, tableName string, jsonSchema *JSONProperties, pa
 	}
 	for _, row := range rows {
 		if value, ok := dataChanges[row.ColumnName]; ok {
+			// value is present
 			names = append(names, row.ColumnName)
 			converted, err := convertTypes(value, ytschema.Type(row.DataType), !row.Required)
 			if err != nil {
@@ -94,22 +105,30 @@ func processPayload(schemaName, tableName string, jsonSchema *JSONProperties, pa
 			}
 			values = append(values, converted)
 		} else if row.Required {
+			// value is absent, but MUST BE
 			return nil, nil, nil, xerrors.Errorf("Field %q is required, but not found in payload %q", row.ColumnName, string(payload))
+		} else {
+			// value is absent, and it's ok
+			if !isGenerateUpdates {
+				// for inserts - all values from TableSchema should be in ColumnNames/ColumnValues
+				names = append(names, row.ColumnName)
+				values = append(values, nil)
+			}
 		}
 	}
 
 	return abstract.NewTableSchema(rows), names, values, nil
 }
 
-func jsonPropertyToJSONSchemaRow(schemaName, tableName, name string, property *JSONProperties) abstract.ColSchema {
+func jsonPropertyToJSONSchemaRow(schemaName, tableName, name string, property *JSONProperties, inIsRequired bool) abstract.ColSchema {
 	colType := jsonSchemaTypes[jsonType(property.Type)].String()
-	isRequired := true
+	isRequired := inIsRequired
 	if property.OneOf != nil {
-		for _, property := range property.OneOf {
-			if property.Type == JSONTypeNull.String() {
+		for _, currProperty := range property.OneOf {
+			if currProperty.Type == JSONTypeNull.String() {
 				isRequired = false
 			} else {
-				colType = jsonSchemaTypes[jsonType(property.Type)].String()
+				colType = jsonSchemaTypes[jsonType(currProperty.Type)].String()
 			}
 		}
 	}

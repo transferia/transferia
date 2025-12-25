@@ -1,8 +1,8 @@
 package queue
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 )
@@ -61,7 +61,7 @@ func extractBytesValue(changeItem *abstract.ChangeItem, columnIndex int) ([]byte
 	}
 
 	// Possible types for TypeString and TypeBytes are defined here:
-	// https://github.com/doublecloud/transfer/arcadia/transfer_manager/go/pkg/abstract/typesystem/values/type_checkers.go?rev=11543367#L52-53
+	// https://github.com/transferia/transferia/arcadia/transfer_manager/go/pkg/abstract/typesystem/values/type_checkers.go?rev=11543367#L52-53
 	switch columnValue := changeItem.ColumnValues[columnIndex].(type) {
 	case string:
 		return []byte(columnValue), nil

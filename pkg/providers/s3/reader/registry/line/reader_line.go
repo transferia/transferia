@@ -1,0 +1,308 @@
+package reader
+
+import (
+	"context"
+	"io"
+	"math"
+	"strings"
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers/scanner"
+	"github.com/transferia/transferia/pkg/providers/s3"
+	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/yt/go/schema"
+)
+
+var (
+	_ abstract_reader.Reader             = (*LineReader)(nil)
+	_ abstract_reader.RowsCountEstimator = (*LineReader)(nil)
+)
+
+func init() {
+	abstract_reader.RegisterReader(model.ParsingFormatLine, NewLineReader)
+}
+
+type LineReader struct {
+	table          abstract.TableID
+	bucket         string
+	client         s3iface.S3API
+	downloader     *s3manager.Downloader
+	logger         log.Logger
+	metrics        *stats.SourceStats
+	tableSchema    *abstract.TableSchema
+	fastCols       abstract.FastTableSchema
+	batchSize      int
+	blockSize      int64
+	pathPrefix     string
+	pathPattern    string
+	ColumnNames    []string
+	hideSystemCols bool
+}
+
+func (r *LineReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	if err != nil {
+		return 0, xerrors.Errorf("unable to load file list: %w", err)
+	}
+
+	res, err := r.estimateRows(ctx, files)
+	if err != nil {
+		return 0, xerrors.Errorf("failed to estimate total rows: %w", err)
+	}
+
+	return res, nil
+}
+
+func (r *LineReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
+	res, err := r.estimateRows(ctx, []*aws_s3.Object{obj})
+	if err != nil {
+		return 0, xerrors.Errorf("failed to estimate rows of file: %s : %w", *obj.Key, err)
+	}
+	return res, nil
+}
+
+func (r *LineReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
+	res := uint64(0)
+
+	totalSize, sampleReader, err := abstract_reader.EstimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
+	if err != nil {
+		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
+	}
+
+	if totalSize > 0 && sampleReader != nil {
+		chunkReader := abstract_reader.NewChunkReader(sampleReader, int(r.blockSize), r.logger)
+		defer chunkReader.Close()
+		err := chunkReader.ReadNextChunk()
+		if err != nil && !xerrors.Is(err, io.EOF) {
+			return uint64(0), xerrors.Errorf("failed to estimate row count: %w", err)
+		}
+
+		if len(chunkReader.Data()) > 0 {
+			lines, bytesRead, err := readLines(chunkReader.Data())
+			if err != nil {
+				return uint64(0), xerrors.Errorf("failed to estimate row count: %w", err)
+			}
+			bytesPerLine := float64(bytesRead) / float64(len(lines))
+			totalLines := math.Ceil(float64(totalSize) / bytesPerLine)
+			res = uint64(totalLines)
+		}
+	}
+
+	return res, nil
+}
+
+func (r *LineReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create reader at: %w", err)
+	}
+
+	return sr, nil
+}
+
+func (r *LineReader) Read(ctx context.Context, filePath string, pusher chunk_pusher.Pusher) error {
+	s3RawReader, err := r.newS3RawReader(ctx, filePath)
+	if err != nil {
+		return xerrors.Errorf("unable to open reader: %w", err)
+	}
+
+	offset := 0
+	lineCounter := uint64(1)
+	var readBytes int
+	var lines []string
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	defer chunkReader.Close()
+
+	for lastRound := false; !lastRound; {
+		if ctx.Err() != nil {
+			r.logger.Info("Read canceled")
+			return nil
+		}
+
+		if err := chunkReader.ReadNextChunk(); err != nil {
+			return xerrors.Errorf("failed to read from file: %w", err)
+		}
+
+		if chunkReader.IsEOF() && len(chunkReader.Data()) > 0 {
+			lastRound = true
+		}
+
+		lines, readBytes, err = readLines(chunkReader.Data())
+		if err != nil {
+			return xerrors.Errorf("failed to read lines from file: %w", err)
+		}
+
+		offset += readBytes
+		chunkReader.FillBuffer(chunkReader.Data()[readBytes:])
+		var buff []abstract.ChangeItem
+		var currentSize int64
+
+		for _, line := range lines {
+			if len(strings.TrimSpace(line)) == 0 {
+				continue
+			}
+
+			ci, err := r.doParse(line, filePath, s3RawReader.LastModified(), lineCounter)
+			if err != nil {
+				continue
+			}
+
+			lineCounter++
+			buff = append(buff, *ci)
+
+			if len(buff) > r.batchSize {
+				if err := abstract_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
+					return xerrors.Errorf("unable to push line batch: %w", err)
+				}
+				currentSize = 0
+				buff = []abstract.ChangeItem{}
+			}
+		}
+
+		if err := abstract_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
+			return xerrors.Errorf("unable to push line last batch: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *LineReader) doParse(line string, filePath string, lastModified time.Time, lineCounter uint64) (*abstract.ChangeItem, error) {
+	ci, err := r.constructCI(line, filePath, lastModified, lineCounter)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to construct change item: %w", err)
+	}
+
+	if err := strictify.Strictify(ci, r.fastCols); err != nil {
+		return nil, xerrors.Errorf("failed to convert value to the expected data type: %w", err)
+	}
+
+	return ci, nil
+}
+
+func (r *LineReader) constructCI(line string, fname string, lastModified time.Time, idx uint64) (*abstract.ChangeItem, error) {
+	values := make([]interface{}, len(r.tableSchema.Columns()))
+	columnIndex := 0
+	if !r.hideSystemCols {
+		values[columnIndex] = fname
+		columnIndex++
+		values[columnIndex] = idx
+		columnIndex++
+	}
+	values[columnIndex] = line
+
+	return &abstract.ChangeItem{
+		ID:               0,
+		LSN:              0,
+		CommitTime:       uint64(lastModified.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           r.table.Namespace,
+		Table:            r.table.Name,
+		PartID:           fname,
+		ColumnNames:      r.ColumnNames,
+		ColumnValues:     values,
+		TableSchema:      r.tableSchema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.RawEventSize(util.DeepSizeof(values)),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
+	}, nil
+}
+
+func readLines(content []byte) ([]string, int, error) {
+	currScanner := scanner.NewLineBreakScanner(content)
+	scannedLines, err := currScanner.ScanAll()
+	if err != nil {
+		return nil, 0, xerrors.Errorf("failed to split all read lines: %w", err)
+	}
+	bytesRead := 0
+
+	for _, scannedLine := range scannedLines {
+		bytesRead += (len(scannedLine) + len("\n"))
+	}
+
+	return scannedLines, bytesRead, nil
+}
+
+func (r *LineReader) ParsePassthrough(chunk chunk_pusher.Chunk) []abstract.ChangeItem {
+	return chunk.Items
+}
+
+func (r *LineReader) ObjectsFilter() abstract_reader.ObjectsFilter { return abstract_reader.IsNotEmpty }
+
+func (r *LineReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, error) {
+	if r.tableSchema != nil && len(r.tableSchema.Columns()) != 0 {
+		return r.tableSchema, nil
+	}
+
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	if err != nil {
+		return nil, xerrors.Errorf("unable to load file list: %w", err)
+	}
+
+	if len(files) < 1 {
+		return nil, xerrors.Errorf("unable to resolve schema, no files found: %s", r.pathPrefix)
+	}
+
+	return abstract.NewTableSchema([]abstract.ColSchema{abstract.NewColSchema("row", schema.TypeBytes, false)}), nil
+}
+
+func NewLineReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (abstract_reader.Reader, error) {
+	reader := &LineReader{
+		table: abstract.TableID{
+			Namespace: src.TableNamespace,
+			Name:      src.TableName,
+		},
+		bucket:         src.Bucket,
+		client:         aws_s3.New(sess),
+		downloader:     s3manager.NewDownloader(sess),
+		logger:         lgr,
+		metrics:        metrics,
+		tableSchema:    abstract.NewTableSchema(src.OutputSchema),
+		fastCols:       abstract.NewTableSchema(src.OutputSchema).FastColumns(),
+		batchSize:      0,
+		blockSize:      1 * 1024 * 1024, // 1mb,
+		pathPrefix:     src.PathPrefix,
+		pathPattern:    src.PathPattern,
+		ColumnNames:    nil,
+		hideSystemCols: src.HideSystemCols,
+	}
+
+	var err error
+
+	// only one column exists
+	reader.tableSchema, err = reader.ResolveSchema(context.Background())
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve schema: %w", err)
+	}
+
+	// append system columns at the end if necessary
+	if !reader.hideSystemCols {
+		cols := reader.tableSchema.Columns()
+		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
+		reader.tableSchema = abstract_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
+	}
+
+	reader.ColumnNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
+
+	return reader, nil
+}

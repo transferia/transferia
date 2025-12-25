@@ -3,7 +3,6 @@ package abstract
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -11,8 +10,7 @@ import (
 )
 
 func TestTypedChangeItem(t *testing.T) {
-	_ = os.Setenv("TZ", "NZ") // see: https://github.com/golang/go/issues/45960
-	defer os.Unsetenv("TZ")
+	t.Setenv("TZ", "NZ") // see: https://github.com/golang/go/issues/45960
 	ci := &TypedChangeItem{
 		ID:          291975574,
 		CommitTime:  1601382119000000000,

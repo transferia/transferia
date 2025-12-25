@@ -6,17 +6,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/mysql"
-	"github.com/doublecloud/transfer/pkg/debezium/packer"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/debezium/pg"
-	"github.com/doublecloud/transfer/pkg/debezium/typeutil"
-	"github.com/doublecloud/transfer/pkg/debezium/ydb"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/format"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/mysql"
+	"github.com/transferia/transferia/pkg/debezium/packer"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/pg"
+	"github.com/transferia/transferia/pkg/debezium/typeutil"
+	"github.com/transferia/transferia/pkg/debezium/ydb"
+	"github.com/transferia/transferia/pkg/schemaregistry/format"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/tests/helpers/testsflag"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -28,6 +29,8 @@ type Emitter struct {
 	version              string
 	dropKeys             bool
 	ignoreUnknownSources bool // set in 'true' only in tests!
+
+	logger log.Logger
 
 	keyPacker   packer.Packer
 	valuePacker packer.Packer
@@ -508,12 +511,12 @@ func (m *Emitter) valPayload(changeItem *abstract.ChangeItem, payloadTSMS time.T
 	}, nil
 }
 
-func (m *Emitter) toConfluentSchema(schemaArr []byte) ([]byte, error) {
+func (m *Emitter) toConfluentSchema(schemaArr []byte, makeClosedContentModel bool) ([]byte, error) {
 	kafkaSchema, err := format.KafkaJSONSchemaFromArr(schemaArr)
 	if err != nil {
 		return nil, xerrors.Errorf("can't convert map into kafka json schema: %w", err)
 	}
-	rawSchema, err := util.JSONMarshalUnescape(kafkaSchema.ToConfluentSchema())
+	rawSchema, err := util.JSONMarshalUnescape(kafkaSchema.ToConfluentSchema(makeClosedContentModel))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to marshal schema in confluent json format: %w", err)
 	}
@@ -525,7 +528,7 @@ func (m *Emitter) ToConfluentSchemaKey(changeItem *abstract.ChangeItem, snapshot
 	if err != nil {
 		return nil, xerrors.Errorf("can't build key schema: %w", err)
 	}
-	result, err := m.toConfluentSchema(keySchema)
+	result, err := m.toConfluentSchema(keySchema, debeziumparameters.GetKeyConverterDTJSONGenerateClosedContentSchema(m.connectorParameters))
 	if err != nil {
 		return nil, xerrors.Errorf("can't convert key schema into confluent: %w", err)
 	}
@@ -537,7 +540,7 @@ func (m *Emitter) ToConfluentSchemaVal(changeItem *abstract.ChangeItem, snapshot
 	if err != nil {
 		return nil, xerrors.Errorf("can't build val schema: %w", err)
 	}
-	result, err := m.toConfluentSchema(valSchema)
+	result, err := m.toConfluentSchema(valSchema, debeziumparameters.GetValueConverterDTJSONGenerateClosedContentSchema(m.connectorParameters))
 	if err != nil {
 		return nil, xerrors.Errorf("can't convert val schema into confluent: %w", err)
 	}
@@ -620,7 +623,7 @@ func (m *Emitter) emitOneDebeziumMessage(
 }
 
 // EmitKV - main exported method - generates kafka key & kafka value
-func (m *Emitter) EmitKV(changeItem *abstract.ChangeItem, payloadTSMS time.Time, snapshot bool, sessionPackers packer.SessionPackers) ([]debeziumcommon.KeyValue, error) {
+func (m *Emitter) emitKV(changeItem *abstract.ChangeItem, payloadTSMS time.Time, snapshot bool, sessionPackers packer.SessionPackers) ([]debeziumcommon.KeyValue, error) {
 	if changeItem.Kind != abstract.InsertKind && changeItem.Kind != abstract.UpdateKind && changeItem.Kind != abstract.DeleteKind {
 		return []debeziumcommon.KeyValue{}, nil
 	}
@@ -670,6 +673,23 @@ func (m *Emitter) EmitKV(changeItem *abstract.ChangeItem, payloadTSMS time.Time,
 	return []debeziumcommon.KeyValue{{DebeziumKey: key, DebeziumVal: val}}, nil
 }
 
+// EmitKV - main exported method - generates kafka key & kafka value
+func (m *Emitter) EmitKV(changeItem *abstract.ChangeItem, payloadTSMS time.Time, snapshot bool, sessionPackers packer.SessionPackers) ([]debeziumcommon.KeyValue, error) {
+	result, err := m.emitKV(changeItem, payloadTSMS, snapshot, sessionPackers)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to emitKV, err: %w", err)
+	}
+	if testsflag.IsTest() { // in tests add extra validation
+		m.logger.Info("EXTRA_VALIDATION_ON_TESTS__DEBEZIUM CALLED")
+		if m.ignoreUnknownSources {
+			m.logger.Info("EXTRA VALIDATION SKIPPED BCS OF 'ignoreUnknownSources'")
+		} else {
+			validateOnTests(m.connectorParameters, changeItem)
+		}
+	}
+	return result, nil
+}
+
 func (m *Emitter) TestSetIgnoreUnknownSources(ignoreUnknownSources bool) {
 	m.ignoreUnknownSources = ignoreUnknownSources
 }
@@ -687,6 +707,9 @@ func NewMessagesEmitter(connectorParameters map[string]string, version string, d
 	if err != nil {
 		return nil, xerrors.Errorf("can't create value message processor: %w", err)
 	}
+	if debeziumparameters.Validate(connectorParameters, dropKeys) != nil {
+		return nil, xerrors.Errorf("invalid debezium parameters - %w", err)
+	}
 	return &Emitter{
 		database:             debeziumparameters.GetDBName(connectorParameters),
 		databaseServerName:   debeziumparameters.GetTopicPrefix(connectorParameters),
@@ -694,6 +717,7 @@ func NewMessagesEmitter(connectorParameters map[string]string, version string, d
 		version:              version,
 		ignoreUnknownSources: false,
 		keyPacker:            keyPacker,
+		logger:               logger,
 		valuePacker:          valuePacker,
 		dropKeys:             dropKeys,
 	}, nil

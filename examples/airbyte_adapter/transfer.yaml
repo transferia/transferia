@@ -1,0 +1,36 @@
+id: test
+type: SNAPSHOT_ONLY
+src:
+  type: airbyte
+  params:
+    # config schema specified in connector docs here: https://docs.airbyte.com/integrations/sources/github#reference
+    Config: |
+      {
+          "credentials":{
+              "option_title":"PAT Credentials",
+              "personal_access_token":"${MY_TOKEN}"
+          },
+          "start_date": "2024-01-01T00:00:00Z",
+          "repository": "transferia/transferia"
+      }
+    BatchSizeLimit: 10485760
+    RecordsLimit: 10000
+    MaxRowSize: 268435456
+    Image: "airbyte/source-github:0.5.0"
+dst:
+  type: ch
+  params:
+    ShardsList:
+      - Hosts:
+          - clickhouse
+    HTTPPort: 8123
+    NativePort: 9000
+    Database: default
+    User: default
+    Password: "ch_password"
+data_objects:
+  # full list of available tables here: https://docs.airbyte.com/integrations/sources/github#entity-relationship-diagram-erd
+  include_objects:
+    - issues
+    - users
+    - commits

@@ -1,0 +1,71 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Website
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    paths:
+      - "docs/**"
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+    paths:
+      - "docs/**"
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Build docs
+        uses: diplodoc-platform/docs-build-action@v3
+        with:
+          src-root: "./docs"
+          build-root: "./docs-html"
+      # Build the landing page
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'  # Укажите подходящую версию Node.js
+
+      - name: Install dependencies for landing page
+        run: |
+          cd docs/website
+          npm install -g js-yaml
+          npm install --legacy-peer-deps
+
+      - name: Build landing page
+        run: |
+          cd docs/website
+          PUBLIC_URL=/transferia npm run build
+          cd ../../
+          ls ./_docs-lint
+          cp -r ./_docs-lint ./docs/website/build/docs
+      # Upload the landing page build artifact
+      - name: Upload landing page artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs/website/build'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

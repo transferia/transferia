@@ -3,13 +3,13 @@ package legacy
 import (
 	"runtime"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/events"
-	"github.com/doublecloud/transfer/pkg/util/pool"
-	"github.com/doublecloud/transfer/pkg/worker/tasks/cleanup"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/events"
+	"github.com/transferia/transferia/pkg/util/worker_pool"
+	"github.com/transferia/transferia/pkg/worker/tasks/cleanup"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -19,7 +19,7 @@ type legacyEventTarget struct {
 	cleanupType model.CleanupType
 	tmpPolicy   *model.TmpPolicyConfig
 	pushQ       chan pushItem
-	convertPool pool.Pool
+	convertPool worker_pool.WorkerPool
 }
 
 type convertItem struct {
@@ -52,7 +52,7 @@ func NewEventTarget(
 		pushQ:       make(chan pushItem, parallelism),
 		convertPool: nil,
 	}
-	t.convertPool = pool.NewDefaultPool(t.convert, uint64(parallelism))
+	t.convertPool = worker_pool.NewDefaultWorkerPool(t.convert, uint64(parallelism))
 
 	_ = t.convertPool.Run()
 	go t.pusher()

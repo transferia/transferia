@@ -4,11 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/dbaas"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/dbaas"
+	"github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 type mutexedPostgreses struct {
@@ -79,28 +79,33 @@ type MasterHostResolver interface {
 	MasterHosts() (master string, replica string, err error)
 }
 
+func (s *Storage) ResolveDbaasMasterHosts() (master, replica *GpHP, err error) {
+	instnc, err := dbaas.Current()
+	if err != nil {
+		return nil, nil, xerrors.Errorf("unable to build instance: %w", err)
+	}
+	resolver, err := instnc.HostResolver(dbaas.ProviderTypeGreenplum, s.config.Connection.MDBCluster.ClusterID)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("unable to build resolver: %w", err)
+	}
+	masterResolver, ok := resolver.(MasterHostResolver)
+	if !ok {
+		return nil, nil, xerrors.Errorf("unknown resolver: %T", resolver)
+	}
+	masterHost, replicaHost, err := masterResolver.MasterHosts()
+	return NewGpHP(masterHost, 6432), NewGpHP(replicaHost, 6432), err
+}
+
 func (s *Storage) ensureCompleteClusterData(ctx context.Context) error {
 	if s.config.Connection.OnPremises == nil {
-		instnc, err := dbaas.Current()
-		if err != nil {
-			return xerrors.Errorf("unable to build instance: %w", err)
-		}
-		resolver, err := instnc.HostResolver(dbaas.ProviderTypeGreenplum, s.config.Connection.MDBCluster.ClusterID)
-		if err != nil {
-			return xerrors.Errorf("unable to build resolver: %w", err)
-		}
-		masterResolver, ok := resolver.(MasterHostResolver)
-		if !ok {
-			return xerrors.Errorf("unknown resolver: %T", resolver)
-		}
-		master, replica, err := masterResolver.MasterHosts()
+		master, replica, err := s.ResolveDbaasMasterHosts()
 		if err != nil {
 			return xerrors.Errorf("Unable to get host names: %w", err)
 		}
 		s.config.Connection.OnPremises = new(GpCluster)
 		s.config.Connection.OnPremises.Coordinator = new(GpHAP)
-		s.config.Connection.OnPremises.Coordinator.Primary = NewGpHP(master, 6432)
-		s.config.Connection.OnPremises.Coordinator.Mirror = NewGpHP(replica, 6432)
+		s.config.Connection.OnPremises.Coordinator.Primary = master
+		s.config.Connection.OnPremises.Coordinator.Mirror = replica
 	}
 
 	if len(s.config.Connection.OnPremises.Segments) > 0 {

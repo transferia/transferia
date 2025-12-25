@@ -3,9 +3,9 @@ package elastic
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func makeTestChangeItem(t *testing.T, colNames []string, colValues []interface{}, isKey []bool) abstract.ChangeItem {

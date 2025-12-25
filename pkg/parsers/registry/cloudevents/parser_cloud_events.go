@@ -1,9 +1,9 @@
 package cloudevents
 
 import (
-	"github.com/doublecloud/transfer/pkg/parsers"
-	cloudeventsengine "github.com/doublecloud/transfer/pkg/parsers/registry/cloudevents/engine"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferia/transferia/pkg/parsers"
+	cloudeventsengine "github.com/transferia/transferia/pkg/parsers/registry/cloudevents/engine"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

@@ -1,57 +1,13 @@
 package postgres
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/postgres/dblog"
 )
-
-func TestLastFullLSN(t *testing.T) {
-	t.Run("regular push with multiple tx", func(t *testing.T) {
-		changes := []abstract.ChangeItem{
-			{ID: 1, LSN: 1},
-			{ID: 1, LSN: 2},
-			{ID: 1, LSN: 3},
-			{ID: 1, LSN: 4},
-			{ID: 2, LSN: 5},
-			{ID: 2, LSN: 6},
-			{ID: 3, LSN: 7},
-			{ID: 3, LSN: 8},
-		}
-		maxLsn := lastFullLSN(changes, 0, 0, 0)
-		require.Equal(t, uint64(6), maxLsn)
-	})
-	t.Run("single tx push", func(t *testing.T) {
-		changes := []abstract.ChangeItem{
-			{ID: 1, LSN: 1}, {ID: 1, LSN: 2}, {ID: 1, LSN: 3}, {ID: 1, LSN: 4},
-		}
-		maxLsn := lastFullLSN(changes, 1, 0, 0)
-		require.Equal(t, uint64(0), maxLsn)
-	})
-	t.Run("many single-tx push", func(t *testing.T) {
-		changes1 := []abstract.ChangeItem{{ID: 1, LSN: 1}}
-		changes2 := []abstract.ChangeItem{{ID: 2, LSN: 2}}
-		changes3 := []abstract.ChangeItem{{ID: 3, LSN: 3}}
-		maxLsn := lastFullLSN(changes1, 0, 0, 0)
-		require.Equal(t, uint64(0), maxLsn)
-		maxLsn = lastFullLSN(changes2, 1, 1, maxLsn)
-		require.Equal(t, uint64(1), maxLsn)
-		maxLsn = lastFullLSN(changes3, 2, 2, maxLsn)
-		require.Equal(t, uint64(2), maxLsn)
-	})
-	t.Run("mixed-tx push", func(t *testing.T) {
-		changes1 := []abstract.ChangeItem{{ID: 1, LSN: 1}}
-		changes2 := []abstract.ChangeItem{{ID: 1, LSN: 2}}
-		changes3 := []abstract.ChangeItem{{ID: 2, LSN: 3}}
-		maxLsn := lastFullLSN(changes1, 0, 0, 0)
-		require.Equal(t, uint64(0), maxLsn)
-		maxLsn = lastFullLSN(changes2, 1, 1, maxLsn)
-		require.Equal(t, uint64(0), maxLsn)
-		maxLsn = lastFullLSN(changes3, 1, 2, maxLsn)
-		require.Equal(t, uint64(2), maxLsn)
-	})
-}
 
 func TestWal2jsonTableFromTableID(t *testing.T) {
 	t.Run("wal2jsonfti_schema_table", func(t *testing.T) {
@@ -109,4 +65,79 @@ func TestWal2jsonTableFromTableID(t *testing.T) {
 			wal2jsonTableFromTableID(*abstract.NewTableID("sche.ma.", "")),
 		)
 	})
+}
+
+func TestNewWal2jsonArgumentsDBLog(t *testing.T) {
+	extractValue := func(in []argument) string {
+		for _, t := range in {
+			if t.name == "add-tables" {
+				return t.value
+			}
+		}
+		return ""
+	}
+	isIncludesSignalTable := func(in []argument, cfg *PgSource) bool {
+		addTablesValue := extractValue(in)
+		signalTableID := *dblog.SignalTableTableID(cfg.KeeperSchema)
+		signalTableIDStr := signalTableID.Namespace + "." + signalTableID.Name
+		return strings.Contains(addTablesValue, signalTableIDStr)
+	}
+
+	t.Run("dblog snapshot", func(t *testing.T) {
+		cfg := &PgSource{}
+		cfg.KeeperSchema = "public"
+		cfg.DBLogEnabled = true
+		cfg.DBTables = []string{"public.my_table"}
+		wal2jsonArguments, err := newWal2jsonArguments(cfg, nil, true)
+		require.NoError(t, err)
+		require.True(t, isIncludesSignalTable(wal2jsonArguments, cfg))
+	})
+
+	t.Run("dblog replication", func(t *testing.T) {
+		cfg := &PgSource{}
+		cfg.KeeperSchema = "public"
+		cfg.DBLogEnabled = true
+		cfg.DBTables = []string{"public.my_table"}
+		wal2jsonArguments, err := newWal2jsonArguments(cfg, nil, false)
+		require.NoError(t, err)
+		require.False(t, isIncludesSignalTable(wal2jsonArguments, cfg))
+	})
+
+	t.Run("not-dblog snapshot", func(t *testing.T) {
+		cfg := &PgSource{}
+		cfg.KeeperSchema = "public"
+		cfg.DBLogEnabled = false
+		cfg.DBTables = []string{"public.my_table"}
+		wal2jsonArguments, err := newWal2jsonArguments(cfg, nil, false)
+		require.NoError(t, err)
+		require.False(t, isIncludesSignalTable(wal2jsonArguments, cfg))
+	})
+
+	t.Run("not-dblog replication", func(t *testing.T) {
+		cfg := &PgSource{}
+		cfg.KeeperSchema = "public"
+		cfg.DBLogEnabled = false
+		cfg.DBTables = []string{"public.my_table"}
+		wal2jsonArguments, err := newWal2jsonArguments(cfg, nil, false)
+		require.NoError(t, err)
+		require.False(t, isIncludesSignalTable(wal2jsonArguments, cfg))
+	})
+}
+
+func TestIsTableOrParentIncludedCollapseInherit(t *testing.T) {
+	parent := abstract.TableID{Namespace: "public", Name: "parent"}
+	child := abstract.TableID{Namespace: "public", Name: "child"}
+	other := abstract.TableID{Namespace: "public", Name: "other"}
+	cfg := &PgSource{
+		DBTables:              []string{parent.Fqtn()},
+		CollapseInheritTables: true,
+		KeeperSchema:          "public",
+	}
+	altNames := map[abstract.TableID]abstract.TableID{
+		child: parent,
+	}
+
+	require.True(t, isTableOrParentIncluded(altNames, parent, cfg, true))
+	require.True(t, isTableOrParentIncluded(altNames, child, cfg, true))
+	require.False(t, isTableOrParentIncluded(altNames, other, cfg, true))
 }

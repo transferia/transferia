@@ -3,7 +3,7 @@ package parsers
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // Message is struct describing incoming message
@@ -48,4 +48,24 @@ type AbstractParserConfig interface {
 	IsNewParserConfig()
 	IsAppendOnly() bool
 	Validate() error
+}
+
+type YSRable interface {
+	YSRNamespaceID() string
+}
+
+// now only one parser builder is supported
+// /transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/proto_parser_lazy_builder.go
+type ParserBuilder interface {
+	// BuildLazyParser prepares instance of LazyParser for provided data.
+	BuildLazyParser(msg Message, partition abstract.Partition) (LazyParser, error)
+	// BuildBaseParser builds a base parser for the provided message.
+	BuildBaseParser() Parser
+}
+
+// LazyParser is a parser that can be used to parse messages in a streaming manner.
+type LazyParser interface {
+	// Next reads messages set by `Set` and returns next ChangeItem
+	// in sequence, or nil if all items were already returned.
+	Next() *abstract.ChangeItem
 }

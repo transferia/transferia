@@ -1,10 +1,10 @@
 package dataobjects
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -52,7 +52,7 @@ func (o *shardingDataObject) part() *Part {
 		lastIdx = o.table.RowCount
 	}
 	r := ypath.Interval(ypath.RowIndex(o.idx), ypath.RowIndex(lastIdx))
-	return NewPart(o.table.Name, *o.table.NodeID, r, o.txID)
+	return NewPart(o.table.Name, *o.table.NodeID, r, o.txID, o.table.Columns)
 }
 
 func (o *shardingDataObject) ToOldTableID() (*abstract.TableID, error) {

@@ -3,8 +3,8 @@ package model
 import (
 	"fmt"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type TableFilter func(tableID abstract.TableID) bool
@@ -66,7 +66,7 @@ func EnsureTmpPolicySupported(destination Destination, transfer *Transfer) error
 	}
 
 	if transfer != nil {
-		if transfer.IsSharded() {
+		if transfer.IsSnapshotSharded() {
 			return xerrors.New("sharding is not supported")
 		}
 	}

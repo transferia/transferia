@@ -4,12 +4,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/mysql/unmarshaller/replication"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
-func CastRowsToDT(event *RowsEvent, location *time.Location) error {
+type UnmarshallerF = func(value any, colSchema *abstract.ColSchema, location *time.Location) (any, error)
+
+func CastRowsToDT(event *RowsEvent, location *time.Location, f UnmarshallerF) error {
 	for columnIndex := range event.Table.Columns {
 		originalType := event.GetColumnRawType(columnIndex)
 		switch {
@@ -18,7 +19,7 @@ func CastRowsToDT(event *RowsEvent, location *time.Location) error {
 		case strings.HasPrefix(originalType, "set"):
 			castSetInPlace(event, columnIndex)
 		default:
-			if err := castCommonInPlace(event, columnIndex, originalType, location); err != nil {
+			if err := castCommonInPlace(event, columnIndex, originalType, location, f); err != nil {
 				return xerrors.Errorf("failed to cast column '%s': %w", event.Table.Columns[columnIndex].Name, err)
 			}
 		}
@@ -65,12 +66,12 @@ func castSetInPlace(event *RowsEvent, columnIndex int) {
 	}
 }
 
-func castCommonInPlace(event *RowsEvent, columnIndex int, originalType string, location *time.Location) error {
+func castCommonInPlace(event *RowsEvent, columnIndex int, originalType string, location *time.Location, f UnmarshallerF) error {
 	unmarshalSchema := abstract.NewColSchema(event.GetColumnName(columnIndex), TypeToYt(originalType), false)
 	unmarshalSchema.OriginalType = originalType
 	for rowIndex := range event.Data.Rows {
 		value := event.Data.Rows[rowIndex][columnIndex]
-		result, err := replication.UnmarshalHetero(value, &unmarshalSchema, location)
+		result, err := f(value, &unmarshalSchema, location)
 		if err != nil {
 			return xerrors.Errorf("failed to unmarshal row %d, field %d: %w", rowIndex, columnIndex, err)
 		}

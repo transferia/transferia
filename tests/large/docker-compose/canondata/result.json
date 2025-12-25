@@ -1,4 +1,10 @@
 {
+    "docker-compose.docker-compose.TestAllElasticSearchToPg": {
+        "after_increment": "",
+        "after_snapshot": {
+            "uri": "file://docker-compose.docker-compose.TestAllElasticSearchToPg/extracted"
+        }
+    },
     "docker-compose.docker-compose.TestElasticToElasticSnapshot": {
         "Data": [
             {
@@ -3000,12 +3006,6 @@
                     }
                 }
             }
-        }
-    },
-    "docker-compose.docker-compose.TestElasticToPgSnapshot": {
-        "after_increment": "",
-        "after_snapshot": {
-            "uri": "file://docker-compose.docker-compose.TestElasticToPgSnapshot/extracted"
         }
     },
     "docker-compose.docker-compose.TestOldPostgresPg2Pg": {

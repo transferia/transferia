@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem/strictify"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	confluentsrmock "github.com/doublecloud/transfer/tests/helpers/confluent_schema_registry_mock"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
+	"github.com/transferia/transferia/pkg/parsers"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 )
 
 var idToBuf = make(map[int]string)
@@ -73,7 +73,7 @@ func TestClient(t *testing.T) {
 	schemaRegistryMock := confluentsrmock.NewConfluentSRMock(idToBuf, nil)
 	defer schemaRegistryMock.Close()
 
-	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, logger.Log)
+	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
 	var canonArr []abstract.ChangeItem
 	for i, data := range messagesData {
 		if len(data) == 0 {
@@ -92,5 +92,37 @@ func TestClient(t *testing.T) {
 	canon.SaveJSON(t, canonArr)
 	for _, item := range canonArr {
 		require.NoError(t, strictify.Strictify(&item, abstract.MakeFastTableSchema(item.TableSchema.Columns())))
+	}
+}
+
+func TestIncorrectMagicByte(t *testing.T) {
+	schemaRegistryMock := confluentsrmock.NewConfluentSRMock(idToBuf, nil)
+	defer schemaRegistryMock.Close()
+
+	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
+
+	for i := 1; i < 255; i++ {
+		buf := make([]byte, 0)
+		buf = append(buf, byte(i))
+		buf = append(buf, []byte("\u0000\u0000\u0000{}")...)
+
+		// parser.Do
+
+		result := parser.Do(makePersqueueReadMessage(0, buf), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		require.Len(t, result, 1)
+		require.True(t, strings.HasSuffix(result[0].Table, "_unparsed"))
+
+		// parser.DoBatch
+
+		currMessageBatch := parsers.MessageBatch{
+			Topic:     "",
+			Partition: 0,
+			Messages: []parsers.Message{
+				makePersqueueReadMessage(0, buf),
+			},
+		}
+		result2 := parser.DoBatch(currMessageBatch)
+		require.Len(t, result2, 1)
+		require.True(t, strings.HasSuffix(result2[0].Table, "_unparsed"))
 	}
 }

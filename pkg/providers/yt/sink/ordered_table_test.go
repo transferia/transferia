@@ -7,15 +7,15 @@ import (
 	"testing"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/internal/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	client2 "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/yt/go/ypath"
 	ytsdk "go.ytsaurus.tech/yt/go/yt"
 )
@@ -161,12 +161,40 @@ func TestOrderedTable_CustomAttributes(t *testing.T) {
 		Cluster:          os.Getenv("YT_PROXY"),
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	require.NoError(t, table.Push(generateBullets(2, 10)))
 	var data bool
 	require.NoError(t, env.YT.GetNode(env.Ctx, ypath.Path(fmt.Sprintf("%s/@test", testTablePath.String())), &data, nil))
 	require.Equal(t, true, data)
+}
+
+func TestOrderedTable_IncludeTimeoutAttribute(t *testing.T) {
+	env, cancel := recipe.NewEnv(t)
+	defer cancel()
+	defer teardown(env.YT, testDirPath)
+	cfg := yt.NewYtDestinationV1(yt.YtDestination{
+		Atomicity:     ytsdk.AtomicityFull,
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+		Ordered:       true,
+		CustomAttributes: map[string]string{
+			"expiration_timeout": "604800000",
+			"expiration_time":    "\"2200-01-12T03:32:51.298047Z\"",
+		},
+		Path:    testDirPath.String(),
+		Cluster: os.Getenv("YT_PROXY"),
+	})
+	cfg.WithDefaults()
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	require.NoError(t, err)
+	require.NoError(t, table.Push(generateBullets(2, 10)))
+	var timeout int64
+	require.NoError(t, env.YT.GetNode(env.Ctx, ypath.Path(fmt.Sprintf("%s/@expiration_timeout", testTablePath.String())), &timeout, nil))
+	require.Equal(t, int64(604800000), timeout)
+	var expTime string
+	require.NoError(t, env.YT.GetNode(env.Ctx, ypath.Path(fmt.Sprintf("%s/@expiration_time", testTablePath.String())), &expTime, nil))
+	require.Equal(t, "2200-01-12T03:32:51.298047Z", expTime)
 }
 
 func generateBullets(partNum, count int) []abstract.ChangeItem {

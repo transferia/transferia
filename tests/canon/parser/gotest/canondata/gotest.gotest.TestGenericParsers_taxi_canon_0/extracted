@@ -192,6 +192,10 @@
             "type": "string",
             "value": ""
         },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\",\"PartitionNum\":0,\"Offset\":123,\"Index\":0}"
+        },
         "Schema": {
             "type": "string",
             "value": ""
@@ -757,6 +761,10 @@
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\",\"PartitionNum\":0,\"Offset\":123,\"Index\":1}"
         },
         "Schema": {
             "type": "string",
@@ -1324,6 +1332,10 @@
             "type": "string",
             "value": ""
         },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\",\"PartitionNum\":0,\"Offset\":123,\"Index\":2}"
+        },
         "Schema": {
             "type": "string",
             "value": ""
@@ -1889,6 +1901,10 @@
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\",\"PartitionNum\":0,\"Offset\":123,\"Index\":3}"
         },
         "Schema": {
             "type": "string",

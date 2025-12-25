@@ -1,1 +1,1 @@
-{"data":"data","partition":42,"seq_no":42,"topic":"topic","write_time":"0001-01-01T00:00:00Z"}
+{"data":"data","meta":null,"partition":42,"seq_no":42,"sequence_key":"c3R1Yg==","topic":"topic","write_time":"0001-01-01T00:00:00Z"}

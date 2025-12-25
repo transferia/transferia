@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -63,7 +63,7 @@ func getUpdateMinBinlogChangeItem() abstract.ChangeItem {
 		},
 		TableSchema: abstract.NewTableSchema([]abstract.ColSchema{
 			{ColumnName: "id", DataType: ytschema.TypeInt32.String(), OriginalType: "mysql:int", PrimaryKey: true},
-			{ColumnName: "va1l", DataType: ytschema.TypeInt32.String(), OriginalType: "mysql:int"},
+			{ColumnName: "va1l", DataType: ytschema.TypeString.String(), OriginalType: "mysql:text"},
 			{ColumnName: "val2", DataType: ytschema.TypeInt32.String(), OriginalType: "mysql:int"},
 		}),
 		OldKeys: abstract.OldKeysType{

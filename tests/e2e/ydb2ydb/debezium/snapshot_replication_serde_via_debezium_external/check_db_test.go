@@ -5,18 +5,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/tests/helpers"
-	"github.com/doublecloud/transfer/tests/helpers/serde"
-	simple_transformer "github.com/doublecloud/transfer/tests/helpers/transformer"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/serde"
+	simple_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
 var path = "dectest/test-src"
@@ -63,7 +63,7 @@ func TestSnapshotAndReplicationSerDeViaDebeziumExternal(t *testing.T) {
 	}, "1.1.2.Final", false, logger.Log)
 	require.NoError(t, err)
 	originalTypes := map[abstract.TableID]map[string]*debeziumcommon.OriginalTypeInfo{
-		abstract.TableID{Namespace: "", Name: pathOut}: {
+		{Namespace: "", Name: pathOut}: {
 			"id":            {OriginalType: "ydb:Uint64"},
 			"Bool_":         {OriginalType: "ydb:Bool"},
 			"Int8_":         {OriginalType: "ydb:Int8"},
@@ -82,6 +82,7 @@ func TestSnapshotAndReplicationSerDeViaDebeziumExternal(t *testing.T) {
 			"Utf8_":         {OriginalType: "ydb:Utf8"},
 			"Json_":         {OriginalType: "ydb:Json"},
 			"JsonDocument_": {OriginalType: "ydb:JsonDocument"},
+			"Uuid_":         {OriginalType: "ydb:Uuid"},
 			"Date_":         {OriginalType: "ydb:Date"},
 			"Datetime_":     {OriginalType: "ydb:Datetime"},
 			"Timestamp_":    {OriginalType: "ydb:Timestamp"},

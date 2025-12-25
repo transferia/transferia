@@ -10,20 +10,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/cloudevents"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/cloudevents/engine/testutils"
-	"github.com/doublecloud/transfer/pkg/providers/kafka"
-	yt_storage "github.com/doublecloud/transfer/pkg/providers/yt/storage"
-	"github.com/doublecloud/transfer/tests/helpers"
-	confluentsrmock "github.com/doublecloud/transfer/tests/helpers/confluent_schema_registry_mock"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/registry/cloudevents"
+	"github.com/transferia/transferia/pkg/parsers/registry/cloudevents/engine/testutils"
+	"github.com/transferia/transferia/pkg/providers/kafka"
+	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
+	"github.com/transferia/transferia/tests/helpers"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
+	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
 
 var (
@@ -38,7 +38,6 @@ var (
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     nil,
-		IsHomo:           false,
 	}
 	target = yt_helpers.RecipeYtTarget("//home/cdc/test/pg2yt_e2e_replication")
 )
@@ -96,7 +95,7 @@ func checkCase(t *testing.T, currSource *kafka.KafkaSource, topicName string, ms
 			Auth:       currSource.Auth,
 			Topic:      currSource.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -110,7 +109,7 @@ func checkCase(t *testing.T, currSource *kafka.KafkaSource, topicName string, ms
 		logger.Log,
 	)
 	require.NoError(t, err)
-	err = srcSink.Push([]abstract.ChangeItem{kafka.MakeKafkaRawMessage(currSource.Topic, time.Time{}, currSource.Topic, 0, 0, []byte("_"), msg)})
+	err = srcSink.Push([]abstract.ChangeItem{abstract.MakeRawMessage([]byte("_"), currSource.Topic, time.Time{}, currSource.Topic, 0, 0, msg)})
 	require.NoError(t, err)
 
 	// check results

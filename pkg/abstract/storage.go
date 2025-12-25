@@ -5,23 +5,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 type LoadProgress func(current, progress, total uint64)
 
 type TableDescription struct {
-	Name   string
 	Schema string // for example - for mysql here are database name
+	Name   string
 	Filter WhereStatement
 	EtaRow uint64 // estimated number of rows in the table
 	Offset uint64 // offset (in rows) along the ordering key (not necessary primary key)
 }
 
-var NonExistentTableID TableID = *NewTableID("", "")
+const IsAsyncPartsUploadedStateKey = "is-async-parts-uploaded"
 
 func BuildIncludeMap(objects []string) (map[TableID]bool, error) {
 	includeObjects := map[TableID]bool{}
@@ -38,6 +41,20 @@ func BuildIncludeMap(objects []string) (map[TableID]bool, error) {
 		return nil, xerrors.Errorf("unable to parse objects: %w", errs)
 	}
 	return includeObjects, nil
+}
+
+func BuildIncludeableFromObjects(objects []string) (Includeable, error) {
+	includeObjects, err := BuildIncludeMap(objects)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to build include map: %w", err)
+	}
+	return IncludeableFunc(func(tID TableID) bool {
+		if len(includeObjects) == 0 {
+			return true
+		}
+		_, ok := includeObjects[tID]
+		return ok
+	}), nil
 }
 
 func SchemaFilterByObjects(schema DBSchema, objects []string) (DBSchema, error) {
@@ -79,12 +96,12 @@ func ParseTableIDs(objects ...string) ([]TableID, error) {
 func NewTableIDFromStringPg(fqtn string, replaceOmittedSchemaWithPublic bool) (*TableID, error) {
 	parts, err := identifierToParts(fqtn)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to parse identifier '%s' into parts: %w", fqtn, err)
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "failed to identify parts: %s: %w", fqtn, err)
 	}
 
 	switch len(parts) {
 	case 0:
-		return nil, xerrors.Errorf("zero-length identifier")
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "object identifier has no parts: %s", fqtn)
 	case 1:
 		if replaceOmittedSchemaWithPublic {
 			return &TableID{Namespace: "public", Name: parts[0]}, nil
@@ -93,7 +110,8 @@ func NewTableIDFromStringPg(fqtn string, replaceOmittedSchemaWithPublic bool) (*
 	case 2:
 		return &TableID{Namespace: parts[0], Name: parts[1]}, nil
 	default:
-		return nil, xerrors.Errorf("identifier '%s' contains %d parts instead of maximum two", fqtn, len(parts))
+		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "identifier '%s' contains %d parts instead of maximum two", fqtn, len(parts))
+
 	}
 }
 
@@ -243,9 +261,9 @@ func (t *TableDescription) ID() TableID {
 	return TableID{Namespace: t.Schema, Name: t.Name}
 }
 
-func (t *TableDescription) PartID() string {
+func (t *TableDescription) GeneratePartID() string {
 	if t.Offset == 0 && t.Filter == "" {
-		// This needed for s3, see: https://github.com/doublecloud/transfer/review/3538625
+		// This needed for s3, see: https://github.com/transferia/transferia/review/3538625
 		return ""
 	}
 
@@ -363,11 +381,57 @@ type ShardingContextStorage interface {
 }
 
 type IncrementalStorage interface {
-	GetIncrementalState(ctx context.Context, incremental []IncrementalTable) ([]TableDescription, error)
-	SetInitialState(tables []TableDescription, incremental []IncrementalTable)
+	GetNextIncrementalState(ctx context.Context, incremental []IncrementalTable) ([]IncrementalState, error)
+	BuildArrTableDescriptionWithIncrementalState(tables []TableDescription, incremental []IncrementalTable) []TableDescription
 }
 
 type SnapshotableStorage interface {
 	BeginSnapshot(ctx context.Context) error
 	EndSnapshot(ctx context.Context) error
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+
+type SharedMemoryBuilder interface {
+	BuildSharedMemory(
+		ctx context.Context,
+		transfer any,
+		workerType WorkerType,
+		cp any,
+	) (SharedMemory, error)
+}
+
+type CustomCheckSecondaryWorkersDone interface {
+	// startTime stores time, when main-worker started waiting secondary workers.
+	// so, when all workers are done, 'time.Now()-startTime' will show snapshotting time.
+	// startTime needed here just for intermediate logging.
+	CheckSecondaryWorkersDone(startTime time.Time, cp any, transfer any) (bool, error)
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// async table part provider
+
+// NextArrTableDescriptionGetter is used in async_table_parts (tpp_*_async.go) to get tasks
+type NextArrTableDescriptionGetter interface {
+	NextArrTableDescription(ctx context.Context, limit uint64) ([]TableDescription, error)
+	Close()
+}
+
+// NextArrTableDescriptionGetterBuilder means there are used async_table_parts mechanism
+//
+// NOTE: For such storage in sharding context (operation state) could appear value with
+// key IsAsyncPartsUploadedStateKey, which is used by control code and should be not changed by storage.
+type NextArrTableDescriptionGetterBuilder interface {
+	ShardingContextStorage
+	BuildNextArrTableDescriptionGetter(tables []TableDescription) (NextArrTableDescriptionGetter, error)
+}
+
+// This is special workaround for partitioned_tables in postgres
+// see FulfilledIncludes
+//
+// load_snapshot expects TableList should return all tables,
+// but for partitioned_tables with CollapseInheritTables we skip partitioned_table in TableList
+// then in SnapshotLoader.CheckIncludeDirectives made handling of this case via 'SkippableStorage' interface
+type SkippableStorage interface {
+	Skipped(tID TableID) (bool, error)
 }

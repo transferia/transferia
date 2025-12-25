@@ -6,19 +6,23 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/providers/delta/protocol"
-	"github.com/doublecloud/transfer/pkg/providers/delta/store"
-	"github.com/doublecloud/transfer/pkg/providers/delta/types"
-	s3_source "github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/pkg/providers/s3/pusher"
-	s3_reader "github.com/doublecloud/transfer/pkg/providers/s3/reader"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/segmentio/parquet-go"
+	"github.com/parquet-go/parquet-go"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/providers/delta/action"
+	"github.com/transferia/transferia/pkg/providers/delta/protocol"
+	"github.com/transferia/transferia/pkg/providers/delta/store"
+	"github.com/transferia/transferia/pkg/providers/delta/types"
+	s3_source "github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/pusher"
+	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	reader_factory "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 )
@@ -35,7 +39,7 @@ const defaultReadBatchSize = 128
 type Storage struct {
 	cfg         *DeltaSource
 	client      s3iface.S3API
-	reader      *s3_reader.ReaderParquet
+	reader      s3_reader.Reader
 	logger      log.Logger
 	table       *protocol.TableLog
 	snapshot    *protocol.Snapshot
@@ -57,8 +61,8 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		return xerrors.Errorf("delta lake works only with enabled filter: %s", table.ID().String())
 	}
 
-	pusher := pusher.New(abstractPusher, nil, s.logger, 0)
-	return s.reader.Read(ctx, fmt.Sprintf("%s/%s", s.cfg.PathPrefix, string(table.Filter)), pusher)
+	currPusher := pusher.New(abstractPusher, nil, s.logger, 0)
+	return s.reader.Read(ctx, fmt.Sprintf("%s/%s", s.cfg.PathPrefix, string(table.Filter)), currPusher)
 }
 
 func (s *Storage) TableList(_ abstract.IncludeTableList) (abstract.TableMap, error) {
@@ -114,18 +118,28 @@ func (s *Storage) ExactTableRowsCount(_ abstract.TableID) (uint64, error) {
 	if err != nil {
 		return 0, xerrors.Errorf("unable to load file list: %w", err)
 	}
-	totalByteSize := int64(0)
-	totalRowCount := int64(0)
-	for _, file := range files {
-		totalByteSize += file.Size
-		filePath := fmt.Sprintf("%s/%s", s.cfg.PathPrefix, file.Path)
-		sr, err := s3_reader.NewS3Reader(context.TODO(), s.client, nil, s.cfg.Bucket, filePath, stats.NewSourceStats(s.registry))
+
+	numRowsFunc := func(inFile *action.AddFile) (int64, int64, error) {
+		filePath := fmt.Sprintf("%s/%s", s.cfg.PathPrefix, inFile.Path)
+		sr, err := s3raw.NewS3RawReader(context.TODO(), s.client, s.cfg.Bucket, filePath, stats.NewSourceStats(s.registry))
 		if err != nil {
-			return 0, xerrors.Errorf("unable to create reader at: %w", err)
+			return 0, 0, xerrors.Errorf("unable to create reader at: %w", err)
 		}
 		pr := parquet.NewReader(sr)
 		defer pr.Close()
-		totalRowCount += pr.NumRows()
+
+		return pr.NumRows(), inFile.Size, nil
+	}
+
+	totalByteSize := int64(0)
+	totalRowCount := int64(0)
+	for _, file := range files {
+		numRows, numBytes, err := numRowsFunc(file)
+		if err != nil {
+			return 0, xerrors.Errorf("unable to get num rows: %w", err)
+		}
+		totalByteSize += numBytes
+		totalRowCount += numRows
 	}
 	s.logger.Infof("extract total row count: %d in %d files with total size: %s", totalRowCount, len(files), format.SizeUInt64(uint64(totalByteSize)))
 	return uint64(totalRowCount), nil
@@ -182,8 +196,9 @@ func NewStorage(cfg *DeltaSource, lgr log.Logger, registry metrics.Registry) (*S
 	s3Source.PathPrefix = cfg.PathPrefix
 	s3Source.ReadBatchSize = defaultReadBatchSize
 	s3Source.HideSystemCols = cfg.HideSystemCols
+	s3Source.InputFormat = model.ParsingFormatPARQUET
 
-	reader, err := s3_reader.NewParquet(s3Source, lgr, sess, stats.NewSourceStats(registry))
+	reader, err := reader_factory.NewReader(s3Source, lgr, sess, stats.NewSourceStats(registry))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to initialize parquet reader: %w", err)
 	}

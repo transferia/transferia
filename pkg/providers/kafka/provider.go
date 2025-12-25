@@ -2,28 +2,29 @@ package kafka
 
 import (
 	"context"
-	"encoding/gob"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	cpclient "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/kafka/client"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/providers/kafka/client"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
+	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	destinationFactory := func() model.Destination {
+	destinationFactory := func() model.LoggableDestination {
 		return new(KafkaDestination)
 	}
-	gob.RegisterName("*server.KafkaSource", new(KafkaSource))
-	gob.RegisterName("*server.KafkaDestination", new(KafkaDestination))
-	model.RegisterSource(ProviderType, func() model.Source {
+	gobwrapper.RegisterName("*server.KafkaSource", new(KafkaSource))
+	gobwrapper.RegisterName("*server.KafkaDestination", new(KafkaDestination))
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(KafkaSource)
 	})
 	model.RegisterDestination(ProviderType, destinationFactory)
@@ -60,6 +61,9 @@ func (p *Provider) Sniffer(_ context.Context) (abstract.Fetchable, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
+	if err := src.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sniffer: %w", err)
+	}
 	topics := src.GroupTopics
 	if len(topics) == 0 && src.Topic != "" {
 		topics = append(topics, src.Topic)
@@ -87,7 +91,7 @@ func (p *Provider) Sniffer(_ context.Context) (abstract.Fetchable, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("unable to construct tls config: %w", err)
 		}
-		kafkaClient, err := client.NewClient(brokers, mechanism, tlsCfg)
+		kafkaClient, err := client.NewClient(brokers, mechanism, tlsCfg, nil)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create kafka client, err: %w", err)
 		}
@@ -95,7 +99,7 @@ func (p *Provider) Sniffer(_ context.Context) (abstract.Fetchable, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("unable to list topics: %w", err)
 		}
-		topics = slices.Filter(topics, func(s string) bool {
+		topics = yslices.Filter(topics, func(s string) bool {
 			return !systemTopics.Contains(s) // ignore system topics
 		})
 	}
@@ -116,8 +120,8 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	if !src.IsHomo { // we can enforce homo from outside
-		src.IsHomo = p.transfer.DstType() == ProviderType && src.IsDefaultMirror()
+	if err := src.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for source: %w", err)
 	}
 	if !src.SynchronizeIsNeeded {
 		src.SynchronizeIsNeeded = p.transfer.DstType() == "lb" // sorry for that
@@ -125,7 +129,7 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if len(p.transfer.DataObjects.GetIncludeObjects()) > 0 && len(src.GroupTopics) == 0 { // infer topics from transfer
 		src.GroupTopics = p.transfer.DataObjects.GetIncludeObjects()
 	}
-	return NewSource(p.transfer.ID, src, p.logger, p.registry)
+	return NewSource(p.transfer.ID, src, nil, p.logger, p.registry)
 }
 
 func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
@@ -134,7 +138,14 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	cfgCopy := *dst
-	cfgCopy.FormatSettings = InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
+	if err := cfgCopy.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sink: %w", err)
+	}
+	var err error
+	cfgCopy.FormatSettings, err = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	return NewReplicationSink(&cfgCopy, p.registry, p.logger)
 }
 
@@ -144,7 +155,14 @@ func (p *Provider) SnapshotSink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 	cfgCopy := *dst
-	cfgCopy.FormatSettings = InferFormatSettings(p.transfer.Src, cfgCopy.FormatSettings)
+	if err := cfgCopy.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for snapshot sink: %w", err)
+	}
+	var err error
+	cfgCopy.FormatSettings, err = coherence_check.InferFormatSettings(p.logger, p.transfer.Src, cfgCopy.FormatSettings)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to infer format settings: %w", err)
+	}
 	return NewSnapshotSink(&cfgCopy, p.registry, p.logger)
 }
 

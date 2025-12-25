@@ -8,14 +8,16 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -438,6 +440,35 @@ func Test_generatedBounds(t *testing.T) {
 	}, bounds)
 }
 
+// проверяем, что синтаксическая ошибка в DDL (1064) маппится в coded MySQLIncorrectSyntax и помечается как fatal
+func Test_prepareInputPerTables_SyntaxError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	// Любой Exec возвращает синтаксическую ошибку MySQL 1064
+	mock.ExpectExec(".*").
+		WillReturnError(&mysql.MySQLError{Number: ErrCodeSyntax, Message: "You have an error in your SQL syntax"})
+
+	s := &sinker{
+		cache:  map[abstract.TableID]*abstract.TableSchema{},
+		db:     db,
+		config: &MysqlDestination{},
+		logger: logger.Log,
+	}
+
+	// Один DDL-ивент с заведомо кривой командой
+	input := []abstract.ChangeItem{{
+		Kind:         abstract.DDLKind,
+		ColumnValues: []any{"CREATE TABLE broken("},
+	}}
+
+	_, err = s.prepareInputPerTables(input)
+	require.Error(t, err)
+	require.True(t, codes.MySQLIncorrectSyntax.Contains(err), "expected MySQLIncorrectSyntax, got: %v", err)
+	require.True(t, abstract.IsFatal(err))
+}
+
 // checking that if the table cannot be created, a fatal error is returned
 func Test_create_table(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -448,7 +479,7 @@ func Test_create_table(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta(".")).
 		WillReturnError(xerrors.New("an exec error occurred"))
 	sink := &sinker{
-		cache:  map[string]bool{},
+		cache:  map[abstract.TableID]*abstract.TableSchema{},
 		db:     db,
 		logger: logger.Log,
 	}
@@ -457,9 +488,23 @@ func Test_create_table(t *testing.T) {
 		changeitem.TableID{
 			Namespace: "namespace",
 			Name:      "name",
-		},
-		changeitem.ChangeItem{
-			TableSchema: tableSchema,
-		})
+		}, tableSchema)
 	require.True(t, abstract.IsFatal(err))
+}
+
+func Test_pushQuires_Deadlock_ReturnsCodedError(t *testing.T) {
+	mockWrapper, err := makeTxMock()
+	require.NoError(t, err)
+	defer mockWrapper.Close()
+
+	// Любой Exec в транзакции вернёт deadlock (MySQL err 1213)
+	mockWrapper.mock.ExpectExec(".*").
+		WillReturnError(&mysql.MySQLError{Number: ErrCodeDeadlock, Message: "Deadlock found when trying to get lock"})
+
+	s := &sinker{logger: logger.Log}
+	queries := []sinkQuery{*newSinkQuery("UPDATE `db`.`t` SET a = 1 WHERE id = 42;", false)}
+
+	err = s.pushQuires(mockWrapper.tx, queries)
+	require.Error(t, err)
+	require.True(t, codes.MySQLDeadlock.Contains(err), "expected MySQLDeadlock, got: %v", err)
 }

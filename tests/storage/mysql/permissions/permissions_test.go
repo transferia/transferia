@@ -3,10 +3,10 @@ package permissions
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func prepareSource() *mysql.MysqlSource {

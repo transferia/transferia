@@ -3,16 +3,14 @@ package yt
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"testing"
-	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
-	"github.com/doublecloud/transfer/pkg/randutil"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
+	"github.com/transferia/transferia/pkg/randutil"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -89,7 +87,6 @@ func TestMountUnmount(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rand.Seed(time.Now().UnixNano())
 	testDir := randutil.GenerateAlphanumericString(10)
 
 	path := ypath.Path("//home/cdc/test/mount_unmount").Child(testDir)

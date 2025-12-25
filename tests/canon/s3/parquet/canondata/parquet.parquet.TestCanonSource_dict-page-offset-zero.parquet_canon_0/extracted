@@ -51,11 +51,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/dict-page-offset-zero.parquet"
+            "value": "814fc560814785f07aa9091fff096280"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -170,11 +174,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/dict-page-offset-zero.parquet"
+            "value": "814fc560814785f07aa9091fff096280"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -289,11 +297,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/dict-page-offset-zero.parquet"
+            "value": "814fc560814785f07aa9091fff096280"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

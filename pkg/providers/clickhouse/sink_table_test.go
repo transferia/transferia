@@ -6,14 +6,16 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/topology"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/blang/semver/v4"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -48,14 +50,13 @@ func makeSchema(cols *abstract.TableSchema, isUpdateable bool) (*Schema, *sinkTa
 	config.WithDefaults()
 
 	table := &sinkTable{
-		server:          nil,
-		tableName:       "test_table",
-		config:          config.ToReplicationFromPGSinkParams().MakeChildServerParams("1.1.1.1"),
-		logger:          logger.Log,
-		cols:            cols,
-		cluster:         &sinkCluster{topology: topology.NewTopology("asd", true)},
-		timezoneFetched: true,
-		timezone:        time.UTC,
+		server:    nil,
+		tableName: "test_table",
+		config:    config.ToReplicationFromPGSinkParams().MakeChildServerParams(&clickhouse.Host{Name: "1.1.1.1"}),
+		logger:    logger.Log,
+		cols:      cols,
+		cluster:   &sinkCluster{topology: topology.NewTopology("asd", true)},
+		timezone:  time.UTC,
 	}
 
 	return NewSchema(cols.Columns(), table.config.SystemColumnsFirst(), table.tableName), table
@@ -179,7 +180,7 @@ func TestTable_doOperation_failed_on_TOAST(t *testing.T) {
 	require.NoError(t, err)
 
 	_, table := makeSchema(cols, true)
-	sinkServer, err := NewSinkServerImpl(table.config, table.logger, table.metrics, nil)
+	sinkServer := NewSinkServerImpl(table.config, db, semver.Version{Major: 20}, time.UTC, table.logger, table.metrics, nil)
 	sinkServer.db = db
 	require.NoError(t, err)
 

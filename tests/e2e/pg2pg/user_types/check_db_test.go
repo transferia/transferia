@@ -5,31 +5,26 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	pg_provider "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	pg_provider "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
-	Source   = *pgrecipe.RecipeSource(pgrecipe.WithInitDir("init_source"))
-	Target   = *pgrecipe.RecipeTarget()
-	ErrRetry = xerrors.NewSentinel("Retry")
+	Source = *pgrecipe.RecipeSource(pgrecipe.WithInitDir("init_source"))
+	Target = *pgrecipe.RecipeTarget()
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                                                            // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1") // to not go to vanga
 }
 
 func loadSnapshot(t *testing.T) {
 	Source.PreSteps.Constraint = true
+	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
 	_ = helpers.Activate(t, transfer)
@@ -38,20 +33,15 @@ func loadSnapshot(t *testing.T) {
 }
 
 func checkReplicationWorks(t *testing.T) {
-	transfer := model.Transfer{
-		ID:   "test_id",
-		Src:  &Source,
-		Dst:  &Target,
-		Type: abstract.TransferTypeSnapshotAndIncrement,
-	}
+	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
+
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
 
 	srcConn, err := pg_provider.MakeConnPoolFromSrc(&Source, logger.Log)
 	require.NoError(t, err)
 	defer srcConn.Close()
-
-	worker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, helpers.EmptyRegistry(), logger.Log)
-	worker.Start()
-	defer worker.Stop()
 
 	_, err = srcConn.Exec(context.Background(), `INSERT INTO testtable VALUES (2, 'choovuck', 'zhepa', 'EinScheissdreckWerdeIchTun', (2, '456')::udt, ARRAY [(3, 'foo1')::udt, (4, 'bar1')::udt])`)
 	require.NoError(t, err)

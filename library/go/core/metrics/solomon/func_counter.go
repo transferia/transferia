@@ -16,7 +16,16 @@ type FuncCounter struct {
 	tags       map[string]string
 	function   func() int64
 	timestamp  *time.Time
+
 	useNameTag bool
+	memOnly    bool
+}
+
+func (c *FuncCounter) getID() string {
+	if c.timestamp != nil {
+		return c.name + "(" + c.timestamp.Format(time.RFC3339) + ")"
+	}
+	return c.name
 }
 
 func (c *FuncCounter) Name() string {
@@ -31,11 +40,11 @@ func (c *FuncCounter) getType() metricType {
 	return c.metricType
 }
 
-func (c *FuncCounter) getLabels() map[string]string {
+func (c *FuncCounter) Labels() map[string]string {
 	return c.tags
 }
 
-func (c *FuncCounter) getValue() interface{} {
+func (c *FuncCounter) Value() interface{} {
 	return c.function()
 }
 
@@ -51,6 +60,14 @@ func (c *FuncCounter) getNameTag() string {
 	}
 }
 
+func (c *FuncCounter) isMemOnly() bool {
+	return c.memOnly
+}
+
+func (c *FuncCounter) setMemOnly() {
+	c.memOnly = true
+}
+
 // MarshalJSON implements json.Marshaler.
 func (c *FuncCounter) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
@@ -58,18 +75,20 @@ func (c *FuncCounter) MarshalJSON() ([]byte, error) {
 		Labels    map[string]string `json:"labels"`
 		Value     int64             `json:"value"`
 		Timestamp *int64            `json:"ts,omitempty"`
+		MemOnly   bool              `json:"memOnly,omitempty"`
 	}{
 		Type:  c.metricType.String(),
 		Value: c.function(),
 		Labels: func() map[string]string {
 			labels := make(map[string]string, len(c.tags)+1)
-			labels[c.getNameTag()] = c.Name()
+			labels[c.getNameTag()] = c.name
 			for k, v := range c.tags {
 				labels[k] = v
 			}
 			return labels
 		}(),
 		Timestamp: tsAsRef(c.timestamp),
+		MemOnly:   c.memOnly,
 	})
 }
 
@@ -82,5 +101,6 @@ func (c *FuncCounter) Snapshot() Metric {
 		value:      *atomic.NewInt64(c.function()),
 
 		useNameTag: c.useNameTag,
+		memOnly:    c.memOnly,
 	}
 }

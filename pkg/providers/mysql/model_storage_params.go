@@ -1,24 +1,24 @@
 package mysql
 
-import "github.com/doublecloud/transfer/pkg/abstract"
+import "github.com/transferia/transferia/pkg/abstract"
 
 type MysqlStorageParams struct {
-	ClusterID   string
-	Host        string
-	Port        int
-	User        string
+	ClusterID   string `log:"true"`
+	Host        string `log:"true"`
+	Port        int    `log:"true"`
+	User        string `log:"true"`
 	Password    string
-	Database    string
-	TLS         bool
+	Database    string `log:"true"`
+	TLS         bool   `log:"true"`
 	CertPEMFile string
 
-	UseFakePrimaryKey   bool
-	DegreeOfParallelism int
-	Timezone            string
+	UseFakePrimaryKey   bool   `log:"true"`
+	DegreeOfParallelism int    `log:"true"`
+	Timezone            string `log:"true"`
 
-	TableFilter        abstract.Includeable
-	PreSteps           *MysqlDumpSteps
-	ConsistentSnapshot bool
+	TableFilter        abstract.Includeable `log:"true"`
+	PreSteps           *MysqlDumpSteps      `log:"true"`
+	ConsistentSnapshot bool                 `log:"true"`
 	RootCAFiles        []string
-	ConnectionID       string
+	ConnectionID       string `log:"true"`
 }

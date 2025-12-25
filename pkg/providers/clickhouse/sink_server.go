@@ -12,17 +12,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/blang/semver/v4"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/errors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/jmoiron/sqlx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -38,16 +37,9 @@ type SinkServer struct {
 	onceClose     sync.Once
 	alive         bool
 	lastFail      time.Time
-	callbacks     *SinkServerCallbacks // special callback, used only in test
 	cluster       *sinkCluster
-}
-
-type SinkServerCallbacks struct {
-	OnPing func(sinkServer *SinkServer)
-}
-
-func (s *SinkServer) TestSetCallbackOnPing(onPing *SinkServerCallbacks) {
-	s.callbacks = onPing
+	version       semver.Version
+	timezone      *time.Location
 }
 
 func (s *SinkServer) Close() error {
@@ -82,10 +74,6 @@ func (s *SinkServer) ping() {
 	} else {
 		s.logger.Warn("Ping error", log.Error(err))
 		s.alive = false
-	}
-
-	if s.callbacks != nil {
-		s.callbacks.OnPing(s)
 	}
 }
 
@@ -203,22 +191,8 @@ func (s *SinkServer) checkDDLTask(taskPath string) error {
 
 func (s *SinkServer) queryDistributedDDLTimeout() (int, error) {
 	var result int
-	err := s.QuerySingleValue("SELECT value FROM system.settings WHERE name = 'distributed_ddl_task_timeout'", &result)
+	err := querySingleValue(s.db, "SELECT value FROM system.settings WHERE name = 'distributed_ddl_task_timeout'", &result)
 	return result, err
-}
-
-func (s *SinkServer) QuerySingleValue(query string, target interface{}) error {
-	return backoff.Retry(func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), errors.ClickhouseReadTimeout)
-		defer cancel()
-		if err := s.db.QueryRowContext(ctx, query).Scan(target); err != nil {
-			if errors.IsFatalClickhouseError(err) {
-				return backoff.Permanent(err)
-			}
-			return xerrors.Errorf("query error: %w", err)
-		}
-		return nil
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3))
 }
 
 func (s *SinkServer) Insert(spec *TableSpec, rows []abstract.ChangeItem) error {
@@ -244,21 +218,17 @@ func (s *SinkServer) GetTable(table string, schema *abstract.TableSchema) (*sink
 	}
 
 	tbl := &sinkTable{
-		server:          s,
-		tableName:       normalizeTableName(table),
-		config:          s.config,
-		logger:          log.With(s.logger, log.Any("table", normalizeTableName(table))),
-		colTypes:        nil,
-		cols:            nil,
-		metrics:         s.metrics,
-		avgRowSize:      0,
-		cluster:         s.cluster,
-		timezoneFetched: false,
-		timezone:        nil,
-	}
-
-	if err := tbl.resolveTimezone(); err != nil {
-		return nil, xerrors.Errorf("failed to resolve CH cluster timezone: %w", err)
+		server:     s,
+		tableName:  normalizeTableName(table),
+		config:     s.config,
+		logger:     log.With(s.logger, log.Any("table", normalizeTableName(table))),
+		colTypes:   nil,
+		cols:       nil,
+		metrics:    s.metrics,
+		avgRowSize: 0,
+		cluster:    s.cluster,
+		timezone:   s.timezone,
+		version:    s.version,
 	}
 
 	if err := tbl.Init(schema); err != nil {
@@ -305,7 +275,7 @@ ORDER BY
 			size:      size,
 		})
 	}
-	s.logger.Infof("rotator found %v parts for table %v from %v", len(parts), table, *s.config.Host())
+	s.logger.Infof("rotator found %v parts for table %v from %v", len(parts), table, s.config.Host().String())
 	if len(parts) > keepParts {
 		oldParts := parts[keepParts:]
 		s.logger.Infof("prepare to delete %v parts for table %v", len(oldParts), table)
@@ -320,48 +290,70 @@ ORDER BY
 	return nil
 }
 
-func NewSinkServerImpl(cfg model.ChSinkServerParams, lgr log.Logger, metrics *stats.ChStats, cluster *sinkCluster) (*SinkServer, error) {
-	host := *cfg.Host()
-	db, err := conn.ConnectNative(host, cfg)
+func querySingleValue(db *sql.DB, query string, target interface{}) error {
+	return backoff.Retry(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), errors.ClickhouseReadTimeout)
+		defer cancel()
+		if err := db.QueryRowContext(ctx, query).Scan(target); err != nil {
+			return xerrors.Errorf("query error: %w", err)
+		}
+		return nil
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3))
+}
+
+func resolveServerVersion(db *sql.DB) (*semver.Version, error) {
+	var version string
+	if err := querySingleValue(db, "SELECT version();", &version); err != nil {
+		return nil, xerrors.Errorf("unable to select clickhouse version: %w", err)
+	}
+	parsedVersion, err := parseSemver(version)
 	if err != nil {
-		return nil, xerrors.Errorf("native connection error: %w", err)
+		return nil, xerrors.Errorf("unable to parse semver: %w", err)
 	}
 
-	s := &SinkServer{
+	return parsedVersion, nil
+}
+
+func resolveServerTimezone(db *sql.DB) (*time.Location, error) {
+	var timezone string
+	if err := querySingleValue(db, "SELECT timezone();", &timezone); err != nil {
+		return nil, xerrors.Errorf("failed to fetch CH timezone: %w", err)
+	}
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to parse CH timezone %s: %w", timezone, err)
+	}
+	return loc, nil
+}
+
+// separate "shalow" constructor needed for tests only
+func NewSinkServerImpl(
+	cfg model.ChSinkServerParams,
+	db *sql.DB,
+	version semver.Version,
+	timezone *time.Location,
+	lgr log.Logger,
+	metrics *stats.ChStats,
+	cluster *sinkCluster,
+) *SinkServer {
+	hostName := cfg.Host().HostName()
+
+	return &SinkServer{
 		db:            db,
-		logger:        log.With(lgr, log.String("ch_host", host)),
-		host:          host,
+		logger:        log.With(lgr, log.String("ch_host", hostName)),
+		host:          hostName,
 		metrics:       metrics,
 		config:        cfg,
 		getTableMutex: sync.Mutex{},
 		tables:        map[string]*sinkTable{},
 		closeCh:       make(chan struct{}),
 		onceClose:     sync.Once{},
-		alive:         false,
+		alive:         true,
 		lastFail:      time.Time{},
-		callbacks:     nil,
 		cluster:       cluster,
+		version:       version,
+		timezone:      timezone,
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), errors.ClickhouseReadTimeout)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		var exception *clickhouse.Exception
-		if xerrors.As(err, &exception) {
-			lgr.Error("CH ping error", log.Any("exception", exception))
-			if errors.IsFatalClickhouseError(err) {
-				return nil, abstract.NewFatalError(coded.Errorf(providers.NetworkUnreachable, "unable to init ch sink-server, fatal error: %w", err))
-			}
-			s.alive = true
-		} else {
-			lgr.Error("Not CH error", log.Error(err), log.Any("db_host", *cfg.Host()))
-			s.alive = false
-		}
-	} else {
-		s.alive = true
-	}
-
-	return s, nil
 }
 
 func (s *SinkServer) RunGoroutines() {
@@ -369,10 +361,31 @@ func (s *SinkServer) RunGoroutines() {
 }
 
 func NewSinkServer(cfg model.ChSinkServerParams, lgr log.Logger, metrics *stats.ChStats, cluster *sinkCluster) (*SinkServer, error) {
-	s, err := NewSinkServerImpl(cfg, lgr, metrics, cluster)
+	host := cfg.Host()
+	db, err := conn.ConnectNative(host, cfg)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("native connection error: %w", err)
 	}
+	var rb util.Rollbacks
+	defer rb.Do()
+	rb.AddCloser(db, lgr, "unable to close CH connection")
+
+	// TODO: now version and timezone extracted independently for each server
+	// it's kinda odd because version- and timezone-related logic may be applied to the whole transfer
+	// nevertheless different CH servers may really have different timezone and versions
+	version, err := resolveServerVersion(db)
+	if err != nil {
+		return nil, xerrors.Errorf("error resolving CH server version: %w", err)
+	}
+
+	timezone, err := resolveServerTimezone(db)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to resolve CH cluster timezone: %w", err)
+	}
+
+	s := NewSinkServerImpl(cfg, db, *version, timezone, lgr, metrics, cluster)
 	s.RunGoroutines()
+
+	rb.Cancel()
 	return s, nil
 }

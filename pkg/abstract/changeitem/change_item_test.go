@@ -7,10 +7,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/test/canon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/test/canon"
 	"go.ytsaurus.tech/yt/go/yson"
 )
 
@@ -580,11 +580,10 @@ func TestCollapse(t *testing.T) {
 			Schema:      "ppc",
 			Table:       "camp_options",
 			TableSchema: NewTableSchema([]ColSchema{{PrimaryKey: true, ColumnName: "cid"}}),
-			ColumnNames: []string{
-				"cid",
-			},
-			ColumnValues: []interface{}{
-				51615525,
+			ColumnNames: []string{},
+			OldKeys: OldKeysType{
+				KeyNames:  []string{"cid"},
+				KeyValues: []interface{}{51615525},
 			},
 		}}
 		Dump(changes)
@@ -592,7 +591,7 @@ func TestCollapse(t *testing.T) {
 		Dump(res)
 		assert.Equal(t, len(res), 1)
 		assert.Equal(t, res[0].Kind, DeleteKind)
-		assert.Equal(t, res[0].ColumnValues[0], 51615524)
+		assert.Equal(t, res[0].OldKeys.KeyValues[0], 51615524)
 	})
 	t.Run("Insert Update Delete Insert", func(t *testing.T) {
 		changes := []ChangeItem{{
@@ -665,6 +664,42 @@ func TestCollapse(t *testing.T) {
 		assert.Equal(t, res[0].Kind, InsertKind)
 		assert.Contains(t, res[0].ColumnValues, "[{\"value\":200}]")
 		assert.Contains(t, res[0].ColumnNames, "minus_words")
+	})
+	t.Run("Delete Update (Upsert scenario)", func(t *testing.T) {
+		changes := []ChangeItem{{
+			ID:          291975574,
+			CommitTime:  1601382119000000000,
+			Kind:        DeleteKind,
+			Schema:      "ppc",
+			Table:       "camp_options",
+			TableSchema: NewTableSchema([]ColSchema{{PrimaryKey: true, ColumnName: "cid"}}),
+			ColumnNames: []string{
+				"cid",
+			},
+			ColumnValues: []interface{}{
+				51615524,
+			},
+		}, {
+			ID:          291975574,
+			CommitTime:  1601382119000000000,
+			Kind:        UpdateKind,
+			Schema:      "ppc",
+			Table:       "camp_options",
+			TableSchema: NewTableSchema([]ColSchema{{PrimaryKey: true, ColumnName: "cid"}}),
+			ColumnNames: []string{
+				"cid",
+				"meaningful_goals",
+			},
+			ColumnValues: []interface{}{
+				51615524,
+				"[{\"value\":500}]",
+			},
+		}}
+		Dump(changes)
+		res := Collapse(changes)
+		Dump(res)
+		assert.Equal(t, len(res), 1)
+		assert.Equal(t, res[0].Kind, UpdateKind)
 	})
 	t.Run("Primary key change", func(t *testing.T) {
 		changes := []ChangeItem{{
@@ -1394,7 +1429,7 @@ func TestMarshalYSON(t *testing.T) {
 		var buf bytes.Buffer
 		writer := yson.NewWriterConfig(&buf, yson.WriterConfig{Format: yson.FormatPretty})
 		encoder := yson.NewEncoderWriter(writer)
-		require.NoError(t, encoder.Encode(&testChangeItem))
+		require.NoError(t, encoder.Encode(&value))
 		return buf.String()
 	}
 

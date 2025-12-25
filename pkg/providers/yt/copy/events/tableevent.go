@@ -1,8 +1,8 @@
 package events
 
 import (
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
 )
 
 type tableEvent struct {

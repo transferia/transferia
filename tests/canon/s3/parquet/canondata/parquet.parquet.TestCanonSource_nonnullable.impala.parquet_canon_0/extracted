@@ -320,11 +320,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nonnullable.impala.parquet"
+            "value": "d32e13c7fe70aad13076b046487021c2"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

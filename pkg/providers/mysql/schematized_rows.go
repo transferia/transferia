@@ -3,7 +3,7 @@ package mysql
 import (
 	"fmt"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type schematizedRowsEvent struct {

@@ -9,14 +9,14 @@ import (
 
 	"github.com/Azure/azure-amqp-common-go/v3/sas"
 	eventhubs "github.com/Azure/azure-event-hubs-go/v3"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/functions"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/functions"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -36,6 +36,13 @@ type Source struct {
 	transformer                    *model.DataTransformOptions
 	executor                       *functions.Executor
 	parser                         parsers.Parser
+}
+
+func (s *Source) YSRNamespaceID() string {
+	if srParser, ok := s.parser.(*parsers.YSRableParser); ok {
+		return srParser.YSRNamespaceID()
+	}
+	return ""
 }
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
@@ -172,6 +179,7 @@ func (s *Source) makeRawChangeItem(event *eventhubs.Event) abstract.ChangeItem {
 	}
 	topic := fmt.Sprintf("%v_%v", s.transferID, partitionID)
 	return abstract.MakeRawMessage(
+		[]byte("stub"),
 		s.transferID,
 		*event.SystemProperties.EnqueuedTime,
 		topic,

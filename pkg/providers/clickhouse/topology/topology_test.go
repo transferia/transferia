@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
 	"github.com/stretchr/testify/require"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 )
 
 func TestClusterName(t *testing.T) {
@@ -17,7 +18,8 @@ func TestClusterName(t *testing.T) {
 
 		cfgRaw := &model.ChDestination{ChClusterName: "foo"}
 		cfgRaw.WithDefaults()
-		cfg := cfgRaw.ToReplicationFromPGSinkParams()
+		cfg, err := cfgRaw.ToSinkParams(&dp_model.Transfer{})
+		require.NoError(t, err)
 
 		name, err := resolveClusterName(context.Background(), db, cfg)
 		require.NoError(t, err)

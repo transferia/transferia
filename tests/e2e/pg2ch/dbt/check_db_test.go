@@ -5,23 +5,23 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/pkg/runtime/shared/pod"
-	transformers_registry "github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/dbt"
-	_ "github.com/doublecloud/transfer/pkg/transformer/registry/dbt/clickhouse"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/pkg/runtime/shared/pod"
+	transformers_registry "github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/transformer/registry/dbt"
+	_ "github.com/transferia/transferia/pkg/transformer/registry/dbt/clickhouse"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestSnapshot(t *testing.T) {
 	t.Skip()
-	_ = os.Setenv("DBT_CONTAINER_REGISTRY", "12197361.preprod")
-	_ = os.Setenv("DBT_IMAGE_TAG", "public.ecr.aws/t9p9v8b9")
+	t.Setenv("DBT_CONTAINER_REGISTRY", "12197361.preprod")
+	t.Setenv("DBT_IMAGE_TAG", "public.ecr.aws/t9p9v8b9")
 
 	source := pgrecipe.RecipeSource(
 		pgrecipe.WithInitFiles(yatest.SourcePath("transfer_manager/go/tests/e2e/pg2ch/dbt/init_pg.sql")),
@@ -66,7 +66,6 @@ func addTransformationToTransfer(transfer *model.Transfer, config dbt.Config) {
 	if transfer.Transformation == nil {
 		transfer.Transformation = &model.Transformation{
 			ExtraTransformers: nil,
-			Executor:          nil,
 		}
 	}
 	if transfer.Transformation.Transformers == nil {

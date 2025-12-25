@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytstorage "github.com/doublecloud/transfer/pkg/providers/yt/storage"
-	"github.com/doublecloud/transfer/tests/helpers"
-	"github.com/doublecloud/transfer/tests/helpers/ydb_recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	ytstorage "github.com/transferia/transferia/pkg/providers/yt/storage"
+	"github.com/transferia/transferia/tests/helpers"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
 	ydb3 "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
@@ -36,11 +36,6 @@ func execQuery(t *testing.T, ydbConn *ydb3.Driver, query string) {
 		return err
 	}
 	require.NoError(t, ydbConn.Table().Do(context.Background(), foo))
-}
-
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
 }
 
 func TestGroup(t *testing.T) {

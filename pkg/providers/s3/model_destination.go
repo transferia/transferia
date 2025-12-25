@@ -1,19 +1,21 @@
 package s3
 
 import (
-	"encoding/gob"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
+	"go.uber.org/zap/zapcore"
 )
 
 func init() {
-	gob.RegisterName("*server.S3Destination", new(S3Destination))
-	dp_model.RegisterDestination(ProviderType, func() dp_model.Destination {
+	gobwrapper.RegisterName("*server.S3Destination", new(S3Destination))
+	dp_model.RegisterDestination(ProviderType, func() dp_model.LoggableDestination {
 		return new(S3Destination)
 	})
 	abstract.RegisterProviderName(ProviderType, "ObjectStorage")
@@ -31,28 +33,32 @@ const (
 )
 
 type S3Destination struct {
-	OutputFormat     dp_model.ParsingFormat
-	OutputEncoding   Encoding
-	BufferSize       dp_model.BytesSize
-	BufferInterval   time.Duration
-	Endpoint         string
-	Region           string
+	OutputFormat     dp_model.ParsingFormat `log:"true"`
+	OutputEncoding   Encoding               `log:"true"`
+	BufferSize       dp_model.BytesSize     `log:"true"`
+	BufferInterval   time.Duration          `log:"true"`
+	Endpoint         string                 `log:"true"`
+	Region           string                 `log:"true"`
 	AccessKey        string
-	S3ForcePathStyle bool
+	S3ForcePathStyle bool `log:"true"`
 	Secret           string
-	ServiceAccountID string
-	Layout           string
-	LayoutTZ         string
-	LayoutColumn     string
-	Bucket           string
-	UseSSL           bool
-	VerifySSL        bool
-	PartSize         int64
-	Concurrency      int64
-	AnyAsString      bool
+	ServiceAccountID string `log:"true"`
+	Layout           string `log:"true"`
+	LayoutTZ         string `log:"true"`
+	LayoutColumn     string `log:"true"`
+	Bucket           string `log:"true"`
+	UseSSL           bool   `log:"true"`
+	VerifySSL        bool   `log:"true"`
+	PartSize         int64  `log:"true"`
+	Concurrency      int64  `log:"true"`
+	AnyAsString      bool   `log:"true"`
 }
 
 var _ dp_model.Destination = (*S3Destination)(nil)
+
+func (d *S3Destination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *S3Destination) WithDefaults() {
 	if d.Layout == "" {
@@ -69,12 +75,19 @@ func (d *S3Destination) WithDefaults() {
 	}
 }
 
-func (d *S3Destination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *S3Destination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    0,
 		TriggingSize:     uint64(d.BufferSize),
 		TriggingInterval: d.BufferInterval,
 	}
+}
+
+func (d *S3Destination) ServiceAccountIDs() []string {
+	if d.ServiceAccountID != "" {
+		return []string{d.ServiceAccountID}
+	}
+	return nil
 }
 
 func (d *S3Destination) ConnectionConfig() ConnectionConfig {
@@ -98,7 +111,7 @@ func (d *S3Destination) CleanupMode() dp_model.CleanupType {
 	return dp_model.DisabledCleanup
 }
 
-func (S3Destination) IsDestination() {
+func (d *S3Destination) IsDestination() {
 }
 
 func (d *S3Destination) GetProviderType() abstract.ProviderType {

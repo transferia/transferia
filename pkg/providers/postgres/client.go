@@ -4,20 +4,23 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"net"
 	"strconv"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/connection"
-	"github.com/doublecloud/transfer/pkg/dbaas"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/pgha"
-	"github.com/doublecloud/transfer/pkg/providers"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/dbaas"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/pgha"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -25,6 +28,17 @@ const SelectCurrentLsnDelay = `select pg_wal_lsn_diff(pg_last_wal_replay_lsn(), 
 
 // replica specific stuff
 func getHostPreferablyReplica(lgr log.Logger, conn *connection.ConnectionPG, slotID string) (*connection.Host, error) {
+	if conn.ClusterID == "" {
+		replHost, err := getReplicaOnPrem(conn)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to resolve replica for on-prem: %w", err)
+		}
+		return replHost, nil
+	}
+	return getReplicaManaged(lgr, conn, slotID)
+}
+
+func getReplicaManaged(lgr log.Logger, conn *connection.ConnectionPG, slotID string) (*connection.Host, error) {
 	master, aliveAsyncReplicas, aliveSyncReplicas, err := detectHostsByRoles(lgr, conn)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to resolve cluster hosts roles:  %w", err)
@@ -66,6 +80,44 @@ func getHostPreferablyReplica(lgr log.Logger, conn *connection.ConnectionPG, slo
 	}
 
 	return nil, xerrors.Errorf("Could not find replica with Lsn greater than %v", lsn)
+}
+
+func getReplicaOnPrem(conn *connection.ConnectionPG) (*connection.Host, error) {
+	pg, err := pgha.NewFromConnection(conn)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create postgres service client for resolving replica from hosts: %w", err)
+	}
+	defer pg.Close()
+
+	// If there is a master, then it is better to choose him. If there is no master among
+	// the hosts, then we take any replica, because lsn cannot be checked anyway.
+	_, err = pg.MasterHost()
+	if err != nil && !xerrors.Is(err, context.DeadlineExceeded) {
+		return nil, xerrors.Errorf("unable to check master in cluster before resolving replica: %w", err)
+	}
+	if err == nil {
+		return nil, xerrors.New("there is master, unable to check replica's lsn for on-prem")
+	}
+
+	replicaNode, err := pg.ReplicaHost()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get replica host: %w", err)
+	}
+	if replicaNode == nil {
+		return nil, xerrors.Errorf("ReplicaHost() returned nil")
+	}
+
+	replHost, replPort, err := getHostPortFromMDBHostname(*replicaNode, conn)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to parse replica host, err: %w", err)
+	}
+
+	return &connection.Host{
+		Name:        replHost,
+		Port:        int(replPort),
+		Role:        connection.Replica,
+		ReplicaType: connection.ReplicaUndefined,
+	}, nil
 }
 
 func detectHostsByRoles(lgr log.Logger, conn *connection.ConnectionPG) (master *connection.Host, aliveAsyncReplicas []*connection.Host, aliveSyncReplicas []*connection.Host, err error) {
@@ -168,7 +220,7 @@ func findNonStaleReplica(conn *connection.ConnectionPG, lsn string, aliveReplica
 		}
 		logger.Log.Infof("Could not find replica with Lsn greater than %v between hosts %v", lsn, aliveReplicas)
 		return xerrors.Errorf("Could not find replica with Lsn greater than %v", lsn)
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5))
+	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5))
 
 	if err != nil {
 		return nil, err
@@ -262,6 +314,7 @@ func resolveMasterHostImpl(conn *connection.ConnectionPG) (string, uint16, error
 	}
 	return resultHost, resultPort, nil
 }
+
 func makeConnConfigFromParams(connParams *ConnectionParams) (*pgx.ConnConfig, error) {
 	return makeConnConfig(connParams, "", false)
 }
@@ -369,18 +422,21 @@ func MakeConnConfigFromStorage(lgr log.Logger, storage *PgStorageParams) (*pgx.C
 	// - if on_prem one host - master is this host
 	// - if on_prem >1 hosts - pgHA determines master
 	// - if managed installation - master is determined via mdb api
-	if storage.PreferReplica && conn.ClusterID != "" {
-		host, err := getHostPreferablyReplica(lgr, conn, storage.SlotID)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve replica host: %w", err)
+	if storage.PreferReplica {
+		if host, err := getHostPreferablyReplica(lgr, conn, storage.SlotID); err != nil {
+			lgr.Warn("unable to resolve replica host, will try to resolve master", log.Error(err))
+		} else {
+			connParams = toConnParams(host, conn)
 		}
-		connParams = toConnParams(host, conn)
-	} else {
+	}
+
+	if connParams == nil {
 		connParams, err = getMasterConnectionParams(lgr, conn)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to resolve master host: %w", err)
 		}
 	}
+
 	return makeConnConfig(connParams, storage.ConnString, storage.TryHostCACertificates)
 }
 
@@ -472,7 +528,19 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	pgxConn, err := pgx.ConnectConfig(basicCtx, poolConfig.ConnConfig)
 	if err != nil {
 		if IsPgError(err, ErrcInvalidPassword) || IsPgError(err, ErrcInvalidAuthSpec) {
-			return nil, coded.Errorf(providers.InvalidCredential, "failed to connect to a PostgreSQL instance: %w", err)
+			return nil, coded.Errorf(codes.InvalidCredential, "failed to connect to a PostgreSQL instance: %w", err)
+		}
+		var dnsErr *net.DNSError
+		if xerrors.As(err, &dnsErr) {
+			return nil, coded.Errorf(codes.PostgresDNSResolutionFailed, "failed to connect to a PostgreSQL instance: %w", err)
+		}
+		// SSL handshake failures often come wrapped without PgError
+		if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed") {
+			return nil, coded.Errorf(codes.PostgresSSLVerifyFailed, "failed to connect to a PostgreSQL instance: %w", err)
+		}
+		var opErr *net.OpError
+		if xerrors.As(err, &opErr) && opErr.Op == "dial" {
+			return nil, coded.Errorf(codes.Dial, "failed to dial a PostgreSQL instance: %w", err)
 		}
 		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance: %w", err)
 	}
@@ -493,6 +561,15 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	defer cancel()
 	result, err := pgxpool.ConnectConfig(goodTimeoutCtx, poolConfig)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if xerrors.As(err, &pgErr) {
+			if pgErr.Code == string(ErrcTooManyConnections) {
+				return nil, coded.Errorf(codes.PostgresTooManyConnections, "failed to connect: too many connections: %w", err)
+			}
+		}
+		if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed") {
+			return nil, coded.Errorf(codes.PostgresSSLVerifyFailed, "failed to connect to a PostgreSQL instance: %w", err)
+		}
 		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance or create a connection pool: %w", err)
 	}
 

@@ -37,6 +37,15 @@ containers:
       value: {{ $value }}
     {{- end }}
   {{- end }}
+  {{- if .Values.secret_env }}
+    {{- range .Values.secret_env }}
+    - name: {{ .env_name }}
+      valueFrom:
+        secretKeyRef:
+          name: {{ .secret_name }}
+          key: {{ .secret_key }}
+    {{- end }}
+  {{- end }}
     ports:
       - name: pprof
         protocol: TCP

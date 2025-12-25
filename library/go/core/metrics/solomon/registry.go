@@ -5,9 +5,11 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/metricsutil"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/metricsutil"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/registryutil"
+	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/library/go/core/log/nop"
 )
 
 var _ metrics.Registry = (*Registry)(nil)
@@ -25,6 +27,8 @@ type Registry struct {
 	m             *sync.Mutex
 
 	metrics *sync.Map
+
+	logger log.Logger
 }
 
 func NewRegistry(opts *RegistryOpts) *Registry {
@@ -37,6 +41,7 @@ func NewRegistry(opts *RegistryOpts) *Registry {
 		m:             new(sync.Mutex),
 
 		metrics: new(sync.Map),
+		logger:  new(nop.Logger),
 	}
 
 	if opts != nil {
@@ -49,6 +54,7 @@ func NewRegistry(opts *RegistryOpts) *Registry {
 		for _, collector := range opts.Collectors {
 			collector(r)
 		}
+		r.logger = opts.Logger
 	}
 
 	return r
@@ -67,6 +73,7 @@ func (r Registry) Rated(rated bool) metrics.Registry {
 		m:             r.m,
 
 		metrics: r.metrics,
+		logger:  r.logger,
 	}
 }
 
@@ -85,12 +92,15 @@ func (r Registry) ComposeName(parts ...string) string {
 	return registryutil.BuildFQName(r.separator, parts...)
 }
 
+func (r Registry) AddMetric(metric Metric) Metric {
+	return r.registerMetric(metric)
+}
+
 func (r Registry) Counter(name string) metrics.Counter {
 	s := &Counter{
 		name:       r.newMetricName(name),
 		metricType: typeCounter,
 		tags:       r.tags,
-
 		useNameTag: r.useNameTag,
 	}
 
@@ -198,6 +208,17 @@ func (r Registry) RemoveMetric(name string) {
 	r.metrics.Delete(metricKey)
 }
 
+// RemoveMetricWithTags is used for deletion metrics added by Vectors
+func (r Registry) RemoveMetricWithTags(name string, tags map[string]string) {
+	metricName := r.newMetricName(name)
+
+	registryTags := registryutil.MergeTags(r.tags, map[string]string{"rated": strconv.FormatBool(r.rated)})
+	metricTags := registryutil.MergeTags(registryTags, tags)
+	metricKey := registryutil.BuildRegistryKey(metricName, metricTags)
+
+	r.metrics.Delete(metricKey)
+}
+
 func (r *Registry) newSubregistry(prefix string, tags map[string]string) *Registry {
 	// differ simple and rated registries
 	keyTags := registryutil.MergeTags(tags, map[string]string{"rated": strconv.FormatBool(r.rated)})
@@ -222,6 +243,7 @@ func (r *Registry) newSubregistry(prefix string, tags map[string]string) *Regist
 		m:             r.m,
 
 		metrics: r.metrics,
+		logger:  r.logger,
 	}
 
 	r.subregistries[registryKey] = subregistry
@@ -237,7 +259,7 @@ func (r *Registry) registerMetric(s Metric) Metric {
 		Rated(s)
 	}
 
-	key := r.metricKey(s.Name())
+	key := r.metricKey(s.getID())
 
 	oldMetric, loaded := r.metrics.LoadOrStore(key, s)
 	if !loaded {
@@ -245,6 +267,9 @@ func (r *Registry) registerMetric(s Metric) Metric {
 	}
 
 	if reflect.TypeOf(oldMetric) == reflect.TypeOf(s) {
+		if oldMetric.(Metric).isMemOnly() != s.isMemOnly() {
+			r.logger.Error("cannot have the same metric with different memOnly flags", log.String("metric_id", s.getID()))
+		}
 		return oldMetric.(Metric)
 	} else {
 		r.metrics.Store(key, s)
@@ -257,11 +282,11 @@ func (r *Registry) unregisterMetric(s Metric) {
 		Rated(s)
 	}
 
-	r.metrics.Delete(r.metricKey(s.Name()))
+	r.metrics.Delete(r.metricKey(s.getID()))
 }
 
-func (r *Registry) metricKey(metricName string) string {
+func (r *Registry) metricKey(metricID string) string {
 	// differ simple and rated registries
 	keyTags := registryutil.MergeTags(r.tags, map[string]string{"rated": strconv.FormatBool(r.rated)})
-	return registryutil.BuildRegistryKey(metricName, keyTags)
+	return registryutil.BuildRegistryKey(metricID, keyTags)
 }

@@ -1,7 +1,7 @@
 package events
 
 import (
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferia/transferia/pkg/base"
 )
 
 type TransactionState int

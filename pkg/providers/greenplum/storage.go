@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/jackc/pgx/v4"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -28,7 +29,8 @@ type Storage struct {
 	config      *GpSource
 	sourceStats *stats.SourceStats
 
-	postgreses mutexedPostgreses
+	postgreses    mutexedPostgreses
+	postgresesCfg pgStorageConfig
 
 	coordinatorTx   *gpTx
 	livenessMonitor *livenessMonitor
@@ -42,6 +44,15 @@ type Storage struct {
 	newFlavor       newFlavorFunc
 }
 
+type pgStorageConfig struct {
+	// disableCheckReplIdentity indicates that postgres storages should have DisableCheckReplIdentity set to same value.
+	// This is used for gpfdist transfers where replica identity checks are not needed.
+	DisableCheckReplIdentity bool
+	// disableViewsExtraction indicates that postgres storages should have DisableViewsExtraction set to same value.
+	// This is used for gpfdist transfers where views cannot be properly migrated.
+	DisableViewsExtraction bool
+}
+
 func defaultNewFlavor(in *Storage) postgres.DBFlavour {
 	return NewGreenplumFlavour(in.workersCount == 1)
 }
@@ -52,6 +63,10 @@ func NewStorageImpl(config *GpSource, mRegistry metrics.Registry, checkConnectio
 		sourceStats: stats.NewSourceStats(mRegistry),
 
 		postgreses: newMutexedPostgreses(),
+		postgresesCfg: pgStorageConfig{
+			DisableCheckReplIdentity: false,
+			DisableViewsExtraction:   false,
+		},
 
 		coordinatorTx:   nil,
 		livenessMonitor: nil,
@@ -68,6 +83,16 @@ func NewStorageImpl(config *GpSource, mRegistry metrics.Registry, checkConnectio
 
 func NewStorage(config *GpSource, mRegistry metrics.Registry) *Storage {
 	return NewStorageImpl(config, mRegistry, checkConnection, defaultNewFlavor)
+}
+
+func (s *Storage) overridePostgresesCfg(cfg pgStorageConfig) {
+	s.postgreses.mutex.Lock()
+	defer s.postgreses.mutex.Unlock()
+	s.postgresesCfg = cfg
+	for _, pg := range s.postgreses.storages {
+		pg.DisableCheckReplIdentity = s.postgresesCfg.DisableCheckReplIdentity
+		pg.DisableViewsExtraction = s.postgresesCfg.DisableViewsExtraction
+	}
 }
 
 const PingTimeout = 5 * time.Minute
@@ -258,21 +283,22 @@ func (s *Storage) segmentLoadTable(ctx context.Context, storage *postgres.Storag
 		defer rows.Close()
 
 		ciFetcher := postgres.NewChangeItemsFetcher(rows, conn, abstract.ChangeItem{
-			ID:           uint32(0),
-			LSN:          uint64(0),
-			CommitTime:   uint64(time.Now().UTC().UnixNano()),
-			Counter:      0,
-			Kind:         abstract.InsertKind,
-			Schema:       table.Schema,
-			Table:        table.Name,
-			PartID:       table.PartID(),
-			ColumnNames:  schema.Columns().ColumnNames(),
-			ColumnValues: nil,
-			TableSchema:  schema,
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.EmptyEventSize(),
+			ID:               uint32(0),
+			LSN:              uint64(0),
+			CommitTime:       uint64(time.Now().UTC().UnixNano()),
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           table.Schema,
+			Table:            table.Name,
+			PartID:           table.GeneratePartID(),
+			ColumnNames:      schema.Columns().ColumnNames(),
+			ColumnValues:     nil,
+			TableSchema:      schema,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.EmptyEventSize(),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, s.sourceStats)
 
 		totalRowsRead := uint64(0)

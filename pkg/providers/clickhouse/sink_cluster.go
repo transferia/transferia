@@ -8,16 +8,16 @@ import (
 	"context"
 	"sync"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/ptr"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/errors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	topology2 "github.com/doublecloud/transfer/pkg/providers/clickhouse/topology"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/ptr"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	topology2 "github.com/transferia/transferia/pkg/providers/clickhouse/topology"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -179,8 +179,8 @@ func (c *sinkCluster) Reset() error {
 func (c *sinkCluster) Init() error {
 	st := make([]*SinkServer, 0)
 	var errs util.Errors
-	for _, host := range slices.Shuffle(c.config.AltHosts(), nil) {
-		c.logger.Debugf("init sinkServer %v", host)
+	for _, host := range yslices.Shuffle(c.config.AltHosts(), nil) {
+		c.logger.Debugf("init sinkServer %v", host.String())
 		sinkServer, err := NewSinkServer(
 			c.config.MakeChildServerParams(host),
 			c.logger,

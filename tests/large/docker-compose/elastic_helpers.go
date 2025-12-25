@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/providers/elastic"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/providers/elastic"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"golang.org/x/xerrors"
 )
 

@@ -9,13 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/connection"
-	"github.com/doublecloud/transfer/pkg/dbaas"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/dbaas"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 )
 
 // docker-compose is used from:
@@ -600,4 +603,35 @@ func TestWithConnection(t *testing.T) {
 		require.Equal(t, "host-1", host)
 		require.Equal(t, uint16(333), port)
 	})
+}
+
+func TestNewPgConnPoolConfig_DNSError(t *testing.T) {
+	// Test that DNS errors are properly caught and returned with PostgresDNSResolutionFailed
+	config := &PgStorageParams{
+		AllHosts: []string{"nonexistent-host-that-will-fail-dns-resolution.invalid"},
+		Port:     5432,
+		Database: "testdb",
+		User:     "testuser",
+		Password: "testpass",
+	}
+
+	connConfig, err := MakeConnConfigFromStorage(logger.Log, config)
+	require.NoError(t, err)
+
+	poolConfig, _ := pgxpool.ParseConfig("")
+	poolConfig.ConnConfig = connConfig
+	poolConfig.MaxConns = 1
+
+	ctx := context.Background()
+	_, err = NewPgConnPoolConfig(ctx, poolConfig)
+
+	// Should return a coded error with PostgresDNSResolutionFailed
+	require.Error(t, err)
+
+	var codedErr coded.CodedError
+	require.True(t, xerrors.As(err, &codedErr), "Error should be a CodedError")
+	require.Equal(t, codes.PostgresDNSResolutionFailed, codedErr.Code(), "Error code should be PostgresDNSResolutionFailed")
+
+	// Check that the error message contains the original DNS error
+	require.Contains(t, err.Error(), "failed to connect to a PostgreSQL instance")
 }

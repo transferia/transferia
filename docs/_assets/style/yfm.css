@@ -1,0 +1,92 @@
+.yfm {
+    font-family: var(--g-font-family-sans);
+}
+
+.yfm code {
+    color: var(--g-color-text-misc);
+}
+
+.yfm pre > code,
+.dc-doc-page .yfm pre > code {
+    color: var(--g-color-text-primary);
+}
+
+.yfm table {
+    color: var(--g-color-text-primary);
+    border: 1px solid var(--g-color-line-generic);
+    background: var(--g-color-base-background);
+}
+
+thead tr,
+table tr:nth-child(2n) {
+    background-color: var(--g-color-base-generic);
+}
+
+.yfm_media {
+    color: var(--g-color-text-secondary);
+}
+
+.yfm_breadcrumbs {
+    color: var(--g-text-color-base);
+}
+
+.yfm a {
+    color: var(--g-color-text-link);
+}
+
+.yfm a:hover {
+    color: var(--g-color-text-link-hover);
+}
+
+.yfm a:visited {
+    color: var(--g-color-text-link-visited)
+}
+
+.yfm a:visited:hover {
+    color: var(--g-color-text-link-visited-hover)
+}
+
+.yfm a #Icons {
+    fill: var(--g-color-text-link);
+}
+
+.yfm a:hover #Icons {
+    fill: var(--g-color-text-link-hover);
+}
+
+.yfm a:visited #Icons {
+    fill: var(--g-color-text-link-visited);
+}
+
+.yfm a:visited:hover #Icons {
+    fill: var(--g-color-text-link-visited-hover);
+}
+
+.yfm h1,
+.yfm h2,
+.yfm h3,
+.yfm h4,
+.yfm h5,
+.yfm h6 {
+    font-family: var(--dc-header-font-family);
+    font-weight: 400;
+}
+
+.yfm svg {
+    max-width: initial;
+}
+
+.yfm-clipboard > pre {
+    /* safari fix */
+    transform: translateZ(0);
+}
+
+.yfm-cut {
+    border: 1px solid var(--g-color-line-generic);
+    border-radius: 4px;
+    padding: 16px;
+}
+
+.yfm-cut-title {
+    font-weight: 600;
+}

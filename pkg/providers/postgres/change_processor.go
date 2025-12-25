@@ -7,21 +7,23 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/castx"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/util/set"
-	"github.com/doublecloud/transfer/pkg/util/strict"
 	"github.com/jackc/pglogrepl"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/spf13/cast"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/castx"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/set"
+	"github.com/transferia/transferia/pkg/util/strict"
+	"github.com/transferia/transferia/pkg/util/xlocale"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 )
@@ -36,6 +38,9 @@ type changeProcessor struct {
 
 	config   *PgSource
 	location *time.Location
+
+	// Cache for resolved parent tables to avoid repetitive queries when new partitions appear.
+	resolvedParents map[abstract.TableID]abstract.TableID
 }
 
 func defaultChangeProcessor() *changeProcessor {
@@ -47,7 +52,8 @@ func defaultChangeProcessor() *changeProcessor {
 		schemasToEmit:   abstract.DBSchema{},
 		fastSchemas:     fastSchemasFromDBSchema(abstract.DBSchema{}),
 
-		config: new(PgSource),
+		config:          new(PgSource),
+		resolvedParents: make(map[abstract.TableID]abstract.TableID),
 	}
 }
 
@@ -56,13 +62,14 @@ func newChangeProcessor(
 	dbSchema abstract.DBSchema,
 	schemaTimestamp time.Time,
 	config *PgSource,
+	resolvedParents map[abstract.TableID]abstract.TableID,
 ) (*changeProcessor, error) {
 	connTimezone := conn.PgConn().ParameterStatus(TimeZoneParameterStatusKey)
 	if config.IsHomo {
 		// use UTC in homo transfers, otherwise timestamps WITHOUT time zone cannot be inserted with COPY
 		connTimezone = time.UTC.String()
 	}
-	location, err := time.LoadLocation(connTimezone)
+	location, err := xlocale.Load(connTimezone)
 	if err != nil {
 		logger.Log.Warn("failed to parse time zone", log.String("timezone", connTimezone), log.Error(err))
 		location = time.UTC
@@ -76,7 +83,8 @@ func newChangeProcessor(
 		schemaTimestamp: schemaTimestamp,
 		fastSchemas:     fastSchemasFromDBSchema(dbSchema),
 
-		config: config,
+		config:          config,
+		resolvedParents: resolvedParents,
 	}, nil
 }
 
@@ -120,6 +128,19 @@ func (c *changeProcessor) fixupChange(
 	if len(change.OldKeys.KeyNames) != len(change.OldKeys.KeyValues) {
 		msg := fmt.Sprintf("len(OldKeys.ColumnNames) != len(OldKeys.ColumnValues) (%d != %d)", len(change.OldKeys.KeyNames), len(change.OldKeys.KeyValues))
 		return makeChangeItemError(msg, change)
+	}
+
+	// If change is UPDATE or DELETE and number of oldKeys != number of primary keys in schema => we process table with REPLICA IDENTITY FULL
+	if len(change.OldKeys.KeyNames) > 0 &&
+		emissionSchema.Columns().KeysNum() > len(change.OldKeys.KeyNames) {
+		for _, col := range emissionSchema.Columns() {
+			if col.PrimaryKey && !slices.Contains(change.OldKeys.KeyNames, col.ColumnName) {
+				change.OldKeys.KeyNames = append(change.OldKeys.KeyNames, col.ColumnName)
+				change.OldKeys.KeyTypes = append(change.OldKeys.KeyTypes, col.DataType)
+				change.OldKeys.KeyValues = append(change.OldKeys.KeyValues, nil)
+				oldKeyTypeOIDs = append(oldKeyTypeOIDs, pgtype.OID(0))
+			}
+		}
 	}
 
 	errs := util.NewErrs()
@@ -270,6 +291,11 @@ func (c *changeProcessor) restoreType(value any, oid pgtype.OID, colSchema *abst
 }
 
 func (c *changeProcessor) resolveParentTable(ctx context.Context, connPool *pgxpool.Pool, id abstract.TableID) (res abstract.TableID, err error) {
+	// Memoize to avoid repetitive queries for the same table.
+	if parent, ok := c.resolvedParents[id]; ok {
+		return parent, nil
+	}
+
 	conn, err := connPool.Acquire(ctx)
 	if err != nil {
 		return res, xerrors.Errorf("unable to acquire conn: %w", err)
@@ -290,8 +316,11 @@ func (c *changeProcessor) resolveParentTable(ctx context.Context, connPool *pgxp
 		if err != nil {
 			return res, xerrors.Errorf("unable to parse parent table name: %w", err)
 		}
-		return *tid, nil
+		res = *tid
+		c.resolvedParents[id] = res
+		return res, nil
 	}
+	c.resolvedParents[id] = id
 	return id, nil
 }
 

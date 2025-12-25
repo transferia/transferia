@@ -3,11 +3,11 @@ package prometheus
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/collect"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/registryutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/collect"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/registryutil"
 )
 
 type PrometheusRegistry interface {

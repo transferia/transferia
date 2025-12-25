@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func (s *Storage) getChildTables(ctx context.Context, table abstract.TableDescription) ([]abstract.TableDescription, error) {
@@ -37,7 +37,7 @@ WHERE
 		res = append(res, abstract.TableDescription{
 			Name:   table.Name,
 			Schema: table.Schema,
-			Filter: abstract.WhereStatement(fmt.Sprintf("%s%s", PartitionsFilterPrefix, tid.Fqtn())),
+			Filter: abstract.WhereStatement(fmt.Sprintf("%s%s|%s", PartitionsFilterPrefix, tid.Fqtn(), table.Filter)),
 			EtaRow: etaRow,
 			Offset: 0,
 		})

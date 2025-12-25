@@ -3,14 +3,14 @@ package tasks
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/storage"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/storage"
 )
 
-func checkReuploadAllowed(src model.Source, dst model.Destination) error {
+func checkReuploadAllowed(src model.Source) error {
 	if appendOnlySource, ok := src.(model.AppendOnlySource); ok && appendOnlySource.IsAppendOnly() {
 		return xerrors.New("Reupload from append only source is not allowed")
 	}
@@ -19,6 +19,9 @@ func checkReuploadAllowed(src model.Source, dst model.Destination) error {
 
 func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task model.TransferOperation, registry metrics.Registry) error {
 	if transfer.IsTransitional() {
+		if transfer.AsyncOperations {
+			return xerrors.New("Transitional reupload is not supported")
+		}
 		// there is no code to change, if you need to change it - think twice.
 		return TransitReupload(ctx, cp, transfer, task, registry)
 	}
@@ -30,7 +33,7 @@ func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 		}
 		return nil
 	}
-	if err := checkReuploadAllowed(transfer.Src, transfer.Dst); err != nil {
+	if err := checkReuploadAllowed(transfer.Src); err != nil {
 		return xerrors.Errorf("Reupload is forbidden: %w", err)
 	}
 
@@ -38,7 +41,7 @@ func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 		return xerrors.Errorf("stop job: %w", err)
 	}
 
-	if !transfer.IncrementOnly() {
+	if !transfer.IncrementOnly() && !transfer.AsyncOperations {
 		err := cp.SetStatus(transfer.ID, model.Started)
 		if err != nil {
 			return xerrors.Errorf("Cannot update transfer status: %w", err)
@@ -58,7 +61,7 @@ func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 			tables, err := ObtainAllSrcTables(&transfer, registry)
 			if err != nil {
 				if !xerrors.Is(err, storage.UnsupportedSourceErr) {
-					return xerrors.Errorf(TableListErrorText, err)
+					return xerrors.Errorf(tableListErrorText, err)
 				}
 			}
 

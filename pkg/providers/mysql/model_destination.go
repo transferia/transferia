@@ -3,53 +3,67 @@ package mysql
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	"go.uber.org/zap/zapcore"
 )
 
 type TableName = string
 
 type MysqlDestination struct {
-	AllowReplace         bool
-	Cleanup              model.CleanupType
-	ClusterID            string
-	Database             string
-	DisableParallelWrite map[TableName]bool
-	Host                 string
-	IsPublic             bool
-	MaintainTables       bool
-	MaxParralelWriters   int64
+	AllowReplace         bool               `log:"true"`
+	Cleanup              model.CleanupType  `log:"true"`
+	ClusterID            string             `log:"true"`
+	Database             string             `log:"true"`
+	DisableParallelWrite map[TableName]bool `log:"true"`
+	Host                 string             `log:"true"`
+	IsPublic             bool               `log:"true"`
+	MaintainTables       bool               `log:"true"`
+	MaxParralelWriters   int64              `log:"true"`
 	Password             model.SecretString
-	PerTransactionPush   bool
-	Port                 int
-	ProgressTrackerDB    string
-	SecurityGroupIDs     []string
-	SkipKeyChecks        bool
-	SQLMode              string
-	SubNetworkID         string
-	Timezone             string
+	PerTransactionPush   bool     `log:"true"`
+	Port                 int      `log:"true"`
+	ProgressTrackerDB    string   `log:"true"`
+	SecurityGroupIDs     []string `log:"true"`
+	SkipKeyChecks        bool     `log:"true"`
+	SQLMode              string   `log:"true"`
+	SubNetworkID         string   `log:"true"`
+	Timezone             string   `log:"true"`
 	TLSFile              string
-	TransformerConfig    map[string]string
-	User                 string
+	TransformerConfig    map[string]string `log:"true"`
+	User                 string            `log:"true"`
 
-	BufferTriggingSize     uint64
-	BufferTriggingInterval time.Duration
+	BufferTriggingSize     uint64        `log:"true"`
+	BufferTriggingInterval time.Duration `log:"true"`
 
 	RootCAFiles []string
 
 	// Used for snapshot in runtime only
-	prevSkipKeyChecks      bool
-	prevPerTransactionPush bool
-	ConnectionID           string
+	prevSkipKeyChecks         bool   `log:"true"`
+	prevPerTransactionPush    bool   `log:"true"`
+	ConnectionID              string `log:"true"`
+	IsSchemaMigrationDisabled bool   `log:"true"`
+
+	UserEnabledTls *bool // tls config set by user explicitly
 }
 
-var _ model.Destination = (*MysqlDestination)(nil)
-var _ model.WithConnectionID = (*MysqlDestination)(nil)
+var (
+	_ model.Destination          = (*MysqlDestination)(nil)
+	_ model.WithConnectionID     = (*MysqlDestination)(nil)
+	_ model.AlterableDestination = (*MysqlDestination)(nil)
+)
+
+func (d *MysqlDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *MysqlDestination) MDBClusterID() string {
 	return d.ClusterID
 }
+
+func (d *MysqlDestination) IsAlterable() {}
 
 func (d *MysqlDestination) GetConnectionID() string {
 	return d.ConnectionID
@@ -102,8 +116,8 @@ func (d *MysqlDestination) PostSnapshotHacks() {
 	d.PerTransactionPush = d.prevPerTransactionPush
 }
 
-func (d *MysqlDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *MysqlDestination) BuffererConfig() *bufferer.BuffererConfig {
+	return &bufferer.BuffererConfig{
 		TriggingCount:    0,
 		TriggingSize:     d.BufferTriggingSize,
 		TriggingInterval: d.BufferTriggingInterval,

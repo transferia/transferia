@@ -3,8 +3,8 @@ package confluent
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 )
 
 func TestSetCredentials(t *testing.T) {

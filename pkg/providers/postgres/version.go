@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgtype/pgxtype"
+	"github.com/transferia/transferia/internal/logger"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -26,7 +26,7 @@ func NewPgVersion(version string) PgVersion {
 	}
 }
 
-func ResolveVersion(pool *pgxpool.Pool) PgVersion {
+func ResolveVersion(pool pgxtype.Querier) PgVersion {
 	version := "unknown"
 	if err := pool.QueryRow(context.TODO(), "SELECT version()").Scan(&version); err != nil {
 		logger.Log.Error("failed to resolve PostgreSQL version", log.Error(err))

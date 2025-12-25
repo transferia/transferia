@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	jsonparser "github.com/doublecloud/transfer/pkg/parsers/registry/json"
-	kafkasink "github.com/doublecloud/transfer/pkg/providers/kafka"
-	filterrows "github.com/doublecloud/transfer/pkg/transformer/registry/filter_rows"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
+	kafkasink "github.com/transferia/transferia/pkg/providers/kafka"
+	filterrows "github.com/transferia/transferia/pkg/transformer/registry/filter_rows"
+	"github.com/transferia/transferia/tests/helpers"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -35,7 +35,6 @@ var (
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     nil,
-		IsHomo:           false,
 	}
 	target = *helpers.RecipeMysqlTarget()
 )
@@ -93,7 +92,7 @@ func TestReplication(t *testing.T) {
 			Auth:       source.Auth,
 			Topic:      source.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -113,9 +112,9 @@ func TestReplication(t *testing.T) {
 	v3 := []byte(`{"id": "3", "i64": "-9223372036854775808", "f32": "0.3", "str": "other", "time": "2005-01-01T00:00:00", "datetime": "2005-01-01T00:00:00 +0000 UTC", "date": "2000-03-05", "null": "str", "notNull": "str"}`)
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		kafkasink.MakeKafkaRawMessage(source.Topic, time.Time{}, source.Topic, 0, 0, []byte("_"), v1),
-		kafkasink.MakeKafkaRawMessage(source.Topic, time.Time{}, source.Topic, 0, 0, []byte("_"), v2),
-		kafkasink.MakeKafkaRawMessage(source.Topic, time.Time{}, source.Topic, 0, 0, []byte("_"), v3),
+		abstract.MakeRawMessage([]byte("_"), source.Topic, time.Time{}, source.Topic, 0, 0, v1),
+		abstract.MakeRawMessage([]byte("_"), source.Topic, time.Time{}, source.Topic, 0, 0, v2),
+		abstract.MakeRawMessage([]byte("_"), source.Topic, time.Time{}, source.Topic, 0, 0, v3),
 	}))
 
 	// check results

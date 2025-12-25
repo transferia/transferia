@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/typeutil"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/typeutil"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/xlocale"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -163,7 +164,7 @@ func (t *TimestampWithoutTimeZone) Do(in int64, originalType *debeziumcommon.Ori
 	if timeZone == "" {
 		return timestamp, nil
 	}
-	tz, err := time.LoadLocation(timeZone)
+	tz, err := xlocale.Load(timeZone)
 	if err != nil {
 		return time.Time{}, xerrors.Errorf("unable to load timezone %s, err: %w", timeZone, err)
 	}
@@ -298,8 +299,8 @@ func (t *TimestampWithTimeZone) Do(in string, _ *debeziumcommon.OriginalTypeInfo
 	if err != nil {
 		return time.Time{}, xerrors.Errorf("unable to parse timestamp with timezone: %s, err: %w", in, err)
 	}
-	tz, _ := time.LoadLocation("UTC")
-	return time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), timestamp.Second(), timestamp.Nanosecond(), tz), nil
+
+	return time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), timestamp.Second(), timestamp.Nanosecond(), time.UTC), nil
 }
 
 type Enum struct {

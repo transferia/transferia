@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
+	"os"
 	"os/exec"
 	"path"
 	"runtime"
@@ -13,8 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -37,7 +37,7 @@ type Stat struct {
 var (
 	platform    string
 	history     map[int]Stat
-	historyLock sync.Mutex
+	historyLock sync.RWMutex
 	eol         string
 )
 
@@ -57,7 +57,10 @@ func parseFloat(val string) float64 {
 }
 
 func stat(pid int, statType string) (*SysInfo, error) {
+	historyLock.RLock()
 	_history := history[pid]
+	historyLock.RUnlock()
+
 	if statType == "ps" {
 		args := "-o pcpu,rss -p"
 		if platform == "aix" {
@@ -78,7 +81,7 @@ func stat(pid int, statType string) (*SysInfo, error) {
 		var clkTck float64 = 100
 		var pageSize float64 = 4096
 
-		uptimeFileBytes, _ := ioutil.ReadFile(path.Join("/proc", "uptime"))
+		uptimeFileBytes, _ := os.ReadFile(path.Join("/proc", "uptime"))
 		uptime := parseFloat(strings.Split(string(uptimeFileBytes), " ")[0])
 
 		clkTckStdout, err := exec.Command("getconf", "CLK_TCK").Output()
@@ -91,7 +94,7 @@ func stat(pid int, statType string) (*SysInfo, error) {
 			pageSize = parseFloat(formatStdOut(pageSizeStdout, 0)[0])
 		}
 
-		procStatFileBytes, _ := ioutil.ReadFile(path.Join("/proc", strconv.Itoa(pid), "stat"))
+		procStatFileBytes, _ := os.ReadFile(path.Join("/proc", strconv.Itoa(pid), "stat"))
 		splitAfter := strings.SplitAfter(string(procStatFileBytes), ")")
 
 		if len(splitAfter) == 0 || len(splitAfter) == 1 {

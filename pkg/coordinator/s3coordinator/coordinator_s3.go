@@ -13,16 +13,18 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 var (
-	_ coordinator.Sharding      = (*CoordinatorS3)(nil)
-	_ coordinator.TransferState = (*CoordinatorS3)(nil)
+	_ coordinator.Sharding        = (*CoordinatorS3)(nil)
+	_ coordinator.TransferState   = (*CoordinatorS3)(nil)
+	_ coordinator.OperationStatus = (*CoordinatorS3)(nil)
 )
 
 type CoordinatorS3 struct {
@@ -32,6 +34,7 @@ type CoordinatorS3 struct {
 	state    map[string]map[string]*coordinator.TransferStateData
 	s3Client *s3.S3
 	bucket   string
+	lgr      log.Logger
 }
 
 // GetTransferState fetches all state objects with a given transferID (prefix).
@@ -72,6 +75,7 @@ func (c *CoordinatorS3) GetTransferState(transferID string) (map[string]*coordin
 		}
 		state[strings.TrimSuffix(key, ".json")] = &transferData
 	}
+	c.lgr.Info("load transfer state", log.Any("transfer_id", transferID), log.Any("state", state))
 
 	return state, nil
 }
@@ -94,6 +98,7 @@ func (c *CoordinatorS3) SetTransferState(transferID string, state map[string]*co
 			return xerrors.Errorf("failed to upload state object: %w", err)
 		}
 	}
+	c.lgr.Info("set transfer state", log.Any("transfer_id", transferID), log.Any("state", state))
 	return nil
 }
 
@@ -110,6 +115,7 @@ func (c *CoordinatorS3) RemoveTransferState(transferID string, keys []string) er
 			return xerrors.Errorf("failed to delete state object: %w", err)
 		}
 	}
+	c.lgr.Info("remove transfer state keys", log.Any("transfer_id", transferID), log.Any("keys", keys))
 	return nil
 }
 
@@ -186,7 +192,7 @@ func (c *CoordinatorS3) GetOperationWorkersCount(operationID string, completed b
 }
 
 // CreateOperationTablesParts creates table parts for an operation and stores them in S3.
-func (c *CoordinatorS3) CreateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
+func (c *CoordinatorS3) CreateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
 	for _, table := range tables {
 		key := fmt.Sprintf("%s/table_%v.json", operationID, table.TableKey())
 
@@ -203,21 +209,21 @@ func (c *CoordinatorS3) CreateOperationTablesParts(operationID string, tables []
 }
 
 // GetOperationTablesParts fetches table parts for a given operation.
-func (c *CoordinatorS3) GetOperationTablesParts(operationID string) ([]*model.OperationTablePart, error) {
+func (c *CoordinatorS3) GetOperationTablesParts(operationID string) ([]*abstract.OperationTablePart, error) {
 	prefix := operationID + "/table_"
 	objects, err := c.listObjects(prefix)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to list: %s: %w", prefix, err)
 	}
 
-	var tables []*model.OperationTablePart
+	var tables []*abstract.OperationTablePart
 	for _, obj := range objects {
 		resp, err := c.getObject(*obj.Key)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to get: %s: %w", *obj.Key, err)
 		}
 
-		var table model.OperationTablePart
+		var table abstract.OperationTablePart
 		if err := json.Unmarshal(resp, &table); err != nil {
 			return nil, xerrors.Errorf("failed to unmarshal table part: %w", err)
 		}
@@ -228,7 +234,7 @@ func (c *CoordinatorS3) GetOperationTablesParts(operationID string) ([]*model.Op
 }
 
 // AssignOperationTablePart assigns a table part to a worker.
-func (c *CoordinatorS3) AssignOperationTablePart(operationID string, workerIndex int) (*model.OperationTablePart, error) {
+func (c *CoordinatorS3) AssignOperationTablePart(operationID string, workerIndex int) (*abstract.OperationTablePart, error) {
 	tables, err := c.GetOperationTablesParts(operationID)
 	if err != nil {
 		return nil, err
@@ -290,12 +296,12 @@ func (c *CoordinatorS3) ClearAssignedTablesParts(ctx context.Context, operationI
 }
 
 // UpdateOperationTablesParts updates the status of table parts in S3.
-func (c *CoordinatorS3) UpdateOperationTablesParts(operationID string, tables []*model.OperationTablePart) error {
+func (c *CoordinatorS3) UpdateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
 	currentTables, err := c.GetOperationTablesParts(operationID)
 	if err != nil {
 		return xerrors.Errorf("failed to get tables parts: %w", err)
 	}
-	curTbls := map[string]*model.OperationTablePart{}
+	curTbls := map[string]*abstract.OperationTablePart{}
 	for _, table := range currentTables {
 		curTbls[table.TableKey()] = table
 	}
@@ -318,7 +324,7 @@ func (c *CoordinatorS3) UpdateOperationTablesParts(operationID string, tables []
 	return nil
 }
 
-func (c *CoordinatorS3) FinishOperation(operationID string, shardIndex int, taskErr error) error {
+func (c *CoordinatorS3) FinishOperation(operationID string, taskType string, runID string, shardIndex int, taskErr error) error {
 	workers, err := c.GetOperationWorkers(operationID)
 	if err != nil {
 		return xerrors.Errorf("failed to load operation parts: %w", err)
@@ -381,7 +387,7 @@ func (c *CoordinatorS3) listObjects(prefix string) ([]*s3.Object, error) {
 }
 
 // NewS3 creates a new CoordinatorS3 with AWS SDK v1.
-func NewS3(bucket string, cfgs ...*aws.Config) (*CoordinatorS3, error) {
+func NewS3(bucket string, l log.Logger, cfgs ...*aws.Config) (*CoordinatorS3, error) {
 	sess, err := session.NewSession(cfgs...)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create AWS session: %w", err)
@@ -397,5 +403,6 @@ func NewS3(bucket string, cfgs ...*aws.Config) (*CoordinatorS3, error) {
 		state:           map[string]map[string]*coordinator.TransferStateData{},
 		bucket:          bucket,
 		s3Client:        s3Client,
+		lgr:             log.With(l, log.Any("component", "s3-coordinator")),
 	}, nil
 }

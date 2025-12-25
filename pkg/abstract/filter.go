@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 type Filters map[Table]WhereStatement
@@ -29,7 +29,7 @@ const (
 	notABracket
 )
 
-func BalanceBrackets(phrase string) bool {
+func isBracketsBalanced(phrase string) bool {
 	var queue []rune
 	for _, v := range phrase {
 		switch getBracketType(v) {
@@ -58,7 +58,7 @@ func getBracketType(char rune) bracketType {
 	return notABracket
 }
 
-func ParseFilter(rawFilter string) (*Table, *WhereStatement, error) {
+func parseFilter(rawFilter string) (*Table, *WhereStatement, error) {
 	if len(rawFilter) == 0 {
 		return nil, nil, nil
 	}
@@ -71,7 +71,7 @@ func ParseFilter(rawFilter string) (*Table, *WhereStatement, error) {
 		return nil, nil, xerrors.New("Need at least one closed bracket")
 	}
 
-	if !BalanceBrackets(rawFilter) {
+	if !isBracketsBalanced(rawFilter) {
 		return nil, nil, xerrors.New("Brackets not balanced")
 	}
 
@@ -87,7 +87,7 @@ func ParseFilter(rawFilter string) (*Table, *WhereStatement, error) {
 func ParseFilterItems(rawFilters []string) (Filters, error) {
 	res := make(map[Table]WhereStatement)
 	for _, filter := range rawFilters {
-		table, filter, err := ParseFilter(filter)
+		table, filter, err := parseFilter(filter)
 		if err != nil {
 			return nil, err
 		}

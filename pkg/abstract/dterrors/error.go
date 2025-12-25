@@ -1,7 +1,7 @@
 package dterrors
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // FatalError denotes an error which must stop the transfer completely, forbidding to restart it automatically

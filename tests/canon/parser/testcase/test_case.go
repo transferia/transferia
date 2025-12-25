@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	_ "github.com/doublecloud/transfer/pkg/parsers/registry"
-	"github.com/doublecloud/transfer/pkg/providers/kafka"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/parsers"
+	_ "github.com/transferia/transferia/pkg/parsers/registry"
+	"github.com/transferia/transferia/pkg/providers/kafka"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 

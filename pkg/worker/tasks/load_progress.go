@@ -5,20 +5,19 @@ import (
 	sync "sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type loadProgress struct {
 	sink        abstract.Sinker
 	lastReport  time.Time
-	part        *model.OperationTablePart
+	part        *abstract.OperationTablePart
 	workerIndex int
 }
 
-func NewLoadProgress(workerIndex int, part *model.OperationTablePart, progressUpdateMutex *sync.Mutex) *loadProgress {
+func NewLoadProgress(workerIndex int, part *abstract.OperationTablePart, progressUpdateMutex *sync.Mutex) *loadProgress {
 	return &loadProgress{
 		sink:        nil,
 		lastReport:  time.Now(),
@@ -70,6 +69,6 @@ func (l *loadProgress) reportProgress() {
 		l.lastReport = now
 		logger.Log.Info(
 			fmt.Sprintf("Load table '%v' progress %v / %v (%.2f%%)", l.part, l.part.CompletedRows, l.part.ETARows, l.part.CompletedPercent()),
-			log.Any("table_part", l.part), log.Int("worker_index", l.workerIndex))
+			log.String("table_part", l.part.StringWithoutFilter()), log.Int("worker_index", l.workerIndex))
 	}
 }

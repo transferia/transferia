@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
 	"github.com/stretchr/testify/require"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -48,7 +49,7 @@ func YDBInitChangeItem(tablePath string) *abstract.ChangeItem {
 			{PrimaryKey: false, Required: false, ColumnName: "Json_", DataType: string(schema.TypeAny), OriginalType: "ydb:Json"},
 			{PrimaryKey: false, Required: false, ColumnName: "JsonDocument_", DataType: string(schema.TypeAny), OriginalType: "ydb:JsonDocument"},
 			//{PrimaryKey: false, Required: false, ColumnName: "Yson_", DataType: "", OriginalType: "ydb:Yson"}, // can't find any acceptable value
-			//{PrimaryKey: false, Required: false, ColumnName: "Uuid_", DataType: "", OriginalType: "ydb:Uuid"}, // Не поддержан для столбцов таблиц
+			{PrimaryKey: false, Required: false, ColumnName: "Uuid_", DataType: string(schema.TypeString), OriginalType: "ydb:Uuid"}, // Не поддержан для столбцов таблиц
 
 			{PrimaryKey: false, Required: false, ColumnName: "Date_", DataType: string(schema.TypeDate), OriginalType: "ydb:Date"},
 			{PrimaryKey: false, Required: false, ColumnName: "Datetime_", DataType: string(schema.TypeDatetime), OriginalType: "ydb:Datetime"},
@@ -78,7 +79,7 @@ func YDBInitChangeItem(tablePath string) *abstract.ChangeItem {
 			"Json_",
 			"JsonDocument_",
 			//"Yson_", // can't find any acceptable value
-			//"Uuid_", // Не поддержан для столбцов таблиц
+			"Uuid_", // Не поддержан для столбцов таблиц
 			"Date_",
 			"Datetime_",
 			"Timestamp_",
@@ -107,7 +108,7 @@ func YDBInitChangeItem(tablePath string) *abstract.ChangeItem {
 			"{}",             //"Json_",
 			"{}",             //"JsonDocument_",
 			//"Yson_", // can't find any acceptable value
-			//"Uuid_", // Не поддержан для столбцов таблиц
+			"6af014ea-29dd-401c-a7e3-68a58305f4fb",        //"Uuid_"
 			time.Date(2020, 2, 2, 0, 0, 0, 0, time.UTC),   //"Date_",
 			time.Date(2020, 2, 2, 10, 2, 22, 0, time.UTC), //"Datetime_",
 			time.Date(2020, 2, 2, 10, 2, 22, 0, time.UTC), //"Timestamp_",
@@ -221,7 +222,7 @@ func YDBStmtDeleteCompoundKey(t *testing.T, tablePath string, ids ...any) *abstr
 	result.ColumnValues = result.ColumnValues[0:len(ids)]
 	result.OldKeys = abstract.OldKeysType{
 		KeyNames:  result.ColumnNames,
-		KeyTypes:  slices.Map(result.TableSchema.Columns()[0:len(ids)], func(col abstract.ColSchema) string { return col.DataType }),
+		KeyTypes:  yslices.Map(result.TableSchema.Columns()[0:len(ids)], func(col abstract.ColSchema) string { return col.DataType }),
 		KeyValues: ids,
 	}
 
@@ -269,7 +270,7 @@ func YDBPullDataFromTable(t *testing.T, token, database, instance, table string)
 		ChangeFeedMode:     "",
 		BufferSize:         0,
 	}
-	sinkMock := &MockSink{}
+	sinkMock := mocksink.NewMockSink(nil)
 	targetMock := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       model.DisabledCleanup,
@@ -278,13 +279,14 @@ func YDBPullDataFromTable(t *testing.T, token, database, instance, table string)
 
 	var extracted []abstract.ChangeItem
 
-	sinkMock.PushCallback = func(input []abstract.ChangeItem) {
+	sinkMock.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, currItem := range input {
 			if currItem.Kind == abstract.InsertKind {
 				require.NotZero(t, len(currItem.KeyCols()))
 				extracted = append(extracted, currItem)
 			}
 		}
+		return nil
 	}
 	Activate(t, transferMock)
 	return extracted
@@ -340,6 +342,7 @@ var (
 		"other_utf_8_string",
 		map[string]interface{}{"1": 1},
 		map[string]interface{}{"2": 2},
+		"e0883eaf-7487-444d-9ef5-4bb50b939c30",
 		time.Date(2022, 2, 2, 0, 0, 0, 0, time.UTC),
 		time.Date(2022, 2, 2, 10, 2, 22, 0, time.UTC),
 		time.Date(2022, 2, 2, 10, 2, 22, 0, time.UTC),
@@ -365,6 +368,7 @@ var (
 		"utf8_string",
 		map[string]interface{}{"3": 6},
 		map[string]interface{}{"4": 5},
+		"e121f709-02a2-4c02-bc5f-8af55f068da9",
 		time.Date(2023, 2, 2, 0, 0, 0, 0, time.UTC),
 		time.Date(2023, 2, 2, 10, 2, 22, 0, time.UTC),
 		time.Date(2023, 2, 2, 10, 2, 22, 0, time.UTC),
@@ -390,6 +394,7 @@ var (
 		"4_string_string",
 		map[string]interface{}{"8": 5},
 		map[string]interface{}{"7": 2},
+		"04857a21-5993-4166-b2fc-09b422fc4bc2",
 		time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC),
 		time.Date(2025, 2, 2, 10, 2, 22, 0, time.UTC),
 		time.Date(2025, 2, 2, 10, 2, 22, 0, time.UTC),
@@ -415,10 +420,11 @@ var (
 		"Bobr kurwa",
 		map[string]interface{}{"a": -1},
 		map[string]interface{}{"b": 2},
+		"7a3b3567-c7cb-4398-a706-4555ec083c88",
 		time.Date(2024, 4, 8, 18, 38, 0, 0, time.UTC),
 		time.Date(2024, 4, 8, 18, 38, 22, 0, time.UTC),
 		time.Date(2024, 4, 8, 18, 38, 44, 0, time.UTC),
-		time.Duration(4291747200000000 - 1), // this is the largest possible: https://github.com/doublecloud/transfer/arcadia/contrib/ydb/core/ydb_convert/ydb_convert.cpp?rev=r13809522#L445
+		time.Duration(4291747200000000 - 1), // this is the largest possible: https://github.com/transferia/transferia/arcadia/contrib/ydb/core/ydb_convert/ydb_convert.cpp?rev=r13809522#L445
 	}
 
 	YDBTestMultikeyValues2 = []interface{}{
@@ -440,10 +446,11 @@ var (
 		"Ja pierdole",
 		map[string]interface{}{"x": 1, "y": -2},
 		map[string]interface{}{"x": -2, "y": -1},
+		"62d7b983-aff0-40ca-bcce-963e55ee2d3f",
 		time.Date(1970, 1, 1, 1, 1, 1, 1, time.UTC),
 		time.Date(1970, 1, 1, 1, 1, 1, 2, time.UTC),
 		time.Date(1970, 1, 1, 1, 1, 1, 3, time.UTC),
-		time.Duration(-4291747200000000 + 1), // this is the largest possible: https://github.com/doublecloud/transfer/arcadia/contrib/ydb/core/ydb_convert/ydb_convert.cpp?rev=r13809522#L445
+		time.Duration(-4291747200000000 + 1), // this is the largest possible: https://github.com/transferia/transferia/arcadia/contrib/ydb/core/ydb_convert/ydb_convert.cpp?rev=r13809522#L445
 	}
 
 	YDBTestMultikeyValues3 = []interface{}{
@@ -465,6 +472,7 @@ var (
 		"prosche pozvonit chem u kogo-to zanimat",
 		map[string]interface{}{"foo": 146, "bar": -238},
 		map[string]interface{}{"fizz": -64, "buzz": 63},
+		"77daf429-12c1-4156-8a8e-e3220d0c23e1",
 		time.Date(2022, 6, 27, 0, 0, 0, 0, time.UTC),
 		time.Date(2022, 6, 28, 0, 2, 40, 0, time.UTC),
 		time.Date(2022, 6, 29, 0, 5, 20, 0, time.UTC),

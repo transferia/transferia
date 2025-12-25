@@ -1,21 +1,20 @@
 package stdout
 
 import (
-	"encoding/gob"
-
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.StdoutDestination", new(StdoutDestination))
-	gob.RegisterName("*server.EmptySource", new(EmptySource))
+	gobwrapper.RegisterName("*server.StdoutDestination", new(StdoutDestination))
+	gobwrapper.RegisterName("*server.EmptySource", new(EmptySource))
 	model.RegisterSource(ProviderType, sourceModelFactory)
 	model.RegisterDestination(ProviderType, destinationModelFactory)
 	model.RegisterDestination(ProviderTypeStdout, destinationModelFactory)
@@ -25,11 +24,11 @@ func init() {
 	providers.Register(ProviderTypeStdout, New(ProviderTypeStdout))
 }
 
-func destinationModelFactory() model.Destination {
+func destinationModelFactory() model.LoggableDestination {
 	return new(StdoutDestination)
 }
 
-func sourceModelFactory() model.Source {
+func sourceModelFactory() model.LoggableSource {
 	return new(EmptySource)
 }
 

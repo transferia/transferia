@@ -7,10 +7,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 // see: https://coralogix.com/docs/rest-api-bulk/
@@ -50,7 +50,7 @@ func SubmitLogs(data []HTTPLogItem, domain, token string) error {
 	}
 	body := bytes.NewReader(payloadBytes)
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("https://ingress.%s/logs/v1/singles", domain), body)
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("https://ingress.%s/logs/v1/singles", domain), body)
 	if err != nil {
 		return xerrors.Errorf("unable to make request: %w", err)
 	}

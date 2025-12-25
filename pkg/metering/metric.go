@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/config/env"
-	"github.com/doublecloud/transfer/pkg/instanceutil"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/config/env"
+	"github.com/transferia/transferia/pkg/instanceutil"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -159,6 +159,10 @@ func NewMeteringOptsWithTags(transfer *model.Transfer, task *model.TransferOpera
 	var runtime abstract.Runtime
 	if task != nil {
 		runtime = task.Runtime
+	}
+	if runtime == nil {
+		// suposedly this is a billing of replication without task
+		runtime = transfer.ReplicationRuntime
 	}
 	if runtime == nil {
 		runtime = transfer.Runtime

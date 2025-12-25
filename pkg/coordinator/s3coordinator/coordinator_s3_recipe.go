@@ -9,10 +9,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/tests/tcrecipes"
-	"github.com/doublecloud/transfer/tests/tcrecipes/objectstorage"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/tests/tcrecipes"
+	"github.com/transferia/transferia/tests/tcrecipes/objectstorage"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -55,12 +55,16 @@ func NewS3Recipe(bucket string) (*CoordinatorS3, error) {
 		// No need to check error because maybe the bucket already exists
 		logger.Log.Info("create bucket result", log.Any("res", res), log.Error(err))
 	}
-	cp, err := NewS3(bucket, &aws.Config{
-		Region:           aws.String(region),
-		Credentials:      credentials.NewStaticCredentials(accessKey, secret, ""),
-		Endpoint:         aws.String(endpoint),
-		S3ForcePathStyle: aws.Bool(true), // Enable path-style access
-	})
+	cp, err := NewS3(
+		bucket,
+		logger.Log,
+		&aws.Config{
+			Region:           aws.String(region),
+			Credentials:      credentials.NewStaticCredentials(accessKey, secret, ""),
+			Endpoint:         aws.String(endpoint),
+			S3ForcePathStyle: aws.Bool(true), // Enable path-style access
+		},
+	)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create s3 coordinator: %w", err)
 	}

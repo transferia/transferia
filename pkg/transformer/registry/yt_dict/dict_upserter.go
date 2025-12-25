@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/types"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/types"
 	"go.ytsaurus.tech/yt/go/schema"
 	"golang.org/x/xerrors"
 )

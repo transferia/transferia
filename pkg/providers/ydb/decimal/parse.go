@@ -3,10 +3,7 @@ package decimal
 import (
 	"fmt"
 	"math/big"
-	"math/bits"
 )
-
-const wordSize = bits.UintSize / 8
 
 var (
 	ten  = big.NewInt(10)

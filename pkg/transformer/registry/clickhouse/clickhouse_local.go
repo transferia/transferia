@@ -11,17 +11,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/httpuploader"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpuploader"
+	"github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -67,14 +68,14 @@ func (c Config) Describe() model.Doc {
 	return model.Doc{
 		Usage: string(readme),
 		Example: `
-tables:                                                                       
-	include_tables:                                                             
-	- '"public"."included_data"'                                                
-	exclude_tables:                                                             
-	- '"public"."excluded_data"'                                                
+tables:
+	include_tables:
+	- '"public"."included_data"'
+	exclude_tables:
+	- '"public"."excluded_data"'
 query: |
 	select
-		* 
+		*
 	from table
 `,
 	}
@@ -232,21 +233,22 @@ func (s *ClickhouseTransformer) parseOutput(input []abstract.ChangeItem, output 
 			}
 		}
 		baseChangeItem := abstract.ChangeItem{
-			ID:           0,
-			LSN:          input[0].LSN,
-			CommitTime:   input[0].CommitTime,
-			Counter:      i,
-			Kind:         abstract.InsertKind,
-			Schema:       input[0].Schema,
-			Table:        input[0].Table,
-			PartID:       input[0].PartID,
-			ColumnNames:  colNames,
-			ColumnValues: vals,
-			TableSchema:  s.outputSchemas[input[0].TableID()],
-			OldKeys:      *new(abstract.OldKeysType),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.EventSize{Read: 0, Values: 0},
+			ID:               0,
+			LSN:              input[0].LSN,
+			CommitTime:       input[0].CommitTime,
+			Counter:          i,
+			Kind:             abstract.InsertKind,
+			Schema:           input[0].Schema,
+			Table:            input[0].Table,
+			PartID:           input[0].PartID,
+			ColumnNames:      colNames,
+			ColumnValues:     vals,
+			TableSchema:      s.outputSchemas[input[0].TableID()],
+			OldKeys:          *new(abstract.OldKeysType),
+			Size:             abstract.EventSize{Read: 0, Values: 0},
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}
 		k := strings.Join(keyVals, ",")
 		origIdx, ok := keyIdxs[k]

@@ -1,22 +1,22 @@
 package clickhouse
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/sharding"
-	topology2 "github.com/doublecloud/transfer/pkg/providers/clickhouse/topology"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
+	topology2 "github.com/transferia/transferia/pkg/providers/clickhouse/topology"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -32,7 +32,6 @@ type sink struct {
 	logger                log.Logger
 	metrics               metrics.Registry
 	transferID            string
-	runtime               abstract.Runtime
 	sharder               sharding.Sharder
 	shardMap              sharding.ShardMap[*lazySinkShard]
 }
@@ -41,20 +40,20 @@ func (s *sink) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	errors := util.NewErrs()
+	result := util.NewErrs()
 
 	for i, ls := range s.shardMap {
 		sink := ls.SinkIfInitialized()
 		if sink != nil {
 			if err := sink.Close(); err != nil {
-				errors = util.AppendErr(errors, xerrors.Errorf("failed to close shard %d: %w", i, err))
+				result = util.AppendErr(result, xerrors.Errorf("failed to close shard %d: %w", i, err))
 			}
 		}
 	}
 	s.closed = true
 
-	if len(errors) > 0 {
-		return errors
+	if len(result) > 0 {
+		return result
 	}
 	return nil
 }
@@ -84,27 +83,30 @@ func (s *sink) Push(input []abstract.ChangeItem) error {
 	)
 
 	var wg sync.WaitGroup
-	var errs util.Errors
+	var errs = make([]error, len(shardToChangeItems))
+	i := 0
 	for shard, itemsForShard := range shardToChangeItems {
 		wg.Add(1)
-		go func(shardIdx sharding.ShardID, batch []abstract.ChangeItem) {
+		go func(shardIdx sharding.ShardID, batch []abstract.ChangeItem, i int) {
 			defer wg.Done()
 			cluster, err := s.shardMap[shardIdx].Sink()
 			if err != nil {
-				errs = util.AppendErr(errs, xerrors.Errorf("failed to get a ClickHouse sink for shard %d: %w", shardIdx, err))
+				errs[i] = xerrors.Errorf("failed to get a ClickHouse sink for shard %d: %w", shardIdx, err)
 				return
 			}
 			if err := cluster.Push(batch); err != nil {
-				errs = util.AppendErr(errs, xerrors.Errorf("failed to push %d rows to ClickHouse shard %d: %w", len(batch), shardIdx, err))
+				errs[i] = xerrors.Errorf("failed to push %d rows to ClickHouse shard %d: %w", len(batch), shardIdx, err)
 			}
-		}(shard, itemsForShard)
+		}(shard, itemsForShard, i)
+		i++
 	}
 	wg.Wait()
-	if len(errs) > 0 {
+	err := errors.Join(errs...)
+	if err != nil {
 		if slices.ContainsFunc(errs, abstract.IsFatal) {
-			return abstract.NewFatalError(errs)
+			return abstract.NewFatalError(err)
 		}
-		return errs
+		return err
 	}
 	return nil
 }
@@ -145,11 +147,12 @@ func (s *sink) rotate() error {
 	return nil
 }
 
-func newSinkImpl(transfer *dp_model.Transfer, config model.ChSinkParams, logger log.Logger, metrics metrics.Registry, runtime abstract.Runtime) (*sink, error) {
-	if err := conn.ResolveShards(config, transfer); err != nil {
-		return nil, xerrors.Errorf("Can't resolve shards: %w", err)
-	}
-
+func newSinkImpl(
+	transfer *dp_model.Transfer,
+	config model.ChSinkParams,
+	logger log.Logger,
+	metrics metrics.Registry,
+) (*sink, error) {
 	topology, err := topology2.ResolveTopology(config, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error resolving cluster topology: %w", err)
@@ -187,7 +190,6 @@ func newSinkImpl(transfer *dp_model.Transfer, config model.ChSinkParams, logger 
 		logger:                logger,
 		metrics:               metrics,
 		transferID:            transfer.ID,
-		runtime:               runtime,
 		sharder:               sharding.CHSharder(config, transfer.ID),
 		shardMap:              shardMap,
 	}
@@ -199,13 +201,22 @@ func newSinkImpl(transfer *dp_model.Transfer, config model.ChSinkParams, logger 
 	return result, nil
 }
 
-func NewSink(transfer *dp_model.Transfer, logger log.Logger, metrics metrics.Registry, runtime abstract.Runtime, middlewaresConfig middlewares.Config) (abstract.Sinker, error) {
+func NewSink(
+	transfer *dp_model.Transfer,
+	logger log.Logger,
+	metrics metrics.Registry,
+	middlewaresConfig middlewares.Config,
+) (abstract.Sinker, error) {
 	dst, ok := transfer.Dst.(*model.ChDestination)
 	if !ok {
 		panic("expected ClickHouse destination in ClickHouse sink constructor")
 	}
+	params, err := dst.ToSinkParams(transfer)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to resolve sink params: %w", err)
+	}
 
-	uncasted, err := newSinkImpl(transfer, dst.ToSinkParams(transfer), logger, metrics, runtime)
+	uncasted, err := newSinkImpl(transfer, params, logger, metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create pure ClickHouse sink: %w", err)
 	}

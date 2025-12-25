@@ -3,29 +3,43 @@ package greenplum
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares/async/bufferer"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
+	ch_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"go.uber.org/zap/zapcore"
 )
 
 type GpDestination struct {
-	Connection GpConnection
+	Connection GpConnection `log:"true"`
 
-	CleanupPolicy dp_model.CleanupType
+	CleanupPolicy dp_model.CleanupType `log:"true"`
 
-	SubnetID         string
-	SecurityGroupIDs []string
+	SubnetID         string   `log:"true"`
+	SecurityGroupIDs []string `log:"true"`
 
-	BufferTriggingSize     uint64
-	BufferTriggingInterval time.Duration
+	BufferTriggingSize     uint64        `log:"true"`
+	BufferTriggingInterval time.Duration `log:"true"`
 
-	QueryTimeout time.Duration
+	QueryTimeout time.Duration `log:"true"`
+
+	EnableGpfdist bool `log:"true"` // EnableGpfdist could be set by FillDependentFields based on the source settings.
 }
 
 var _ dp_model.Destination = (*GpDestination)(nil)
+var _ dp_model.WithConnectionID = (*GpDestination)(nil)
+var _ dp_model.LegacyFillDependentFields = (*GpDestination)(nil)
+
+func (d *GpDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
+
+func (d *GpDestination) GetConnectionID() string {
+	return d.Connection.ConnectionID
+}
 
 func (d *GpDestination) MDBClusterID() string {
 	if d.Connection.MDBCluster != nil {
@@ -38,12 +52,13 @@ func (d *GpDestination) IsDestination() {}
 
 func (d *GpDestination) WithDefaults() {
 	d.Connection.WithDefaults()
+
 	if d.CleanupPolicy.IsValid() != nil {
 		d.CleanupPolicy = dp_model.DisabledCleanup
 	}
 
 	if d.BufferTriggingSize == 0 {
-		d.BufferTriggingSize = model.BufferTriggingSizeDefault
+		d.BufferTriggingSize = ch_model.BufferTriggingSizeDefault
 	}
 
 	if d.QueryTimeout == 0 {
@@ -51,8 +66,13 @@ func (d *GpDestination) WithDefaults() {
 	}
 }
 
-func (d *GpDestination) BuffererConfig() bufferer.BuffererConfig {
-	return bufferer.BuffererConfig{
+func (d *GpDestination) BuffererConfig() *bufferer.BuffererConfig {
+	if d.EnableGpfdist {
+		// Since gpfdist is only supported for Greenplum source with gpfdist
+		// enabled, there is no need in custom bufferer at all.
+		return nil
+	}
+	return &bufferer.BuffererConfig{
 		TriggingCount:    0,
 		TriggingSize:     d.BufferTriggingSize,
 		TriggingInterval: d.BufferTriggingInterval,
@@ -90,9 +110,18 @@ func (d *GpDestination) ToGpSource() *GpSource {
 		AdvancedProps: *(func() *GpSourceAdvancedProps {
 			result := new(GpSourceAdvancedProps)
 			result.WithDefaults()
+			result.DisableGpfdist = !d.EnableGpfdist
 			return result
 		}()),
 		SubnetID:         "",
 		SecurityGroupIDs: nil,
+	}
+}
+
+func (d *GpDestination) FillDependentFields(transfer *dp_model.Transfer) {
+	if src, isHomo := transfer.Src.(*GpSource); isHomo {
+		d.EnableGpfdist = !src.AdvancedProps.DisableGpfdist
+	} else {
+		d.EnableGpfdist = false
 	}
 }

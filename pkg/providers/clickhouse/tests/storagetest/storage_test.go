@@ -5,11 +5,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 )
 
 func TestShardedStorage(t *testing.T) {
@@ -18,24 +20,24 @@ func TestShardedStorage(t *testing.T) {
 		Shard1       = chrecipe.MustSource(
 			chrecipe.WithPrefix("DBSHARD1_"),
 			chrecipe.WithDatabase(databaseName),
-			chrecipe.WithInitFile("dump/src_shard1.sql"),
+			chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard1.sql")),
 		)
 		Shard2 = chrecipe.MustSource(
 			chrecipe.WithPrefix("DBSHARD2_"),
 			chrecipe.WithDatabase(databaseName),
-			chrecipe.WithInitFile("dump/src_shard2.sql"),
+			chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard2.sql")),
 		)
 		Shard3 = chrecipe.MustSource(
 			chrecipe.WithPrefix("DBSHARD3_"),
 			chrecipe.WithDatabase(databaseName),
-			chrecipe.WithInitFile("dump/src_shard3.sql"),
+			chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard3.sql")),
 		)
 	)
-	shard1, err := clickhouse.NewStorage(Shard1.ToStorageParams(), nil)
+	shard1, err := clickhouse.NewStorage(storageParams(t, Shard1), nil)
 	require.NoError(t, err)
-	shard2, err := clickhouse.NewStorage(Shard2.ToStorageParams(), nil)
+	shard2, err := clickhouse.NewStorage(storageParams(t, Shard2), nil)
 	require.NoError(t, err)
-	shard3, err := clickhouse.NewStorage(Shard3.ToStorageParams(), nil)
+	shard3, err := clickhouse.NewStorage(storageParams(t, Shard3), nil)
 	require.NoError(t, err)
 	shardedStorage := clickhouse.NewShardedStorage(map[string]*clickhouse.Storage{
 		"shard1": shard1.(*clickhouse.Storage),
@@ -69,4 +71,37 @@ func TestShardedStorage(t *testing.T) {
 	require.Equal(t, abstract.InsertKind, items[0].Kind)
 	require.Equal(t, abstract.InsertKind, items[len(items)-1].Kind) // no more init/done in storage
 	abstract.Dump(items)
+}
+
+func TestTransferSystemTables(t *testing.T) {
+	tableID := *abstract.NewTableID("system", "query_log")
+	src := chrecipe.MustSource(
+		chrecipe.WithPrefix("DBSHARD1_"),
+		chrecipe.WithDatabase(tableID.Namespace),
+		chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard1.sql")),
+	)
+	src.IncludeTables = append(src.IncludeTables, tableID.Name)
+	storage, err := clickhouse.NewStorage(storageParams(t, src), nil, clickhouse.WithTableFilter(src))
+	require.NoError(t, err)
+	tables, err := storage.TableList(nil)
+	require.NoError(t, err)
+
+	hasItems := false
+	for _, table := range tables.ConvertToTableDescriptions() {
+		require.NoError(t, storage.LoadTable(t.Context(), table, func(items []abstract.ChangeItem) error {
+			for _, item := range items {
+				require.Equal(t, tableID, item.TableID())
+			}
+			hasItems = true
+			return nil
+		}))
+	}
+	require.True(t, hasItems)
+}
+
+func storageParams(t *testing.T, source *model.ChSource) *model.ChStorageParams {
+	params, err := source.ToStorageParams()
+	require.NoError(t, err)
+
+	return params
 }

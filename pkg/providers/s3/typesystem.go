@@ -1,7 +1,7 @@
 package s3
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -16,7 +16,7 @@ func init() {
 		schema.TypeUint16:    {"csv:uint16", "parquet:UINT16"},
 		schema.TypeUint8:     {"csv:uint8", "parquet:UINT8"},
 		schema.TypeFloat32:   {"csv:float", "parquet:FLOAT"},
-		schema.TypeFloat64:   {"csv:double", "parquet:DOUBLE", "jsonl:number"},
+		schema.TypeFloat64:   {"csv:double", "parquet:DOUBLE", "parquet:DECIMAL", "jsonl:number"},
 		schema.TypeBytes:     {"csv:string", "parquet:BYTE_ARRAY", "parquet:FIXED_LEN_BYTE_ARRAY"},
 		schema.TypeString:    {"csv:utf8", "parquet:STRING", "parquet:INT96", "jsonl:string", "jsonl:utf8"},
 		schema.TypeBoolean:   {"csv:boolean", "parquet:BOOLEAN", "jsonl:boolean"},

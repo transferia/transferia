@@ -5,13 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/predicate"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/predicate"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
@@ -19,8 +20,8 @@ import (
 
 var _ abstract.IncrementalStorage = (*Storage)(nil)
 
-func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.TableDescription, error) {
-	res := make([]abstract.TableDescription, 0, len(incremental))
+func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.IncrementalState, error) {
+	res := make([]abstract.IncrementalState, 0, len(incremental))
 	for _, tbl := range incremental {
 		fullPath := path.Join(s.config.Database, tbl.Name)
 		ydbTableDesc, err := describeTable(ctx, s.db, fullPath, options.WithShardKeyBounds())
@@ -36,33 +37,33 @@ func (s *Storage) GetIncrementalState(ctx context.Context, incremental []abstrac
 			return nil, xerrors.Errorf("error getting max key value for table %s, key %s: %w", tbl.Name, tbl.CursorField, err)
 		}
 		name := tbl.Name
-		res = append(res, abstract.TableDescription{
-			Name:   name,
-			Schema: "",
-			Filter: abstract.WhereStatement(fmt.Sprintf(`"%s" > %s`, tbl.CursorField, strconv.Quote(val.Yql()))),
-			EtaRow: 0,
-			Offset: 0,
+		res = append(res, abstract.IncrementalState{
+			Name:    name,
+			Schema:  "",
+			Payload: abstract.WhereStatement(fmt.Sprintf(`"%s" > %s`, tbl.CursorField, strconv.Quote(val.Yql()))),
 		})
 	}
 
 	return res, nil
 }
 
-func (s *Storage) SetInitialState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) {
+func (s *Storage) BuildArrTableDescriptionWithIncrementalState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) []abstract.TableDescription {
+	result := slices.Clone(tables)
 	incrementMap := make(map[abstract.TableID]abstract.IncrementalTable, len(incremental))
 	for _, t := range incremental {
 		incrementMap[t.TableID()] = t
 	}
-	for i := range tables {
-		if tables[i].Filter != "" {
+	for i := range result {
+		if result[i].Filter != "" {
 			continue
 		}
-		incr, ok := incrementMap[tables[i].ID()]
+		incr, ok := incrementMap[result[i].ID()]
 		if !ok || incr.InitialState == "" || incr.CursorField == "" {
 			continue
 		}
-		tables[i].Filter = abstract.WhereStatement(fmt.Sprintf(`"%s" > %s`, incr.CursorField, strconv.Quote(incr.InitialState)))
+		result[i].Filter = abstract.WhereStatement(fmt.Sprintf(`"%s" > %s`, incr.CursorField, strconv.Quote(incr.InitialState)))
 	}
+	return result
 }
 
 func (s *Storage) getMaxKeyValue(ctx context.Context, path string, tbl *options.Description) (types.Value, error) {
@@ -71,7 +72,7 @@ func (s *Storage) getMaxKeyValue(ctx context.Context, path string, tbl *options.
 	}
 	keyCol := tbl.PrimaryKey[0]
 
-	keyColDesc := slices.Filter(tbl.Columns, func(col options.Column) bool {
+	keyColDesc := yslices.Filter(tbl.Columns, func(col options.Column) bool {
 		return col.Name == keyCol
 	})
 	if l := len(keyColDesc); l != 1 {
@@ -151,7 +152,7 @@ func (s *Storage) resolveExprValue(ctx context.Context, yqlStr string, typ types
 
 func (s *Storage) filterToKeyRange(ctx context.Context, filter abstract.WhereStatement, ydbTable options.Description) (keyTupleFrom, keyTupleTo types.Value, err error) {
 	keyColName := ydbTable.PrimaryKey[0]
-	keyCol := slices.Filter(ydbTable.Columns, func(col options.Column) bool {
+	keyCol := yslices.Filter(ydbTable.Columns, func(col options.Column) bool {
 		return col.Name == keyColName
 	})[0]
 

@@ -1,6 +1,6 @@
 package greenplum
 
-import "github.com/doublecloud/transfer/pkg/abstract"
+import "github.com/transferia/transferia/pkg/abstract"
 
 const EtaRowPartialProgress = 1 << 20
 

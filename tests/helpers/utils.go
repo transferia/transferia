@@ -1,23 +1,28 @@
 package helpers
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/connection"
-	"github.com/doublecloud/transfer/pkg/dataplane/provideradapter"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/dataplane/provideradapter"
 	"golang.org/x/exp/slices"
 )
 
 var TransferID = "dtt"
+
+func GenerateTransferID(testName string) string {
+	return fmt.Sprintf("%s_%s", TransferID, strings.ToLower(testName))
+}
 
 func EmptyRegistry() metrics.Registry {
 	return solomon.NewRegistry(nil).WithTags(map[string]string{"ts": time.Now().String()})
@@ -79,6 +84,14 @@ func MakeTransfer(transferID string, src model.Source, dst model.Destination, tr
 		Type: transferType,
 		Src:  src,
 		Dst:  dst,
+		Runtime: &abstract.LocalRuntime{
+			Host:       "localhost",
+			CurrentJob: 0,
+			ShardingUpload: abstract.ShardUploadParams{
+				JobCount:     1,
+				ProcessCount: 1,
+			},
+		},
 	}
 	transfer.FillDependentFields()
 	// fill dependent fields on drugs

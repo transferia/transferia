@@ -7,16 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	mongocommon "github.com/doublecloud/transfer/pkg/providers/mongo"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestCanonSource(t *testing.T) {
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 	databaseName := "canondb"
 	t.Run("vanilla hetero case", func(t *testing.T) {
 		snapshotPlusIncrementScenario(t, databaseName, "hetero_repack", false, false)

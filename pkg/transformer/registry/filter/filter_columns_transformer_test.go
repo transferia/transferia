@@ -3,10 +3,11 @@ package filter
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 func TestFilterColumnsTransformer(t *testing.T) {
@@ -155,4 +156,73 @@ func BenchmarkColumnsFilter(b *testing.B) {
 		b.SetBytes(int64(itemSize) * int64(b.N))
 		b.ReportAllocs()
 	})
+}
+
+func TestCopyAndTrimOldKeys(t *testing.T) {
+	tests := []struct {
+		name             string
+		oldKeys          *abstract.OldKeysType
+		filteredColumns  *set.Set[string]
+		expectedKeyNames []string
+		expectedKeyTypes []string
+		expectedValues   []interface{}
+	}{
+		{
+			name: "Empty input",
+			oldKeys: &abstract.OldKeysType{
+				KeyNames:  []string{},
+				KeyTypes:  []string{},
+				KeyValues: []interface{}{},
+			},
+			filteredColumns:  set.New[string](),
+			expectedKeyNames: []string{},
+			expectedKeyTypes: []string{},
+			expectedValues:   []interface{}{},
+		},
+		{
+			name: "All keys filtered out",
+			oldKeys: &abstract.OldKeysType{
+				KeyNames:  []string{"key1", "key2"},
+				KeyTypes:  []string{"string", "int"},
+				KeyValues: []interface{}{"value1", 42},
+			},
+			filteredColumns:  set.New[string](),
+			expectedKeyNames: []string{},
+			expectedKeyTypes: []string{},
+			expectedValues:   []interface{}{},
+		},
+		{
+			name: "Some keys filtered",
+			oldKeys: &abstract.OldKeysType{
+				KeyNames:  []string{"key1", "key2", "key3"},
+				KeyTypes:  []string{"string", "int", "bool"},
+				KeyValues: []interface{}{"value1", 42, true},
+			},
+			filteredColumns:  set.New("key1", "key3"),
+			expectedKeyNames: []string{"key1", "key3"},
+			expectedKeyTypes: []string{"string", "bool"},
+			expectedValues:   []interface{}{"value1", true},
+		},
+		{
+			name: "All keys kept",
+			oldKeys: &abstract.OldKeysType{
+				KeyNames:  []string{"key1", "key2"},
+				KeyTypes:  []string{"string", "int"},
+				KeyValues: []interface{}{"value1", 42},
+			},
+			filteredColumns:  set.New("key1", "key2"),
+			expectedKeyNames: []string{"key1", "key2"},
+			expectedKeyTypes: []string{"string", "int"},
+			expectedValues:   []interface{}{"value1", 42},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := copyAndTrimOldKeys(tt.oldKeys, *tt.filteredColumns)
+			require.Equal(t, tt.expectedKeyNames, result.KeyNames)
+			require.Equal(t, tt.expectedKeyTypes, result.KeyTypes)
+			require.Equal(t, tt.expectedValues, result.KeyValues)
+		})
+	}
 }

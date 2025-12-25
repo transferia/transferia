@@ -22,5 +22,21 @@
                 }
             ]
         }
-    ]
+    ],
+    "gotest.gotest.TestNativeSerializerTopicName/saveTxOrder-disabled": {
+        "\"public\".\"table1\"": [
+            "public_table1",
+            {
+                "uri": "file://gotest.gotest.TestNativeSerializerTopicName_saveTxOrder-disabled/extracted"
+            }
+        ]
+    },
+    "gotest.gotest.TestNativeSerializerTopicName/saveTxOrder-enabled": {
+        "\"\"": [
+            "public_table1",
+            {
+                "uri": "file://gotest.gotest.TestNativeSerializerTopicName_saveTxOrder-enabled/extracted"
+            }
+        ]
+    }
 }

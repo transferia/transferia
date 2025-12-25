@@ -3,7 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 type JobContext struct {
@@ -35,7 +35,7 @@ type JobContext struct {
 }
 
 func TryParseNirvanaConfig() (*Config, error) {
-	dat, err := ioutil.ReadFile("job_context.json")
+	dat, err := os.ReadFile("job_context.json")
 	if err != nil {
 		return nil, err
 	}

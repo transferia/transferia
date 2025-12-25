@@ -4,8 +4,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -52,6 +52,8 @@ func dummyItemWithKindAndTable(params []colParams, kind abstract.Kind, table str
 	chI := new(abstract.ChangeItem)
 	var names []string
 	var values []interface{}
+	var keyNames []string
+	var keyValues []interface{}
 	var colschema []abstract.ColSchema
 	for _, param := range params {
 		_, ok := param.Value.(int)
@@ -76,13 +78,17 @@ func dummyItemWithKindAndTable(params []colParams, kind abstract.Kind, table str
 		})
 		names = append(names, param.Name)
 		values = append(values, param.Value)
+		if param.IsPrimaryKey {
+			keyNames = append(keyNames, param.Name)
+			keyValues = append(keyValues, param.Value)
+		}
 	}
 
 	if kind == abstract.DeleteKind {
 		chI.OldKeys = abstract.OldKeysType{
-			KeyNames:  names,
+			KeyNames:  keyNames,
 			KeyTypes:  nil,
-			KeyValues: values,
+			KeyValues: keyValues,
 		}
 	} else {
 		chI.ColumnNames = names

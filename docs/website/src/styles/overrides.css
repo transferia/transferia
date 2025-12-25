@@ -1,0 +1,9 @@
+.g-root.g-root {
+    --pc-border-radius: 8px;
+}
+
+.g-root .pc-logo__icon {
+    height: 52px;
+    background-color: transparent;
+    margin-right: 24px;
+}

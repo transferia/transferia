@@ -3,8 +3,10 @@ package model
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract/model"
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 )
 
 const (
@@ -17,6 +19,9 @@ const (
 
 //---
 // ch
+
+var _ ChSinkServerParams = (*ChDestinationWrapper)(nil)
+var _ ChSinkServerParams = (*ChSourceWrapper)(nil)
 
 type ChSinkServerParams interface {
 	MdbClusterID() string
@@ -32,11 +37,9 @@ type ChSinkServerParams interface {
 	// Host
 	// filled by SinkCluster for SinkServer.
 	// the only field, which is absent in the model.
-	Host() *string
+	Host() *clickhouse.Host
 	PemFileContent() string
 	SSLEnabled() bool
-	HTTPPort() int
-	NativePort() int
 	// TTL
 	// string, substitutes after 'TTL' in ddl. Field absent in UI. Nobody used.
 	// example: '_timestamp + INTERVAL 18 MONTH'
@@ -57,6 +60,7 @@ type ChSinkServerParams interface {
 	// MigrationOptions
 	// Sink table modification settings
 	MigrationOptions() ChSinkMigrationOptions
+	GetIsSchemaMigrationDisabled() bool
 	// UploadAsJSON enables JSON format upload. See CH destination model for details.
 	UploadAsJSON() bool
 	// AnyAsString
@@ -70,6 +74,7 @@ type ChSinkServerParams interface {
 	Cleanup() model.CleanupType
 	RootCertPaths() []string
 	InsertSettings() InsertParams
+	GetConnectionID() string
 }
 
 type ChSinkMigrationOptions struct {
@@ -81,6 +86,13 @@ type ChSinkMigrationOptions struct {
 type ChSinkServerParamsWrapper struct {
 	Model *ChSinkServerParams
 }
+
+func (w ChSinkServerParamsWrapper) GetConnectionID() string {
+	return (*w.Model).GetConnectionID()
+}
+
+var _ ChSinkClusterParams = (*ChDestinationWrapper)(nil)
+var _ ChSinkClusterParams = (*ChSourceWrapper)(nil)
 
 type ChSinkClusterParams interface {
 	ChSinkServerParams
@@ -94,7 +106,7 @@ type ChSinkClusterParams interface {
 	// for every AltHost, sinkCluster has special sinkServer
 	//
 	// it's very ad-hoc field - every sinker rewrites it as it want
-	AltHosts() []string
+	AltHosts() []*clickhouse.Host
 
 	// ShardByTransferID
 	// TODO(@timmyb32r) - is it meaningful?) highly likely something wrong with this option.
@@ -106,18 +118,22 @@ type ChSinkClusterParams interface {
 
 	// technical needs
 
-	MakeChildServerParams(hosts string) ChSinkServerParams
+	MakeChildServerParams(hosts *clickhouse.Host) ChSinkServerParams
 }
 
 type ChSinkClusterParamsWrapper struct {
 	Model *ChSinkClusterParams
 }
 
+func (w ChSinkClusterParamsWrapper) GetConnectionID() string {
+	return (*w.Model).GetConnectionID()
+}
+
+var _ ChSinkShardParams = (*ChDestinationWrapper)(nil)
+var _ ChSinkShardParams = (*ChSourceWrapper)(nil)
+
 type ChSinkShardParams interface {
 	ChSinkClusterParams
-	// RetryCount
-	// amount of retries in sinkShard::upload - very, very bad design of this part. TODO - remove this ugly stuff
-	RetryCount() int
 	// UseSchemaInTableName
 	// add schema to tableName. TODO - replace it by universal transformer
 	UseSchemaInTableName() bool
@@ -137,32 +153,60 @@ type ChSinkShardParamsWrapper struct {
 	Model *ChSinkShardParams
 }
 
+func (w ChSinkShardParamsWrapper) GetConnectionID() string {
+	return (*w.Model).GetConnectionID()
+}
+
+var _ ChSinkParams = (*ChDestinationWrapper)(nil)
+var _ ChSinkParams = (*ChSourceWrapper)(nil)
+
 type ChSinkParams interface {
 	ChSinkShardParams
 	// Rotation
 	// TODO - I think we don't need this (bcs of TTL in schema), and if need - we can make it by some universal mechanism
 	Rotation() *model.RotatorConfig
 
-	Shards() map[string][]string // shardName->[host]. It's used in sink.go to slice on shards
+	Shards() map[string][]*clickhouse.Host // shardName->[host]. It's used in sink.go to slice on shards
 
 	// ColumnToShardIndex returns a user-provided exact mapping of shard key to shard name
 	ColumnToShardName() map[string]string
 
 	// technical needs
 
-	MakeChildShardParams(altHosts []string) ChSinkShardParams
-	SetShards(shards map[string][]string)
+	MakeChildShardParams(altHosts []*clickhouse.Host) ChSinkShardParams
+	SetShards(shards map[string][]*clickhouse.Host)
 }
 
 type ChSinkParamsWrapper struct {
 	Model *ChSinkParams
 }
 
-func (s *ChSource) ToSinkParams() ChSourceWrapper {
+func (w ChSinkParamsWrapper) GetConnectionID() string {
+	return (*w.Model).GetConnectionID()
+}
+
+func (s *ChSource) ToSinkParams() (ChSourceWrapper, error) {
+	return toSinkParams(s, s.ChClusterName)
+}
+
+func (s *ChSource) ToSinkParamsForTopology() (ChSourceWrapper, error) {
+	return toSinkParams(s, "") // we do not need shardgroup to resolve nets
+}
+
+func toSinkParams(s *ChSource, shardGroup string) (ChSourceWrapper, error) {
 	copyChSource := *s
-	return ChSourceWrapper{
-		Model:    &copyChSource,
-		host:     "",
-		altHosts: nil,
+	connectionParams, err := ConnectionParamsFromSource(s, shardGroup)
+	if err != nil {
+		return ChSourceWrapper{}, err
 	}
+	if len(connectionParams.Hosts) == 0 {
+		return ChSourceWrapper{}, xerrors.New("No hosts found")
+	}
+	result := ChSourceWrapper{
+		Model:            &copyChSource,
+		host:             connectionParams.Hosts[0],
+		connectionParams: *connectionParams,
+	}
+
+	return result, nil
 }

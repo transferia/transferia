@@ -5,8 +5,10 @@ import (
 	"compress/gzip"
 	"io"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
+
+var _ Snapshot = (*SnapshotGzip)(nil)
 
 type SnapshotGzip struct {
 	feedChannel chan []byte

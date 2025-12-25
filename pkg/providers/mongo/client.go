@@ -5,14 +5,17 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"net"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/dbaas"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/dbaas"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -59,6 +62,12 @@ func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (
 	var driverConnectionOptions *options.ClientOptions
 	var err error
 
+	if opts.ConnectionID != "" {
+		if err := opts.ResolveCredsByConnectionID(ctx); err != nil {
+			return nil, xerrors.Errorf("unable to resolve connection credentials by connection ID: %w", err)
+		}
+	}
+
 	if opts.SRVMode {
 		driverConnectionOptions, err = DriverConnectionSrvOptions(&opts)
 	} else {
@@ -71,8 +80,8 @@ func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (
 	id := tmMongoConnectID.Inc()
 	lgr.Info("Creating mongo client", log.Int64("mongo_client_wrapper_id", id),
 		log.String("opts.ClusterID", opts.ClusterID),
-		log.Strings("opts.Hosts", opts.Hosts),
-		log.Int("opts.Port", opts.Port),
+		log.String("opts.ConnectionID", opts.ConnectionID),
+		log.String("opts.HostsWithPort", fmt.Sprintf("%v", opts.HostsWithPort)),
 		log.String("opts.ReplicaSet", opts.ReplicaSet),
 		log.Strings("mini_callstack", miniCallstack),
 	)
@@ -91,14 +100,14 @@ func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (
 	}
 
 	// create client
-	client, err := newClient(ctx, driverConnectionOptions, lgr)
+	client, err := newClient(ctx, driverConnectionOptions)
 	if err != nil {
 		if driverConnectionOptions.TLSConfig != nil {
 			lgr.Error("Error initializing mongo client",
 				log.Int64("mongo_client_wrapper_id", id),
 				log.String("opts.ClusterID", opts.ClusterID),
-				log.Strings("opts.Hosts", opts.Hosts),
-				log.Int("opts.Port", opts.Port),
+				log.String("opts.ConnectionID", opts.ConnectionID),
+				log.String("opts.HostsWithPort", fmt.Sprintf("%v", opts.HostsWithPort)),
 				log.String("opts.ReplicaSet", opts.ReplicaSet),
 				log.Strings("mini_callstack", miniCallstack),
 				log.Error(err),
@@ -109,21 +118,21 @@ func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (
 		lgr.Warn("Connection failed, try to connect with TLS enforcement even if no TLS cert is specified",
 			log.Int64("mongo_client_wrapper_id", id),
 			log.String("opts.ClusterID", opts.ClusterID),
-			log.Strings("opts.Hosts", opts.Hosts),
-			log.Int("opts.Port", opts.Port),
+			log.String("opts.ConnectionID", opts.ConnectionID),
+			log.String("opts.HostsWithPort", fmt.Sprintf("%v", opts.HostsWithPort)),
 			log.String("opts.ReplicaSet", opts.ReplicaSet),
 			log.Strings("mini_callstack", miniCallstack),
 			log.Error(err),
 		)
 		// tls might be enforced on server side
 		driverConnectionOptions.TLSConfig = new(tls.Config)
-		clientWithTLS, err := newClient(ctx, driverConnectionOptions, lgr)
+		clientWithTLS, err := newClient(ctx, driverConnectionOptions)
 		if err != nil {
 			lgr.Error("Error initializing TLS enforced mongo client",
 				log.Int64("mongo_client_wrapper_id", id),
 				log.String("opts.ClusterID", opts.ClusterID),
-				log.Strings("opts.Hosts", opts.Hosts),
-				log.Int("opts.Port", opts.Port),
+				log.String("opts.ConnectionID", opts.ConnectionID),
+				log.String("opts.HostsWithPort", fmt.Sprintf("%v", opts.HostsWithPort)),
 				log.String("opts.ReplicaSet", opts.ReplicaSet),
 				log.Strings("mini_callstack", miniCallstack),
 				log.Error(err),
@@ -141,92 +150,98 @@ func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (
 	}, nil
 }
 
-func newClient(ctx context.Context, connOpts *options.ClientOptions, lgr log.Logger) (*mongo.Client, error) {
-	client, err := mongo.NewClient(connOpts)
+func newClient(ctx context.Context, connOpts *options.ClientOptions) (*mongo.Client, error) {
+	client, err := mongo.Connect(ctx, connOpts)
 
 	isWithPassword := bool(connOpts != nil && connOpts.Auth != nil && len(connOpts.Auth.Password) > 0)
 	if err != nil && isWithPassword && strings.Contains(err.Error(), connOpts.Auth.Password) {
 		err = xerrors.New(strings.ReplaceAll(err.Error(), connOpts.Auth.Password, "<secret>"))
-	}
 
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create mongo client: %w", err)
-	}
-	if err := client.Connect(ctx); err != nil {
 		return nil, xerrors.Errorf("unable to connect mongo client: %w", err)
 	}
 
 	if err := client.Ping(ctx, nil); err != nil {
+		// Network-level classification: prefer structural checks over string matching.
+		// We treat it as DNS failure when error chain contains net.DNSError and driver classifies it as network error.
+		var dnsErr *net.DNSError
+		if mongo.IsNetworkError(err) && xerrors.As(err, &dnsErr) {
+			return nil, coded.Errorf(codes.MongoDNSResolutionFailed, "unable to ping mongo db: %w", err)
+		}
 		return nil, xerrors.Errorf("unable to ping mongo db: %w", err)
 	}
 	return client, nil
 }
 
-func getClusterInfo(endpoint MongoConnectionOptions) (hosts []string, sharded bool, err error) {
-	hosts = make([]string, 0, len(endpoint.Hosts))
+func getClusterInfo(endpoint *MongoConnectionOptions) (hosts []string, sharded bool, err error) {
+	hosts = make([]string, 0, len(endpoint.HostsWithPort))
 	sharded = false
-	if endpoint.ClusterID == "" {
-		// On-premise MongoDB
-		for _, host := range endpoint.Hosts {
-			hosts = append(hosts, fmt.Sprintf("%s:%d", host, endpoint.Port))
+
+	// On-premise MongoDB
+	if endpoint.ClusterID == "" || endpoint.ConnectionID != "" {
+		for _, host := range endpoint.HostsWithPort {
+			hosts = append(hosts, fmt.Sprintf("%s:%d", host.Host, host.Port))
+		}
+
+		return hosts, sharded, nil
+	}
+
+	// Managed MongoDB/StoreDoc
+	provider, err := dbaas.Current()
+	if err != nil {
+		return nil, false, xerrors.Errorf("unable to get dbaas provider: %w", err)
+	}
+	clusterHosts, err := dbaas.ResolveClusterHosts(dbaas.ProviderTypeMongodb, endpoint.ClusterID)
+	if err != nil {
+		return nil, false, xerrors.Errorf("unable to resolve mongodb hosts: %w", err)
+	}
+	// step of choosing port, shard-ness and type of mongo instances to connect
+	port := 0
+	shardResolver, err := provider.ShardResolver(dbaas.ProviderTypeMongodb, endpoint.ClusterID)
+	if err != nil {
+		return nil, false, xerrors.Errorf("unable to init shard resolver: %w", err)
+	}
+	sharded, err = shardResolver.Sharded()
+	if err != nil {
+		return nil, false, xerrors.Errorf("unable to resolve sharded: %w", err)
+	}
+	gatewayType := dbaas.InstanceTypeUnspecified // one of mongod, mongos, mongoinfra
+
+	// useful connection info:
+	// https://cloud.yandex.ru/docs/storedoc/concepts/sharding
+	if sharded {
+		port = 27017 // Default port for sharded MongoDB/Yandex StoreDoc in MDB
+		for _, host := range clusterHosts {
+			switch host.Type {
+			case dbaas.InstanceTypeMongos, dbaas.InstanceTypeMongoinfra:
+				if gatewayType == dbaas.InstanceTypeUnspecified {
+					gatewayType = host.Type
+				} else if gatewayType != host.Type {
+					logger.Log.Warnf("Different sharded entrypoints found %v and %v:", gatewayType, host.Type)
+				}
+			case dbaas.InstanceTypeMongocfg:
+				// this is not the type of host we should connect to...
+			}
 		}
 	} else {
-		provider, err := dbaas.Current()
-		if err != nil {
-			return nil, false, xerrors.Errorf("unable to get dbaas provider: %w", err)
-		}
-		clusterHosts, err := dbaas.ResolveClusterHosts(dbaas.ProviderTypeMongodb, endpoint.ClusterID)
-		if err != nil {
-			return nil, false, xerrors.Errorf("unable to resolve mongodb hosts: %w", err)
-		}
-		// step of choosing port, shard-ness and type of mongo instances to connect
-		port := 0
-		shardResolver, err := provider.ShardResolver(dbaas.ProviderTypeMongodb, endpoint.ClusterID)
-		if err != nil {
-			return nil, false, xerrors.Errorf("unable to init shard resolver: %w", err)
-		}
-		sharded, err = shardResolver.Sharded()
-		if err != nil {
-			return nil, false, xerrors.Errorf("unable to resolve sharded: %w", err)
-		}
-		gatewayType := dbaas.InstanceTypeUnspecified // one of mongod, mongos, mongoinfra
-
-		// useful connection info:
-		// https://cloud.yandex.ru/docs/managed-mongodb/concepts/sharding
-		if sharded {
-			port = 27017 // Default port for sharded MongoDB in MDB
-			for _, host := range clusterHosts {
-				switch host.Type {
-				case dbaas.InstanceTypeMongos, dbaas.InstanceTypeMongoinfra:
-					if gatewayType == dbaas.InstanceTypeUnspecified {
-						gatewayType = host.Type
-					} else if gatewayType != host.Type {
-						logger.Log.Warnf("Different sharded entrypoints found %v and %v:", gatewayType, host.Type)
-					}
-				case dbaas.InstanceTypeMongocfg:
-					// this is not the type of host we should connect to...
-				}
-			}
-		} else {
-			port = 27018 // Default port for MongoDB in MDB
-			gatewayType = dbaas.InstanceTypeMongod
-		}
-		// make hosts out of the selected type of cluster
-		for _, host := range clusterHosts {
-			if host.Type == gatewayType {
-				hosts = append(hosts, fmt.Sprintf("%s:%d", host.Name, port))
-			}
-		}
-
+		port = 27018 // Default port for MongoDB/Yandex StoreDoc in MDB
+		gatewayType = dbaas.InstanceTypeMongod
 	}
+	// make hosts out of the selected type of cluster
+	for _, host := range clusterHosts {
+		if host.Type == gatewayType {
+			hosts = append(hosts, fmt.Sprintf("%s:%d", host.Name, port))
+		}
+	}
+
 	return hosts, sharded, nil
 }
+
 func DriverConnectionSrvOptions(mongoConnectionOptions *MongoConnectionOptions) (*options.ClientOptions, error) {
-	if len(mongoConnectionOptions.Hosts) != 1 {
+	if len(mongoConnectionOptions.HostsWithPort) != 1 {
 		return nil, xerrors.Errorf("Cannot be empty or more than hosts in srv connection")
 	}
 
-	uri := fmt.Sprintf("mongodb+srv://%s:%s@%s", mongoConnectionOptions.User, mongoConnectionOptions.Password, mongoConnectionOptions.Hosts[0])
+	uri := fmt.Sprintf("mongodb+srv://%s:%s@%s", mongoConnectionOptions.User, mongoConnectionOptions.Password, mongoConnectionOptions.HostsWithPort[0].Host)
 
 	clientOptions := options.Client().ApplyURI(uri)
 	clientOptions.SetDirect(false)
@@ -256,9 +271,10 @@ func DriverConnectionSrvOptions(mongoConnectionOptions *MongoConnectionOptions) 
 	}
 	return clientOptions, nil
 }
+
 func DriverConnectionOptions(mongoConnectionOptions *MongoConnectionOptions) (*options.ClientOptions, error) {
 	opts := options.ClientOptions{}
-	hosts, sharded, err := getClusterInfo(*mongoConnectionOptions)
+	hosts, sharded, err := getClusterInfo(mongoConnectionOptions)
 	if err != nil {
 		return nil, xerrors.Errorf("Cannot get hosts: %w", err)
 	}
@@ -307,7 +323,7 @@ func newTLSConfig(caCert TrustedCACertificate) (*tls.Config, error) {
 	case CACertificatePEMFilePaths:
 		caFilePaths := downcasted
 		for _, cert := range caFilePaths {
-			pemFileContent, err := ioutil.ReadFile(string(cert))
+			pemFileContent, err := os.ReadFile(string(cert))
 			if err != nil {
 				return nil, xerrors.Errorf("Cannot read file %s: %w", cert, err)
 			}

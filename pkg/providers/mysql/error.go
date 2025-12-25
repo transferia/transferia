@@ -1,15 +1,11 @@
 package mysql
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
 	"github.com/go-sql-driver/mysql"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
-var (
-	CodeSyntax   = coded.Register("mysql", "incorrect_syntax")
-	CodeDeadlock = coded.Register("mysql", "deadlock")
-)
+func init() {}
 
 func IsErrorCode(err error, errNumber uint16) bool {
 	var mErr = new(mysql.MySQLError)

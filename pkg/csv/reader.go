@@ -8,10 +8,33 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 )
+
+var once sync.Once
+
+// encodingMap contains map of all available charmap encodings for fast search
+var encodingMap = make(map[string]encoding.Encoding)
+
+func prepareEncodingName(original string) string {
+	original = strings.ToLower(original)
+	original = strings.ReplaceAll(original, " ", "-")
+	return original
+}
+
+func decoderFactoryByEncoding(encoding string) encoding.Encoding {
+	once.Do(func() {
+		for _, enc := range charmap.All {
+			if charmapEnc, ok := enc.(fmt.Stringer); ok {
+				encodingMap[prepareEncodingName(charmapEnc.String())] = enc
+			}
+		}
+	})
+
+	return encodingMap[prepareEncodingName(encoding)]
+}
 
 // For now, it's by default custom csv (not original csv)
 // Custom - bcs of default EscapeChar == '\\', so it's like an extension of format
@@ -247,66 +270,13 @@ func (r *Reader) splitString(line string) ([]string, error) {
 	return result, nil
 }
 
-func (r *Reader) ValidateOneLine(line string) (int, error) {
-	result := 0
-	var prev rune
-
-	var lastDelimPosition int
-	var prevDelimPosition int
-
-	var inQuotes bool
-
-	for index, char := range line {
-		if r.EscapeChar != 0 && r.EscapeChar == prev {
-			// current char is escaped, ignore it
-			if inQuotes {
-				prev = char
-				continue
-			}
-		}
-
-		if r.QuoteChar != 0 && char == r.QuoteChar {
-			// switch
-			inQuotes = !inQuotes
-			prev = char
-			continue
-		}
-
-		if char == r.Delimiter && !inQuotes {
-			// found end of one element
-			lastDelimPosition = index
-
-			element := line[prevDelimPosition:lastDelimPosition]
-
-			_, err := r.sanitizeElement(element)
-			if err != nil {
-				return 0, xerrors.Errorf("failed to sanitize element: %w", err)
-			}
-
-			result++
-			prevDelimPosition = lastDelimPosition + 1
-		}
-
-		prev = char
-	}
-
-	_, err := r.sanitizeElement(line[lastDelimPosition+1:])
-	if err != nil {
-		return 0, xerrors.Errorf("failed to sanitize element: %w", err)
-	}
-
-	result++
-	return result, nil
-}
-
 func (r *Reader) sanitizeElement(toSanitize string) (string, error) {
 	// remove spaces
 	element := strings.TrimSpace(toSanitize)
 
 	if r.QuoteChar != 0 {
-		// replace quote char with valid string quotes if quoted
 		var err error
-		element, err = r.swapQuotesChar(element)
+		element, err = r.unquote(element)
 		if err != nil {
 			return "", xerrors.Errorf("failed to swap quotes: %w", err)
 		}
@@ -321,29 +291,19 @@ func (r *Reader) sanitizeElement(toSanitize string) (string, error) {
 }
 
 // swapQuotesChar swaps the used quote char at start and end of value (if present) with quotes.
-func (r *Reader) swapQuotesChar(element string) (string, error) {
-	var quotes byte
-	if strings.Contains(element, "\n") || strings.Contains(element, r.DoubleQuoteStr) {
-		// element contains newlines or double quotes
-		quotes = '`'
-	} else {
-		quotes = '"'
+func (r *Reader) unquote(element string) (string, error) {
+	if len(element) == 0 {
+		return "", nil
 	}
 
-	res := make([]byte, 0, len(element)+2)
-	if len(element) == 1 && element[0] == byte(r.QuoteChar) {
+	q := byte(r.QuoteChar)
+	if len(element) == 1 && element[0] == q {
 		return "", xerrors.Errorf("got element with value of only one quote. Check that data does not contain newlines")
 	}
-	if len(element) > 0 {
-		if element[0] == byte(r.QuoteChar) && element[len(element)-1] == byte(r.QuoteChar) {
-			res = append(res, quotes)
-			res = append(res, []byte(element)[1:len(element)-1]...)
-			res = append(res, quotes)
-			return string(res), nil
-		}
-		return element, nil
+	if element[0] == q && element[len(element)-1] == q {
+		return element[1 : len(element)-1], nil
 	}
-	return string(res), nil
+	return element, nil
 }
 
 // swapToSingleQuotes swaps possible double quotes with single quote in a field.
@@ -368,16 +328,12 @@ func validDelimiter(r rune) bool {
 }
 
 func (r *Reader) getEncodingDecoder() *encoding.Decoder {
-	// TODO: add other encodings ?
-	switch r.Encoding {
-	case charmap.ISO8859_1.String():
-		return charmap.ISO8859_1.NewDecoder()
-	case charmap.Macintosh.String():
-		return charmap.Macintosh.NewDecoder()
-	default:
-		// utf8 encoding, no decoder needed
-		return nil
+	if enc := decoderFactoryByEncoding(r.Encoding); enc != nil {
+		return enc.NewDecoder()
 	}
+
+	// If encoding is not found, return nil (assuming UTF-8)
+	return nil
 }
 
 func NewReader(r io.Reader) *Reader {

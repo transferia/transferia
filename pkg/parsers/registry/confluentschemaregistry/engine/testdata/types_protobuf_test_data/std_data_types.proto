@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/doublecloud/transfer/pkg/parsers/registry/confluentschemaregistry/engine/testdata/types_protobuf_test_data";
+option go_package = "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/types_protobuf_test_data";
 
 import "google/protobuf/timestamp.proto";
 

@@ -1,19 +1,17 @@
 package middlewares
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 // PluggableTransformer is a transformer with a middleware interface which packages outside of `middlewares` can provide.
 type PluggableTransformer func(*model.Transfer, metrics.Registry, coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker
 
 var chain PluggableTransformer = func(t *model.Transfer, r metrics.Registry, cp coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker {
-	return func(s abstract.Sinker) abstract.Sinker {
-		return s
-	}
+	return IdentityMiddleware
 }
 
 // PlugTransformer adds a new pluggable transformer to a chain of such transformers.
@@ -30,3 +28,5 @@ func PlugTransformer(pt PluggableTransformer) {
 func PluggableTransformersChain(t *model.Transfer, r metrics.Registry, cp coordinator.Coordinator) func(abstract.Sinker) abstract.Sinker {
 	return chain(t, r, cp)
 }
+
+var IdentityMiddleware = func(s abstract.Sinker) abstract.Sinker { return s }

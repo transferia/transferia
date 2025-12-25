@@ -2,12 +2,16 @@ package postgres
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type Wal2JsonParser struct {
@@ -122,6 +126,48 @@ func (p *Wal2JsonParser) readTimestamp() (uint64, error) {
 	return timestamp, nil
 }
 
+func fillToastValuesFromOldKeys(item *Wal2JSONItem) {
+	if len(item.OldKeys.KeyNames) == 0 {
+		return
+	}
+
+	// we need to check to avoid panic when filling toast values from old keys
+	if len(item.OldKeys.KeyTypeOids) != len(item.OldKeys.KeyNames) ||
+		len(item.OldKeys.KeyValues) != len(item.OldKeys.KeyNames) {
+		logger.Log.Warn("mismatched old key values or type oids",
+			log.String("table", item.Table),
+			log.String("oldKeys.KeyNames", fmt.Sprintf("%v", item.OldKeys.KeyNames)),
+			log.String("oldKeys.KeyTypeOids", fmt.Sprintf("%v", item.OldKeys.KeyTypeOids)),
+			log.String("length of oldKeys.KeyValues", fmt.Sprintf("%v", len(item.OldKeys.KeyValues))),
+			log.String("length of oldKeys.KeyTypeOids", fmt.Sprintf("%v", len(item.OldKeys.KeyTypeOids))),
+			log.String("length of oldKeys.KeyNames", fmt.Sprintf("%v", len(item.OldKeys.KeyNames))),
+		)
+		// if mismatched, we don't fill toast values
+		return
+	}
+
+	existingColumns := make(map[string]bool, len(item.ColumnNames))
+	for _, colName := range item.ColumnNames {
+		existingColumns[colName] = true
+	}
+
+	for i, oldKeyName := range item.OldKeys.KeyNames {
+		if !existingColumns[oldKeyName] {
+			logger.Log.Debug("filling toast values from old keys",
+				log.String("table", item.Table),
+				log.String("added toast value column name", oldKeyName),
+				log.String("columnNames", fmt.Sprintf("%v", item.ColumnNames)),
+				log.String("oldKeys.KeyNames", fmt.Sprintf("%v", item.OldKeys.KeyNames)),
+				log.String("columnTypeOIDs", fmt.Sprintf("%v", item.ColumnTypeOIDs)),
+				log.String("oldKeys.KeyTypeOids", fmt.Sprintf("%v", item.OldKeys.KeyTypeOids)),
+			)
+			item.ColumnNames = append(item.ColumnNames, oldKeyName)
+			item.ColumnValues = append(item.ColumnValues, item.OldKeys.KeyValues[i])
+			item.ColumnTypeOIDs = append(item.ColumnTypeOIDs, item.OldKeys.KeyTypeOids[i])
+		}
+	}
+}
+
 func (p *Wal2JsonParser) parseLoop() {
 	defer close(p.outCh)
 
@@ -168,6 +214,11 @@ func (p *Wal2JsonParser) parseLoop() {
 					readRawBytes := uint64(p.decoder.InputOffset() - decoderPositionBefore)
 					item.ID = id
 					item.CommitTime = timestamp
+
+					// for toast values to avoid missing values in columnValues, we fill them from oldKeys
+					if item.Kind == abstract.UpdateKind {
+						fillToastValuesFromOldKeys(item)
+					}
 
 					item.Size.Read = readRawBytes
 					p.outCh <- item

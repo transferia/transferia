@@ -2,20 +2,20 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/testutil"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/testutil"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -34,9 +34,9 @@ func TestGroup(t *testing.T) {
 
 	//-----------------------------------------------------------------------------------------------------------------
 
-	canonizedDebeziumKeyArr, err := ioutil.ReadFile(yatest.SourcePath("transfer_manager/go/tests/e2e/ydb2mock/debezium/debezium_snapshot/testdata/change_item_key.txt"))
+	canonizedDebeziumKeyArr, err := os.ReadFile(yatest.SourcePath("transfer_manager/go/tests/e2e/ydb2mock/debezium/debezium_snapshot/testdata/change_item_key.txt"))
 	require.NoError(t, err)
-	canonizedDebeziumValArr, err := ioutil.ReadFile(yatest.SourcePath("transfer_manager/go/tests/e2e/ydb2mock/debezium/debezium_snapshot/testdata/change_item_val.txt"))
+	canonizedDebeziumValArr, err := os.ReadFile(yatest.SourcePath("transfer_manager/go/tests/e2e/ydb2mock/debezium/debezium_snapshot/testdata/change_item_val.txt"))
 	require.NoError(t, err)
 	canonizedDebeziumVal := string(canonizedDebeziumValArr)
 
@@ -60,7 +60,7 @@ func TestGroup(t *testing.T) {
 	//-----------------------------------------------------------------------------------------------------------------
 	// activate
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	target := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
@@ -68,8 +68,9 @@ func TestGroup(t *testing.T) {
 	transfer := helpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
 
 	var changeItems []abstract.ChangeItem
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		changeItems = append(changeItems, input...)
+		return nil
 	}
 
 	helpers.Activate(t, transfer)

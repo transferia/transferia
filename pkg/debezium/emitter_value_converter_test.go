@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -90,7 +90,7 @@ func TestTombstonesOnDelete(t *testing.T) {
 		connectorParams := debeziumparameters.EnrichedWithDefaults(map[string]string{
 			debeziumparameters.TombstonesOnDelete: debeziumparameters.BoolTrue,
 		})
-		emitter, err := NewMessagesEmitter(connectorParams, "1.0", false, nil)
+		emitter, err := NewMessagesEmitter(connectorParams, "1.0", false, logger.Log)
 		require.NoError(t, err)
 		messages, err := emitter.EmitKV(deleteItem, time.Now(), false, nil)
 		require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestTombstonesOnDelete(t *testing.T) {
 		connectorParams := debeziumparameters.EnrichedWithDefaults(map[string]string{
 			debeziumparameters.TombstonesOnDelete: debeziumparameters.BoolFalse,
 		})
-		emitter, err := NewMessagesEmitter(connectorParams, "1.0", false, nil)
+		emitter, err := NewMessagesEmitter(connectorParams, "1.0", false, logger.Log)
 		require.NoError(t, err)
 		messages, err := emitter.EmitKV(deleteItem, time.Now(), false, nil)
 		require.NoError(t, err)

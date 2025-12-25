@@ -14,12 +14,14 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
 	"github.com/klauspost/compress/zstd"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -28,12 +30,12 @@ type httpClientImpl struct {
 	httpClient *http.Client
 }
 
-func (c *httpClientImpl) buildConnString(host, database string) string {
+func (c *httpClientImpl) buildConnString(host *chconn.Host, database string) string {
 	proto := "http"
 	if c.config.SSLEnabled() {
 		proto = "https"
 	}
-	return fmt.Sprintf("%s://%s:%d/?database=%s&output_format_write_statistics=0", proto, host, c.config.HTTPPort(), url.QueryEscape(database))
+	return fmt.Sprintf("%s://%s:%d/?database=%s&output_format_write_statistics=0", proto, host.Name, host.HTTPPort, url.QueryEscape(database))
 }
 
 func (c *httpClientImpl) prepareQuery(query interface{}) (io.Reader, error) {
@@ -49,7 +51,7 @@ func (c *httpClientImpl) prepareQuery(query interface{}) (io.Reader, error) {
 	}
 }
 
-func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host string, query interface{}) (io.ReadCloser, error) {
+func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *chconn.Host, query interface{}) (io.ReadCloser, error) {
 	preparedQuery, err := c.prepareQuery(query)
 	if err != nil {
 		return nil, xerrors.Errorf("error preparing query: %w", err)
@@ -75,7 +77,7 @@ func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host s
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, connString, bytes.NewReader(compressed.Bytes()))
 	if err != nil {
-		return nil, coded.Errorf(providers.NetworkUnreachable, "unable to create request: %w", err)
+		return nil, coded.Errorf(codes.NetworkUnreachable, "unable to create request: %w", err)
 	}
 
 	req.Header.Add("Content-Type", "application/octet-stream")
@@ -97,12 +99,30 @@ func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host s
 		if err != nil {
 			return nil, xerrors.Errorf("failed to read unsuccessful response body: %w", err)
 		}
-		return nil, xerrors.Errorf("failed: %v to POST %s, status: %s: %w", query, req.URL.String(), resp.Status, ParseCHException(string(rawBody)))
+		chErr := ParseCHException(string(rawBody))
+		body := strings.ToLower(string(rawBody))
+		// Map common SSL requirement messages to coded error
+		if util.ContainsAnySubstrings(body, "ssl", "required") {
+			return nil, coded.Errorf(codes.ClickHouseSSLRequired, "error executing CH query: %w", chErr)
+		}
+		// Map ClickHouse out-of-range date errors
+		if util.ContainsAnySubstrings(body, "must be between", "out of range") {
+			return nil, coded.Errorf(codes.DataOutOfRange, "error executing CH query: %w", chErr)
+		}
+		// Map syntax error due to hyphen in database name
+		var chExc *clickhouse.Exception
+		if xerrors.As(chErr, &chExc) && chExc.Code == 62 && strings.Contains(body, "syntax error") {
+			// Heuristic: ClickHouse complains near '-' when DB name contains hyphen
+			if util.ContainsAnySubstrings(body, "('-')", " failed at position ") {
+				return nil, coded.Errorf(codes.ClickHouseInvalidDatabaseName, "error executing CH query: %w", chErr)
+			}
+		}
+		return nil, xerrors.Errorf("failed: %v to POST %s, status: %s: %w", query, req.URL.String(), resp.Status, chErr)
 	}
 	return resp.Body, nil
 }
 
-func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host string, query interface{}, res interface{}) error {
+func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host *chconn.Host, query interface{}, res interface{}) error {
 	body, err := c.QueryStream(ctx, lgr, host, query)
 	if err != nil {
 		return err
@@ -117,7 +137,7 @@ func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host string,
 	return nil
 }
 
-func (c *httpClientImpl) Exec(ctx context.Context, lgr log.Logger, host string, query interface{}) error {
+func (c *httpClientImpl) Exec(ctx context.Context, lgr log.Logger, host *chconn.Host, query interface{}) error {
 	return c.Query(ctx, lgr, host, query, nil)
 }
 

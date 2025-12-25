@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/stringutil"
 	"github.com/ohler55/ojg/jp"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/stringutil"
 	"golang.org/x/exp/maps"
 )
 

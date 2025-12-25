@@ -1,8 +1,8 @@
 package problemitemdetector
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	transformerregistry "github.com/doublecloud/transfer/pkg/transformer"
+	"github.com/transferia/transferia/pkg/abstract"
+	transformerregistry "github.com/transferia/transferia/pkg/transformer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -31,7 +31,7 @@ func (b problemItemDetector) Apply(input []abstract.ChangeItem) abstract.Transfo
 }
 
 func (b problemItemDetector) Suitable(table abstract.TableID, schema *abstract.TableSchema) bool {
-	return false
+	return true
 }
 
 func (b problemItemDetector) ResultSchema(original *abstract.TableSchema) (*abstract.TableSchema, error) {

@@ -5,8 +5,8 @@ import (
 	"path"
 	"regexp"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
@@ -29,9 +29,9 @@ func filterYdbTableColumns(filter []YdbColumnsFilter, description options.Descri
 		if err != nil {
 			return nil, xerrors.Errorf("unable to compile regexp: %s: %w", filterRule.ColumnNamesRegexp, err)
 		}
-		var filteredColumns = make([]options.Column, 0)
+		filteredColumns := make([]options.Column, 0)
 		for _, column := range description.Columns {
-			var hasMatch = columnsToFilterRegExp.MatchString(column.Name)
+			hasMatch := columnsToFilterRegExp.MatchString(column.Name)
 			if (filterRule.Type == YdbColumnsWhiteList && hasMatch) ||
 				(filterRule.Type == YdbColumnsBlackList && !hasMatch) {
 				filteredColumns = append(filteredColumns, column)
@@ -49,18 +49,6 @@ func filterYdbTableColumns(filter []YdbColumnsFilter, description options.Descri
 		return filteredColumns, nil
 	}
 	return description.Columns, nil
-}
-
-func flatten(batch [][]abstract.ChangeItem) []abstract.ChangeItem {
-	sumSize := 0
-	for _, currArr := range batch {
-		sumSize += len(currArr)
-	}
-	result := make([]abstract.ChangeItem, 0, sumSize)
-	for _, currArr := range batch {
-		result = append(result, currArr...)
-	}
-	return result
 }
 
 func tableSchema(ctx context.Context, db *ydb.Driver, database string, tableID abstract.TableID) (*abstract.TableSchema, error) {

@@ -1,21 +1,17 @@
 package postgres
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/dblog"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pglogrepl"
+	"github.com/jackc/pgx/v4"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres/dblog"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -35,12 +31,12 @@ var commonWal2jsonArguments = []argument{
 
 type wal2jsonArguments []argument
 
-func newWal2jsonArguments(config *PgSource, trackLSN bool, objects *model.DataObjects) (wal2jsonArguments, error) {
+func newWal2jsonArguments(config *PgSource, objects *model.DataObjects, dbLogSnapshot bool) (wal2jsonArguments, error) {
 	var result []argument
 
 	result = append(result, commonWal2jsonArguments...)
 
-	addList, err := addTablesList(config, trackLSN, objects)
+	addList, err := addTablesList(config, objects, dbLogSnapshot)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to compose a list of included tables: %w", err)
 	}
@@ -78,7 +74,7 @@ func (a wal2jsonArguments) toSQLFormat() string {
 	return result
 }
 
-func addTablesList(config *PgSource, trackLSN bool, objects *model.DataObjects) ([]abstract.TableID, error) {
+func addTablesList(config *PgSource, objects *model.DataObjects, dbLogSnapshot bool) ([]abstract.TableID, error) {
 	sourceIncludeTableIDs := make([]abstract.TableID, 0, len(config.DBTables))
 	for _, directive := range config.DBTables {
 		parsedDirective, err := abstract.ParseTableID(directive)
@@ -106,13 +102,13 @@ func addTablesList(config *PgSource, trackLSN bool, objects *model.DataObjects) 
 	consumerKeeperID := *abstract.NewTableID(config.KeeperSchema, TableConsumerKeeper)
 	mustAddConsumerKeeper := true
 	signalTableID := *dblog.SignalTableTableID(config.KeeperSchema)
-	mustAddsignalTable := config.DBLogEnabled
+	mustAddsignalTable := dbLogSnapshot // the only case when we need to add signalTable into replication - snapshot stage when dblog turned-on
 
 	for _, t := range result {
 		if mustAddConsumerKeeper && t.Equals(consumerKeeperID) {
 			mustAddConsumerKeeper = false
 		}
-		if mustAddsignalTable && t.Equals(signalTableID) {
+		if mustAddsignalTable && t.Equals(signalTableID) { // signalTable already added by user - strage, but ok - then we dont need to add it one more time
 			mustAddsignalTable = false
 		}
 	}
@@ -123,8 +119,9 @@ func addTablesList(config *PgSource, trackLSN bool, objects *model.DataObjects) 
 		result = append(result, signalTableID)
 	}
 
-	// since inherit table appear dynamically we need to filter tables on our side instead of push-list to postgres
-	if config.CollapseInheritTables && objects != nil && len(objects.IncludeObjects) > 0 {
+	// When working with partitioned tables (CollapseInheritTables=true) new partitions may appear after the transfer starts.
+	// To avoid losing their changes we send schema-wide wildcards to wal2json and filter precise tables on our side.
+	if config.CollapseInheritTables {
 		return nil, nil
 	}
 	return result, nil
@@ -210,125 +207,52 @@ func walDataSample(data []byte) string {
 	return string(data[:maxSampleLength])
 }
 
-func lastFullLSN(changes []abstract.ChangeItem, lastID uint32, prevLSN, lastMaxLSN uint64) uint64 {
-	txs := abstract.SplitByID(changes)
-	if len(txs) <= 1 {
-		if changes[len(changes)-1].ID != lastID {
-			return prevLSN
-		}
-		return lastMaxLSN
-	}
-	return changes[txs[len(txs)-2].Right-1].LSN
-}
-
-func newWalSource(config *PgSource, objects *model.DataObjects, transferID string, registry *stats.SourceStats, lgr log.Logger, slot AbstractSlot, cp coordinator.Coordinator) (abstract.Source, error) {
-	rb := util.Rollbacks{}
-	defer rb.Do()
-
+func newWalSource(config *PgSource, objects *model.DataObjects, transferID string, registry *stats.SourceStats, lgr log.Logger, slot AbstractSlot, cp coordinator.Coordinator, dbLogSnapshot bool) (abstract.Source, error) {
 	connConfig, err := MakeConnConfigFromSrc(lgr, config)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, xerrors.Errorf("error making connection config from pg endpoint params: %w", err)
 	}
 	lgr.Infof("Trying to create WAL source for master host '%s'", connConfig.Host)
-	connPool, err := NewPgConnPool(connConfig, lgr)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create conn pool: %w", err)
-	}
-	rb.Add(func() {
-		connPool.Close()
-	})
 
-	connPoolWithoutLogger, err := NewPgConnPool(connConfig, nil)
+	version, err := resolveVersion(connConfig.Copy())
 	if err != nil {
-		return nil, xerrors.Errorf("unable to create conn pool: %w", err)
+		return nil, xerrors.Errorf("error resolving pg version: %w", err)
 	}
-	version := ResolveVersion(connPoolWithoutLogger)
-	connPoolWithoutLogger.Close()
 
-	_, hasLSNTrack := slot.(*LsnTrackedSlot)
-	wal2jsonArgs, err := newWal2jsonArguments(config, hasLSNTrack, objects)
+	wal2jsonArgs, err := newWal2jsonArguments(config, objects, dbLogSnapshot)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to build wal2json arguments: %w", err)
 	}
-	if !config.UsePolling {
-		var res abstract.Source
-		if err = backoff.Retry(func() error {
-			rConnConfig := connConfig.Config
-			if rConnConfig.RuntimeParams == nil {
-				rConnConfig.RuntimeParams = make(map[string]string)
-			}
-			if !version.Is9x && !version.Is10x && !version.Is11x {
-				rConnConfig.RuntimeParams["options"] = "-c wal_sender_timeout=3600000"
-			}
-			rConnConfig.RuntimeParams["replication"] = "database"
-			rConnRaw, err := pgconn.ConnectConfig(context.TODO(), &rConnConfig)
-			if err != nil {
-				// Protocol violation, means that database do not accept replication protocol. Do not retry this case.
-				if strings.Contains(err.Error(), "08P01") {
-					lgr.Warn("Cannot establish replication connect; permanent error", log.Error(err))
-					//nolint:descriptiveerrors
-					return backoff.Permanent(err)
-				}
-				lgr.Warn("Cannot made replication connect; retry", log.Error(err))
-				//nolint:descriptiveerrors
-				return err
-			}
-			rConn := newMutexedPgConn(rConnRaw)
 
-			startReplicationOptions := pglogrepl.StartReplicationOptions{
-				Timeline:   -1,
-				Mode:       pglogrepl.LogicalReplication,
-				PluginArgs: wal2jsonArgs.toReplicationFormat(),
-			}
-			lgr.Infof("Start replication process with args: %v", wal2jsonArgs)
-			err = rConn.StartReplication(context.Background(), config.SlotID, 0, startReplicationOptions)
-			if err != nil {
-				lgr.Warn("Cannot start replication via replication connection", log.Error(err))
-				if strings.Contains(err.Error(), "SQLSTATE 55000") {
-					return abstract.NewFatalError(
-						xerrors.Errorf("Cannot start replication via replication connection: %w", err))
-				}
-				if strings.Contains(err.Error(), "SQLSTATE 55006") {
-					sql := fmt.Sprintf(`SELECT PG_TERMINATE_BACKEND(active_pid) FROM pg_replication_slots
-WHERE slot_name = '%v' AND active_pid IS NOT NULL;`, config.SlotID)
-					reader := rConn.Exec(context.Background(), sql)
-					if _, readerErr := reader.ReadAll(); readerErr != nil {
-						lgr.Warn("Unable to preclean slotID", log.Error(readerErr))
-					} else {
-						lgr.Info("clean slot")
-					}
-				}
-				if err := rConn.Close(context.Background()); err != nil {
-					lgr.Error("Cannot close replication connection", log.Error(err))
-				}
-				//nolint:descriptiveerrors
-				return err
-			}
-			pblsr, err := NewReplicationPublisher(version, rConn, connPool, slot, registry, config, transferID, lgr, cp, objects)
-			if err != nil {
-				if err := rConn.Close(context.Background()); err != nil {
-					lgr.Error("Cannot close replication connection", log.Error(err))
-				}
-				//nolint:descriptiveerrors
-				return err
-			}
-			res = pblsr
-			return nil
-		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5)); err != nil {
-			lgr.Warn("Cannot establish replication connection; falling back to polling", log.Error(err))
+	// Polling is workaround for cases where replication connection is not available for some reason
+	// There should be no such cases for managed clusters
+	canFallbackToPolling := config.ClusterID == ""
+	if !config.UsePolling {
+		publisher, err := newReplicationPublisher(version, connConfig, slot, wal2jsonArgs, registry, config, transferID, lgr, cp, objects)
+		if err == nil {
+			return publisher, nil
 		}
-		if res != nil {
-			rb.Cancel()
-			return res, nil
+		if abstract.IsFatal(err) {
+			return nil, xerrors.Errorf("fatal error while starting replication: %w", err)
 		}
-		//todo this should be resolved too!!
-		if config.ClusterID != "" {
-			return nil, xerrors.Errorf("unable to init replication connection: %w", err)
+		if !canFallbackToPolling {
+			return nil, xerrors.Errorf("unable to use pg logical replication: %w", err)
 		}
+		lgr.Warn("Cannot establish replication connection; falling back to polling", log.Error(err))
 	}
 
-	rb.Cancel()
-	return NewPollingPublisher(version, connPool, slot, registry, config, objects, transferID, lgr, cp)
+	return newPollingPublisher(version, connConfig, slot, wal2jsonArgs, registry, config, objects, transferID, lgr, cp)
+}
+
+func resolveVersion(connConfig *pgx.ConnConfig) (PgVersion, error) {
+	var version PgVersion
+	// Version resolve queries may fail and it's not a problem so no reason to log such queries
+	connPoolWithoutLogger, err := NewPgConnPool(connConfig, nil)
+	if err != nil {
+		return version, err
+	}
+	defer connPoolWithoutLogger.Close()
+	return ResolveVersion(connPoolWithoutLogger), nil
 }
 
 func validateChangeItemsPtrs(wal2jsonItems []*Wal2JSONItem) error {
@@ -340,7 +264,7 @@ func validateChangeItemsPtrs(wal2jsonItems []*Wal2JSONItem) error {
 			return xerrors.Errorf("column and OID counts differ; columns: %v; oids: %v", wal2jsonItem.ColumnNames, wal2jsonItem.ColumnTypeOIDs)
 		}
 		if len(wal2jsonItem.OldKeys.KeyNames) != len(wal2jsonItem.OldKeys.KeyTypeOids) {
-			return xerrors.Errorf("column and OID counts differ; columns: %v; oids: %v", wal2jsonItem.ColumnNames, wal2jsonItem.ColumnTypeOIDs)
+			return xerrors.Errorf("column and OID counts differ in old keys; columns: %v; oids: %v", wal2jsonItem.OldKeys.KeyNames, wal2jsonItem.OldKeys.KeyTypeOids)
 		}
 	}
 	return nil

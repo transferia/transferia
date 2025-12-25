@@ -1,18 +1,23 @@
 package connection
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/connection/greenplum"
+	"github.com/transferia/transferia/pkg/connection/opensearch"
 )
 
 var _ ManagedConnection = (*ConnectionPG)(nil)
 var _ ManagedConnection = (*ConnectionMySQL)(nil)
-var _ ManagedConnection = (*ConnectionCH)(nil)
+var _ ManagedConnection = (*clickhouse.Connection)(nil)
+var _ ManagedConnection = (*opensearch.Connection)(nil)
+var _ ManagedConnection = (*greenplum.Connection)(nil)
 
 type ConnectionPG struct {
 	*BaseSQLConnection
 	// field in manage connection with applicable databases, currently used for info only.
 	// in the future we may want to check that DatabaseNames if defined includes Database from user input
-	DatabaseNames []string
+	DatabaseNames []string `log:"true"`
 }
 
 func (pg *ConnectionPG) GetDatabases() []string {
@@ -23,34 +28,22 @@ type ConnectionMySQL struct {
 	*BaseSQLConnection
 	// field in manage connection with applicable databases, currently used for info only.
 	// in the future we may want to check that DatabaseNames if defined includes Database from user input
-	DatabaseNames []string
+	DatabaseNames []string `log:"true"`
 }
 
 func (m *ConnectionMySQL) GetDatabases() []string {
 	return m.DatabaseNames
 }
 
-type ConnectionCH struct {
-	// TODO: add shard params
-	*BaseSQLConnection
-	// field in manage connection with applicable databases, currently used for info only.
-	// in the future we may want to check that DatabaseNames if defined includes Database from user input
-	DatabaseNames []string
-}
-
-func (ch *ConnectionCH) GetDatabases() []string {
-	return ch.DatabaseNames
-}
-
 type BaseSQLConnection struct {
-	Hosts    []*Host
-	User     string
+	Hosts    []*Host `log:"true"`
+	User     string  `log:"true"`
 	Password model.SecretString
 	// currently filled with user data, not from db list in managed connection
-	Database       string
-	HasTLS         bool
+	Database       string `log:"true"`
+	HasTLS         bool   `log:"true"`
 	CACertificates string
-	ClusterID      string
+	ClusterID      string `log:"true"`
 }
 
 func (b *BaseSQLConnection) GetUsername() string {

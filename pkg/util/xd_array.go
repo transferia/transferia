@@ -1,6 +1,6 @@
 package util
 
-import "github.com/doublecloud/transfer/library/go/core/xerrors"
+import "github.com/transferia/transferia/library/go/core/xerrors"
 
 // XDArray Multidimensional array with arbitrary item type
 type XDArray struct {

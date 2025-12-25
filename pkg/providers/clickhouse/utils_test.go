@@ -7,6 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 )
 
 func TestMarshalField(t *testing.T) {
@@ -135,4 +136,25 @@ func TestMarshalField(t *testing.T) {
 	v, size = marshalField(duration, "")
 	require.Equal(t, v, duration)
 	require.Equal(t, size, uint64(unsafe.Sizeof(duration)))
+}
+
+func TestShardsToString(t *testing.T) {
+	shards := map[string][]*clickhouse.Host{
+		"shard1": {
+			{Name: "host1", NativePort: 9000, HTTPPort: 8123, ShardName: "shard1"},
+			{Name: "host2", NativePort: 9001, HTTPPort: 8124, ShardName: "shard1"},
+		},
+		"shard2": {
+			{Name: "host3", NativePort: 9002, HTTPPort: 8125, ShardName: "shard2"},
+		},
+	}
+	require.Equal(t, "map[shard1:[host1:[9000|8123] host2:[9001|8124]] shard2:[host3:[9002|8125]]]", ShardsToString(shards))
+}
+
+func TestHostsToString(t *testing.T) {
+	hosts := []*clickhouse.Host{
+		{Name: "host1", NativePort: 9000, HTTPPort: 8123, ShardName: "shard1"},
+		{Name: "host2", NativePort: 9001, HTTPPort: 8124, ShardName: "shard1"},
+	}
+	require.Equal(t, "[host1:[9000|8123] host2:[9001|8124]]", HostsToString(hosts))
 }

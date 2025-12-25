@@ -1,0 +1,136 @@
+{
+    "gotest.gotest.TestToDateTimeTransformer": [
+        {
+            "Errors": null,
+            "Transformed": [
+                {
+                    "columnnames": [
+                        "column1",
+                        "column2",
+                        "column3"
+                    ],
+                    "columnvalues": [
+                        "value1",
+                        "2025-09-29T10:51:01Z",
+                        1234
+                    ],
+                    "commitTime": 0,
+                    "id": 0,
+                    "kind": "Insert",
+                    "nextlsn": 0,
+                    "oldkeys": {},
+                    "part": "",
+                    "query": "",
+                    "schema": "db",
+                    "table": "table1",
+                    "table_schema": [
+                        {
+                            "expression": "",
+                            "fake_key": false,
+                            "key": true,
+                            "name": "column1",
+                            "original_type": "",
+                            "path": "",
+                            "required": false,
+                            "table_name": "",
+                            "table_schema": "",
+                            "type": "utf8"
+                        },
+                        {
+                            "expression": "",
+                            "fake_key": false,
+                            "key": false,
+                            "name": "column2",
+                            "original_type": "",
+                            "path": "",
+                            "required": false,
+                            "table_name": "",
+                            "table_schema": "",
+                            "type": "datetime"
+                        },
+                        {
+                            "expression": "",
+                            "fake_key": false,
+                            "key": false,
+                            "name": "column3",
+                            "original_type": "",
+                            "path": "",
+                            "required": false,
+                            "table_name": "",
+                            "table_schema": "",
+                            "type": "int16"
+                        }
+                    ],
+                    "txPosition": 0,
+                    "tx_id": ""
+                }
+            ]
+        },
+        {
+            "Errors": null,
+            "Transformed": [
+                {
+                    "columnnames": [
+                        "column2",
+                        "column3",
+                        "column4"
+                    ],
+                    "columnvalues": [
+                        -3,
+                        "2025-09-29T10:51:21Z",
+                        "2025-09-29T10:00:00Z"
+                    ],
+                    "commitTime": 0,
+                    "id": 0,
+                    "kind": "Insert",
+                    "nextlsn": 0,
+                    "oldkeys": {},
+                    "part": "",
+                    "query": "",
+                    "schema": "db",
+                    "table": "a_table3",
+                    "table_schema": [
+                        {
+                            "expression": "",
+                            "fake_key": false,
+                            "key": false,
+                            "name": "column2",
+                            "original_type": "",
+                            "path": "",
+                            "required": false,
+                            "table_name": "",
+                            "table_schema": "",
+                            "type": "int8"
+                        },
+                        {
+                            "expression": "",
+                            "fake_key": false,
+                            "key": false,
+                            "name": "column3",
+                            "original_type": "",
+                            "path": "",
+                            "required": false,
+                            "table_name": "",
+                            "table_schema": "",
+                            "type": "datetime"
+                        },
+                        {
+                            "expression": "",
+                            "fake_key": false,
+                            "key": false,
+                            "name": "column4",
+                            "original_type": "",
+                            "path": "",
+                            "required": false,
+                            "table_name": "",
+                            "table_schema": "",
+                            "type": "datetime"
+                        }
+                    ],
+                    "txPosition": 0,
+                    "tx_id": ""
+                }
+            ]
+        }
+    ]
+}

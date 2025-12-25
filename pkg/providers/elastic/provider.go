@@ -2,34 +2,34 @@ package elastic
 
 import (
 	"context"
-	"encoding/gob"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
 	abstract.RegisterProviderName(ProviderType, "ElasticSearch")
 
-	gob.RegisterName("*server.ElasticSearchDestination", new(ElasticSearchDestination))
-	gob.RegisterName("*server.ElasticSearchSource", new(ElasticSearchSource))
+	gobwrapper.RegisterName("*server.ElasticSearchDestination", new(ElasticSearchDestination))
+	gobwrapper.RegisterName("*server.ElasticSearchSource", new(ElasticSearchSource))
 
 	model.RegisterDestination(ProviderType, destinationModelFactory)
 
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(ElasticSearchSource)
 	})
 
 	providers.Register(ProviderType, New)
 }
 
-func destinationModelFactory() model.Destination {
+func destinationModelFactory() model.LoggableDestination {
 	return new(ElasticSearchDestination)
 }
 

@@ -1,0 +1,1908 @@
+{
+  "connect.version": 1,
+  "properties": {
+    "after": {
+      "connect.index": 1,
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "properties": {
+            "arr_bl": {
+              "connect.index": 1,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_c": {
+              "connect.index": 8,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_character_": {
+              "connect.index": 10,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_character_varying_": {
+              "connect.index": 11,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_d": {
+              "connect.index": 7,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "float64",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_date_": {
+              "connect.index": 21,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int32",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.Date",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_decimal_": {
+              "connect.index": 34,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "description": "Variable scaled decimal",
+                        "properties": {
+                          "scale": {
+                            "connect.index": 0,
+                            "connect.type": "int32",
+                            "type": "integer"
+                          },
+                          "value": {
+                            "connect.index": 1,
+                            "connect.type": "bytes",
+                            "type": "string"
+                          }
+                        },
+                        "title": "io.debezium.data.VariableScaleDecimal",
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_decimal_5": {
+              "connect.index": 35,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.parameters": {
+                          "connect.decimal.precision": "5",
+                          "scale": "0"
+                        },
+                        "connect.type": "bytes",
+                        "connect.version": 1,
+                        "title": "org.apache.kafka.connect.data.Decimal",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_decimal_5_2": {
+              "connect.index": 36,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.parameters": {
+                          "connect.decimal.precision": "5",
+                          "scale": "2"
+                        },
+                        "connect.type": "bytes",
+                        "connect.version": 1,
+                        "title": "org.apache.kafka.connect.data.Decimal",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_f": {
+              "connect.index": 18,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "float64",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_i": {
+              "connect.index": 19,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int32",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_id": {
+              "connect.index": 4,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_int": {
+              "connect.index": 3,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int32",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_it": {
+              "connect.index": 17,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_numeric_": {
+              "connect.index": 31,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "description": "Variable scaled decimal",
+                        "properties": {
+                          "scale": {
+                            "connect.index": 0,
+                            "connect.type": "int32",
+                            "type": "integer"
+                          },
+                          "value": {
+                            "connect.index": 1,
+                            "connect.type": "bytes",
+                            "type": "string"
+                          }
+                        },
+                        "title": "io.debezium.data.VariableScaleDecimal",
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_numeric_5": {
+              "connect.index": 32,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.parameters": {
+                          "connect.decimal.precision": "5",
+                          "scale": "0"
+                        },
+                        "connect.type": "bytes",
+                        "connect.version": 1,
+                        "title": "org.apache.kafka.connect.data.Decimal",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_numeric_5_2": {
+              "connect.index": 33,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.parameters": {
+                          "connect.decimal.precision": "5",
+                          "scale": "2"
+                        },
+                        "connect.type": "bytes",
+                        "connect.version": 1,
+                        "title": "org.apache.kafka.connect.data.Decimal",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_oid_": {
+              "connect.index": 5,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_real_": {
+              "connect.index": 6,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "float32",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_si": {
+              "connect.index": 2,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int16",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_str": {
+              "connect.index": 9,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_t": {
+              "connect.index": 20,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_time1": {
+              "connect.index": 23,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTime",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_time6": {
+              "connect.index": 24,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTime",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_time_": {
+              "connect.index": 22,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTime",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_time_with_time_zone_": {
+              "connect.index": 15,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timestamp": {
+              "connect.index": 30,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTimestamp",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timestamp1": {
+              "connect.index": 28,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTimestamp",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timestamp6": {
+              "connect.index": 29,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTimestamp",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timestamptz_": {
+              "connect.index": 12,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTimestamp",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timetz1": {
+              "connect.index": 26,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timetz6": {
+              "connect.index": 27,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timetz_": {
+              "connect.index": 14,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timetz__": {
+              "connect.index": 25,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_tst": {
+              "connect.index": 13,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTimestamp",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_uid": {
+              "connect.index": 16,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.data.Uuid",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "i": {
+              "connect.index": 0,
+              "connect.type": "int32",
+              "type": "integer"
+            }
+          },
+          "title": "dbserver1.public.basic_types.Value",
+          "type": "object"
+        }
+      ]
+    },
+    "before": {
+      "connect.index": 0,
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "properties": {
+            "arr_bl": {
+              "connect.index": 1,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_c": {
+              "connect.index": 8,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_character_": {
+              "connect.index": 10,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_character_varying_": {
+              "connect.index": 11,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_d": {
+              "connect.index": 7,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "float64",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_date_": {
+              "connect.index": 21,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int32",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.Date",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_decimal_": {
+              "connect.index": 34,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "description": "Variable scaled decimal",
+                        "properties": {
+                          "scale": {
+                            "connect.index": 0,
+                            "connect.type": "int32",
+                            "type": "integer"
+                          },
+                          "value": {
+                            "connect.index": 1,
+                            "connect.type": "bytes",
+                            "type": "string"
+                          }
+                        },
+                        "title": "io.debezium.data.VariableScaleDecimal",
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_decimal_5": {
+              "connect.index": 35,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.parameters": {
+                          "connect.decimal.precision": "5",
+                          "scale": "0"
+                        },
+                        "connect.type": "bytes",
+                        "connect.version": 1,
+                        "title": "org.apache.kafka.connect.data.Decimal",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_decimal_5_2": {
+              "connect.index": 36,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.parameters": {
+                          "connect.decimal.precision": "5",
+                          "scale": "2"
+                        },
+                        "connect.type": "bytes",
+                        "connect.version": 1,
+                        "title": "org.apache.kafka.connect.data.Decimal",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_f": {
+              "connect.index": 18,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "float64",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_i": {
+              "connect.index": 19,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int32",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_id": {
+              "connect.index": 4,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_int": {
+              "connect.index": 3,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int32",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_it": {
+              "connect.index": 17,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_numeric_": {
+              "connect.index": 31,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "description": "Variable scaled decimal",
+                        "properties": {
+                          "scale": {
+                            "connect.index": 0,
+                            "connect.type": "int32",
+                            "type": "integer"
+                          },
+                          "value": {
+                            "connect.index": 1,
+                            "connect.type": "bytes",
+                            "type": "string"
+                          }
+                        },
+                        "title": "io.debezium.data.VariableScaleDecimal",
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_numeric_5": {
+              "connect.index": 32,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.parameters": {
+                          "connect.decimal.precision": "5",
+                          "scale": "0"
+                        },
+                        "connect.type": "bytes",
+                        "connect.version": 1,
+                        "title": "org.apache.kafka.connect.data.Decimal",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_numeric_5_2": {
+              "connect.index": 33,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.parameters": {
+                          "connect.decimal.precision": "5",
+                          "scale": "2"
+                        },
+                        "connect.type": "bytes",
+                        "connect.version": 1,
+                        "title": "org.apache.kafka.connect.data.Decimal",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_oid_": {
+              "connect.index": 5,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_real_": {
+              "connect.index": 6,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "float32",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_si": {
+              "connect.index": 2,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int16",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_str": {
+              "connect.index": 9,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_t": {
+              "connect.index": 20,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_time1": {
+              "connect.index": 23,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTime",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_time6": {
+              "connect.index": 24,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTime",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_time_": {
+              "connect.index": 22,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTime",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_time_with_time_zone_": {
+              "connect.index": 15,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timestamp": {
+              "connect.index": 30,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTimestamp",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timestamp1": {
+              "connect.index": 28,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTimestamp",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timestamp6": {
+              "connect.index": 29,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.type": "int64",
+                        "connect.version": 1,
+                        "title": "io.debezium.time.MicroTimestamp",
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timestamptz_": {
+              "connect.index": 12,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTimestamp",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timetz1": {
+              "connect.index": 26,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timetz6": {
+              "connect.index": 27,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timetz_": {
+              "connect.index": 14,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_timetz__": {
+              "connect.index": 25,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTime",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_tst": {
+              "connect.index": 13,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.time.ZonedTimestamp",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "arr_uid": {
+              "connect.index": 16,
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "connect.version": 1,
+                        "title": "io.debezium.data.Uuid",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "i": {
+              "connect.index": 0,
+              "connect.type": "int32",
+              "type": "integer"
+            }
+          },
+          "title": "dbserver1.public.basic_types.Value",
+          "type": "object"
+        }
+      ]
+    },
+    "op": {
+      "connect.index": 3,
+      "type": "string"
+    },
+    "source": {
+      "connect.index": 2,
+      "properties": {
+        "connector": {
+          "connect.index": 1,
+          "type": "string"
+        },
+        "db": {
+          "connect.index": 5,
+          "type": "string"
+        },
+        "lsn": {
+          "connect.index": 10,
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "connect.type": "int64",
+              "type": "integer"
+            }
+          ]
+        },
+        "name": {
+          "connect.index": 2,
+          "type": "string"
+        },
+        "schema": {
+          "connect.index": 7,
+          "type": "string"
+        },
+        "sequence": {
+          "connect.index": 6,
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "snapshot": {
+          "connect.index": 4,
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "connect.parameters": {
+                "allowed": "true,last,false,incremental"
+              },
+              "connect.version": 1,
+              "default": "false",
+              "title": "io.debezium.data.Enum",
+              "type": "string"
+            }
+          ]
+        },
+        "table": {
+          "connect.index": 8,
+          "type": "string"
+        },
+        "ts_ms": {
+          "connect.index": 3,
+          "connect.type": "int64",
+          "type": "integer"
+        },
+        "txId": {
+          "connect.index": 9,
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "connect.type": "int64",
+              "type": "integer"
+            }
+          ]
+        },
+        "version": {
+          "connect.index": 0,
+          "type": "string"
+        },
+        "xmin": {
+          "connect.index": 11,
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "connect.type": "int64",
+              "type": "integer"
+            }
+          ]
+        }
+      },
+      "title": "io.debezium.connector.postgresql.Source",
+      "type": "object"
+    },
+    "transaction": {
+      "connect.index": 5,
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "connect.version": 1,
+          "properties": {
+            "data_collection_order": {
+              "connect.index": 2,
+              "connect.type": "int64",
+              "type": "integer"
+            },
+            "id": {
+              "connect.index": 0,
+              "type": "string"
+            },
+            "total_order": {
+              "connect.index": 1,
+              "connect.type": "int64",
+              "type": "integer"
+            }
+          },
+          "title": "event.block",
+          "type": "object"
+        }
+      ]
+    },
+    "ts_ms": {
+      "connect.index": 4,
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "connect.type": "int64",
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "title": "dbserver1.public.basic_types.Envelope",
+  "type": "object"
+}

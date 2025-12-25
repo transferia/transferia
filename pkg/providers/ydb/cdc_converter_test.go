@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
 func checkChangeItemValidForDebeziumEmitter(t *testing.T, changeItem *abstract.ChangeItem) {
@@ -53,6 +53,7 @@ func TestConvertToChangeItem(t *testing.T) {
 		{ColumnName: "Utf8_", DataType: "utf8", PrimaryKey: false, OriginalType: "ydb:Utf8"},
 		{ColumnName: "Json_", DataType: "any", PrimaryKey: false, OriginalType: "ydb:Json"},
 		{ColumnName: "JsonDocument_", DataType: "any", PrimaryKey: false, OriginalType: "ydb:JsonDocument"},
+		{ColumnName: "Uuid_", DataType: "string", PrimaryKey: false, OriginalType: "ydb:Uuid"},
 		{ColumnName: "Date_", DataType: "date", PrimaryKey: false, OriginalType: "ydb:Date"},
 		{ColumnName: "Datetime_", DataType: "datetime", PrimaryKey: false, OriginalType: "ydb:Datetime"},
 		{ColumnName: "Timestamp_", DataType: "timestamp", PrimaryKey: false, OriginalType: "ydb:Timestamp"},
@@ -78,6 +79,7 @@ func TestConvertToChangeItem(t *testing.T) {
 			"Interval_":     json.Number("123"),
 			"JsonDocument_": map[string]interface{}{},
 			"Json_":         map[string]interface{}{},
+			"Uuid_":         "6af014ea-29dd-401c-a7e3-68a58305f4fb",
 			"String_":       "AQ==",
 			"Timestamp_":    "2020-02-02T10:02:22.000000Z",
 			"Uint8_":        json.Number("5"),
@@ -211,4 +213,30 @@ func TestComplexPkey(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(item.OldKeys.KeyNames))
 	require.Equal(t, 2, len(item.OldKeys.KeyValues))
+}
+
+func TestWithNoUpdatesAndErase(t *testing.T) {
+	schema := abstract.NewTableSchema(abstract.TableColumns{
+		{ColumnName: "id", DataType: "uint64", PrimaryKey: true, OriginalType: "ydb:Uint64"},
+		{ColumnName: "test", DataType: "int32", PrimaryKey: false, OriginalType: "ydb:Int32"},
+		{ColumnName: "test_1", DataType: "utf8", PrimaryKey: false, OriginalType: "ydb:Utf8"},
+	})
+
+	noUpdateEvent := &cdcEvent{
+		Key: []interface{}{
+			json.Number("1"),
+		},
+		Update: nil,
+		Erase:  nil,
+		NewImage: map[string]interface{}{
+			"test":   json.Number("123"),
+			"test_1": "some_text",
+		},
+		OldImage: nil,
+	}
+
+	item, err := convertToChangeItem("test_table", schema, noUpdateEvent, time.Now(), 0, 0, 0, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"id", "test", "test_1"}, item.ColumnNames)
+	require.Equal(t, []any{uint64(1), int64(123), "some_text"}, item.ColumnValues)
 }

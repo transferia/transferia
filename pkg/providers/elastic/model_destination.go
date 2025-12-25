@@ -1,31 +1,39 @@
 package elastic
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 type ElasticSearchHostPort struct {
-	Host string
-	Port int
+	Host string `log:"true"`
+	Port int    `log:"true"`
 }
 
 type ElasticSearchDestination struct {
-	ClusterID        string // Deprecated: new endpoints should be on premise only
-	DataNodes        []ElasticSearchHostPort
-	User             string
+	ClusterID        string                  `log:"true"` // Deprecated: new endpoints should be on premise only
+	DataNodes        []ElasticSearchHostPort `log:"true"`
+	User             string                  `log:"true"`
 	Password         model.SecretString
-	SSLEnabled       bool
+	SSLEnabled       bool `log:"true"`
 	TLSFile          string
-	SubNetworkID     string
-	SecurityGroupIDs []string
-	Cleanup          model.CleanupType
+	SubNetworkID     string            `log:"true"`
+	SecurityGroupIDs []string          `log:"true"`
+	Cleanup          model.CleanupType `log:"true"`
+	ConnectionID     string            `log:"true"`
 
-	SanitizeDocKeys bool
+	SanitizeDocKeys bool `log:"true"`
+	UserEnabledTls  *bool
 }
 
 var _ model.Destination = (*ElasticSearchDestination)(nil)
+
+func (d *ElasticSearchDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *ElasticSearchDestination) ToElasticSearchDestination() (*ElasticSearchDestination, ServerType) {
 	return d, ElasticSearch

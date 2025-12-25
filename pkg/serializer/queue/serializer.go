@@ -1,8 +1,8 @@
 package queue
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium/packer"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium/packer"
 )
 
 type SerializedMessage struct {

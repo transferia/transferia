@@ -4,16 +4,18 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
+	"strconv"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -25,9 +27,10 @@ type Client struct {
 	brokers   []string
 	mechanism sasl.Mechanism
 	tlsConfig *tls.Config
+	dial      func(ctx context.Context, network string, address string) (net.Conn, error)
 }
 
-func NewClient(brokers []string, mechanism sasl.Mechanism, tlsConfig *tls.Config) (*Client, error) {
+func NewClient(brokers []string, mechanism sasl.Mechanism, tlsConfig *tls.Config, dial func(ctx context.Context, network string, address string) (net.Conn, error)) (*Client, error) {
 	if len(brokers) == 0 {
 		return nil, abstract.NewFatalError(xerrors.New("expected at least one broker url"))
 	}
@@ -35,6 +38,7 @@ func NewClient(brokers []string, mechanism sasl.Mechanism, tlsConfig *tls.Config
 		brokers:   brokers,
 		mechanism: mechanism,
 		tlsConfig: tlsConfig,
+		dial:      dial,
 	}, nil
 }
 
@@ -51,10 +55,11 @@ func (c *Client) CreateBrokerConn() (*kafka.Conn, error) {
 		TLS:           c.tlsConfig,
 		SASLMechanism: c.mechanism,
 		Timeout:       requestTimeout,
+		DialFunc:      c.dial,
 	}
 	brokerConn, err := dialer.DialContext(ctx, "tcp", c.broker())
 	if err != nil {
-		return nil, coded.Errorf(providers.NetworkUnreachable, "unable to DialContext broker, err: %w", err)
+		return nil, coded.Errorf(codes.NetworkUnreachable, "unable to DialContext broker, err: %w", err)
 	}
 	return brokerConn, nil
 }
@@ -67,10 +72,11 @@ func (c *Client) CreateControllerConn() (*kafka.Conn, error) {
 		TLS:           c.tlsConfig,
 		SASLMechanism: c.mechanism,
 		Timeout:       requestTimeout,
+		DialFunc:      c.dial,
 	}
 	brokerConn, err := dialer.DialContext(ctx, "tcp", c.broker())
 	if err != nil {
-		return nil, coded.Errorf(providers.NetworkUnreachable, "unable to DialContext broker, err: %w", err)
+		return nil, coded.Errorf(codes.NetworkUnreachable, "unable to DialContext broker, err: %w", err)
 	}
 	defer brokerConn.Close()
 
@@ -81,7 +87,7 @@ func (c *Client) CreateControllerConn() (*kafka.Conn, error) {
 
 	controllerConn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", controller.Host, controller.Port))
 	if err != nil {
-		return nil, coded.Errorf(providers.NetworkUnreachable, "unable to DialContext controller, err: %w", err)
+		return nil, coded.Errorf(codes.NetworkUnreachable, "unable to DialContext controller, err: %w", err)
 	}
 
 	return controllerConn, nil
@@ -99,7 +105,7 @@ func (c *Client) ListTopics() ([]string, error) {
 		return nil, xerrors.Errorf("unable to list topics: %w", err)
 	}
 
-	return set.New(slices.Map(partitions, func(t kafka.Partition) string {
+	return set.New(yslices.Map(partitions, func(t kafka.Partition) string {
 		return t.Topic
 	})...).Slice(), nil
 }
@@ -150,11 +156,71 @@ func (c *Client) CreateTopicIfNotExist(
 		NumPartitions:      -1,
 		ReplicationFactor:  -1,
 		ReplicaAssignments: nil,
-		ConfigEntries: slices.Map(entries, func(t [2]string) kafka.ConfigEntry {
+		ConfigEntries: yslices.Map(entries, func(t [2]string) kafka.ConfigEntry {
 			return kafka.ConfigEntry{
 				ConfigName:  t[0],
 				ConfigValue: t[1],
 			}
 		}),
 	})
+}
+
+func (c *Client) AlterConfigs(topicName, k, v string) error {
+	currClient := &kafka.Client{
+		Addr: kafka.TCP(c.broker()),
+		Transport: &kafka.Transport{
+			TLS:  c.tlsConfig,
+			SASL: c.mechanism,
+		},
+		Timeout: requestTimeout,
+	}
+	_, err := currClient.AlterConfigs(context.Background(), &kafka.AlterConfigsRequest{
+		Resources: []kafka.AlterConfigRequestResource{{
+			ResourceType: kafka.ResourceTypeTopic,
+			ResourceName: topicName,
+			Configs: []kafka.AlterConfigRequestConfig{{
+				Name:  k,
+				Value: v,
+			}},
+		}},
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Client) DescribeConfigs(topicName, k string) (int64, error) {
+	currClient := &kafka.Client{
+		Addr: kafka.TCP(c.broker()),
+		Transport: &kafka.Transport{
+			TLS:  c.tlsConfig,
+			SASL: c.mechanism,
+		},
+		Timeout: requestTimeout,
+	}
+	describeResp, err := currClient.DescribeConfigs(context.Background(), &kafka.DescribeConfigsRequest{
+		Resources: []kafka.DescribeConfigRequestResource{{
+			ResourceType: kafka.ResourceTypeTopic,
+			ResourceName: topicName,
+			ConfigNames: []string{
+				k,
+			},
+		}},
+	})
+	if err != nil {
+		return 0, xerrors.New("DescribeConfigs returned error, err: %w")
+	}
+	if len(describeResp.Resources) != 1 {
+		return 0, xerrors.New("describeResp contains 0 'Resources' entries")
+	}
+	if len(describeResp.Resources[0].ConfigEntries) != 1 {
+		return 0, xerrors.New("describeResp.Resources[0] contains 0 'ConfigEntries' entries")
+	}
+	maxMessageBytesStr := describeResp.Resources[0].ConfigEntries[0].ConfigValue
+	maxMessageBytes, err := strconv.Atoi(maxMessageBytesStr)
+	if err != nil {
+		return 0, xerrors.New("strconv.Atoi returned error, err: %w")
+	}
+	return int64(maxMessageBytes), nil
 }

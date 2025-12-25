@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/worker/tasks"
 )
 
 func Deactivate(t *testing.T, transfer *model.Transfer, worker *Worker, onErrorCallback ...func(err error)) error {

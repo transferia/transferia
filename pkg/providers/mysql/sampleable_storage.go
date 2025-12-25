@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -32,7 +32,7 @@ func (s *Storage) LoadTopBottomSample(table abstract.TableDescription, pusher ab
 	}
 	defer cf()
 
-	schema, err := LoadSchema(tx, s.useFakePrimaryKey, true)
+	schema, err := LoadSchema(tx, s.useFakePrimaryKey, true, s.database)
 	if err != nil {
 		return xerrors.Errorf("unable to load schema: %w", err)
 	}
@@ -72,7 +72,7 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 	}
 	defer cf()
 
-	schema, err := LoadSchema(tx, s.useFakePrimaryKey, true)
+	schema, err := LoadSchema(tx, s.useFakePrimaryKey, true, s.database)
 	if err != nil {
 		return xerrors.Errorf("unable to load schema: %w", err)
 	}
@@ -97,7 +97,7 @@ func (s *Storage) LoadSampleBySet(table abstract.TableDescription, keySet []map[
 	}
 	defer cf()
 
-	fqtnToSchema, err := LoadSchema(tx, s.useFakePrimaryKey, true)
+	fqtnToSchema, err := LoadSchema(tx, s.useFakePrimaryKey, true, s.database)
 	if err != nil {
 		return xerrors.Errorf("unable to load schema: %w", err)
 	}

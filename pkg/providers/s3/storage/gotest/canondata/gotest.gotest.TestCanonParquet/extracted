@@ -141,11 +141,15 @@ file: yellow_taxi/yellow_tripdata_2022-07.parquet
     },
     "PartID": {
         "type": "string",
-        "value": "yellow_taxi/yellow_tripdata_2022-07.parquet"
+        "value": "e1f85b3bb4cdbe652ca716bced1ef6f8"
     },
     "Query": {
         "type": "string",
         "value": ""
+    },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
     },
     "Schema": {
         "type": "string",
@@ -567,11 +571,15 @@ file: yellow_taxi/yellow_tripdata_2022-12.parquet
     },
     "PartID": {
         "type": "string",
-        "value": "yellow_taxi/yellow_tripdata_2022-12.parquet"
+        "value": "c9ee800265f1a1a4875831c7e3fd26ed"
     },
     "Query": {
         "type": "string",
         "value": ""
+    },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
     },
     "Schema": {
         "type": "string",
@@ -993,11 +1001,15 @@ file: yellow_taxi/yellow_tripdata_2023-01.parquet
     },
     "PartID": {
         "type": "string",
-        "value": "yellow_taxi/yellow_tripdata_2023-01.parquet"
+        "value": "c346b0345d12272386fc35513a948270"
     },
     "Query": {
         "type": "string",
         "value": ""
+    },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
     },
     "Schema": {
         "type": "string",
@@ -1419,11 +1431,15 @@ file: yellow_taxi/yellow_tripdata_2023-02.parquet
     },
     "PartID": {
         "type": "string",
-        "value": "yellow_taxi/yellow_tripdata_2023-02.parquet"
+        "value": "a22733668133cbbe0fe048298e5491dc"
     },
     "Query": {
         "type": "string",
         "value": ""
+    },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
     },
     "Schema": {
         "type": "string",

@@ -3,12 +3,12 @@ package postgres
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // Sniffer you may replace Fetch with Sniffer to get raw data.
@@ -18,7 +18,7 @@ func (f *ChangeItemsFetcher) Sniffer() (items []abstract.ChangeItem, err error) 
 	st.Template = f.template
 	st.ParseSchema = f.parseSchema
 	st.Data = append(st.Data, f.rows.RawValues())
-	st.Fields = slices.Map(f.rows.FieldDescriptions(), func(fd pgproto3.FieldDescription) FieldDescription {
+	st.Fields = yslices.Map(f.rows.FieldDescriptions(), func(fd pgproto3.FieldDescription) FieldDescription {
 		return FieldDescription{
 			Name:                 string(fd.Name),
 			TableOID:             fd.TableOID,
@@ -58,7 +58,7 @@ type stubRows struct {
 }
 
 func (s *stubRows) init() {
-	s.pgFields = slices.Map(s.Fields, func(fd FieldDescription) pgproto3.FieldDescription {
+	s.pgFields = yslices.Map(s.Fields, func(fd FieldDescription) pgproto3.FieldDescription {
 		return pgproto3.FieldDescription{
 			Name:                 []byte(fd.Name),
 			TableOID:             fd.TableOID,

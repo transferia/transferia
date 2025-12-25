@@ -4,7 +4,7 @@ import (
 	_ "embed"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers"
 )
 
 var (

@@ -2,21 +2,36 @@ package tasks
 
 import (
 	"context"
-	"encoding/json"
 	"sort"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/providers/postgres"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+func CheckAddTablesSupported(transfer model.Transfer) error {
+	if !isAllowedSourceType(transfer.Src) {
+		return errors.CategorizedErrorf(categories.Source, "Add tables method is obsolete and supported only for pg sources")
+	}
+
+	if transfer.IsTransitional() && transfer.AsyncOperations {
+		return xerrors.New("Add tables method is obsolete and supported only for non-transitional transfers")
+	}
+
+	return nil
+}
+
 func AddTables(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task model.TransferOperation, tables []string, registry metrics.Registry) error {
+	if err := CheckAddTablesSupported(transfer); err != nil {
+		return xerrors.Errorf("Unable to add tables: %v", err)
+	}
+
 	if transfer.IsTransitional() {
 		err := TransitionalAddTables(ctx, cp, transfer, task, tables, registry)
 		if err != nil {
@@ -26,10 +41,6 @@ func AddTables(ctx context.Context, cp coordinator.Coordinator, transfer model.T
 	}
 	if err := StopJob(cp, transfer); err != nil {
 		return xerrors.Errorf("stop job: %w", err)
-	}
-
-	if !isAllowedSourceType(transfer.Src) {
-		return errors.CategorizedErrorf(categories.Source, "Add tables method is obsolete and supported only for pg sources")
 	}
 
 	if err := verifyCanAddTables(transfer.Src, tables, &transfer); err != nil {
@@ -142,14 +153,4 @@ func setSourceTables(source model.Source, tableSet map[string]bool) {
 	case *postgres.PgSource:
 		src.DBTables = result
 	}
-}
-
-func prepareSourceParamsToStore(source model.Source) string {
-	var params string
-	switch src := source.(type) {
-	case *postgres.PgSource:
-		j, _ := json.Marshal(src)
-		params = string(j)
-	}
-	return params
 }

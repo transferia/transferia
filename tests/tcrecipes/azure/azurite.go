@@ -3,6 +3,7 @@ package azure
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
@@ -45,7 +46,7 @@ func (c *AzuriteContainer) ServiceURL(ctx context.Context, srv Service) (string,
 		return "", err
 	}
 
-	return fmt.Sprintf("http://%s:%d", hostname, mappedPort.Int()), nil
+	return fmt.Sprintf("http://%s", net.JoinHostPort(hostname, mappedPort.Port())), nil
 }
 
 func (c *AzuriteContainer) MustServiceURL(ctx context.Context, srv Service) string {

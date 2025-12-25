@@ -1,7 +1,7 @@
 package oneof
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 

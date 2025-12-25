@@ -1,6 +1,6 @@
 package nop
 
-import "github.com/doublecloud/transfer/library/go/core/metrics"
+import "github.com/transferia/transferia/library/go/core/metrics"
 
 var _ metrics.Gauge = (*Gauge)(nil)
 

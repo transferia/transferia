@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9000:9000"   # Native TCP interface
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_PASSWORD: "ch_password"
+
+  transfer:
+    build: ../.. # build main transfer docker CLI
+    privileged: true
+    command:
+      - activate
+      - --transfer
+      - /usr/local/bin/transfer.yaml
+      - --log-level
+      - info
+    depends_on:
+      - clickhouse
+    volumes:
+      - ./transfer.yaml:/usr/local/bin/transfer.yaml
+    environment:
+      MY_TOKEN: $MY_TOKEN

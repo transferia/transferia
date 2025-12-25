@@ -5,10 +5,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -85,7 +85,7 @@ func (s *Storage) TableSizeInBytes(table abstract.TableID) (uint64, error) {
 	result, ok := decodedR["size"]
 	if !ok {
 		err := xerrors.Errorf("failed to calculate table size for table %v at obtaining result: 'size' is missing in result: %v", table.Name, decodedR)
-		logger.Log.Warnf(err.Error())
+		logger.Log.Warn(err.Error())
 		return 0, err
 	}
 

@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type RowsMetric struct {
@@ -58,14 +58,17 @@ func (*RowsMetric) isMetric() {}
 func (rm *RowsMetric) Reset() *RowsMetricState {
 	rm.statsMu.Lock()
 	prevIntervalFinishTS := time.Now()
+	if rm.startTS.After(prevIntervalFinishTS) {
+		// this happened once in TM-9233 due to some time anomaly
+		prevIntervalFinishTS = rm.startTS
+	}
 	prevState := &RowsMetricState{
 		serializationSchemas: rm.serializationSchemas,
-
-		rawSizes:    rm.rawSizes,
-		parsedSizes: rm.parsedSizes,
-		startTS:     rm.startTS,
-		finishTS:    prevIntervalFinishTS,
-		runtimeType: rm.runtimeType,
+		rawSizes:             rm.rawSizes,
+		parsedSizes:          rm.parsedSizes,
+		startTS:              rm.startTS,
+		finishTS:             prevIntervalFinishTS,
+		runtimeType:          rm.runtimeType,
 	}
 	rm.rawSizes = EmptyStats()
 	rm.parsedSizes = EmptyStats()

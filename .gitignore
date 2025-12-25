@@ -6,3 +6,6 @@ report
 **/ya.make
 **/*.secret.yaml
 .idea
+docs-html
+_docs-lint
+trcli

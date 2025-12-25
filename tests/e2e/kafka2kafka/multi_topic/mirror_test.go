@@ -4,22 +4,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	kafkasink "github.com/doublecloud/transfer/pkg/providers/kafka"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	kafkasink "github.com/transferia/transferia/pkg/providers/kafka"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 func TestReplication(t *testing.T) {
 	src, err := kafkasink.SourceRecipe()
 	require.NoError(t, err)
-	src.IsHomo = true
 
 	dst, err := kafkasink.DestinationRecipe()
 	require.NoError(t, err)
@@ -35,11 +36,10 @@ func TestReplication(t *testing.T) {
 	// prepare additional transfer: from dst to mock
 
 	result := make([]abstract.ChangeItem, 0)
-	mockSink := &helpers.MockSink{
-		PushCallback: func(in []abstract.ChangeItem) {
-			result = append(result, in...)
-		},
-	}
+	mockSink := mocksink.NewMockSink(func(in []abstract.ChangeItem) error {
+		result = append(result, in...)
+		return nil
+	})
 	mockTarget := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return mockSink },
 		Cleanup:       model.DisabledCleanup,
@@ -48,7 +48,6 @@ func TestReplication(t *testing.T) {
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{"topic1", "topic2"},
-		IsHomo:      true,
 	}, &mockTarget, abstract.TransferTypeIncrementOnly)
 
 	localAdditionalWorker := local.NewLocalWorker(coordinator.NewFakeClient(), additionalTransfer, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
@@ -56,6 +55,7 @@ func TestReplication(t *testing.T) {
 	defer localAdditionalWorker.Stop()
 
 	//-----------------------------------------------------------------------------------------------------------------
+
 	st := time.Now()
 	for time.Since(st) < time.Minute {
 		if len(result) < 2 {
@@ -66,9 +66,12 @@ func TestReplication(t *testing.T) {
 	}
 	readedData := map[string]map[string]string{}
 	for _, ci := range result {
+		kk, _ := changeitem.GetSequenceKey(&ci)
+		vv, _ := changeitem.GetRawMessageData(ci)
+
 		readedData[ci.TableID().String()] = map[string]string{
-			"key":  string(kafkasink.GetKafkaRawMessageKey(&ci)),
-			"data": string(kafkasink.GetKafkaRawMessageData(&ci)),
+			"key":  string(kk),
+			"data": string(vv),
 		}
 	}
 	require.Len(t, result, 2)
@@ -88,7 +91,7 @@ func pushData(t *testing.T, src kafkasink.KafkaSource, srcTopic string, dst kafk
 		logger.Log,
 	)
 	require.NoError(t, err)
-	err = srcSink.Push([]abstract.ChangeItem{kafkasink.MakeKafkaRawMessage(srcTopic, time.Time{}, srcTopic, 0, 0, k, v)})
+	err = srcSink.Push([]abstract.ChangeItem{abstract.MakeRawMessage(k, srcTopic, time.Time{}, srcTopic, 0, 0, v)})
 	require.NoError(t, err)
 	require.NoError(t, srcSink.Close())
 }

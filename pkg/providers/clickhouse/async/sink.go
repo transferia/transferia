@@ -1,21 +1,19 @@
 package async
 
 import (
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/core/xerrors/multierr"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/dao"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/db"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/parts"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/errors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	sharding "github.com/doublecloud/transfer/pkg/providers/clickhouse/sharding"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/topology"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/dao"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/parts"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	sharding "github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -36,7 +34,7 @@ var sinkClosedErr = xerrors.New("sink is closed")
 func (s *sink) Close() error {
 	var errs error
 	for partID, part := range s.parts {
-		logger.Log.Debugf("Sink: closing part %s", partID.PartID)
+		s.lgr.Debugf("Sink: closing part %s", partID.PartID)
 		if err := part.Close(); err != nil {
 			errs = multierr.Append(errs, xerrors.Errorf("error closing part %s: %w", partID.PartID, err))
 		}
@@ -45,7 +43,7 @@ func (s *sink) Close() error {
 	if err := s.middleware.Close(); err != nil {
 		errs = multierr.Append(errs, xerrors.Errorf("error closing middleware pipeline: %w", err))
 	}
-	logger.Log.Debug("Sink: closing clusterClient")
+	s.lgr.Debug("Sink: closing clusterClient")
 	if err := s.cl.Close(); err != nil {
 		errs = multierr.Append(errs, xerrors.Errorf("error closing CH cluster client: %w", err))
 	}
@@ -252,10 +250,9 @@ func NewSink(
 	transfer *dp_model.Transfer, dst *model.ChDestination, lgr log.Logger, mtrcs metrics.Registry, mw abstract.Middleware,
 ) (abstract.AsyncSink, error) {
 	lgr.Infof("Using async clickhouse sink with parts")
-	params := dst.ToSinkParams(transfer)
-	err := conn.ResolveShards(params, transfer)
+	params, err := dst.ToSinkParams(transfer)
 	if err != nil {
-		return nil, xerrors.Errorf("error resolving shards: %w", err)
+		return nil, xerrors.Errorf("failed to resolve sink params: %w", err)
 	}
 	topology, err := topology.ResolveTopology(params, lgr)
 	if err != nil {

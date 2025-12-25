@@ -1,27 +1,11 @@
 package lfstaging
 
 import (
-	"strconv"
-	"strings"
 	"time"
 
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/xerrors"
 )
-
-func getTableTimestamp(node ytNode) (int64, error) {
-	parts := strings.Split(node.Name, "-")
-	if len(parts) != 2 {
-		return 0, xerrors.Errorf("Invalid node name '%v'", node.Name)
-	}
-
-	ts, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		return 0, xerrors.Errorf("Cannot convert value '%v' to integer: %w", parts[0], err)
-	} else {
-		return ts, nil
-	}
-}
 
 func closeGaps(
 	tx yt.Tx,

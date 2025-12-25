@@ -2,25 +2,26 @@ package provider
 
 import (
 	"context"
+	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	yt2 "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/dataobjects"
-	"github.com/doublecloud/transfer/pkg/providers/yt/provider/schema"
-	"github.com/doublecloud/transfer/pkg/providers/yt/tablemeta"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/gofrs/uuid"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/dataobjects"
+	"github.com/transferia/transferia/pkg/providers/yt/provider/schema"
+	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
 type source struct {
-	cfg     *yt2.YtSource
+	cfg     yt2.YtSourceModel
 	yt      yt.Client
 	tx      yt.Tx
 	txID    yt.TxID
@@ -32,10 +33,12 @@ type source struct {
 // To verify providers contract implementation
 var (
 	_ base.SnapshotProvider = (*source)(nil)
+
+	mainTxTimeout = yson.Duration(10 * time.Minute)
 )
 
-func NewSource(logger log.Logger, registry metrics.Registry, cfg *yt2.YtSource) (*source, error) {
-	ytc, err := ytclient.FromConnParams(cfg.ConnParams(), logger)
+func NewSource(logger log.Logger, registry metrics.Registry, cfg yt2.YtSourceModel) (*source, error) {
+	ytc, err := ytclient.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create yt client: %w", err)
 	}
@@ -63,7 +66,7 @@ func (s *source) Close() error {
 }
 
 func (s *source) BeginSnapshot() error {
-	tx, err := s.yt.BeginTx(context.Background(), nil)
+	tx, err := s.yt.BeginTx(context.Background(), &yt.StartTxOptions{Timeout: &mainTxTimeout})
 	if err != nil {
 		return xerrors.Errorf("error starting snapshot TX: %w", err)
 	}
@@ -85,7 +88,7 @@ func (s *source) TableSchema(part base.DataObjectPart) (*abstract.TableSchema, e
 	if !ok {
 		return nil, xerrors.Errorf("part %T is not yt dataobject part: %s", part, part.FullName())
 	}
-	yttable, err := schema.Load(context.Background(), s.yt, s.tx.ID(), p.NodeID(), p.Name())
+	yttable, err := schema.Load(context.Background(), s.yt, s.tx.ID(), p.NodeID(), p.Name(), p.Columns())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load yt schema: %w", err)
 	}
@@ -122,7 +125,7 @@ func (s *source) TablePartToDataObjectPart(tableDescription *abstract.TableDescr
 	if err != nil {
 		return nil, xerrors.Errorf("Can't parse part key: %w", err)
 	}
-	return dataobjects.NewPart(key.Table, key.NodeID, key.Range(), s.txID), nil
+	return dataobjects.NewPart(key.Table, key.NodeID, key.Range(), s.txID, key.Columns), nil
 }
 
 func (s *source) ShardingContext() ([]byte, error) {

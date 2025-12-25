@@ -7,14 +7,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem/strictify"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -71,6 +74,13 @@ func (s *mongoSource) Run(sink abstract.AsyncSink) error {
 	var err error
 	s.client, err = Connect(s.ctx, s.config.ConnectionOptions(s.config.RootCAFiles), s.logger)
 	if err != nil {
+		lower := strings.ToLower(err.Error())
+		switch {
+		case strings.Contains(lower, "no such host"):
+			return coded.Errorf(codes.MongoDNSResolutionFailed, "failed to connect to MongoDB: %w", err)
+		case strings.Contains(lower, "server selection error"), strings.Contains(lower, "server selection timeout"), strings.Contains(lower, "replicasetnoprimary"):
+			return coded.Errorf(codes.MongoServerSelectionFailed, "failed to connect to MongoDB: %w", err)
+		}
 		return xerrors.Errorf("failed to connect to MongoDB: %w", err)
 	}
 	defer func() {
@@ -206,8 +216,8 @@ func (s *mongoSource) watcherFallback(watcher ChangeStreamWatcher, pu Paralleliz
 	if isFatalMongoCode(reason) {
 		return nil, abstract.NewFatalError(reason)
 	}
-
-	if puDB, isPUDB := pu.(ParallelizationUnitDatabase); isPUDB && (strings.Contains(reason.Error(), "BSONObjectTooLarge") || strings.Contains(reason.Error(), "Tried to create string longer than 16MB")) {
+	puDB, isPUDB := pu.(ParallelizationUnitDatabase)
+	if isPUDB && util.ContainsAnySubstrings(reason.Error(), "BSONObjectTooLarge", "Size must be between 0 and 16793600", "Tried to create string longer than 16MB") {
 		// if it is BSON, we could implement fallback mechanics here
 		// TM-2234 -- decided it is not transparent to user, no real fallbacks will be performed
 		// report undesired fullCollectionName and fail with fatal error
@@ -218,7 +228,10 @@ func (s *mongoSource) watcherFallback(watcher ChangeStreamWatcher, pu Paralleliz
 		} else {
 			failingObjectName = fmt.Sprintf("%s, collection %q", puDB.String(), fullCollectionName.GetFullName())
 		}
-		return nil, abstract.NewFatalError(xerrors.Errorf("too large object detected in %s: %w", failingObjectName, reason))
+		if strings.Contains(reason.Error(), "Tried to create string longer than 16MB") {
+			return nil, abstract.NewFatalError(coded.Errorf(codes.MongoCollectionKeyTooLarge, "too large key detected in %s: %w", failingObjectName, reason))
+		}
+		return nil, abstract.NewFatalError(coded.Errorf(codes.MongoBSONObjectTooLarge, "too large object detected in %s: %w", failingObjectName, reason))
 	}
 
 	// default: no watcher and original error
@@ -381,21 +394,22 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 			return abstract.ChangeItem{}, xerrors.Errorf("cannot extract key for insert event: %w", err)
 		}
 		return abstract.ChangeItem{
-			ID:           0,
-			LSN:          uint64(chgEvent.ClusterTime.T),
-			CommitTime:   getClusterTimeInNanosec(chgEvent),
-			Counter:      int(chgEvent.ClusterTime.I),
-			Kind:         abstract.InsertKind,
-			Schema:       chgEvent.Namespace.Database,
-			Table:        chgEvent.Namespace.Collection,
-			PartID:       "",
-			ColumnNames:  DocumentSchema.ColumnsNames,
-			ColumnValues: []interface{}{key, val},
-			TableSchema:  DocumentSchema.Columns,
-			OldKeys:      *new(abstract.OldKeysType),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(rawEventSize),
+			ID:               0,
+			LSN:              uint64(chgEvent.ClusterTime.T),
+			CommitTime:       getClusterTimeInNanosec(chgEvent),
+			Counter:          int(chgEvent.ClusterTime.I),
+			Kind:             abstract.InsertKind,
+			Schema:           chgEvent.Namespace.Database,
+			Table:            chgEvent.Namespace.Collection,
+			PartID:           "",
+			ColumnNames:      DocumentSchema.ColumnsNames,
+			ColumnValues:     []interface{}{key, val},
+			TableSchema:      DocumentSchema.Columns,
+			OldKeys:          *new(abstract.OldKeysType),
+			Size:             abstract.RawEventSize(rawEventSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
 	case "delete":
 		key, err := s.extractKey(chgEvent.DocumentKey.ID)
@@ -419,9 +433,10 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 				KeyTypes:  nil,
 				KeyValues: []interface{}{key},
 			},
-			TxID:  "",
-			Query: "",
-			Size:  abstract.RawEventSize(rawEventSize),
+			Size:             abstract.RawEventSize(rawEventSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
 	case "update", "replace":
 		key, err := s.extractKey(chgEvent.DocumentKey.ID)
@@ -452,9 +467,10 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 					KeyTypes:  nil,
 					KeyValues: []interface{}{key},
 				},
-				TxID:  "",
-				Query: "",
-				Size:  abstract.RawEventSize(rawEventSize),
+				Size:             abstract.RawEventSize(rawEventSize),
+				TxID:             "",
+				Query:            "",
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			}, nil
 		}
 		item := DExt(chgEvent.FullDocument)
@@ -479,45 +495,48 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 				KeyTypes:  nil,
 				KeyValues: []interface{}{key},
 			},
-			TxID:  "",
-			Query: "",
-			Size:  abstract.RawEventSize(rawEventSize),
+			Size:             abstract.RawEventSize(rawEventSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
 	case "create":
 		return abstract.ChangeItem{
-			ID:           0,
-			LSN:          uint64(chgEvent.ClusterTime.T),
-			CommitTime:   getClusterTimeInNanosec(chgEvent),
-			Counter:      int(chgEvent.ClusterTime.I),
-			Kind:         abstract.MongoCreateKind,
-			Schema:       chgEvent.Namespace.Database,
-			Table:        chgEvent.Namespace.Collection,
-			PartID:       "",
-			ColumnNames:  nil,
-			ColumnValues: nil,
-			TableSchema:  DocumentSchema.Columns,
-			OldKeys:      *new(abstract.OldKeysType),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(rawEventSize),
+			ID:               0,
+			LSN:              uint64(chgEvent.ClusterTime.T),
+			CommitTime:       getClusterTimeInNanosec(chgEvent),
+			Counter:          int(chgEvent.ClusterTime.I),
+			Kind:             abstract.MongoCreateKind,
+			Schema:           chgEvent.Namespace.Database,
+			Table:            chgEvent.Namespace.Collection,
+			PartID:           "",
+			ColumnNames:      nil,
+			ColumnValues:     nil,
+			TableSchema:      DocumentSchema.Columns,
+			OldKeys:          *new(abstract.OldKeysType),
+			Size:             abstract.RawEventSize(rawEventSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
 	case "drop":
 		return abstract.ChangeItem{
-			ID:           0,
-			LSN:          uint64(chgEvent.ClusterTime.T),
-			CommitTime:   getClusterTimeInNanosec(chgEvent),
-			Counter:      int(chgEvent.ClusterTime.I),
-			Kind:         abstract.MongoDropKind,
-			Schema:       chgEvent.Namespace.Database,
-			Table:        chgEvent.Namespace.Collection,
-			PartID:       "",
-			ColumnNames:  nil,
-			ColumnValues: nil,
-			TableSchema:  DocumentSchema.Columns,
-			OldKeys:      *new(abstract.OldKeysType),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(rawEventSize),
+			ID:               0,
+			LSN:              uint64(chgEvent.ClusterTime.T),
+			CommitTime:       getClusterTimeInNanosec(chgEvent),
+			Counter:          int(chgEvent.ClusterTime.I),
+			Kind:             abstract.MongoDropKind,
+			Schema:           chgEvent.Namespace.Database,
+			Table:            chgEvent.Namespace.Collection,
+			PartID:           "",
+			ColumnNames:      nil,
+			ColumnValues:     nil,
+			TableSchema:      DocumentSchema.Columns,
+			OldKeys:          *new(abstract.OldKeysType),
+			Size:             abstract.RawEventSize(rawEventSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
 	case "rename":
 		return abstract.ChangeItem{
@@ -539,45 +558,48 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 				KeyTypes:  nil,
 				KeyValues: []interface{}{chgEvent.Namespace},
 			},
-			TxID:  "",
-			Query: "",
-			Size:  abstract.RawEventSize(rawEventSize),
+			Size:             abstract.RawEventSize(rawEventSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
 	case "dropDatabase":
 		return abstract.ChangeItem{
-			ID:           0,
-			LSN:          uint64(chgEvent.ClusterTime.T),
-			CommitTime:   getClusterTimeInNanosec(chgEvent),
-			Counter:      int(chgEvent.ClusterTime.I),
-			Kind:         abstract.MongoDropDatabaseKind,
-			Schema:       chgEvent.Namespace.Database,
-			Table:        chgEvent.Namespace.Collection,
-			PartID:       "",
-			ColumnNames:  nil,
-			ColumnValues: nil,
-			TableSchema:  DocumentSchema.Columns,
-			OldKeys:      *new(abstract.OldKeysType),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(rawEventSize),
+			ID:               0,
+			LSN:              uint64(chgEvent.ClusterTime.T),
+			CommitTime:       getClusterTimeInNanosec(chgEvent),
+			Counter:          int(chgEvent.ClusterTime.I),
+			Kind:             abstract.MongoDropDatabaseKind,
+			Schema:           chgEvent.Namespace.Database,
+			Table:            chgEvent.Namespace.Collection,
+			PartID:           "",
+			ColumnNames:      nil,
+			ColumnValues:     nil,
+			TableSchema:      DocumentSchema.Columns,
+			OldKeys:          *new(abstract.OldKeysType),
+			Size:             abstract.RawEventSize(rawEventSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
 	case "noop":
 		return abstract.ChangeItem{
-			ID:           0,
-			LSN:          uint64(chgEvent.ClusterTime.T),
-			CommitTime:   getClusterTimeInNanosec(chgEvent),
-			Counter:      int(chgEvent.ClusterTime.I),
-			Kind:         abstract.MongoNoop,
-			Schema:       "",
-			Table:        "",
-			PartID:       "",
-			ColumnNames:  nil,
-			ColumnValues: nil,
-			TableSchema:  DocumentSchema.Columns,
-			OldKeys:      *new(abstract.OldKeysType),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(rawEventSize),
+			ID:               0,
+			LSN:              uint64(chgEvent.ClusterTime.T),
+			CommitTime:       getClusterTimeInNanosec(chgEvent),
+			Counter:          int(chgEvent.ClusterTime.I),
+			Kind:             abstract.MongoNoop,
+			Schema:           "",
+			Table:            "",
+			PartID:           "",
+			ColumnNames:      nil,
+			ColumnValues:     nil,
+			TableSchema:      DocumentSchema.Columns,
+			OldKeys:          *new(abstract.OldKeysType),
+			Size:             abstract.RawEventSize(rawEventSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
 	default:
 		return abstract.ChangeItem{}, xerrors.New(fmt.Sprintf("unsupported operation type: %v", chgEvent.OperationType))

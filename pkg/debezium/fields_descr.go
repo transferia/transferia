@@ -3,14 +3,14 @@ package debezium
 import (
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/mysql"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/debezium/pg"
-	"github.com/doublecloud/transfer/pkg/debezium/ydb"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/mysql"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/debezium/pg"
+	"github.com/transferia/transferia/pkg/debezium/ydb"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 type fieldsDescr struct {
@@ -86,7 +86,7 @@ func (d *fieldsDescr) AddFieldDescr(colSchema abstract.ColSchema, snapshot bool,
 	if strings.HasSuffix(colSchema.OriginalType, "[]") {
 		elemDescr, err := getFieldDescr(pgcommon.BuildColSchemaArrayElement(colSchema), connectorParameters, true, snapshot)
 		if err != nil {
-			return xerrors.Errorf("unable to get field descr: %w", err)
+			return xerrors.Errorf("unable to get array element field descr: %w", err)
 		}
 		fieldDescr["items"] = elemDescr
 		fieldDescr["field"] = colSchema.ColumnName

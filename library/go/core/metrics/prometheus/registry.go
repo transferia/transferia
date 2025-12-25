@@ -3,13 +3,13 @@ package prometheus
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/metricsutil"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/registryutil"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/metricsutil"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 var _ metrics.Registry = (*Registry)(nil)

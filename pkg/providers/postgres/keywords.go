@@ -5,8 +5,8 @@ import (
 	_ "embed"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgx/v4"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 var (

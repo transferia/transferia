@@ -2,21 +2,21 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/testutil"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/testutil"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var (
@@ -168,7 +168,7 @@ INSERT INTO customers3 VALUES (
 
 func ReadTextFiles(paths []string, out []*string) error {
 	for index, path := range paths {
-		valArr, err := ioutil.ReadFile(yatest.SourcePath(path))
+		valArr, err := os.ReadFile(yatest.SourcePath(path))
 		if err != nil {
 			return xerrors.Errorf("unable to read file %s: %w", path, err)
 		}
@@ -284,7 +284,7 @@ func TestReplication(t *testing.T) {
 	//------------------------------------------------------------------------------
 	// start replication
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	target := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
@@ -293,7 +293,7 @@ func TestReplication(t *testing.T) {
 
 	mutex := sync.Mutex{}
 	var changeItems []abstract.ChangeItem
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		found := false
 		for _, el := range input {
 			if el.Table == "customers3" {
@@ -301,7 +301,7 @@ func TestReplication(t *testing.T) {
 			}
 		}
 		if !found {
-			return
+			return nil
 		}
 		//---
 		mutex.Lock()
@@ -313,6 +313,8 @@ func TestReplication(t *testing.T) {
 			}
 			changeItems = append(changeItems, el)
 		}
+
+		return nil
 	}
 
 	worker := helpers.Activate(t, transfer)

@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
 func TestSimpleTable(t *testing.T) {
@@ -40,6 +40,7 @@ func generateRawMessages(table string, part, from, to int) []abstract.ChangeItem
 	var res []abstract.ChangeItem
 	for i := from; i < to; i++ {
 		res = append(res, abstract.MakeRawMessage(
+			[]byte("stub"),
 			table,
 			ciTime,
 			"test-topic",

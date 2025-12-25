@@ -14,19 +14,19 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
 	"github.com/jackc/pgtype"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -225,7 +225,7 @@ func CompareChecksum(
 
 TBLS:
 	for _, srcTable := range tables {
-		if !compareSchema(srcTable, lDBSchema, rDBSchema, lgr, tableErrors, equalDataTypes) {
+		if !compareSchema(srcTable, lDBSchema, rDBSchema, tableErrors, equalDataTypes) {
 			continue
 		}
 		if !comparePrimaryKeys(srcTable, lPrimaryKeys, rPrimaryKeys, tableErrors) {
@@ -277,7 +277,7 @@ TBLS:
 				tableErrors.addError(srcTable.Fqtn(), genericError, fmt.Sprintf("unable to load top/bottom keyset from target DB: %v", rErr))
 				continue TBLS
 			}
-			matched = compareKeysets(lData, rData, srcTable, lgr, tableErrors, params.GetPriorityComparators())
+			matched = compareKeysets(lData, rData, srcTable, tableErrors, params.GetPriorityComparators())
 			if matched {
 				tableErrors.clearTableErrors(srcTable)
 				matchedTables = append(matchedTables, srcTable.Fqtn())
@@ -295,31 +295,31 @@ TBLS:
 		}
 
 		if !fullLoad {
-			left, keyRange, err := loadRandomKeyset(src, srcTable, lgr)
+			left, keyRange, err := loadRandomKeyset(src, srcTable)
 			if err != nil {
 				tableErrors.addError(srcTable.Fqtn(), genericError, fmt.Sprintf("unable to load random keyset from source DB: %v", err))
 				continue TBLS
 			}
-			right, err := loadExactKeyset(dst, srcTable, keyRange, lgr)
+			right, err := loadExactKeyset(dst, srcTable, keyRange)
 			if err != nil {
 				tableErrors.addError(srcTable.Fqtn(), genericError, fmt.Sprintf("unable to load exact keyset from target DB: %v", err))
 				continue TBLS
 			}
-			matched := compareKeysets(left, right, srcTable, lgr, tableErrors, params.GetPriorityComparators())
+			matched := compareKeysets(left, right, srcTable, tableErrors, params.GetPriorityComparators())
 			mismatchCount := 0
 			if !matched {
 				for _, key := range keyRange {
-					left, err = loadExactKeyset(src, srcTable, []map[string]interface{}{key}, lgr)
+					left, err = loadExactKeyset(src, srcTable, []map[string]interface{}{key})
 					if err != nil {
 						tableErrors.addError(srcTable.Fqtn(), genericError, fmt.Sprintf("unable to load exact keyset from source DB: %v", err))
 						continue TBLS
 					}
-					right, err = loadExactKeyset(dst, srcTable, keyRange, lgr)
+					right, err = loadExactKeyset(dst, srcTable, keyRange)
 					if err != nil {
 						tableErrors.addError(srcTable.Fqtn(), genericError, fmt.Sprintf("unable to load exact keyset from target DB: %v", err))
 						continue TBLS
 					}
-					matched = compareKeysets(left, right, srcTable, lgr, tableErrors, params.GetPriorityComparators())
+					matched = compareKeysets(left, right, srcTable, tableErrors, params.GetPriorityComparators())
 					if !matched {
 						mismatchCount++
 					}
@@ -449,7 +449,6 @@ func compareSchema(
 	table abstract.TableDescription,
 	lDBSchema abstract.DBSchema,
 	rDBSchema abstract.DBSchema,
-	lgr log.Logger,
 	tableErrors errorMap,
 	equalDataTypes func(lDataType, rDataType string) bool,
 ) bool {
@@ -769,7 +768,6 @@ func compareKeysets(
 	left map[string]abstract.ChangeItem,
 	right map[string]abstract.ChangeItem,
 	table abstract.TableDescription,
-	lgr log.Logger,
 	tableErrors errorMap,
 	priorityComparators []ChecksumComparator,
 ) bool {
@@ -879,7 +877,7 @@ func tryCompare(lVal interface{}, lSchema abstract.ColSchema, rVal interface{}, 
 		}
 	}
 
-	if comparable, equal := tryCompareNulls(lVal, lSchema, rVal, rSchema); comparable {
+	if comparable, equal := tryCompareNulls(lVal, rVal); comparable {
 		return equal, nil
 	}
 
@@ -972,7 +970,7 @@ func anyOfAmong(a string, b string, compareWith ...string) bool {
 	return false
 }
 
-func tryCompareNulls(lVal interface{}, lSchema abstract.ColSchema, rVal interface{}, rSchema abstract.ColSchema) (comparable bool, result bool) {
+func tryCompareNulls(lVal interface{}, rVal interface{}) (comparable bool, result bool) {
 	if lVal == nil && rVal == nil {
 		return true, true
 	}
@@ -1102,7 +1100,7 @@ func loadTopBottomKeyset(st abstract.SampleableStorage, table abstract.TableDesc
 	var err error
 	var keyset map[string]abstract.ChangeItem
 	if fullOption {
-		keyset, err = loadFull(st, table, lgr)
+		keyset, err = loadFull(st, table)
 		if err != nil {
 			return nil, xerrors.Errorf("Cannot load full keyset for table %s: %w", table.Fqtn(), err)
 		}
@@ -1115,7 +1113,7 @@ func loadTopBottomKeyset(st abstract.SampleableStorage, table abstract.TableDesc
 	return keyset, nil
 }
 
-func loadFull(st abstract.SampleableStorage, table abstract.TableDescription, lgr log.Logger) (map[string]abstract.ChangeItem, error) {
+func loadFull(st abstract.SampleableStorage, table abstract.TableDescription) (map[string]abstract.ChangeItem, error) {
 	result := map[string]abstract.ChangeItem{}
 	last := time.Now()
 	upCtx := util.ContextWithTimestamp(context.Background(), last)
@@ -1157,7 +1155,7 @@ func loadTopBottom(st abstract.SampleableStorage, table abstract.TableDescriptio
 	return result, nil
 }
 
-func loadRandomKeyset(st abstract.SampleableStorage, table abstract.TableDescription, lgr log.Logger) (map[string]abstract.ChangeItem, []map[string]interface{}, error) {
+func loadRandomKeyset(st abstract.SampleableStorage, table abstract.TableDescription) (map[string]abstract.ChangeItem, []map[string]interface{}, error) {
 	result := map[string]abstract.ChangeItem{}
 	var keySet []map[string]interface{}
 	err := st.LoadRandomSample(table, func(input []abstract.ChangeItem) error {
@@ -1180,7 +1178,7 @@ func loadRandomKeyset(st abstract.SampleableStorage, table abstract.TableDescrip
 	return result, keySet, nil
 }
 
-func loadExactKeyset(st abstract.SampleableStorage, table abstract.TableDescription, keySet []map[string]interface{}, lgr log.Logger) (map[string]abstract.ChangeItem, error) {
+func loadExactKeyset(st abstract.SampleableStorage, table abstract.TableDescription, keySet []map[string]interface{}) (map[string]abstract.ChangeItem, error) {
 	result := map[string]abstract.ChangeItem{}
 	if err := st.LoadSampleBySet(table, keySet, func(input []abstract.ChangeItem) error {
 		for _, row := range input {

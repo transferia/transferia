@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type arrUint8 []uint8

@@ -9,14 +9,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/xtls"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/xtls"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/credentials"
 	"github.com/ydb-platform/ydb-go-sdk/v3/scheme"
@@ -31,11 +34,12 @@ import (
 )
 
 type Storage struct {
-	config *YdbStorageParams
-	db     *ydb.Driver
+	config  *YdbStorageParams
+	db      *ydb.Driver
+	metrics *stats.SourceStats
 }
 
-func NewStorage(cfg *YdbStorageParams) (*Storage, error) {
+func NewStorage(cfg *YdbStorageParams, mtrcs metrics.Registry) (*Storage, error) {
 	var err error
 	var tlsConfig *tls.Config
 	if cfg.TLSEnabled {
@@ -69,8 +73,9 @@ func NewStorage(cfg *YdbStorageParams) (*Storage, error) {
 	}
 
 	return &Storage{
-		config: cfg,
-		db:     ydbDriver,
+		config:  cfg,
+		db:      ydbDriver,
+		metrics: stats.NewSourceStats(mtrcs),
 	}, nil
 }
 
@@ -129,12 +134,7 @@ func validateTableList(params *YdbStorageParams, paths []string) error {
 	return nil
 }
 
-func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstract.TableMap, error) {
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Minute*3)
-	defer cancel()
-
-	// collect tables entries
-
+func (s *Storage) listaAllTablesToTransfer(ctx context.Context) ([]string, error) {
 	allTables := []string{}
 	if len(s.config.Tables) == 0 {
 		result, err := s.traverse("/")
@@ -166,10 +166,24 @@ func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstr
 		}
 	}
 
-	allTables = slices.Map(allTables, func(from string) string {
+	allTables = yslices.Map(allTables, func(from string) string {
 		return strings.TrimLeft(from, "/")
 	})
-	err := validateTableList(s.config, allTables)
+	return allTables, nil
+}
+
+func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstract.TableMap, error) {
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Minute*3)
+	defer cancel()
+
+	// collect tables entries
+
+	allTables, err := s.listaAllTablesToTransfer(ctx)
+	if err != nil {
+		return nil, xerrors.Errorf("Failed to list tables that will be transfered: %w", err)
+	}
+
+	err = validateTableList(s.config, allTables)
 	if err != nil {
 		return nil, xerrors.Errorf("vaildation of TableList failed: %w", err)
 	}
@@ -202,17 +216,22 @@ func (s *Storage) TableSchema(ctx context.Context, tableID abstract.TableID) (*a
 func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescription, pusher abstract.Pusher) error {
 	st := util.GetTimestampFromContextOrNow(ctx)
 
-	tablePath := path.Join(s.config.Database, tableDescr.Schema, tableDescr.Name)
-	partID := tableDescr.PartID()
+	tablePath := s.makeTablePath(tableDescr.Schema, tableDescr.Name)
+	partID := tableDescr.GeneratePartID()
 
 	var res result.StreamResult
 	var schema *abstract.TableSchema
 
 	err := s.db.Table().Do(ctx, func(ctx context.Context, session table.Session) (err error) {
 		readTableOptions := []options.ReadTableOption{options.ReadOrdered()}
-		tableDescription, err := session.DescribeTable(ctx, tablePath)
+
+		tableDescription, err := session.DescribeTable(ctx, tablePath, options.WithShardKeyBounds())
 		if err != nil {
 			return xerrors.Errorf("unable to describe table: %w", err)
+		}
+		if s.config.IsSnapshotSharded {
+			keyRange := tableDescription.KeyRanges[tableDescr.Offset]
+			readTableOptions = append(readTableOptions, options.ReadKeyRange(keyRange))
 		}
 
 		tableColumns, err := filterYdbTableColumns(s.config.TableColumnsFilter, tableDescription)
@@ -256,10 +275,8 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 	for i, c := range schema.Columns() {
 		cols[i] = c.ColumnName
 	}
-	totalIdx := uint64(0)
-	wrapAroundIdx := uint64(0)
-	changes := make([]abstract.ChangeItem, 0)
 
+	batch := make([]abstract.ChangeItem, 0, batchMaxLen)
 	for res.NextResultSet(ctx) {
 		for res.NextRow() {
 			scannerValues := make([]scanner, len(schema.Columns()))
@@ -281,40 +298,41 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 				vals[i] = scannerValues[i].resultVal
 			}
 
-			changes = append(changes, abstract.ChangeItem{
-				CommitTime:   uint64(st.UnixNano()),
-				Kind:         abstract.InsertKind,
-				Table:        tableDescr.Name,
-				ColumnNames:  cols,
-				ColumnValues: vals,
-				TableSchema:  schema,
-				PartID:       partID,
-				ID:           0,
-				LSN:          0,
-				Counter:      0,
-				Schema:       "",
-				OldKeys:      abstract.EmptyOldKeys(),
-				TxID:         "",
-				Query:        "",
-				Size:         abstract.RawEventSize(util.DeepSizeof(vals)),
+			valuesSize := util.DeepSizeof(vals)
+			batch = append(batch, abstract.ChangeItem{
+				ID:               0,
+				LSN:              0,
+				CommitTime:       uint64(st.UnixNano()),
+				Counter:          0,
+				Kind:             abstract.InsertKind,
+				Schema:           "",
+				Table:            tableDescr.Name,
+				PartID:           partID,
+				ColumnNames:      cols,
+				ColumnValues:     vals,
+				TableSchema:      schema,
+				OldKeys:          abstract.EmptyOldKeys(),
+				Size:             abstract.RawEventSize(valuesSize),
+				TxID:             "",
+				Query:            "",
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			})
-			if wrapAroundIdx == 10000 {
-				if err := pusher(changes); err != nil {
+			s.metrics.ChangeItems.Inc()
+			s.metrics.Size.Add(int64(valuesSize))
+			if len(batch) >= batchMaxLen {
+				if err := pusher(batch); err != nil {
 					return xerrors.Errorf("unable to push: %w", err)
 				}
-				changes = make([]abstract.ChangeItem, 0)
-				wrapAroundIdx = 0
+				batch = make([]abstract.ChangeItem, 0, batchMaxLen)
 			}
-			totalIdx++
-			wrapAroundIdx++
 		}
 	}
 	if res.Err() != nil {
 		return xerrors.Errorf("stream read table error: %w", res.Err())
 	}
 
-	if wrapAroundIdx != 0 {
-		if err := pusher(changes); err != nil {
+	if len(batch) > 0 {
+		if err := pusher(batch); err != nil {
 			return xerrors.Errorf("unable to push: %w", err)
 		}
 	}
@@ -448,6 +466,8 @@ func (s *scanner) UnmarshalYDB(raw types.RawValue) error {
 			}
 		}
 		s.resultVal = unmarshalled
+	} else if s.originalType == "ydb:Uuid" {
+		s.resultVal = raw.UUIDTyped().String()
 	} else {
 		switch schema.Type(s.dataType) {
 		case schema.TypeDate:

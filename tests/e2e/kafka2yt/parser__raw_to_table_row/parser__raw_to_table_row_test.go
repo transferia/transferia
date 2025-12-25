@@ -10,20 +10,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/raw2table"
-	"github.com/doublecloud/transfer/pkg/providers/kafka"
-	ytStorage "github.com/doublecloud/transfer/pkg/providers/yt/storage"
-	replaceprimarykey "github.com/doublecloud/transfer/pkg/transformer/registry/replace_primary_key"
-	"github.com/doublecloud/transfer/tests/helpers"
-	confluentsrmock "github.com/doublecloud/transfer/tests/helpers/confluent_schema_registry_mock"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/registry/raw2table"
+	"github.com/transferia/transferia/pkg/providers/kafka"
+	ytStorage "github.com/transferia/transferia/pkg/providers/yt/storage"
+	replaceprimarykey "github.com/transferia/transferia/pkg/transformer/registry/replace_primary_key"
+	"github.com/transferia/transferia/tests/helpers"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
+	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 )
 
 var (
@@ -38,7 +38,6 @@ var (
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     nil,
-		IsHomo:           false,
 	}
 	target = yt_helpers.RecipeYtTarget("//home/confluent_sr/test/kafka2yt_e2e_replication")
 )
@@ -98,7 +97,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 			Auth:       currSource.Auth,
 			Topic:      currSource.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -114,7 +113,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 	require.NoError(t, err)
 	for _, message := range strings.Split(string(messages), "\n") {
 		err = srcSink.Push(
-			[]abstract.ChangeItem{kafka.MakeKafkaRawMessage(currSource.Topic, time.Time{}, currSource.Topic, 0, 0, []byte("_"), []byte(message))})
+			[]abstract.ChangeItem{abstract.MakeRawMessage([]byte("_"), currSource.Topic, time.Time{}, currSource.Topic, 0, 0, []byte(message))})
 		require.NoError(t, err)
 	}
 

@@ -10,12 +10,12 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/spf13/cast"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/xerrors"
 )
@@ -85,7 +85,7 @@ func (s *Sink) Push(items []abstract.ChangeItem) error {
 }
 
 func (s *Sink) mapChanges(table abstract.TableID, chunk []abstract.ChangeItem) []datadogV2.HTTPLogItem {
-	return slices.Map(chunk, func(t abstract.ChangeItem) datadogV2.HTTPLogItem {
+	return yslices.Map(chunk, func(t abstract.ChangeItem) datadogV2.HTTPLogItem {
 		tmap := t.AsMap()
 		messageBldr := new(strings.Builder)
 		_ = s.tmpl.Execute(messageBldr, tmap)

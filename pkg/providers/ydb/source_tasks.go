@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/castx"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/castx"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
@@ -52,7 +53,19 @@ func dropChangeFeedIfExistsOneTable(ctx context.Context, ydbClient *ydb.Driver, 
 }
 
 func createChangeFeedOneTable(ctx context.Context, ydbClient *ydb.Driver, tablePath, transferID string, cfg *YdbSource) error {
-	queryParams := fmt.Sprintf("FORMAT = 'JSON', MODE = '%s'", string(cfg.ChangeFeedMode))
+	autoPartitioningStr := ", TOPIC_AUTO_PARTITIONING = 'ENABLED'"
+	if err := createChangeFeedWithAutoPartitioning(ctx, ydbClient, autoPartitioningStr, tablePath, transferID, cfg); err == nil {
+		logger.Log.Infof("changefeed created with auto partitioning for table %s", tablePath)
+		return nil
+	} else {
+		logger.Log.Infof("unable to create changefeed with auto partitioning for table %s err: %s", tablePath, err.Error())
+	}
+	logger.Log.Infof("trying to create changefeed without auto partitioning for table %s", tablePath)
+	return createChangeFeedWithAutoPartitioning(ctx, ydbClient, "", tablePath, transferID, cfg)
+}
+
+func createChangeFeedWithAutoPartitioning(ctx context.Context, ydbClient *ydb.Driver, autoPartitioningStr string, tablePath, transferID string, cfg *YdbSource) error {
+	queryParams := fmt.Sprintf("FORMAT = 'JSON', MODE = '%s'%s", string(cfg.ChangeFeedMode), autoPartitioningStr)
 
 	if period := cfg.ChangeFeedRetentionPeriod; period != nil {
 		asIso, err := castx.DurationToIso8601(*period)

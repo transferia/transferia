@@ -5,15 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	cpclient "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/blank"
-	"github.com/doublecloud/transfer/pkg/providers/kafka/client"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/registry/blank"
+	"github.com/transferia/transferia/pkg/providers/kafka/client"
 )
 
 func TestTopicResolver(t *testing.T) {
@@ -24,7 +24,7 @@ func TestTopicResolver(t *testing.T) {
 	require.NoError(t, err)
 	kafkaSource.ParserConfig = parserConfigMap
 
-	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil)
+	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, kafkaClient.CreateTopicIfNotExist(logger.Log, "topic1", nil))
 	loadData(t, kafkaSource, "topic1")

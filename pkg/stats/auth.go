@@ -3,7 +3,7 @@ package stats
 import (
 	"fmt"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics"
 )
 
 type AuthStats struct {

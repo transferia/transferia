@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func fileCacheFromItems(items []abstract.ChangeItem) *FileCache {
@@ -21,6 +21,7 @@ func createItemsRange(from, to uint64) []abstract.ChangeItem { // items are appr
 	items := make([]abstract.ChangeItem, 0)
 	for i := from; i <= to; i++ {
 		item := abstract.MakeRawMessage(
+			[]byte("stub"),
 			"table",
 			time.Time{},
 			"test-topic",

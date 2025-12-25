@@ -2,33 +2,33 @@ package clickhouse
 
 import (
 	"context"
-	"encoding/gob"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/data"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers"
-	ch_async_sink "github.com/doublecloud/transfer/pkg/providers/clickhouse/async"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/httpclient"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	sink_registry "github.com/doublecloud/transfer/pkg/sink"
-	"github.com/doublecloud/transfer/pkg/targets"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/data"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
+	ch_async_sink "github.com/transferia/transferia/pkg/providers/clickhouse/async"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	sink_registry "github.com/transferia/transferia/pkg/sink"
+	"github.com/transferia/transferia/pkg/targets"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.ChSource", new(model.ChSource))
-	gob.RegisterName("*server.ChDestination", new(model.ChDestination))
-	dp_model.RegisterDestination(ProviderType, func() dp_model.Destination {
+	gobwrapper.RegisterName("*server.ChSource", new(model.ChSource))
+	gobwrapper.RegisterName("*server.ChDestination", new(model.ChDestination))
+	dp_model.RegisterDestination(ProviderType, func() dp_model.LoggableDestination {
 		return new(model.ChDestination)
 	})
-	dp_model.RegisterSource(ProviderType, func() dp_model.Source {
+	dp_model.RegisterSource(ProviderType, func() dp_model.LoggableSource {
 		return new(model.ChSource)
 	})
 
@@ -64,7 +64,7 @@ func (p *Provider) Target(options ...abstract.SinkOption) (base.EventTarget, err
 }
 
 func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
-	s, err := NewSink(p.transfer, p.logger, p.registry, p.transfer.Runtime, config)
+	s, err := NewSink(p.transfer, p.logger, p.registry, config)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create ClickHouse sinker: %w", err)
 	}
@@ -92,7 +92,12 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	if _, ok := p.transfer.Dst.(*model.ChDestination); ok {
 		chOpts = append(chOpts, WithHomo())
 	}
-	storage, err := NewStorage(src.ToStorageParams(), p.transfer, chOpts...)
+	storageParams, err := src.ToStorageParams()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resole storage params: %w", err)
+	}
+
+	storage, err := NewStorage(storageParams, p.transfer, chOpts...)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create a ClickHouse storage: %w", err)
 	}
@@ -151,7 +156,11 @@ func (p *Provider) Test(ctx context.Context) *abstract.TestResult {
 
 	tr := abstract.NewTestResult(p.TestChecks()...)
 	// Native connect
-	db, err := MakeConnection(src.ToStorageParams())
+	storageParams, err := src.ToStorageParams()
+	if err != nil {
+		return tr.NotOk(ConnectivityNative, xerrors.Errorf("unable to resolve storage params: %w", err))
+	}
+	db, err := MakeConnection(storageParams)
 	if err != nil {
 		return tr.NotOk(ConnectivityNative, xerrors.Errorf("unable to init a CH storage: %w", err))
 	}
@@ -191,20 +200,24 @@ func (p *Provider) Test(ctx context.Context) *abstract.TestResult {
 	tr.Ok(ConnectivityNative)
 
 	// HTTP connect
-	cl, err := httpclient.NewHTTPClientImpl(src.ToStorageParams().ToConnParams())
+	storageParams, err = src.ToStorageParams()
+	if err != nil {
+		return tr.NotOk(ConnectivityNative, xerrors.Errorf("unable to resolve storage params: %w", err))
+	}
+	cl, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	if err != nil {
 		return tr.NotOk(ConnectivityHTTP, xerrors.Errorf("unable to create ClickHouse client: %w", err))
 	}
 	var res uint64
-	shards := src.ToSinkParams().Shards()
+	shards := storageParams.ConnectionParams.Shards
 
 	for _, shardHosts := range shards {
 		for _, host := range shardHosts {
 			err = cl.Query(context.Background(), p.logger, host, "SELECT 1;", &res)
 			if err != nil {
-				return tr.NotOk(ConnectivityHTTP, xerrors.Errorf("unable to query ClickHouse host: %s err: %w", host, err))
+				return tr.NotOk(ConnectivityHTTP, xerrors.Errorf("unable to query ClickHouse host: %s err: %w", host.Name, err))
 			}
-			p.logger.Infof("host is reachable! host: %s", host)
+			p.logger.Infof("host is reachable! host: %s", host.Name)
 		}
 	}
 

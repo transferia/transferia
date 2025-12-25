@@ -1,10 +1,10 @@
 package middlewares
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/metering"
-	"github.com/doublecloud/transfer/pkg/providers/middlewares"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/metering"
+	"github.com/transferia/transferia/pkg/providers/middlewares"
 )
 
 func InputDataMetering() func(abstract.Sinker) abstract.Sinker {

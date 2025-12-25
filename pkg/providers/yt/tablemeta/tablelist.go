@@ -3,8 +3,8 @@ package tablemeta
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -37,7 +37,7 @@ func ListTables(ctx context.Context, y yt.CypressClient, cluster string, paths [
 			switch node.Type {
 			case "table":
 				logger.Infof("Found table %s from %s, %d rows weighting %s", nodeRelPath, prefix, node.RowCount, humanize.Bytes(uint64(node.DataWeight)))
-				result = append(result, NewYtTableMeta(cluster, prefix, nodeRelPath, node.RowCount, node.DataWeight))
+				result = append(result, NewYtTableMeta(cluster, prefix, nodeRelPath, node.RowCount, node.DataWeight, []string{}))
 			case "map_node":
 				logger.Debugf("Traversing node %s from %s", nodeRelPath, prefix)
 				if err := traverse(prefix, nodeRelPath); err != nil {
@@ -72,10 +72,10 @@ func ListTables(ctx context.Context, y yt.CypressClient, cluster string, paths [
 				return nil, xerrors.Errorf("error splitting path %s: %w", p, err)
 			}
 			logger.Infof("Adding table %s from %s", name, pref.String())
-			result = append(result, NewYtTableMeta(cluster, pref.String(), name, attrs.RowCount, attrs.DataWeight))
+			result = append(result, NewYtTableMeta(cluster, pref.String(), name, attrs.RowCount, attrs.DataWeight, yp.Columns))
 		case "map_node":
 			logger.Debugf("Traversing %s", p)
-			if err := traverse(p, ""); err != nil {
+			if err := traverse(attrs.Path, ""); err != nil {
 				return nil, xerrors.Errorf("unable to traverse path %s: %w", p, err)
 			}
 		default:

@@ -5,9 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/tests/tcrecipes/kafka"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	kafkaConn "github.com/transferia/transferia/pkg/connection/kafka"
+	"github.com/transferia/transferia/tests/tcrecipes/kafka"
 )
 
 func ContainerNeeded() bool {
@@ -23,15 +24,17 @@ func SourceRecipe() (*KafkaSource, error) {
 	brokers := os.Getenv("KAFKA_RECIPE_BROKER_LIST")
 	src := new(KafkaSource)
 	src.Connection = &KafkaConnectionOptions{
-		ClusterID:    "",
-		TLS:          model.DisabledTLS,
-		TLSFile:      "",
-		Brokers:      []string{brokers},
-		SubNetworkID: "",
+		ClusterID:      "",
+		TLS:            model.DisabledTLS,
+		TLSFile:        "",
+		UserEnabledTls: nil,
+		Brokers:        []string{brokers},
+		SubNetworkID:   "",
+		ConnectionID:   "",
 	}
 	src.Auth = &KafkaAuth{
 		Enabled:   false,
-		Mechanism: "",
+		Mechanism: kafkaConn.KafkaSaslSecurityMechanism_UNSPECIFIED,
 		User:      "",
 		Password:  "",
 	}
@@ -72,15 +75,17 @@ func DestinationRecipe() (*KafkaDestination, error) {
 
 	dst := new(KafkaDestination)
 	dst.Connection = &KafkaConnectionOptions{
-		ClusterID:    "",
-		TLS:          model.DisabledTLS,
-		TLSFile:      "",
-		Brokers:      []string{brokers},
-		SubNetworkID: "",
+		ClusterID:      "",
+		TLS:            model.DisabledTLS,
+		TLSFile:        "",
+		UserEnabledTls: nil,
+		Brokers:        []string{brokers},
+		SubNetworkID:   "",
+		ConnectionID:   "",
 	}
 	dst.Auth = &KafkaAuth{
 		Enabled:   false,
-		Mechanism: "",
+		Mechanism: kafkaConn.KafkaSaslSecurityMechanism_UNSPECIFIED,
 		User:      "",
 		Password:  "",
 	}

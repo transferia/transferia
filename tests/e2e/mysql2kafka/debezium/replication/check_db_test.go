@@ -7,15 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	kafka_provider "github.com/doublecloud/transfer/pkg/providers/kafka"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	kafka_provider "github.com/transferia/transferia/pkg/providers/kafka"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var (
@@ -61,16 +63,15 @@ func TestReplication(t *testing.T) {
 	// prepare additional transfer: from dst to mock
 
 	result := make([]abstract.ChangeItem, 0)
-	mockSink := &helpers.MockSink{
-		PushCallback: func(in []abstract.ChangeItem) {
-			abstract.Dump(in)
-			for _, el := range in {
-				if len(el.ColumnValues) > 0 {
-					result = append(result, el)
-				}
+	mockSink := mocksink.NewMockSink(func(in []abstract.ChangeItem) error {
+		abstract.Dump(in)
+		for _, el := range in {
+			if len(el.ColumnValues) > 0 {
+				result = append(result, el)
 			}
-		},
-	}
+		}
+		return nil
+	})
 	mockTarget := dp_model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return mockSink },
 		Cleanup:       dp_model.DisabledCleanup,
@@ -79,7 +80,6 @@ func TestReplication(t *testing.T) {
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{dst.Topic},
-		IsHomo:      true,
 	}, &mockTarget, abstract.TransferTypeIncrementOnly)
 
 	// activate main transfer
@@ -133,7 +133,8 @@ func TestReplication(t *testing.T) {
 		if len(result) == 6 {
 			canonData := make([]string, 6)
 			for i := 0; i < len(result); i += 1 {
-				canonVal := eraseMeta(string(kafka_provider.GetKafkaRawMessageData(&result[0])))
+				vv, _ := changeitem.GetRawMessageData(result[0])
+				canonVal := eraseMeta(string(vv))
 				canonData = append(canonData, canonVal)
 			}
 			canon.SaveJSON(t, canonData)

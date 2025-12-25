@@ -2,21 +2,22 @@ package local
 
 import (
 	"context"
+	"encoding/json"
 	"runtime/debug"
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/dataplane/provideradapter"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/metering"
-	"github.com/doublecloud/transfer/pkg/runtime/shared"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/dataplane/provideradapter"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/metering"
+	"github.com/transferia/transferia/pkg/runtime/shared"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -33,20 +34,55 @@ type Spec struct {
 	TypeSystemVersion int
 }
 
+func NewSpec(transfer *model.Transfer) *Spec {
+	return &Spec{
+		ID:   transfer.ID,
+		Src:  transfer.Src,
+		Dst:  transfer.Dst,
+		Type: transfer.Type,
+
+		Transformation: transfer.Transformation,
+		DataObjects:    transfer.DataObjects,
+		FolderID:       transfer.FolderID,
+
+		TypeSystemVersion: transfer.TypeSystemVersion,
+	}
+}
+
+func (s *Spec) Differs(another *Spec) (bool, error) {
+	this, err := json.Marshal(s)
+	if err != nil {
+		return false, xerrors.Errorf("cannot marshal spec: %w", err)
+	}
+	that, err := json.Marshal(another)
+	if err != nil {
+		return false, xerrors.Errorf("cannot marshal another spec: %w", err)
+	}
+
+	if string(this) != string(that) {
+		logger.Log.Info("Transfer spec differs after update", log.String("old_spec", string(this)), log.String("new_spec", string(that)))
+		return true, nil
+	}
+
+	return false, nil
+}
+
 const ReplicationStatusMessagesCategory string = "replication"
 
 const healthReportPeriod time.Duration = 1 * time.Minute
 const replicationRetryInterval time.Duration = 10 * time.Second
 
 func RunReplicationWithMeteringTags(ctx context.Context, cp coordinator.Coordinator, transfer *model.Transfer, registry metrics.Registry, runtimeTags map[string]interface{}) error {
-	metering.InitializeWithTags(transfer, nil, runtimeTags)
-	shared.ApplyRuntimeLimits(transfer.Runtime)
+	meteringStats := metering.NewMeteringStats(registry)
+	defer func() { meteringStats.Reset() }()
+	metering.InitializeWithTags(transfer, nil, runtimeTags, meteringStats)
+	shared.ApplyRuntimeLimits(transfer.RuntimeForReplication())
 	return runReplication(ctx, cp, transfer, registry, logger.Log)
 }
 
 func RunReplication(ctx context.Context, cp coordinator.Coordinator, transfer *model.Transfer, registry metrics.Registry) error {
 	metering.Initialize(transfer, nil)
-	shared.ApplyRuntimeLimits(transfer.Runtime)
+	shared.ApplyRuntimeLimits(transfer.RuntimeForReplication())
 	return runReplication(ctx, cp, transfer, registry, logger.Log)
 }
 
@@ -54,6 +90,13 @@ func runReplication(ctx context.Context, cp coordinator.Coordinator, transfer *m
 	if err := provideradapter.ApplyForTransfer(transfer); err != nil {
 		return xerrors.Errorf("unable to adapt transfer: %w", err)
 	}
+
+	logger.Log.Info("Transfer replication",
+		log.Any("transfer_id", transfer.ID),
+		log.Any("src_type", transfer.SrcType()),
+		log.Any("dst_type", transfer.DstType()),
+		log.Object("transfer", transfer),
+	)
 
 	var previousAttemptErr error = nil
 	retryCount := int64(1)
@@ -65,6 +108,7 @@ func runReplication(ctx context.Context, cp coordinator.Coordinator, transfer *m
 
 		attemptErr, attemptAgain := replicationAttempt(ctx, cp, transfer, registry, lgr, replicationStats, retryCount)
 		if !attemptAgain {
+			errors.LogFatalError(attemptErr, transfer.ID, transfer.Dst.GetProviderType(), transfer.Src.GetProviderType())
 			return xerrors.Errorf("replication failed: %w", attemptErr)
 		}
 
@@ -132,12 +176,13 @@ waitingForReplicationErr:
 		// status message will be set to error by the error processing code, so the status message is only set below for non-fatal errors
 		return xerrors.Errorf("a fatal error occurred in replication: %w", attemptErr), false
 	}
-	// https://st.yandex-team.ru/TM-2719 hack. Introduced in https://github.com/doublecloud/transfer/review/2122992/details
+	// This 300 IQ hack is an attempt to mitigate __possible__ connection leak in postgresql connector
+	// The idea is to restart the whole process and drop all existing connections
+	// Possibly the leak itself is already fixed and the hack may be removed but nobody knows
 	if strings.Contains(attemptErr.Error(), "SQLSTATE 53300") {
 		logger.Log.Error("replication failed, will restart the whole dataplane", log.Error(attemptErr))
 		return xerrors.Errorf("replication failed, dataplane must be restarted: %w", attemptErr), false
 	}
-
 	return attemptErr, true
 }
 

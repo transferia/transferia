@@ -4,16 +4,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/kafka/writer"
-	serializer "github.com/doublecloud/transfer/pkg/serializer/queue"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
-	queues "github.com/doublecloud/transfer/pkg/util/queues"
 	"github.com/segmentio/kafka-go"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/kafka/writer"
+	serializer "github.com/transferia/transferia/pkg/serializer/queue"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	queues "github.com/transferia/transferia/pkg/util/queues"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -29,22 +29,6 @@ type sink struct {
 	writer     writer.AbstractWriter
 }
 
-func serializeKafkaMirror(input []abstract.ChangeItem) map[abstract.TablePartID][]serializer.SerializedMessage {
-	tableToMessages := make(map[abstract.TablePartID][]serializer.SerializedMessage)
-	arr := make([]serializer.SerializedMessage, 0, len(input))
-	for _, changeItem := range input {
-		arr = append(arr, serializer.SerializedMessage{
-			Key:   GetKafkaRawMessageKey(&changeItem),
-			Value: GetKafkaRawMessageData(&changeItem),
-		})
-	}
-	if len(input) != 0 {
-		fqtnWithPartID := input[0].TablePartID()
-		tableToMessages[fqtnWithPartID] = arr
-	}
-	return tableToMessages
-}
-
 func (s *sink) Push(input []abstract.ChangeItem) error {
 	start := time.Now()
 
@@ -56,12 +40,8 @@ func (s *sink) Push(input []abstract.ChangeItem) error {
 		// 'id' here - sourceID
 		tableToMessages, _, err = s.serializer.(*serializer.MirrorSerializer).GroupAndSerializeLB(input)
 	} else {
-		// 'id' here - fqtn()
-		if IsKafkaRawMessage(input) {
-			tableToMessages = serializeKafkaMirror(input)
-		} else {
-			tableToMessages, err = s.serializer.Serialize(input)
-		}
+		// 'id' here - fqtn() for json/debezium, sequenceKey for mirror
+		tableToMessages, err = s.serializer.Serialize(input)
 	}
 	if err != nil {
 		return xerrors.Errorf("unable to serialize: %w", err)
@@ -118,10 +98,14 @@ func (s *sink) Close() error {
 }
 
 func NewSinkImpl(cfg *KafkaDestination, registry metrics.Registry, lgr log.Logger, writerFactory writer.AbstractWriterFactory, isSnapshot bool) (abstract.Sinker, error) {
+	if err := cfg.WithConnectionID(); err != nil {
+		return nil, xerrors.Errorf("unable to resolve connection for sink: %w", err)
+	}
 	brokers, err := ResolveBrokers(cfg.Connection)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve brokers: %w", err)
 	}
+	lgr.Info("resolved brokers", log.Any("brokers", brokers))
 	cfg.Connection.Brokers = brokers
 	mechanism, err := cfg.Auth.GetAuthMechanism()
 	if err != nil {
@@ -155,7 +139,7 @@ func NewSinkImpl(cfg *KafkaDestination, registry metrics.Registry, lgr log.Logge
 		logger:     lgr,
 		metrics:    stats.NewSinkerStats(registry),
 		serializer: currSerializer,
-		writer:     writerFactory.BuildWriter(cfg.Connection.Brokers, cfg.Compression.AsKafka(), mechanism, tlsCfg, topicConfigEntryToSlices(cfg.TopicConfigEntries), cfg.BatchBytes),
+		writer:     writerFactory.BuildWriter(cfg.Connection.Brokers, cfg.Compression.AsKafka(), mechanism, tlsCfg, topicConfigEntryToSlices(cfg.TopicConfigEntries), cfg.BatchBytes, cfg.DialFunc),
 	}
 
 	return &result, nil

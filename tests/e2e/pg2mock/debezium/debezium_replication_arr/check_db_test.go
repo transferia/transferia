@@ -3,24 +3,24 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	debeziumcommon "github.com/doublecloud/transfer/pkg/debezium/common"
-	"github.com/doublecloud/transfer/pkg/debezium/testutil"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	debeziumcommon "github.com/transferia/transferia/pkg/debezium/common"
+	"github.com/transferia/transferia/pkg/debezium/testutil"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var (
@@ -106,7 +106,7 @@ INSERT INTO public.basic_types VALUES (
 
 func ReadTextFiles(paths []string, out []*string) error {
 	for index, path := range paths {
-		valArr, err := ioutil.ReadFile(yatest.SourcePath(path))
+		valArr, err := os.ReadFile(yatest.SourcePath(path))
 		if err != nil {
 			return xerrors.Errorf("unable to read file %s: %w", path, err)
 		}
@@ -144,7 +144,7 @@ func TestReplication(t *testing.T) {
 	//------------------------------------------------------------------------------
 	// start replication
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	target := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
@@ -153,7 +153,7 @@ func TestReplication(t *testing.T) {
 
 	mutex := sync.Mutex{}
 	var changeItems []abstract.ChangeItem
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		found := false
 		for _, el := range input {
 			if el.Table == "basic_types" {
@@ -161,7 +161,7 @@ func TestReplication(t *testing.T) {
 			}
 		}
 		if !found {
-			return
+			return nil
 		}
 		//---
 		mutex.Lock()
@@ -173,6 +173,8 @@ func TestReplication(t *testing.T) {
 			}
 			changeItems = append(changeItems, el)
 		}
+
+		return nil
 	}
 
 	worker := helpers.Activate(t, transfer)

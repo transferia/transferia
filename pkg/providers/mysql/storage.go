@@ -10,12 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/dustin/go-humanize"
+	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -32,6 +35,11 @@ func (e NotMasterError) Error() string {
 	return fmt.Sprintf("Storage %v:%v is not master", e.connParams.Host, e.connParams.Port)
 }
 
+// Code attaches stable code so NotMasterError is a coded error in the chain
+func (e NotMasterError) Code() coded.Code {
+	return codes.MySQLSourceIsNotMaster
+}
+
 type Storage struct {
 	ConnectionParams        *ConnectionParams
 	useFakePrimaryKey       bool
@@ -43,6 +51,7 @@ type Storage struct {
 	DB                      *sql.DB
 	preSteps                *MysqlDumpSteps
 	consistentSnapshot      bool
+	database                string
 }
 
 func (s *Storage) Close() {
@@ -330,7 +339,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 	return nil
 }
 
-func (s *Storage) getBinlogPosition(ctx context.Context, tx Queryable) (string, uint32, error) {
+func (s *Storage) getBinlogPosition(ctx context.Context, tx Queryable) (string, uint64, error) {
 	masterStatusQuery := "show master status;"
 	_, version, err := CheckMySQLVersion(s)
 	if err != nil {
@@ -351,7 +360,7 @@ func (s *Storage) getBinlogPosition(ctx context.Context, tx Queryable) (string, 
 		return "", 0, xerrors.Errorf("unable to get master status: %w", err)
 	}
 	var file string
-	var pos uint32
+	var pos uint64
 	filesCount := 0
 	for binlogStatus.Next() {
 		filesCount++
@@ -375,9 +384,8 @@ func (s *Storage) getBinlogPosition(ctx context.Context, tx Queryable) (string, 
 				}
 			}
 			if strings.ToLower(col) == "position" {
-				if v, ok := cols[i].([]byte); ok {
-					p, _ := strconv.Atoi(string(v))
-					pos = uint32(p)
+				if v, ok := cols[i].(uint64); ok {
+					pos = v
 				}
 			}
 		}
@@ -489,26 +497,27 @@ func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstr
 }
 
 func (s *Storage) LoadSchema() (schema abstract.DBSchema, err error) {
-	return LoadSchema(s.DB, s.useFakePrimaryKey, true)
+	return LoadSchema(s.DB, s.useFakePrimaryKey, true, s.database)
 }
 
 func (s *Storage) getGtid(ctx context.Context, tx Queryable) (string, error) {
-	rows, err := tx.QueryContext(ctx, "show global variables like 'gtid_executed';")
+	var gtidSet string
+	flavor, _, err := CheckMySQLVersion(s)
 	if err != nil {
+		return "", xerrors.Errorf("unable to check MySQL version: %w", err)
+	}
+	if flavor == mysql.MariaDBFlavor {
+		err = tx.QueryRowContext(ctx, "select @@global.gtid_current_pos;").Scan(&gtidSet)
+	} else {
+		err = tx.QueryRowContext(ctx, "select @@global.gtid_executed;").Scan(&gtidSet)
+	}
+	if err != nil {
+		if strings.Contains(err.Error(), "Unknown system variable 'gtid_executed'") {
+			return "", nil
+		}
 		return "", xerrors.Errorf("Unable to get gtid executed: %w", err)
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var name, val string
-		if err := rows.Scan(&name, &val); err != nil {
-			logger.Log.Warnf("Unable to parse variable name: %v", err)
-			continue
-		}
-		if name == "gtid_executed" {
-			return val, nil
-		}
-	}
-	return "", nil
+	return gtidSet, nil
 }
 
 func (s *Storage) EstimateTableRowsCount(table abstract.TableID) (uint64, error) {
@@ -578,7 +587,7 @@ func NewStorage(config *MysqlStorageParams) (*Storage, error) {
 	}
 	rollbacks.AddCloser(db, logger.Log, "cannot close database")
 
-	fqtnToSchema, err := LoadSchema(db, config.UseFakePrimaryKey, true)
+	fqtnToSchema, err := LoadSchema(db, config.UseFakePrimaryKey, true, config.Database)
 	if err != nil {
 		return nil, xerrors.Errorf("Can't load schema: %w", err)
 	}
@@ -595,6 +604,7 @@ func NewStorage(config *MysqlStorageParams) (*Storage, error) {
 		DB:                      db,
 		snapshotConnectionsPool: nil,
 		IsHomo:                  false,
+		database:                config.Database,
 	}
 
 	return storage, nil

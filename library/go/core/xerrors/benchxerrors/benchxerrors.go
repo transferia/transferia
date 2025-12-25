@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors/internal/modes"
+	"github.com/transferia/transferia/library/go/core/xerrors/internal/modes"
 )
 
 func RunPerMode(b *testing.B, bench func(b *testing.B)) {

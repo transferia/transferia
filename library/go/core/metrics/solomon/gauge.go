@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics"
 	"go.uber.org/atomic"
 )
 
@@ -22,6 +22,7 @@ type Gauge struct {
 	timestamp  *time.Time
 
 	useNameTag bool
+	memOnly    bool
 }
 
 func NewGauge(name string, value float64, opts ...MetricOpt) Gauge {
@@ -34,8 +35,10 @@ func NewGauge(name string, value float64, opts ...MetricOpt) Gauge {
 		metricType: typeGauge,
 		tags:       mOpts.tags,
 		value:      *atomic.NewFloat64(value),
-		useNameTag: mOpts.useNameTag,
 		timestamp:  mOpts.timestamp,
+
+		useNameTag: mOpts.useNameTag,
+		memOnly:    mOpts.memOnly,
 	}
 }
 
@@ -47,6 +50,13 @@ func (g *Gauge) Add(value float64) {
 	g.value.Add(value)
 }
 
+func (g *Gauge) getID() string {
+	if g.timestamp != nil {
+		return g.name + "(" + g.timestamp.Format(time.RFC3339) + ")"
+	}
+	return g.name
+}
+
 func (g *Gauge) Name() string {
 	return g.name
 }
@@ -55,11 +65,11 @@ func (g *Gauge) getType() metricType {
 	return g.metricType
 }
 
-func (g *Gauge) getLabels() map[string]string {
+func (g *Gauge) Labels() map[string]string {
 	return g.tags
 }
 
-func (g *Gauge) getValue() interface{} {
+func (g *Gauge) Value() interface{} {
 	return g.value.Load()
 }
 
@@ -75,13 +85,21 @@ func (g *Gauge) getNameTag() string {
 	}
 }
 
+func (g *Gauge) isMemOnly() bool {
+	return g.memOnly
+}
+
+func (g *Gauge) setMemOnly() {
+	g.memOnly = true
+}
+
 // MarshalJSON implements json.Marshaler.
 func (g *Gauge) MarshalJSON() ([]byte, error) {
 	metricType := g.metricType.String()
 	value := g.value.Load()
 	labels := func() map[string]string {
 		labels := make(map[string]string, len(g.tags)+1)
-		labels[g.getNameTag()] = g.Name()
+		labels[g.getNameTag()] = g.name
 		for k, v := range g.tags {
 			labels[k] = v
 		}
@@ -93,11 +111,13 @@ func (g *Gauge) MarshalJSON() ([]byte, error) {
 		Labels    map[string]string `json:"labels"`
 		Value     float64           `json:"value"`
 		Timestamp *int64            `json:"ts,omitempty"`
+		MemOnly   bool              `json:"memOnly,omitempty"`
 	}{
 		Type:      metricType,
 		Value:     value,
 		Labels:    labels,
 		Timestamp: tsAsRef(g.timestamp),
+		MemOnly:   g.memOnly,
 	})
 }
 
@@ -108,8 +128,9 @@ func (g *Gauge) Snapshot() Metric {
 		metricType: g.metricType,
 		tags:       g.tags,
 		value:      *atomic.NewFloat64(g.value.Load()),
+		timestamp:  g.timestamp,
 
 		useNameTag: g.useNameTag,
-		timestamp:  g.timestamp,
+		memOnly:    g.memOnly,
 	}
 }

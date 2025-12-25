@@ -9,17 +9,21 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
 	default_mysql "github.com/go-sql-driver/mysql"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/format"
+	unmarshaller "github.com/transferia/transferia/pkg/providers/mysql/unmarshaller/replication"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/library/go/core/log/compat/golog"
 )
@@ -89,7 +93,7 @@ func (h *binlogHandler) OnDDL(nextPos mysql.Position, queryEvent *replication.Qu
 		if len(h.inflight) == 0 {
 			break
 		}
-		time.Sleep(time.Second)
+		time.Sleep(h.config.ReplicationFlushInterval)
 	}
 	h.logger.Warn("DDL Query", log.Any("query", string(queryEvent.Query)), log.Any("position", nextPos))
 	execTS := time.Now()
@@ -169,8 +173,12 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 	start := time.Now()
 
 	if !h.config.IsHomo {
-		if err := CastRowsToDT(event, h.connectionParams.Location); err != nil {
+		if err := CastRowsToDT(event, h.connectionParams.Location, unmarshaller.UnmarshalHetero); err != nil {
 			return xerrors.Errorf("failed to cast mysql binlog event to YT rows: %w", err)
+		}
+	} else {
+		if err := CastRowsToDT(event, h.connectionParams.Location, unmarshaller.UnmarshalHomo); err != nil {
+			return xerrors.Errorf("failed to cast mysql binlog event to Mysql rows: %w", err)
 		}
 	}
 
@@ -183,7 +191,7 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 	colNames := schEvent.ColumnNames()
 	sch := schEvent.Schema()
 
-	lsn := CalculateLSN(h.nextPos.Name, event.Header.LogPos)
+	lsn := CalculateLSN(h.nextPos.Name, uint64(event.Header.LogPos))
 	txSequence := event.Header.Timestamp
 	gtidStr := ""
 	if gtid := h.canal.SyncedGTIDSet(); gtid != nil {
@@ -205,7 +213,6 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 			if event.IsAllColumnsPresent1() && event.IsAllColumnsPresent2() {
 				res = append(res, abstract.ChangeItem{
 					ID:           txSequence,
-					TxID:         gtidStr,
 					LSN:          lsn,
 					CommitTime:   uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
 					Counter:      i,
@@ -221,26 +228,29 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 						KeyTypes:  nil,
 						KeyValues: schEvent.GetRowValues(i - 1), // it's contract of mysql; even line - old values for full line. odd line - new values
 					},
-					Query: event.Query,
-					Size:  abstract.RawEventSize(rawItemEtaSize),
+					Size:             abstract.RawEventSize(rawItemEtaSize),
+					TxID:             gtidStr,
+					Query:            event.Query,
+					QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 				})
 			} else {
 				cs := abstract.ChangeItem{
-					ID:           txSequence,
-					LSN:          lsn,
-					CommitTime:   uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
-					Counter:      i,
-					Kind:         abstract.UpdateKind,
-					Schema:       event.Table.Schema,
-					Table:        event.Table.Name,
-					PartID:       "",
-					ColumnNames:  nil,
-					ColumnValues: nil,
-					TableSchema:  sch,
-					OldKeys:      *new(abstract.OldKeysType),
-					TxID:         gtidStr,
-					Query:        event.Query,
-					Size:         abstract.RawEventSize(rawItemEtaSize),
+					ID:               txSequence,
+					LSN:              lsn,
+					CommitTime:       uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
+					Counter:          i,
+					Kind:             abstract.UpdateKind,
+					Schema:           event.Table.Schema,
+					Table:            event.Table.Name,
+					PartID:           "",
+					ColumnNames:      nil,
+					ColumnValues:     nil,
+					TableSchema:      sch,
+					OldKeys:          *new(abstract.OldKeysType),
+					Size:             abstract.RawEventSize(rawItemEtaSize),
+					TxID:             gtidStr,
+					Query:            event.Query,
+					QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 				}
 				cols := make([]string, 0)
 				vals := make([]interface{}, 0)
@@ -276,7 +286,6 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 			c := &abstract.ChangeItem{
 				ID:           txSequence,
 				LSN:          lsn,
-				TxID:         gtidStr,
 				CommitTime:   uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
 				Counter:      i,
 				Kind:         abstract.DeleteKind,
@@ -291,8 +300,10 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 					KeyTypes:  nil,
 					KeyValues: vals,
 				},
-				Query: event.Query,
-				Size:  abstract.RawEventSize(rawItemEtaSize),
+				Size:             abstract.RawEventSize(rawItemEtaSize),
+				Query:            event.Query,
+				TxID:             gtidStr,
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			}
 			keys := make([]string, 0)
 			keyTypes := make([]string, 0)
@@ -314,21 +325,22 @@ func (h *binlogHandler) OnRow(event *RowsEvent) error {
 	case InsertAction:
 		for i := n; i < len(event.Data.Rows); i += k {
 			res = append(res, abstract.ChangeItem{
-				ID:           txSequence,
-				LSN:          lsn,
-				CommitTime:   uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
-				Counter:      i,
-				Kind:         abstract.InsertKind,
-				Schema:       event.Table.Schema,
-				Table:        event.Table.Name,
-				PartID:       "",
-				ColumnNames:  colNames,
-				ColumnValues: schEvent.GetRowValues(i),
-				TableSchema:  sch,
-				OldKeys:      *new(abstract.OldKeysType),
-				TxID:         gtidStr,
-				Query:        event.Query,
-				Size:         abstract.RawEventSize(rawItemEtaSize),
+				ID:               txSequence,
+				LSN:              lsn,
+				CommitTime:       uint64(time.Unix(int64(event.Header.Timestamp), 0).UnixNano()),
+				Counter:          i,
+				Kind:             abstract.InsertKind,
+				Schema:           event.Table.Schema,
+				Table:            event.Table.Name,
+				PartID:           "",
+				ColumnNames:      colNames,
+				ColumnValues:     schEvent.GetRowValues(i),
+				TableSchema:      sch,
+				OldKeys:          *new(abstract.OldKeysType),
+				Size:             abstract.RawEventSize(rawItemEtaSize),
+				TxID:             gtidStr,
+				Query:            event.Query,
+				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			})
 		}
 	default:
@@ -399,7 +411,7 @@ type publisher struct {
 }
 
 func (p *publisher) Run(sink abstract.AsyncSink) error {
-	sch, err := LoadSchema(p.storage.DB, p.config.UseFakePrimaryKey, false)
+	sch, err := LoadSchema(p.storage.DB, p.config.UseFakePrimaryKey, false, p.storage.database)
 	if err != nil {
 		return xerrors.Errorf("failed to load schema: %w", err)
 	}
@@ -438,7 +450,7 @@ func (p *publisher) Run(sink abstract.AsyncSink) error {
 			if xerrors.As(cErr, &mErr) {
 				if mErr.Code == mysql.ER_MASTER_FATAL_ERROR_READING_BINLOG {
 					p.logger.Error("fatal canal error", log.Error(mErr))
-					return xerrors.Errorf("fatal canal error: %w", abstract.NewFatalError(err))
+					return coded.Errorf(codes.MySQLBinlogFirstFileMissing, "fatal canal error (binlog): %w", abstract.NewFatalError(err))
 				}
 			}
 			p.logger.Error("canal run failed", log.Error(err))
@@ -464,7 +476,7 @@ func (p *publisher) Run(sink abstract.AsyncSink) error {
 			if xerrors.As(cErr, &mErr) {
 				if mErr.Code == mysql.ER_MASTER_FATAL_ERROR_READING_BINLOG {
 					p.logger.Error("fatal canal error", log.Error(mErr))
-					return xerrors.Errorf("fatal canal error: %w", abstract.NewFatalError(err))
+					return coded.Errorf(codes.MySQLBinlogFirstFileMissing, "fatal canal error (binlog): %w", abstract.NewFatalError(err))
 				}
 			}
 			if p.stopped {
@@ -508,7 +520,7 @@ func (p *publisher) flusher() {
 				continue
 			}
 			p.handler.rw.Lock()
-			lsn := CalculateLSN(p.handler.nextPos.Name, p.handler.nextPos.Pos)
+			lsn := CalculateLSN(p.handler.nextPos.Name, uint64(p.handler.nextPos.Pos))
 			txSequence := p.handler.nextPos.Pos
 			execTS := time.Now()
 			gtidStr := fmt.Sprintf("%v", txSequence)
@@ -545,7 +557,7 @@ func (p *publisher) flusher() {
 		h := p.handler
 		h.metrics.Master.Set(1)
 		if len(h.inflight) == 0 {
-			time.Sleep(time.Second)
+			time.Sleep(h.config.ReplicationFlushInterval)
 			continue
 		}
 		start := time.Now()
@@ -579,7 +591,7 @@ func (p *publisher) flusher() {
 					return xerrors.Errorf("unable to store gtidset: %w", err)
 				}
 			} else {
-				if err := h.tracker.Store(nPos.Name, nPos.Pos); err != nil {
+				if err := h.tracker.Store(nPos.Name, uint64(nPos.Pos)); err != nil {
 					h.logger.Warn("unable to store progress", log.Error(err))
 					return xerrors.Errorf("unable to store binlog position: %w", err)
 				}

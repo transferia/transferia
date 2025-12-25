@@ -1,4 +1,3 @@
-BEGIN;
 create schema "woshiPushiMushi";
 create type "woshiPushiMushi"."Wut" as enum ('DuGehstMirAufDieEier', 'EinScheissdreckWerdeIchTun');
 create type "fancyCamelCaseType" as enum ('zhopa', 'zhepa');
@@ -27,8 +26,3 @@ create table testtable (
 
 INSERT INTO testtable (id, charvar, fancy, deuch, udt, udt_arr, nested_udt_arr)
 VALUES (1, 'chuvak', 'zhopa', 'DuGehstMirAufDieEier', (1, '123')::udt, ARRAY [(1, 'foo')::udt, (2, 'bar')::udt], (1, ARRAY[(2, 'sometext')::udt]));
-COMMIT;
-
-BEGIN;
-SELECT pg_create_logical_replication_slot('testslot', 'wal2json');
-COMMIT;

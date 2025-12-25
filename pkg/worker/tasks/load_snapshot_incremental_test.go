@@ -1,15 +1,17 @@
 package tasks
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 func TestMergeWithIncrementalState(t *testing.T) {
@@ -32,19 +34,28 @@ func TestMergeWithIncrementalState(t *testing.T) {
 			}
 		}
 		return result, nil
-	})
+	}, nil, nil)
 	tables := []abstract.TableDescription{
 		{Name: "table1", Schema: "public"},
 		{Name: "table2", Schema: "public"},
 	}
 	incrementalStorage := newFakeIncrementalStorage()
 	snapshotLoader := NewSnapshotLoader(client, "test-operation", transfer, solomon.NewRegistry(nil))
-	err := snapshotLoader.mergeWithIncrementalState(tables, incrementalStorage)
+	outTables, err := snapshotLoader.getIncrementalStateAndMergeWithTables(tables, incrementalStorage)
 	require.NoError(t, err)
+	slices.SortFunc(outTables, func(a, b abstract.TableDescription) int {
+		return cmp.Or(
+			cmp.Compare(a.Schema, b.Schema),
+			cmp.Compare(a.Name, b.Name),
+			cmp.Compare(a.Filter, b.Filter),
+			cmp.Compare(a.EtaRow, b.EtaRow),
+			cmp.Compare(a.Offset, b.Offset),
+		)
+	})
 	require.Equal(t, []abstract.TableDescription{
 		{Name: "table1", Schema: "public", Filter: "\"field1\" > 200500"},
 		{Name: "table2", Schema: "public", Filter: "\"field1\" > 100500"},
-	}, tables)
+	}, outTables)
 }
 
 type fakeIncrementalStorage struct {
@@ -54,11 +65,11 @@ func newFakeIncrementalStorage() *fakeIncrementalStorage {
 	return &fakeIncrementalStorage{}
 }
 
-func (f *fakeIncrementalStorage) GetIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.TableDescription, error) {
+func (f *fakeIncrementalStorage) GetNextIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.IncrementalState, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (f *fakeIncrementalStorage) SetInitialState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) {
-	postgres.SetInitialState(tables, incremental)
+func (f *fakeIncrementalStorage) BuildArrTableDescriptionWithIncrementalState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) []abstract.TableDescription {
+	return postgres.SetInitialState(tables, incremental)
 }

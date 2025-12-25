@@ -3,13 +3,13 @@ package mysql
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
 )
 
-func GetLogFilePosition(storage *Storage) (string, uint32, string, error) {
+func GetLogFilePosition(storage *Storage) (string, uint64, string, error) {
 	ctx := context.Background()
 	tx, rollbacks, err := storage.getSnapshotQueryable(ctx)
 	if err != nil {
@@ -60,7 +60,7 @@ func SyncBinlogPosition(src *MysqlSource, id string, cp coordinator.Coordinator)
 	}
 
 	if gtidModeEnabled {
-		logger.Log.Infof("GTID mode is ON")
+		logger.Log.Infof("GTID mode is ON, trying to parse gtid: [%s]", gtid)
 
 		gtidSet, err := mysql.ParseGTIDSet(flavor, gtid)
 		if err != nil {

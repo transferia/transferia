@@ -1,13 +1,13 @@
 {
     "mysql.mysql.TestCanonSource/date_types/canon_0#01": {
-        "checksum": "63cdaf6fea8ae94d655a6725b6884f06",
-        "size": 375880,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1937027/556f28ba793a36122a21906b5be32fd3b7c556e9/resource.tar.gz#mysql.mysql.TestCanonSource_date_types_canon_0#01/extracted"
+        "checksum": "72f684f53230f3b382c11538a947330d",
+        "size": 379660,
+        "uri": "https://storage.yandex-team.ru/get-devtools/937458/ed109eb8bde1b0d5626b85cd313638316703d465/resource.tar.gz#mysql.mysql.TestCanonSource_date_types_canon_0#01/extracted"
     },
     "mysql.mysql.TestCanonSource/date_types/canon_0#03": {
-        "checksum": "553cf9cb21651376814c8a54af60c25a",
-        "size": 375654,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1937027/556f28ba793a36122a21906b5be32fd3b7c556e9/resource.tar.gz#mysql.mysql.TestCanonSource_date_types_canon_0#03/extracted"
+        "checksum": "40e941c99202b033d446c8edc7402d34",
+        "size": 379434,
+        "uri": "https://storage.yandex-team.ru/get-devtools/937458/ed109eb8bde1b0d5626b85cd313638316703d465/resource.tar.gz#mysql.mysql.TestCanonSource_date_types_canon_0#03/extracted"
     },
     "mysql.mysql.TestCanonSource/initial/canon_0#01": {
         "uri": "file://mysql.mysql.TestCanonSource_initial_canon_0#01/extracted"
@@ -52,14 +52,14 @@
         "uri": "file://mysql.mysql.TestCanonSource_numeric_types_int_canon_0#03/extracted"
     },
     "mysql.mysql.TestCanonSource/string_types/canon_0#01": {
-        "checksum": "9625a825a89c306a345dd363347a79ba",
-        "size": 411782,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1937027/556f28ba793a36122a21906b5be32fd3b7c556e9/resource.tar.gz#mysql.mysql.TestCanonSource_string_types_canon_0#01/extracted"
+        "checksum": "bc1161eb9e03813251e6ac2150258b29",
+        "size": 418262,
+        "uri": "https://storage.yandex-team.ru/get-devtools/937458/ed109eb8bde1b0d5626b85cd313638316703d465/resource.tar.gz#mysql.mysql.TestCanonSource_string_types_canon_0#01/extracted"
     },
     "mysql.mysql.TestCanonSource/string_types/canon_0#03": {
-        "checksum": "13148de832c344a4760d8afdb07ee0db",
-        "size": 411702,
-        "uri": "https://storage.yandex-team.ru/get-devtools/1937027/556f28ba793a36122a21906b5be32fd3b7c556e9/resource.tar.gz#mysql.mysql.TestCanonSource_string_types_canon_0#03/extracted"
+        "checksum": "5310a11f16d249db6676c0972de13f0e",
+        "size": 418182,
+        "uri": "https://storage.yandex-team.ru/get-devtools/937458/ed109eb8bde1b0d5626b85cd313638316703d465/resource.tar.gz#mysql.mysql.TestCanonSource_string_types_canon_0#03/extracted"
     },
     "mysql.mysql.TestCanonSource/string_types_emoji/canon_0#01": {
         "uri": "file://mysql.mysql.TestCanonSource_string_types_emoji_canon_0#01/extracted"

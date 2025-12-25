@@ -1,0 +1,42 @@
+allowHTML: true
+apply-presets: true
+breaks: false
+varsPreset: public
+
+docs-viewer:
+  logo-src: https://static.double.tech/site-assets/logo/dc-logo-light.svg
+  logo-dark-src: https://static.double.tech/site-assets/logo/dc-logo-dark.svg
+  logo-link-preview: https://static.double.tech/site-assets/sharing/sharing_docs.png
+  logo-options:
+    img-has:
+         width: 190
+         offset: true
+  favicon-src: https://static.double.tech/site-assets/favicon/favicon.ico
+  project-name: Transferia
+  logo-title: Transferia
+  show-revision: true
+  themes: ['dark']
+  github-url-prefix: https://github.com/transferia/transferia/tree/main/docs
+
+  index-page:
+    hidden: true
+    title: Transferia
+    description: "Transferia public docs"
+
+connector:
+    type: github
+    github:
+        endpoint: https://api.github.com
+        owner: transferia
+        repo: transferia
+
+resources:
+  style:
+    - _assets/style/fonts.css
+    - _assets/style/theme.css
+    - _assets/style/yfm.css
+    - _assets/style/consent-popup.css
+
+# This configuration parameter is used to directly control the Edit button behaviour.
+vcs:
+  remoteBase: https://github.com/transferia/transferia/tree/main/docs

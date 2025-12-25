@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics"
 )
 
 type ChStats struct {

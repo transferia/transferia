@@ -3,8 +3,8 @@ package filter
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/yandex/cloud/filter/grammar"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/yandex/cloud/filter/grammar"
 )
 
 type OperatorType int

@@ -3,18 +3,18 @@ package lambda
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/functions"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/functions"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -24,7 +24,7 @@ func TestLambdaTransformer(t *testing.T) {
 		data := functions.Data{}
 		var bodyBytes []byte
 		if r.Body != nil {
-			bodyBytes, _ = ioutil.ReadAll(r.Body)
+			bodyBytes, _ = io.ReadAll(r.Body)
 		}
 		logger.Log.Infof("request into mock server: %v", string(bodyBytes))
 		require.NoError(t, json.Unmarshal(bodyBytes, &data))
@@ -34,7 +34,7 @@ func TestLambdaTransformer(t *testing.T) {
 		}
 		js, err := json.Marshal(data)
 		require.NoError(t, err)
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(js)
 		require.NoError(t, err)

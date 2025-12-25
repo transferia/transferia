@@ -1,32 +1,41 @@
 package opensearch
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/elastic"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/elastic"
+	"go.uber.org/zap/zapcore"
 )
 
 type OpenSearchHostPort struct {
-	Host string
-	Port int
+	Host string `log:"true"`
+	Port int    `log:"true"`
 }
 
 type OpenSearchDestination struct {
-	ClusterID        string
-	DataNodes        []OpenSearchHostPort
-	User             string
+	ClusterID        string               `log:"true"`
+	DataNodes        []OpenSearchHostPort `log:"true"`
+	User             string               `log:"true"`
 	Password         model.SecretString
-	SSLEnabled       bool
+	SSLEnabled       bool `log:"true"`
 	TLSFile          string
-	SubNetworkID     string
-	SecurityGroupIDs []string
-	Cleanup          model.CleanupType
+	SubNetworkID     string            `log:"true"`
+	SecurityGroupIDs []string          `log:"true"`
+	Cleanup          model.CleanupType `log:"true"`
+	ConnectionID     string            `log:"true"`
 
-	SanitizeDocKeys bool
+	SanitizeDocKeys bool  `log:"true"`
+	UserEnabledTls  *bool // tls config set by user explicitly
 }
 
 var _ model.Destination = (*OpenSearchDestination)(nil)
+var _ model.WithConnectionID = (*OpenSearchDestination)(nil)
+
+func (d *OpenSearchDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(d, enc)
+}
 
 func (d *OpenSearchDestination) MDBClusterID() string {
 	return d.ClusterID
@@ -48,6 +57,8 @@ func (d *OpenSearchDestination) ToElasticSearchDestination() (*elastic.ElasticSe
 		SecurityGroupIDs: d.SecurityGroupIDs,
 		Cleanup:          d.Cleanup,
 		SanitizeDocKeys:  d.SanitizeDocKeys,
+		ConnectionID:     d.ConnectionID,
+		UserEnabledTls:   d.UserEnabledTls,
 	}, elastic.OpenSearch
 }
 
@@ -64,6 +75,9 @@ func (d *OpenSearchDestination) GetProviderType() abstract.ProviderType {
 }
 
 func (d *OpenSearchDestination) Validate() error {
+	if d.ConnectionID != "" {
+		return nil
+	}
 	if d.ClusterID == "" &&
 		len(d.DataNodes) == 0 {
 		return xerrors.Errorf("no host specified")
@@ -72,6 +86,10 @@ func (d *OpenSearchDestination) Validate() error {
 		return xerrors.Errorf("can't use CA certificate with disabled SSL")
 	}
 	return nil
+}
+
+func (d *OpenSearchDestination) GetConnectionID() string {
+	return d.ConnectionID
 }
 
 func (d *OpenSearchDestination) WithDefaults() {

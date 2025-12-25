@@ -4,17 +4,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	jsonparser "github.com/doublecloud/transfer/pkg/parsers/registry/json"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	kafkasink "github.com/doublecloud/transfer/pkg/providers/kafka"
-	"github.com/doublecloud/transfer/tests/canon/reference"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	kafkasink "github.com/transferia/transferia/pkg/providers/kafka"
+	"github.com/transferia/transferia/tests/canon/reference"
+	"github.com/transferia/transferia/tests/helpers"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -79,7 +79,7 @@ func TestReplication(t *testing.T) {
 			Auth:       source.Auth,
 			Topic:      source.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -93,7 +93,7 @@ func TestReplication(t *testing.T) {
 		logger.Log,
 	)
 	require.NoError(t, err)
-	err = srcSink.Push([]abstract.ChangeItem{kafkasink.MakeKafkaRawMessage(source.Topic, time.Time{}, source.Topic, 0, 0, k, v)})
+	err = srcSink.Push([]abstract.ChangeItem{abstract.MakeRawMessage(k, source.Topic, time.Time{}, source.Topic, 0, 0, v)})
 	require.NoError(t, err)
 
 	// activate transfer

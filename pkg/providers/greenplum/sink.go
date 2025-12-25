@@ -4,14 +4,14 @@ import (
 	"context"
 	"sync"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/util"
-	mathutil "github.com/doublecloud/transfer/pkg/util/math"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/util"
+	mathutil "github.com/transferia/transferia/pkg/util/math"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -107,7 +107,7 @@ func (s *Sink) processSingleChangeItem(ctx context.Context, changeItem *abstract
 		if err := s.processInitTableLoad(ctx, changeItem); err != nil {
 			return xerrors.Errorf("sinker failed to initialize table load for table %s: %w", changeItem.PgName(), err)
 		}
-	case abstract.InitTableLoad:
+	case abstract.InitTableLoad, abstract.SynchronizeKind:
 		return nil // do nothing
 	case abstract.DoneShardedTableLoad:
 		if err := s.processDoneTableLoad(ctx, changeItem); err != nil {
@@ -132,7 +132,7 @@ func (s *Sink) processRowChangeItem(ctx context.Context, changeItem *abstract.Ch
 		// for INSERT, pure on-segment operation is possible
 		seg, err := s.chooseSegFromPool(ctx)
 		if err != nil {
-			return xerrors.Errorf("failed to determine a segment for a changeitem: %w", err)
+			return xerrors.Errorf("failed to determine a segment for an item: %w", err)
 		}
 		setTemporaryTableForChangeItem(changeItem)
 		s.rowChangeItems[seg] = append(s.rowChangeItems[seg], *changeItem)

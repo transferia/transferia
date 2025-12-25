@@ -10,12 +10,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func init() {
@@ -50,10 +51,10 @@ var (
 
 func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	testCasePath := "thousands_of_csv_files"
-	src := s3.PrepareCfg(t, "data7", "")
+	src := s3recipe.PrepareCfg(t, "data7", "")
 	src.PathPrefix = testCasePath
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3recipe.PrepareTestCase(t, src, src.PathPrefix)
 	}
 
 	time.Sleep(5 * time.Second)

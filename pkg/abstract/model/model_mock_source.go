@@ -1,15 +1,24 @@
 package model
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"go.uber.org/zap/zapcore"
 )
 
 type MockSource struct {
+	IsAbstract2Val   bool
 	StorageFactory   func() abstract.Storage
 	AllTablesFactory func() abstract.TableMap
 }
 
 var _ Source = (*MockSource)(nil)
+
+func (s *MockSource) SafeToLog() {}
+
+func (s *MockSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *MockSource) WithDefaults() {}
 
@@ -27,4 +36,8 @@ func (s *MockSource) GetName() string {
 
 func (s *MockSource) Validate() error {
 	return nil
+}
+
+func (s *MockSource) IsAbstract2(Destination) bool {
+	return s.IsAbstract2Val
 }

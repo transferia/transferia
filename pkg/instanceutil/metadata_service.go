@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -51,7 +51,7 @@ func GetIdentityDocument() (string, error) {
 
 func makeGoogleMetadataRequest(param GoogleCEMetaDataParam, recursive bool) (*http.Request, error) {
 	url := fmt.Sprintf("http://%v/computeMetadata/v1/instance/%v?recursive=%v", InstanceMetadataAddr, param, recursive)
-	request, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ const (
 
 func GetAmazonEC2MetaData(param AmazonEC2MetaDataParam) (string, error) {
 	url := fmt.Sprintf("http://%v/latest/meta-data/%v", InstanceMetadataAddr, param)
-	request, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", xerrors.Errorf("cannot get metadata: %w", err)
 	}
@@ -101,7 +101,7 @@ func GetAmazonEC2MetaData(param AmazonEC2MetaDataParam) (string, error) {
 func GetAmazonEC2UserData(out interface{}) error {
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-add-user-data.html
 	url := fmt.Sprintf("http://%v/latest/user-data", InstanceMetadataAddr)
-	request, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return xerrors.Errorf("cannot make request for user data: %w", err)
 	}

@@ -6,7 +6,7 @@ To enable transformer set `transformation` to:
   "transformers": [
     {
       "transformerId": "DTSUPPORT-XXXX",
-      "problemItemDetector": {}
+      "problem_item_detector": {}
     }
   ]
 }

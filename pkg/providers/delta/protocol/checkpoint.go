@@ -5,10 +5,10 @@ import (
 	"sort"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/providers/delta/store"
-	"github.com/doublecloud/transfer/pkg/util/math"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/delta/store"
+	"github.com/transferia/transferia/pkg/util/math"
 )
 
 const LastCheckpointPath string = "_last_checkpoint"

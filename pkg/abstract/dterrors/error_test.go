@@ -3,8 +3,8 @@ package dterrors
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func TestCheckForFatalError(t *testing.T) {

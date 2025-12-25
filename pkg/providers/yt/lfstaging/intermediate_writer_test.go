@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	"go.ytsaurus.tech/yt/go/yttest"
 )
 
@@ -29,14 +29,14 @@ func TestIntermediateWriterWrittenBytes(t *testing.T) {
 	defer cancel()
 
 	err := iw.Write([]abstract.ChangeItem{
-		abstract.MakeRawMessage("", time.Now(), "", 0, 0, []byte("abacaba")),
+		abstract.MakeRawMessage([]byte("stub"), "", time.Now(), "", 0, 0, []byte("abacaba")),
 	})
 	require.NoError(t, err, "Write throws")
 
 	require.Equal(t, int64(7), iw.writtenBytes)
 
 	err = iw.Write([]abstract.ChangeItem{
-		abstract.MakeRawMessage("", time.Now(), "", 0, 0, []byte("aboba123")),
+		abstract.MakeRawMessage([]byte("stub"), "", time.Now(), "", 0, 0, []byte("aboba123")),
 	})
 	require.NoError(t, err, "Write throws")
 
@@ -49,7 +49,7 @@ func TestIntermediateWriterRotatesOnBytes(t *testing.T) {
 
 	for i := 0; i < 16; i++ {
 		err := iw.Write([]abstract.ChangeItem{
-			abstract.MakeRawMessage("", time.Now(), "", 0, 0, []byte("123456")),
+			abstract.MakeRawMessage([]byte("stub"), "", time.Now(), "", 0, 0, []byte("123456")),
 		})
 		require.NoError(t, err, "Write throws")
 	}
@@ -57,7 +57,7 @@ func TestIntermediateWriterRotatesOnBytes(t *testing.T) {
 	require.Equal(t, int64(96), iw.writtenBytes)
 
 	err := iw.Write([]abstract.ChangeItem{
-		abstract.MakeRawMessage("", time.Now(), "", 0, 0, []byte("123456")),
+		abstract.MakeRawMessage([]byte("stub"), "", time.Now(), "", 0, 0, []byte("123456")),
 	})
 	require.NoError(t, err, "Write throws")
 
@@ -67,7 +67,7 @@ func TestIntermediateWriterRotatesOnBytes(t *testing.T) {
 	time.Sleep(time.Second * 2)
 
 	err = iw.Write([]abstract.ChangeItem{
-		abstract.MakeRawMessage("", time.Now(), "", 0, 0, []byte("123456")),
+		abstract.MakeRawMessage([]byte("stub"), "", time.Now(), "", 0, 0, []byte("123456")),
 	})
 	require.NoError(t, err, "Write throws")
 

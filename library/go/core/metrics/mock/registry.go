@@ -3,9 +3,9 @@ package mock
 import (
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/metricsutil"
-	"github.com/doublecloud/transfer/library/go/core/metrics/internal/pkg/registryutil"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/metricsutil"
+	"github.com/transferia/transferia/library/go/core/metrics/internal/pkg/registryutil"
 	"go.uber.org/atomic"
 )
 
@@ -77,8 +77,11 @@ func (r Registry) Counter(name string) metrics.Counter {
 func (r Registry) FuncCounter(name string, function func() int64) metrics.FuncCounter {
 	metricName := r.newMetricName(name)
 	key := registryutil.BuildRegistryKey(metricName, r.tags)
-	s := FuncCounter{function: function}
-	if _, loaded := r.metrics.LoadOrStore(key, s); loaded {
+	s := &FuncCounter{function: function}
+	if val, loaded := r.metrics.LoadOrStore(key, s); loaded {
+		if r.allowLoadRegisteredMetrics {
+			return val.(*FuncCounter)
+		}
 		panic("metric with key " + key + " already registered")
 	}
 	return s
@@ -104,8 +107,11 @@ func (r Registry) Gauge(name string) metrics.Gauge {
 func (r Registry) FuncGauge(name string, function func() float64) metrics.FuncGauge {
 	metricName := r.newMetricName(name)
 	key := registryutil.BuildRegistryKey(metricName, r.tags)
-	s := FuncGauge{function: function}
-	if _, loaded := r.metrics.LoadOrStore(key, s); loaded {
+	s := &FuncGauge{function: function}
+	if val, loaded := r.metrics.LoadOrStore(key, s); loaded {
+		if r.allowLoadRegisteredMetrics {
+			return val.(*FuncGauge)
+		}
 		panic("metric with key " + key + " already registered")
 	}
 	return s
@@ -131,8 +137,11 @@ func (r *Registry) IntGauge(name string) metrics.IntGauge {
 func (r *Registry) FuncIntGauge(name string, function func() int64) metrics.FuncIntGauge {
 	metricName := r.newMetricName(name)
 	key := registryutil.BuildRegistryKey(metricName, r.tags)
-	s := FuncIntGauge{function: function}
-	if _, loaded := r.metrics.LoadOrStore(key, s); loaded {
+	s := &FuncIntGauge{function: function}
+	if val, loaded := r.metrics.LoadOrStore(key, s); loaded {
+		if r.allowLoadRegisteredMetrics {
+			return val.(*FuncIntGauge)
+		}
 		panic("metric with key " + key + " already registered")
 	}
 	return s

@@ -8,10 +8,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/util"
-	mongoshardedconfig "github.com/doublecloud/transfer/recipe/mongo/pkg/config"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/util"
+	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -56,7 +56,7 @@ func StartSingleMongos(
 	logPath := path.Join(binInfo.LogsPath, commonSubPath, "mongod.log")
 	pidPath := path.Join(binInfo.WorkspacePath, commonSubPath, "mongos.pid")
 
-	cfgHostList := strings.Join(slices.Map(configReplicaSet.MongoDaemons, func(d MongoD) string {
+	cfgHostList := strings.Join(yslices.Map(configReplicaSet.MongoDaemons, func(d MongoD) string {
 		return d.Fqdn()
 	}), ",")
 	cfgHostsURL := fmt.Sprintf("%s/%s", configReplicaSet.ReplicaSet, cfgHostList)
@@ -173,7 +173,7 @@ func (s MongoS) WithRootConnection(ctxFunc func(client *mongo.Client) error) (er
 }
 
 func (s MongoS) addShardReplicaSet(client *mongo.Client, shard ShardReplicaSet) error {
-	shardHostList := strings.Join(slices.Map(shard.MongoDaemons, func(d MongoD) string {
+	shardHostList := strings.Join(yslices.Map(shard.MongoDaemons, func(d MongoD) string {
 		return d.Fqdn()
 	}), ",")
 	shardHostsURL := fmt.Sprintf("%s/%s", shard.ReplicaSet, shardHostList)

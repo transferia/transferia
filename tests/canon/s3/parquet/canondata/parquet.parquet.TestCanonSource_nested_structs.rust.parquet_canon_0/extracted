@@ -1126,11 +1126,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/nested_structs.rust.parquet"
+            "value": "f90a6ccf5eafd7cd75e526f3c500cc4c"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

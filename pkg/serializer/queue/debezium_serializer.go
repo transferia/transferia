@@ -3,20 +3,19 @@ package queue
 import (
 	"runtime"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	"github.com/doublecloud/transfer/pkg/debezium/packer"
-	lightningcache "github.com/doublecloud/transfer/pkg/debezium/packer/lightning_cache"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/debezium"
+	"github.com/transferia/transferia/pkg/debezium/packer"
+	lightningcache "github.com/transferia/transferia/pkg/debezium/packer/lightning_cache"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 const defaultTopicPrefix = "__data_transfer_stub"
 
 type DebeziumSerializer struct {
-	parameters  map[string]string
 	isSnapshot  bool
 	emitter     *debezium.Emitter
 	saveTxOrder bool
@@ -120,7 +119,6 @@ func NewDebeziumSerializer(formatSettings map[string]string, saveTxOrder, dropKe
 		return nil, xerrors.Errorf("can't create debezium emitter: %w", err)
 	}
 	return &DebeziumSerializer{
-		parameters:  formatSettings,
 		isSnapshot:  isSnapshot,
 		emitter:     emitter,
 		saveTxOrder: saveTxOrder,

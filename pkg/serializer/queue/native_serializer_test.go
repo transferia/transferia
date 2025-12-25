@@ -3,9 +3,10 @@ package queue
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 var nativeSerializerTestTypicalChangeItem *abstract.ChangeItem
@@ -47,46 +48,41 @@ func TestNativeSerializerTopicName(t *testing.T) {
 		MaxMessageSize: 0,
 	}
 
-	changeItem0 := *nativeSerializerTestTypicalChangeItem
+	changeItem0 := nativeSerializerTestTypicalChangeItem
 	changeItem0.Table = "table0"
-	changeItem1 := *nativeSerializerTestTypicalChangeItem
+	changeItem1 := nativeSerializerTestTypicalChangeItem
 	changeItem1.Table = "table1"
 
-	//-------------------------
-	// saveTxOrder: false
+	t.Run("saveTxOrder-disabled", func(t *testing.T) {
+		nativeSerializer, err := NewNativeSerializer(batcher, false)
+		require.NoError(t, err)
+		batches, err := nativeSerializer.Serialize([]abstract.ChangeItem{*changeItem0, *changeItem1})
+		require.NoError(t, err)
 
-	nativeSerializer, err := NewNativeSerializer(batcher, false)
-	require.NoError(t, err)
+		toCanon := make(map[string]any, len(batches))
+		for tablePartID, messages := range batches {
+			for _, msg := range messages {
+				toCanon[tablePartID.FqtnWithPartID()] = []string{string(msg.Key), string(msg.Value)}
+			}
+		}
+		canon.SaveJSON(t, toCanon)
+	})
 
-	batches, err := nativeSerializer.Serialize([]abstract.ChangeItem{changeItem0, changeItem1})
-	require.NoError(t, err)
-	require.True(t, len(batches) > 0)
+	t.Run("saveTxOrder-enabled", func(t *testing.T) {
+		nativeSerializerTx, err := NewNativeSerializer(batcher, true)
+		require.NoError(t, err)
+		batches, err := nativeSerializerTx.Serialize([]abstract.ChangeItem{*changeItem0, *changeItem1})
+		require.NoError(t, err)
+		require.Len(t, batches, 1)
 
-	var ok bool
-	var v []SerializedMessage
-
-	v, ok = batches[abstract.TablePartID{TableID: abstract.TableID{Namespace: "public", Name: "table0"}, PartID: ""}]
-	require.True(t, ok)
-	require.Equal(t, `public_table0`, string(v[0].Key))
-	require.Equal(t, `{"id":601,"nextlsn":25051056,"commitTime":1643660670333075000,"txPosition":0,"kind":"insert","schema":"public","table":"table0","part":"","columnnames":["id","val"],"columnvalues":[1,-8388605],"table_schema":[{"table_schema":"","table_name":"","path":"","name":"id","type":"int32","key":true,"fake_key":false,"required":false,"expression":"","original_type":"pg:integer"},{"table_schema":"","table_name":"","path":"","name":"val","type":"int32","key":false,"fake_key":false,"required":false,"expression":"","original_type":"pg:integer"}],"oldkeys":{},"tx_id":"","query":""}`, string(v[0].Value))
-
-	v, ok = batches[abstract.TablePartID{TableID: abstract.TableID{Namespace: "public", Name: "table1"}, PartID: ""}]
-	require.True(t, ok)
-	require.Equal(t, `public_table1`, string(v[0].Key))
-	require.Equal(t, `{"id":601,"nextlsn":25051056,"commitTime":1643660670333075000,"txPosition":0,"kind":"insert","schema":"public","table":"table1","part":"","columnnames":["id","val"],"columnvalues":[1,-8388605],"table_schema":[{"table_schema":"","table_name":"","path":"","name":"id","type":"int32","key":true,"fake_key":false,"required":false,"expression":"","original_type":"pg:integer"},{"table_schema":"","table_name":"","path":"","name":"val","type":"int32","key":false,"fake_key":false,"required":false,"expression":"","original_type":"pg:integer"}],"oldkeys":{},"tx_id":"","query":""}`, string(v[0].Value))
-
-	//------------------------
-	// saveTxOrder: true
-
-	nativeSerializerTx, err := NewNativeSerializer(batcher, true)
-	require.NoError(t, err)
-	batchesTx, err := nativeSerializerTx.Serialize([]abstract.ChangeItem{changeItem0, changeItem1})
-	require.NoError(t, err)
-	require.Len(t, batchesTx, 1)
-	for k, v := range batchesTx {
-		require.Equal(t, abstract.TablePartID{TableID: abstract.TableID{Namespace: "", Name: ""}, PartID: ""}, k)
-		require.Len(t, v, 2)
-	}
+		toCanon := make(map[string]any, len(batches))
+		for tablePartID, messages := range batches {
+			for _, msg := range messages {
+				toCanon[tablePartID.FqtnWithPartID()] = []string{string(msg.Key), string(msg.Value)}
+			}
+		}
+		canon.SaveJSON(t, toCanon)
+	})
 }
 
 func TestBatchNativeSerializerTopicName(t *testing.T) {

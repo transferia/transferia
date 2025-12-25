@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 )
 
 func TestRounding(t *testing.T) {

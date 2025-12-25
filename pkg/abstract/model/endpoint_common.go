@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 )
 
 type (
-	BytesSize    uint32
+	BytesSize    uint64
 	SecretString string
 )
 
@@ -92,7 +92,7 @@ func NewSource(provider abstract.ProviderType, jsonStr string) (Source, error) {
 	if err := json.Unmarshal([]byte(jsonStr), source); err != nil {
 		return nil, xerrors.Errorf("cannot unmarshal JSON: %w", err)
 	}
-	source.WithDefaults()
+	WithEssentialDefaults(source)
 	return source, nil
 }
 
@@ -118,6 +118,6 @@ func NewDestination(provider abstract.ProviderType, jsonStr string) (Destination
 			return nil, xerrors.Errorf("cannot unmarshal JSON: %w", err)
 		}
 	}
-	destination.WithDefaults()
+	WithEssentialDefaults(destination)
 	return destination, nil
 }

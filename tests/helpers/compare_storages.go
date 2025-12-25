@@ -6,18 +6,19 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse"
-	chModel "github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	mongoStorage "github.com/doublecloud/transfer/pkg/providers/mongo"
-	mysqlStorage "github.com/doublecloud/transfer/pkg/providers/mysql"
-	pgStorage "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	ytStorage "github.com/doublecloud/transfer/pkg/providers/yt/storage"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	chModel "github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	mongoStorage "github.com/transferia/transferia/pkg/providers/mongo"
+	mysqlStorage "github.com/transferia/transferia/pkg/providers/mysql"
+	pgStorage "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	ytStorage "github.com/transferia/transferia/pkg/providers/yt/storage"
+	"github.com/transferia/transferia/pkg/worker/tasks"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -53,13 +54,21 @@ func GetSampleableStorageByModel(t *testing.T, serverModel interface{}) abstract
 		result, err = pgStorage.NewStorage(withTextSerialization(model.ToStorageParams()))
 	// ch
 	case chModel.ChSource:
-		result, err = clickhouse.NewStorage(model.ToStorageParams(), nil)
+		storageParams, storageParamsErr := model.ToStorageParams()
+		require.NoError(t, storageParamsErr)
+		result, err = clickhouse.NewStorage(storageParams, nil)
 	case *chModel.ChSource:
-		result, err = clickhouse.NewStorage(model.ToStorageParams(), nil)
+		storageParams, storageParamsErr := model.ToStorageParams()
+		require.NoError(t, storageParamsErr)
+		result, err = clickhouse.NewStorage(storageParams, nil)
 	case chModel.ChDestination:
-		result, err = clickhouse.NewStorage(model.ToStorageParams(), nil)
+		storageParams, storageParamsErr := model.ToStorageParams()
+		require.NoError(t, storageParamsErr)
+		result, err = clickhouse.NewStorage(storageParams, nil)
 	case *chModel.ChDestination:
-		result, err = clickhouse.NewStorage(model.ToStorageParams(), nil)
+		storageParams, storageParamsErr := model.ToStorageParams()
+		require.NoError(t, storageParamsErr)
+		result, err = clickhouse.NewStorage(storageParams, nil)
 	// mysql
 	case mysqlStorage.MysqlSource:
 		result, err = mysqlStorage.NewStorage(model.ToStorageParams())
@@ -89,13 +98,13 @@ func GetSampleableStorageByModel(t *testing.T, serverModel interface{}) abstract
 		result, err = ytStorage.NewStorage(model.ToStorageParams())
 	// ydb for now only works for small tables
 	case ydb.YdbDestination:
-		result, err = ydb.NewStorage(model.ToStorageParams())
+		result, err = ydb.NewStorage(model.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	case *ydb.YdbDestination:
-		result, err = ydb.NewStorage(model.ToStorageParams())
+		result, err = ydb.NewStorage(model.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	case ydb.YdbSource:
-		result, err = ydb.NewStorage(model.ToStorageParams())
+		result, err = ydb.NewStorage(model.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	case *ydb.YdbSource:
-		result, err = ydb.NewStorage(model.ToStorageParams())
+		result, err = ydb.NewStorage(model.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	default:
 		require.Fail(t, fmt.Sprintf("unknown type of serverModel: %T", serverModel))
 	}

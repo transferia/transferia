@@ -1,10 +1,10 @@
 package lightningcache
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	"github.com/doublecloud/transfer/pkg/debezium/packer"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/debezium"
+	"github.com/transferia/transferia/pkg/debezium/packer"
 )
 
 func handleChangeItems(input []abstract.ChangeItem, schemaIDCache *SessionPackersSchemaIDCache, emitter *debezium.Emitter, isSnapshot bool) error {
@@ -39,12 +39,12 @@ func handleChangeItems(input []abstract.ChangeItem, schemaIDCache *SessionPacker
 				if schemaIDCache.IsUseSchemaID(false) {
 					finalSchema, err = emitter.ToConfluentSchemaVal(&input[i], isSnapshot)
 					if err != nil {
-						return xerrors.Errorf("unable to build val schema, err: %w", err)
+						return xerrors.Errorf("unable to build val schema: %w", err)
 					}
 				} else if !schemaIDCache.Packer(false).IsDropSchema() {
 					finalSchema, err = emitter.ToKafkaSchemaVal(&input[i], isSnapshot)
 					if err != nil {
-						return xerrors.Errorf("unable to build val schema, err: %w", err)
+						return xerrors.Errorf("unable to build val kafka schema: %w", err)
 					}
 				}
 				err = schemaIDCache.GetAndSaveFinalSchemaAndMaybeSchemaID(false, &input[i], finalSchema)

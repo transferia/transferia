@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	confluentsrmock "github.com/doublecloud/transfer/tests/helpers/confluent_schema_registry_mock"
 	"github.com/stretchr/testify/require"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 )
 
 func getParams(sr *confluentsrmock.ConfluentSRMock, isKey bool) map[string]string {

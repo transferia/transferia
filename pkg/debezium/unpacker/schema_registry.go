@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/schemaregistry/confluent"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type SchemaRegistry struct {
@@ -26,10 +26,13 @@ func (s *SchemaRegistry) Unpack(message []byte) ([]byte, []byte, error) {
 
 	schema, _ := backoff.RetryNotifyWithData(func() (*confluent.Schema, error) {
 		return s.schemaRegistryClient.GetSchema(int(schemaID))
-	}, backoff.NewConstantBackOff(time.Second), util.BackoffLogger(logger.Log, "getting schema"),
-	)
+	}, backoff.NewConstantBackOff(time.Second), util.BackoffLogger(logger.Log, "getting schema"))
 
 	return []byte(schema.Schema), message[5:], nil
+}
+
+func (s *SchemaRegistry) SchemaRegistryClient() *confluent.SchemaRegistryClient {
+	return s.schemaRegistryClient
 }
 
 func NewSchemaRegistry(srClient *confluent.SchemaRegistryClient) *SchemaRegistry {

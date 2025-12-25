@@ -6,13 +6,16 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"fmt"
+	"net"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/xtls"
 	"github.com/go-sql-driver/mysql"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/xtls"
 )
 
 func CreateCertPool(certPEMFile string, rootCAFiles []string) (*x509.CertPool, error) {
@@ -79,6 +82,24 @@ func Connect(params *ConnectionParams, configAction func(config *mysql.Config) e
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
+		// DNS resolution errors (match by type or by common message patterns from drivers)
+		var dnsErr *net.DNSError
+		if xerrors.As(err, &dnsErr) {
+			return nil, coded.Errorf(codes.MySQLDNSResolutionFailed, "Can't ping server: %w", err)
+		}
+		// Check for connection timeout / dial errors
+		var opErr *net.OpError
+		if xerrors.As(err, &opErr) && opErr.Op == "dial" {
+			return nil, coded.Errorf(codes.Dial, "Can't ping server: %w", err)
+		}
+		// MySQL error 1049 (42000): Unknown database
+		if IsErrorCode(err, ErrCodeUnknownDatabase) {
+			return nil, coded.Errorf(codes.MySQLUnknownDatabase, "Can't ping server: %w", err)
+		}
+		// MySQL error 1045 (28000): Access denied for user ...
+		if IsErrorCode(err, ErrCodeInvalidCredential) {
+			return nil, coded.Errorf(codes.InvalidCredential, "Can't ping server: %w", err)
+		}
 		return nil, xerrors.Errorf("Can't ping server: %w", err)
 	}
 

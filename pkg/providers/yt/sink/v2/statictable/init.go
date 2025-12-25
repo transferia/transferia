@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -39,7 +39,6 @@ func initTable(client yt.Client, opts *InitOptions) error {
 	scheme := makeYtSchema(opts.Schema)
 	for i := range scheme.Columns {
 		scheme.Columns[i].SortOrder = ""
-		scheme.Columns[i].Expression = ""
 	}
 
 	createOptions := createNodeOptions(scheme, opts.OptimizeFor, opts.CustomAttributes)

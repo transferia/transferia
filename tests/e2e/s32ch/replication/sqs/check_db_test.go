@@ -10,12 +10,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func init() {
@@ -50,11 +51,11 @@ var (
 
 func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	testCasePath := "test_unescaped_files"
-	src := s3.PrepareCfg(t, "", "")
+	src := s3recipe.PrepareCfg(t, "", "")
 	src.PathPrefix = testCasePath
 
 	// for schema deduction
-	s3.UploadOne(t, src, "test_unescaped_files/simple=1234.jsonl")
+	s3recipe.UploadOne(t, src, "test_unescaped_files/simple=1234.jsonl")
 	time.Sleep(time.Second)
 
 	src.TableNamespace = "test"
@@ -78,8 +79,8 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 
 	if os.Getenv("S3MDS_PORT") != "" {
 		src.Bucket = "data6"
-		s3.CreateBucket(t, src)
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3recipe.CreateBucket(t, src)
+		s3recipe.PrepareTestCase(t, src, src.PathPrefix)
 	}
 
 	sess, err := session.NewSession(&aws.Config{

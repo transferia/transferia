@@ -4,23 +4,25 @@ import (
 	"context"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/data"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/sink"
-	"github.com/doublecloud/transfer/pkg/source"
-	"github.com/doublecloud/transfer/pkg/source/eventsource"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/data"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/sink"
+	"github.com/transferia/transferia/pkg/source"
+	"github.com/transferia/transferia/pkg/source/eventsource"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/worker/tasks"
 	"go.ytsaurus.tech/library/go/core/log"
 )
+
+var _ abstract.Transfer = (*LocalWorker)(nil)
 
 type LocalWorker struct {
 	transfer            *model.Transfer
@@ -43,13 +45,17 @@ func (w *LocalWorker) Error() error {
 	return nil
 }
 
+func (w *LocalWorker) RuntimeStatus() abstract.RuntimeStatus {
+	return abstract.Unknown
+}
+
 func (w *LocalWorker) Start() {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
 		err := runReplication(w.ctx, w.cp, w.transfer, w.registry, w.logger)
 
-		if !isOpen(w.stopCh) {
+		if !util.IsOpen(w.stopCh) {
 			// Stopped intentionally via Stop()
 			return
 		}
@@ -58,15 +64,6 @@ func (w *LocalWorker) Start() {
 			w.logger.Error("Local worker error", log.Error(err), log.Any("worker", w))
 		}
 	}()
-}
-
-func isOpen(ch chan struct{}) bool {
-	select {
-	case <-ch:
-		return false
-	default:
-		return true
-	}
 }
 
 func (w *LocalWorker) StopReplicationSource() {
@@ -82,16 +79,20 @@ func (w *LocalWorker) StopReplicationSource() {
 	}
 }
 
+func (w *LocalWorker) Detach() {
+	if util.IsOpen(w.stopCh) {
+		w.logger.Infof("Detach: stop monitoring and keeping alive transfer %s", w.transfer.ID)
+		close(w.stopCh)
+		w.cancel()
+	}
+}
+
 func (w *LocalWorker) Stop() error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
 	w.logger.Info("LocalWorker is stopping", log.Any("callstack", util.GetCurrentGoroutineCallstack()))
-
-	if isOpen(w.stopCh) {
-		close(w.stopCh)
-		w.cancel()
-	}
+	w.Detach()
 
 	if !w.initialized {
 		// Not started yet
@@ -116,7 +117,7 @@ func (w *LocalWorker) Runtime() abstract.Runtime {
 }
 
 func (w *LocalWorker) initialize() (err error) {
-	if !isOpen(w.stopCh) {
+	if !util.IsOpen(w.stopCh) {
 		return xerrors.New("Stopped before initialization completion")
 	}
 

@@ -11,10 +11,11 @@ package writer
 import (
 	context "context"
 	tls "crypto/tls"
+	net "net"
 	reflect "reflect"
 
 	log "go.ytsaurus.tech/library/go/core/log"
-	queue "github.com/doublecloud/transfer/pkg/serializer/queue"
+	queue "github.com/transferia/transferia/pkg/serializer/queue"
 	kafka "github.com/segmentio/kafka-go"
 	sasl "github.com/segmentio/kafka-go/sasl"
 	gomock "go.uber.org/mock/gomock"
@@ -95,15 +96,15 @@ func (m *MockAbstractWriterFactory) EXPECT() *MockAbstractWriterFactoryMockRecor
 }
 
 // BuildWriter mocks base method.
-func (m *MockAbstractWriterFactory) BuildWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64) AbstractWriter {
+func (m *MockAbstractWriterFactory) BuildWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64, dial func(context.Context, string, string) (net.Conn, error)) AbstractWriter {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildWriter", brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes)
+	ret := m.ctrl.Call(m, "BuildWriter", brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes, dial)
 	ret0, _ := ret[0].(AbstractWriter)
 	return ret0
 }
 
 // BuildWriter indicates an expected call of BuildWriter.
-func (mr *MockAbstractWriterFactoryMockRecorder) BuildWriter(brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes any) *gomock.Call {
+func (mr *MockAbstractWriterFactoryMockRecorder) BuildWriter(brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes, dial any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildWriter", reflect.TypeOf((*MockAbstractWriterFactory)(nil).BuildWriter), brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildWriter", reflect.TypeOf((*MockAbstractWriterFactory)(nil).BuildWriter), brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes, dial)
 }

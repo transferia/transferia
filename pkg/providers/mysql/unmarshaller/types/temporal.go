@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/sqltimestamp"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/postgres/sqltimestamp"
 )
 
 // Temporal enables to scan any temporal value with a date from []byte

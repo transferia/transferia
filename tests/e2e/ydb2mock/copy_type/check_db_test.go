@@ -7,13 +7,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 func TestGroup(t *testing.T) {
@@ -32,7 +33,7 @@ func TestGroup(t *testing.T) {
 		UseFullPaths:       false,
 	}
 
-	sinker := &helpers.MockSink{}
+	sinker := mocksink.NewMockSink(nil)
 	dst := &model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
@@ -40,7 +41,7 @@ func TestGroup(t *testing.T) {
 
 	var changeItems []abstract.ChangeItem
 	mutex := sync.Mutex{}
-	sinker.PushCallback = func(input []abstract.ChangeItem) {
+	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		mutex.Lock()
 		defer mutex.Unlock()
 
@@ -49,6 +50,7 @@ func TestGroup(t *testing.T) {
 				changeItems = append(changeItems, currElem)
 			}
 		}
+		return nil
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------

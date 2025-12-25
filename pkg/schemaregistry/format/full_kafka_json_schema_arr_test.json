@@ -1,0 +1,958 @@
+{
+    "type": "struct",
+    "fields": [
+      {
+        "type": "struct",
+        "fields": [
+          {
+            "type": "int32",
+            "optional": false,
+            "field": "i"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "boolean",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_bl"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int16",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_si"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int32",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_int"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_id"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_oid_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "float",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_real_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "double",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_d"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_c"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_str"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_character_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_character_varying_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timestamptz_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_tst"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timetz_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_time_with_time_zone_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.data.Uuid",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_uid"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_it"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "double",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_f"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int32",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_i"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_t"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int32",
+              "optional": true,
+              "name": "io.debezium.time.Date",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_date_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_time_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_time1"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_time6"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timetz__"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timetz1"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timetz6"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timestamp1"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timestamp6"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timestamp"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "struct",
+              "fields": [
+                {
+                  "type": "int32",
+                  "optional": false,
+                  "field": "scale"
+                },
+                {
+                  "type": "bytes",
+                  "optional": false,
+                  "field": "value"
+                }
+              ],
+              "optional": true,
+              "name": "io.debezium.data.VariableScaleDecimal",
+              "version": 1,
+              "doc": "Variable scaled decimal"
+            },
+            "optional": true,
+            "field": "arr_numeric_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "bytes",
+              "optional": true,
+              "name": "org.apache.kafka.connect.data.Decimal",
+              "version": 1,
+              "parameters": {
+                "scale": "0",
+                "connect.decimal.precision": "5"
+              }
+            },
+            "optional": true,
+            "field": "arr_numeric_5"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "bytes",
+              "optional": true,
+              "name": "org.apache.kafka.connect.data.Decimal",
+              "version": 1,
+              "parameters": {
+                "scale": "2",
+                "connect.decimal.precision": "5"
+              }
+            },
+            "optional": true,
+            "field": "arr_numeric_5_2"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "struct",
+              "fields": [
+                {
+                  "type": "int32",
+                  "optional": false,
+                  "field": "scale"
+                },
+                {
+                  "type": "bytes",
+                  "optional": false,
+                  "field": "value"
+                }
+              ],
+              "optional": true,
+              "name": "io.debezium.data.VariableScaleDecimal",
+              "version": 1,
+              "doc": "Variable scaled decimal"
+            },
+            "optional": true,
+            "field": "arr_decimal_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "bytes",
+              "optional": true,
+              "name": "org.apache.kafka.connect.data.Decimal",
+              "version": 1,
+              "parameters": {
+                "scale": "0",
+                "connect.decimal.precision": "5"
+              }
+            },
+            "optional": true,
+            "field": "arr_decimal_5"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "bytes",
+              "optional": true,
+              "name": "org.apache.kafka.connect.data.Decimal",
+              "version": 1,
+              "parameters": {
+                "scale": "2",
+                "connect.decimal.precision": "5"
+              }
+            },
+            "optional": true,
+            "field": "arr_decimal_5_2"
+          }
+        ],
+        "optional": true,
+        "name": "dbserver1.public.basic_types.Value",
+        "field": "before"
+      },
+      {
+        "type": "struct",
+        "fields": [
+          {
+            "type": "int32",
+            "optional": false,
+            "field": "i"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "boolean",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_bl"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int16",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_si"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int32",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_int"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_id"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_oid_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "float",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_real_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "double",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_d"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_c"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_str"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_character_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_character_varying_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timestamptz_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_tst"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timetz_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_time_with_time_zone_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.data.Uuid",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_uid"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_it"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "double",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_f"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int32",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_i"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true
+            },
+            "optional": true,
+            "field": "arr_t"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int32",
+              "optional": true,
+              "name": "io.debezium.time.Date",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_date_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_time_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_time1"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_time6"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timetz__"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timetz1"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "optional": true,
+              "name": "io.debezium.time.ZonedTime",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timetz6"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timestamp1"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timestamp6"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1
+            },
+            "optional": true,
+            "field": "arr_timestamp"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "struct",
+              "fields": [
+                {
+                  "type": "int32",
+                  "optional": false,
+                  "field": "scale"
+                },
+                {
+                  "type": "bytes",
+                  "optional": false,
+                  "field": "value"
+                }
+              ],
+              "optional": true,
+              "name": "io.debezium.data.VariableScaleDecimal",
+              "version": 1,
+              "doc": "Variable scaled decimal"
+            },
+            "optional": true,
+            "field": "arr_numeric_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "bytes",
+              "optional": true,
+              "name": "org.apache.kafka.connect.data.Decimal",
+              "version": 1,
+              "parameters": {
+                "scale": "0",
+                "connect.decimal.precision": "5"
+              }
+            },
+            "optional": true,
+            "field": "arr_numeric_5"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "bytes",
+              "optional": true,
+              "name": "org.apache.kafka.connect.data.Decimal",
+              "version": 1,
+              "parameters": {
+                "scale": "2",
+                "connect.decimal.precision": "5"
+              }
+            },
+            "optional": true,
+            "field": "arr_numeric_5_2"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "struct",
+              "fields": [
+                {
+                  "type": "int32",
+                  "optional": false,
+                  "field": "scale"
+                },
+                {
+                  "type": "bytes",
+                  "optional": false,
+                  "field": "value"
+                }
+              ],
+              "optional": true,
+              "name": "io.debezium.data.VariableScaleDecimal",
+              "version": 1,
+              "doc": "Variable scaled decimal"
+            },
+            "optional": true,
+            "field": "arr_decimal_"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "bytes",
+              "optional": true,
+              "name": "org.apache.kafka.connect.data.Decimal",
+              "version": 1,
+              "parameters": {
+                "scale": "0",
+                "connect.decimal.precision": "5"
+              }
+            },
+            "optional": true,
+            "field": "arr_decimal_5"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "bytes",
+              "optional": true,
+              "name": "org.apache.kafka.connect.data.Decimal",
+              "version": 1,
+              "parameters": {
+                "scale": "2",
+                "connect.decimal.precision": "5"
+              }
+            },
+            "optional": true,
+            "field": "arr_decimal_5_2"
+          }
+        ],
+        "optional": true,
+        "name": "dbserver1.public.basic_types.Value",
+        "field": "after"
+      },
+      {
+        "type": "struct",
+        "fields": [
+          {
+            "type": "string",
+            "optional": false,
+            "field": "version"
+          },
+          {
+            "type": "string",
+            "optional": false,
+            "field": "connector"
+          },
+          {
+            "type": "string",
+            "optional": false,
+            "field": "name"
+          },
+          {
+            "type": "int64",
+            "optional": false,
+            "field": "ts_ms"
+          },
+          {
+            "type": "string",
+            "optional": true,
+            "name": "io.debezium.data.Enum",
+            "version": 1,
+            "parameters": {
+              "allowed": "true,last,false,incremental"
+            },
+            "default": "false",
+            "field": "snapshot"
+          },
+          {
+            "type": "string",
+            "optional": false,
+            "field": "db"
+          },
+          {
+            "type": "string",
+            "optional": true,
+            "field": "sequence"
+          },
+          {
+            "type": "string",
+            "optional": false,
+            "field": "schema"
+          },
+          {
+            "type": "string",
+            "optional": false,
+            "field": "table"
+          },
+          {
+            "type": "int64",
+            "optional": true,
+            "field": "txId"
+          },
+          {
+            "type": "int64",
+            "optional": true,
+            "field": "lsn"
+          },
+          {
+            "type": "int64",
+            "optional": true,
+            "field": "xmin"
+          }
+        ],
+        "optional": false,
+        "name": "io.debezium.connector.postgresql.Source",
+        "field": "source"
+      },
+      {
+        "type": "string",
+        "optional": false,
+        "field": "op"
+      },
+      {
+        "type": "int64",
+        "optional": true,
+        "field": "ts_ms"
+      },
+      {
+        "type": "struct",
+        "fields": [
+          {
+            "type": "string",
+            "optional": false,
+            "field": "id"
+          },
+          {
+            "type": "int64",
+            "optional": false,
+            "field": "total_order"
+          },
+          {
+            "type": "int64",
+            "optional": false,
+            "field": "data_collection_order"
+          }
+        ],
+        "optional": true,
+        "name": "event.block",
+        "version": 1,
+        "field": "transaction"
+      }
+    ],
+    "optional": false,
+    "name": "dbserver1.public.basic_types.Envelope",
+    "version": 1
+  }

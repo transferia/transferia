@@ -1,8 +1,8 @@
 package table
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

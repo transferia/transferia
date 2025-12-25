@@ -2,10 +2,13 @@ package yt
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/ptr"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -17,6 +20,12 @@ import (
 var (
 	defaultHandleParams = NewHandleParams(50)
 )
+
+type ColumnSchema struct {
+	Name    string      `yson:"name" json:"name"`
+	YTType  schema.Type `yson:"type" json:"type"`
+	Primary bool        `json:"primary"`
+}
 
 type nodeHandler func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error
 
@@ -57,9 +66,9 @@ func handleNodesAsync(
 	errors chan<- error,
 	count *int,
 ) error {
-	attrs := new(NodeAttrs)
-	if err := client.GetNode(ctx, path.Attrs(), attrs, nil); err != nil {
-		return xerrors.Errorf("unable to get node: %w", err)
+	attrs, err := GetNodeAttrs(ctx, client, path)
+	if err != nil {
+		return xerrors.Errorf("unable to get node attributes: %w", err)
 	}
 
 	switch attrs.Type {
@@ -108,7 +117,7 @@ func UnmountAndWaitRecursive(ctx context.Context, logger log.Logger, client yt.C
 		func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error {
 			if attrs.Type == yt.NodeTable && attrs.Dynamic {
 				if attrs.TabletState != yt.TabletUnmounted {
-					err := migrate.UnmountAndWait(ctx, client, path)
+					err := MountUnmountWrapper(ctx, client, path, migrate.UnmountAndWait)
 					if err == nil {
 						logger.Info("successfully unmounted table", log.Any("path", path))
 					}
@@ -128,7 +137,7 @@ func MountAndWaitRecursive(ctx context.Context, logger log.Logger, client yt.Cli
 		func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error {
 			if attrs.Type == yt.NodeTable && attrs.Dynamic {
 				if attrs.TabletState != yt.TabletMounted {
-					err := migrate.MountAndWait(ctx, client, path)
+					err := MountUnmountWrapper(ctx, client, path, migrate.MountAndWait)
 					if err == nil {
 						logger.Info("successfully mounted table", log.Any("path", path))
 					}
@@ -196,4 +205,66 @@ func WaitMountingPreloadState(yc yt.Client, path ypath.Path) error {
 		case <-tick.C:
 		}
 	}
+}
+
+func ResolveMoveOptions(client yt.CypressClient, table ypath.Path, isRecursive bool) *yt.MoveNodeOptions {
+	ctx := context.Background()
+	result := &yt.MoveNodeOptions{
+		Force:     true,
+		Recursive: isRecursive,
+	}
+
+	if ok, err := client.NodeExists(ctx, table.Attr("expiration_timeout"), nil); err == nil && ok {
+		result.PreserveExpirationTimeout = ptr.Bool(true)
+	}
+	if ok, err := client.NodeExists(ctx, table.Attr("expiration_time"), nil); err == nil && ok {
+		result.PreserveExpirationTime = ptr.Bool(true)
+	}
+	return result
+}
+
+func ToYtSchema(original []abstract.ColSchema, fixAnyTypeInPrimaryKey bool) []schema.Column {
+	result := make([]schema.Column, len(original))
+	for idx, el := range original {
+		result[idx] = schema.Column{
+			Name:       el.ColumnName,
+			Expression: "",
+			Type:       schema.Type(el.DataType),
+		}
+		if el.PrimaryKey {
+			result[idx].SortOrder = schema.SortAscending
+			if result[idx].Type == schema.TypeAny && fixAnyTypeInPrimaryKey {
+				result[idx].Type = schema.TypeString // should not use any as keys
+			}
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].SortOrder != schema.SortNone && result[j].SortOrder == schema.SortNone
+	})
+	return result
+}
+
+func MakeTableName(tableID abstract.TableID, altNames map[string]string) string {
+	var name string
+	if tableID.Namespace == "public" || tableID.Namespace == "" {
+		name = tableID.Name
+	} else {
+		name = fmt.Sprintf("%v_%v", tableID.Namespace, tableID.Name)
+	}
+
+	if altName, ok := altNames[name]; ok {
+		name = altName
+	}
+
+	return name
+}
+
+func MountUnmountWrapper(
+	ctx context.Context,
+	ytClient yt.Client,
+	path ypath.Path,
+	f func(context.Context, yt.Client, ypath.Path) error) error {
+	customCtx, cancel := context.WithTimeout(ctx, time.Minute*5)
+	defer cancel()
+	return f(customCtx, ytClient, path)
 }

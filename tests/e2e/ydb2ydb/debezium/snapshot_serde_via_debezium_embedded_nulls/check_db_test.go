@@ -4,17 +4,18 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/debezium"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/tests/helpers"
-	"github.com/doublecloud/transfer/tests/helpers/serde"
-	simple_transformer "github.com/doublecloud/transfer/tests/helpers/transformer"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/debezium"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/serde"
+	simple_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
 var path = "dectest/timmyb32r-test"
@@ -75,7 +76,7 @@ func TestSnapshotAndSerDeViaDebeziumEmbedded(t *testing.T) {
 	//-----------------------------------------------------------------------------------------------------------------
 	// check
 
-	sinkMock := &helpers.MockSink{}
+	sinkMock := mocksink.NewMockSink(nil)
 	targetMock := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       model.DisabledCleanup,
@@ -83,12 +84,13 @@ func TestSnapshotAndSerDeViaDebeziumEmbedded(t *testing.T) {
 	transferMock := helpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
 	var extractedChangeItem abstract.ChangeItem
 	t.Run("extract change_item from dst", func(t *testing.T) {
-		sinkMock.PushCallback = func(input []abstract.ChangeItem) {
+		sinkMock.PushCallback = func(input []abstract.ChangeItem) error {
 			for _, currItem := range input {
 				if currItem.Table == pathOut && currItem.Kind == abstract.InsertKind {
 					extractedChangeItem = currItem
 				}
 			}
+			return nil
 		}
 		helpers.Activate(t, transferMock)
 	})

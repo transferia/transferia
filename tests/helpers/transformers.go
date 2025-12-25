@@ -3,10 +3,10 @@ package helpers
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	_ "github.com/doublecloud/transfer/pkg/dataplane"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	_ "github.com/transferia/transferia/pkg/dataplane"
 )
 
 //---------------------------------------------------------------------------------------------------------------------

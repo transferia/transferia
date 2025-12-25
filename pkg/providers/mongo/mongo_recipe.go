@@ -8,11 +8,11 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/docker/go-connections/nat"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/tests/tcrecipes"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/tests/tcrecipes"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -27,6 +27,7 @@ const defaultPort = nat.Port("27017/tcp")
 type recipeOpts struct {
 	prefix     string
 	collection []MongoCollection
+	database   string
 }
 
 type RecipeOption func(opts *recipeOpts)
@@ -40,6 +41,12 @@ func WithPrefix(prefix string) RecipeOption {
 func WithCollections(collections ...MongoCollection) RecipeOption {
 	return func(opts *recipeOpts) {
 		opts.collection = collections
+	}
+}
+
+func WithDatabase(database string) RecipeOption {
+	return func(opts *recipeOpts) {
+		opts.database = database
 	}
 }
 
@@ -57,6 +64,7 @@ func RecipeSource(options ...RecipeOption) *MongoSource {
 	}
 	return &MongoSource{
 		ClusterID:              "",
+		ConnectionID:           "",
 		Hosts:                  []string{"localhost"},
 		Port:                   GetIntFromEnv(opts.prefix + "MONGO_LOCAL_PORT"),
 		ReplicaSet:             os.Getenv(opts.prefix + "MONGO_REPLICA_SET"),
@@ -80,6 +88,7 @@ func RecipeSource(options ...RecipeOption) *MongoSource {
 		FilterOplogWithRegexp:  false,
 		Direct:                 os.Getenv(opts.prefix+"MONGO_LOCAL_DIRECT") == "1",
 		RootCAFiles:            nil,
+		UserEnabledTls:         nil,
 	}
 }
 
@@ -97,9 +106,10 @@ func RecipeTarget(options ...RecipeOption) *MongoDestination {
 	}
 	return &MongoDestination{
 		ClusterID:         "",
+		ConnectionID:      "",
 		Hosts:             []string{"localhost"},
 		Port:              GetIntFromEnv(opts.prefix + "MONGO_LOCAL_PORT"),
-		Database:          "",
+		Database:          opts.database,
 		ReplicaSet:        os.Getenv(opts.prefix + "MONGO_REPLICA_SET"),
 		AuthSource:        "",
 		User:              os.Getenv(opts.prefix + "MONGO_LOCAL_USER"),
@@ -112,6 +122,7 @@ func RecipeTarget(options ...RecipeOption) *MongoDestination {
 		TLSFile:           "",
 		Direct:            os.Getenv(opts.prefix+"MONGO_LOCAL_DIRECT") == "1",
 		RootCAFiles:       nil,
+		UserEnabledTls:    nil,
 	}
 }
 

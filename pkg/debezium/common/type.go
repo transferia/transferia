@@ -1,6 +1,6 @@
 package common
 
-import "github.com/doublecloud/transfer/pkg/abstract"
+import "github.com/transferia/transferia/pkg/abstract"
 
 type KafkaTypeDescr struct {
 	KafkaTypeAndDebeziumNameAndExtra func(colSchema *abstract.ColSchema, intoArr, isSnapshot bool, connectorParameters map[string]string) (string, string, map[string]interface{})

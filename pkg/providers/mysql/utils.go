@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/mysql/unmarshaller/snapshot"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/size"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/providers/mysql/unmarshaller/snapshot"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/size"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -118,13 +119,23 @@ func buildSelectQuery(table abstract.TableDescription, tableSchema []abstract.Co
 	)
 
 	if table.Filter != "" {
-		resultQuery += " WHERE " + string(table.Filter)
+		if IsPartition(table.Filter) {
+			// we use partition-by sharding mechanism, to query exact partition there is no need to use `where` key-word
+			// see: https://stackoverflow.com/questions/14112283/how-to-select-rows-from-partition-in-mysql
+			resultQuery += string(table.Filter)
+		} else {
+			resultQuery += " WHERE " + string(table.Filter)
+		}
 	}
 	if table.Offset != 0 {
 		resultQuery += fmt.Sprintf(" OFFSET %d", table.Offset)
 	}
 
 	return resultQuery
+}
+
+func IsPartition(filter abstract.WhereStatement) bool {
+	return strings.HasPrefix(string(filter), "PARTITION")
 }
 
 func MakeArrBacktickedColumnNames(tableSchema *[]abstract.ColSchema) []string {
@@ -190,13 +201,13 @@ func pushCreateTable(ctx context.Context, tx Queryable, table abstract.TableID, 
 // fileOffset for next file we add this number to LSN
 const fileOffset = 1_000_000_000_000
 
-func CalculateLSN(file string, pos uint32) uint64 {
+func CalculateLSN(file string, pos uint64) uint64 {
 	parts := strings.Split(file, ".")
 	if len(parts) <= 1 {
-		return fileOffset + uint64(pos)
+		return fileOffset + pos
 	}
 	fIdx, _ := strconv.Atoi(parts[1])
-	return uint64(fIdx*fileOffset) + uint64(pos)
+	return uint64(fIdx*fileOffset) + pos
 }
 
 func readRowsAndPushByChunks(
@@ -242,21 +253,22 @@ func readRowsAndPushByChunks(
 		}
 
 		inflight = append(inflight, abstract.ChangeItem{
-			LSN:          lsn,
-			CommitTime:   uint64(st.UnixNano()),
-			Kind:         abstract.InsertKind,
-			Schema:       table.Schema,
-			Table:        table.Name,
-			PartID:       "",
-			ColumnNames:  colsNames,
-			ColumnValues: columnValues,
-			TableSchema:  tableSchema,
-			ID:           0,
-			Counter:      0,
-			OldKeys:      abstract.EmptyOldKeys(),
-			TxID:         "",
-			Query:        "",
-			Size:         abstract.RawEventSize(readValuesSize),
+			ID:               0,
+			LSN:              lsn,
+			CommitTime:       uint64(st.UnixNano()),
+			Counter:          0,
+			Kind:             abstract.InsertKind,
+			Schema:           table.Schema,
+			Table:            table.Name,
+			PartID:           "",
+			ColumnNames:      colsNames,
+			ColumnValues:     columnValues,
+			TableSchema:      tableSchema,
+			OldKeys:          abstract.EmptyOldKeys(),
+			Size:             abstract.RawEventSize(readValuesSize),
+			TxID:             "",
+			Query:            "",
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		})
 		globalIdx++
 		if uint64(len(inflight)) >= chunkSize || inflightSize >= 16*size.MiB {

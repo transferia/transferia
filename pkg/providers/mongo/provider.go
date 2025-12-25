@@ -2,26 +2,26 @@ package mongo
 
 import (
 	"context"
-	"encoding/gob"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.MongoCollection", new(MongoCollection))
-	gob.RegisterName("*server.MongoSource", new(MongoSource))
-	gob.RegisterName("*server.MongoDestination", new(MongoDestination))
-	model.RegisterDestination(ProviderType, func() model.Destination {
+	gobwrapper.RegisterName("*server.MongoCollection", new(MongoCollection))
+	gobwrapper.RegisterName("*server.MongoSource", new(MongoSource))
+	gobwrapper.RegisterName("*server.MongoDestination", new(MongoDestination))
+	model.RegisterDestination(ProviderType, func() model.LoggableDestination {
 		return new(MongoDestination)
 	})
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(MongoSource)
 	})
 
@@ -43,14 +43,6 @@ const (
 	SystemDatabase      = "__data_transfer" // used only for old versions of mongo
 	ClusterTimeCollName = "__dt_cluster_time"
 )
-
-func isSystemTable(tableName string) bool {
-	switch tableName {
-	case SystemDatabase, ClusterTimeCollName:
-		return true
-	}
-	return false
-}
 
 const ProviderType = abstract.ProviderType("mongo")
 

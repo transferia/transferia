@@ -1,24 +1,31 @@
 package yt
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
 type YtCopyDestination struct {
-	Cluster            string
+	Cluster            string `log:"true"`
 	YtToken            string
-	Prefix             string
-	Parallelism        uint64
-	Pool               string
-	UsePushTransaction bool
-	ResourceLimits     *spec.ResourceLimits
+	Prefix             string               `log:"true"`
+	Parallelism        uint64               `log:"true"`
+	Pool               string               `log:"true"`
+	UsePushTransaction bool                 `log:"true"`
+	ResourceLimits     *spec.ResourceLimits `log:"true"`
+	Cleanup            model.CleanupType    `log:"true"`
 }
 
 var _ model.Destination = (*YtCopyDestination)(nil)
+
+func (y *YtCopyDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(y, enc)
+}
 
 func (y *YtCopyDestination) IsDestination() {}
 
@@ -27,7 +34,7 @@ func (y *YtCopyDestination) Transformer() map[string]string {
 }
 
 func (y *YtCopyDestination) CleanupMode() model.CleanupType {
-	return model.DisabledCleanup
+	return y.Cleanup
 }
 
 func (y *YtCopyDestination) WithDefaults() {
@@ -36,6 +43,9 @@ func (y *YtCopyDestination) WithDefaults() {
 	}
 	if y.ResourceLimits == nil {
 		y.ResourceLimits = new(spec.ResourceLimits)
+	}
+	if y.Cleanup == "" {
+		y.Cleanup = model.DisabledCleanup // default behaviour is preserved
 	}
 	if y.ResourceLimits.UserSlots == 0 {
 		y.ResourceLimits.UserSlots = 1000
@@ -78,4 +88,20 @@ func (y *YtCopyDestination) DisableProxyDiscovery() bool {
 
 func (y *YtCopyDestination) CompressionCodec() yt.ClientCompressionCodec {
 	return yt.ClientCodecBrotliFastest
+}
+
+func (y *YtCopyDestination) UseTLS() bool {
+	return false
+}
+
+func (y *YtCopyDestination) TLSFile() string {
+	return ""
+}
+
+func (y *YtCopyDestination) ServiceAccountID() string {
+	return ""
+}
+
+func (y *YtCopyDestination) ProxyRole() string {
+	return ""
 }

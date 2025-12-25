@@ -12,17 +12,17 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/core/xerrors/multierr"
-	"github.com/doublecloud/transfer/library/go/ptr"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	db_model "github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/db"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/conn"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/errors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/sharding"
-	topology2 "github.com/doublecloud/transfer/pkg/providers/clickhouse/topology"
 	"github.com/jmoiron/sqlx"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/library/go/ptr"
+	"github.com/transferia/transferia/pkg/abstract"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
+	db_model "github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
+	topology2 "github.com/transferia/transferia/pkg/providers/clickhouse/topology"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/exp/maps"
 )
@@ -218,7 +218,7 @@ func (s *shardClient) AliveHost() (DDLStreamingClient, error) {
 	opts := *s.opts
 	for i := 0; i < len(s.opts.Addr); i++ {
 		opts.Addr = []string{s.nextHostAddr()}
-		cl, err := NewHostClient(&opts, s.lgr)
+		cl, err := NewHostClient(&opts, log.With(s.lgr, log.String("shardHost", opts.Addr[0])))
 		if err != nil {
 			s.lgr.Warn("Error getting host client", log.String("host", opts.Addr[0]), log.Error(err))
 		} else {
@@ -233,7 +233,7 @@ func (s *shardClient) nextHostAddr() string {
 	return s.opts.Addr[s.hostIterator]
 }
 
-func NewShardClient(hosts []string, cp conn.ConnParams, topology *topology2.Topology, lgr log.Logger) (ShardClient, error) {
+func NewShardClient(hosts []*chconn.Host, cp conn.ConnParams, topology *topology2.Topology, lgr log.Logger) (ShardClient, error) {
 	opts, err := conn.GetClickhouseOptions(cp, hosts)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func (c *clusterClient) ExecDDL(fn db_model.DDLFactory) error {
 func (c *clusterClient) Close() error {
 	var errs error
 	for shardID, shard := range c.ShardMap {
-		logger.Log.Debugf("clusterClient: closing shard %d", shardID)
+		c.lgr.Debugf("clusterClient: closing shard %d", shardID)
 		errs = multierr.Append(errs, shard.Close())
 	}
 	return errs
@@ -291,10 +291,10 @@ func (c *clusterClient) randomShard() ShardClient {
 	return c.Shard(k)
 }
 
-func NewClusterClient(conn conn.ConnParams, topology *topology2.Topology, shards sharding.ShardMap[[]string], lgr log.Logger) (ClusterClient, error) {
+func NewClusterClient(conn conn.ConnParams, topology *topology2.Topology, shards sharding.ShardMap[[]*chconn.Host], lgr log.Logger) (ClusterClient, error) {
 	clients := make(sharding.ShardMap[ShardClient])
 	for shard, hosts := range shards {
-		cl, err := NewShardClient(hosts, conn, topology, lgr)
+		cl, err := NewShardClient(hosts, conn, topology, log.With(lgr, log.String("shardID", fmt.Sprint(shard))))
 		if err != nil {
 			return nil, xerrors.Errorf("error making shard client for shard %v: %w", shard, err)
 		}

@@ -12,17 +12,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/connection"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/tests/tcrecipes"
-	tc_postgres "github.com/doublecloud/transfer/tests/tcrecipes/postgres"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/tests/tcrecipes"
+	tc_postgres "github.com/transferia/transferia/tests/tcrecipes/postgres"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -199,7 +199,7 @@ func RecipeSource(opts ...RecipeOption) *postgres.PgSource {
 
 	v.Database = os.Getenv(params.prefix + "PG_LOCAL_DATABASE")
 	v.PgDumpCommand = []string{os.Getenv(params.prefix+"PG_LOCAL_BIN_PATH") + "/pg_dump"}
-	v.SlotID = "testslot"
+	v.SlotID = ""
 	v.BatchSize = 10
 	v.WithDefaults()
 	for _, f := range params.endpointOptions {

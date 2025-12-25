@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"io"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // This is csv-specific line-splitter, who validates quotes

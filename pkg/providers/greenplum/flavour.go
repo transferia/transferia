@@ -3,7 +3,7 @@ package greenplum
 import (
 	"fmt"
 
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 type GreenplumFlavour struct {
@@ -57,6 +57,8 @@ func (f *GreenplumFlavour) ListSchemaQuery(excludeViews bool, withSpecificTable 
         a.attname::information_schema.sql_identifier AS column_name,
         a.attnum::information_schema.cardinal_number AS ordinal_position,
         format_type(a.atttypid, a.atttypmod) as data_type,
+		(SELECT n.nspname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid
+				 WHERE t.oid = a.atttypid) AS data_type_schema_name,
         CASE
             WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(bt.oid, NULL::integer)
             ELSE 'USER-DEFINED'::text
@@ -129,6 +131,7 @@ SELECT
     column_name::text,
     '' as column_default,
     data_type::text,
+	data_type_schema_name::text,
     null as domain_name,
     data_type_verbose::text as data_type_underlying_under_domain,
     null as all_enum_values,

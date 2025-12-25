@@ -4,9 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -185,7 +187,7 @@ func getDelimiters(ctx context.Context, collection *mongo.Collection, amountOfDe
 			log.Any("type_brackets_delimiters", typeBracketDelimiters),
 		)
 		// assume that there is only one type of delimiters
-		return nil, abstract.NewNonShardableError(xerrors.Errorf("there are two or more types of objects in the sharding index"))
+		return nil, abstract.NewNonShardableError(coded.Errorf(codes.MongoNonShardable, "there are two or more types of objects in the sharding index"))
 	}
 	return getRandomIdentifiers(ctx, collection, amountOfDelimiters)
 }
@@ -202,7 +204,7 @@ func (s Storage) ShardTable(ctx context.Context, table abstract.TableDescription
 		return nil, xerrors.Errorf("cannot get table size in bytes: %w", err)
 	}
 	if s.desiredPartSize == 0 {
-		return nil, abstract.NewNonShardableError(xerrors.Errorf("desired part size is inapplicable for sharding: %v", s.desiredPartSize))
+		return nil, abstract.NewNonShardableError(coded.Errorf(codes.MongoNonShardable, "desired part size is inapplicable for sharding: %v", s.desiredPartSize))
 	}
 	delimiterCount := tableSize / s.desiredPartSize
 	logger.Log.Info("ShardTable info",

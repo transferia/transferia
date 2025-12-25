@@ -4,14 +4,15 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/providers/kafka/client"
-	serializer "github.com/doublecloud/transfer/pkg/serializer/queue"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/kafka/client"
+	serializer "github.com/transferia/transferia/pkg/serializer/queue"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -22,23 +23,27 @@ type Writer struct {
 	saslMechanism sasl.Mechanism
 	tlsConfig     *tls.Config
 	topicConfig   [][2]string
-	batchBytes    int64
 
 	writersMutex sync.Mutex
 	knownTopics  map[string]bool
 
+	dial func(ctx context.Context, network string, address string) (net.Conn, error)
+
 	rawKafkaWriter *kafka.Writer
 }
 
-func NewWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64) *Writer {
+func NewWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64, dial func(ctx context.Context, network string, address string) (net.Conn, error)) *Writer {
 	rawKafkaWriter := &kafka.Writer{
-		Addr:       kafka.TCP(brokers...),
-		Balancer:   &kafka.Hash{},
-		BatchBytes: batchBytes,
+		Addr:                            kafka.TCP(brokers...),
+		Balancer:                        &kafka.Hash{},
+		AutoDeriveBatchBytes:            true,
+		ApplyBatchBytesAfterCompression: true,
 		Transport: &kafka.Transport{
+			Dial: dial,
 			TLS:  tlsConfig,
 			SASL: saslMechanism,
 		},
+
 		Compression: compression,
 	}
 	return &Writer{
@@ -46,10 +51,11 @@ func NewWriter(brokers []string, compression kafka.Compression, saslMechanism sa
 		saslMechanism: saslMechanism,
 		tlsConfig:     tlsConfig,
 		topicConfig:   topicConfig,
-		batchBytes:    batchBytes,
 
 		writersMutex: sync.Mutex{},
 		knownTopics:  make(map[string]bool),
+
+		dial: dial,
 
 		rawKafkaWriter: rawKafkaWriter,
 	}
@@ -62,7 +68,7 @@ func (w *Writer) ensureTopicExists(lgr log.Logger, topic string) error {
 	if w.knownTopics[writerID] {
 		return nil
 	}
-	kafkaClient, err := client.NewClient(w.brokers, w.saslMechanism, w.tlsConfig)
+	kafkaClient, err := client.NewClient(w.brokers, w.saslMechanism, w.tlsConfig, w.dial)
 	if err != nil {
 		return xerrors.Errorf("unable to create kafka client, err: %w", err)
 	}
@@ -89,7 +95,7 @@ func (w *Writer) WriteMessages(ctx context.Context, lgr log.Logger, topicName st
 		case kafka.WriteErrors:
 			return xerrors.Errorf("returned kafka.WriteErrors, err: %w", util.NewErrs(t...))
 		case kafka.MessageTooLargeError:
-			return xerrors.Errorf("message exceeded max message size (current BatchBytes: %d, len(key):%d, len(val):%d", w.batchBytes, len(t.Message.Key), len(t.Message.Value))
+			return xerrors.Errorf("message exceeded max message size (len(key):%d, len(val):%d", len(t.Message.Key), len(t.Message.Value))
 		default:
 			return xerrors.Errorf("unable to write messages, topicName: %s, messages: %d : %w", topicName, len(currMessages), err)
 		}

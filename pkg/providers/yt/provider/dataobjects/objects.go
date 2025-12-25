@@ -5,12 +5,12 @@ import (
 	"math"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/filter"
-	yt2 "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/filter"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/exp/slices"
@@ -28,7 +28,7 @@ type YTDataObjects struct {
 	txID         yt.TxID
 	parts        map[string][]partKey
 	currentParts []partKey
-	cfg          *yt2.YtSource
+	cfg          yt2.YtSourceModel
 	lgr          log.Logger
 	filter       base.DataObjectFilter
 }
@@ -41,7 +41,7 @@ func (objs *YTDataObjects) Next() bool {
 }
 
 func (objs *YTDataObjects) loadTableList() (tablemeta.YtTables, error) {
-	paths := objs.cfg.Paths
+	paths := objs.cfg.GetPaths()
 	if listable, ok := objs.filter.(filter.ListableFilter); ok {
 		tables, err := listable.ListTables()
 		if err != nil {
@@ -50,7 +50,7 @@ func (objs *YTDataObjects) loadTableList() (tablemeta.YtTables, error) {
 		var resPaths []string
 	TABLES:
 		for _, table := range tables {
-			for _, path := range objs.cfg.Paths {
+			for _, path := range objs.cfg.GetPaths() {
 				if strings.HasPrefix(table.Name, path) {
 					resPaths = append(resPaths, table.Name)
 					continue TABLES
@@ -60,7 +60,7 @@ func (objs *YTDataObjects) loadTableList() (tablemeta.YtTables, error) {
 		}
 		paths = resPaths
 	}
-	tbls, err := tablemeta.ListTables(context.Background(), objs.tx, objs.cfg.Cluster, paths, objs.lgr)
+	tbls, err := tablemeta.ListTables(context.Background(), objs.tx, objs.cfg.GetCluster(), paths, objs.lgr)
 	if err != nil {
 		return nil, xerrors.Errorf("error listing tables: %w", err)
 	}
@@ -142,7 +142,7 @@ func (objs *YTDataObjects) uniformParts() (map[int]int, error) {
 	if len(objs.tbls) > grpcShardLimit {
 		return nil, xerrors.Errorf("%v tables. Can not be more than 1024 tables", len(objs.tbls))
 	}
-	if objs.cfg.DesiredPartSizeBytes == 0 {
+	if objs.cfg.GetDesiredPartSizeBytes() == 0 {
 		return nil, xerrors.New("invalid YT provider config: DesiredPartSizeBytes = 0")
 	}
 	restParts := grpcShardLimit
@@ -169,7 +169,7 @@ func (objs *YTDataObjects) uniformParts() (map[int]int, error) {
 	for _, pair := range tablesWeightArr {
 		var shards int
 		var logReason string
-		if pair.TableWeight < objs.cfg.DesiredPartSizeBytes {
+		if pair.TableWeight < objs.cfg.GetDesiredPartSizeBytes() {
 			shards = 1
 			logReason = "being less than desired part size"
 		} else {
@@ -177,8 +177,8 @@ func (objs *YTDataObjects) uniformParts() (map[int]int, error) {
 			if rawShards == 0 {
 				shards = 1
 				logReason = "being proportionally too small"
-			} else if (float64(objs.tbls[pair.TableIndex].DataWeight) / rawShards) < float64(objs.cfg.DesiredPartSizeBytes) {
-				shards = int(math.Floor(float64(objs.tbls[pair.TableIndex].DataWeight) / float64(objs.cfg.DesiredPartSizeBytes)))
+			} else if (float64(objs.tbls[pair.TableIndex].DataWeight) / rawShards) < float64(objs.cfg.GetDesiredPartSizeBytes()) {
+				shards = int(math.Floor(float64(objs.tbls[pair.TableIndex].DataWeight) / float64(objs.cfg.GetDesiredPartSizeBytes())))
 				logReason = "using desired part size"
 			} else {
 				shards = int(rawShards)
@@ -214,7 +214,7 @@ func (objs *YTDataObjects) ToTableParts() ([]abstract.TableDescription, error) {
 	for i, t := range objs.tbls {
 		lock, err := objs.tx.LockNode(context.Background(), t.OriginalYPath(), yt.LockSnapshot, nil)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to lock table '%v': %w", t.OriginalYPath(), objs.err)
+			return nil, xerrors.Errorf("unable to lock table '%v': %w", t.OriginalYPath(), err)
 		}
 		t.NodeID = &lock.NodeID
 
@@ -239,7 +239,7 @@ func (objs *YTDataObjects) ParsePartKey(data string) (*abstract.TableID, error) 
 	return abstract.NewTableID("", partKey.Table), nil
 }
 
-func NewDataObjects(cfg *yt2.YtSource, tx yt.Tx, lgr log.Logger, filter base.DataObjectFilter) *YTDataObjects {
+func NewDataObjects(cfg yt2.YtSourceModel, tx yt.Tx, lgr log.Logger, filter base.DataObjectFilter) *YTDataObjects {
 	var txID yt.TxID
 	if tx != nil {
 		txID = tx.ID()

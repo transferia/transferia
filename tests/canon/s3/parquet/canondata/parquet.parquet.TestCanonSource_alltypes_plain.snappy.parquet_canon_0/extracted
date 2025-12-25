@@ -101,11 +101,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_plain.snappy.parquet"
+            "value": "1b8b10e09b30ad3ee86516a6e6a0b41c"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -390,11 +394,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/alltypes_plain.snappy.parquet"
+            "value": "1b8b10e09b30ad3ee86516a6e6a0b41c"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

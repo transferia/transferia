@@ -1,7 +1,7 @@
 package abstract
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

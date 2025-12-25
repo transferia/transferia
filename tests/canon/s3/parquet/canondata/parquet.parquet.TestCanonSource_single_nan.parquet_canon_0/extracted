@@ -51,11 +51,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/single_nan.parquet"
+            "value": "82daac4b9f63eb915daffddfc0831571"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

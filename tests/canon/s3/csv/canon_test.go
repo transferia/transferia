@@ -6,26 +6,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
 func TestCanonSource(t *testing.T) {
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 
 	testCasePath := "test_csv_all_types"
-	src := s3.PrepareCfg(t, "", "")
+	src := s3recipe.PrepareCfg(t, "", "")
 	src.PathPrefix = testCasePath
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
 		src.Bucket = "data4"
-		s3.CreateBucket(t, src)
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3recipe.CreateBucket(t, src)
+		s3recipe.PrepareTestCase(t, src, src.PathPrefix)
 		logger.Log.Info("dir uploaded")
 	}
 	src.TableNamespace = "test"
@@ -189,16 +190,16 @@ func TestCanonSource(t *testing.T) {
 var processed []abstract.ChangeItem
 
 func TestNativeS3WithProvidedSchemaAndSystemCols(t *testing.T) {
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 
 	processed = make([]abstract.ChangeItem, 0)
 	testCasePath := "test_csv_all_types"
-	src := s3.PrepareCfg(t, "", "")
+	src := s3recipe.PrepareCfg(t, "", "")
 	src.PathPrefix = testCasePath
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
 		src.Bucket = "data4"
-		s3.CreateBucket(t, src)
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3recipe.CreateBucket(t, src)
+		s3recipe.PrepareTestCase(t, src, src.PathPrefix)
 		logger.Log.Info("dir uploaded")
 	}
 	src.TableNamespace = "test"
@@ -258,16 +259,16 @@ func storeItems(item []abstract.ChangeItem) []abstract.ChangeItem {
 }
 
 func TestNativeS3MissingColumnsAreFilled(t *testing.T) {
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 
 	processed = make([]abstract.ChangeItem, 0)
 	testCasePath := "test_csv_all_types"
-	src := s3.PrepareCfg(t, "", "")
+	src := s3recipe.PrepareCfg(t, "", "")
 	src.PathPrefix = testCasePath
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
 		src.Bucket = "data4"
-		s3.CreateBucket(t, src)
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3recipe.CreateBucket(t, src)
+		s3recipe.PrepareTestCase(t, src, src.PathPrefix)
 		logger.Log.Info("dir uploaded")
 	}
 	src.TableNamespace = "test"

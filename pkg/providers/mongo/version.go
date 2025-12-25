@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/blang/semver/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.ytsaurus.tech/library/go/core/log"
 )

@@ -21,7 +21,7 @@ func (a adapter) Log(ctx context.Context, msg string, fields ...ydbLog.Field) {
 
 	switch ydbLog.LevelFromContext(ctx) {
 	case ydbLog.TRACE:
-		l.Trace(msg, ToCoreFields(fields)...)
+		l.Debug(msg, ToCoreFields(fields)...) // replace 'trace' on 'debug' intentionally - bcs we use zap logger, zap don't log trace logs :-/
 	case ydbLog.DEBUG:
 		l.Debug(msg, ToCoreFields(fields)...)
 	case ydbLog.INFO:

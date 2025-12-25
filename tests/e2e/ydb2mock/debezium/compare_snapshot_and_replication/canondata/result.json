@@ -21,6 +21,7 @@
                     "Utf8_",
                     "Json_",
                     "JsonDocument_",
+                    "Uuid_",
                     "Date_",
                     "Datetime_",
                     "Timestamp_",
@@ -28,6 +29,7 @@
                 ],
                 "columnvalues": [
                     1,
+                    null,
                     null,
                     null,
                     null,
@@ -290,6 +292,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "dectest/test-src",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -358,6 +372,7 @@
                     "Utf8_",
                     "Json_",
                     "JsonDocument_",
+                    "Uuid_",
                     "Date_",
                     "Datetime_",
                     "Timestamp_",
@@ -386,6 +401,7 @@
                     {
                         "4": 5
                     },
+                    "e121f709-02a2-4c02-bc5f-8af55f068da9",
                     "2023-02-02T00:00:00Z",
                     "2023-02-02T10:02:22Z",
                     "2023-02-02T10:02:22Z",
@@ -631,6 +647,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "dectest/test-src",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -699,6 +727,7 @@
                     "Utf8_",
                     "Json_",
                     "JsonDocument_",
+                    "Uuid_",
                     "Date_",
                     "Datetime_",
                     "Timestamp_",
@@ -727,6 +756,7 @@
                     {
                         "7": 2
                     },
+                    "04857a21-5993-4166-b2fc-09b422fc4bc2",
                     "2025-02-02T00:00:00Z",
                     "2025-02-02T10:02:22Z",
                     "2025-02-02T10:02:22Z",
@@ -972,6 +1002,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "dectest/test-src",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -1042,6 +1084,7 @@
                     "Utf8_",
                     "Json_",
                     "JsonDocument_",
+                    "Uuid_",
                     "Date_",
                     "Datetime_",
                     "Timestamp_",
@@ -1049,6 +1092,7 @@
                 ],
                 "columnvalues": [
                     1,
+                    null,
                     null,
                     null,
                     null,
@@ -1301,6 +1345,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "dectest/test-src",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -1369,6 +1425,7 @@
                     "Utf8_",
                     "Json_",
                     "JsonDocument_",
+                    "Uuid_",
                     "Date_",
                     "Datetime_",
                     "Timestamp_",
@@ -1397,6 +1454,7 @@
                     {
                         "4": 5
                     },
+                    "e121f709-02a2-4c02-bc5f-8af55f068da9",
                     "2023-02-02T00:00:00Z",
                     "2023-02-02T10:02:22Z",
                     "2023-02-02T10:02:22Z",
@@ -1632,6 +1690,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "dectest/test-src",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -1700,6 +1770,7 @@
                     "Utf8_",
                     "Json_",
                     "JsonDocument_",
+                    "Uuid_",
                     "Date_",
                     "Datetime_",
                     "Timestamp_",
@@ -1728,6 +1799,7 @@
                     {
                         "7": 2
                     },
+                    "04857a21-5993-4166-b2fc-09b422fc4bc2",
                     "2025-02-02T00:00:00Z",
                     "2025-02-02T10:02:22Z",
                     "2025-02-02T10:02:22Z",
@@ -1958,6 +2030,18 @@
                         "table_name": "dectest/test-src",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "dectest/test-src",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",

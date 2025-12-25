@@ -1,7 +1,7 @@
 package events
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 // TODO: Remove after new cleanup design based on TableLoadEvents

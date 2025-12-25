@@ -7,19 +7,20 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 )
 
-// Reader function to return dummy S3Reader with specified sizes
-func dummyReaderF(sizes map[string]int64) readerF {
-	return func(ctx context.Context, filePath string) (*S3Reader, error) {
-		size, exists := sizes[filePath]
+// Reader function to return dummy S3RawReader with specified sizes
+func dummyReaderF(sizes map[string]int64) readerCtorF {
+	return func(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
+		fileSize, exists := sizes[filePath]
 		if !exists {
 			return nil, xerrors.Errorf("file not found: %s", filePath)
 		}
-		return &S3Reader{fetcher: &s3Fetcher{objectSize: size}}, nil
+		return s3raw.NewFakeS3RawReader(fileSize), nil
 	}
 }
 
@@ -47,7 +48,7 @@ func TestEstimateTotalSize(t *testing.T) {
 		{
 			name: "more than limit files",
 			files: func() []*s3.Object {
-				files := []*s3.Object{}
+				files := make([]*s3.Object, 0)
 				for i := 0; i < EstimateFilesLimit+5; i++ {
 					files = append(files, &s3.Object{Key: aws.String(fmt.Sprintf("file%v", i))})
 				}
@@ -76,7 +77,7 @@ func TestEstimateTotalSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			size, _, err := estimateTotalSize(context.Background(), logger.Log, tt.files, dummyReaderF(tt.fileSizes))
+			size, _, err := EstimateTotalSize(context.Background(), logger.Log, tt.files, dummyReaderF(tt.fileSizes))
 
 			require.Equal(t, tt.expectedSize, size)
 
@@ -88,4 +89,37 @@ func TestEstimateTotalSize(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEstimateTotalSize_SkipNegativeSizes(t *testing.T) {
+	files := []*s3.Object{
+		{Key: aws.String("neg")},
+		{Key: aws.String("pos")},
+	}
+	sizes := map[string]int64{
+		"neg": -1,
+		"pos": 200,
+	}
+
+	total, sample, err := EstimateTotalSize(context.Background(), logger.Log, files, dummyReaderF(sizes))
+	require.NoError(t, err)
+	require.Equal(t, uint64(200), total)
+	require.NotNil(t, sample)
+	require.Equal(t, int64(200), sample.Size())
+}
+
+func TestEstimateTotalSize_AllNonPositiveSizes(t *testing.T) {
+	files := []*s3.Object{
+		{Key: aws.String("zero")},
+		{Key: aws.String("neg")},
+	}
+	sizes := map[string]int64{
+		"zero": 0,
+		"neg":  -1,
+	}
+
+	total, sample, err := EstimateTotalSize(context.Background(), logger.Log, files, dummyReaderF(sizes))
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), total)
+	require.Nil(t, sample)
 }

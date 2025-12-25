@@ -3,8 +3,8 @@ package clickhouse
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func TestSimplest(t *testing.T) {
@@ -80,6 +80,7 @@ func TestSimplestWithOffset(t *testing.T) {
 		{ColumnName: "columnA", Expression: "", OriginalType: "ch:UInt64", PrimaryKey: true},
 		{ColumnName: "columnB", Expression: "", OriginalType: "ch:String"},
 	}, false, false, "")
+	// ORDER BY added only when OFFSET is present, for deterministic results
 	require.Equal(t, "SELECT `columnA`,`columnB` FROM `mySchema`.`myTableName`  WHERE 1=1  ORDER BY columnA OFFSET 1000", query)
 }
 

@@ -3,14 +3,14 @@ package problemitemdetector
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func TestTransformer(t *testing.T) {
 	transformer := &problemItemDetector{Config{}, logger.Log}
-	require.False(t, transformer.Suitable(abstract.TableID{}, nil))
+	require.True(t, transformer.Suitable(abstract.TableID{}, nil))
 	require.Equal(t, "problem item detector", transformer.Description())
 
 	changeItems := []abstract.ChangeItem{{}, {Table: "table"}}

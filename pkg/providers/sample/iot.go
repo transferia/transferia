@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -125,10 +126,11 @@ func (i *IotData) ToChangeItem(offset int64) abstract.ChangeItem {
 			i.eventSeverity,
 			i.eventSource,
 		},
-		OldKeys: abstract.EmptyOldKeys(),
-		TxID:    "",
-		Query:   "",
-		Size:    abstract.RawEventSize(util.SizeOfStruct(*i) - uint64(len(i.table))),
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.RawEventSize(util.SizeOfStruct(*i) - uint64(len(i.table))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 

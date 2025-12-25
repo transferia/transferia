@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 )
 
 func DescribeTable(db *sql.DB, database, table string, knownPrimaryKeys []string) (*abstract.TableSchema, error) {
@@ -118,7 +118,7 @@ func DescribeTable(db *sql.DB, database, table string, knownPrimaryKeys []string
 
 	//add other fields
 	for _, colname := range colNames {
-		if colname == "__data_transfer_commit_time" || colname == "__data_transfer_delete_time" {
+		if colname == "__data_transfer_commit_time" || colname == "__data_transfer_delete_time" || colname == "__data_transfer_is_deleted" {
 			continue
 		}
 		if colPrimary[colname] {

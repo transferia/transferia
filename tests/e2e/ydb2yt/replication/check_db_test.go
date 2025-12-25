@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestSnapshotAndReplication(t *testing.T) {
@@ -34,7 +34,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		Cluster:                  os.Getenv("YT_PROXY"),
 		CellBundle:               "default",
 		PrimaryMedium:            "default",
-		UseStaticTableOnSnapshot: false, // TM-4444
+		UseStaticTableOnSnapshot: true, // TM-4444
 	})
 	transferType := abstract.TransferTypeSnapshotAndIncrement
 	helpers.InitSrcDst(helpers.TransferID, source, target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable

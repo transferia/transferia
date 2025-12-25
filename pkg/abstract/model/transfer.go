@@ -3,27 +3,31 @@ package model
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	transformers_registry "github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	transformers_registry "github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/util"
+	"go.uber.org/zap/zapcore"
 )
 
 type Transfer struct {
-	ID                string
-	TransferName      string
-	Description       string
-	Labels            string
-	Status            TransferStatus
-	Type              abstract.TransferType
-	Runtime           abstract.Runtime
-	Src               Source
-	Dst               Destination
-	RegularSnapshot   *abstract.RegularSnapshot
-	Transformation    *Transformation
-	DataObjects       *DataObjects
-	TypeSystemVersion int
-	TmpPolicy         *TmpPolicyConfig
+	ID                 string
+	TransferName       string
+	Description        string
+	Labels             string
+	Status             TransferStatus
+	Type               abstract.TransferType
+	Runtime            abstract.Runtime
+	ReplicationRuntime abstract.Runtime // if nil, use Runtime (see `RuntimeForReplication`)
+	Src                Source
+	Dst                Destination
+	RegularSnapshot    *abstract.RegularSnapshot
+	Transformation     *Transformation
+	DataObjects        *DataObjects
+	TypeSystemVersion  int
+	TmpPolicy          *TmpPolicyConfig
+
+	AsyncOperations bool // real async operation flag
 
 	// TODO: remove
 	FolderID string
@@ -46,8 +50,60 @@ const (
 	// 1. LatestVersion is increased & fallbacks are introduced in the first PR. NewTransfersVersion stays the same!
 	// 2. Controlplane and dataplane are deployed and dataplane now contains the fallbacks for a new version.
 	// 3. The second PR increases NewTransfersVersion. When a controlplane with this change is deployed, dataplanes already have the required fallbacks.
-	NewTransfersVersion int = 9
+	NewTransfersVersion int = 10
 )
+
+func (f *Transfer) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("ID", f.ID)
+	enc.AddString("TransferName", f.TransferName)
+	enc.AddString("Description", f.Description)
+	enc.AddString("Labels", f.Labels)
+	enc.AddString("Type", string(f.Type))
+	enc.AddString("FolderID", f.FolderID)
+	enc.AddString("CloudID", f.CloudID)
+	if err := enc.AddReflected("SnapshotRuntime", f.Runtime); err != nil {
+		return xerrors.Errorf("snapshot runtime log serialization failed: %w", err)
+	}
+	if err := enc.AddReflected("ReplicationRuntime", f.ReplicationRuntime); err != nil {
+		return xerrors.Errorf("replication runtime log serialization failed: %w", err)
+	}
+	if s, ok := f.Src.(zapcore.ObjectMarshaler); ok {
+		if err := enc.AddObject("Source", s); err != nil {
+			return xerrors.Errorf("transfer source serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("Source", "***HIDDEN***")
+	}
+	if d, ok := f.Dst.(zapcore.ObjectMarshaler); ok {
+		if err := enc.AddObject("Destination", d); err != nil {
+			return xerrors.Errorf("transfer destination serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("Destination", "***HIDDEN***")
+	}
+	if f.RegularSnapshot != nil {
+		if err := enc.AddReflected("RegularSnapshot", *f.RegularSnapshot); err != nil {
+			return xerrors.Errorf("regular snapshot serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("RegularSnapshot", "nil")
+	}
+	if f.Transformation != nil {
+		if err := enc.AddReflected("Transformation", *f.Transformation); err != nil {
+			return xerrors.Errorf("transfer transformation serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("Transformation", "nil")
+	}
+	if f.TmpPolicy != nil {
+		if err := enc.AddReflected("TmpPolicy", *f.TmpPolicy); err != nil {
+			return xerrors.Errorf("tmp policy serialization failed: %w", err)
+		}
+	} else {
+		enc.AddString("TmpPolicy", "nil")
+	}
+	return nil
+}
 
 func (f *Transfer) SnapshotOnly() bool {
 	return f.Type == abstract.TransferTypeSnapshotOnly
@@ -57,6 +113,11 @@ func (f *Transfer) IncrementOnly() bool {
 	return f.Type == abstract.TransferTypeIncrementOnly
 }
 
+// RuntimeType used by external references:
+//
+//	taxi/atlas/saas/data-transfer/transfer/internal/runtime/metering
+//	taxi/atlas/saas/data-transfer/transfer/internal/workflow
+//	taxi/atlas/saas/data-transfer/transfer/internal/workflow/gotest
 func (f *Transfer) RuntimeType() string {
 	if f.Runtime != nil {
 		return string(f.Runtime.Type())
@@ -103,6 +164,9 @@ func (f *Transfer) WithDefault() {
 	}
 	if f.Runtime != nil {
 		f.Runtime.WithDefaults()
+	}
+	if f.ReplicationRuntime != nil {
+		f.ReplicationRuntime.WithDefaults()
 	}
 }
 
@@ -158,7 +222,7 @@ func (f *Transfer) Validate() error {
 		}
 	}
 	if src, ok := f.Src.(DestinationCompatibility); ok {
-		if err := src.Compatible(f.Dst); err != nil {
+		if err := src.Compatible(f.Dst, f.Type); err != nil {
 			return xerrors.Errorf("source is not compatible with target: %w", err)
 		}
 	}
@@ -222,21 +286,7 @@ func (f *Transfer) AddExtraTransformer(transformer abstract.Transformer) error {
 		f.Transformation = new(Transformation)
 	}
 	f.Transformation.ExtraTransformers = append(f.Transformation.ExtraTransformers, transformer)
-	if f.Transformation.Executor != nil {
-		// add new transformer to transformation executor plan
-		return f.Transformation.Executor.AddTransformer(transformer)
-	}
 	return nil
-}
-
-func (f *Transfer) TransformationMiddleware() (abstract.SinkOption, error) {
-	if f.Transformation != nil {
-		if f.Transformation.Executor == nil {
-			return nil, xerrors.New("Transformation executor is not inited")
-		}
-		return f.Transformation.Executor.MakeSinkMiddleware(), nil
-	}
-	return nil, nil
 }
 
 func (f *Transfer) TransformationJSON() ([]byte, error) {
@@ -248,7 +298,7 @@ func (f *Transfer) TransformationJSON() ([]byte, error) {
 }
 
 func (f *Transfer) TransformationFromJSON(value string) error {
-	transformation, err := MakeTransformationFromJSON(value)
+	transformation, err := NewTransformationFromJSON(value)
 	if err != nil {
 		return xerrors.Errorf("cannot make transformation from JSON string: %w", err)
 	}
@@ -291,11 +341,11 @@ func (f *Transfer) ParallelismParams() *abstract.ShardUploadParams {
 	parallelismParams := abstract.DefaultShardUploadParams()
 
 	if paralleledRuntime, ok := f.Runtime.(abstract.ShardingTaskRuntime); ok {
-		if paralleledRuntime.WorkersNum() > 0 {
-			parallelismParams.JobCount = paralleledRuntime.WorkersNum()
+		if paralleledRuntime.SnapshotWorkersNum() > 0 {
+			parallelismParams.JobCount = paralleledRuntime.SnapshotWorkersNum()
 		}
-		if paralleledRuntime.ThreadsNumPerWorker() > 0 {
-			parallelismParams.ProcessCount = paralleledRuntime.ThreadsNumPerWorker()
+		if paralleledRuntime.SnapshotThreadsNumPerWorker() > 0 {
+			parallelismParams.ProcessCount = paralleledRuntime.SnapshotThreadsNumPerWorker()
 		}
 	}
 
@@ -309,16 +359,27 @@ func (f *Transfer) ParallelismParams() *abstract.ShardUploadParams {
 	return parallelismParams
 }
 
-func (f *Transfer) IsSharded() bool {
+func (f *Transfer) RuntimeForReplication() abstract.Runtime {
+	if f.ReplicationRuntime != nil {
+		return f.ReplicationRuntime
+	}
+	return f.Runtime
+}
+
+func (f *Transfer) IsSnapshotSharded() bool {
 	if rt, ok := f.Runtime.(abstract.ShardingTaskRuntime); ok {
-		return rt.WorkersNum() > 1
+		return rt.SnapshotWorkersNum() > 1
 	}
 	return false
 }
 
+func (f *Transfer) IsSnapshotInSingleWorkerMode() bool {
+	return !f.IsSnapshotSharded()
+}
+
 func (f *Transfer) IsMain() bool {
 	if rt, ok := f.Runtime.(abstract.ShardingTaskRuntime); ok {
-		return rt.IsMain()
+		return rt.SnapshotIsMain()
 	}
 	return true
 }
@@ -406,7 +467,7 @@ func (f *Transfer) Include(tID abstract.TableID) bool {
 // SystemLabel method is used to access system labels for transfer.
 // System labels are special reserved labels which are used to control some
 // hidden experimental transfer features
-func (f *Transfer) SystemLabel(name SystemLabel) (string, error) {
+func (f *Transfer) FeatureLabel(name FeatureLabel) (string, error) {
 	labelMap := map[string]string{}
 	if err := json.Unmarshal([]byte(f.Labels), &labelMap); err != nil {
 		return "", xerrors.Errorf("error parsing transfer labels: %w", err)
@@ -424,28 +485,30 @@ func (f *Transfer) LabelsRaw() string {
 
 func (f *Transfer) Copy(name string) Transfer {
 	return Transfer{
-		ID:                name,
-		TransferName:      f.TransferName,
-		Description:       f.Description,
-		Labels:            f.Labels,
-		Status:            f.Status,
-		Type:              f.Type,
-		Runtime:           f.Runtime,
-		Src:               f.Src,
-		Dst:               f.Dst,
-		RegularSnapshot:   f.RegularSnapshot,
-		Transformation:    f.Transformation,
-		DataObjects:       f.DataObjects,
-		TypeSystemVersion: f.TypeSystemVersion,
-		TmpPolicy:         f.TmpPolicy,
-		FolderID:          f.FolderID,
-		CloudID:           f.CloudID,
-		Author:            f.Author,
+		ID:                 name,
+		TransferName:       f.TransferName,
+		Description:        f.Description,
+		Labels:             f.Labels,
+		Status:             f.Status,
+		Type:               f.Type,
+		Runtime:            f.Runtime,
+		ReplicationRuntime: f.ReplicationRuntime,
+		Src:                f.Src,
+		Dst:                f.Dst,
+		RegularSnapshot:    f.RegularSnapshot,
+		Transformation:     f.Transformation,
+		DataObjects:        f.DataObjects,
+		TypeSystemVersion:  f.TypeSystemVersion,
+		TmpPolicy:          f.TmpPolicy,
+		FolderID:           f.FolderID,
+		CloudID:            f.CloudID,
+		Author:             f.Author,
+		AsyncOperations:    f.AsyncOperations,
 	}
 }
 
 func (f *Transfer) IsAsyncCHExp() bool {
-	val, err := f.SystemLabel(SystemLabelAsyncCH)
+	val, err := f.FeatureLabel(FeatureLabelAsyncCH)
 	if err != nil || val != "on" {
 		return false
 	}

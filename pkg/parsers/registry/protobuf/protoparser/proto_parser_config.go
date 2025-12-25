@@ -1,9 +1,9 @@
 package protoparser
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoscanner"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoscanner"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -50,6 +50,7 @@ type ProtoParserConfig struct {
 	AddSystemColumns   bool
 	SkipDedupKeys      bool
 	AddSyntheticKeys   bool
+	NotFillEmptyFields bool
 }
 
 // SetDescriptors sets ProtoMessageDesc & ScannerMessageDesc

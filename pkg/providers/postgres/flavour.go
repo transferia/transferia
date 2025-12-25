@@ -44,6 +44,10 @@ func (f *PostgreSQLFlavour) ListSchemaQuery(excludeViews bool, withSpecificTable
 	cols.column_name::TEXT,
 	coalesce(column_default, '') as column_default,
 	format_type(pg_attr.atttypid, pg_attr.atttypmod) as data_type,
+    (SELECT n.nspname
+             FROM pg_type t
+             JOIN pg_namespace n ON t.typnamespace = n.oid
+             WHERE t.oid = pg_attr.atttypid) AS data_type_schema_name,
 	cols.domain_name as domain_name,
 	cols.data_type::TEXT as data_type_underlying_under_domain,
 	CASE

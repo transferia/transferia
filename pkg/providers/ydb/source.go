@@ -8,15 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/parsequeue"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/util/queues/sequencer"
-	"github.com/doublecloud/transfer/pkg/util/throttler"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/parsequeue"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/queues/sequencer"
+	"github.com/transferia/transferia/pkg/util/throttler"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
@@ -25,14 +26,15 @@ import (
 )
 
 const (
-	parallelism            = 10
 	bufferFlushingInterval = time.Millisecond * 500
 )
 
 type Source struct {
 	cfg      *YdbSource
 	feedName string
-	logger   log.Logger
+
+	logger  log.Logger
+	metrics *stats.SourceStats
 
 	once       sync.Once
 	ctx        context.Context
@@ -47,7 +49,7 @@ type Source struct {
 }
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
-	parseQ := parsequeue.NewWaitable(s.logger, parallelism, sink, s.parse, s.ack)
+	parseQ := parsequeue.NewWaitable(s.logger, s.cfg.ParseQueueParallelism, sink, s.parse, s.ack)
 	defer parseQ.Close()
 
 	return s.run(parseQ)
@@ -90,9 +92,9 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[[]batchWithSize]) err
 		}
 
 		ydbBatch, err := func() (*topicreader.Batch, error) {
-			cloudResolvingCtx, cancel := context.WithTimeout(s.ctx, 10*time.Millisecond)
+			currCtx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
 			defer cancel()
-			return s.reader.ReadMessageBatch(cloudResolvingCtx)
+			return s.reader.ReadMessageBatch(currCtx)
 		}()
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 			return xerrors.Errorf("read returned error, err: %w", err)
@@ -114,8 +116,13 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[[]batchWithSize]) err
 		}
 
 		// send into sink
-		s.logger.Info(fmt.Sprintf("begin to process batch: %v items with %v", messagesCount, format.SizeInt(int(bufSize))),
-			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))))
+		s.metrics.Size.Add(int64(bufSize))
+		s.metrics.Count.Add(int64(messagesCount))
+		s.logger.Info(fmt.Sprintf("begin to process batch: %v items with %v",
+			messagesCount,
+			format.SizeInt(int(bufSize))),
+			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))),
+		)
 
 		if err := parseQ.Add(buffer); err != nil {
 			return xerrors.Errorf("unable to add buffer to parse queue: %w", err)
@@ -136,6 +143,7 @@ func (s *Source) parse(buffer []batchWithSize) []abstract.ChangeItem {
 		s.memThrottler.ReduceInflight(batchesSize(buffer))
 	})
 
+	st := time.Now()
 	items := make([]abstract.ChangeItem, 0)
 	for _, batch := range buffer {
 		for i := range batch.messageValues {
@@ -166,6 +174,9 @@ func (s *Source) parse(buffer []batchWithSize) []abstract.ChangeItem {
 	}
 	rollbackOnError.Cancel()
 
+	s.metrics.DecodeTime.RecordDuration(time.Since(st))
+	s.metrics.ChangeItems.Add(int64(len(items)))
+
 	return items
 }
 
@@ -173,8 +184,10 @@ func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {
 	defer s.memThrottler.ReduceInflight(batchesSize(buffer))
 
 	if err != nil {
-		s.logger.Error("failed to push change items", log.Error(err),
-			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))))
+		s.logger.Error("failed to push change items",
+			log.Error(err),
+			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))),
+		)
 		util.Send(s.ctx, s.errCh, xerrors.Errorf("failed to push change items: %w", err))
 		return
 	}
@@ -183,12 +196,24 @@ func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {
 	s.logger.Info("Got ACK from sink; commiting read messages to the source", log.Duration("delay", time.Since(pushSt)), log.String("pushed", pushed))
 
 	for _, batch := range buffer {
-		if err := s.reader.Commit(s.ctx, batch.ydbBatch); err != nil {
+		err := func() error {
+			commitCtx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+			defer cancel()
+			if err := s.reader.Commit(commitCtx, batch.ydbBatch); err != nil {
+				if xerrors.Is(err, topicreader.ErrCommitToExpiredSession) {
+					s.logger.Warn("failed to commit change items", log.Error(err))
+					return nil
+				}
+			}
+			return err
+		}()
+		if err != nil {
 			util.Send(s.ctx, s.errCh, xerrors.Errorf("failed to commit change items: %w", err))
 			return
 		}
 	}
 
+	s.metrics.PushTime.RecordDuration(time.Since(pushSt))
 	s.logger.Info(
 		fmt.Sprintf("Commit messages done in %v", time.Since(pushSt)),
 		log.String("pushed", pushed),
@@ -281,7 +306,7 @@ func discoverChangeFeedMode(ydbClient *ydb.Driver, tablePath, changeFeedName str
 	return result, nil
 }
 
-func NewSource(transferID string, cfg *YdbSource, logger log.Logger, _ metrics.Registry) (*Source, error) {
+func NewSource(transferID string, cfg *YdbSource, logger log.Logger, registry metrics.Registry) (*Source, error) {
 	clientCtx, cancelFunc := context.WithCancel(context.Background())
 	var rb util.Rollbacks
 	defer rb.Do()
@@ -324,6 +349,7 @@ func NewSource(transferID string, cfg *YdbSource, logger log.Logger, _ metrics.R
 		cfg:          cfg,
 		feedName:     feedName,
 		logger:       logger,
+		metrics:      stats.NewSourceStats(registry),
 		once:         sync.Once{},
 		ctx:          clientCtx,
 		cancelFunc:   cancelFunc,

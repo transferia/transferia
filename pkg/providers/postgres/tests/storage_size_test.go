@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 )
 
 func TestInheritTableStorageSize(t *testing.T) {
@@ -27,9 +27,9 @@ func TestInheritTableStorageSize(t *testing.T) {
 
 func TestInheritTableSharding(t *testing.T) {
 	src := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("test_scripts"))
+	src.CollapseInheritTables = true
 	storage, err := postgres.NewStorage(src.ToStorageParams(nil))
 	require.NoError(t, err)
-	storage.SetLoadDescending(true)
 	err = storage.BeginPGSnapshot(context.TODO())
 	require.NoError(t, err)
 	logger.Log.Infof("create snapshot: %v, ts: %v", storage.ShardedStateLSN, storage.ShardedStateTS)

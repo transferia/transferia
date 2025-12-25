@@ -33,11 +33,23 @@ func compareColumns(old, new []string) (bool, map[string]int, map[string]int, []
 	return false, oldM, newM, total
 }
 
+func InsertsOnly(input []ChangeItem) bool {
+	for _, r := range input {
+		if r.Kind != InsertKind && r.Kind != SynchronizeKind {
+			return false
+		}
+	}
+	return true
+}
+
 // Collapse collapses (possible) multiple items in the input into a single (or none) items in the output.
 // Currently, it preserves the order of items in the result.
 // It should only be applied by sinks which support PRIMARY KEYs. For them the order of items is considered to be of no importance.
 func Collapse(input []ChangeItem) []ChangeItem {
 	if len(input) < 2 {
+		return input
+	}
+	if InsertsOnly(input) {
 		return input
 	}
 
@@ -61,6 +73,7 @@ func Collapse(input []ChangeItem) []ChangeItem {
 			hashKToIdx[hashK] = i
 			idxToHashK[i] = hashK
 		case UpdateKind:
+			delete(toDelete, hashK)
 			current, ok := rows[hashK]
 			if !ok {
 				newHashK := c.CurrentKeysString(keyCols)
@@ -95,11 +108,13 @@ func Collapse(input []ChangeItem) []ChangeItem {
 			hashKToIdx[newHashK] = i
 
 		case DeleteKind:
-			if current, ok := rows[hashK]; ok && len(current.OldKeys.KeyValues) > 0 {
-				c.ColumnValues = current.OldKeys.KeyValues
+			current, ok := rows[hashK]
+			delete(rows, hashK)
+			if ok && len(current.OldKeys.KeyValues) > 0 {
+				c.OldKeys = current.OldKeys
+				hashK = c.OldOrCurrentKeysString(keyCols)
 			}
 			toDelete[hashK] = c
-			delete(rows, hashK)
 		default:
 			res = append(res, c)
 		}

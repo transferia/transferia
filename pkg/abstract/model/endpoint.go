@@ -3,8 +3,9 @@ package model
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	"go.uber.org/zap/zapcore"
 )
 
 type EndpointParams interface {
@@ -12,12 +13,39 @@ type EndpointParams interface {
 	Validate() error
 
 	// WithDefaults sets default values for MISSING parameters of the endpoint
+	// generally withDefauts is called in 3 situation types:
+	// 1) to correctly display missing params in UI
+	// 2) to fill important params which are not specified and save it to db - WithEssentialDefaults
+	// 3) during actual usage in DP: to use default param values if empty
+	// this method covers all 3 situations
 	WithDefaults()
+}
+
+// sometimes we save default param values in db, sometimes we do not want that
+// this interface only populates essential defaults
+type EndpointParamsDbDefaults interface {
+	EndpointParams
+
+	// WithEssentialDefaults sets only essential defaults which will be saved to db
+	WithEssentialDefaults()
+}
+
+func WithEssentialDefaults(params EndpointParams) {
+	if dbDefaults, ok := params.(EndpointParamsDbDefaults); ok {
+		dbDefaults.WithEssentialDefaults()
+	} else {
+		params.WithDefaults()
+	}
 }
 
 type Source interface {
 	EndpointParams
 	IsSource()
+}
+
+type LoggableSource interface {
+	Source
+	zapcore.ObjectMarshaler
 }
 
 type Describable interface {
@@ -33,6 +61,16 @@ type Destination interface {
 	EndpointParams
 	CleanupMode() CleanupType
 	IsDestination()
+}
+
+type LoggableDestination interface {
+	Destination
+	zapcore.ObjectMarshaler
+}
+
+type AlterableDestination interface {
+	Destination
+	IsAlterable()
 }
 
 type SystemTablesDependantDestination interface {
@@ -120,6 +158,19 @@ func IsDefaultMirrorSource(src Source) bool {
 	}
 }
 
+// LbMirrorSource marks source as compatible with lb-mirror protocol (lb/yds)
+type LbMirrorSource interface {
+	IsLbMirror() bool
+}
+
+func IsLbMirrorSource(src Source) bool {
+	if defaultMirrorSource, ok := src.(LbMirrorSource); ok {
+		return defaultMirrorSource.IsLbMirror()
+	} else {
+		return false
+	}
+}
+
 // Parseable provider unified access to parser config
 type Parseable interface {
 	Parser() map[string]interface{}
@@ -154,7 +205,7 @@ type SourceCompatibility interface {
 
 // DestinationCompatibility for source to check is it compatible with transfer destination
 type DestinationCompatibility interface {
-	Compatible(dst Destination) error
+	Compatible(dst Destination, transferType abstract.TransferType) error
 }
 
 // AsyncPartSource designates that source:
@@ -215,8 +266,7 @@ type ExtraTransformableSource interface {
 	ExtraTransformers(ctx context.Context, transfer *Transfer, registry metrics.Registry) ([]abstract.Transformer, error)
 }
 
-type defaultParallelizationSupport struct {
-}
+type defaultParallelizationSupport struct{}
 
 func (p defaultParallelizationSupport) SupportMultiWorkers() bool {
 	return true

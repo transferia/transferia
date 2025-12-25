@@ -1,7 +1,7 @@
 package dataobjects
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -14,9 +14,10 @@ type PartKey interface {
 }
 
 type partKey struct {
-	NodeID yt.NodeID   `yson:"id"`
-	Table  string      `yson:"t"`
-	Rng    ypath.Range `yson:"r"`
+	NodeID  yt.NodeID   `yson:"id"`
+	Table   string      `yson:"t"`
+	Rng     ypath.Range `yson:"r"`
+	Columns []string    `yson:"c"`
 }
 
 func (k *partKey) TableKey() string {

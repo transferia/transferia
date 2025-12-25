@@ -6,16 +6,22 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pglogrepl"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+type messageReceiver interface {
+	ReceiveMessage(ctx context.Context) (pgproto3.BackendMessage, error)
+	Close(ctx context.Context) error
+	Exec(ctx context.Context, sql string) *pgconn.MultiResultReader
+}
+
 type mutexedPgConn struct {
-	pgconn *pgconn.PgConn
+	pgconn messageReceiver
 	mutex  *sync.Mutex
 }
 
@@ -35,7 +41,7 @@ func (m *mutexedPgConn) Close(ctx context.Context) error {
 	return m.pgconn.Close(ctx)
 }
 
-func (m *mutexedPgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMessage, error) {
+func (m *mutexedPgConn) ReceiveMessage(ctx context.Context, slotMonitor *SlotMonitor) (pgproto3.BackendMessage, error) {
 	var result pgproto3.BackendMessage
 
 	const initialReceiveTimeout time.Duration = 1 * time.Minute
@@ -54,6 +60,9 @@ func (m *mutexedPgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMes
 		msg, err := m.pgconn.ReceiveMessage(receiveCtx)
 
 		if err != nil {
+			if validateErr := slotMonitor.validateSlot(ctx); validateErr != nil {
+				err = validateErr
+			}
 			if xerrors.Is(err, context.DeadlineExceeded) {
 				currentCtxInterval = time.Duration(float64(currentCtxInterval) * receiveBackoff.Multiplier)
 				return xerrors.Errorf("ReceiveMessage deadline exceeded: %w", err)
@@ -71,7 +80,11 @@ func (m *mutexedPgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMes
 func (m *mutexedPgConn) SendStandbyStatusUpdate(ctx context.Context, statusUpdate pglogrepl.StandbyStatusUpdate) error {
 	defer m.lockSelf("SendStandbyStatusUpdate")()
 
-	return pglogrepl.SendStandbyStatusUpdate(ctx, m.pgconn, statusUpdate)
+	conn, ok := m.pgconn.(*pgconn.PgConn)
+	if !ok {
+		return xerrors.Errorf("unexpected type: %T", m.pgconn)
+	}
+	return pglogrepl.SendStandbyStatusUpdate(ctx, conn, statusUpdate)
 }
 
 func (m *mutexedPgConn) StartReplication(ctx context.Context, slotName string, startLSN pglogrepl.LSN, startReplicationOptions pglogrepl.StartReplicationOptions) error {
@@ -80,7 +93,7 @@ func (m *mutexedPgConn) StartReplication(ctx context.Context, slotName string, s
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	return pglogrepl.StartReplication(ctx, m.pgconn, slotName, startLSN, startReplicationOptions)
+	return pglogrepl.StartReplication(ctx, m.pgconn.(*pgconn.PgConn), slotName, startLSN, startReplicationOptions)
 }
 
 func (m *mutexedPgConn) Exec(ctx context.Context, sql string) *pgconn.MultiResultReader {

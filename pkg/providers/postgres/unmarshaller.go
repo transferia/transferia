@@ -3,13 +3,14 @@ package postgres
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util/xlocale"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -24,7 +25,7 @@ func MakeUnmarshallerData(isHomo bool, conn *pgx.Conn) UnmarshallerData {
 		// use UTC in homo transfers, otherwise timestamps WITHOUT time zone cannot be inserted with COPY
 		marshalTimezone = time.UTC.String()
 	}
-	location, err := time.LoadLocation(marshalTimezone)
+	location, err := xlocale.Load(marshalTimezone)
 	if err != nil {
 		logger.Log.Warn("failed to parse time zone", log.String("timezone", marshalTimezone), log.Error(err))
 		location = time.UTC
@@ -89,7 +90,7 @@ func (c *Unmarshaller) Cast(input []byte) (any, error) {
 
 	var result any = nil
 	if c.castData.isHomo {
-		result = unmarshalFieldHomo(c.decoder, c.schema, c.connInfo)
+		result = unmarshalFieldHomo(c.decoder, c.schema)
 		c.decoder = nil
 	} else {
 		r, err := unmarshalFieldHetero(c.decoder, c.schema, c.connInfo)
@@ -141,7 +142,7 @@ func (c *Unmarshaller) reconstructDecoder() error {
 	return nil
 }
 
-func unmarshalFieldHomo(val any, schema *abstract.ColSchema, connInfo *pgtype.ConnInfo) any {
+func unmarshalFieldHomo(val any, schema *abstract.ColSchema) any {
 	switch v := val.(type) {
 	case [16]byte:
 		if schema.OriginalType != "pg:uuid" {

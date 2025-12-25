@@ -1,16 +1,16 @@
 package abstract
 
 import (
-	"encoding/gob"
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 )
 
 var knownRuntimes = map[RuntimeType]func(spec string) (Runtime, error){}
 
 func init() {
-	gob.RegisterName("*abstract.LocalRuntime", new(LocalRuntime))
+	gobwrapper.RegisterName("*abstract.LocalRuntime", new(LocalRuntime))
 }
 
 type YtCluster string
@@ -18,7 +18,8 @@ type YtCluster string
 type RuntimeType string
 
 const (
-	LocalRuntimeType = RuntimeType("local")
+	UnspecifiedRuntimeType = RuntimeType("")
+	LocalRuntimeType       = RuntimeType("local")
 )
 
 type Runtime interface {
@@ -27,6 +28,13 @@ type Runtime interface {
 	Validate() error
 	Type() RuntimeType
 	SetVersion(runtimeSpecificVersion string, versionProperties *string) error
+}
+
+func GetRuntimeType(r Runtime, defaultRuntime RuntimeType) RuntimeType {
+	if r == nil {
+		return defaultRuntime
+	}
+	return r.Type()
 }
 
 func NewRuntime(runtime RuntimeType, runtimeSpec string) (Runtime, error) {
@@ -46,6 +54,9 @@ func NewRuntime(runtime RuntimeType, runtimeSpec string) (Runtime, error) {
 	}
 }
 
+// used in:
+// * cloud/doublecloud/transfer/internal/model
+// * taxi/atlas/saas/data-transfer/transfer/internal/model
 func RegisterRuntime(r RuntimeType, f func(spec string) (Runtime, error)) {
 	knownRuntimes[r] = f
 }
@@ -58,7 +69,7 @@ func KnownRuntime(r RuntimeType) bool {
 // Parallelism params
 type ShardUploadParams struct {
 	JobCount     int //Workers count
-	ProcessCount int //Threads count
+	ProcessCount int //Threads count, meaningful only for snapshots. For now, replication parallels only by workers
 }
 
 func NewShardUploadParams(jobCount int, processCount int) *ShardUploadParams {
@@ -73,14 +84,19 @@ func DefaultShardUploadParams() *ShardUploadParams {
 }
 
 type ShardingTaskRuntime interface {
-	WorkersNum() int
-	ThreadsNumPerWorker() int
 	CurrentJobIndex() int
-	IsMain() bool
+
+	// snapshot
+	SnapshotWorkersNum() int
+	SnapshotThreadsNumPerWorker() int
+	SnapshotIsMain() bool
+
+	// replication
+	ReplicationWorkersNum() int
 }
 
 type ScheduledTask interface {
-	Stop()
+	Stop() error
 	Runtime() Runtime
 }
 

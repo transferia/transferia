@@ -1,18 +1,18 @@
 package config
 
 import (
-	"time"
-
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"gopkg.in/yaml.v2"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/transformer"
+	"gopkg.in/yaml.v3"
 )
 
 type Endpoint struct {
-	ID, Name string
-	Type     abstract.ProviderType
-	Params   any
+	Type   abstract.ProviderType
+	Params any
 }
 
 func (e Endpoint) RawParams() string {
@@ -45,12 +45,28 @@ type TransferYamlView struct {
 	Type              abstract.TransferType
 	FolderID          string
 	CloudID           string
-	CreatedAt         time.Time `db:"created_at"`
-	Runtime           Runtime
 	Src               Endpoint
 	Dst               Endpoint
 	RegularSnapshot   *abstract.RegularSnapshot `yaml:"regular_snapshot"`
-	Transformation    transformer.Transformers  `yaml:"transformation"`
+	Transformation    *transformer.Transformers `yaml:"transformation"`
 	DataObjects       *model.DataObjects        `yaml:"data_objects"`
 	TypeSystemVersion int                       `yaml:"type_system_version"`
+	AsyncOperations   bool
+}
+
+func (v TransferYamlView) Validate() error {
+	if v.Transformation == nil || v.Transformation.Transformers == nil {
+		return nil
+	}
+	var errs error
+	for _, tr := range v.Transformation.Transformers {
+		_, err := transformer.New(tr.Type(), tr.Config(), logger.Log, abstract.TransformationRuntimeOpts{JobIndex: 0})
+		if err != nil {
+			errs = multierr.Append(errs, xerrors.Errorf("unable to construct %s(%s): %w", tr.Type(), tr.ID(), err))
+		}
+	}
+	if errs != nil {
+		return xerrors.Errorf("transformers invalid: %w", errs)
+	}
+	return nil
 }

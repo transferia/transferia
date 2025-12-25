@@ -4,14 +4,14 @@ import (
 	"context"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type DDLLoaders interface {
-	LoadTablesDDL(tables []abstract.TableID) ([]TableDDL, error)
+	LoadTablesDDL(tables []abstract.TableID) ([]*TableDDL, error)
 }
 
 type DDLSource struct {

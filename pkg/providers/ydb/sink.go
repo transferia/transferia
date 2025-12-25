@@ -14,17 +14,17 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/maplock"
-	"github.com/doublecloud/transfer/pkg/providers/ydb/decimal"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/xtls"
-	"github.com/gofrs/uuid"
+	"github.com/dustin/go-humanize"
+	"github.com/google/uuid"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/ydb/decimal"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/xtls"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/credentials"
 	"github.com/ydb-platform/ydb-go-sdk/v3/scheme"
@@ -43,26 +43,27 @@ type TemplateModel struct {
 }
 
 const (
-	batchSize = 10000
+	batchMaxLen  = 10000
+	batchMaxSize = 48 * humanize.MiByte // NOTE: RPC message limit for YDB upsert is 64 MB.
 )
 
 var rowTooLargeRegexp = regexp.MustCompile(`Row cell size of [0-9]+ bytes is larger than the allowed threshold [0-9]+`)
 
-type TemplateCol struct{ Name, Typ, Comma string }
+type TemplateCol struct{ Name, Typ, Optional, Comma string }
 
 var insertTemplate, _ = template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 --!syntax_v1
 DECLARE $batch AS List<
 	Struct<{{ range .Cols }}
-		{{ .Name }}:{{ .Typ }}?{{ .Comma }}{{ end }}
+		` + "`{{ .Name }}`" + `:{{ .Typ }}{{ .Optional }}{{ .Comma }}{{ end }}
 	>
 >;
 UPSERT INTO ` + "`{{ .Path }}`" + ` ({{ range .Cols }}
-		{{ .Name }}{{ .Comma }}{{ end }}
+		` + "`{{ .Name }}`" + `{{ .Comma }}{{ end }}
 )
 SELECT{{ range .Cols }}
-	{{ .Name }}{{ .Comma }}{{ end }}
+	` + "`{{ .Name }}`" + `{{ .Comma }}{{ end }}
 FROM AS_TABLE($batch)
 `)
 
@@ -70,12 +71,12 @@ var deleteTemplate, _ = template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 --!syntax_v1
 DECLARE $batch AS Struct<{{ range .Cols }}
-	{{ .Name }}:{{ .Typ }}?{{ .Comma }}{{ end }}
+	` + "`{{ .Name }}`" + `:{{ .Typ }}{{ .Optional }}{{ .Comma }}{{ end }}
 >;
 DELETE FROM ` + "`{{ .Path }}`" + `
 WHERE 1=1
 {{ range .Cols }}
-	and {{ .Name }} = $batch.{{ .Name }}{{ end }}
+	and ` + "`{{ .Name }}`" + ` = $batch.` + "`{{ .Name }}`" + `{{ end }}
 `)
 
 var createTableQueryTemplate, _ = template.New(
@@ -221,9 +222,9 @@ type sinker struct {
 	config  *YdbDestination
 	logger  log.Logger
 	metrics *stats.SinkerStats
-	locks   *maplock.Mutex
+	locks   sync.Mutex
 	lock    sync.Mutex
-	cache   map[ydbPath]bool
+	cache   map[ydbPath]*abstract.TableSchema
 	once    sync.Once
 	closeCh chan struct{}
 	db      *ydb.Driver
@@ -270,16 +271,15 @@ func (s *sinker) isClosed() bool {
 	}
 }
 
-func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) error {
-	if s.cache[tablePath] {
+func (s *sinker) checkTable(tablePath ydbPath, schema *abstract.TableSchema) error {
+	if s.config.IsSchemaMigrationDisabled {
 		return nil
 	}
-	for {
-		if s.locks.TryLock(tablePath) {
-			break
-		}
+	if existingSchema, ok := s.cache[tablePath]; ok && existingSchema.Equal(schema) {
+		return nil
 	}
-	defer s.locks.Unlock(tablePath)
+	s.locks.Lock()
+	defer s.locks.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -308,7 +308,7 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 		if err := s.db.Table().Do(ctx, func(ctx context.Context, session table.Session) error {
 			columns := make([]ColumnTemplate, 0)
 			keys := make([]string, 0)
-			for _, col := range schema {
+			for _, col := range schema.Columns() {
 				if col.ColumnName == "_shard_key" {
 					continue
 				}
@@ -358,7 +358,6 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 			}
 
 			s.logger.Info("Try to create table", log.String("table", s.getFullPath(tablePath)), log.String("query", query.String()))
-
 			return session.ExecuteSchemeQuery(ctx, query.String())
 		}); err != nil {
 			return xerrors.Errorf("unable to create table: %s: %w", s.getFullPath(tablePath), err)
@@ -371,10 +370,10 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 			if err != nil {
 				return xerrors.Errorf("unable to describe path %s: %w", s.getFullPath(tablePath), err)
 			}
-			s.logger.Infof("check migration %v -> %v", len(desc.Columns), len(schema))
+			s.logger.Infof("check migration %v -> %v", len(desc.Columns), len(schema.Columns()))
 
 			addColumns := make([]ColumnTemplate, 0)
-			for _, a := range schema {
+			for _, a := range schema.Columns() {
 				exist := false
 				for _, b := range FromYdbSchema(desc.Columns, desc.PrimaryKey) {
 					if a.ColumnName == b.ColumnName {
@@ -398,7 +397,7 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 						continue
 					}
 					exist := false
-					for _, b := range schema {
+					for _, b := range schema.Columns() {
 						if a.ColumnName == b.ColumnName {
 							exist = true
 						}
@@ -436,7 +435,7 @@ func (s *sinker) checkTable(tablePath ydbPath, schema []abstract.ColSchema) erro
 
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.cache[tablePath] = true
+	s.cache[tablePath] = schema
 	return nil
 }
 
@@ -476,19 +475,19 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 			var tableTime time.Time
 			switch s.config.Rotation.PartType {
 			case model.RotatorPartHour:
-				t, err := time.Parse(model.HourFormat, child.Name)
+				t, err := time.ParseInLocation(model.HourFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
 				tableTime = t
 			case model.RotatorPartDay:
-				t, err := time.Parse(model.DayFormat, child.Name)
+				t, err := time.ParseInLocation(model.DayFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
 				tableTime = t
 			case model.RotatorPartMonth:
-				t, err := time.Parse(model.MonthFormat, child.Name)
+				t, err := time.ParseInLocation(model.MonthFormat, child.Name, time.Local)
 				if err != nil {
 					continue
 				}
@@ -497,7 +496,7 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 				continue
 			}
 			if tableTime.Before(baseTime) {
-				s.logger.Infof("Old table need to be deleted %v", child.Name)
+				s.logger.Infof("Old table need to be deleted %v, table time: %v, base time: %v", child.Name, tableTime, baseTime)
 				if err := s.db.Table().Do(context.Background(), func(ctx context.Context, session table.Session) error {
 					dropTable := DropTableTemplate{s.getFullPath(currPath.MakeChildPath(child.Name))}
 
@@ -522,14 +521,13 @@ func (s *sinker) recursiveCleanupOldTables(currPath ydbPath, dir scheme.Director
 					if err != nil {
 						return xerrors.Errorf("Cannot describe table %s: %w", childPath, err)
 					}
-					if err := s.checkTable(nextTablePath, FromYdbSchema(desc.Columns, desc.PrimaryKey)); err != nil {
+					if err := s.checkTable(nextTablePath, abstract.NewTableSchema(FromYdbSchema(desc.Columns, desc.PrimaryKey))); err != nil {
 						s.logger.Warn("Unable to init clone", log.Error(err))
 					}
 
 					return nil
 				}); err != nil {
 					s.logger.Warnf("Unable to init next table %s: %v", nextTablePath, err)
-
 					continue
 				}
 			}
@@ -602,6 +600,8 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 				tablePath = ydbPath(path.Join(s.config.Path, string(tablePath)))
 			}
 			batches[tablePath] = append(batches[tablePath], item)
+		case abstract.SynchronizeKind:
+			// do nothing
 		default:
 			s.logger.Infof("kind: %v not supported", item.Kind)
 		}
@@ -609,10 +609,10 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	wg := sync.WaitGroup{}
 	errs := util.Errors{}
 	for tablePath, batch := range batches {
-		if err := s.checkTable(tablePath, batch[0].TableSchema.Columns()); err != nil {
+		if err := s.checkTable(tablePath, batch[0].TableSchema); err != nil {
 			if err == SchemaMismatchErr {
 				time.Sleep(time.Second)
-				if err := s.checkTable(tablePath, batch[0].TableSchema.Columns()); err != nil {
+				if err := s.checkTable(tablePath, batch[0].TableSchema); err != nil {
 					s.logger.Error("Check table error", log.Error(err))
 					errs = append(errs, xerrors.Errorf("unable to check table %s: %w", tablePath, err))
 				}
@@ -623,21 +623,19 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 		}
 		// The most fragile part of Collape is processing PK changing events.
 		// Here we transform these changes into Delete + Insert pair and only then send batch to Collapse
-		// As a result potentially dangerous part of Collapse is avoided + PK updates are processed correctly(it is imposible to update pk in YDB explicitly)
+		// As a result potentially dangerous part of Collapse is avoided + PK updates are processed correctly (it is imposible to update pk in YDB explicitly)
 		// Ticket about rewriting Collapse https://st.yandex-team.ru/TM-8239
-		batch = abstract.Collapse(s.processPKUpdate(batch))
-		for i := 0; i < len(batch); i += batchSize {
-			end := i + batchSize
-			if end > len(batch) {
-				end = len(batch)
-			}
+		chunks := splitToChunks(abstract.Collapse(s.processPKUpdate(batch)))
+		for _, chunk := range chunks {
 			wg.Add(1)
-			go func(tablePath ydbPath, batch []abstract.ChangeItem) {
+			go func(tablePath ydbPath, chunk []abstract.ChangeItem) {
 				defer wg.Done()
-				if err := s.pushBatch(tablePath, batch); err != nil {
-					errs = append(errs, xerrors.Errorf("unable to push %d items into table %s: %w", len(batch), tablePath, err))
+				if err := s.pushBatch(tablePath, chunk); err != nil {
+					msg := fmt.Sprintf("Unable to push %d items into table %s", len(chunk), tablePath)
+					errs = append(errs, xerrors.Errorf("%s: %w", msg, err))
+					logger.Log.Error(msg, log.Error(err))
 				}
-			}(tablePath, batch[i:end])
+			}(tablePath, chunk)
 		}
 	}
 	wg.Wait()
@@ -646,6 +644,24 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	}
 
 	return nil
+}
+
+func splitToChunks(items []abstract.ChangeItem) [][]abstract.ChangeItem {
+	var res [][]abstract.ChangeItem
+	batchSize := uint64(0)
+	left := 0
+	for right := range len(items) {
+		batchSize += items[right].Size.Read
+		if batchSize >= batchMaxSize || right-left >= batchMaxLen {
+			res = append(res, items[left:right+1])
+			batchSize = 0
+			left = right + 1
+		}
+	}
+	if left < len(items) {
+		res = append(res, items[left:])
+	}
+	return res
 }
 
 func (s *sinker) processPKUpdate(batch []abstract.ChangeItem) []abstract.ChangeItem {
@@ -712,17 +728,23 @@ func (s *sinker) deleteQuery(tablePath ydbPath, keySchemas []abstract.ColSchema)
 	cols := make([]TemplateCol, len(keySchemas))
 	for i, c := range keySchemas {
 		cols[i].Name = c.ColumnName
-		cols[i].Typ = s.adjustTypName(c.DataType)
+		cols[i].Typ = s.ydbType(c.DataType, c.OriginalType).Yql()
 		if i != len(keySchemas)-1 {
 			cols[i].Comma = ","
+		}
+		if c.Required {
+			cols[i].Optional = ""
+		} else {
+			cols[i].Optional = "?"
 		}
 	}
 	if s.config.ShardCount > 0 {
 		cols[len(cols)-1].Comma = ","
 		cols = append(cols, TemplateCol{
-			Name:  "_shard_key",
-			Typ:   "Uint64",
-			Comma: "",
+			Name:     "_shard_key",
+			Typ:      "Uint64",
+			Optional: "?",
+			Comma:    "",
 		})
 	}
 	buf := new(bytes.Buffer)
@@ -738,13 +760,19 @@ func (s *sinker) insertQuery(tablePath ydbPath, colSchemas []abstract.ColSchema)
 		if i != len(colSchemas)-1 {
 			cols[i].Comma = ","
 		}
+		if c.Required {
+			cols[i].Optional = ""
+		} else {
+			cols[i].Optional = "?"
+		}
 	}
 	if s.config.ShardCount > 0 {
 		cols[len(cols)-1].Comma = ","
 		cols = append(cols, TemplateCol{
-			Name:  "_shard_key",
-			Typ:   "Uint64",
-			Comma: "",
+			Name:     "_shard_key",
+			Typ:      "Uint64",
+			Optional: "?",
+			Comma:    "",
 		})
 	}
 	buf := new(bytes.Buffer)
@@ -775,7 +803,7 @@ func (s *sinker) insert(tablePath ydbPath, batch []abstract.ChangeItem) error {
 			if err != nil {
 				return xerrors.Errorf("%s: unable to build val: %w", c, err)
 			}
-			if !opt {
+			if !colSchemas[rev[c]].Required && !opt {
 				val = types.OptionalValue(val)
 			}
 			fields = append(fields, types.StructFieldValue(c, val))
@@ -818,7 +846,6 @@ func (s *sinker) insert(tablePath ydbPath, batch []abstract.ChangeItem) error {
 			}
 			return nil
 		})
-
 		if err != nil {
 			return xerrors.Errorf("unable to insert with legacy writer:\n %w", err)
 		}
@@ -826,34 +853,18 @@ func (s *sinker) insert(tablePath ydbPath, batch []abstract.ChangeItem) error {
 		return nil
 	}
 
-	err := s.db.Table().Do(ctx, func(ctx context.Context, session table.Session) (err error) {
-		tableFullPath := s.getFullPath(tablePath)
-		err = session.BulkUpsert(ctx, tableFullPath, batchList)
-		if err != nil {
-			s.logger.Warn("unable to upload rows", log.Error(err), log.String("table", tableFullPath))
-			if s.config.IgnoreRowTooLargeErrors && rowTooLargeRegexp.MatchString(err.Error()) {
-				s.logger.Warn("ignoring row too large error as per IgnoreRowTooLargeErrors option")
-				return nil
-			}
-			return xerrors.Errorf("unable to bulk upsert table %v: %w", tableFullPath, err)
+	tableFullPath := s.getFullPath(tablePath)
+	bulkUpsertBatch := table.BulkUpsertDataRows(batchList)
+	if err := s.db.Table().BulkUpsert(ctx, tableFullPath, bulkUpsertBatch); err != nil {
+		s.logger.Warn("unable to upload rows", log.Error(err), log.String("table", tableFullPath))
+		if s.config.IgnoreRowTooLargeErrors && rowTooLargeRegexp.MatchString(err.Error()) {
+			s.logger.Warn("ignoring row too large error as per IgnoreRowTooLargeErrors option")
+			return nil
 		}
-		return nil
-	})
-
-	if err != nil {
-		return xerrors.Errorf("unable to bulk upsert:\n %w", err)
+		return xerrors.Errorf("unable to bulk upsert table %v: %w", tableFullPath, err)
 	}
 
 	return nil
-}
-
-// timeToTimestamp converts time to YDB-timestamp in microseconds
-func timeToTimestamp(dt time.Time) uint64 {
-	mcs := dt.UTC().UnixNano() / 1000
-	if mcs < 0 {
-		return 0
-	}
-	return uint64(mcs)
 }
 
 func (s *sinker) fitTime(t time.Time) (time.Time, error) {
@@ -961,6 +972,20 @@ func (s *sinker) ydbVal(dataType, originalType string, val interface{}) (types.V
 		default:
 			return nil, true, xerrors.Errorf("Unable to marshal timestamp value: %v with type: %T", vv, vv)
 		}
+	case "ydb:Uuid":
+		switch vv := val.(type) {
+		case string:
+			if s.config.IsTableColumnOriented {
+				return types.UTF8Value(vv), false, nil
+			}
+			uuidVal, err := uuid.Parse(vv)
+			if err != nil {
+				return nil, true, xerrors.Errorf("Unable to parse UUID value: %w", err)
+			}
+			return types.UuidValue(uuidVal), false, nil
+		default:
+			return nil, true, xerrors.Errorf("unknown ydb:Uuid type: %T, val=%s", val, val)
+		}
 	}
 	if !s.config.IsTableColumnOriented {
 		switch originalType {
@@ -1038,15 +1063,15 @@ func (s *sinker) ydbVal(dataType, originalType string, val interface{}) (types.V
 		case schema.TypeBytes:
 			switch v := val.(type) {
 			case string:
-				return types.StringValue([]byte(v)), false, nil
+				return types.BytesValue([]byte(v)), false, nil
 			case []uint8:
-				return types.StringValue(v), false, nil
+				return types.BytesValue(v), false, nil
 			default:
 				r, err := json.Marshal(val)
 				if err != nil {
 					return nil, false, xerrors.Errorf("unable to json marshal: %w", err)
 				}
-				return types.StringValue(r), false, nil
+				return types.BytesValue(r), false, nil
 			}
 		case schema.TypeString:
 			switch v := val.(type) {
@@ -1253,6 +1278,9 @@ func (s *sinker) ydbType(dataType, originalType string) types.Type {
 		case "Json":
 			return types.TypeJSON
 		case "Uuid":
+			if s.config.IsTableColumnOriented {
+				return types.TypeUTF8
+			}
 			return types.TypeUUID
 		case "JsonDocument":
 			return types.TypeJSONDocument
@@ -1409,7 +1437,7 @@ func (s *sinker) delete(tablePath ydbPath, item abstract.ChangeItem) error {
 		if err != nil {
 			return xerrors.Errorf("unable to build ydb val: %w", err)
 		}
-		if !opt {
+		if !colSchemas[rev[c]].Required && !opt {
 			val = types.OptionalValue(val)
 		}
 		fields = append(fields, types.StructFieldValue(c, val))
@@ -1489,9 +1517,9 @@ func NewSinker(lgr log.Logger, cfg *YdbDestination, mtrcs metrics.Registry) (abs
 		config:  cfg,
 		logger:  lgr,
 		metrics: stats.NewSinkerStats(mtrcs),
-		locks:   maplock.NewMapMutex(),
+		locks:   sync.Mutex{},
 		lock:    sync.Mutex{},
-		cache:   map[ydbPath]bool{},
+		cache:   make(map[ydbPath]*abstract.TableSchema),
 		once:    sync.Once{},
 		closeCh: make(chan struct{}),
 	}

@@ -1,9 +1,9 @@
 package dataobjects
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
@@ -40,7 +40,7 @@ func (o *preshardedDataObject) Part() (base.DataObjectPart, error) {
 		return nil, xerrors.Errorf("part index %d out of range %d", o.idx, l)
 	}
 	k := o.partKeys[o.idx]
-	return NewPart(k.Table, k.NodeID, k.Rng, o.txID), nil
+	return NewPart(k.Table, k.NodeID, k.Rng, o.txID, k.Columns), nil
 }
 
 func (o *preshardedDataObject) ToOldTableID() (*abstract.TableID, error) {

@@ -1,7 +1,7 @@
 package ydb
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract/typesystem"
+	"github.com/transferia/transferia/pkg/abstract/typesystem"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -18,7 +18,7 @@ func init() {
 		schema.TypeFloat32:   {"Float"},
 		schema.TypeFloat64:   {"Double"},
 		schema.TypeBytes:     {"String"},
-		schema.TypeString:    {"Utf8", "Decimal", "DyNumber"},
+		schema.TypeString:    {"Utf8", "Decimal", "DyNumber", "Uuid"},
 		schema.TypeBoolean:   {"Bool"},
 		schema.TypeAny:       {typesystem.RestPlaceholder},
 		schema.TypeDate:      {"Date"},

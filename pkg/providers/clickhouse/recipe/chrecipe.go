@@ -6,11 +6,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/tests/tcrecipes"
-	tc_clickhouse "github.com/doublecloud/transfer/tests/tcrecipes/clickhouse"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/tests/tcrecipes"
+	tc_clickhouse "github.com/transferia/transferia/tests/tcrecipes/clickhouse"
 )
 
 type ContainerParams struct {
@@ -120,6 +120,8 @@ func Source(opts ...Option) (*model.ChSource, error) {
 		BufferSize:       0,
 		IOHomoFormat:     model.ClickhouseIOFormatCSV,
 		RootCACertPaths:  nil,
+		ConnectionID:     "",
+		UserEnabledTls:   nil,
 	}
 	res.WithDefaults()
 	return res, nil
@@ -181,7 +183,6 @@ func Target(opts ...Option) (*model.ChDestination, error) {
 		IsUpdateable:            false,
 		UpsertAbsentToastedRows: false,
 		Hosts:                   nil,
-		RetryCount:              0,
 		UseSchemaInTableName:    false,
 		ShardCol:                "",
 		Interval:                0,
@@ -207,6 +208,9 @@ func Target(opts ...Option) (*model.ChDestination, error) {
 		InflightBuffer:             0,
 		BufferTriggingSize:         0,
 		RootCACertPaths:            nil,
+		ConnectionID:               "",
+		IsSchemaMigrationDisabled:  false,
+		UserEnabledTls:             nil,
 	}
 	res.WithDefaults()
 	return res, nil

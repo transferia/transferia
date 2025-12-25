@@ -3,7 +3,7 @@ package abstract
 import (
 	"io"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // AsyncSink provides asynchronous Push operation, which should be a wrapper over synchronous Push implemented by sink.

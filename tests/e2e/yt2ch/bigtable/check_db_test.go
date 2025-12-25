@@ -10,17 +10,17 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/httpclient"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -29,7 +29,7 @@ var (
 	TransferType = abstract.TransferTypeSnapshotOnly
 	Source       = yt_provider.YtSource{
 		Cluster:          os.Getenv("YT_PROXY"),
-		Proxy:            os.Getenv("YT_PROXY"),
+		YtProxy:          os.Getenv("YT_PROXY"),
 		Paths:            []string{"//table_for_tests"},
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
@@ -83,17 +83,19 @@ func TestBigTable(t *testing.T) {
 	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
 	require.NoError(t, snapshotLoader.UploadV2(context.Background(), nil, nil))
 
-	chClient, err := httpclient.NewHTTPClientImpl(Target.ToStorageParams().ToConnParams())
+	storageParams, err := Target.ToStorageParams()
+	require.NoError(t, err)
+	chClient, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	require.NoError(t, err)
 
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy, Token: Source.YtToken})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy, Token: Source.YtToken})
 	require.NoError(t, err)
 
 	var rowCount int
 	err = ytc.GetNode(context.Background(), ypath.NewRich(Source.Paths[0]).YPath().Attr("row_count"), &rowCount, nil)
 	require.NoError(t, err)
 
-	host := Target.ShardsList[0].Hosts[0]
+	host := storageParams.ConnectionParams.Hosts[0]
 	query := `
 		SELECT
 			min(some_number) as min_value,

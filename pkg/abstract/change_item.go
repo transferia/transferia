@@ -1,7 +1,7 @@
 package abstract
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
 type ChangeItem = changeitem.ChangeItem
@@ -46,7 +46,6 @@ var MongoDropKind = changeitem.MongoDropKind
 var MongoRenameKind = changeitem.MongoRenameKind
 var MongoDropDatabaseKind = changeitem.MongoDropDatabaseKind
 var MongoNoop = changeitem.MongoNoop
-var ChCreateTableDistributedKind = changeitem.ChCreateTableDistributedKind
 var ChCreateTableKind = changeitem.ChCreateTableKind
 var ClickhouseDDLBuilderKind = changeitem.ClickhouseDDLBuilderKind
 var ElasticsearchDumpIndexKind = changeitem.ElasticsearchDumpIndexKind
@@ -83,8 +82,9 @@ var FindItemOfKind = changeitem.FindItemOfKind
 var KeyNames = changeitem.KeyNames
 var RegisterSystemTables = changeitem.RegisterSystemTables
 var MakeRawMessage = changeitem.MakeRawMessage
+var MakeRawMessageWithMeta = changeitem.MakeRawMessageWithMeta
 var PgName = changeitem.PgName
 var MakeOriginallyTypedColSchema = changeitem.MakeOriginallyTypedColSchema
-var ColIDX = changeitem.ColIDX
 var RawDataSchema = changeitem.RawDataSchema
 var ChangeItemFromMap = changeitem.ChangeItemFromMap
+var SystemTables = changeitem.SystemTables

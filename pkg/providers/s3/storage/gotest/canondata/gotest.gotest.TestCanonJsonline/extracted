@@ -66,11 +66,15 @@ file: test_jsonline_files/test.jsonl
     },
     "PartID": {
         "type": "string",
-        "value": "test_jsonline_files/test.jsonl"
+        "value": "465461ba3666466e729581a6f31c4ff5"
     },
     "Query": {
         "type": "string",
         "value": ""
+    },
+    "QueueMessageMeta": {
+        "type": "changeitem.QueueMessageMeta",
+        "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
     },
     "Schema": {
         "type": "string",

@@ -24,7 +24,7 @@ func GroupBy[S ~[]T, T any, K comparable](s S, keyGetter func(T) K) map[K][]T {
 //
 // Returns an error in case of key ununiqueness.
 func GroupByUniqueKey[S ~[]T, T any, K comparable](s S, keyGetter func(T) K) (map[K]T, error) {
-	res := map[K]T{}
+	res := make(map[K]T, len(s))
 
 	for _, entity := range s {
 		key := keyGetter(entity)
@@ -70,7 +70,7 @@ func GroupByWithIndex[S ~[]T, T any, K comparable](s S, keyGetter func(T) K) map
 //
 // Returns an error in case of key ununiqueness.
 func GroupByUniqueKeyWithIndex[S ~[]T, T any, K comparable](s S, keyGetter func(T) K) (map[K]IndexedEntity[T], error) {
-	res := map[K]IndexedEntity[T]{}
+	res := make(map[K]IndexedEntity[T], len(s))
 
 	for i, entity := range s {
 		key := keyGetter(entity)

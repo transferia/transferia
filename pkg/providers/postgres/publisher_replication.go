@@ -3,24 +3,29 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/parsequeue"
-	sequencer2 "github.com/doublecloud/transfer/pkg/providers/postgres/sequencer"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/dustin/go-humanize"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pglogrepl"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/parsequeue"
+	sequencer2 "github.com/transferia/transferia/pkg/providers/postgres/sequencer"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -52,7 +57,7 @@ type replication struct {
 	objects         *model.DataObjects
 	sequencer       *sequencer2.Sequencer
 	parseQ          *parsequeue.ParseQueue[[]abstract.ChangeItem]
-	objectsMap      map[abstract.TableID]bool //tables to include in transfer
+	objectsFilter   abstract.Includeable
 
 	skippedTables map[abstract.TableID]bool
 }
@@ -70,6 +75,8 @@ func (p *replication) Run(sink abstract.AsyncSink) error {
 	//level of parallelism combined with hardcoded buffer size in receiver(16mb) prevent OOM in parsequeue
 	p.parseQ = parsequeue.New(p.logger, 10, sink, p.WithIncludeFilter, p.ack)
 
+	p.wg.Add(1)
+	go p.standbyStatus()
 	if err = p.reloadSchema(); err != nil {
 		return xerrors.Errorf("failed to load schema: %w", err)
 	}
@@ -79,15 +86,14 @@ func (p *replication) Run(sink abstract.AsyncSink) error {
 		includedObjects = append(includedObjects, p.config.AuxTables()...)
 	}
 
-	if p.objectsMap, err = abstract.BuildIncludeMap(includedObjects); err != nil {
+	if p.objectsFilter, err = abstract.BuildIncludeableFromObjects(includedObjects); err != nil {
 		return xerrors.Errorf("unable to build transfer data-objects: %w", err)
 	}
 
 	slotTroubleCh := p.slotMonitor.StartSlotMonitoring(int64(p.config.SlotByteLagLimit))
 
-	p.wg.Add(2)
+	p.wg.Add(1)
 	go p.receiver(slotTroubleCh)
-	go p.standbyStatus()
 	select {
 	case err := <-p.error:
 		return err
@@ -148,21 +154,11 @@ func (p *replication) ack(data []abstract.ChangeItem, pushSt time.Time, err erro
 
 func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) []abstract.ChangeItem {
 	var changes []abstract.ChangeItem
+	inlcludeable := abstract.NewIntersectionIncludeable(p.objectsFilter, p.config)
 	for _, change := range items {
-		if _, ok := p.includeCache[change.TableID()]; !ok {
-			p.includeCache[change.TableID()] = p.config.Include(change.TableID())
-		}
-		if len(p.objectsMap) > 0 { // if we have transfer include objects we should strictly push only them
-			_, tablePresent := p.objectsMap[change.TableID()]
-			// Let's imagine that we work with partitioned tables and CollapseInheritTables is on
-			// How our code works: 1) we rename partitioned tables using transformers and this happens when we push ChangeItems
-			// 2) IncludeObjects may include name of parent table(this is how it worked previously so this behaviour should be preserved)
-			// 3) therefore when we check if table is present in IncludeObjects we should also check if it's parent is present
-			// otherwise we will just skip all partition tables during replication
-			_, parentPresent := p.objectsMap[p.altNames[change.TableID()]]
-			if !parentPresent && !tablePresent {
-				continue
-			}
+		tableID := change.TableID()
+		if _, ok := p.includeCache[tableID]; !ok {
+			p.includeCache[tableID] = isTableOrParentIncluded(p.altNames, tableID, inlcludeable, p.config.CollapseInheritTables)
 		}
 		if p.includeCache[change.TableID()] {
 			changes = append(changes, change)
@@ -171,7 +167,22 @@ func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) []abstract.
 	return changes
 }
 
+// isTableOrParentIncluded checks if table or its parent is explicitly included in source configuration
+// or is a child of an included parent when CollapseInheritTables is enabled.
+func isTableOrParentIncluded(altNames map[abstract.TableID]abstract.TableID, tableID abstract.TableID, includeable abstract.Includeable, collapseInheritTables bool) bool {
+	if includeable.Include(tableID) {
+		return true
+	}
+	if collapseInheritTables && altNames != nil {
+		if parentID, ok := altNames[tableID]; ok {
+			return includeable.Include(parentID)
+		}
+	}
+	return false
+}
+
 func (p *replication) reloadSchema() error {
+	p.logger.Info("Reloading schema")
 	storage, err := NewStorage(p.config.ToStorageParams(nil)) // source includes all data transfer system tables
 	if err != nil {
 		return xerrors.Errorf("failed to create PostgreSQL storage object at source endpoint: %w", err)
@@ -179,7 +190,7 @@ func (p *replication) reloadSchema() error {
 	defer storage.Close()
 	storage.IsHomo = true // exclude VIEWs. This is a nasty solution which should be replaced when an Accessor is introduced instead of the jack of all trades Storage
 
-	tableMap, err := storage.TableList(nil)
+	tableMap, err := storage.TableListWithoutSkips(nil) // to collect 'child' tables, when CollapseInheritTables=true
 	if err != nil {
 		return xerrors.Errorf("failed to list tables (with schema) at source endpoint: %w", err)
 	}
@@ -214,7 +225,7 @@ func (p *replication) reloadSchema() error {
 	}
 	defer conn.Release()
 
-	changeProcessor, err := newChangeProcessor(conn.Conn(), p.schema, storage.sExTime, p.config)
+	changeProcessor, err := newChangeProcessor(conn.Conn(), p.schema, storage.sExTime, p.config, p.altNames)
 	if err != nil {
 		return xerrors.Errorf("unable to initialize change processor: %w", err)
 	}
@@ -264,12 +275,15 @@ func (p *replication) standbyStatus() {
 		} else {
 			p.logger.Infof("Heartbeat send %v", copiedMaxLsn)
 		}
-		cancel()
 		if tracker, ok := p.slot.(*LsnTrackedSlot); ok && copiedMaxLsn > 0 {
-			if err := tracker.Move(pglogrepl.LSN(copiedMaxLsn).String()); err != nil {
+			var restartLsn string
+			if err := p.conn.QueryRow(ctx, SelectLsnForSlot, p.transferID).Scan(&restartLsn); err != nil {
+				logger.Log.Warn("Unable to get restart lsn", log.Error(err))
+			} else if err := tracker.Move(restartLsn); err != nil {
 				logger.Log.Warn("Unable to move lsn", log.Error(err))
 			}
 		}
+		cancel()
 	}
 }
 
@@ -297,7 +311,7 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 		}
 		p.metrics.Master.Set(1)
 
-		backendMessage, err := p.replConn.ReceiveMessage(p.sharedCtx)
+		backendMessage, err := p.replConn.ReceiveMessage(p.sharedCtx, p.slotMonitor)
 		if err != nil {
 			if xerrors.Is(err, context.Canceled) {
 				return
@@ -308,6 +322,9 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 				p.metrics.Fatal.Inc()
 				p.sendError(abstract.NewFatalError(err))
 				return
+			}
+			if IsPgError(err, ErrcAdminShutdown) {
+				err = coded.Errorf(codes.PostgresSessionDurationTimeout, "Replication stopped due to session timeout/admin shutdown: %w", err)
 			}
 			p.logger.Warn("Connection dropped", log.Error(err))
 			p.sendError(err)
@@ -351,7 +368,7 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 					}()
 					var res []abstract.ChangeItem
 					for _, d := range data {
-						changeItems, err := p.parseWal2JsonChanges(p.changeProcessor, d)
+						changeItems, err := p.parseWal2JsonChanges(d)
 						if err != nil {
 							p.sendError(xerrors.Errorf("Cannot parse logical replication message: %w", err))
 							return
@@ -409,17 +426,14 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 	}
 }
 
-func (p *replication) parseWal2JsonChanges(cp *changeProcessor, xld *pglogrepl.XLogData) ([]abstract.ChangeItem, error) {
+func (p *replication) parseWal2JsonChanges(xld *pglogrepl.XLogData) ([]abstract.ChangeItem, error) {
 	st := time.Now()
 	items, err := p.wal2jsonParser.Parse(xld.WALData)
 	if err != nil {
 		logger.Log.Error("Cannot parse wal2json message", log.Error(err), log.String("data", walDataSample(xld.WALData)))
 		return nil, xerrors.Errorf("Cannot parse wal2json message: %w", err)
 	}
-	objIncleadable, err := abstract.BuildIncludeMap(p.objects.GetIncludeObjects())
-	if err != nil {
-		return nil, xerrors.Errorf("failed to filter table list extracted from source by objects set in transfer: %w", err)
-	}
+	includeableFilter := abstract.NewIntersectionIncludeable(p.objectsFilter, p.config)
 	if err := validateChangeItemsPtrs(items); err != nil {
 		p.logger.Error(err.Error())
 		//nolint:descriptiveerrors
@@ -428,42 +442,50 @@ func (p *replication) parseWal2JsonChanges(cp *changeProcessor, xld *pglogrepl.X
 	changes := make([]abstract.ChangeItem, 0, 1)
 	for i, item := range items {
 		changeItem := item.toChangeItem()
+		tableID := changeItem.TableID()
 		if err := abstract.ValidateChangeItem(&changeItem); err != nil {
 			logger.Log.Error(err.Error())
 		}
-		if !cp.hasSchemaForTable(changeItem.TableID()) {
-			if p.skippedTables[changeItem.TableID()] {
-				p.logger.Debug("skipping changes for a table added after replication had started", log.String("table", changeItem.TableID().String()))
-				continue
-			}
+		if p.skippedTables[tableID] {
+			p.logger.Debug("skipping changes for a table added after replication had started", log.String("table", tableID.String()))
+			continue
+		}
+		if !p.changeProcessor.hasSchemaForTable(tableID) {
 			if p.config.CollapseInheritTables {
-				parentID, err := p.changeProcessor.resolveParentTable(p.sharedCtx, p.conn, changeItem.TableID())
+				parentID, err := p.changeProcessor.resolveParentTable(p.sharedCtx, p.conn, tableID)
 				if err != nil {
 					return nil, xerrors.Errorf("unable to resolve parent: %w", err)
 				}
-				if p.objects != nil && len(p.objects.IncludeObjects) > 0 && !objIncleadable[parentID] {
-					p.skippedTables[changeItem.TableID()] = true // to prevent next time resolve for parent
+				if !isTableOrParentIncluded(p.altNames, parentID, includeableFilter, p.config.CollapseInheritTables) {
+					p.skippedTables[tableID] = true // to prevent next time resolve for parent
 					p.logger.Warn(
-						"skipping changes for a table, since itself or its parent is not included in data-objects",
-						log.String("table", changeItem.TableID().String()),
+						"skipping changes for a table, since itself or its parent is not included",
+						log.String("table", tableID.String()),
 						log.String("parent_table", parentID.String()),
 					)
 					continue
 				}
+				// set schema like parent table
+				changeItem.SetTableSchema(p.changeProcessor.schemasToEmit[parentID])
+				changeItem.SetTableID(parentID)
 			}
-			if err := p.reloadSchema(); err != nil {
-				return nil, xerrors.Errorf("failed to reload schema: %w", abstract.NewFatalError(err))
-			}
-			if !cp.hasSchemaForTable(changeItem.TableID()) {
-				if !p.config.IgnoreUnknownTables {
-					return nil, xerrors.Errorf("failed to load schema for a table %s added after replication had started", changeItem.TableID().String())
+			if len(p.changeProcessor.resolvedParents) != 0 {
+				if _, ok := p.changeProcessor.resolvedParents[tableID]; !ok {
+					if err := p.reloadSchema(); err != nil {
+						return nil, xerrors.Errorf("failed to reload schema: %w", abstract.NewFatalError(err))
+					}
 				}
-				p.logger.Warn("failed to get a schema for a table added after replication started, skipping changes for this table", log.String("table", changeItem.TableID().String()))
-				p.skippedTables[changeItem.TableID()] = true
+			}
+			if !p.changeProcessor.hasSchemaForTable(changeItem.TableID()) {
+				if !p.config.IgnoreUnknownTables {
+					return nil, xerrors.Errorf("failed to load schema for a table %s added after replication had started", tableID.String())
+				}
+				p.logger.Warn("failed to get a schema for a table added after replication started, skipping changes for this table", log.String("table", tableID.String()))
+				p.skippedTables[tableID] = true
 				continue
 			}
 		}
-		if err := cp.fixupChange(&changeItem, item.ColumnTypeOIDs, item.OldKeys.KeyTypeOids, i, xld.WALStart); err != nil {
+		if err := p.changeProcessor.fixupChange(&changeItem, item.ColumnTypeOIDs, item.OldKeys.KeyTypeOids, i, xld.WALStart); err != nil {
 			//nolint:descriptiveerrors
 			return nil, err
 		}
@@ -481,8 +503,35 @@ func (p *replication) parseWal2JsonChanges(cp *changeProcessor, xld *pglogrepl.X
 	return changes, nil
 }
 
-func NewReplicationPublisher(version PgVersion, replConn *mutexedPgConn, connPool *pgxpool.Pool, slot AbstractSlot, stats *stats.SourceStats, source *PgSource, transferID string, lgr log.Logger, cp coordinator.Coordinator, objects *model.DataObjects) (abstract.Source, error) {
-	mutex := &sync.Mutex{}
+func newReplicationPublisher(
+	version PgVersion,
+	connConfig *pgx.ConnConfig,
+	slot AbstractSlot,
+	wal2jsonArgs wal2jsonArguments,
+	stats *stats.SourceStats,
+	source *PgSource,
+	transferID string,
+	lgr log.Logger,
+	cp coordinator.Coordinator,
+	objects *model.DataObjects,
+) (abstract.Source, error) {
+	var rb util.Rollbacks
+	defer rb.Do()
+	replConn, err := startReplication(connConfig, version, source.SlotID, wal2jsonArgs, lgr)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to start replication: %w", err)
+	}
+	rb.Add(func() {
+		if err := replConn.Close(context.Background()); err != nil {
+			lgr.Error("Cannot close replication connection", log.Error(err))
+		}
+	})
+	connPool, err := NewPgConnPool(connConfig, lgr)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create conn pool: %w", err)
+	}
+
+	rb.Cancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	return &replication{
 		logger:          lgr,
@@ -499,7 +548,7 @@ func NewReplicationPublisher(version PgVersion, replConn *mutexedPgConn, connPoo
 		wg:              sync.WaitGroup{},
 		slotMonitor:     NewSlotMonitor(connPool, source.SlotID, source.Database, stats, lgr),
 		stopCh:          make(chan struct{}),
-		mutex:           mutex,
+		mutex:           new(sync.Mutex),
 		maxLsn:          0,
 		slot:            slot,
 		pgVersion:       version,
@@ -512,8 +561,111 @@ func NewReplicationPublisher(version PgVersion, replConn *mutexedPgConn, connPoo
 		objects:         objects,
 		sequencer:       sequencer2.NewSequencer(),
 		parseQ:          nil,
-		objectsMap:      nil,
+		objectsFilter:   nil,
 
 		skippedTables: make(map[abstract.TableID]bool),
 	}, nil
+}
+
+func startReplication(
+	connConfig *pgx.ConnConfig,
+	version PgVersion,
+	slotName string,
+	wal2jsonArgs wal2jsonArguments,
+	lgr log.Logger,
+) (*mutexedPgConn, error) {
+	return backoff.RetryNotifyWithData(func() (*mutexedPgConn, error) {
+		var rb util.Rollbacks
+		defer rb.Do()
+		rConnConfig := makeReplicationConnConfig(connConfig.Config, version)
+		rConn, err := newReplicationConnection(rConnConfig)
+		if err != nil {
+			// Protocol violation, means that database do not accept replication protocol. Do not retry this case.
+			if strings.Contains(err.Error(), "08P01") {
+				//nolint:descriptiveerrors
+				return nil, backoff.Permanent(err)
+			}
+			// Too many connections (SQLSTATE 53300)
+			var pgErr *pgconn.PgError
+			if xerrors.As(err, &pgErr) && pgErr.Code == string(ErrcTooManyConnections) {
+				return nil, coded.Errorf(codes.PostgresTooManyConnections, "error establishing replication connection: %w", err)
+			}
+			// SSL handshake failures often come wrapped without PgError during replication handshake
+			if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed") {
+				return nil, coded.Errorf(codes.PostgresSSLVerifyFailed, "error establishing replication connection: %w", err)
+			}
+			// classify a common case when replication is not allowed by server config/pg_hba
+			// NOTE: pgx often returns this as a non-PgError during connection handshake,
+			// so there is no reliable SQLSTATE to match here; textual match is used intentionally.
+			if strings.Contains(err.Error(), "no pg_hba.conf entry for replication connection") || strings.Contains(err.Error(), "replication connection") {
+				return nil, coded.Errorf(codes.PostgresReplicationConnectionNotAllowed, "error establishing replication connection: %w", err)
+			}
+			return nil, xerrors.Errorf("error establishing replication connection: %w", err)
+		}
+		rb.Add(func() {
+			if err := rConn.Close(context.Background()); err != nil {
+				lgr.Error("Cannot close replication connection", log.Error(err))
+			}
+		})
+
+		lgr.Infof("Start replication process with args: %v", wal2jsonArgs)
+		err = rConn.StartReplication(context.Background(), slotName, 0, pglogrepl.StartReplicationOptions{
+			Timeline:   -1,
+			Mode:       pglogrepl.LogicalReplication,
+			PluginArgs: wal2jsonArgs.toReplicationFormat(),
+		})
+		if err != nil {
+			defer lgr.Warn("Cannot start replication via replication connection", log.Error(err))
+			// usually that means slot has been invalidated by some condition (e.g. max_wal_slot_keep_size setting or smth)
+			if strings.Contains(err.Error(), "SQLSTATE 55000") {
+				//nolint:descriptiveerrors
+				return nil, backoff.Permanent(abstract.NewFatalError(
+					xerrors.Errorf("Cannot start replication via replication connection: %w", err)))
+			}
+			// object_in_use code means some other process is reading the slot
+			// nobody is expected to read transfer slot so most common case of this error is stale transfer process
+			if strings.Contains(err.Error(), "SQLSTATE 55006") {
+				// map to coded error for UI/linking
+				err = coded.Errorf(codes.PostgresObjectInUse, "Replication slot is in use: %w", err)
+				tryKillSlotReader(rConn, slotName, lgr)
+			}
+			//nolint:descriptiveerrors
+			return nil, err
+		}
+		rb.Cancel()
+		return rConn, nil
+	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5), util.BackoffLoggerWarn(lgr, "cannot start replication"))
+}
+
+func makeReplicationConnConfig(srcConfig pgconn.Config, version PgVersion) *pgconn.Config {
+	// It's important to copy config before mutating RuntimeParams
+	// otherwise those params may accidentaly be shared among different connection (pools)
+	rConnConfig := srcConfig.Copy()
+	if rConnConfig.RuntimeParams == nil {
+		rConnConfig.RuntimeParams = make(map[string]string)
+	}
+	if !version.Is9x && !version.Is10x && !version.Is11x {
+		rConnConfig.RuntimeParams["options"] = "-c wal_sender_timeout=3600000"
+	}
+	rConnConfig.RuntimeParams["replication"] = "database"
+	return rConnConfig
+}
+
+func newReplicationConnection(rConnConfig *pgconn.Config) (*mutexedPgConn, error) {
+	rConnRaw, err := pgconn.ConnectConfig(context.TODO(), rConnConfig)
+	if err != nil {
+		return nil, err
+	}
+	return newMutexedPgConn(rConnRaw), nil
+}
+
+func tryKillSlotReader(conn *mutexedPgConn, slotName string, lgr log.Logger) {
+	sql := fmt.Sprintf(`SELECT PG_TERMINATE_BACKEND(active_pid) FROM pg_replication_slots
+WHERE slot_name = '%v' AND active_pid IS NOT NULL;`, slotName)
+	reader := conn.Exec(context.Background(), sql)
+	if _, readerErr := reader.ReadAll(); readerErr != nil {
+		lgr.Warn(fmt.Sprintf("Unable to terminate reader for slot %s", slotName), log.Error(readerErr))
+	} else {
+		lgr.Infof("Reader for slot %s has been terminated", slotName)
+	}
 }

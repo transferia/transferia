@@ -3,10 +3,12 @@ package eventhub
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -17,16 +19,16 @@ const (
 var _ model.Source = (*EventHubSource)(nil)
 
 type EventHubSource struct {
-	NamespaceName     string
-	HubName           string
-	ConsumerGroup     string
-	Topic             string
-	StartingOffset    string
-	StartingTimeStamp *time.Time
+	NamespaceName     string     `log:"true"`
+	HubName           string     `log:"true"`
+	ConsumerGroup     string     `log:"true"`
+	Topic             string     `log:"true"`
+	StartingOffset    string     `log:"true"`
+	StartingTimeStamp *time.Time `log:"true"`
 	Auth              *EventHubAuth
-	Transformer       *model.DataTransformOptions
+	Transformer       *model.DataTransformOptions `log:"true"`
 
-	ParserConfig map[string]interface{}
+	ParserConfig map[string]interface{} `log:"true"`
 }
 
 var _ model.Source = (*EventHubSource)(nil)
@@ -34,6 +36,10 @@ var _ model.Source = (*EventHubSource)(nil)
 type EventHubAuth struct {
 	Method, KeyName string
 	KeyValue        model.SecretString
+}
+
+func (s *EventHubSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *EventHubSource) WithDefaults() {
@@ -53,6 +59,13 @@ func (s *EventHubSource) WithDefaults() {
 	if s.Transformer != nil && s.Transformer.CloudFunction == "" {
 		s.Transformer = nil
 	}
+}
+
+func (s *EventHubSource) ServiceAccountIDs() []string {
+	if s.Transformer != nil && s.Transformer.ServiceAccountID != "" {
+		return []string{s.Transformer.ServiceAccountID}
+	}
+	return nil
 }
 
 func (s *EventHubSource) IsSource() {
@@ -82,6 +95,21 @@ func (s *EventHubSource) IsAppendOnly() bool {
 			return false
 		}
 		return parserConfigStruct.IsAppendOnly()
+	}
+}
+
+func (s *EventHubSource) YSRNamespaceID() string {
+	if s.ParserConfig == nil {
+		return ""
+	} else {
+		parserConfigStruct, _ := parsers.ParserConfigMapToStruct(s.ParserConfig)
+		if parserConfigStruct == nil {
+			return ""
+		}
+		if parserConfigStructYSRable, ok := parserConfigStruct.(parsers.YSRable); ok {
+			return parserConfigStructYSRable.YSRNamespaceID()
+		}
+		return ""
 	}
 }
 

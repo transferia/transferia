@@ -1,0 +1,86 @@
+.g-root {
+    /* fonts */
+    --dc-text-font-family: 'Inter Regular', 'Helvetica Neue', 'Arial', 'Helvetica', sans-serif;
+    --dc-header-font-family: 'Inter SemiBold', 'Helvetica Neue', 'Arial', 'Helvetica', sans-serif;
+    --g-font-family-sans: var(--dc-text-font-family);
+
+    /* definitions for brand colors from upcoming uikit ver */
+    --g-color-private-brand-akira: rgba(251, 67, 61, 1);
+    --g-color-private-brand-blues: rgba(52, 86, 149, 1);
+    --g-color-private-brand-cherry: rgba(202, 21, 81, 1);
+    --g-color-private-brand-matrix: rgba(3, 206, 164, 1);
+    --g-color-private-brand-matrix-lite: rgba(175, 224, 201, 1);
+    --g-color-private-brand-matrix-heavy: rgba(62, 150, 128, 1);
+    --g-color-private-brand-yell-oh: rgba(255, 228, 53, 1);
+    --g-color-private-brand-medium-blue: rgba(37, 93, 195, 1);
+
+    --g-color-base-brand: var(--g-color-private-brand-matrix);
+
+    --g-color-private-brand-white: rgba(255, 255, 255, 1);
+    --g-color-private-brand-gray-10: rgba(237, 245, 243, 1);
+    --g-color-private-brand-gray-15: rgba(225, 235, 232, 1);
+    --g-color-private-brand-gray-20: rgba(202, 217, 213, 1);
+    --g-color-private-brand-gray-30: rgba(166, 178, 175, 1);
+    --g-color-private-brand-gray-35: rgba(148, 161, 158, 1);
+    --g-color-private-brand-gray-40: rgba(129, 144, 141, 1);
+    --g-color-private-brand-gray-50: rgba(88, 104, 101, 1);
+    --g-color-private-brand-gray-60: rgba(53, 64, 62, 1);
+    --g-color-private-brand-gray-65: rgba(35, 43, 43, 1);
+    --g-color-private-brand-gray-70: rgba(20, 25, 25, 1);
+    --g-color-private-brand-black: rgba(0, 0, 0, 1);
+
+
+    /* redefinitions for both light and dark themes */
+    --g-color-base-special: var(--g-color-private-brand-matrix);
+    --g-color-base-special-hover: var(--g-color-private-brand-akira);
+    --g-color-text-info: var(--g-color-private-brand-matrix);
+    --g-color-line-generic-accent-hover: var(--g-color-private-brand-matrix);
+    --g-color-text-secondary: var(--g-color-private-brand-gray-40);
+
+    /* yfm tabs fix */
+    /*--g-color-azure-solid: var(--g-color-private-brand-matrix);*/
+}
+
+.g-root_theme_dark {
+    --g-color-text-primary: var(--g-color-private-brand-white);
+    --g-color-text-link: rgba(28, 211, 173, 1);
+    --g-color-text-link-hover: rgba(129, 231, 210, 1);
+    --g-color-text-link-visited: rgba(187, 113, 170, 1);
+    --g-color-text-link-visited-hover: rgba(209, 160, 198, 1);
+    --g-color-base-background: var(--g-color-private-brand-gray-65);
+    --g-color-base-float: var(--g-color-private-brand-gray-60);
+    --g-color-line-generic-accent: var(--g-color-private-brand-gray-40);
+    --g-color-base-selection: var(--g-color-private-brand-gray-50);
+    --g-color-base-action: var(--g-color-base-light);
+    --g-color-base-action-hover: var(--g-color-base-light-hover);
+}
+
+.g-root_theme_light {
+    --g-color-text-primary: var(--g-color-private-black-850);
+    --g-color-text-link: rgba(7, 190, 153, 1);
+    --g-color-text-link-hover: rgba(16, 144, 130, 1);
+    --g-color-text-link-visited: rgba(158, 76, 145, 1);
+    --g-color-text-link-visited-hover: rgba(133, 69, 124, 1);
+    --g-color-text-misc: var(--g-color-private-brand-gray-50);
+    --g-color-line-generic: var(--g-color-private-brand-gray-20);
+    --g-color-line-generic-hover: var(--g-color-private-brand-gray-30);
+    --g-color-line-generic-active: var(--g-color-private-brand-gray-40);
+    --g-color-base-selection: var(--g-color-private-brand-gray-15);
+    --g-color-base-action-hover: var(--g-color-private-brand-matrix-lite);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--dc-header-font-family);
+    font-weight: 400;
+}
+
+.g-root_theme_light::-webkit-scrollbar,
+.g-root_theme_light *::-webkit-scrollbar {
+    /* safari transparency fix */
+    background: var(--g-color-scroll-track) !important;
+}

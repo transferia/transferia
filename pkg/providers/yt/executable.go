@@ -3,17 +3,15 @@ package yt
 import (
 	"context"
 	"io"
-	"math/rand"
 	"os"
-	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/test/yatest"
-	"github.com/doublecloud/transfer/pkg/cleanup"
-	"github.com/doublecloud/transfer/pkg/config/env"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/pkg/randutil"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/test/yatest"
+	"github.com/transferia/transferia/pkg/cleanup"
+	"github.com/transferia/transferia/pkg/config/env"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/randutil"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -78,7 +76,6 @@ func uploadExe(exePrefix, exePath string) error {
 	}
 	defer client.Stop()
 
-	rand.Seed(time.Now().UnixNano())
 	exeVersion = exePrefix + randutil.GenerateAlphanumericString(8)
 	ExePath = DataplaneExecutablePath("", exeVersion)
 	if _, err := client.CreateNode(context.Background(), ExePath, yt.NodeFile, &yt.CreateNodeOptions{Recursive: true}); err != nil {

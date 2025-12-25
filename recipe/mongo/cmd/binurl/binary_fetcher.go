@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/util/cli"
-	"github.com/doublecloud/transfer/recipe/mongo/pkg/binurl"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/util/cli"
+	"github.com/transferia/transferia/recipe/mongo/pkg/binurl"
 )
 
 var (
@@ -125,7 +125,7 @@ func getLinksByCriteria(
 	switch operationSystem {
 	case CmdOSUnspecified:
 	case CmdOSMacos:
-		links = slices.Filter(links, func(link binurl.BinaryLinks) bool {
+		links = yslices.Filter(links, func(link binurl.BinaryLinks) bool {
 			switch link.OS {
 			case binurl.OperationSystemMacos:
 				return true
@@ -137,7 +137,7 @@ func getLinksByCriteria(
 			return false
 		})
 	case CmdOSLinux:
-		links = slices.Filter(links, func(link binurl.BinaryLinks) bool {
+		links = yslices.Filter(links, func(link binurl.BinaryLinks) bool {
 			switch link.OS {
 			case binurl.OperationSystemLinux:
 				return true
@@ -149,17 +149,17 @@ func getLinksByCriteria(
 	switch arch {
 	case CmdArchUnspecified:
 	case CmdArchAMD64:
-		links = slices.Filter(links, func(link binurl.BinaryLinks) bool {
+		links = yslices.Filter(links, func(link binurl.BinaryLinks) bool {
 			return link.Arch == binurl.ArchAMD64
 		})
 	case CmdArchARM64:
-		links = slices.Filter(links, func(link binurl.BinaryLinks) bool {
+		links = yslices.Filter(links, func(link binurl.BinaryLinks) bool {
 			return link.Arch == binurl.ArchARM64 || link.Arch == binurl.ArchAArch64
 		})
 
 	}
 
-	links = slices.Filter(links, func(link binurl.BinaryLinks) bool {
+	links = yslices.Filter(links, func(link binurl.BinaryLinks) bool {
 		tag := strings.TrimSpace(link.Tag)
 		distro := strings.TrimSpace(distributiveSubstr)
 		return strings.Contains(tag, distro) &&

@@ -1,8 +1,8 @@
 package model
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/dbaas"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/dbaas"
 )
 
 func ResolvePassword(clusterID, user, password string) (string, error) {

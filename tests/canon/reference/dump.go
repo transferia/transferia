@@ -13,22 +13,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/httpclient"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/mongo"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/util/set"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	dt_canon "github.com/doublecloud/transfer/tests/canon"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/mongo"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/util/set"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	dt_canon "github.com/transferia/transferia/tests/canon"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -182,13 +183,20 @@ func FromClickhouse(t *testing.T, src *model.ChSource, noTimeCols bool) string {
 		}
 	}
 	var tables tableListResponse
-	sinkParams := src.ToSinkParams()
+	sinkParams, err := src.ToSinkParams()
+	require.NoError(t, err)
 	httpClient, err := httpclient.NewHTTPClientImpl(sinkParams)
 	require.NoError(t, err)
+	connHost := &chconn.Host{
+		Name:       "localhost",
+		HTTPPort:   src.HTTPPort,
+		NativePort: src.NativePort,
+	}
+
 	require.NoError(t, httpClient.Query(
 		context.Background(),
 		logger.Log,
-		"localhost",
+		connHost,
 		`select '"' || database || '"."' || name || '"' as FullName from system.tables where database not like '%system%' FORMAT JSON`,
 		&tables,
 	))
@@ -205,14 +213,14 @@ func FromClickhouse(t *testing.T, src *model.ChSource, noTimeCols bool) string {
 		require.NoError(t, httpClient.Exec(
 			context.Background(),
 			logger.Log,
-			"localhost",
+			connHost,
 			fmt.Sprintf(`OPTIMIZE TABLE %s FINAL`, table.FullName),
 		))
 
 		reader, err := httpClient.QueryStream(
 			context.Background(),
 			logger.Log,
-			"localhost",
+			connHost,
 			fmt.Sprintf(`select * %s from %s order by 1 FORMAT JSON`, excludeList, table.FullName),
 		)
 		require.NoError(t, err)

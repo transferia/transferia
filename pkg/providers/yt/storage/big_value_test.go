@@ -5,14 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/cleanup"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
-	"github.com/doublecloud/transfer/pkg/providers/yt/sink"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/cleanup"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
+	"github.com/transferia/transferia/pkg/providers/yt/sink"
 )
 
 type TestObject struct {
@@ -67,7 +67,7 @@ func TestBigValue(t *testing.T) {
 	}
 
 	t.Run("do_not_discard_big_values", func(t *testing.T) {
-		sinker, err := sink.NewSinker(dstModel, "big_value", 0, logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
+		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
 		require.NoError(t, err)
 		defer cleanup.Close(sinker, logger.Log)
 
@@ -78,7 +78,7 @@ func TestBigValue(t *testing.T) {
 	t.Run("discard_big_values", func(t *testing.T) {
 		dstModel.LegacyModel().(*yt.YtDestination).DiscardBigValues = true
 
-		sinker, err := sink.NewSinker(dstModel, "big_value", 0, logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
+		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
 		require.NoError(t, err)
 		defer cleanup.Close(sinker, logger.Log)
 

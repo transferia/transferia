@@ -4,52 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/splitter"
-	"github.com/doublecloud/transfer/pkg/stringutil"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/providers/postgres/splitter"
+	"github.com/transferia/transferia/pkg/stringutil"
+	"github.com/transferia/transferia/pkg/util/set"
 )
-
-func (s *Storage) checkMinMax(ctx context.Context, table abstract.TableID, col abstract.ColSchema) (min, max int64, err error) {
-	conn, err := s.Conn.Acquire(ctx)
-	if err != nil {
-		return 0, 0, xerrors.Errorf("failed to acquire a connection: %w", err)
-	}
-	defer conn.Release()
-
-	tx, txRollbacks, err := BeginTxWithSnapshot(ctx, conn.Conn(), repeatableReadReadOnlyTxOptions, s.ShardedStateLSN, logger.Log)
-	if err != nil {
-		return 0, 0, xerrors.Errorf("failed to start a transaction: %w", err)
-	}
-	defer txRollbacks.Do()
-
-	err = tx.QueryRow(
-		context.Background(),
-		fmt.Sprintf(
-			`select min(%[1]s)::bigint, max(%[1]s)::bigint from %[2]s`,
-			Sanitize(col.ColumnName),
-			table.Fqtn(),
-		),
-	).Scan(&min, &max)
-
-	return min, max, err
-}
-
-func (s *Storage) isSequence(table abstract.TableID, col abstract.ColSchema) (bool, error) {
-	var seqName interface{}
-	if err := s.Conn.QueryRow(
-		context.Background(),
-		"select pg_get_serial_sequence($1, $2)",
-		table.Fqtn(),
-		col.ColumnName,
-	).Scan(&seqName); err != nil {
-		return false, xerrors.Errorf("unable to select pg_get_serial_sequence: %w", err)
-	}
-	return seqName != nil, nil
-}
 
 // function 'ShardTable' tries to shard one table/view into parts (split task for snapshotting one table/view into parts):
 //
@@ -76,7 +38,7 @@ func (s *Storage) ShardTable(ctx context.Context, table abstract.TableDescriptio
 		return nil, xerrors.Errorf("unexpected desired table size: %v, expect > 0", s.Config.DesiredTableSize)
 	}
 
-	if s.loadDescending {
+	if s.Config.CollapseInheritTables {
 		childs, err := s.getChildTables(ctx, table)
 		if err != nil {
 			logger.Log.Warnf("unable to load child tables: %v", err)
@@ -147,53 +109,12 @@ func (s *Storage) ShardTable(ctx context.Context, table abstract.TableDescriptio
 		)
 		return s.shardBySequenceColumn(ctx, table, keys[0], splittedTableMetadata.PartsCount, splittedTableMetadata.DataSizeInRows, splittedTableMetadata.DataSizeInBytes)
 	}
+	if allKeysAreNumeric(keys) && !hasDataFiltration && !isView {
+		logger.Log.Infof("Table %v will be sharded by pkey sum into %v parts", table.Fqtn(), s.Config.SnapshotDegreeOfParallelism)
+		return shardByNumberSum(table, keys, int32(s.Config.SnapshotDegreeOfParallelism), splittedTableMetadata.DataSizeInRows), nil
+	}
 	logger.Log.Infof("Table %v  will be sharded by pkey hash into %v parts", table.Fqtn(), s.Config.SnapshotDegreeOfParallelism)
 	return shardByPKHash(table, keys, int32(s.Config.SnapshotDegreeOfParallelism), splittedTableMetadata.DataSizeInRows), nil
-}
-
-func (s *Storage) shardBySequenceColumn(ctx context.Context, table abstract.TableDescription, idCol abstract.ColSchema, partCount, etaRows, etaSize uint64) ([]abstract.TableDescription, error) {
-	min, max, err := s.checkMinMax(ctx, table.ID(), idCol)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to check table %v min-max values for column %v: %w", table.Fqtn(), idCol.ColumnName, err)
-	}
-	var res []abstract.TableDescription
-
-	offsetStep := etaRows / partCount
-	idStep := (max - min) / int64(partCount)
-	logger.Log.Infof(
-		"Size of table %v (%v) bigger than limit (%v), split in %v parts with %v eta rows in batch",
-		table.Fqtn(),
-		format.SizeUInt64(etaSize),
-		format.SizeUInt64(s.Config.DesiredTableSize),
-		partCount,
-		offsetStep,
-	)
-	res = append(res, abstract.TableDescription{
-		Name:   table.Name,
-		Schema: table.Schema,
-		Filter: abstract.WhereStatement(fmt.Sprintf(`"%[1]v" < %[2]v`, idCol.ColumnName, min+idStep)),
-		EtaRow: offsetStep,
-		Offset: 0,
-	})
-	for i := int64(1); i < int64(partCount)-1; i++ {
-		res = append(res, abstract.TableDescription{
-			Name:   table.Name,
-			Schema: table.Schema,
-			Filter: abstract.WhereStatement(fmt.Sprintf(`"%[1]v" >= %[2]v and "%[1]v" < %[3]v`, idCol.ColumnName, min+idStep*i, min+idStep*(i+1))),
-			EtaRow: offsetStep,
-			Offset: 0,
-		})
-	}
-	res = append(res, abstract.TableDescription{
-		Name:   table.Name,
-		Schema: table.Schema,
-		Filter: abstract.WhereStatement(fmt.Sprintf(`"%[1]v" >= %[2]v`, idCol.ColumnName, min+idStep*(int64(partCount)-1))),
-		EtaRow: offsetStep,
-		Offset: 0,
-	})
-
-	logger.Log.Infof("Table %v had sequences, split into shards: %v", table.Fqtn(), len(res))
-	return res, nil
 }
 
 func (s *Storage) getLoadTableMode(ctx context.Context, table abstract.TableDescription) (*loadTableMode, error) {
@@ -271,17 +192,6 @@ func (s *Storage) explicitShardingKeys(table abstract.TableDescription) []string
 	return []string{}
 }
 
-func (s *Storage) canShardBySequenceKeyColumn(key []abstract.ColSchema, table abstract.TableDescription) (bool, error) {
-	if len(key) != 1 {
-		return false, nil
-	}
-	isSeq, err := s.isSequence(table.ID(), key[0])
-	if err != nil {
-		return false, xerrors.Errorf("unable to check table %v for sequence: %w", table.Fqtn(), err)
-	}
-	return isSeq, nil
-}
-
 func shardByPKHash(table abstract.TableDescription, keys []abstract.ColSchema, shardCount int32, etaRows uint64) []abstract.TableDescription {
 	cols := stringutil.JoinStrings(",", func(col *abstract.ColSchema) string { return fmt.Sprintf("\"%v\"", col.ColumnName) }, keys...)
 
@@ -289,7 +199,26 @@ func shardByPKHash(table abstract.TableDescription, keys []abstract.ColSchema, s
 
 	shards := make([]abstract.TableDescription, shardCount)
 	for i := int32(0); i < shardCount; i++ {
-		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs(('x'||substr(md5(row(%v)::text),1,8))::bit(16)::int) %% %v = %v", cols, shardCount, i))
+		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs(hashtext(row(%v)::text) %% %v) = %v", cols, shardCount, i))
+		shards[i] = abstract.TableDescription{
+			Name:   table.Name,
+			Schema: table.ID().Namespace,
+			Filter: abstract.FiltersIntersection(table.Filter, shardFilter),
+			EtaRow: shardEtaSize,
+			Offset: 0,
+		}
+		logger.Log.Infof("shard %v for %v: %v", i, table.Fqtn(), shards[i].Filter)
+	}
+	return shards
+}
+
+func shardByNumberSum(table abstract.TableDescription, keys []abstract.ColSchema, shardCount int32, etaRows uint64) []abstract.TableDescription {
+	handler := func(col *abstract.ColSchema) string { return fmt.Sprintf("\"%v\"", col.ColumnName) }
+	colsSum := stringutil.JoinStrings("+", handler, keys...)
+	shardEtaSize := etaRows / uint64(shardCount)
+	shards := make([]abstract.TableDescription, shardCount)
+	for i := int32(0); i < shardCount; i++ {
+		shardFilter := abstract.WhereStatement(fmt.Sprintf("abs((%v)::bigint %% %v) = %v", colsSum, shardCount, i))
 		shards[i] = abstract.TableDescription{
 			Name:   table.Name,
 			Schema: table.ID().Namespace,
@@ -311,4 +240,13 @@ func CalculatePartCount(totalSize, desiredPartSize, partCountLimit uint64) uint6
 		partCount = partCountLimit
 	}
 	return partCount
+}
+
+func allKeysAreNumeric(keys []abstract.ColSchema) bool {
+	for _, key := range keys {
+		if !key.Numeric() {
+			return false
+		}
+	}
+	return true
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
@@ -53,7 +53,7 @@ func newReader(feedName, consumerName, dbname string, tables []string, ydbClient
 		selectors,
 		topicoptions.WithReaderCommitTimeLagTrigger(0),
 		topicoptions.WithReaderCommitMode(commitMode),
-		topicoptions.WithReaderBatchMaxCount(batchSize),
+		topicoptions.WithReaderBatchMaxCount(batchMaxLen),
 		topicoptions.WithReaderTrace(trace.Topic{
 			OnReaderError: func(info trace.TopicReaderErrorInfo) {
 				if xerrors.Is(info.Error, io.EOF) {

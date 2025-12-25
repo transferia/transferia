@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/doublecloud/transfer/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references";
+option go_package = "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references";
 
 message my_msg1 {
     string msg1_string_field = 1;

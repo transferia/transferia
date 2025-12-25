@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/credentials"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/credentials"
 )
 
 const (
-	XYaCloudTokenHeader string        = "X-YaCloud-SubjectToken"
-	tokenGetTimeout     time.Duration = 10 * time.Second
+	XYaCloudTokenHeader string = "X-YaCloud-SubjectToken"
+	tokenGetTimeout            = 10 * time.Second
 )
 
 type withCredentialsRoundTripper struct {

@@ -3,8 +3,8 @@ package provideradapter
 import (
 	"reflect"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"golang.org/x/xerrors"
 )
 

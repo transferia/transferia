@@ -10,15 +10,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	server "github.com/doublecloud/transfer/pkg/abstract/model"
-	mysqlSource "github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/tests/helpers"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	mysqlDriver "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	server "github.com/transferia/transferia/pkg/abstract/model"
+	mysqlSource "github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/tests/helpers"
+	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -210,7 +210,7 @@ func TestReplication(t *testing.T) {
 		checkDataWithDelay(expected, time.Second)
 	}
 
-	worker1 := startWorker(t, transfer, fakeClient)
+	worker1 := startWorker(transfer, fakeClient)
 	defer stopWorker(worker1)
 
 	CheckInsert(t, db, checkDataF)
@@ -364,7 +364,7 @@ func readAllRows(t *testing.T, ytClient yt.Client, ctx context.Context, ytPath y
 	return rows
 }
 
-func startWorker(t *testing.T, transfer server.Transfer, cp coordinator.Coordinator) *local.LocalWorker {
+func startWorker(transfer server.Transfer, cp coordinator.Coordinator) *local.LocalWorker {
 	w := local.NewLocalWorker(cp, &transfer, helpers.EmptyRegistry(), logger.Log)
 	w.Start()
 	return w

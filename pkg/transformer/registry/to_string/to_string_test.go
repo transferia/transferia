@@ -1,14 +1,15 @@
 package tostring
 
 import (
+	"slices"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -164,4 +165,72 @@ func TestAllTypesToStringTransformer(t *testing.T) {
 	for _, testCase := range testCases {
 		require.Equal(t, testCase.expectedValue, SerializeToString(testCase.originalValue, testCase.originalType.String()))
 	}
+}
+
+func TestResultSchema(t *testing.T) {
+	t.Parallel()
+
+	cols := []abstract.ColSchema{
+		{ColumnName: "ColInt64", DataType: schema.TypeInt64.String()},
+		{ColumnName: "ColInt32", DataType: schema.TypeInt32.String()},
+		{ColumnName: "ColInt16", DataType: schema.TypeInt16.String()},
+		{ColumnName: "ColInt8", DataType: schema.TypeInt8.String()},
+		{ColumnName: "ColUint64", DataType: schema.TypeUint64.String()},
+		{ColumnName: "ColUint32", DataType: schema.TypeUint32.String()},
+		{ColumnName: "ColUint16", DataType: schema.TypeUint16.String()},
+		{ColumnName: "ColUint8", DataType: schema.TypeUint8.String()},
+		{ColumnName: "ColFloat32", DataType: schema.TypeFloat32.String()},
+		{ColumnName: "ColFloat64", DataType: schema.TypeFloat64.String()},
+		{ColumnName: "ColBytes", DataType: schema.TypeBytes.String()},
+		{ColumnName: "ColString", DataType: schema.TypeString.String()},
+		{ColumnName: "ColBoolean", DataType: schema.TypeBoolean.String()},
+		{ColumnName: "ColAny", DataType: schema.TypeAny.String()},
+		{ColumnName: "ColDate", DataType: schema.TypeDate.String()},
+		{ColumnName: "ColDatetime", DataType: schema.TypeDatetime.String()},
+		{ColumnName: "ColTimestamp", DataType: schema.TypeTimestamp.String()},
+		{ColumnName: "ColInterval", DataType: schema.TypeInterval.String()},
+	}
+	input := abstract.NewTableSchema(cols)
+	colNames := make([]string, len(cols))
+	for i, col := range cols {
+		colNames[i] = col.ColumnName
+	}
+
+	t.Run("orig-schema-not-changed", func(t *testing.T) {
+		colsFilter, err := filter.NewFilter([]string{colNames[0]}, nil) // Transform only first column.
+		require.NoError(t, err)
+		transformer := ToStringTransformer{Columns: colsFilter}
+		output, err := transformer.ResultSchema(input)
+		require.NoError(t, err)
+		require.False(t, input.Equal(output))
+	})
+
+	t.Run("one-column-included", func(t *testing.T) {
+		testColIdx := 0 // Transform only first column.
+		expectedCols := input.Columns().Copy()
+		expectedCols[testColIdx].DataType = schema.TypeString.String()
+		expected := abstract.NewTableSchema(expectedCols)
+
+		colsFilter, err := filter.NewFilter([]string{colNames[testColIdx]}, nil) // Include only `testColIdx` column.
+		require.NoError(t, err)
+		transformer := ToStringTransformer{Columns: colsFilter}
+		actual, err := transformer.ResultSchema(input)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("all-columns-included", func(t *testing.T) {
+		expectedCols := input.Columns().Copy()
+		for i := range expectedCols {
+			expectedCols[i].DataType = schema.TypeString.String()
+		}
+		expected := abstract.NewTableSchema(expectedCols)
+
+		colsFilter, err := filter.NewFilter(slices.Clone(colNames), nil) // Include all columns.
+		require.NoError(t, err)
+		transformer := ToStringTransformer{Columns: colsFilter}
+		actual, err := transformer.ResultSchema(input)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	})
 }

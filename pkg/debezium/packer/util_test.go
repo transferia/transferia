@@ -3,8 +3,8 @@ package packer
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 

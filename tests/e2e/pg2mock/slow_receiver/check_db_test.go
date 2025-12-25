@@ -7,15 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
@@ -23,11 +21,17 @@ var (
 	Target = model.MockDestination{
 		SinkerFactory: makeMockSinker,
 	}
+	TransferType = abstract.TransferTypeIncrementOnly
 )
 
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
+	Source.WithDefaults()
+	Target.WithDefaults()
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+// mockSinker
 
 func makeMockSinker() abstract.Sinker {
 	return &mockSinker{}
@@ -46,10 +50,7 @@ func (s *mockSinker) Push(input []abstract.ChangeItem) error {
 	return nil
 }
 
-func init() {
-	Source.WithDefaults()
-	Target.WithDefaults()
-}
+//---------------------------------------------------------------------------------------------------------------------
 
 func TestSlowReceiver(t *testing.T) {
 	testAtLeastOnePushHasMultipleItems(t)
@@ -63,18 +64,19 @@ func testAtLeastOnePushHasMultipleItems(t *testing.T) {
 	}()
 
 	sinker := &mockSinker{}
-	transfer := model.Transfer{
-		ID:  "test_id",
-		Src: &Source,
-		Dst: &model.MockDestination{SinkerFactory: func() abstract.Sinker {
-			return sinker
-		}},
-	}
+	target := &model.MockDestination{SinkerFactory: func() abstract.Sinker {
+		return sinker
+	}}
+	helpers.InitSrcDst(helpers.TransferID, &Source, target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, target, TransferType)
 
 	pushedInputs := 0
 	inputs := make(chan []abstract.ChangeItem, 100)
 	sinker.pushCallback = func(input []abstract.ChangeItem) {
 		if pushedInputs >= 5 {
+			// DEBUG
+			fmt.Println("timmyb32rQQQ :: pushedInputs >= 5")
+			// DEBUG
 			return
 		}
 
@@ -95,6 +97,13 @@ func testAtLeastOnePushHasMultipleItems(t *testing.T) {
 		}
 	}
 
+	// activate
+
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
+
+	// insert 5 events
+
 	ctx := context.Background()
 	srcConn, err := postgres.MakeConnPoolFromSrc(&Source, logger.Log)
 	require.NoError(t, err)
@@ -102,12 +111,7 @@ func testAtLeastOnePushHasMultipleItems(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 5, r.RowsAffected())
 
-	worker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, helpers.EmptyRegistry(), logger.Log)
-	worker.Start()
-	defer func() {
-		_ = worker.Stop()
-		time.Sleep(10 * time.Second)
-	}()
+	// check
 
 	var concat []abstract.ChangeItem
 	var i int

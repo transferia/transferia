@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type TransferOperation struct {
@@ -63,4 +63,8 @@ const (
 
 func (s TaskStatus) IsFinal() bool {
 	return s == CompletedTask || s == FailedTask
+}
+
+func (s TaskStatus) IsSuccess() bool {
+	return s == CompletedTask
 }

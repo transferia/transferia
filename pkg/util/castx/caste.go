@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/goccy/go-json"
 	"github.com/spf13/cast"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/valyala/fastjson/fastfloat"
 )
 

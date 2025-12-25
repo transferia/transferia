@@ -7,24 +7,26 @@ import (
 	"math"
 	"math/big"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 //---------------------------------------------------------------------------------------------------------------------
 // it's fixed in higher version of debezium (in 1.1 this bug is present, in 1.8 absent)
 // so, actual function - changeItemsBitsToDebeziumHonest
 
-func changeItemsBitsToDebeziumWA(bits string) string {
-	bufSize := imitateDebeziumBufSize(len(bits))
-	return changeItemsBitsStringToDebezium(bits, bufSize)
-}
+/*
+ func changeItemsBitsToDebeziumWA(bits string) string {
+	 bufSize := imitateDebeziumBufSize(len(bits))
+	 return changeItemsBitsStringToDebezium(bits, bufSize)
+ }
 
 func imitateDebeziumBufSize(bitsCount int) int {
 	if bitsCount < 16 {
@@ -37,6 +39,7 @@ func imitateDebeziumBufSize(bitsCount int) int {
 		return int(math.Ceil(float64(bitsCount) / 8)) // honest count
 	}
 }
+*/
 
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -116,10 +119,12 @@ func GetTimeDivider(originalTypeWithoutProvider string) (int, error) {
 	}
 }
 
-var reTimeWithoutTZ = regexp.MustCompile(`^time\((\d)\) without time zone`)
-var reTimestampWithoutTZ = regexp.MustCompile(`^timestamp\((\d)\) without time zone`)
-var reMysqlTime = regexp.MustCompile(`^mysql:timestamp\((\d)\)`)
-var reMysqlDatetime = regexp.MustCompile(`^mysql:datetime\((\d)\)`)
+var (
+	reTimeWithoutTZ      = regexp.MustCompile(`^time\((\d)\) without time zone`)
+	reTimestampWithoutTZ = regexp.MustCompile(`^timestamp\((\d)\) without time zone`)
+	reMysqlTime          = regexp.MustCompile(`^mysql:timestamp\((\d)\)`)
+	reMysqlDatetime      = regexp.MustCompile(`^mysql:datetime\((\d)\)`)
+)
 
 func GetTimePrecision(colTypeStr string) int {
 	precision := -1
@@ -243,34 +248,46 @@ func MysqlDecimalFloatToValue(val float64, colType string) (string, error) {
 	return arr[0] + arr[1], nil
 }
 
+func DecimalToDebeziumHandlingModePrecise(decimal, decimalWithoutProvider string) (interface{}, error) {
+	normalizedDecimal, err := ExponentialFloatFormToNumeric(decimal)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to convert exponential form to numeric. dataTypeVerbose: %s, err: %w", decimalWithoutProvider, err)
+	}
+	putScaleToValue, _, _, err := DecimalGetPrecisionAndScale(decimalWithoutProvider)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to determine - should we put scale to value. dataTypeVerbose: %s, err: %w", decimalWithoutProvider, err)
+	}
+
+	value, scale, err := DecimalToDebeziumPrimitivesImpl(normalizedDecimal)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to extract debezium primitives from number, err: %w", err)
+	}
+
+	if putScaleToValue {
+		result := make(map[string]interface{})
+		result["scale"] = scale
+		result["value"] = value
+		return result, nil
+	} else {
+		return value, nil
+	}
+}
+
 func DecimalToDebezium(decimal, decimalWithoutProvider string, connectorParameters map[string]string) (interface{}, error) {
 	decimalHandlingMode := debeziumparameters.GetDecimalHandlingMode(connectorParameters)
 	switch decimalHandlingMode {
 	case debeziumparameters.DecimalHandlingModePrecise:
-		normalizedDecimal, err := ExponentialFloatFormToNumeric(decimal)
+		result, err := DecimalToDebeziumHandlingModePrecise(decimal, decimalWithoutProvider)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to convert exponential form to numeric. dataTypeVerbose: %s, err: %w", decimalWithoutProvider, err)
+			return nil, xerrors.Errorf("unable to convert decimal to debezium in precise handling mode, decimal: %s, err: %w", decimal, err)
 		}
-		putScaleToValue, _, _, err := DecimalGetPrecisionAndScale(decimalWithoutProvider)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to determine - should we put scale to value. dataTypeVerbose: %s, err: %w", decimalWithoutProvider, err)
-		}
-
-		value, scale, err := DecimalToDebeziumPrimitivesImpl(normalizedDecimal)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to extract debezium primitives from number, err: %w", err)
-		}
-
-		if putScaleToValue {
-			result := make(map[string]interface{})
-			result["scale"] = scale
-			result["value"] = value
-			return result, nil
-		} else {
-			return value, nil
-		}
+		return result, nil
 	case debeziumparameters.DecimalHandlingModeDouble:
-		return strconv.ParseFloat(decimal, 64)
+		result, err := strconv.ParseFloat(decimal, 64)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to parse float %s, err: %w", decimal, err)
+		}
+		return result, nil
 	case debeziumparameters.DecimalHandlingModeString:
 		return decimal, nil
 	default:
@@ -375,9 +392,9 @@ func makeNegativeNum(in *big.Int) big.Int {
 	return result
 }
 
-func containsOnly(in string, char rune) bool {
+func containsOnly(in string, chars []rune) bool {
 	for _, ch := range in {
-		if ch != char {
+		if !slices.Contains(chars, ch) {
 			return false
 		}
 	}
@@ -385,7 +402,7 @@ func containsOnly(in string, char rune) bool {
 }
 
 func DecimalToDebeziumPrimitivesImpl(decimal string) (string, int, error) {
-	decimalInt := decimal
+	decimalInt := decimal // decimalInt is `decimal` without dot ('.').
 	scale := 0
 	dotIndex := strings.Index(decimal, ".")
 	if dotIndex != -1 {
@@ -393,7 +410,7 @@ func DecimalToDebeziumPrimitivesImpl(decimal string) (string, int, error) {
 		decimalInt = decimalInt[0:dotIndex] + decimalInt[dotIndex+1:]
 	}
 	var buf []byte
-	if containsOnly(decimalInt, '0') {
+	if containsOnly(decimalInt, []rune{'0', '-'}) {
 		buf = []byte{0}
 	} else {
 		var bigNum big.Int
@@ -404,7 +421,7 @@ func DecimalToDebeziumPrimitivesImpl(decimal string) (string, int, error) {
 		if bigNum.Sign() == -1 { // negative
 			negativeNum := makeNegativeNum(&bigNum)
 			buf = negativeNum.Bytes()
-			if isHighestBitNotSet(buf) { // if number is negative, but highest bit is 0 - then we need extra leading 0xFF byte
+			if !isHighestBitSet(buf) { // if number is negative, but highest bit is 0 - then we need extra leading 0xFF byte
 				buf = append([]byte{0xFF}, buf...)
 			}
 		} else { // positive
@@ -435,10 +452,12 @@ func DecimalToDebeziumPrimitives(decimal string, connectorParameters map[string]
 	}
 }
 
-var pgTimestampLayout0 = "2006-01-02T15:04:05Z"
-var pgTimestampLayout1 = "2006-01-02 15:04:05Z"
-var pgTimestampLayout2 = "2006-01-02T15:04:05-07:00"
-var pgTimestampLayout3 = "2006-01-02 15:04:05-07"
+var (
+	pgTimestampLayout0 = "2006-01-02T15:04:05Z"
+	pgTimestampLayout1 = "2006-01-02 15:04:05Z"
+	pgTimestampLayout2 = "2006-01-02T15:04:05-07:00"
+	pgTimestampLayout3 = "2006-01-02 15:04:05-07"
+)
 
 func ParsePgDateTimeWithTimezone(in string) (time.Time, error) {
 	var result time.Time
@@ -652,10 +671,12 @@ func ParsePgDateTimeWithTimezone2(l, r string) (time.Time, time.Time, error) {
 	return lTime, rTime, nil
 }
 
-var regexHour = *regexp.MustCompile(`(\d+):(\d+):(\d+)`)
-var regexYear = *regexp.MustCompile(`(\d+) years?`)
-var regexMonth = *regexp.MustCompile(`(\d+) (?:mon|months?)`)
-var regexDay = *regexp.MustCompile(`(\d+) days?`)
+var (
+	regexHour  = *regexp.MustCompile(`(\d+):(\d+):(\d+)`)
+	regexYear  = *regexp.MustCompile(`(\d+) years?`)
+	regexMonth = *regexp.MustCompile(`(\d+) (?:mon|months?)`)
+	regexDay   = *regexp.MustCompile(`(\d+) days?`)
+)
 
 func ExtractPostgresIntervalArray(interval string) ([]string, error) {
 	result := make([]string, 7)
@@ -694,13 +715,15 @@ func ExtractPostgresIntervalArray(interval string) ([]string, error) {
 	return result, nil
 }
 
-var timeWithoutTZ0 = "15:04:05"
-var timeWithoutTZ1 = "15:04:05.0"
-var timeWithoutTZ2 = "15:04:05.00"
-var timeWithoutTZ3 = "15:04:05.000"
-var timeWithoutTZ4 = "15:04:05.0000"
-var timeWithoutTZ5 = "15:04:05.00000"
-var timeWithoutTZ6 = "15:04:05.000000"
+var (
+	timeWithoutTZ0 = "15:04:05"
+	timeWithoutTZ1 = "15:04:05.0"
+	timeWithoutTZ2 = "15:04:05.00"
+	timeWithoutTZ3 = "15:04:05.000"
+	timeWithoutTZ4 = "15:04:05.0000"
+	timeWithoutTZ5 = "15:04:05.00000"
+	timeWithoutTZ6 = "15:04:05.000000"
+)
 
 func ParseTimeWithoutTZ(timeStr string) (time.Time, error) {
 	var layout string
@@ -730,13 +753,15 @@ func ParseTimeWithoutTZ(timeStr string) (time.Time, error) {
 	return timeVal, nil
 }
 
-var timestampWithoutTZ0 = "2006-01-02T15:04:05Z"
-var timestampWithoutTZ1 = "2006-01-02T15:04:05.0Z"
-var timestampWithoutTZ2 = "2006-01-02T15:04:05.00Z"
-var timestampWithoutTZ3 = "2006-01-02T15:04:05.000Z"
-var timestampWithoutTZ4 = "2006-01-02T15:04:05.0000Z"
-var timestampWithoutTZ5 = "2006-01-02T15:04:05.00000Z"
-var timestampWithoutTZ6 = "2006-01-02T15:04:05.000000Z"
+var (
+	timestampWithoutTZ0 = "2006-01-02T15:04:05Z"
+	timestampWithoutTZ1 = "2006-01-02T15:04:05.0Z"
+	timestampWithoutTZ2 = "2006-01-02T15:04:05.00Z"
+	timestampWithoutTZ3 = "2006-01-02T15:04:05.000Z"
+	timestampWithoutTZ4 = "2006-01-02T15:04:05.0000Z"
+	timestampWithoutTZ5 = "2006-01-02T15:04:05.00000Z"
+	timestampWithoutTZ6 = "2006-01-02T15:04:05.000000Z"
+)
 
 func ParseTimestamp(timeStr string) (time.Time, error) {
 	var layout string
@@ -820,12 +845,14 @@ func BufToChangeItemsBits(in []byte) string {
 	return result
 }
 
-var yearMS = int64(31557600000000)
-var monthMS = int64(2629800000000)
-var dayMS = int64(3600 * 24 * 1000 * 1000)
-var hourMS = int64(3600 * 1000 * 1000)
-var minuteMS = int64(60 * 1000 * 1000)
-var secondMS = int64(1000 * 1000)
+var (
+	yearMS   = int64(31557600000000)
+	monthMS  = int64(2629800000000)
+	dayMS    = int64(3600 * 24 * 1000 * 1000)
+	hourMS   = int64(3600 * 1000 * 1000)
+	minuteMS = int64(60 * 1000 * 1000)
+	secondMS = int64(1000 * 1000)
+)
 
 func EmitPostgresInterval(val int64) string {
 	y := val / yearMS
@@ -932,10 +959,6 @@ func NumRangeFromDebezium(in string) (string, error) {
 	return "[" + left + "," + right + ")", nil
 }
 
-func isHighestBitNotSet(in []byte) bool {
-	return in[0]&0x80 == 0
-}
-
 func isHighestBitSet(in []byte) bool {
 	return in[0]&0x80 != 0
 }
@@ -949,7 +972,7 @@ func Base64ToNumeric(based64buf string, scale int) (string, error) {
 	sign := ""
 	bigNum := new(big.Int)
 	bigNum.SetBytes(resultBuf)
-	if isHighestBitNotSet(resultBuf) { // positive
+	if !isHighestBitSet(resultBuf) { // positive
 		resultStr = bigNum.String()
 	} else {
 		negativeNum := makeNegativeNum(bigNum)
@@ -1094,8 +1117,10 @@ func OriginalTypeWithoutProvider(originalType string) string {
 	return originalType[index+1:]
 }
 
-var pgTimeWithoutTimeZoneParam = *regexp.MustCompile(`pg:time\((\d)\) without time zone`)
-var pgNumeric = *regexp.MustCompile(`pg:numeric\(\d+,\d+\)`)
+var (
+	pgTimeWithoutTimeZoneParam = *regexp.MustCompile(`pg:time\((\d)\) without time zone`)
+	pgNumeric                  = *regexp.MustCompile(`pg:numeric\(\d+,\d+\)`)
+)
 
 func PgTimeWithoutTimeZonePrecision(originalType string) int {
 	if originalType == "pg:time without time zone" {

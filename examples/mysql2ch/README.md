@@ -9,30 +9,38 @@ Also, we will run end to end docker compose sample with CDC real-time replicatio
 
 ## Architecture Diagram
 
-```plaintext
-+------------------+         
-|                  |         +--------+---------+
-|    Mysql         | <------ |   Load Generator |  # Generate random CRUD load
-|                  |         +--------+---------+
-+--------+---------+
-         |
-         | (CRUD Operations)
-         |
-         v
-+--------+---------+
-|                  |
-|   TRCLI          | <------ Copy and Replicates Data
-|  (CDC from Mysql)|
-|                  |
-+--------+---------+
-         |
-         |
-         v
-+--------+---------+
-|                  |
-|    Clickhouse    | <------ Store data in with realtime updates
-|                  |
-+--------+---------+
+```mermaid
+graph LR
+   subgraph Source
+      A[MySQL]
+   end
+
+   subgraph Load_Generation
+      B[Load Generator]
+   end
+
+   subgraph TRCLI
+      C[Replication from MySQL]
+   end
+
+   subgraph Destination
+      D[Clickhouse]
+   end
+
+   B -- Generate random CRUD load --> A
+   A -- CRUD Operations --> C
+   C -- Replicates Data --> D
+
+   classDef source fill:#dff,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+   classDef load fill:#ffefaa,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+   classDef replication fill:#aaf,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+   classDef destination fill:#afa,stroke:#000,stroke-width:2px,rx:5px,ry:5px;
+
+   class A source
+   class B load
+   class C replication
+   class D destination
+
 ```
 
 ## Overview
@@ -60,7 +68,7 @@ Also, we will run end to end docker compose sample with CDC real-time replicatio
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/doublecloud/transfer
+   git clone https://github.com/transferia/transferia
    cd transfer/examples/mysql2ch
    ```
 
@@ -70,7 +78,7 @@ Also, we will run end to end docker compose sample with CDC real-time replicatio
    ```
 
 3. **Access to Clickhouse**:
-   Access to ClickHouse via CLI: 
+   Access to ClickHouse via CLI:
    ```bash
    clickhouse-client --host localhost --port 9000 --user default --password 'ch_password'
    ```

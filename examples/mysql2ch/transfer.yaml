@@ -8,6 +8,7 @@ src:
     Password: mypassword
     Database: mydb
     Port: 3306
+    ReplicationFlushInterval: 5000000000
 dst:
   type: ch
   params:

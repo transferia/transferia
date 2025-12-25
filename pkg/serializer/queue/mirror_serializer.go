@@ -1,9 +1,10 @@
 package queue
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/blank"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/parsers/registry/blank"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -15,13 +16,17 @@ func (s *MirrorSerializer) serialize(changeItem *abstract.ChangeItem) ([]Seriali
 	if !changeItem.IsMirror() {
 		return nil, xerrors.Errorf("MirrorSerializer should be used only with 'Mirror' changeItems")
 	}
+	key, err := changeitem.GetSequenceKey(changeItem)
+	if err != nil {
+		return nil, abstract.NewFatalError(xerrors.Errorf("unable to get sequence key: %w", err))
+	}
 
 	rawData, err := abstract.GetRawMessageData(*changeItem)
 	if err != nil {
 		return nil, abstract.NewFatalError(xerrors.Errorf("unable to get message: %w", err))
 	}
 	// no key, so round-robin partition assignment
-	return []SerializedMessage{{Key: nil, Value: rawData}}, nil
+	return []SerializedMessage{{Key: key, Value: rawData}}, nil
 }
 
 // Serialize

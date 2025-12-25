@@ -5,11 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 )
@@ -20,7 +21,6 @@ type transformation struct {
 	config       *Transformers
 	transformers []abstract.Transformer
 	plan         map[abstract.TableID]map[string][]abstract.Transformer
-	outputSchema map[abstract.TableID]map[string]*abstract.TableSchema
 	sink         abstract.Sinker
 
 	registry metrics.Registry
@@ -37,7 +37,6 @@ func (u *transformation) clone() *transformation {
 		config:       u.config,
 		transformers: u.transformers,
 		plan:         make(map[abstract.TableID]map[string][]abstract.Transformer),
-		outputSchema: make(map[abstract.TableID]map[string]*abstract.TableSchema),
 		sink:         nil,
 
 		registry: u.registry,
@@ -74,9 +73,6 @@ func (u *transformation) AddTablePlan(table abstract.TableID, schema *abstract.T
 	if _, ok := u.plan[table]; !ok {
 		u.plan[table] = make(map[string][]abstract.Transformer)
 	}
-	if _, ok := u.outputSchema[table]; !ok {
-		u.outputSchema[table] = make(map[string]*abstract.TableSchema)
-	}
 	u.plan[table][inputSchemaHash] = tablePlan
 	if len(tablePlan) > 0 {
 		u.logger.Infof(
@@ -85,7 +81,6 @@ func (u *transformation) AddTablePlan(table abstract.TableID, schema *abstract.T
 			u.printfSchema(schema.Columns()),
 			u.printfSchema(outputSchema.Columns()),
 		)
-		u.outputSchema[table][inputSchemaHash] = outputSchema
 	} else {
 		u.logger.Infof("no transformations for table %v", table.Fqtn())
 	}
@@ -250,12 +245,13 @@ func errorChangeItems(errors []abstract.TransformerError) []abstract.ChangeItem 
 				Properties:   nil,
 			})),
 			OldKeys: errRow.Input.OldKeys,
-			TxID:    errRow.Input.TxID,
-			Query:   errRow.Input.Query,
 			Size: abstract.EventSize{
 				Read:   0,
 				Values: 0,
 			},
+			TxID:             errRow.Input.TxID,
+			Query:            errRow.Input.Query,
+			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}
 	}
 	return res
@@ -317,7 +313,6 @@ func (u *transformation) MakeSinkMiddleware() abstract.SinkOption {
 func (u *transformation) AddTransformer(transformer abstract.Transformer) error {
 	u.transformers = append(u.transformers, transformer)
 	u.plan = make(map[abstract.TableID]map[string][]abstract.Transformer)
-	u.outputSchema = make(map[abstract.TableID]map[string]*abstract.TableSchema)
 	return nil
 }
 
@@ -345,7 +340,6 @@ func Sinker(
 			config:       config,
 			transformers: transformers,
 			plan:         make(map[abstract.TableID]map[string][]abstract.Transformer),
-			outputSchema: make(map[abstract.TableID]map[string]*abstract.TableSchema),
 			sink:         s,
 
 			registry: registry,

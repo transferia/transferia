@@ -2,28 +2,28 @@ package mysql
 
 import (
 	"context"
-	"encoding/gob"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.MysqlSource", new(MysqlSource))
-	gob.RegisterName("*server.MysqlDestination", new(MysqlDestination))
-	model.RegisterDestination(ProviderType, func() model.Destination {
+	gobwrapper.RegisterName("*server.MysqlSource", new(MysqlSource))
+	gobwrapper.RegisterName("*server.MysqlDestination", new(MysqlDestination))
+	model.RegisterDestination(ProviderType, func() model.LoggableDestination {
 		return new(MysqlDestination)
 	})
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(MysqlSource)
 	})
 
@@ -261,6 +261,10 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 		}
 	}
 	return nil
+}
+
+func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
+	return transferType != abstract.TransferTypeSnapshotOnly
 }
 
 func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) error {

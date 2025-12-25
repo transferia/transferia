@@ -1,25 +1,28 @@
 package ydb
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	v3credential "github.com/ydb-platform/ydb-go-sdk/v3/credentials"
 )
 
 type YdbStorageParams struct {
-	Database           string
-	Instance           string
-	Tables             []string
-	TableColumnsFilter []YdbColumnsFilter
-	UseFullPaths       bool
+	Database           string             `log:"true"`
+	Instance           string             `log:"true"`
+	Tables             []string           `log:"true"`
+	TableColumnsFilter []YdbColumnsFilter `log:"true"`
+	UseFullPaths       bool               `log:"true"`
 
 	// auth props
 	Token            model.SecretString
-	ServiceAccountID string
-	UserdataAuth     bool
+	ServiceAccountID string `log:"true"`
+	UserdataAuth     bool   `log:"true"`
 	SAKeyContent     string
-	TokenServiceURL  string
+	TokenServiceURL  string `log:"true"`
 	OAuth2Config     *v3credential.OAuth2Config
 
 	RootCAFiles []string
-	TLSEnabled  bool
+	TLSEnabled  bool `log:"true"`
+
+	IsSnapshotSharded bool   `log:"true"`
+	CopyFolder        string `log:"true"`
 }

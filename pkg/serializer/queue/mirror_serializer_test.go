@@ -3,19 +3,20 @@ package queue
 import (
 	"fmt"
 	"testing"
+	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/blank"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/registry/blank"
 )
 
 var mirrorSerializerTestMirrorChangeItem *abstract.ChangeItem
 
 func init() {
-	var testMirrorChangeItem = `{"id":0,"nextlsn":49,"commitTime":1648053051911000000,"txPosition":0,"kind":"insert","schema":"default-topic","table":"94","columnnames":["topic","partition","seq_no","write_time","data"],"columnvalues":["default-topic",94,50,"2022-03-23T19:30:51.911+03:00","blablabla"],"table_schema":[{"path":"","name":"topic","type":"utf8","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"partition","type":"uint32","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"seq_no","type":"uint64","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"write_time","type":"datetime","key":true,"required":false,"original_type":"","original_type_params":null},{"path":"","name":"data","type":"utf8","key":false,"required":false,"original_type":"mirror:binary","original_type_params":null}],"oldkeys":{},"tx_id":"","query":""}`
-	mirrorSerializerTestMirrorChangeItem, _ = abstract.UnmarshalChangeItem([]byte(testMirrorChangeItem))
+	tmp := abstract.MakeRawMessage([]byte("stub"), "", time.Now(), "", 0, 0, []byte("aboba123"))
+	mirrorSerializerTestMirrorChangeItem = &tmp
 }
 
 func TestMirrorSerializerEmptyInput(t *testing.T) {
@@ -34,8 +35,8 @@ func TestMirrorSerializerTopicName(t *testing.T) {
 	batches, err := mirrorSerializer.serialize(mirrorSerializerTestMirrorChangeItem)
 	require.NoError(t, err)
 	require.Len(t, batches, 1)
-	require.Equal(t, len(batches[0].Key), 0)
-	require.Equal(t, batches[0].Value, []byte(`blablabla`))
+	require.Equal(t, batches[0].Key, []byte("stub"))
+	require.Equal(t, batches[0].Value, []byte(`aboba123`))
 }
 
 func TestSerializeLB(t *testing.T) {
@@ -52,4 +53,18 @@ func TestSerializeLB(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, changeItemsCount, len(extras))
 	require.Equal(t, len(batches), len(extras))
+}
+
+func TestMirrorSerializerGroupsByTopic(t *testing.T) {
+	mirrorSerializer, err := NewMirrorSerializer(logger.Log)
+	require.NoError(t, err)
+
+	changeItems := []abstract.ChangeItem{
+		abstract.MakeRawMessage([]byte("sequence_key_1"), "", time.Now(), "", 0, 0, []byte("aboba1")),
+		abstract.MakeRawMessage([]byte("sequence_key_2"), "", time.Now(), "", 0, 0, []byte("aboba2")),
+	}
+
+	batches, err := mirrorSerializer.Serialize(changeItems)
+	require.NoError(t, err)
+	require.Len(t, batches, 1)
 }

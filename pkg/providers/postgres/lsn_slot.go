@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -27,6 +28,10 @@ type LsnTrackedSlot struct {
 	Conn      *pgxpool.Pool
 	lastMove  time.Time
 	tracker   *Tracker
+}
+
+func (l *LsnTrackedSlot) tx(operation txOp) error {
+	return doUnderTransaction(context.TODO(), l.Conn, operation, l.logger)
 }
 
 func (l *LsnTrackedSlot) Exist() (bool, error) {
@@ -110,20 +115,28 @@ func (l *LsnTrackedSlot) createFromLSN(lsn string) error {
 
 		l.Conn.Close()
 		l.Conn = conn
-		_, err = l.Conn.Exec(context.TODO(), fmt.Sprintf(`
-BEGIN;
-SET LOCAL lock_timeout = '0';
-select * from pg_create_logical_replication_slot_lsn('%v', 'wal2json', false, pg_lsn('%v'));
-COMMIT;
-`, l.slotID, lsn))
 
+		var createdSlotName string
+		var createdSlotLSN string
+
+		err = l.tx(func(ctx context.Context, tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, "SET LOCAL lock_timeout = '0'"); err != nil {
+				return xerrors.Errorf("failed to set lock_timeout: %w", err)
+			}
+
+			if err := tx.QueryRow(ctx, "select * from pg_create_logical_replication_slot_lsn($1, 'wal2json', false, pg_lsn($2))", l.slotID, lsn).Scan(&createdSlotName, &createdSlotLSN); err != nil {
+				return xerrors.Errorf("could not create slot from lsn:%v because of error: %w", lsn, err)
+			}
+			return nil
+		})
 		if err != nil {
 			return xerrors.Errorf("could not create slot from lsn:%v because of error: %w", lsn, err)
 		}
+
 		l.logger.Infof("slot created from lsn:%v", lsn)
 		rb.Cancel()
 		return nil
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
+	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 10))
 }
 
 func (l *LsnTrackedSlot) Move(lsn string) error {

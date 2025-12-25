@@ -104,11 +104,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/datapage_v2.snappy.parquet"
+            "value": "0f5436508495a8e32d460506ccc040bf"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -291,11 +295,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/datapage_v2.snappy.parquet"
+            "value": "0f5436508495a8e32d460506ccc040bf"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -478,11 +486,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "data/datapage_v2.snappy.parquet"
+            "value": "0f5436508495a8e32d460506ccc040bf"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

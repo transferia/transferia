@@ -3,8 +3,10 @@ package sample
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -16,11 +18,15 @@ var (
 )
 
 type SampleSource struct {
-	SampleType         string
-	TableName          string
-	MaxSampleData      int64
-	MinSleepTime       time.Duration
-	SnapshotEventCount int64
+	SampleType         string        `log:"true"`
+	TableName          string        `log:"true"`
+	MaxSampleData      int64         `log:"true"`
+	MinSleepTime       time.Duration `log:"true"`
+	SnapshotEventCount int64         `log:"true"`
+}
+
+func (s *SampleSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
 }
 
 func (s *SampleSource) GetProviderType() abstract.ProviderType {

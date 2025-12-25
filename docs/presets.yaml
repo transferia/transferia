@@ -1,0 +1,30 @@
+default:
+  CH: ClickHouse®
+  MCH: Managed ClickHouse®
+  CHK: ClickHouse Keeper
+  CHC: clickhouse-client
+  KF: Apache Kafka®
+  MKF: Managed Apache Kafka®
+  AAF: Apache Airflow®
+  AF: Airflow®
+  MAF: Managed Apache Airflow®
+  MG: MongoDB
+  MY: MySQL
+  PG: PostgreSQL
+  ZK: ZooKeeper
+  S3: Amazon S3
+  MS: Microsoft SQL Server
+  RSH: Amazon Redshift
+  CDTL: Amazon CloudTrail
+  BQ: BigQuery
+  PRS: Prometheus
+  GF: Grafana
+  BIL: Billing
+  TRFM: Terraform
+  SWFL: Snowflake
+  source-root: https://github.com/transferia/transferia/tree/main/docs
+  data-transfer-name: Transferia
+  DC: Transferia
+  lang: en
+  audience: public
+  product-name: Transferia

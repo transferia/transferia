@@ -7,13 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	kafka_provider "github.com/doublecloud/transfer/pkg/providers/kafka"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	kafka_provider "github.com/transferia/transferia/pkg/providers/kafka"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/tests/helpers"
+	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
 var (
@@ -47,12 +49,11 @@ func TestSnapshot(t *testing.T) {
 	// prepare additional transfer: from dst to mock
 
 	result := make([]abstract.ChangeItem, 0)
-	mockSink := &helpers.MockSink{
-		PushCallback: func(in []abstract.ChangeItem) {
-			abstract.Dump(in)
-			result = append(result, in...)
-		},
-	}
+	mockSink := mocksink.NewMockSink(func(in []abstract.ChangeItem) error {
+		abstract.Dump(in)
+		result = append(result, in...)
+		return nil
+	})
 	mockTarget := model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return mockSink },
 		Cleanup:       model.DisabledCleanup,
@@ -61,7 +62,6 @@ func TestSnapshot(t *testing.T) {
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{dst.Topic},
-		IsHomo:      true,
 	}, &mockTarget, abstract.TransferTypeIncrementOnly)
 	//------------------------------------------------------------------------------
 	// activate main transfer
@@ -92,8 +92,9 @@ func TestSnapshot(t *testing.T) {
 
 	for {
 		if len(result) == 1 {
-			canonVal := eraseMeta(string(kafka_provider.GetKafkaRawMessageData(&result[0])))
-			canon.SaveJSON(t, canonVal)
+			vv, _ := changeitem.GetRawMessageData(result[0])
+			canonVal := eraseMeta(string(vv))
+			canon.SaveJSON(t, helpers.AddIndentToJSON(t, canonVal))
 			break
 		}
 		time.Sleep(time.Second)

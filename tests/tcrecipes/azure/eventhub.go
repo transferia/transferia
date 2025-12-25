@@ -3,6 +3,7 @@ package azure
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -31,7 +32,7 @@ func (c *EventHubContainer) ServiceURL(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("unable to get mapped port: %s: %w", EventHubPort, err)
 	}
 
-	return fmt.Sprintf("http://%s:%d", hostname, mappedPort.Int()), nil
+	return fmt.Sprintf("http://%s", net.JoinHostPort(hostname, mappedPort.Port())), nil
 }
 
 func (c *EventHubContainer) MustServiceURL(ctx context.Context) string {
@@ -45,7 +46,6 @@ func (c *EventHubContainer) MustServiceURL(ctx context.Context) string {
 
 // Run creates an instance of the Eventhub container type
 func RunEventHub(ctx context.Context, img string, blobAddress string, opts ...testcontainers.ContainerCustomizer) (*EventHubContainer, error) {
-
 	req := testcontainers.ContainerRequest{
 		Image:        img,
 		WaitingFor:   wait.ForListeningPort(EventHubPort).WithStartupTimeout(3 * time.Second),

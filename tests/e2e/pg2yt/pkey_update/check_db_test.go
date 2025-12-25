@@ -8,18 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -45,11 +43,6 @@ func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 }
 
-func TestMain(m *testing.M) {
-	yt_provider.InitExe()
-	os.Exit(m.Run())
-}
-
 func makeSource() model.Source {
 	src := &postgres.PgSource{
 		Hosts:    []string{"localhost"},
@@ -58,7 +51,6 @@ func makeSource() model.Source {
 		Database: os.Getenv("SOURCE_PG_LOCAL_DATABASE"),
 		Port:     helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
 		DBTables: []string{"public.test"},
-		SlotID:   "testslot",
 	}
 	src.WithDefaults()
 	return src
@@ -107,10 +99,9 @@ func (f *fixture) teardown() {
 	defer conn.Close(context.Background())
 
 	exec(f.t, conn, `DROP TABLE public.test`)
-	exec(f.t, conn, `SELECT pg_drop_replication_slot('testslot')`)
 }
 
-func setup(t *testing.T, useStaticTableOnSnapshot bool) *fixture {
+func setup(t *testing.T, name string, useStaticTableOnSnapshot bool) *fixture {
 	ytEnv, destroyYtEnv := yttest.NewEnv(t)
 
 	conn, err := pgx.Connect(context.Background(), sourceConnString)
@@ -120,12 +111,15 @@ func setup(t *testing.T, useStaticTableOnSnapshot bool) *fixture {
 	exec(t, conn, `CREATE TABLE public.test (id INTEGER PRIMARY KEY, idxcol INTEGER NOT NULL, value TEXT)`)
 	exec(t, conn, `ALTER TABLE public.test ALTER COLUMN value SET STORAGE EXTERNAL`)
 	exec(t, conn, `INSERT INTO public.test VALUES (1, 10, 'kek')`)
-	exec(t, conn, `SELECT pg_create_logical_replication_slot('testslot', 'wal2json')`)
 
-	target := makeTarget(useStaticTableOnSnapshot)
+	src := makeSource()
+	dst := makeTarget(useStaticTableOnSnapshot)
+	transferID := helpers.GenerateTransferID(name)
+	helpers.InitSrcDst(transferID, src, dst, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := helpers.MakeTransfer(transferID, src, dst, abstract.TransferTypeSnapshotAndIncrement)
 	return &fixture{
 		t:            t,
-		transfer:     helpers.MakeTransfer(helpers.TransferID, makeSource(), target, abstract.TransferTypeSnapshotAndIncrement),
+		transfer:     transfer,
 		ytEnv:        ytEnv,
 		destroyYtEnv: destroyYtEnv,
 	}
@@ -164,6 +158,12 @@ func (f *fixture) readAll(tablePath string) (result []row) {
 	}
 	require.NoError(f.t, reader.Err())
 	return
+}
+
+type idxRow struct {
+	IdxCol int         `yson:"idxcol"`
+	ID     int         `yson:"id"`
+	Dummy  interface{} `yson:"_dummy"`
 }
 
 func (f *fixture) readAllIndex(tablePath string) (result []idxRow) {
@@ -206,7 +206,7 @@ func (f *fixture) waitMarker() {
 }
 
 func (f *fixture) loadAndCheckSnapshot() {
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
 	err := snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(f.t, err)
 
@@ -229,7 +229,7 @@ func srcAndDstPorts(fxt *fixture) (int, int, error) {
 }
 
 func TestPkeyUpdate(t *testing.T) {
-	fixture := setup(t, true)
+	fixture := setup(t, "TestPkeyUpdate", true)
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
@@ -244,29 +244,19 @@ func TestPkeyUpdate(t *testing.T) {
 
 	fixture.loadAndCheckSnapshot()
 
-	workerErrChannel := make(chan error)
-	defer func() { require.NoError(t, <-workerErrChannel) }()
-
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), fixture.transfer, helpers.EmptyRegistry(), logger.Log)
-	defer func() { require.NoError(t, w.Stop()) }()
-
-	go func() { workerErrChannel <- w.Run() }()
+	worker := helpers.Activate(t, fixture.transfer)
+	defer worker.Close(t)
 
 	fixture.update("lel")
 	fixture.waitMarker()
 	fixture.checkTableAfterUpdate("lel")
 }
 
-type idxRow struct {
-	IdxCol int         `yson:"idxcol"`
-	ID     int         `yson:"id"`
-	Dummy  interface{} `yson:"_dummy"`
-}
-
 func TestPkeyUpdateIndex(t *testing.T) {
 	fixture := setup(
 		t,
-		false, // TM-4381
+		"TestPkeyUpdateIndex",
+		true, // TM-4381
 	)
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
@@ -280,7 +270,7 @@ func TestPkeyUpdateIndex(t *testing.T) {
 
 	defer fixture.teardown()
 
-	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetIndex([]string{"idxcol"})
+	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.Index = []string{"idxcol"}
 
 	fixture.loadAndCheckSnapshot()
 
@@ -289,13 +279,8 @@ func TestPkeyUpdateIndex(t *testing.T) {
 		require.Fail(t, "Tables do not match", "Diff:\n%s", diff)
 	}
 
-	workerErrChannel := make(chan error)
-	defer func() { require.NoError(t, <-workerErrChannel) }()
-
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), fixture.transfer, helpers.EmptyRegistry(), logger.Log)
-	defer func() { require.NoError(t, w.Stop()) }()
-
-	go func() { workerErrChannel <- w.Run() }()
+	worker := helpers.Activate(t, fixture.transfer)
+	defer worker.Close(t)
 
 	fixture.update("lel")
 	fixture.waitMarker()
@@ -312,7 +297,8 @@ func TestPkeyUpdateIndex(t *testing.T) {
 func TestPkeyUpdateIndexToast(t *testing.T) {
 	fixture := setup(
 		t,
-		false, // TM-4381
+		"TestPkeyUpdateIndex",
+		true, // TM-4381
 	)
 
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
@@ -326,7 +312,7 @@ func TestPkeyUpdateIndexToast(t *testing.T) {
 
 	defer fixture.teardown()
 
-	fixture.transfer.Dst.(yt_provider.YtDestinationModel).SetIndex([]string{"idxcol"})
+	fixture.transfer.Dst.(*yt_provider.YtDestinationWrapper).Model.Index = []string{"idxcol"}
 
 	fixture.loadAndCheckSnapshot()
 
@@ -335,13 +321,8 @@ func TestPkeyUpdateIndexToast(t *testing.T) {
 		require.Fail(t, "Tables do not match", "Diff:\n%s", diff)
 	}
 
-	workerErrChannel := make(chan error)
-	defer func() { require.NoError(t, <-workerErrChannel) }()
-
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), fixture.transfer, helpers.EmptyRegistry(), logger.Log)
-	defer func() { require.NoError(t, w.Stop()) }()
-
-	go func() { workerErrChannel <- w.Run() }()
+	worker := helpers.Activate(t, fixture.transfer)
+	defer worker.Close(t)
 
 	longString := strings.Repeat("x", 32000)
 	fixture.update(longString)

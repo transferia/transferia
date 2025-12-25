@@ -1,7 +1,9 @@
 package writer
 
 import (
+	"context"
 	"crypto/tls"
+	"net"
 
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
@@ -18,6 +20,6 @@ func NewWriterFactory(lgr log.Logger) *WriterFactory {
 	}
 }
 
-func (c *WriterFactory) BuildWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64) AbstractWriter {
-	return NewWriter(brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes)
+func (c *WriterFactory) BuildWriter(brokers []string, compression kafka.Compression, saslMechanism sasl.Mechanism, tlsConfig *tls.Config, topicConfig [][2]string, batchBytes int64, dial func(ctx context.Context, network string, address string) (net.Conn, error)) AbstractWriter {
+	return NewWriter(brokers, compression, saslMechanism, tlsConfig, topicConfig, batchBytes, dial)
 }

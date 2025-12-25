@@ -4,8 +4,9 @@
 package metering
 
 import (
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 func Agent() MeteringAgent {
@@ -14,8 +15,12 @@ func Agent() MeteringAgent {
 	return NewStubAgent(logger.Log)
 }
 
-func InitializeWithTags(transfer *model.Transfer, task *model.TransferOperation, runtimeTags map[string]interface{}) {
+func InitializeWithTags(transfer *model.Transfer, task *model.TransferOperation, runtimeTags map[string]interface{}, meteringStats *MeteringStats) {
 	return
+}
+
+func NewMeteringStats(registry metrics.Registry) *MeteringStats {
+	return &MeteringStats{}
 }
 
 func WithAgent(agent MeteringAgent) MeteringAgent {
@@ -26,5 +31,5 @@ func WithAgent(agent MeteringAgent) MeteringAgent {
 }
 
 func Initialize(transfer *model.Transfer, task *model.TransferOperation) {
-	InitializeWithTags(transfer, task, map[string]interface{}{})
+	InitializeWithTags(transfer, task, map[string]interface{}{}, nil)
 }

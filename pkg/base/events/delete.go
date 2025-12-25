@@ -1,9 +1,10 @@
 package events
 
 import (
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/base"
 )
 
 type DeleteEvent interface {
@@ -75,25 +76,26 @@ func (event *DefaultDeleteEvent) ToOldChangeItem() (*abstract.ChangeItem, error)
 	}
 
 	changeItem := &abstract.ChangeItem{
-		Kind:        abstract.DeleteKind,
-		Schema:      event.table.Schema(),
-		Table:       event.table.Name(),
-		PartID:      "",
-		TableSchema: oldTable,
+		ID:           0,
+		LSN:          0,
+		CommitTime:   0,
+		Counter:      0,
+		Kind:         abstract.DeleteKind,
+		Schema:       event.table.Schema(),
+		Table:        event.table.Name(),
+		PartID:       "",
+		ColumnNames:  nil,
+		ColumnValues: nil,
+		TableSchema:  oldTable,
 		OldKeys: abstract.OldKeysType{
 			KeyNames:  []string{},
 			KeyTypes:  []string{},
 			KeyValues: []interface{}{},
 		},
-		ID:           0,
-		LSN:          0,
-		CommitTime:   0,
-		Counter:      0,
-		ColumnNames:  nil,
-		ColumnValues: nil,
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 
 	for _, value := range event.oldValues {

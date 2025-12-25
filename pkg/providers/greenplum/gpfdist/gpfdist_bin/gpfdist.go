@@ -1,0 +1,258 @@
+package gpfdistbin
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/terryid"
+	"go.ytsaurus.tech/library/go/core/log"
+)
+
+const (
+	DefaultOpenPipeTimeout = 10 * time.Minute
+	defaultPipeMode        = uint32(0644)
+	minPort                = 8500
+	maxPort                = 8600
+)
+
+type GpfdistMode string
+
+const (
+	ExportTable = GpfdistMode("export-table")
+	ImportTable = GpfdistMode("import-table")
+)
+
+func (m GpfdistMode) ToExternalTableMode() externalTableMode {
+	switch m {
+	case ExportTable:
+		return modeWritable
+	case ImportTable:
+		return modeReadable
+	}
+	return ""
+}
+
+func (m GpfdistMode) toLogTag() string {
+	switch m {
+	case ExportTable:
+		return "src"
+	case ImportTable:
+		return "dst"
+	}
+	return ""
+}
+
+type Gpfdist struct {
+	cmd           *exec.Cmd // cmd is a command to run gpfdist executable.
+	localAddr     net.IP
+	port          int
+	workingDir    string
+	serviceSchema string
+	pipeName      string
+	mode          GpfdistMode
+}
+
+func (g *Gpfdist) Stop() error {
+	var errors []error
+	if err := g.removePipe(); err != nil {
+		errors = append(errors, xerrors.Errorf("unable to remove pipe: %w", err))
+	}
+	if g.cmd.Process != nil {
+		if err := g.cmd.Process.Kill(); err != nil {
+			errors = append(errors, xerrors.Errorf("unable to kill process: %w", err))
+		}
+	} else {
+		logger.Log.Warnf("Gpfdist process is nil, won't be killed")
+	}
+	return multierr.Combine(errors...)
+}
+
+func (g *Gpfdist) pipeOpenFlag() int {
+	if g.mode == ExportTable {
+		return os.O_RDONLY
+	}
+	return os.O_WRONLY
+}
+
+// OpenPipe can block on pipe opening, e.g. if gpfdist have no data to transfer.
+// In such cases it can be cancelled by `ctx` causing return of (nil, nil).
+func (g *Gpfdist) OpenPipe(ctx context.Context) (*os.File, error) {
+	var cancelFlag int
+	switch g.pipeOpenFlag() {
+	case os.O_RDONLY:
+		cancelFlag = os.O_WRONLY | syscall.O_NONBLOCK
+	case os.O_WRONLY:
+		cancelFlag = os.O_RDONLY | syscall.O_NONBLOCK
+	}
+
+	pipePath := g.fullPath(g.pipeName)
+	var file *os.File
+	openFile := func() error {
+		var openErr error
+		file, openErr = os.OpenFile(pipePath, g.pipeOpenFlag(), 0)
+		return openErr
+	}
+	cancelOpenFile := func() error {
+		file, openErr := os.OpenFile(pipePath, cancelFlag, 0)
+		if openErr != nil {
+			return xerrors.Errorf("unable to open cancellation file %s with flag '%d': %w", pipePath, cancelFlag, openErr)
+		}
+		return file.Close()
+	}
+
+	if err := tryFunction(ctx, openFile, cancelOpenFile); err != nil {
+		if xerrors.As(err, new(CancelFailedError)) {
+			err = abstract.NewFatalError(err)
+		}
+		return nil, xerrors.Errorf("unable to open pipe %s file: %w", g.pipeName, err)
+	}
+	return file, nil
+}
+
+// fullPath concatenates working directory and "/" to the left of provided relative path.
+func (g *Gpfdist) fullPath(relativePath string) string {
+	return fmt.Sprintf("%s/%s", g.workingDir, relativePath)
+}
+
+func (g *Gpfdist) Location() string {
+	hostPort := net.JoinHostPort(g.localAddr.String(), strconv.Itoa(g.port))
+	return fmt.Sprintf("gpfdist://%s/%s", hostPort, g.pipeName)
+}
+
+func (g *Gpfdist) removePipe() error {
+	logger.Log.Infof("Removing pipe %s", g.pipeName)
+	return os.Remove(g.fullPath(g.pipeName))
+}
+
+func (g *Gpfdist) initPipe() error {
+	logger.Log.Infof("Creating pipe %s", g.pipeName)
+	return syscall.Mkfifo(g.fullPath(g.pipeName), defaultPipeMode)
+}
+
+func InitGpfdist(params GpfdistParams, localAddr net.IP, mode GpfdistMode, id int) (*Gpfdist, error) {
+	switch mode {
+	case ExportTable, ImportTable:
+	default:
+		return nil, xerrors.Errorf("unknown gpfdist mode '%s'", mode)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "gpfdist_")
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create temp dir: %w", err)
+	}
+	gpfdist := &Gpfdist{
+		cmd: exec.Command(params.GpfdistBinPath, "-d", tmpDir,
+			"-p", fmt.Sprint(minPort), "-P", fmt.Sprint(maxPort),
+			// "-w", "10", // delay before closing file after writing in seconds [0; 7200]
+			"-t", "900", // connection establishment timeout in seconds [2; 7200]
+			"-m", "2097152", // max data row length expected, in bytes [32768; 268435456]
+		),
+		localAddr:     localAddr,
+		workingDir:    tmpDir,
+		serviceSchema: params.ServiceSchema,
+		pipeName:      fmt.Sprintf("pipe-%s", terryid.GenerateSuffix()),
+		mode:          mode,
+		port:          0,
+	}
+	if err := gpfdist.initPipe(); err != nil {
+		return nil, xerrors.Errorf("unable to init pipe: %w", err)
+	}
+
+	if err := gpfdist.startCmd(id); err != nil {
+		return nil, xerrors.Errorf("unable to start gpfdist: %w", err)
+	}
+	return gpfdist, nil
+}
+
+func (g *Gpfdist) startCmd(id int) error {
+	portChannel := make(chan int, 1)
+	stderr, err := g.cmd.StderrPipe()
+	if err != nil {
+		return xerrors.Errorf("unable to get stderr pipe: %w", err)
+	}
+	go processLog(stderr, log.ErrorLevel, g.mode.toLogTag()+strconv.Itoa(id), nil)
+
+	stdout, err := g.cmd.StdoutPipe()
+	if err != nil {
+		return xerrors.Errorf("unable to get stdout pipe: %w", err)
+	}
+	go processLog(stdout, log.InfoLevel, g.mode.toLogTag()+strconv.Itoa(id), portChannel)
+
+	logger.Log.Debugf("Will start gpfdist command")
+	if err = g.cmd.Start(); err != nil {
+		return err
+	}
+	timer := time.NewTimer(time.Minute)
+	select {
+	case port := <-portChannel:
+		g.port = port
+		logger.Log.Debugf("Aquired port %d", g.port)
+		return nil
+	case <-timer.C:
+		err := g.cmd.Process.Kill()
+		if err != nil {
+			logger.Log.Errorf("Can't kill process %v", err)
+		}
+		return xerrors.Errorf("unable to aquire gpfdist port number")
+	}
+}
+
+func processLog(pipe io.ReadCloser, level log.Level, prefix string, portChannel chan<- int) {
+	var r *regexp.Regexp
+	if portChannel != nil {
+		r = regexp.MustCompile("^Serving HTTP on port ([0-9]+)[^0-9]+")
+		defer func() {
+			if portChannel != nil {
+				close(portChannel)
+			}
+		}()
+	}
+	scanner := bufio.NewScanner(pipe)
+	logger.Log.Infof("Start processing gpfdist %s level logs", level.String())
+	for scanner.Scan() {
+		line := scanner.Text()
+		if portChannel != nil {
+			matches := r.FindStringSubmatch(line)
+			if len(matches) == 2 {
+				port, err := strconv.Atoi(matches[1])
+				if err != nil {
+					logger.Log.Errorf("Error parsing port '%s': %v", matches[1], err)
+				} else {
+					portChannel <- port
+				}
+				close(portChannel)
+				portChannel = nil
+			}
+		}
+		switch level {
+		case log.ErrorLevel:
+			logger.Log.Errorf("gpfdist-%s stderr: %s", prefix, line)
+		default:
+			if strings.Contains(line, " ERROR ") {
+				logger.Log.Errorf("gpfdist-%s: %s", prefix, line)
+			} else if strings.Contains(line, " WARN ") {
+				logger.Log.Warnf("gpfdist-%s: %s", prefix, line)
+			} else {
+				logger.Log.Debugf("gpfdist-%s: %s", prefix, line)
+			}
+		}
+	}
+	if scanner.Err() != nil {
+		logger.Log.Errorf("Unable to read %s level logs string: %s", level, scanner.Err().Error())
+	}
+	logger.Log.Infof("Stopped processing gpfdist %s level logs", level.String())
+}

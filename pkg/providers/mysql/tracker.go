@@ -1,10 +1,10 @@
 package mysql
 
 import (
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
 )
 
 const (
@@ -67,7 +67,7 @@ func (n *Tracker) Close() error {
 	return nil
 }
 
-func (n *Tracker) Store(file string, pos uint32) error {
+func (n *Tracker) Store(file string, pos uint64) error {
 	logger.Log.Infof("track %v:%v", file, pos)
 	return n.cp.SetTransferState(n.transferID, map[string]*coordinator.TransferStateData{
 		binlogPosKey: {

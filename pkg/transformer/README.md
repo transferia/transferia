@@ -31,12 +31,12 @@ func (r *DummyTransformer) Apply(input []abstract.ChangeItem) abstract.Transform
 	}
 }
 
-func (r *DummyTransformer) Suitable(table abstract.TableID, schema abstract.TableColumns) bool {
+func (r *DummyTransformer) Suitable(table abstract.TableID, schema *abstract.TableSchema) bool {
 	return true
 }
 
-func (r *DummyTransformer) ResultSchema(original abstract.TableColumns) abstract.TableColumns {
-	return original
+func (r *DummyTransformer) ResultSchema(original *abstract.TableSchema) (*abstract.TableSchema, error) {
+	return original, nil
 }
 
 func (r *DummyTransformer) Description() string {

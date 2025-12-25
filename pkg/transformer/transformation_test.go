@@ -3,17 +3,17 @@ package transformer_test
 import (
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/sink"
-	transformers_registry "github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
-	replaceprimarykey "github.com/doublecloud/transfer/pkg/transformer/registry/replace_primary_key"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/sink"
+	transformers_registry "github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	replaceprimarykey "github.com/transferia/transferia/pkg/transformer/registry/replace_primary_key"
 )
 
 type mockSinker struct {
@@ -61,7 +61,6 @@ func TestMultipleTransformers(t *testing.T) {
 			ErrorsOutput: nil,
 		},
 		ExtraTransformers: nil,
-		Executor:          nil,
 	}
 
 	mockSinker := new(mockSinker)

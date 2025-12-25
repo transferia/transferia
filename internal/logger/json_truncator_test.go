@@ -6,10 +6,36 @@ import (
 	"io"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/stringutil"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/stringutil"
 )
+
+type fakeWriter struct {
+	t          *testing.T
+	canWrite   bool
+	afterWrite func(w *fakeWriter)
+	data       [][]byte
+}
+
+func newFakeWriter(t *testing.T, canWrite bool, afterWrite func(w *fakeWriter)) *fakeWriter {
+	return &fakeWriter{t: t, canWrite: canWrite, afterWrite: afterWrite}
+}
+
+func (w *fakeWriter) Write(p []byte) (int, error) {
+	if !w.canWrite {
+		require.Fail(w.t, "invalid write call")
+	}
+	w.data = append(w.data, p)
+	if w.afterWrite != nil {
+		w.afterWrite(w)
+	}
+	return len(p), nil
+}
+
+func (w *fakeWriter) Close() error {
+	return nil
+}
 
 type LogRecord struct {
 	String              string `json:"string"`

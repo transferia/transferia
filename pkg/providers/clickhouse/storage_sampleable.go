@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 )
 
 const (
@@ -29,7 +29,7 @@ func (s *Storage) TableSizeInBytes(table abstract.TableID) (uint64, error) {
 	return size, nil
 }
 
-func (s *Storage) readRowsAndPushByChunksWrapped(table abstract.TableDescription, schema *abstract.TableSchema, query string, pusher abstract.Pusher, progress abstract.LoadProgress) error {
+func (s *Storage) readRowsAndPushByChunksWrapped(table abstract.TableDescription, schema *abstract.TableSchema, query string, pusher abstract.Pusher) error {
 	backgroundContext := context.Background()
 	conn, err := s.db.Conn(backgroundContext)
 	if err != nil {
@@ -77,7 +77,7 @@ func (s *Storage) LoadTopBottomSample(table abstract.TableDescription, pusher ab
 	readQueryEnd := buildSelectQuery(&table, rawSchema.Columns(), true, deletable, "") + orderByPkeysDesc + " LIMIT 1000"
 	totalQ := fmt.Sprintf(`%s UNION ALL %s`, readQueryStart, readQueryEnd)
 
-	return s.readRowsAndPushByChunksWrapped(table, rawSchema, totalQ, pusher, func(_, _, _ uint64) {})
+	return s.readRowsAndPushByChunksWrapped(table, rawSchema, totalQ, pusher)
 }
 
 func orderByPrimaryKeys(tableSchema []abstract.ColSchema, direction string) (string, error) {
@@ -104,7 +104,7 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 	}
 
 	readQuery := buildSelectQuery(&table, rawSchema.Columns(), true, deletable, "(rand() / 4294967296)<=0.05") + " LIMIT 2000"
-	return s.readRowsAndPushByChunksWrapped(table, rawSchema, readQuery, pusher, func(_, _, _ uint64) {})
+	return s.readRowsAndPushByChunksWrapped(table, rawSchema, readQuery, pusher)
 }
 
 func (s *Storage) LoadSampleBySet(table abstract.TableDescription, keySet []map[string]interface{}, pusher abstract.Pusher) error {

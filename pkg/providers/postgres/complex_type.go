@@ -3,9 +3,9 @@ package postgres
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 // complexType is a type which includes elements of other types. It is an

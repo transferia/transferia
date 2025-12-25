@@ -4,20 +4,20 @@ import (
 	"context"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	yt2 "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/pkg/providers/yt/copy/events"
-	"github.com/doublecloud/transfer/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/copy/events"
+	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
 type source struct {
-	cfg               *yt2.YtSource
+	cfg               yt2.YtSourceModel
 	yt                yt.Client
 	tables            tablemeta.YtTables
 	snapshotID        string
@@ -49,11 +49,11 @@ func (s *source) BeginSnapshot() error {
 	s.logger.Debug("Begining snapshot")
 	ctx := context.Background()
 	var err error
-	if s.tables, err = tablemeta.ListTables(ctx, s.yt, s.cfg.Cluster, s.cfg.Paths, s.logger); err != nil {
+	if s.tables, err = tablemeta.ListTables(ctx, s.yt, s.cfg.GetCluster(), s.cfg.GetPaths(), s.logger); err != nil {
 		return xerrors.Errorf("error getting list of tables: %w", err)
 	}
 	s.logger.Infof("Got %d tables to copy", len(s.tables))
-	s.snapshotID = strings.Join(s.cfg.Paths, ";")
+	s.snapshotID = strings.Join(s.cfg.GetPaths(), ";")
 	s.logger.Debugf("SnapshotID is %s", s.snapshotID)
 	return nil
 }
@@ -132,12 +132,8 @@ func (s *source) Progress() (base.EventSourceProgress, error) {
 	return s.snapshotEvtBatch.Progress(), nil
 }
 
-func NewSource(logger log.Logger, metrics metrics.Registry, cfg *yt2.YtSource, transferID string) (*source, error) {
-	if cfg.Proxy == "" {
-		cfg.Proxy = cfg.Cluster
-	}
-
-	y, err := ytclient.FromConnParams(cfg.ConnParams(), logger)
+func NewSource(logger log.Logger, metrics metrics.Registry, cfg yt2.YtSourceModel, transferID string) (*source, error) {
+	y, err := ytclient.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error creating ytrpc client: %w", err)
 	}

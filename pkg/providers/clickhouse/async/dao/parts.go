@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/async/model/db"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -20,14 +19,16 @@ type PartsDAO struct {
 func (d *PartsDAO) AttachTablePartsTo(dstDB, dstTable, srcDB, srcTable string) error {
 	d.lgr.Infof("Attaching partitions from %s.%s to %s.%s", srcDB, srcTable, dstDB, dstTable)
 	partitions, err := d.getPartitionList(srcDB, srcTable)
-	d.lgr.Info("Got partitions for table", log.String("table", srcTable), log.Strings("partitions", partitions))
 	if err != nil {
-		return xerrors.Errorf("error getting table partitions: %w", err)
+		return xerrors.Errorf("error getting table %s partitions: %w", srcTable, err)
 	}
+	d.lgr.Info(fmt.Sprintf("Got %d partitions for table", len(partitions)),
+		log.String("table", srcTable), log.Strings("partitions", partitions))
+
 	for _, p := range partitions {
 		q := fmt.Sprintf(`ALTER TABLE "%s"."%s" ATTACH PARTITION ID '%s' FROM "%s"."%s"`,
 			dstDB, dstTable, p, srcDB, srcTable)
-		d.lgr.Info("Attaching partition", log.String("sql", q))
+		d.lgr.Info(fmt.Sprintf("Attaching partition %s", p), log.String("sql", q))
 
 		err := backoff.RetryNotify(
 			func() error {
@@ -35,13 +36,14 @@ func (d *PartsDAO) AttachTablePartsTo(dstDB, dstTable, srcDB, srcTable string) e
 				return err
 			},
 			backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(10*time.Minute)),
-			func(err error, d time.Duration) {
-				logger.Log.Error(fmt.Sprintf("Got Attach Partition error, retrying after %v", d), log.Error(err))
+			func(err error, dur time.Duration) {
+				d.lgr.Error(fmt.Sprintf("Got Attach Partition error, retrying after %v", dur), log.Error(err))
 			},
 		)
 		if err != nil {
 			return xerrors.Errorf("error attaching table partition: %w", err)
 		}
+		d.lgr.Info(fmt.Sprintf("Attached partition %s", p), log.String("sql", q))
 	}
 	return nil
 }

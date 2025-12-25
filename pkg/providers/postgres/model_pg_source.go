@@ -7,18 +7,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/dblog"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/utils"
-	"github.com/doublecloud/transfer/pkg/storage"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/rename"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/providers/postgres/dblog"
+	"github.com/transferia/transferia/pkg/providers/postgres/utils"
+	"github.com/transferia/transferia/pkg/storage"
+	"github.com/transferia/transferia/pkg/transformer/registry/rename"
+	"github.com/transferia/transferia/pkg/util"
+	"go.uber.org/zap/zapcore"
 )
 
 const pgDesiredTableSize = 1024 * 1024 * 1024
@@ -29,42 +31,42 @@ var PGGlobalExclude = []abstract.TableID{
 
 type PgSource struct {
 	// oneof
-	ClusterID string `json:"Cluster"`
-	Host      string // legacy field for back compatibility; for now, we are using only 'Hosts' field
-	Hosts     []string
+	ClusterID string   `json:"Cluster" log:"true"`
+	Host      string   `log:"true"` // legacy field for back compatibility; for now, we are using only 'Hosts' field
+	Hosts     []string `log:"true"`
 
-	Database                    string
-	User                        string
+	Database                    string `log:"true"`
+	User                        string `log:"true"`
 	Password                    model.SecretString
-	Port                        int
-	DBTables                    []string
-	BatchSize                   uint32 // BatchSize is a limit on the number of rows in the replication (not snapshot) source internal buffer
-	SlotID                      string
-	SlotByteLagLimit            int64
+	Port                        int      `log:"true"`
+	DBTables                    []string `log:"true"`
+	BatchSize                   uint32   `log:"true"` // BatchSize is a limit on the number of rows in the replication (not snapshot) source internal buffer
+	SlotID                      string   `log:"true"`
+	SlotByteLagLimit            int64    `log:"true"`
 	TLSFile                     string
-	EnableTLS                   bool
-	KeeperSchema                string
-	SubNetworkID                string
-	SecurityGroupIDs            []string
-	CollapseInheritTables       bool
-	UsePolling                  bool
-	ExcludedTables              []string
-	IsHomo                      bool
-	NoHomo                      bool // force hetero relations instead of homo-haram-stuff
-	AutoActivate                bool
-	PreSteps                    *PgDumpSteps
-	PostSteps                   *PgDumpSteps
-	UseFakePrimaryKey           bool
-	IgnoreUserTypes             bool
-	IgnoreUnknownTables         bool            // see: if table schema unknown - ignore it TM-3104 and TM-2934
-	MaxBufferSize               model.BytesSize // Deprecated: is not used anymore
-	ExcludeDescendants          bool            // Deprecated: is not used more, use CollapseInheritTables instead
-	DesiredTableSize            uint64          // desired table part size for snapshot sharding
-	SnapshotDegreeOfParallelism int             // desired table parts count for snapshot sharding
-	EmitTimeTypes               bool            // Deprecated: is not used anymore
+	EnableTLS                   bool            `log:"true"`
+	KeeperSchema                string          `log:"true"`
+	SubNetworkID                string          `log:"true"`
+	SecurityGroupIDs            []string        `log:"true"`
+	CollapseInheritTables       bool            `log:"true"`
+	UsePolling                  bool            `log:"true"`
+	ExcludedTables              []string        `log:"true"`
+	IsHomo                      bool            `log:"true"`
+	NoHomo                      bool            `log:"true"` // force hetero relations instead of homo-haram-stuff
+	AutoActivate                bool            `log:"true"`
+	PreSteps                    *PgDumpSteps    `log:"true"`
+	PostSteps                   *PgDumpSteps    `log:"true"`
+	UseFakePrimaryKey           bool            `log:"true"`
+	IgnoreUserTypes             bool            `log:"true"`
+	IgnoreUnknownTables         bool            `log:"true"` // see: if table schema unknown - ignore it TM-3104 and TM-2934
+	MaxBufferSize               model.BytesSize `log:"true"` // Deprecated: is not used anymore
+	ExcludeDescendants          bool            `log:"true"` // Deprecated: is not used more, use CollapseInheritTables instead
+	DesiredTableSize            uint64          `log:"true"` // desired table part size for snapshot sharding
+	SnapshotDegreeOfParallelism int             `log:"true"` // desired table parts count for snapshot sharding
+	EmitTimeTypes               bool            `log:"true"` // Deprecated: is not used anymore
 
-	DBLogEnabled bool   // force DBLog snapshot instead of common
-	ChunkSize    uint64 // number of rows in chunk, this field needed for DBLog snapshot, if it is 0, it will be calculated automatically
+	DBLogEnabled bool   `log:"true"` // force DBLog snapshot instead of common
+	ChunkSize    uint64 `log:"true"` // number of rows in chunk, this field needed for DBLog snapshot, if it is 0, it will be calculated automatically
 
 	// Whether text or binary serialization format should be used when readeing
 	// snapshot from PostgreSQL storage snapshot (see
@@ -74,14 +76,23 @@ type PgSource struct {
 	// cases. Binary is preferred for pg->pg transfers since we use CopyFrom
 	// function from pgx driver and it requires all values to be binary
 	// serializable.
-	SnapshotSerializationFormat PgSerializationFormat
-	ShardingKeyFields           map[string][]string
-	PgDumpCommand               []string
-	ConnectionID                string
+	SnapshotSerializationFormat PgSerializationFormat `log:"true"`
+	ShardingKeyFields           map[string][]string   `log:"true"`
+	PgDumpCommand               []string              `log:"true"`
+	ConnectionID                string                `log:"true"`
+
+	UserEnabledTls *bool // tls config set by user explicitly
 }
 
-var _ model.Source = (*PgSource)(nil)
-var _ model.WithConnectionID = (*PgSource)(nil)
+var (
+	_ model.Source                   = (*PgSource)(nil)
+	_ model.WithConnectionID         = (*PgSource)(nil)
+	_ model.EndpointParamsDbDefaults = (*PgSource)(nil)
+)
+
+func (s *PgSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	return logger.MarshalSanitizedObject(s, enc)
+}
 
 func (s *PgSource) MDBClusterID() string {
 	return s.ClusterID
@@ -100,15 +111,15 @@ const (
 )
 
 type PgDumpSteps struct {
-	Table, PrimaryKey, View, Sequence         bool
-	SequenceOwnedBy, Rule, Type               bool
-	Constraint, FkConstraint, Index, Function bool
-	Collation, Trigger, Policy, Cast          bool
-	Default                                   bool
-	MaterializedView                          bool
-	SequenceSet                               *bool
-	TableAttach                               bool
-	IndexAttach                               bool
+	Table, PrimaryKey, View, Sequence         bool  `log:"true"`
+	SequenceOwnedBy, Rule, Type               bool  `log:"true"`
+	Constraint, FkConstraint, Index, Function bool  `log:"true"`
+	Collation, Trigger, Policy, Cast          bool  `log:"true"`
+	Default                                   bool  `log:"true"`
+	MaterializedView                          bool  `log:"true"`
+	SequenceSet                               *bool `log:"true"`
+	TableAttach                               bool  `log:"true"`
+	IndexAttach                               bool  `log:"true"`
 }
 
 func DefaultPgDumpPreSteps() *PgDumpSteps {
@@ -258,6 +269,11 @@ func (s *PgSource) AuxTables() []string {
 }
 
 func (s *PgSource) WithDefaults() {
+	s.WithEssentialDefaults()
+	s.WithPGDumpDefaults()
+}
+
+func (s *PgSource) WithEssentialDefaults() {
 	if s.SlotByteLagLimit == 0 {
 		s.SlotByteLagLimit = 50 * 1024 * 1024 * 1024
 	}
@@ -274,17 +290,20 @@ func (s *PgSource) WithDefaults() {
 		s.KeeperSchema = "public"
 	}
 
-	if s.PreSteps == nil {
-		s.PreSteps = DefaultPgDumpPreSteps()
-	}
-	if s.PostSteps == nil {
-		s.PostSteps = DefaultPgDumpPostSteps()
-	}
 	if s.DesiredTableSize == 0 {
 		s.DesiredTableSize = pgDesiredTableSize
 	}
 	if s.SnapshotDegreeOfParallelism == 0 {
 		s.SnapshotDegreeOfParallelism = 4 // old magic number which was hardcoded in shard table func
+	}
+}
+
+func (s *PgSource) WithPGDumpDefaults() {
+	if s.PreSteps == nil {
+		s.PreSteps = DefaultPgDumpPreSteps()
+	}
+	if s.PostSteps == nil {
+		s.PostSteps = DefaultPgDumpPostSteps()
 	}
 }
 
@@ -340,9 +359,11 @@ func (p *PgDumpSteps) AnyStepIsTrue() bool {
 		sequenceSet = *p.SequenceSet
 	}
 
-	return slices.Contains([]bool{p.Sequence, p.SequenceOwnedBy, sequenceSet, p.Table, p.PrimaryKey, p.FkConstraint,
+	return slices.Contains([]bool{
+		p.Sequence, p.SequenceOwnedBy, sequenceSet, p.Table, p.PrimaryKey, p.FkConstraint,
 		p.Default, p.Constraint, p.Index, p.View, p.MaterializedView, p.Function, p.Trigger,
-		p.Type, p.Rule, p.Collation, p.Policy, p.Cast}, true)
+		p.Type, p.Rule, p.Collation, p.Policy, p.Cast,
+	}, true)
 }
 
 func (s *PgSource) Validate() error {
@@ -425,6 +446,7 @@ func (d PgSourceWrapper) MaintainTables() bool {
 func (d PgSourceWrapper) ConnectionID() string {
 	return d.Model.ConnectionID
 }
+
 func (d PgSourceWrapper) PerTransactionPush() bool {
 	return false
 }
@@ -457,6 +479,10 @@ func (d PgSourceWrapper) QueryTimeout() time.Duration {
 	return PGDefaultQueryTimeout
 }
 
+func (d PgSourceWrapper) GetIsSchemaMigrationDisabled() bool {
+	return false
+}
+
 func (s *PgSource) ToSinkParams() PgSourceWrapper {
 	copyPgWrapper := *s
 	return PgSourceWrapper{
@@ -468,12 +494,13 @@ func (s *PgSource) ToSinkParams() PgSourceWrapper {
 func (s *PgSource) isPreferReplica(transfer *model.Transfer) bool {
 	// PreferReplica auto-derives into 'true', if ALL next properties fulfilled:
 	// - It can be used only on 'managed' installation - bcs we are searching replicas via mdb api
-	// - It can be used only on heterogeneous transfers - bcs "for homo there are some technical restrictions" (https://github.com/doublecloud/transfer/review/4059241/details#comment-5973004)
+	// - It can be used only on heterogeneous transfers - bcs "for homo there are some technical restrictions" (https://github.com/transferia/transferia/review/4059241/details#comment-5973004)
 	//     There are some issues with reading sequence values from replica
 	// - It can be used only on SNAPSHOT_ONLY transfer - bcs we can't take consistent slot on master & snapshot on replica
+	// - It can be used only when DBLog is disabled - bcs DBLog requires master connection to insert/update records in signal table
 	//
 	// When 'PreferReplica' is true - reading happens from synchronous replica
-	return !s.IsHomo && transfer != nil && (transfer.SnapshotOnly() || !transfer.IncrementOnly())
+	return !s.IsHomo && transfer != nil && (transfer.SnapshotOnly() || !transfer.IncrementOnly()) && !s.DBLogEnabled
 }
 
 func (s *PgSource) ToStorageParams(transfer *model.Transfer) *PgStorageParams {
@@ -493,6 +520,7 @@ func (s *PgSource) ToStorageParams(transfer *model.Transfer) *PgStorageParams {
 		ClusterID:                   s.ClusterID,
 		TLSFile:                     s.TLSFile,
 		EnableTLS:                   s.EnableTLS,
+		CollapseInheritTables:       s.CollapseInheritTables,
 		UseFakePrimaryKey:           s.UseFakePrimaryKey,
 		DBFilter:                    nil,
 		IgnoreUserTypes:             s.IgnoreUserTypes,

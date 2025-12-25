@@ -8,17 +8,18 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/dustin/go-humanize"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pglogrepl"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -33,6 +34,7 @@ type poller struct {
 	lastWindow      time.Time
 	batchSize       uint32
 	schema          abstract.DBSchema
+	altNames        map[abstract.TableID]abstract.TableID
 	once            sync.Once
 	config          *PgSource
 	transferID      string
@@ -45,6 +47,7 @@ type poller struct {
 	cp              coordinator.Coordinator
 	changeProcessor *changeProcessor
 	objects         *model.DataObjects
+	objectsFilter   abstract.Includeable
 
 	skippedTables map[abstract.TableID]bool
 }
@@ -91,7 +94,7 @@ func (p *poller) reloadSchema() error {
 	defer storage.Close()
 	storage.IsHomo = true // exclude VIEWs
 
-	tableMap, err := storage.TableList(nil)
+	tableMap, err := storage.TableListWithoutSkips(nil) // to collect 'child' tables, when CollapseInheritTables=true
 	if err != nil {
 		return xerrors.Errorf("failed to list tables (with schema) at source endpoint: %w", err)
 	}
@@ -118,7 +121,7 @@ func (p *poller) reloadSchema() error {
 	}
 	defer conn.Release()
 
-	changeProcessor, err := newChangeProcessor(conn.Conn(), p.schema, storage.sExTime, p.config)
+	changeProcessor, err := newChangeProcessor(conn.Conn(), p.schema, storage.sExTime, p.config, p.altNames)
 	if err != nil {
 		return xerrors.Errorf("unable to initialize change processor: %w", err)
 	}
@@ -174,7 +177,7 @@ func (p *poller) processWindow(
 				return err
 			}
 			return nil
-		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5))
+		}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5))
 		if err != nil {
 			p.logger.Error("Unable to commit offset", log.Error(err))
 			//nolint:descriptiveerrors
@@ -189,6 +192,17 @@ func (p *poller) processWindow(
 	return nil
 }
 
+func (p *poller) slotInvalidation(err error) error {
+	if err == nil {
+		return nil
+	}
+	if IsPgError(err, ErrcObjectNotInPrerequisiteState) {
+		p.metrics.Fatal.Inc()
+		return abstract.NewFatalError(err)
+	}
+	return err
+}
+
 func (p *poller) CheckSlot() error {
 	if _, err := p.conn.Exec(context.TODO(), p.peekQ()); err != nil {
 		var e *pgconn.PgError
@@ -197,6 +211,11 @@ func (p *poller) CheckSlot() error {
 			if e.Code == "XX000" {
 				p.metrics.Fatal.Inc()
 				p.logger.Error("Fatal WAL inconsistency", log.Error(e))
+				return abstract.NewFatalError(err)
+			}
+			if e.Code == string(ErrcObjectNotInPrerequisiteState) {
+				p.metrics.Fatal.Inc()
+				p.logger.Error("Replication slot invalidated", log.Error(e))
 				return abstract.NewFatalError(err)
 			}
 			p.metrics.Error.Inc()
@@ -225,7 +244,7 @@ func (p *poller) commitOffset(lsn string, slotName string) error {
 		p.wal2jsonArgs.toSQLFormat(),
 	)
 	r, err := p.conn.Exec(context.TODO(), q)
-	if err != nil {
+	if err := p.slotInvalidation(err); err != nil {
 		p.logger.Warnf("Unable to commit offset Query:\n%v\nError:%v", q, err)
 		//nolint:descriptiveerrors
 		return err
@@ -291,7 +310,7 @@ func (p *poller) Run(sink abstract.AsyncSink) error {
 					return err
 				}
 				return nil
-			}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3))
+			}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 3))
 			if err != nil {
 				p.logger.Error("Unable to process window", log.Error(err))
 				//nolint:descriptiveerrors
@@ -305,17 +324,18 @@ func (p *poller) Run(sink abstract.AsyncSink) error {
 func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 	pullStart := time.Now()
 	peekQ := p.peekQ()
-	objIncleadable, err := abstract.BuildIncludeMap(p.objects.GetIncludeObjects())
+	objectsFilter, err := abstract.BuildIncludeableFromObjects(p.objects.GetIncludeObjects())
 	if err != nil {
 		return nil, nil, xerrors.Errorf("failed to filter table list extracted from source by objects set in transfer: %w", err)
 	}
+	p.objectsFilter = abstract.NewIntersectionIncludeable(objectsFilter, p.config)
 	p.logger.Debug("Start " + peekQ)
 	p.logger.Debug("Start pull")
 	if _, err := p.conn.Exec(context.TODO(), "select pg_terminate_backend(active_pid) from pg_replication_slots where slot_name = $1 and active_pid is not null;", p.config.SlotID); err != nil {
 		p.logger.Warn("Unable to preclean slotID", log.Error(err))
 	}
 	rows, err := p.conn.Query(context.TODO(), peekQ)
-	if err != nil {
+	if err := p.slotInvalidation(err); err != nil {
 		p.logger.Error("Get WAL", log.Error(err))
 		//nolint:descriptiveerrors
 		return nil, nil, err
@@ -362,7 +382,8 @@ func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 		}
 		for _, item := range changes {
 			changeItem := item.toChangeItem()
-			if !p.config.Include(changeItem.TableID()) {
+			tableID := changeItem.TableID()
+			if !isTableOrParentIncluded(p.altNames, tableID, abstract.NewIntersectionIncludeable(p.objectsFilter, p.config), p.config.CollapseInheritTables) {
 				continue
 			}
 
@@ -370,31 +391,43 @@ func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 				logger.Log.Error(err.Error())
 			}
 
-			if !p.changeProcessor.hasSchemaForTable(changeItem.TableID()) {
-				if p.skippedTables[changeItem.TableID()] {
-					p.logger.Warn("skipping changes for a table added after replication had started", log.String("table", changeItem.TableID().String()))
+			if !p.changeProcessor.hasSchemaForTable(tableID) {
+				if p.skippedTables[tableID] {
+					p.logger.Warn("skipping changes for a table added after replication had started", log.String("table", tableID.String()))
 					continue
 				}
 				if p.config.CollapseInheritTables {
-					parentID, err := p.changeProcessor.resolveParentTable(context.TODO(), p.conn, changeItem.TableID())
+					parentID, err := p.changeProcessor.resolveParentTable(context.TODO(), p.conn, tableID)
 					if err != nil {
 						return nil, nil, xerrors.Errorf("unable to resolve parent: %w", err)
 					}
-					if p.objects != nil && len(p.objects.IncludeObjects) > 0 && !objIncleadable[parentID] {
-						p.skippedTables[changeItem.TableID()] = true // to prevent next time resolve for parent
-						p.logger.Warn("skipping changes for a table, since itself or its parent is not included in data-objects", log.String("table", changeItem.TableID().String()))
+					if !isTableOrParentIncluded(p.altNames, parentID, p.objectsFilter, p.config.CollapseInheritTables) {
+						p.skippedTables[tableID] = true // to prevent next time resolve for parent
+						p.logger.Warn(
+							"skipping changes for a table, since itself or its parent is not included",
+							log.String("table", tableID.String()),
+							log.String("parent_table", parentID.String()),
+						)
 						continue
 					}
+
+					// set schema like parent table
+					changeItem.SetTableSchema(p.changeProcessor.schemasToEmit[parentID])
+					changeItem.SetTableID(parentID)
 				}
-				if err := p.reloadSchema(); err != nil {
-					return nil, nil, xerrors.Errorf("failed to reload schema: %w", abstract.NewFatalError(err))
+				if len(p.changeProcessor.resolvedParents) != 0 {
+					if _, ok := p.changeProcessor.resolvedParents[tableID]; !ok {
+						if err := p.reloadSchema(); err != nil {
+							return nil, nil, xerrors.Errorf("failed to reload schema: %w", abstract.NewFatalError(err))
+						}
+					}
 				}
 				if !p.changeProcessor.hasSchemaForTable(changeItem.TableID()) {
 					if !p.config.IgnoreUnknownTables {
-						return nil, nil, abstract.NewFatalError(xerrors.Errorf("failed to load schema for a table %s added after replication had started", changeItem.TableID().String()))
+						return nil, nil, abstract.NewFatalError(xerrors.Errorf("failed to load schema for a table %s added after replication had started", tableID.String()))
 					}
-					p.logger.Warn("failed to get a schema for a table added after replication started, skipping changes for this table", log.String("table", changeItem.TableID().String()))
-					p.skippedTables[changeItem.TableID()] = true
+					p.logger.Warn("failed to get a schema for a table added after replication started, skipping changes for this table", log.String("table", tableID.String()))
+					p.skippedTables[tableID] = true
 					continue
 				}
 			}
@@ -537,10 +570,11 @@ func (p *poller) monitorStuckQueries() {
 	}
 }
 
-func NewPollingPublisher(
+func newPollingPublisher(
 	version PgVersion,
-	conn *pgxpool.Pool,
+	connConfig *pgx.ConnConfig,
 	slot AbstractSlot,
+	wal2jsonArgs wal2jsonArguments,
 	registry *stats.SourceStats,
 	cfg *PgSource,
 	objects *model.DataObjects,
@@ -548,10 +582,9 @@ func NewPollingPublisher(
 	lgr log.Logger,
 	cp coordinator.Coordinator,
 ) (abstract.Source, error) {
-	_, hasLSNTrack := slot.(*LsnTrackedSlot)
-	wal2jsonArgs, err := newWal2jsonArguments(cfg, hasLSNTrack, objects)
+	conn, err := NewPgConnPool(connConfig, lgr)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to build wal2json arguments: %w", err)
+		return nil, xerrors.Errorf("unable to create conn pool: %w", err)
 	}
 	plr := poller{
 		logger:          lgr,
@@ -564,6 +597,7 @@ func NewPollingPublisher(
 		lastWindow:      time.Now(),
 		batchSize:       cfg.BatchSize,
 		schema:          nil,
+		altNames:        make(map[abstract.TableID]abstract.TableID),
 		once:            sync.Once{},
 		config:          cfg,
 		transferID:      transferID,
@@ -576,8 +610,8 @@ func NewPollingPublisher(
 		cp:              cp,
 		changeProcessor: nil,
 		objects:         objects,
-
-		skippedTables: make(map[abstract.TableID]bool),
+		objectsFilter:   nil,
+		skippedTables:   make(map[abstract.TableID]bool),
 	}
 
 	if err := plr.reloadSchema(); err != nil {

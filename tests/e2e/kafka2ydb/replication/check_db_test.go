@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	jsonparser "github.com/doublecloud/transfer/pkg/parsers/registry/json"
-	kafkasink "github.com/doublecloud/transfer/pkg/providers/kafka"
-	"github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
+	kafkasink "github.com/transferia/transferia/pkg/providers/kafka"
+	"github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/tests/helpers"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -45,7 +45,6 @@ func TestReplication(t *testing.T) {
 		BufferSize:       model.BytesSize(1024),
 		SecurityGroupIDs: nil,
 		ParserConfig:     parserConfigMap,
-		IsHomo:           false,
 	}
 
 	// create destination
@@ -91,7 +90,7 @@ func TestReplication(t *testing.T) {
 			Auth:       source.Auth,
 			Topic:      source.Topic,
 			FormatSettings: model.SerializationFormat{
-				Name: model.SerializationFormatJSON,
+				Name: model.SerializationFormatMirror,
 				BatchingSettings: &model.Batching{
 					Enabled:        false,
 					Interval:       0,
@@ -109,7 +108,7 @@ func TestReplication(t *testing.T) {
 		k := []byte(fmt.Sprintf("%d", i))
 		v := []byte(fmt.Sprintf(`{"id": "%d", "level": "my_level", "caller": "my_caller", "msg": "my_msg"}`, i))
 		err = srcSink.Push([]abstract.ChangeItem{
-			kafkasink.MakeKafkaRawMessage(source.Topic, time.Time{}, source.Topic, 0, 0, k, v),
+			abstract.MakeRawMessage(k, source.Topic, time.Time{}, source.Topic, 0, 0, v),
 		})
 		require.NoError(t, err)
 	}

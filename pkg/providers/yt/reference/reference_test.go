@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/sink"
-	"github.com/doublecloud/transfer/tests/canon/reference"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/sink"
+	"github.com/transferia/transferia/tests/canon/reference"
 )
 
 func TestPushReferenceTable(t *testing.T) {
@@ -27,7 +27,7 @@ func TestPushReferenceTable(t *testing.T) {
 	cfg := yt.NewYtDestinationV1(*Destination)
 	cfg.WithDefaults()
 	t.Run("static", func(t *testing.T) {
-		sinker, err := sink.NewSinker(cfg, "", 0, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), nil)
+		sinker, err := sink.NewSinker(cfg, "", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), nil)
 		require.NoError(t, err)
 
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{
@@ -39,7 +39,7 @@ func TestPushReferenceTable(t *testing.T) {
 		}))
 		source := &yt.YtSource{
 			Cluster:          os.Getenv("YT_PROXY"),
-			Proxy:            os.Getenv("YT_PROXY"),
+			YtProxy:          os.Getenv("YT_PROXY"),
 			Paths:            []string{Destination.Path},
 			YtToken:          "",
 			RowIdxColumnName: "row_idx",

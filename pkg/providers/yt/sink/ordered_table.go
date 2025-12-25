@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/ptr"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/kv"
-	yt2 "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/ptr"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/kv"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -149,17 +149,12 @@ func (t *OrderedTable) Init() error {
 	}
 
 	return backoff.Retry(func() error {
+		if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
+			t.logger.Error("Init table error", log.Error(err))
+			return err
+		}
 		if !exist {
-			if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-				t.logger.Error("Init table error", log.Error(err))
-				return err
-			}
 			if err := t.ensureTablets(t.config.InitialTabletCount()); err != nil {
-				return err
-			}
-		} else {
-			if err := migrate.EnsureTables(ctx, t.ytClient, ddlCommand, onConflictTryAlterWithoutNarrowing(ctx, t.ytClient)); err != nil {
-				t.logger.Error("Ensure table error", log.Error(err))
 				return err
 			}
 		}
@@ -298,15 +293,16 @@ func (t *OrderedTable) Write(input []abstract.ChangeItem) error {
 }
 
 type InsertChangeItem struct {
-	TabletIndex uint32
-	ChangeItem  abstract.ChangeItem
+	DiscardBigValues bool
+	TabletIndex      uint32
+	ChangeItem       abstract.ChangeItem
 }
 
 func (i *InsertChangeItem) MarshalYSON(w *yson.Writer) error {
 	w.BeginMap()
 	for idx, colName := range i.ChangeItem.ColumnNames {
 		w.MapKeyString(colName)
-		value, err := Restore(i.ChangeItem.TableSchema.Columns()[idx], i.ChangeItem.ColumnValues[idx])
+		value, err := RestoreWithLengthLimitCheck(i.ChangeItem.TableSchema.Columns()[idx], i.ChangeItem.ColumnValues[idx], i.DiscardBigValues, YtDynMaxStringLength)
 		if err != nil {
 			return xerrors.Errorf("Unable to restore value for column '%s': %w", colName, err)
 		}
@@ -343,14 +339,14 @@ func (t *OrderedTable) insertToSpecificTablet(tabletIndex uint32, changeItems []
 	for _, changeItem := range changeItems {
 		changeOffset, found := changeItem.Offset()
 		if !found {
-			return xerrors.Errorf("changeItem doesn't contain '_offset' column: " + changeItem.ToJSONString()) // TODO - change it when TM-1290
+			return xerrors.Errorf("changeItem doesn't contain '_offset' column: %s", changeItem.ToJSONString()) // TODO - change it when TM-1290
 		}
 		if (maxCommittedLbOffset != 0) && (changeOffset <= maxCommittedLbOffset) {
 			skippedCount++
 			continue
 		}
 
-		insertChangeItems = append(insertChangeItems, &InsertChangeItem{TabletIndex: tabletIndex, ChangeItem: changeItem})
+		insertChangeItems = append(insertChangeItems, &InsertChangeItem{TabletIndex: tabletIndex, ChangeItem: changeItem, DiscardBigValues: t.config.DiscardBigValues()})
 	}
 
 	if skippedCount != 0 {
@@ -360,7 +356,7 @@ func (t *OrderedTable) insertToSpecificTablet(tabletIndex uint32, changeItems []
 	lastChangeItem := changeItems[len(changeItems)-1]
 	lastOffset, found := lastChangeItem.Offset()
 	if !found {
-		return xerrors.Errorf("changeItem doesn't contain '_offset' column: " + lastChangeItem.ToJSONString()) // TODO - change it when TM-1290
+		return xerrors.Errorf("changeItem doesn't contain '_offset' column: %s", lastChangeItem.ToJSONString()) // TODO - change it when TM-1290
 	}
 	if len(insertChangeItems) == 0 {
 		t.logger.Warnf("tablet %v deduplicated (maxCommittedLbOffset:%v lastOffset:%v)", tabletIndex, maxCommittedLbOffset, lastOffset)
@@ -451,7 +447,7 @@ func (t *OrderedTable) ensureTablets(maxTablet uint32) error {
 
 	t.logger.Infof("Reshard table, newTabletCount: %v, prev tabletsCount: %v", newTabletCount, t.tabletsCount)
 
-	if err := migrate.UnmountAndWait(ctx, t.ytClient, t.path); err != nil {
+	if err := yt2.MountUnmountWrapper(ctx, t.ytClient, t.path, migrate.UnmountAndWait); err != nil {
 		return err
 	}
 
@@ -465,7 +461,7 @@ func (t *OrderedTable) ensureTablets(maxTablet uint32) error {
 
 	t.logger.Infof("table resharded")
 
-	if err := migrate.MountAndWait(ctx, t.ytClient, t.path); err != nil {
+	if err := yt2.MountUnmountWrapper(ctx, t.ytClient, t.path, migrate.MountAndWait); err != nil {
 		//nolint:descriptiveerrors
 		return err
 	}

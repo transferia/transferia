@@ -8,7 +8,8 @@ src:
       "User": "testuser",
       "Password": "testpassword",
       "Database": "testdb",
-      "Port": 3306
+      "Port": 3306,
+      "ReplicationFlushInterval": 5000000000
     }
 dst:
   type: kafka

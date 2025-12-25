@@ -8,20 +8,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/internal/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/events"
-	"github.com/doublecloud/transfer/pkg/format"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	"github.com/doublecloud/transfer/pkg/parsers/generic"
-	_ "github.com/doublecloud/transfer/pkg/parsers/registry"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/tskv"
-	"github.com/doublecloud/transfer/pkg/parsers/tests/samples"
-	"github.com/doublecloud/transfer/pkg/providers/kafka"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/format"
+	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/generic"
+	_ "github.com/transferia/transferia/pkg/parsers/registry"
+	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
+	"github.com/transferia/transferia/pkg/parsers/registry/tskv"
+	"github.com/transferia/transferia/pkg/parsers/tests/samples"
+	"github.com/transferia/transferia/pkg/providers/kafka"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -140,24 +140,6 @@ func TestParser_TableSplitterSpecChar(t *testing.T) {
 	require.Equal(t, test6TableName[:len(test6TableExpectedPrefix)], test6TableExpectedPrefix)
 }
 
-func changeItemFactoryForMetrica(tableName string, appVersionName string, receiveTimestamp int64, apiKey int32, deviceID interface{}) *abstract.ChangeItem {
-	table1Schema := abstract.NewTableSchema(abstract.TableColumns{
-		abstract.MakeTypedColSchema("AppVersionName", string(schema.TypeString), true),
-		abstract.MakeTypedColSchema("ReceiveTimestamp", string(schema.TypeInt64), false),
-		abstract.MakeTypedColSchema("APIKey", string(schema.TypeInt32), false),
-		abstract.MakeTypedColSchema("DeviceID", string(schema.TypeAny), false),
-	})
-	item1 := abstract.ChangeItem{
-		Kind:         "Insert",
-		Schema:       "db",
-		Table:        tableName,
-		ColumnNames:  []string{"AppVersionName", "ReceiveTimestamp", "APIKey", "DeviceID"},
-		ColumnValues: []interface{}{appVersionName, receiveTimestamp, apiKey, deviceID},
-		TableSchema:  table1Schema,
-	}
-	return &item1
-}
-
 func testTableSplitterOnChangeItem(
 	t *testing.T,
 	originalTableName string,
@@ -213,6 +195,11 @@ func TestGenericParser_DoSensitive(t *testing.T) {
 	parser, err := parsers.NewParserFromMap(ParserConfigMap(samples.SensitiveSample), false, logger.Log, stats.NewSourceStats(metrics.NewRegistry().WithTags(map[string]string{
 		"id": "TestGenericParser_DoSensitive",
 	})))
+
+	if xerrors.Is(err, parsers.UnknownParserErr) {
+		// some parsers tests might be disabled in certain setups
+		t.Skip()
+	}
 	require.NoError(t, err)
 	resArr := parser.Do(samples.Data[samples.SensitiveSample], abstract.Partition{})
 	require.Equal(t, 1, len(resArr))
@@ -224,7 +211,6 @@ func TestGenericParser_DoSensitive(t *testing.T) {
 				fieldsWithSecretErasure++
 			}
 		}
-
 	}
 	logger.Log.Debug("Example of secret erasure", log.Any("res", res))
 	require.Greater(t, fieldsWithSecretErasure, 0, "there should be at least one erasured secret")
@@ -234,6 +220,11 @@ func TestGenericParser_DoSensitiveDisabled(t *testing.T) {
 	parser, err := parsers.NewParserFromMap(ParserConfigMap(samples.SensitiveDisabledSample), false, logger.Log, stats.NewSourceStats(metrics.NewRegistry().WithTags(map[string]string{
 		"id": "TestGenericParser_DoSensitiveDisabled",
 	})))
+
+	if xerrors.Is(err, parsers.UnknownParserErr) {
+		// some parsers tests might be disabled in certain setups
+		t.Skip()
+	}
 	require.NoError(t, err)
 	resArr := parser.Do(samples.Data[samples.SensitiveDisabledSample], abstract.Partition{})
 	require.Equal(t, 1, len(resArr))
@@ -245,7 +236,6 @@ func TestGenericParser_DoSensitiveDisabled(t *testing.T) {
 				fieldsWithSecretErasure++
 			}
 		}
-
 	}
 	logger.Log.Debug("Example of keeping secrets unerasured to increase performance", log.Any("res", res))
 	require.Equal(t, 0, fieldsWithSecretErasure, "secrets should not be processed in order to increase performance")
@@ -255,6 +245,11 @@ func TestGenericParser_DoKikimr(t *testing.T) {
 	parser, err := parsers.NewParserFromMap(ParserConfigMap(samples.KikimrSample), false, logger.Log, stats.NewSourceStats(metrics.NewRegistry().WithTags(map[string]string{
 		"id": "TestGenericParser_DoKikimr",
 	})))
+
+	if xerrors.Is(err, parsers.UnknownParserErr) {
+		// some parsers tests might be disabled in certain setups
+		t.Skip()
+	}
 	require.NoError(t, err)
 	res := parser.Do(samples.Data[samples.KikimrSample], abstract.Partition{})
 	require.Equal(t, 213, len(res))
@@ -264,6 +259,11 @@ func TestGenericParser_DoKikimrNew(t *testing.T) {
 	parser, err := parsers.NewParserFromMap(ParserConfigMap(samples.KikimrNew), false, logger.Log, stats.NewSourceStats(metrics.NewRegistry().WithTags(map[string]string{
 		"id": "TestGenericParser_DoKikimrNew",
 	})))
+
+	if xerrors.Is(err, parsers.UnknownParserErr) {
+		// some parsers tests might be disabled in certain setups
+		t.Skip()
+	}
 	require.NoError(t, err)
 	res := parser.Do(samples.Data[samples.KikimrNew], abstract.Partition{})
 	abstract.Dump(res)
@@ -293,37 +293,6 @@ func TestParser_DoJson(t *testing.T) {
 			offset++
 			require.True(t, ok, "Should have column 'version'")
 		}
-	})
-	t.Run("events", func(t *testing.T) {
-		genericParserImpl := GetGenericParserImpl(parser)
-		res := genericParserImpl.Parse(samples.Data[samples.JSONSample], *new(abstract.Partition))
-		var evs []base.Event
-		for res.Next() {
-			ev, err := res.Event()
-			require.NoError(t, err)
-			evs = append(evs, ev)
-		}
-		require.Equal(t, 36, len(evs))
-		offset := uint64(0)
-		var changes []abstract.ChangeItem
-		for _, row := range evs {
-			insEv, ok := row.(events.InsertEvent)
-			require.True(t, ok)
-			change, err := insEv.ToOldChangeItem()
-			require.NoError(t, err)
-			found := false
-			changes = append(changes, *change)
-			for ci, cname := range change.ColumnNames {
-				if cname == "version" {
-					require.Equal(t, 89488198116272410+offset, change.ColumnValues[ci])
-					found = true
-					break
-				}
-			}
-			offset++
-			require.True(t, found, "Should have column 'version'")
-		}
-		abstract.Dump(changes)
 	})
 }
 
@@ -359,45 +328,14 @@ func TestLogfellerTimestampParse(t *testing.T) {
 			),
 		),
 	)
+
+	if xerrors.Is(err, parsers.UnknownParserErr) {
+		// some parsers tests might be disabled in certain setups
+		t.Skip()
+	}
 	require.NoError(t, err)
 	require.NotNil(t, parser)
 
-	//genericParserImpl := GetGenericParserImpl(parser)
-	//
-	//{
-	//	// abstract2 parser
-	//	batch := genericParserImpl.Parse(samples.Data[parserName], *new(abstract.Partition))
-	//	var changes []abstract.ChangeItem
-	//	for batch.Next() {
-	//		ev, err := batch.Event()
-	//		require.NoError(t, err)
-	//		require.NotNil(t, ev)
-	//		iev, ok := ev.(events.InsertEvent)
-	//		require.True(t, ok)
-	//		change, err := iev.ToOldChangeItem()
-	//		require.NoError(t, err)
-	//		changes = append(changes, *change)
-	//		fmt.Println(iev.Table())
-	//	}
-	//	fields := changes[0].AsMap()
-	//	// Timestamps
-	//	require.Equal(t, schema.Timestamp(1234567890123456).Time().Local(), fields["default"])
-	//	require.Equal(t, schema.Timestamp(1234567890123456).Time().Local(), fields["microseconds"])
-	//	require.Equal(t, schema.Timestamp(1234567890123000).Time().Local(), fields["milliseconds"])
-	//	require.Equal(t, schema.Timestamp(1234567890000000).Time().Local(), fields["seconds"])
-	//
-	//	// Datetime (seconds)
-	//	require.Equal(t, schema.Datetime(1234567890).Time().Local(), fields["datetime_default"])
-	//	require.Equal(t, schema.Datetime(1234567890).Time().Local(), fields["datetime_microseconds"])
-	//	require.Equal(t, schema.Datetime(1234567890).Time().Local(), fields["datetime_milliseconds"])
-	//	require.Equal(t, schema.Datetime(1234567890).Time().Local(), fields["datetime_seconds"])
-	//
-	//	// Intervals
-	//	require.Equal(t, time.Duration(12345678000), fields["interval_default"])
-	//	require.Equal(t, time.Duration(12345678000), fields["interval_microseconds"])
-	//	require.Equal(t, time.Duration(12345000000), fields["interval_milliseconds"])
-	//	require.Equal(t, time.Duration(12000000000), fields["interval_seconds"])
-	//}
 	{
 		// abstract 1 parser
 		res := parser.Do(samples.Data[parserName], *new(abstract.Partition))
@@ -435,32 +373,58 @@ func TestGenericParser_Parse_vs_Do(t *testing.T) {
 			parser, err := parsers.NewParserFromMap(configMap, false, logger.Log, stats.NewSourceStats(metrics.NewRegistry().WithTags(map[string]string{
 				"id": "TestGenericParser_Parse_vs_Do",
 			})))
+			if xerrors.Is(err, parsers.UnknownParserErr) {
+				// some parsers tests might be disabled in certain setups
+				t.Skip()
+			}
 			require.NoError(t, err)
 			if parser == nil {
 				return
 			}
 			require.NoError(t, err)
-			//genericParserImpl := GetGenericParserImpl(parser)
 			res := parser.Do(samples.Data[k], *new(abstract.Partition))
-			//batch := genericParserImpl.Parse(samples.Data[k], *new(abstract.Partition))
 			var changes []abstract.ChangeItem
-			//for batch.Next() {
-			//	ev, err := batch.Event()
-			//	require.NoError(t, err)
-			//	require.NotNil(t, ev)
-			//	iev, ok := ev.(events.InsertEvent)
-			//	require.True(t, ok)
-			//	change, err := iev.ToOldChangeItem()
-			//	require.NoError(t, err)
-			//	changes = append(changes, *change)
-			//}
 			t.Logf("old parser: %v len", len(res))
 			abstract.Dump(res)
 			t.Logf("new parser: %v len", len(changes))
 			abstract.Dump(changes)
-			//require.Equal(t, len(res), len(changes))
 		})
 	}
+}
+
+func TestGenericParserDatetimeZone(t *testing.T) {
+	parserConfigStruct := &jsonparser.ParserConfigJSONLb{
+		Fields: []abstract.ColSchema{
+			{ColumnName: "timestamp", DataType: schema.TypeDatetime.String()},
+		},
+		TimeField: &abstract.TimestampCol{
+			Col:    "timestamp",
+			Format: "2006-01-02T15:04:05.000Z",
+		},
+	}
+	configMap, err := parsers.ParserConfigStructToMap(parserConfigStruct)
+	require.NoError(t, err)
+	parser, err := parsers.NewParserFromMap(configMap, false, logger.Log, stats.NewSourceStats(metrics.NewRegistry()))
+	require.NoError(t, err)
+
+	res := parser.Do(parsers.Message{
+		Value: []byte("{\"timestamp\":\"2025-02-19T15:43:30.089Z\"}"),
+	}, abstract.Partition{Partition: 0, Topic: "test/topic"})
+
+	require.NotEmpty(t, res)
+	require.NotEmpty(t, res[0].ColumnValues)
+
+	tsIdx := -1
+	for idx, col := range res[0].ColumnNames {
+		if col == "timestamp" {
+			tsIdx = idx
+		}
+	}
+	require.True(t, tsIdx >= 0)
+
+	ts, ok := res[0].ColumnValues[tsIdx].(time.Time)
+	require.True(t, ok)
+	require.Equal(t, time.UTC.String(), ts.Location().String())
 }
 
 func BenchmarkGenericParser(b *testing.B) {
@@ -472,27 +436,6 @@ func BenchmarkGenericParser(b *testing.B) {
 	} {
 		parser, err := parsers.NewParserFromMap(ParserConfigMap(testCase), false, logger.LoggerWithLevel(zapcore.WarnLevel), stats.NewSourceStats(metrics.NewRegistry()))
 		require.NoError(b, err)
-		genericParserImpl := GetGenericParserImpl(parser)
-		for _, size := range []int{1, 5, 10} {
-			d := samples.Data[testCase]
-			for i := 1; i < size; i++ {
-				d.Value = append(d.Value, []byte("\n")...)
-				d.Value = append(d.Value, d.Value...)
-			}
-			b.Run(fmt.Sprintf("Abstract2 %v %v", testCase, size), func(b *testing.B) {
-				b.ResetTimer()
-				for n := 0; n < b.N; n++ {
-					r := genericParserImpl.Parse(d, abstract.Partition{})
-					cntr := 0
-					for r.Next() {
-						cntr++
-					}
-					require.True(b, cntr > 0)
-				}
-				b.SetBytes(int64(len(d.Value) * b.N))
-				b.ReportAllocs()
-			})
-		}
 		for _, size := range []int{1, 5, 10} {
 			d := samples.Data[testCase]
 			for i := 1; i < size; i++ {
@@ -505,7 +448,7 @@ func BenchmarkGenericParser(b *testing.B) {
 					r := parser.Do(d, abstract.Partition{})
 					require.True(b, len(r) > 0)
 				}
-				b.SetBytes(int64(len(d.Value) * b.N))
+				b.SetBytes(int64(len(d.Value)))
 				b.ReportAllocs()
 			})
 		}
@@ -547,6 +490,14 @@ func TestParseVal(t *testing.T) {
 	require.NoError(t, err)
 
 	parser := GetGenericParserImpl(parserW)
+
+	// v.(uint64)
+
+	t.Run("uint32", func(t *testing.T) {
+		uint32Res, err := parser.ParseVal(uint64(1), schema.TypeUint32.String())
+		require.NoError(t, err)
+		require.Equal(t, uint32(0x1), uint32Res)
+	})
 
 	// v.(float64)
 

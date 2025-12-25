@@ -7,11 +7,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract/dterrors"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/dterrors"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/yt/go/yson"
 )
 
@@ -21,7 +21,7 @@ var (
 	_ yson.Marshaler   = (*ChangeItem)(nil)
 	_ yson.Unmarshaler = (*ChangeItem)(nil)
 
-	ysonEncoderOptions *yson.EncoderOptions = nil // for tests
+	ysonEncoderOptions *yson.EncoderOptions = nil // for tests // nolint:staticcheck
 )
 
 type ChangeItem struct {
@@ -60,10 +60,17 @@ type ChangeItem struct {
 	// There may be other specific cases in addition to the ones mentioned above. In any case, one must rely on TableSchema, not on the presence or absence of particular columns inside this field.
 	OldKeys OldKeysType
 
-	TxID string // this only valid for mysql so far, for now we will not store it in YT
+	Size EventSize // optional event size
 
-	Query string    // optional, can be filled only for items from mysql binlogs with binlog_rows_query_log_events enabled
-	Size  EventSize // optional event size
+	//------------------------------------------------------------------------------------------------------------------
+	// provider-specific things
+
+	// mysql-specific
+	TxID  string // this only valid for mysql so far, for now we will not store it in YT
+	Query string // optional, can be filled only for items from mysql binlogs with binlog_rows_query_log_events enabled
+
+	// queue-specific (filled only in queue-source)
+	QueueMessageMeta QueueMessageMeta
 }
 
 func (c *ChangeItem) IsTxDone() bool {
@@ -390,6 +397,18 @@ func (c *ChangeItem) SetTableID(tableID TableID) {
 	c.Table = tableID.Name
 }
 
+func (c *ChangeItem) FillQueueMessageMeta(
+	topicName string,
+	partitionNum int,
+	offset uint64,
+	index int,
+) {
+	c.QueueMessageMeta.TopicName = topicName
+	c.QueueMessageMeta.PartitionNum = partitionNum
+	c.QueueMessageMeta.Offset = offset
+	c.QueueMessageMeta.Index = index
+}
+
 func ChangeItemFromMap(input map[string]interface{}, schema *TableSchema, table string, kind string) ChangeItem {
 	cols := make([]string, len(schema.Columns()))
 	vals := make([]interface{}, len(schema.Columns()))
@@ -399,25 +418,26 @@ func ChangeItemFromMap(input map[string]interface{}, schema *TableSchema, table 
 	}
 
 	return ChangeItem{
-		ID:         0,
-		LSN:        0,
-		CommitTime: 0,
-		Counter:    0,
-		Schema:     "",
-		OldKeys: OldKeysType{
-			KeyNames:  nil,
-			KeyTypes:  nil,
-			KeyValues: nil,
-		},
-		TxID:         "",
+		ID:           0,
+		LSN:          0,
+		CommitTime:   0,
+		Counter:      0,
 		Kind:         Kind(kind),
+		Schema:       "",
 		Table:        table,
 		PartID:       "",
 		ColumnNames:  cols,
 		ColumnValues: vals,
 		TableSchema:  schema,
-		Query:        "",
-		Size:         EmptyEventSize(),
+		OldKeys: OldKeysType{
+			KeyNames:  nil,
+			KeyTypes:  nil,
+			KeyValues: nil,
+		},
+		Size:             EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 

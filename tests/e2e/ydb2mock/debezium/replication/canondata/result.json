@@ -1,1612 +1,6 @@
 {
     "replication.replication.TestCRUDOnAllSupportedModes": [
         {
-            "UPDATES-1": {
-                "columnnames": [
-                    "id",
-                    "Bool_",
-                    "Date_",
-                    "Datetime_",
-                    "Decimal_",
-                    "Double_",
-                    "DyNumber_",
-                    "Float_",
-                    "Int16_",
-                    "Int32_",
-                    "Int64_",
-                    "Int8_",
-                    "Interval_",
-                    "JsonDocument_",
-                    "Json_",
-                    "String_",
-                    "Timestamp_",
-                    "Uint16_",
-                    "Uint32_",
-                    "Uint64_",
-                    "Uint8_",
-                    "Utf8_"
-                ],
-                "columnvalues": [
-                    3,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-                ],
-                "commitTime": 0,
-                "id": 0,
-                "kind": "update",
-                "nextlsn": 0,
-                "oldkeys": {
-                    "keynames": [
-                        "id"
-                    ],
-                    "keytypes": [
-                        "stub"
-                    ],
-                    "keyvalues": [
-                        3
-                    ]
-                },
-                "part": "0",
-                "query": "",
-                "schema": "",
-                "table": "foo/my_table_UPDATES",
-                "table_schema": [
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": true,
-                        "name": "id",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Bool_",
-                        "original_type": "ydb:Bool",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "boolean"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int8_",
-                        "original_type": "ydb:Int8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int16_",
-                        "original_type": "ydb:Int16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int32_",
-                        "original_type": "ydb:Int32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int64_",
-                        "original_type": "ydb:Int64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint8_",
-                        "original_type": "ydb:Uint8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint16_",
-                        "original_type": "ydb:Uint16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint32_",
-                        "original_type": "ydb:Uint32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint64_",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Float_",
-                        "original_type": "ydb:Float",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "float"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Double_",
-                        "original_type": "ydb:Double",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "double"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Decimal_",
-                        "original_type": "ydb:Decimal",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "DyNumber_",
-                        "original_type": "ydb:DyNumber",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "String_",
-                        "original_type": "ydb:String",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "string"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Utf8_",
-                        "original_type": "ydb:Utf8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Json_",
-                        "original_type": "ydb:Json",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "JsonDocument_",
-                        "original_type": "ydb:JsonDocument",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Date_",
-                        "original_type": "ydb:Date",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "date"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Datetime_",
-                        "original_type": "ydb:Datetime",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "datetime"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Timestamp_",
-                        "original_type": "ydb:Timestamp",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "timestamp"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Interval_",
-                        "original_type": "ydb:Interval",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "interval"
-                    }
-                ],
-                "txPosition": 0,
-                "tx_id": ""
-            },
-            "UPDATES-2": {
-                "columnnames": [
-                    "id",
-                    "Bool_",
-                    "Date_",
-                    "Datetime_",
-                    "Decimal_",
-                    "Double_",
-                    "DyNumber_",
-                    "Float_",
-                    "Int16_",
-                    "Int32_",
-                    "Int64_",
-                    "Int8_",
-                    "Interval_",
-                    "JsonDocument_",
-                    "Json_",
-                    "String_",
-                    "Timestamp_",
-                    "Uint16_",
-                    "Uint32_",
-                    "Uint64_",
-                    "Uint8_",
-                    "Utf8_"
-                ],
-                "columnvalues": [
-                    4,
-                    true,
-                    "2020-02-02T00:00:00Z",
-                    "2020-02-02T10:02:22Z",
-                    "234.000000000",
-                    2.2,
-                    ".123e3",
-                    1.1,
-                    2,
-                    3,
-                    4,
-                    1,
-                    123000,
-                    {},
-                    {},
-                    "AQ==",
-                    "2020-02-02T10:02:22Z",
-                    6,
-                    7,
-                    8,
-                    5,
-                    "my_utf8_string"
-                ],
-                "commitTime": 0,
-                "id": 0,
-                "kind": "update",
-                "nextlsn": 1,
-                "oldkeys": {
-                    "keynames": [
-                        "id"
-                    ],
-                    "keytypes": [
-                        "stub"
-                    ],
-                    "keyvalues": [
-                        4
-                    ]
-                },
-                "part": "0",
-                "query": "",
-                "schema": "",
-                "table": "foo/my_table_UPDATES",
-                "table_schema": [
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": true,
-                        "name": "id",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Bool_",
-                        "original_type": "ydb:Bool",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "boolean"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int8_",
-                        "original_type": "ydb:Int8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int16_",
-                        "original_type": "ydb:Int16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int32_",
-                        "original_type": "ydb:Int32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int64_",
-                        "original_type": "ydb:Int64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint8_",
-                        "original_type": "ydb:Uint8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint16_",
-                        "original_type": "ydb:Uint16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint32_",
-                        "original_type": "ydb:Uint32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint64_",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Float_",
-                        "original_type": "ydb:Float",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "float"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Double_",
-                        "original_type": "ydb:Double",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "double"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Decimal_",
-                        "original_type": "ydb:Decimal",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "DyNumber_",
-                        "original_type": "ydb:DyNumber",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "String_",
-                        "original_type": "ydb:String",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "string"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Utf8_",
-                        "original_type": "ydb:Utf8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Json_",
-                        "original_type": "ydb:Json",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "JsonDocument_",
-                        "original_type": "ydb:JsonDocument",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Date_",
-                        "original_type": "ydb:Date",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "date"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Datetime_",
-                        "original_type": "ydb:Datetime",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "datetime"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Timestamp_",
-                        "original_type": "ydb:Timestamp",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "timestamp"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Interval_",
-                        "original_type": "ydb:Interval",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "interval"
-                    }
-                ],
-                "txPosition": 0,
-                "tx_id": ""
-            },
-            "UPDATES-3": {
-                "columnnames": [
-                    "id",
-                    "Bool_",
-                    "Date_",
-                    "Datetime_",
-                    "Decimal_",
-                    "Double_",
-                    "DyNumber_",
-                    "Float_",
-                    "Int16_",
-                    "Int32_",
-                    "Int64_",
-                    "Int8_",
-                    "Interval_",
-                    "JsonDocument_",
-                    "Json_",
-                    "String_",
-                    "Timestamp_",
-                    "Uint16_",
-                    "Uint32_",
-                    "Uint64_",
-                    "Uint8_",
-                    "Utf8_"
-                ],
-                "columnvalues": [
-                    4,
-                    true,
-                    "2020-02-02T00:00:00Z",
-                    "2020-02-02T10:02:22Z",
-                    "234.000000000",
-                    2.2,
-                    ".123e3",
-                    1.1,
-                    2,
-                    666,
-                    4,
-                    1,
-                    123000,
-                    {},
-                    {},
-                    "AQ==",
-                    "2020-02-02T10:02:22Z",
-                    6,
-                    7,
-                    8,
-                    5,
-                    "my_utf8_string"
-                ],
-                "commitTime": 0,
-                "id": 0,
-                "kind": "update",
-                "nextlsn": 2,
-                "oldkeys": {
-                    "keynames": [
-                        "id"
-                    ],
-                    "keytypes": [
-                        "stub"
-                    ],
-                    "keyvalues": [
-                        4
-                    ]
-                },
-                "part": "0",
-                "query": "",
-                "schema": "",
-                "table": "foo/my_table_UPDATES",
-                "table_schema": [
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": true,
-                        "name": "id",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Bool_",
-                        "original_type": "ydb:Bool",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "boolean"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int8_",
-                        "original_type": "ydb:Int8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int16_",
-                        "original_type": "ydb:Int16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int32_",
-                        "original_type": "ydb:Int32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int64_",
-                        "original_type": "ydb:Int64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint8_",
-                        "original_type": "ydb:Uint8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint16_",
-                        "original_type": "ydb:Uint16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint32_",
-                        "original_type": "ydb:Uint32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint64_",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Float_",
-                        "original_type": "ydb:Float",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "float"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Double_",
-                        "original_type": "ydb:Double",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "double"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Decimal_",
-                        "original_type": "ydb:Decimal",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "DyNumber_",
-                        "original_type": "ydb:DyNumber",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "String_",
-                        "original_type": "ydb:String",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "string"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Utf8_",
-                        "original_type": "ydb:Utf8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Json_",
-                        "original_type": "ydb:Json",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "JsonDocument_",
-                        "original_type": "ydb:JsonDocument",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Date_",
-                        "original_type": "ydb:Date",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "date"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Datetime_",
-                        "original_type": "ydb:Datetime",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "datetime"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Timestamp_",
-                        "original_type": "ydb:Timestamp",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "timestamp"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Interval_",
-                        "original_type": "ydb:Interval",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "interval"
-                    }
-                ],
-                "txPosition": 0,
-                "tx_id": ""
-            },
-            "UPDATES-4": {
-                "columnnames": [
-                    "id",
-                    "Bool_",
-                    "Int16_",
-                    "Int32_",
-                    "Int8_"
-                ],
-                "columnvalues": [
-                    4,
-                    true,
-                    2,
-                    777,
-                    1
-                ],
-                "commitTime": 0,
-                "id": 0,
-                "kind": "update",
-                "nextlsn": 3,
-                "oldkeys": {
-                    "keynames": [
-                        "id"
-                    ],
-                    "keytypes": [
-                        "stub"
-                    ],
-                    "keyvalues": [
-                        4
-                    ]
-                },
-                "part": "0",
-                "query": "",
-                "schema": "",
-                "table": "foo/my_table_UPDATES",
-                "table_schema": [
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": true,
-                        "name": "id",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Bool_",
-                        "original_type": "ydb:Bool",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "boolean"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int8_",
-                        "original_type": "ydb:Int8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int16_",
-                        "original_type": "ydb:Int16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int32_",
-                        "original_type": "ydb:Int32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int64_",
-                        "original_type": "ydb:Int64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint8_",
-                        "original_type": "ydb:Uint8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint16_",
-                        "original_type": "ydb:Uint16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint32_",
-                        "original_type": "ydb:Uint32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint64_",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Float_",
-                        "original_type": "ydb:Float",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "float"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Double_",
-                        "original_type": "ydb:Double",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "double"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Decimal_",
-                        "original_type": "ydb:Decimal",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "DyNumber_",
-                        "original_type": "ydb:DyNumber",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "String_",
-                        "original_type": "ydb:String",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "string"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Utf8_",
-                        "original_type": "ydb:Utf8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Json_",
-                        "original_type": "ydb:Json",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "JsonDocument_",
-                        "original_type": "ydb:JsonDocument",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Date_",
-                        "original_type": "ydb:Date",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "date"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Datetime_",
-                        "original_type": "ydb:Datetime",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "datetime"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Timestamp_",
-                        "original_type": "ydb:Timestamp",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "timestamp"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Interval_",
-                        "original_type": "ydb:Interval",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "interval"
-                    }
-                ],
-                "txPosition": 0,
-                "tx_id": ""
-            },
-            "UPDATES-5": {
-                "columnnames": null,
-                "commitTime": 0,
-                "id": 0,
-                "kind": "delete",
-                "nextlsn": 4,
-                "oldkeys": {
-                    "keynames": [
-                        "id"
-                    ],
-                    "keytypes": [
-                        "stub"
-                    ],
-                    "keyvalues": [
-                        1
-                    ]
-                },
-                "part": "0",
-                "query": "",
-                "schema": "",
-                "table": "foo/my_table_UPDATES",
-                "table_schema": [
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": true,
-                        "name": "id",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Bool_",
-                        "original_type": "ydb:Bool",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "boolean"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int8_",
-                        "original_type": "ydb:Int8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int16_",
-                        "original_type": "ydb:Int16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int32_",
-                        "original_type": "ydb:Int32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Int64_",
-                        "original_type": "ydb:Int64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "int64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint8_",
-                        "original_type": "ydb:Uint8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint16_",
-                        "original_type": "ydb:Uint16",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint16"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint32_",
-                        "original_type": "ydb:Uint32",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint32"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Uint64_",
-                        "original_type": "ydb:Uint64",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "uint64"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Float_",
-                        "original_type": "ydb:Float",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "float"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Double_",
-                        "original_type": "ydb:Double",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "double"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Decimal_",
-                        "original_type": "ydb:Decimal",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "DyNumber_",
-                        "original_type": "ydb:DyNumber",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "String_",
-                        "original_type": "ydb:String",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "string"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Utf8_",
-                        "original_type": "ydb:Utf8",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "utf8"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Json_",
-                        "original_type": "ydb:Json",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "JsonDocument_",
-                        "original_type": "ydb:JsonDocument",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "any"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Date_",
-                        "original_type": "ydb:Date",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "date"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Datetime_",
-                        "original_type": "ydb:Datetime",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "datetime"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Timestamp_",
-                        "original_type": "ydb:Timestamp",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "timestamp"
-                    },
-                    {
-                        "expression": "",
-                        "fake_key": false,
-                        "key": false,
-                        "name": "Interval_",
-                        "original_type": "ydb:Interval",
-                        "path": "",
-                        "required": false,
-                        "table_name": "",
-                        "table_schema": "",
-                        "type": "interval"
-                    }
-                ],
-                "txPosition": 0,
-                "tx_id": ""
-            }
-        },
-        {
             "NEW_IMAGE-1": {
                 "columnnames": [
                     "id",
@@ -1630,10 +24,12 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     3,
+                    null,
                     null,
                     null,
                     null,
@@ -1891,6 +287,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",
@@ -1967,7 +375,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -1991,7 +400,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -2233,6 +643,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -2304,7 +726,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -2328,7 +751,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -2570,6 +994,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -2641,7 +1077,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -2665,7 +1102,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -2902,6 +1340,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",
@@ -3197,6 +1647,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -3270,10 +1732,12 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     3,
+                    null,
                     null,
                     null,
                     null,
@@ -3536,6 +2000,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -3607,7 +2083,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -3631,7 +2108,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -3873,6 +2351,18 @@
                         "expression": "",
                         "fake_key": false,
                         "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
                         "name": "Date_",
                         "original_type": "ydb:Date",
                         "path": "",
@@ -3944,7 +2434,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -3968,7 +2459,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -3997,9 +2489,11 @@
                         "Uint32_",
                         "Uint64_",
                         "Uint8_",
-                        "Utf8_"
+                        "Utf8_",
+                        "Uuid_"
                     ],
                     "keytypes": [
+                        "stub",
                         "stub",
                         "stub",
                         "stub",
@@ -4045,7 +2539,8 @@
                         7,
                         8,
                         5,
-                        "my_utf8_string"
+                        "my_utf8_string",
+                        "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                     ]
                 },
                 "part": "0",
@@ -4268,6 +2763,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",
@@ -4344,7 +2851,8 @@
                     "Uint32_",
                     "Uint64_",
                     "Uint8_",
-                    "Utf8_"
+                    "Utf8_",
+                    "Uuid_"
                 ],
                 "columnvalues": [
                     4,
@@ -4368,7 +2876,8 @@
                     7,
                     8,
                     5,
-                    "my_utf8_string"
+                    "my_utf8_string",
+                    "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                 ],
                 "commitTime": 0,
                 "id": 0,
@@ -4397,9 +2906,11 @@
                         "Uint32_",
                         "Uint64_",
                         "Uint8_",
-                        "Utf8_"
+                        "Utf8_",
+                        "Uuid_"
                     ],
                     "keytypes": [
+                        "stub",
                         "stub",
                         "stub",
                         "stub",
@@ -4445,7 +2956,8 @@
                         7,
                         8,
                         5,
-                        "my_utf8_string"
+                        "my_utf8_string",
+                        "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                     ]
                 },
                 "part": "0",
@@ -4668,6 +3180,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",
@@ -4750,9 +3274,11 @@
                         "Uint32_",
                         "Uint64_",
                         "Uint8_",
-                        "Utf8_"
+                        "Utf8_",
+                        "Uuid_"
                     ],
                     "keytypes": [
+                        "stub",
                         "stub",
                         "stub",
                         "stub",
@@ -4798,7 +3324,8 @@
                         7,
                         8,
                         5,
-                        "my_utf8_string"
+                        "my_utf8_string",
+                        "6af014ea-29dd-401c-a7e3-68a58305f4fb"
                     ]
                 },
                 "part": "0",
@@ -5021,6 +3548,18 @@
                         "table_name": "",
                         "table_schema": "",
                         "type": "any"
+                    },
+                    {
+                        "expression": "",
+                        "fake_key": false,
+                        "key": false,
+                        "name": "Uuid_",
+                        "original_type": "ydb:Uuid",
+                        "path": "",
+                        "required": false,
+                        "table_name": "",
+                        "table_schema": "",
+                        "type": "utf8"
                     },
                     {
                         "expression": "",

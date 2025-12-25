@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -54,7 +54,7 @@ func (s *statistician) Close() error {
 
 func (s *statistician) Push(input []abstract.ChangeItem) error {
 	startTime := time.Now()
-	s.stats.LogMaxReadLag(input)
+	s.stats.LogMaxReadLag(s.logger, input)
 	err := s.sink.Push(input)
 	s.ticker.Reset(s.NoLagForTooLongThreshold)
 	if err == nil {

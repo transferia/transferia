@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	abstract "github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	abstract "github.com/transferia/transferia/pkg/abstract"
 )
 
 func TestRandomParseDelayWithEnsure(t *testing.T) {

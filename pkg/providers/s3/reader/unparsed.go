@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers/generic"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/providers/s3"
 )
 
-func handleParseError(
+func HandleParseError(
 	tableID abstract.TableID,
 	unparsedPolicy s3.UnparsedPolicy,
 	filePath string,

@@ -3,7 +3,7 @@ package abstract
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func ValidateChangeItem(changeItem *ChangeItem) error {

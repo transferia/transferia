@@ -11,6 +11,8 @@ type Set[T comparable] struct {
 	values map[T]struct{}
 }
 
+var _ AbstractSet[int] = (*Set[int])(nil)
+
 func New[T comparable](values ...T) *Set[T] {
 	result := &Set[T]{values: make(map[T]struct{}, len(values))}
 	result.Add(values...)
@@ -84,7 +86,7 @@ func (s *Set[T]) SortedSliceFunc(less func(a, b T) bool) []T {
 }
 
 // Without returns slice representing elements of current Set without elements of input.
-func (s *Set[T]) Without(toExclude *Set[T]) []T {
+func (s *Set[T]) Without(toExclude AbstractSet[T]) []T {
 	var result []T
 	for value := range s.values {
 		if !toExclude.Contains(value) {
@@ -94,12 +96,12 @@ func (s *Set[T]) Without(toExclude *Set[T]) []T {
 	return result
 }
 
-func (s *Set[T]) Equals(o *Set[T]) bool {
+func (s *Set[T]) Equals(o AbstractSet[T]) bool {
 	if s.Len() != o.Len() {
 		return false
 	}
 	for v := range s.values {
-		if _, ok := o.values[v]; !ok {
+		if !o.Contains(v) {
 			return false
 		}
 	}

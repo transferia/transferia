@@ -3,10 +3,11 @@ package postgres
 import (
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors/coded"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -29,7 +30,7 @@ func VerifyPostgresTables(src *PgSource, transfer *model.Transfer, lgr log.Logge
 		return xerrors.Errorf("unable to create storage: %w", err)
 	}
 	defer storage.Close()
-	tables, err := storage.TableList(nil)
+	tables, err := storage.TableListWithoutSkips(nil)
 	if err != nil {
 		return xerrors.Errorf("unable to get table map from storage: %w", err)
 	}
@@ -70,7 +71,7 @@ func VerifyPostgresTables(src *PgSource, transfer *model.Transfer, lgr log.Logge
 		return xerrors.Errorf("Tables not found. Missed: %v", missed)
 	}
 	if noKeysTables := exist.NoKeysTables(); len(noKeysTables) > 0 {
-		return coded.Errorf(NoPrimaryKeyCode, "unable to check primary keys: %v", noKeysTables)
+		return coded.Errorf(codes.PostgresNoPrimaryKeyCode, "unable to check primary keys: %v", noKeysTables)
 	}
 	return nil
 }

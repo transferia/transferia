@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/transformer"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 )
@@ -27,22 +27,25 @@ func init() {
 			return nil, xerrors.Errorf("unable to create tables filter: %w", err)
 		}
 		return &ToStringTransformer{
-			Columns: clms,
-			Tables:  tbls,
-			Logger:  lgr,
+			Columns:        clms,
+			Tables:         tbls,
+			ConvertToBytes: cfg.ConvertToBytes,
+			Logger:         lgr,
 		}, nil
 	})
 }
 
 type Config struct {
-	Columns filter.Columns `json:"columns"`
-	Tables  filter.Tables  `json:"tables"`
+	Columns        filter.Columns `json:"columns"`
+	Tables         filter.Tables  `json:"tables"`
+	ConvertToBytes bool           `json:"convert_to_bytes"`
 }
 
 type ToStringTransformer struct {
-	Columns filter.Filter
-	Tables  filter.Filter
-	Logger  log.Logger
+	Columns        filter.Filter
+	Tables         filter.Filter
+	ConvertToBytes bool
+	Logger         log.Logger
 }
 
 func (f *ToStringTransformer) Type() abstract.TransformerType {
@@ -59,14 +62,23 @@ func (f *ToStringTransformer) Apply(input []abstract.ChangeItem) abstract.Transf
 			newTableSchema[i] = item.TableSchema.Columns()[i]
 			if f.Columns.Match(item.TableSchema.Columns()[i].ColumnName) {
 				oldTypes[item.TableSchema.Columns()[i].ColumnName] = item.TableSchema.Columns()[i].DataType
-				newTableSchema[i].DataType = schema.TypeString.String()
+				newType := schema.TypeString
+				if f.ConvertToBytes {
+					newType = schema.TypeBytes
+				}
+				newTableSchema[i].DataType = string(newType)
 			}
 		}
 
 		newValues := make([]interface{}, len(item.ColumnValues))
 		for i, columnName := range item.ColumnNames {
 			if f.Columns.Match(columnName) {
-				newValues[i] = SerializeToString(item.ColumnValues[i], oldTypes[columnName])
+				stringValue := SerializeToString(item.ColumnValues[i], oldTypes[columnName])
+				if f.ConvertToBytes {
+					newValues[i] = []byte(stringValue)
+				} else {
+					newValues[i] = stringValue
+				}
 			} else {
 				newValues[i] = item.ColumnValues[i]
 			}
@@ -97,10 +109,15 @@ func (f *ToStringTransformer) Suitable(table abstract.TableID, schema *abstract.
 }
 
 func (f *ToStringTransformer) ResultSchema(original *abstract.TableSchema) (*abstract.TableSchema, error) {
-	result := make([]abstract.ColSchema, 0)
-	for _, col := range original.Columns() {
-		if f.Columns.Match(col.ColumnName) {
-			result = append(result, col)
+	result := original.Columns().Copy()
+	for i, col := range result {
+		if !f.Columns.Match(col.ColumnName) {
+			continue
+		}
+		if f.ConvertToBytes {
+			result[i].DataType = schema.TypeBytes.String()
+		} else {
+			result[i].DataType = schema.TypeString.String()
 		}
 	}
 	return abstract.NewTableSchema(result), nil

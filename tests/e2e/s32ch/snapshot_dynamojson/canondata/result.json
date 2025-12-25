@@ -1,5 +1,5 @@
 {
-    "snapshot_dynamojson.snapshot_dynamojson.TestNativeS3": {
-        "uri": "file://snapshot_dynamojson.snapshot_dynamojson.TestNativeS3/extracted"
+    "snapshot_dynamojson.snapshot_dynamojson.TestAll": {
+        "uri": "file://snapshot_dynamojson.snapshot_dynamojson.TestAll/extracted"
     }
 }

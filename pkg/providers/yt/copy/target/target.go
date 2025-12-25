@@ -6,15 +6,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/base"
-	baseevent "github.com/doublecloud/transfer/pkg/base/events"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/pkg/providers/yt/copy/events"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/pool"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/base"
+	baseevent "github.com/transferia/transferia/pkg/base/events"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/copy/events"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/worker_pool"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -25,7 +26,7 @@ type YtCopyTarget struct {
 	cfg        *yt_provider.YtCopyDestination
 	yt         yt.Client
 	snapshotTX yt.Tx
-	pool       pool.Pool
+	pool       worker_pool.WorkerPool
 	logger     log.Logger
 	metrics    metrics.Registry
 	transferID string
@@ -68,7 +69,8 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 
 	if _, err := task.yt.CreateNode(ctx, outYPath, yt.NodeTable, &yt.CreateNodeOptions{
 		Recursive:      true,
-		IgnoreExisting: true,
+		IgnoreExisting: t.cfg.Cleanup != model.Drop,
+		Force:          t.cfg.Cleanup == model.Drop,
 	}); err != nil {
 		return xerrors.Errorf("error creating (if not exists) node %s: %w", outYPath.YPath().String(), err)
 	}
@@ -205,7 +207,7 @@ func NewTarget(logger log.Logger, metrics metrics.Registry, cfg *yt_provider.YtC
 		metrics:    metrics,
 		transferID: transferID,
 	}
-	t.pool = pool.NewDefaultPool(func(in interface{}) {
+	t.pool = worker_pool.NewDefaultWorkerPool(func(in interface{}) {
 		task, ok := in.(copyTask)
 		if !ok {
 			task.onFinish(xerrors.Errorf("unknown task type %T", in))

@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/mysql"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	mysql_client "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
@@ -30,11 +30,11 @@ var (
 		Port:     helpers.GetIntFromEnv("RECIPE_MYSQL_PORT"),
 	}
 	Target = mysql.MysqlDestination{
-		Host:          os.Getenv("RECIPE_MYSQL_HOST"),
-		User:          os.Getenv("RECIPE_MYSQL_USER"),
-		Password:      model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
-		Database:      os.Getenv("RECIPE_MYSQL_TARGET_DATABASE"),
-		Port:          helpers.GetIntFromEnv("RECIPE_MYSQL_PORT"),
+		Host:          os.Getenv("TARGET_RECIPE_MYSQL_HOST"),
+		User:          os.Getenv("TARGET_RECIPE_MYSQL_USER"),
+		Password:      model.SecretString(os.Getenv("TARGET_RECIPE_MYSQL_PASSWORD")),
+		Database:      os.Getenv("TARGET_RECIPE_MYSQL_TARGET_DATABASE"),
+		Port:          helpers.GetIntFromEnv("TARGET_RECIPE_MYSQL_PORT"),
 		SkipKeyChecks: false,
 	}
 )

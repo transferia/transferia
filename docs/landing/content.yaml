@@ -1,0 +1,333 @@
+meta:
+  title: Transfer - Cloud Native Ingestion engine
+  description: >-
+    A simple and efficient solution will help you build end-to-end analytics
+    based on data from the most popular advertisement platforms like Facebook
+    ads, Google ads, Linkedin ads, and many others
+  sharing:
+    title: Transfer - Cloud Native Ingestion engine
+    description: >-
+      A simple and efficient solution will help you build end-to-end analytics
+      based on data from the most popular advertisement platforms like Facebook
+      ads, Google ads, Linkedin ads, and many others
+    image: /assets/doublecloud/services/website-sharing-datatransfer.png
+    keywords:
+      - DoubleCloud
+      - etl
+      - connector
+      - dmbs
+blocks:
+  - type: header-block
+    title: Data Transfer
+    description: >-
+      DoubleCloud gives you a simple, no-code data integration solution to
+      extract, load, and transform your data. Whether you want to migrate to a
+      cloud, replicate your data or optimize it for real-time analytics, we have
+      just the tool for that.
+    verticalOffset: m
+    width: s
+    imageSize: m
+    background:
+      fullWidth: false
+      color: '#000'
+      image:
+        src: /assets/doublecloud/services/transfer-service-new-header.png
+        fetchPriority: high
+    buttons:
+      - text: Documentation
+        theme: normal
+        size: promo
+        url: /docs/en/transfers/
+  - type: media-block
+    indent:
+      top: xs
+    mediaOnly: true
+    title: ''
+    description: ''
+    border: none
+    largeMedia: true
+    media:
+      image:
+        desktop: >-
+          /assets/doublecloud/services/card-layout-block-trasnfer-service-horizontal-2.png
+        tablet: >-
+          /assets/doublecloud/services/card-layout-block-trasnfer-service-horizontal-2.png
+        mobile: >-
+          /assets/doublecloud/services/card-layout-block-trasnfer-service-vertical-2.png
+  - type: media-block
+    indent:
+      top: xs
+    mediaOnly: true
+    title: You control the flow
+    description: Move your data in any arrangement
+    border: none
+    largeMedia: true
+    media:
+      image: >-
+        /assets/doublecloud/services/transfer-service-doublecloud-architecture-4.png
+  - type: media-block
+    mediaOnly: true
+    title: Better performance for a fraction of the cost
+    description: Compare DoubleCloud prices to other popular solutions
+    border: none
+    largeMedia: true
+    media:
+      image: /assets/doublecloud/services/transfer-cost-comparison-6.png
+  - type: content-layout-block
+    background:
+      src: /assets/doublecloud/services/transfer-service-clickhouse-cta.png
+      style:
+        backgroundColor: '#252B2B'
+    centered: false
+    textContent:
+      title: ClickHouse-native tool at your service
+      text: >-
+        DoubleCloud’s Data Transfer is the best tool on the market for moving
+        data to and from ClickHouse. With us, you can do it fast, scale easily,
+        and make snapshots. Our service is built for scale, which is reflected
+        in price and performance. Why ClickHouse? If you use relational
+        databases like PostgreSQL and want to build customer-facing or any other
+        real-time analytics, ClickHouse is an ideal destination for your data.
+        Check out our [Data Transfer
+        webinar](https://youtu.be/XU4xbC0TGcw){target="_blank"} for more
+        details.
+  - type: card-layout-block
+    title: Features and benefits
+    description: >-
+      We ensure quick and efficient data transferring with speeds [**9x faster
+      than
+      Airbyte**](https://double.cloud/blog/posts/2023/11/native-s3-connector-vs-airbyte-s3-connector/)
+      and smooth integration with your existing infrastructure. More of what
+      DoubleCloud offers:
+    children:
+      - type: image-card
+        title: Seamless scaling
+        text: >-
+          Scaling at up to **20 GB/s** without compromising data integrity. Data
+          Transfer is highly optimized for ingesting data into ClickHouse and
+          exporting data from it quickly.
+        image: /assets/doublecloud/services/transfer-service-card-1.png
+      - type: image-card
+        title: Easy ELT pipelines management
+        text: >-
+          Automated deployment and management of your data pipelines with full
+          control using
+          [Terraform](https://registry.terraform.io/providers/doublecloud/doublecloud/latest)
+          or
+          [API](https://double.cloud/docs/en/public-api/api-reference/transfer/).
+      - type: image-card
+        title: A wide range of connectors
+        text: >-
+          for popular databases like ClickHouse, MySQL, PostgreSQL, MongoDB,
+          Snowflake, Elasticsearch, Oracle, BigQuery, and many others.
+        image: /assets/doublecloud/services/transfer-service-card-2.png
+      - type: image-card
+        title: CDC for OLTP databases
+        text: >-
+          Simple and efficient real-time data synchronization (change data
+          capture) between external sources and DoubleCloud.
+      - type: image-card
+        title: Compatible with various SaaS sources
+        text: Google, Meta, Linkedin, Amazon ads, and more.
+        image: /assets/doublecloud/services/transfer-service-card-6.png
+      - type: image-card
+        title: Logs and metrics integration
+        text: >-
+          Utilize Transfer to ingest data from different sources to and from
+          Apache Kafka, pulling metrics and logs to your observability platforms
+          like Prometheus, Datadog, and CloudWatch.
+        image: /assets/doublecloud/services/transfer-service-card-4.png
+      - type: image-card
+        title: dbt transformations
+        text: >-
+          Effortlessly transform, clean, and summarize data for analysis.
+          Simplify data modeling and enhance team collaboration with dbt
+          integration.
+        image: /assets/doublecloud/services/transfer-service-card-5.png
+      - type: image-card
+        title: Fault tolerance
+        text: >-
+          Designed to reliably handle failures, Transfer automatically retries
+          operations, maintaining data integrity and continuity.
+      - type: image-card
+        title: Dedicated transfer mode
+        text: >-
+          Secure, predictable performance on isolated instances fully compliant
+          with key industry standards, such as ISO 27001, SOC 2, GDPR.
+  - type: content-layout-block
+    textContent:
+      title: Predictable, transparent pricing
+      text: >-
+        You pay nothing for traffic, DoubleCloud charges only for the number of
+        rows processed. We offer progressive discounts of up to 85% per million
+        rows, which makes our prices pretty spectacular, especially for larger
+        tables. Additionally, you can take advantage of commited use discounts —
+        [contact us](https://double.cloud/#contact-us-form) to learn more.
+  - type: calculator
+    service: transfer
+  - type: tabs-block
+    indent:
+      top: s
+      bottom: s
+    title: |-
+      Add best-in-class managed <br>
+      open-source services to the mix
+    description: >-
+      DoubleCloud has everything you need to build modern, powerful analytics at
+      scale. Combine Data Transfer with other fully managed DoubleCloud services
+      to build a truly powerful solution that covers typical scenarios of
+      working with data.
+    items:
+      - tabName: Data warehouse
+        title: Data warehouse
+        text: >-
+          Ingest and transform your data with Data Transfer, use Managed Service
+          for ClickHouse to integrate or aggregate data, and build charts
+          quickly with our free Data Visualization service.
+        media:
+          image: /assets/doublecloud/services/doublecloud-transfer-clickhouse-1-3.png
+      - tabName: CDC streaming
+        title: CDC streaming
+        text: >-
+          Build an event-driven architecture using our Managed Service for
+          Apache Kafka. Our Data Transfer tool has a variety of source and
+          target connectors that allow you to set up CDC event streaming to
+          deliver changes in your data wherever you need them in real time.
+        media:
+          image: /assets/doublecloud/services/doublecloud-transfer-kafka-2-3.png
+      - tabName: Extract, Load, Transform
+        title: Extract, Load, Transform
+        text: >-
+          Set up your data pipeline powered by Data Transfer’s data extraction
+          and transformation capabilities. Use our fully managed ClickHouse as a
+          storage and utilize Apache Airflow to automate and manage all your
+          workflows.
+        media:
+          image: /assets/doublecloud/services/doublecloud-transfer-airflow-3-3.png
+      - tabName: Real-time analytics
+        title: Real-time analytics
+        text: >-
+          The DoubleCloud platform is built for creating efficient real-time
+          analytics. Use Data Transfer to connect your Kafka event streams to
+          ClickHouse, one of the fastest databases for analytics. Top it up with
+          our free Data Visualization tool to create dashboards in an instant,
+          and use embedded analytics to integrate charts into your application
+          easily.
+        media:
+          image: /assets/doublecloud/services/doublecloud-transfer-viz-4-3.png
+  - type: card-layout-block
+    title: Go deeper in our blog
+    description: Check out the latest insights from our Data Transfer team
+    children:
+      - type: layout-item
+        controlPosition: footer
+        content:
+          title: Native S3 connector vs. Airbyte S3 connector
+          text: 'Written by: Eraldo Jaku, DoubleCloud Senior Backend Engineer'
+          buttons:
+            - text: Read more
+              theme: normal
+              url: /blog/posts/2023/11/native-s3-connector-vs-airbyte-s3-connector/
+        media:
+          image: >-
+            /assets/blog/articles/native-s3-connector-vs-airbyte-s3-connector-index.png
+        fullScreen: false
+        metaInfo:
+          - Insights
+      - type: layout-item
+        controlPosition: footer
+        content:
+          title: >-
+            CDC: from zero to hero. What is change data capture and how to
+            implement it
+          text: 'Written by: Andrei Tserakhau, DoubleCloud Tech Lead'
+          buttons:
+            - text: Read more
+              theme: normal
+              url: /blog/posts/2023/09/cdc-from-zero-to-hero/
+        media:
+          image: /assets/blog/articles/cdc-from-zero-to-hero-index.jpg
+        fullScreen: false
+        metaInfo:
+          - Insights
+      - type: layout-item
+        controlPosition: footer
+        content:
+          title: >-
+            An experimental approach to migrating from ElasticSearch to
+            ClickHouse quickly
+          text: 'Written by: Eraldo Jaku, DoubleCloud Senior Backend Engineer'
+          buttons:
+            - text: Read more
+              theme: normal
+              url: /blog/posts/2023/10/migrate-from-elasticsearch-to-clickhouse/
+        media:
+          image: >-
+            /assets/blog/articles/migrate-from-elasticsearch-to-clickhouse-index.png
+        fullScreen: false
+        metaInfo:
+          - Insights
+  - type: questions-block
+    title: Frequently asked questions
+    items:
+      - title: What's the difference between serverless and dedicated mode?
+        text: >-
+          In serverless mode, you don't need to pay attention to how many worker
+          nodes are working and you don't need to adjust that number manually.
+          DoubleCloud Transfer will automatically scale up and scale out the
+          mode depending on the amount of data you have at your source.
+          Dedicated mode is when you need extra security and isolation from
+          other customers. Also, in that mode, you can establish VPC peering
+          with other AWS accounts. You will have dedicated virtual machines
+          under the hood for use only for you in that mode.
+      - title: What type of synchronization/transfer do you support?
+        text: |
+          DoubleCloud Transfer supports three modes of synchronization:
+          - Full snapshot
+          - Log-based replication or CDC (Change data capture)
+          - Key-based replication
+          - Snapshot + log-based replication
+      - title: >-
+          How can I avoid transferring data from my AWS account via the
+          internet?
+        text: >-
+          You can do so by setting up VPC peering in the DoubleCloud console,
+          and using DoubleCloud Transfer in dedicated mode.
+      - title: Does DoubleCloud provide a public API?
+        text: >-
+          We provide the ability to deploy, modify, and manage all four of our
+          services, including creating and deploying charts and dashboards via
+          an API, which is available through the Python SDK, GO SDK or directly
+          through gRPC.
+        link:
+          url: /docs/en/public-api/
+          text: Learn more
+          theme: normal
+          arrow: true
+      - title: Which modes support automatic scaling?
+        text: >-
+          Serverless mode supports automatic scaling, whereas scaling in
+          dedicated mode is manual.
+      - title: What is Change Data Capture? Does DoubleCloud Transfer support it?
+        text: >-
+          In databases, Change Data Capture is a set of software design patterns
+          used to determine and track data that has changed, so that actions can
+          be taken using the changed data. 
+
+
+          DoubleCloud Transfer supports Change Data Capture, but only for
+          sources that support that on their side, e.g. PostgreSQL, MySQL,
+          MongoDB, and others.
+      - title: What is VPC Peering?
+        text: >-
+          VPC Peering is a networking connection between two VPCs that enables
+          you to route traffic between them both using private IPv4 addresses or
+          IPv6 addresses.
+      - title: How does key-based replication work?
+        text: >-
+          Key-based replication is a method in which a column called a
+          Replication Key is used to identify new and updated data.
+      - title: What is snapshot replication?
+        text: >-
+          Snapshot replication distributes data exactly as it appears at a
+          specific moment in time and does not monitor for updates to the data.

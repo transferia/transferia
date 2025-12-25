@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -29,6 +29,8 @@ func (sa *stubAgent) RunPusher(ctx context.Context, interval time.Duration) erro
 func (sa *stubAgent) Stop() error {
 	return nil
 }
+
+func (sa *stubAgent) WithStats(stats *MeteringStats) {}
 
 func NewStubAgent(lgr log.Logger) MeteringAgent {
 	return &stubAgent{

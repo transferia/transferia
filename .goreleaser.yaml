@@ -1,0 +1,64 @@
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+project_name: "transfer"
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    main: ./cmd/trcli
+    binary: trcli
+
+archives:
+  - formats: ["tar.gz"]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Os }}_
+      {{- .Arch }}
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  github:
+    owner: "transferia"
+    name: "transferia"
+
+  name_template: "{{.ProjectName}}-v{{.Version}}"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/transferia/transferia:{{.Version}}-amd64"
+    goos: linux
+    goarch: amd64
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+  - image_templates:
+      - "ghcr.io/transferia/transferia:{{.Version}}-arm64"
+    goos: linux
+    goarch: arm64
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm64"
+docker_manifests:
+  - name_template: "ghcr.io/transferia/transferia:{{.Version}}"
+    image_templates:
+      - "ghcr.io/transferia/transferia:{{.Version}}-amd64"
+      - "ghcr.io/transferia/transferia:{{.Version}}-arm64"

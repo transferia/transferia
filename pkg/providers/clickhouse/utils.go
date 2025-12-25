@@ -2,16 +2,18 @@ package clickhouse
 
 import (
 	"database/sql"
+	"fmt"
 	"net"
 	"reflect"
 	"strings"
 	"time"
 	"unsafe"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 )
 
 func InitValuesForScan(rows *sql.Rows) ([]interface{}, error) {
@@ -281,4 +283,20 @@ func IsColVirtual(colSchema abstract.ColSchema) bool {
 
 func ColumnShouldBeSelected(col abstract.ColSchema, isHomo bool) bool {
 	return (!isHomo) || (isHomo && !IsColVirtual(col))
+}
+
+func ShardsToString(shards map[string][]*clickhouse.Host) string {
+	shardsToString := make(map[string]string, len(shards))
+	for shard, hosts := range shards {
+		shardsToString[shard] = HostsToString(hosts)
+	}
+	return fmt.Sprintf("%v", shardsToString)
+}
+
+func HostsToString(hosts []*clickhouse.Host) string {
+	hostsToString := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		hostsToString = append(hostsToString, host.String())
+	}
+	return fmt.Sprintf("%v", hostsToString)
 }

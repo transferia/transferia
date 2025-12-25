@@ -8,26 +8,27 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/tests/canon/validator"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
+	"github.com/transferia/transferia/tests/canon/validator"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func TestUnsopportedData(t *testing.T) {
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 	absPath, err := filepath.Abs("unsupported_data")
 	require.NoError(t, err)
 	files, err := os.ReadDir(absPath)
 	require.NoError(t, err)
-	src := s3.PrepareCfg(t, "canon-parquet-bad", "")
+	src := s3recipe.PrepareCfg(t, "canon-parquet-bad", "")
 	testCasePath := "data"
 	src.PathPrefix = testCasePath
-	s3.CreateBucket(t, src)
-	s3.PrepareTestCase(t, src, "data")
+	s3recipe.CreateBucket(t, src)
+	s3recipe.PrepareTestCase(t, src, "data")
 	for _, file := range files {
 		t.Run(file.Name(), func(t *testing.T) {
 			src.TableNamespace = "s3_source_parquet"
@@ -82,16 +83,16 @@ func (r *rowsCutter) Push(items []abstract.ChangeItem) error {
 }
 
 func TestCanonSource(t *testing.T) {
-	_ = os.Setenv("YC", "1") // to not go to vanga
+	t.Setenv("YC", "1") // to not go to vanga
 	absPath, err := filepath.Abs("data")
 	require.NoError(t, err)
 	files, err := os.ReadDir(absPath)
 	require.NoError(t, err)
-	src := s3.PrepareCfg(t, "canon-parquet", "")
+	src := s3recipe.PrepareCfg(t, "canon-parquet", "")
 	testCasePath := "data"
 	src.PathPrefix = testCasePath
-	s3.CreateBucket(t, src)
-	s3.PrepareTestCase(t, src, "data")
+	s3recipe.CreateBucket(t, src)
+	s3recipe.PrepareTestCase(t, src, "data")
 
 	for _, file := range files {
 		t.Run(file.Name(), func(t *testing.T) {

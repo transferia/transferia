@@ -12,6 +12,7 @@ type YtTableMeta struct {
 	Prefix     string
 	Name       string
 	RowCount   int64
+	Columns    []string
 	NodeID     *yt.NodeID
 	DataWeight int64
 }
@@ -28,12 +29,13 @@ func (t *YtTableMeta) OriginalYPath() ypath.YPath {
 	return ypath.NewRich(t.OriginalPath())
 }
 
-func NewYtTableMeta(cluster, prefix, name string, rows, weight int64) *YtTableMeta {
+func NewYtTableMeta(cluster, prefix, name string, rows, weight int64, columns []string) *YtTableMeta {
 	return &YtTableMeta{
 		Cluster:    cluster,
 		Prefix:     prefix,
 		Name:       strings.TrimPrefix(name, "/"),
 		RowCount:   rows,
+		Columns:    columns,
 		DataWeight: weight,
 		NodeID:     nil,
 	}

@@ -9,17 +9,18 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	middlewares2 "github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/format"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/httpclient"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/middlewares"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/dustin/go-humanize"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	middlewares2 "github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/format"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/middlewares"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -33,7 +34,7 @@ type HTTPSource struct {
 	config  *model.ChStorageParams
 	query   string
 	metrics *stats.SourceStats
-	hosts   []string
+	hosts   []*clickhouse.Host
 	part    *TablePartA2
 	cols    *abstract.TableSchema
 
@@ -121,7 +122,7 @@ func (s *HTTPSource) fetchCount(ctx context.Context) (uint64, error) {
 }
 
 func (s *HTTPSource) rowsByHTTP(ctx context.Context, syncTarget middlewares.Asynchronizer) error {
-	st := time.Now()
+	lastPushTime := time.Now()
 	query := buildQuery(s.query, s.part.Part.Rows, s.state.Current, string(s.IOFormat()))
 	s.lgr.Info("Start query in ClickHouse", log.String("table", s.part.TableID.Fqtn()), log.String("query", query))
 	body, err := s.client.QueryStream(ctx, s.lgr, s.hosts[0], query)
@@ -154,12 +155,13 @@ func (s *HTTPSource) rowsByHTTP(ctx context.Context, syncTarget middlewares.Asyn
 
 		if err != nil {
 			if xerrors.Is(err, io.EOF) {
-				s.lgr.Info("stop reading cause EOF")
+				// If readBytes > 0, data from validBuffer will be read after break.
+				s.lgr.Info("stop reading because of EOF")
 				break
 			}
 			if readBytes > 0 {
-				validBuffer.Truncate(bytesCount)
-				s.lgr.Warnf("got error on parsing data: %s", string(validBuffer.Bytes()[:readBytes]))
+				s.lgr.Warn("Unable to read and validate data", log.Error(err),
+					log.String("data", string(validBuffer.Bytes()[bytesCount:])))
 			}
 			return xerrors.Errorf("failed to read or split rows: %w", err)
 		}
@@ -168,11 +170,13 @@ func (s *HTTPSource) rowsByHTTP(ctx context.Context, syncTarget middlewares.Asyn
 		bytesCount += int(readBytes)
 		rowsCount++
 		if uint64(bytesCount) > s.config.BufferSize {
-			s.lgr.Infof("consumed %s, %v (%v / %v) rows from %v in %v", humanize.Bytes(uint64(bytesCount)), rowsCount, s.state.Current, s.state.Total, s.part.FullName(), time.Since(st))
-			st = time.Now()
+			s.lgr.Infof("consumed %s, %v (%v / %v) rows from %v in %v", humanize.Bytes(uint64(bytesCount)),
+				rowsCount, s.state.Current, s.state.Total, s.part.FullName(), time.Since(lastPushTime))
+			lastPushTime = time.Now()
+			// Limit reached. Move data from validBuffer to tmp buffer and push it.
 			tmp := make([]byte, bytesCount)
 			if _, err := validBuffer.Read(tmp); err != nil {
-				s.lgr.Info("validation buffer is empty", log.Error(err))
+				s.lgr.Info("Cannot read from validation buffer, make last push", log.Error(err))
 				break
 			}
 			if err := syncTarget.Push(NewHTTPEventsBatch(s.part, tmp, s.cols, util.GetTimestampFromContextOrNow(ctx), s.IOFormat(), rowsCount, bytesCount)); err != nil {
@@ -187,7 +191,7 @@ func (s *HTTPSource) rowsByHTTP(ctx context.Context, syncTarget middlewares.Asyn
 		}
 	}
 	if validBuffer.Len() > 0 {
-		s.lgr.Infof("leftovers: %s in %v", humanize.Bytes(uint64(validBuffer.Len())), time.Since(st))
+		s.lgr.Infof("leftovers: %s in %v", humanize.Bytes(uint64(validBuffer.Len())), time.Since(lastPushTime))
 		if err := syncTarget.Push(NewHTTPEventsBatch(s.part, validBuffer.Bytes(), s.cols, util.GetTimestampFromContextOrNow(ctx), s.IOFormat(), rowsCount, bytesCount)); err != nil {
 			return xerrors.Errorf("failed to push the last batch of %d rows (%s) into destination: %w", rowsCount, humanize.Bytes(uint64(validBuffer.Len())), err)
 		}
@@ -225,8 +229,8 @@ func NewHTTPSourceImpl(
 	query string,
 	countQuery string,
 	cols *abstract.TableSchema,
-	hosts []string,
-	config *model.ChSource,
+	hosts []*clickhouse.Host,
+	config *model.ChStorageParams,
 	part *TablePartA2,
 	sourceStats *stats.SourceStats,
 	client httpclient.HTTPClient,
@@ -234,7 +238,7 @@ func NewHTTPSourceImpl(
 	return &HTTPSource{
 		client: client,
 
-		config:     config.ToStorageParams(),
+		config:     config,
 		query:      query,
 		countQuery: countQuery,
 		metrics:    sourceStats,
@@ -259,12 +263,17 @@ func NewHTTPSource(
 	query string,
 	countQuery string,
 	cols *abstract.TableSchema,
-	hosts []string,
+	hosts []*clickhouse.Host,
 	config *model.ChSource,
 	part *TablePartA2,
 	sourceStats *stats.SourceStats,
 ) (*HTTPSource, error) {
-	cl, err := httpclient.NewHTTPClientImpl(config.ToStorageParams().ToConnParams())
+	storageParams, err := config.ToStorageParams()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve storage params")
+	}
+
+	cl, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	if err != nil {
 		return nil, xerrors.Errorf("error creating CH HTTP client: %w", err)
 	}
@@ -274,7 +283,7 @@ func NewHTTPSource(
 		countQuery,
 		cols,
 		hosts,
-		config,
+		storageParams,
 		part,
 		sourceStats,
 		cl,

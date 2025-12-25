@@ -1,6 +1,6 @@
 package strict
 
-import "github.com/doublecloud/transfer/library/go/core/xerrors"
+import "github.com/transferia/transferia/library/go/core/xerrors"
 
 func expectedImpl[ExpectedT any, ResultT any](genericCast func(value any, concreteCast func(any) (ResultT, error)) (any, error), value any, concreteCast func(any) (ResultT, error)) (any, error) {
 	if value == nil {

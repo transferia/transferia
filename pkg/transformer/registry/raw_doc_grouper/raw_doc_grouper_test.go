@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/transformer/registry/filter"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer/registry/filter"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 func TestRawDocGroupTransformer(t *testing.T) {
@@ -162,6 +162,37 @@ func TestRawDocGroupTransformer(t *testing.T) {
 		}
 	})
 
+	t.Run("Update for not original key field", func(t *testing.T) {
+		transformer, _ := NewRawDocGroupTransformer(RawDocGrouperConfig{
+			Keys:                []string{"col1", "col2"},
+			ShouldUpdateOldKeys: true,
+		})
+
+		item := dummyItemWithKind([]colParams{col1NotKey, col2NotKey, col3Key}, abstract.UpdateKind)
+		item.OldKeys = abstract.OldKeysType{
+			KeyNames:  []string{"col3"},
+			KeyValues: []interface{}{"oldCol3"},
+		}
+
+		itemHash, err := item.TableSchema.Hash()
+		require.NoError(t, err)
+
+		transformResult := transformer.Apply([]abstract.ChangeItem{item})
+		require.Equal(t, len(transformResult.Errors), 0, "System chItems data should not cause Errors!")
+		require.Equal(t, len(transformResult.Transformed), 1, "Original chItems should be returned!!")
+		require.ElementsMatch(t, transformer.additionalKeys[itemHash], []string{"col1", "col2"})
+
+		resultItem := transformResult.Transformed[0]
+
+		require.False(t, resultItem.KeysChanged())
+		oldKeys := resultItem.OldKeys
+		require.ElementsMatch(t, resultItem.KeyCols(), resultItem.OldKeys.KeyNames)
+		columnNameIndices := resultItem.ColumnNameIndices()
+		for i, name := range oldKeys.KeyNames {
+			require.Equal(t, resultItem.ColumnValues[columnNameIndices[name]], oldKeys.KeyValues[i])
+		}
+		require.ElementsMatch(t, transformer.additionalKeys[itemHash], []string{"col1", "col2"})
+	})
 }
 
 func getExpectedValues(changeItem abstract.ChangeItem) map[string]interface{} {

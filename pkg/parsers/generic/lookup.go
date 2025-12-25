@@ -3,8 +3,8 @@ package generic
 import (
 	"strings"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
 	"github.com/goccy/go-json"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
 func lookupComplex(obj interface{}, path string) (interface{}, error) {

@@ -7,17 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/httpclient"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	ytprovider "github.com/doublecloud/transfer/pkg/providers/yt"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/tests/helpers"
-	yt_helpers "github.com/doublecloud/transfer/tests/helpers/yt"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	ytprovider "github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/tests/helpers"
+	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -33,7 +33,7 @@ var (
 	YtColumns, TestData = yt_helpers.YtTypesTestData()
 	Source              = ytprovider.YtSource{
 		Cluster: os.Getenv("YT_PROXY"),
-		Proxy:   os.Getenv("YT_PROXY"),
+		YtProxy: os.Getenv("YT_PROXY"),
 		Paths: []string{
 			fmt.Sprintf("//home/cdc/junk/%s", TransformedTableName),
 			fmt.Sprintf("//home/cdc/junk/%s", NotTransformedTableName),
@@ -58,7 +58,7 @@ func init() {
 }
 
 func initYTTable(t *testing.T) {
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.Proxy})
+	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy})
 	require.NoError(t, err)
 	opts := yt.WithCreateOptions(yt.WithSchema(schema.Schema{Columns: YtColumns}), yt.WithRecursive())
 	for _, path := range Source.Paths {
@@ -73,12 +73,17 @@ func initYTTable(t *testing.T) {
 }
 
 func initCHTable(t *testing.T) {
-	chClient, err := httpclient.NewHTTPClientImpl(Target.ToStorageParams().ToConnParams())
+	storageParams, err := Target.ToStorageParams()
+	require.NoError(t, err)
+	chClient, err := httpclient.NewHTTPClientImpl(storageParams.ToConnParams())
 	require.NoError(t, err)
 	q := fmt.Sprintf(`DROP TABLE IF EXISTS %s`, TransformedTableName)
-	_ = chClient.Exec(context.Background(), logger.Log, Target.Shards()["_"][0], q)
+
+	require.GreaterOrEqual(t, len(storageParams.ConnectionParams.Shards["_"]), 1)
+	host := storageParams.ConnectionParams.Shards["_"][0]
+	_ = chClient.Exec(context.Background(), logger.Log, host, q)
 	q = fmt.Sprintf(`DROP TABLE IF EXISTS %s`, NotTransformedTableName)
-	_ = chClient.Exec(context.Background(), logger.Log, Target.Shards()["_"][0], q)
+	_ = chClient.Exec(context.Background(), logger.Log, host, q)
 	// q = fmt.Sprintf(`CREATE TABLE types_test (%s) ENGINE MergeTree() ORDER BY id`, helpers.ChSchemaForYtTypesTestData())
 	// require.NoError(t, chClient.Exec(context.Background(), logger.Log, Target.Shards()["_"][0], q))
 }

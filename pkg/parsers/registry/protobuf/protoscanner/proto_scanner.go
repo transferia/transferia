@@ -1,7 +1,7 @@
 package protoscanner
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 	"golang.org/x/xerrors"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )

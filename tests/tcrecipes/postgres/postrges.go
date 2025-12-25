@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/doublecloud/transfer/library/go/slices"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/transferia/transferia/library/go/slices"
 )
 
 const defaultUser = "postgres"

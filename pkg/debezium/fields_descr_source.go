@@ -1,6 +1,6 @@
 package debezium
 
-import debeziumparameters "github.com/doublecloud/transfer/pkg/debezium/parameters"
+import debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 
 func buildSourceSchemaDescr(sourceType string) map[string]interface{} {
 	result := map[string]interface{}{

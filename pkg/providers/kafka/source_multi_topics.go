@@ -3,10 +3,10 @@ package kafka
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -35,7 +35,7 @@ func (t *sourceMultiTopics) Fetch() ([]abstract.ChangeItem, error) {
 		srcCopy := *t.src
 		srcCopy.Topic = topic
 		srcCopy.GroupTopics = nil
-		sniffer, err := NewSource(topic, &srcCopy, t.logger, t.registry)
+		sniffer, err := NewSource(topic, &srcCopy, nil, t.logger, t.registry)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create source: %w", err)
 		}

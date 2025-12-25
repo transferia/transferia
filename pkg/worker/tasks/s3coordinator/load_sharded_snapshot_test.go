@@ -2,73 +2,21 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/coordinator/s3coordinator"
-	"github.com/doublecloud/transfer/pkg/terryid"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/coordinator/s3coordinator"
+	"github.com/transferia/transferia/pkg/terryid"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers/fake_sharding_storage"
 )
-
-type fakeShardingStorage struct {
-	tables []abstract.TableDescription
-}
-
-func (f *fakeShardingStorage) TableSchema(ctx context.Context, table abstract.TableID) (*abstract.TableSchema, error) {
-	return nil, nil
-}
-
-func (f *fakeShardingStorage) Close() {
-}
-
-func (f *fakeShardingStorage) Ping() error {
-	return nil
-}
-
-func (f *fakeShardingStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
-	return nil
-}
-
-func (f *fakeShardingStorage) TableList(abstract.IncludeTableList) (abstract.TableMap, error) {
-	return nil, nil
-}
-
-func (f *fakeShardingStorage) ShardTable(ctx context.Context, table abstract.TableDescription) ([]abstract.TableDescription, error) {
-	if table.Offset != 0 {
-		logger.Log.Infof("Table %v will not be sharded, offset: %v", table.Fqtn(), table.Offset)
-		return []abstract.TableDescription{table}, nil
-	}
-
-	var res []abstract.TableDescription
-	for i := 0; i < 10; i++ {
-		res = append(res, abstract.TableDescription{
-			Name:   table.Name,
-			Schema: table.Schema,
-			Filter: abstract.WhereStatement(fmt.Sprintf("shard = '%v'", i)),
-		})
-	}
-	return res, nil
-}
-
-func (f *fakeShardingStorage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
-	return 0, xerrors.New("not implemented")
-}
-
-func (f *fakeShardingStorage) EstimateTableRowsCount(table abstract.TableID) (uint64, error) {
-	return 0, xerrors.New("not implemented")
-}
-
-func (f *fakeShardingStorage) TableExists(table abstract.TableID) (bool, error) {
-	return false, xerrors.New("not implemented")
-}
 
 type fakeSinker struct{}
 
@@ -80,7 +28,6 @@ func (f fakeSinker) Push(input []abstract.ChangeItem) error {
 	return nil
 }
 
-// Obsolete, remove or refactor after all transfers move to revision after TM-5319, TM-5321
 func TestShardedUploadCoordinator(t *testing.T) {
 	cp, err := s3coordinator.NewS3Recipe(os.Getenv("S3_BUCKET"))
 	require.NoError(t, err)
@@ -95,7 +42,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 	}
 	terminateSlave := func(taskID string, slaveID int, err error) error {
 		logger.Log.Infof("%v: fake slave: %v finish", taskID, slaveID)
-		return cp.FinishOperation(taskID, slaveID, err)
+		return cp.FinishOperation(taskID, "", "", slaveID, err)
 	}
 	fakeSlaveProgress := func(taskID string, slaveID int, progress float64) (err error) {
 		logger.Log.Infof("%v: fake slave: %v progress to %v", taskID, slaveID, progress)
@@ -138,9 +85,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 			},
 			Src: &model.MockSource{
 				StorageFactory: func() abstract.Storage {
-					return &fakeShardingStorage{
-						tables: tables,
-					}
+					return fake_sharding_storage.NewFakeShardingStorage(tables)
 				},
 				AllTablesFactory: func() abstract.TableMap {
 					return nil
@@ -192,9 +137,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 			},
 			Src: &model.MockSource{
 				StorageFactory: func() abstract.Storage {
-					return &fakeShardingStorage{
-						tables: tables,
-					}
+					return fake_sharding_storage.NewFakeShardingStorage(tables)
 				},
 				AllTablesFactory: func() abstract.TableMap {
 					return nil

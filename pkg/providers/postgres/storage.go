@@ -9,18 +9,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/dblog/tablequery"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgtype/pgxtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/dblog/tablequery"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -49,26 +50,23 @@ type SnapshotState struct {
 }
 
 type Storage struct {
-	Config              *PgStorageParams
-	Conn                *pgxpool.Pool
-	version             PgVersion
-	snapshotConnection  *pgxpool.Conn
-	snapshotTransaction pgx.Tx
-	IsHomo              bool
-	once                sync.Once
-	metrics             *stats.SourceStats
-	ForbiddenSchemas    []string
-	ForbiddenTables     []string
-	Flavour             DBFlavour
-	typeNameToOID       TypeNameToOIDMap
-	ShardedStateLSN     string
-	ShardedStateTS      time.Time
-	loadDescending      bool
-	sExTime             time.Time
-}
-
-func (s *Storage) SetLoadDescending(loadDescending bool) {
-	s.loadDescending = loadDescending
+	Config                   *PgStorageParams
+	Conn                     *pgxpool.Pool
+	version                  PgVersion
+	snapshotConnection       *pgxpool.Conn
+	snapshotTransaction      pgx.Tx
+	IsHomo                   bool
+	once                     sync.Once
+	metrics                  *stats.SourceStats
+	ForbiddenSchemas         []string
+	ForbiddenTables          []string
+	Flavour                  DBFlavour
+	typeNameToOID            TypeNameToOIDMap
+	ShardedStateLSN          string
+	ShardedStateTS           time.Time
+	sExTime                  time.Time
+	DisableCheckReplIdentity bool // Disables checks of replica identity full.
+	DisableViewsExtraction   bool // Do not transfers views if true.
 }
 
 func (s *Storage) SnapshotLSN() string {
@@ -126,8 +124,13 @@ func isFilterEmpty(filter abstract.WhereStatement) bool {
 }
 
 func WhereClause(filter abstract.WhereStatement) string {
-	if partitionFilterTable(filter) != "" {
-		return "1 = 1"
+	if partitionFilterTableName(filter) != "" {
+		partitionFilter := partitionFilterTableFilter(filter)
+		if partitionFilter != "" {
+			return partitionFilter
+		} else {
+			return "1 = 1"
+		}
 	}
 	if !isFilterEmpty(filter) {
 		return string(filter)
@@ -136,9 +139,16 @@ func WhereClause(filter abstract.WhereStatement) string {
 	return "1 = 1"
 }
 
-func partitionFilterTable(filter abstract.WhereStatement) string {
+func partitionFilterTableFilter(filter abstract.WhereStatement) string {
+	index := strings.Index(string(filter), "|")
+	return string(filter)[index+1:]
+}
+
+func partitionFilterTableName(filter abstract.WhereStatement) string {
 	if strings.HasPrefix(string(filter), PartitionsFilterPrefix) {
-		return strings.ReplaceAll(string(filter), PartitionsFilterPrefix, "")
+		result := strings.ReplaceAll(string(filter), PartitionsFilterPrefix, "")
+		index := strings.Index(result, "|")
+		return result[0:index]
 	}
 	return ""
 }
@@ -148,8 +158,8 @@ func exactCountQuery(t *abstract.TableDescription) string {
 }
 
 func TableName(t *abstract.TableDescription) string {
-	if partitionFilterTable(t.Filter) != "" {
-		return partitionFilterTable(t.Filter)
+	if partitionFilterTableName(t.Filter) != "" {
+		return partitionFilterTableName(t.Filter)
 	}
 	return t.Fqtn()
 }
@@ -264,28 +274,94 @@ func (s *Storage) Ping() error {
 	return nil
 }
 
-// TableList in PostgreSQL returns a table map with schema
-func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap, error) {
-	ctx := context.TODO()
+func (s *Storage) handleSkips(inTableMap abstract.TableMap) (abstract.TableMap, error) {
+	ctx := context.Background()
 
-	conn, err := s.Conn.Acquire(ctx)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to acquire a connection from pool: %w", err)
-	}
-	defer conn.Release()
+	// handle partitioned tables
 
-	rollbacks := util.Rollbacks{}
-	defer rollbacks.Do()
-	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
-	if err != nil {
-		return nil, xerrors.Errorf("failed to start a transaction in storage: %w", err)
-	}
-	rollbacks.Add(func() {
-		if err := tx.Rollback(ctx); err != nil {
-			logger.Log.Warn("Failed to ROLLBACK table list transaction", log.Error(err))
+	result, err := func(in abstract.TableMap) (abstract.TableMap, error) {
+		childToParent, err := s.GetInheritedTables(ctx)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to GetInheritedTables, err: %w", err)
 		}
-	})
+		if s.Config.CollapseInheritTables {
+			result, err := handlePartitionedTables(logger.Log, in, childToParent)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to handlePartitionedTables, err: %w", err)
+			}
+			return result, nil
+		} else {
+			result, err := handleNotPartitionedTables(logger.Log, in, childToParent)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to handleNotPartitionedTables, err: %w", err)
+			}
+			return result, nil
+		}
+	}(inTableMap)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to handle partitioned tables, err: %w", err)
+	}
 
+	// handle view
+
+	if s.IsHomo {
+		conn, err := s.Conn.Acquire(ctx)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to acquire conn: %w", err)
+		}
+		defer conn.Release()
+
+		result = func(in abstract.TableMap) abstract.TableMap {
+			currResult := abstract.TableMap{}
+			for tableID, tableInfo := range in {
+				if skipViewIfHomogeneous(s.IsHomo, tableInfo.IsView) {
+					logger.Log.Infof("skip table %s, bcs it's a view", tableID.Fqtn())
+					continue
+				}
+				currResult[tableID] = tableInfo
+			}
+			return currResult
+		}(result)
+	}
+
+	return result, nil
+}
+
+func (s *Storage) tableList(filter abstract.IncludeTableList, applySkips bool) (abstract.TableMap, error) {
+	var tableMapResult abstract.TableMap
+	err := s.tx(func(ctx context.Context, tx pgx.Tx) error {
+		tableMapTemporary, err := s.tableListImpl(ctx, tx, filter)
+		if err != nil {
+			return err
+		}
+		tableMapResult = tableMapTemporary
+		return nil
+	}, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return nil, xerrors.Errorf("failed to tableList, err: %w", err)
+	}
+
+	if applySkips {
+		tableMapResult, err = s.handleSkips(tableMapResult)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to handleSkips, err: %w", err)
+		}
+	}
+
+	logger.Log.Info("Extracted tables (filtered)", log.String("tables", tableIDWithInfos(tableMapToArr(tableMapResult)).String()))
+	return tableMapResult, err
+}
+
+func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap, error) {
+	return s.tableList(filter, true)
+}
+
+func (s *Storage) TableListWithoutSkips(filter abstract.IncludeTableList) (abstract.TableMap, error) {
+	return s.tableList(filter, false)
+}
+
+// TableList in PostgreSQL returns a table map with schema
+func (s *Storage) tableListImpl(ctx context.Context, tx pgx.Tx, filter abstract.IncludeTableList) (abstract.TableMap, error) {
 	warnTooLongExec := util.DelayFunc(
 		func() {
 			logger.Log.Warn("Schema retrieval takes longer than usual. Check the list of tables included in the transfer and the load of source database.")
@@ -296,12 +372,14 @@ func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap
 
 	sEx := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
-		WithFlavour(s.Flavour)
+		WithFlavour(s.Flavour).
+		WithCollapseInheritTables(s.Config.CollapseInheritTables).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity)
 
-	tablesListUnfiltered, ts, err := sEx.TablesList(ctx, tx.Conn())
+	tablesListUnfiltered, ts, err := sEx.TablesList(ctx, tx)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to load a list of tables in schema *: %w", err)
 	}
@@ -322,7 +400,6 @@ func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap
 			}
 			tablesListFiltered = append(tablesListFiltered, tIDWithInfo)
 		}
-		logger.Log.Info("Extracted tables (filtered)", log.String("tables", tableIDWithInfos(tablesListFiltered).String()))
 		for _, table := range tablesListFiltered {
 			if err := loadIntoTableMapForTable(ctx, table, sEx, tx.Conn(), result); err != nil {
 				return nil, xerrors.Errorf("failed to load schema for table %s: %w", table.ID.Fqtn(), err)
@@ -333,11 +410,6 @@ func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap
 			return nil, xerrors.Errorf("failed to load schema: %w", err)
 		}
 	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, xerrors.Errorf("failed to COMMIT table list transaction: %w", err)
-	}
-	rollbacks.Cancel()
 
 	return result, nil
 }
@@ -444,18 +516,22 @@ WHERE
 	return uint64(etaRow), nil
 }
 
-func (s *Storage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
-	tx, err := s.Conn.BeginTx(context.TODO(), pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
-	if err != nil {
-		return 0, xerrors.Errorf("unable to begin transaction to get exact table rows for table %s: %w", table.Fqtn(), err)
-	}
-	defer tx.Commit(context.TODO()) //nolint
+func (s *Storage) tx(operation txOp, options pgx.TxOptions) error {
+	return doUnderTransactionWithOptions(context.TODO(), s.Conn, operation, options, logger.Log)
+}
 
-	exactCountQueryStr := exactCountQuery(&abstract.TableDescription{Schema: table.Namespace, Name: table.Name, Filter: "", EtaRow: 0, Offset: 0})
+func (s *Storage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
 	var totalCount uint64
-	if err := tx.QueryRow(context.TODO(), exactCountQueryStr).Scan(&totalCount); err != nil {
+	exactCountQueryStr := exactCountQuery(&abstract.TableDescription{Schema: table.Namespace, Name: table.Name, Filter: "", EtaRow: 0, Offset: 0})
+
+	err := s.tx(func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, exactCountQueryStr).Scan(&totalCount)
+	}, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+
+	if err != nil {
 		return 0, xerrors.Errorf("unable to count table rows: %w", err)
 	}
+
 	return totalCount, nil
 }
 
@@ -490,32 +566,17 @@ func MakeSetSQL(key string, value string) string {
 }
 
 type loadTableMode struct {
-	table          abstract.TableDescription
-	tableInfo      tableInformationSchema
-	isHomo         bool
-	loadDescending bool // show whether we should load all child tables with parent table ID
+	table     abstract.TableDescription
+	tableInfo tableInformationSchema
+	isHomo    bool
 }
 
-func (m *loadTableMode) ExcludeDescendants() (exclude bool, reason string) {
-	if m.tableInfo.HasSubclass && !m.loadDescending {
+func (m *loadTableMode) ExcludeDescendants(collapseInheritTables bool) (exclude bool, reason string) {
+	if m.tableInfo.HasSubclass && !collapseInheritTables {
 		exclude = true
 		reason = fmt.Sprintf("Table %v is parent, use ONLY statement for selecting from it", m.table.Fqtn())
 	}
 	return exclude, reason
-}
-
-func (m *loadTableMode) SkipLoading() (skip bool, reason string) {
-	if m.tableInfo.IsView && m.isHomo {
-		skip = true
-		reason = fmt.Sprintf("Table %s is a view, skipping it", m.table.Fqtn())
-	} else if m.tableInfo.IsPartitioned && !m.loadDescending {
-		skip = true
-		reason = fmt.Sprintf("Table %v is partitioned, skipping it because it is empty and all data is in partitions", m.table.Fqtn())
-	} else if m.tableInfo.IsInherited && m.loadDescending {
-		skip = true
-		reason = fmt.Sprintf("Table %v is child, but we load all in all-descending mode, skipping it because we may duplicate data within descendings", m.table.Fqtn())
-	}
-	return skip, reason
 }
 
 func (s *Storage) discoverTableLoadMode(ctx context.Context, conn pgxtype.Querier, table abstract.TableDescription) (*loadTableMode, error) {
@@ -524,10 +585,9 @@ func (s *Storage) discoverTableLoadMode(ctx context.Context, conn pgxtype.Querie
 		return nil, xerrors.Errorf("failed to discover table information: %w", err)
 	}
 	return &loadTableMode{
-		table:          table,
-		tableInfo:      *tableInfo,
-		isHomo:         s.IsHomo,
-		loadDescending: s.loadDescending,
+		table:     table,
+		tableInfo: *tableInfo,
+		isHomo:    s.IsHomo,
 	}, nil
 }
 
@@ -604,12 +664,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
 
-	if skip, reason := loadMode.SkipLoading(); skip {
-		logger.Log.Infof("Skip load table %v: %v", table.Fqtn(), reason)
-		return nil
-	}
-
-	excludeDescendants, reason := loadMode.ExcludeDescendants()
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
@@ -663,10 +718,11 @@ func (s *Storage) LoadSchema() (abstract.DBSchema, error) {
 		defer conn.Release()
 		return NewSchemaExtractor().
 			WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-			WithExcludeViews(s.IsHomo).
+			WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 			WithForbiddenSchemas(s.ForbiddenSchemas).
 			WithForbiddenTables(s.ForbiddenTables).
 			WithFlavour(s.Flavour).
+			WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 			LoadSchema(ctx, conn.Conn(), nil)
 	}
 }
@@ -675,10 +731,12 @@ func (s *Storage) LoadSchemaForTable(ctx context.Context, conn *pgx.Conn, table 
 	tableID := table.ID()
 	schemas, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
+		WithCollapseInheritTables(s.Config.CollapseInheritTables).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, conn, &tableID)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to query schema from the source database: %w", err)
@@ -708,21 +766,22 @@ func (s *Storage) loadSample(
 	defer rows.Close()
 
 	ciFetcher := NewChangeItemsFetcher(rows, tx.Conn(), abstract.ChangeItem{
-		ID:           uint32(0),
-		LSN:          0,
-		CommitTime:   uint64(startTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       table.Schema,
-		Table:        table.Name,
-		PartID:       table.PartID(),
-		ColumnNames:  tableSchema.Columns().ColumnNames(),
-		ColumnValues: nil,
-		TableSchema:  tableSchema,
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		ID:               uint32(0),
+		LSN:              0,
+		CommitTime:       uint64(startTime.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           table.Schema,
+		Table:            table.Name,
+		PartID:           table.GeneratePartID(),
+		ColumnNames:      tableSchema.Columns().ColumnNames(),
+		ColumnValues:     nil,
+		TableSchema:      tableSchema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, s.metrics).WithUnmarshallerData(MakeUnmarshallerData(s.IsHomo, tx.Conn())).WithLimitCount(2000)
 
 	logger.Log.Info("extracting data from the source table...", log.String("fqtn", table.Fqtn()))
@@ -758,12 +817,7 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
 
-	if skip, reason := loadMode.SkipLoading(); skip {
-		logger.Log.Infof("Skip load table %v: %v", table.Fqtn(), reason)
-		return nil
-	}
-
-	excludeDescendants, reason := loadMode.ExcludeDescendants()
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
@@ -772,16 +826,15 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 	if err != nil {
 		return xerrors.Errorf("unable to begin transaction: %w", err)
 	}
-	defer func() {
-		_ = tx.Commit(ctx)
-	}()
+	defer tx.Commit(ctx)
 
 	schema, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, tx.Conn(), nil)
 	if err != nil {
 		return xerrors.Errorf("unable to load schema: %w", err)
@@ -802,40 +855,30 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 func (s *Storage) LoadSampleBySet(table abstract.TableDescription, keySet []map[string]interface{}, pusher abstract.Pusher) error {
 	startTime := time.Now()
 
-	conn, err := s.Conn.Acquire(context.TODO())
-	if err != nil {
-		return xerrors.Errorf("unable to acquire connection: %w", err)
-	}
-	defer conn.Release()
+	return s.tx(func(ctx context.Context, tx pgx.Tx) error {
+		return s.loadSampleBySet(ctx, tx, startTime, table, keySet, pusher)
+	}, repeatableReadReadOnlyTxOptions)
 
-	ctx := context.Background()
-	tx, err := conn.BeginTx(ctx, repeatableReadReadOnlyTxOptions)
-	if err != nil {
-		return xerrors.Errorf("unable to begin transaction: %w", err)
-	}
-	defer tx.Commit(context.TODO()) //nolint
+}
 
-	loadMode, err := s.discoverTableLoadMode(ctx, conn, table)
+func (s *Storage) loadSampleBySet(ctx context.Context, tx pgx.Tx, startTime time.Time, table abstract.TableDescription, keySet []map[string]interface{}, pusher abstract.Pusher) error {
+	loadMode, err := s.discoverTableLoadMode(ctx, tx, table)
 	if err != nil {
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
 
-	if skip, reason := loadMode.SkipLoading(); skip {
-		logger.Log.Infof("Skip load table %v: %v", table.Fqtn(), reason)
-		return nil
-	}
-
-	excludeDescendants, reason := loadMode.ExcludeDescendants()
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
 
 	schema, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, tx.Conn(), nil)
 	if err != nil {
 		return xerrors.Errorf("unable to load schema: %w", err)
@@ -882,43 +925,29 @@ func (s *Storage) LoadSampleBySet(table abstract.TableDescription, keySet []map[
 
 func (s *Storage) LoadTopBottomSample(table abstract.TableDescription, pusher abstract.Pusher) error {
 	startTime := time.Now()
-	ctx := context.Background()
+	return s.tx(func(ctx context.Context, tx pgx.Tx) error {
+		return s.loadTopBottomSample(ctx, tx, startTime, table, pusher)
+	}, repeatableReadReadOnlyTxOptions)
+}
 
-	conn, err := s.Conn.Acquire(ctx)
-	if err != nil {
-		return xerrors.Errorf("Failed to acquire a connection: %w", err)
-	}
-	defer conn.Release()
-
-	loadMode, err := s.discoverTableLoadMode(ctx, conn, table)
+func (s *Storage) loadTopBottomSample(ctx context.Context, tx pgx.Tx, startTime time.Time, table abstract.TableDescription, pusher abstract.Pusher) error {
+	loadMode, err := s.discoverTableLoadMode(ctx, tx, table)
 	if err != nil {
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
 
-	if skip, reason := loadMode.SkipLoading(); skip {
-		logger.Log.Infof("Skip load table %v: %v", table.Fqtn(), reason)
-		return nil
-	}
-
-	excludeDescendants, reason := loadMode.ExcludeDescendants()
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
 
-	tx, err := conn.BeginTx(ctx, repeatableReadReadOnlyTxOptions)
-	if err != nil {
-		return xerrors.Errorf("Failed to begin a transaction: %w", err)
-	}
-	defer func() {
-		_ = tx.Commit(ctx)
-	}()
-
 	schema, err := NewSchemaExtractor().
 		WithUseFakePrimaryKey(s.Config.UseFakePrimaryKey).
-		WithExcludeViews(s.IsHomo).
+		WithExcludeViews(s.IsHomo || s.DisableViewsExtraction).
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
+		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, tx.Conn(), nil)
 	if err != nil {
 		return xerrors.Errorf("Failed to load schema: %w", err)
@@ -1153,7 +1182,7 @@ func (s *Storage) LoadQueryTable(ctx context.Context, tableQuery tablequery.Tabl
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", tableDescription.Fqtn(), err)
 	}
 
-	excludeDescendants, reason := loadMode.ExcludeDescendants()
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", tableDescription.Fqtn(), reason)
 	}
@@ -1256,12 +1285,6 @@ func (s *Storage) loadTable(
 	schema *abstract.TableSchema,
 	startTime time.Time,
 ) error {
-
-	if skip, reason := loadMode.SkipLoading(); skip {
-		logger.Log.Infof("Skip load table %v: %v", table.Fqtn(), reason)
-		return nil
-	}
-
 	if _, err := conn.Exec(ctx, MakeSetSQL("statement_timeout", "0")); err != nil {
 		return xerrors.Errorf("failed to SET statement_timeout: %w", err)
 	}
@@ -1274,21 +1297,22 @@ func (s *Storage) loadTable(
 	defer rows.Close()
 
 	ciFetcher := NewChangeItemsFetcher(rows, conn, abstract.ChangeItem{
-		ID:           uint32(0),
-		LSN:          0,
-		CommitTime:   uint64(startTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       table.Schema,
-		Table:        table.Name,
-		PartID:       table.PartID(),
-		ColumnNames:  schema.Columns().ColumnNames(),
-		ColumnValues: nil,
-		TableSchema:  schema,
-		OldKeys:      abstract.EmptyOldKeys(),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		ID:               uint32(0),
+		LSN:              0,
+		CommitTime:       uint64(startTime.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           table.Schema,
+		Table:            table.Name,
+		PartID:           table.GeneratePartID(),
+		ColumnNames:      schema.Columns().ColumnNames(),
+		ColumnValues:     nil,
+		TableSchema:      schema,
+		OldKeys:          abstract.EmptyOldKeys(),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, s.metrics).WithUnmarshallerData(MakeUnmarshallerData(s.IsHomo, conn))
 
 	totalRowsRead := uint64(0)
@@ -1364,22 +1388,23 @@ func NewStorage(config *PgStorageParams, opts ...StorageOpt) (*Storage, error) {
 	version := ResolveVersion(conn)
 
 	storage := &Storage{
-		Config:              config,
-		Conn:                conn,
-		version:             version,
-		snapshotConnection:  nil,
-		snapshotTransaction: nil,
-		IsHomo:              false,
-		once:                sync.Once{},
-		metrics:             currMetrics,
-		ForbiddenSchemas:    pgSystemSchemas(),
-		ForbiddenTables:     pgSystemTableNames(),
-		Flavour:             NewPostgreSQLFlavour(),
-		typeNameToOID:       typeNameToOID,
-		ShardedStateLSN:     "",
-		ShardedStateTS:      time.Time{},
-		loadDescending:      false,
-		sExTime:             time.Time{},
+		Config:                   config,
+		Conn:                     conn,
+		version:                  version,
+		snapshotConnection:       nil,
+		snapshotTransaction:      nil,
+		IsHomo:                   false,
+		once:                     sync.Once{},
+		metrics:                  currMetrics,
+		ForbiddenSchemas:         pgSystemSchemas(),
+		ForbiddenTables:          pgSystemTableNames(),
+		Flavour:                  NewPostgreSQLFlavour(),
+		typeNameToOID:            typeNameToOID,
+		ShardedStateLSN:          "",
+		ShardedStateTS:           time.Time{},
+		sExTime:                  time.Time{},
+		DisableCheckReplIdentity: false,
+		DisableViewsExtraction:   false,
 	}
 	return storage, nil
 }

@@ -6,16 +6,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
-	"github.com/doublecloud/transfer/pkg/providers/yt/sink"
-	ytstorage "github.com/doublecloud/transfer/pkg/providers/yt/storage"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
+	"github.com/transferia/transferia/pkg/providers/yt/sink"
+	ytstorage "github.com/transferia/transferia/pkg/providers/yt/storage"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
@@ -43,7 +43,6 @@ var (
 		PrimaryMedium:            "default",
 		UseStaticTableOnSnapshot: false,
 		Cleanup:                  model.DisabledCleanup,
-		CanAlter:                 true,
 	})
 )
 
@@ -70,7 +69,7 @@ func TestYTSnapshotWithShuffledColumns(t *testing.T) {
 }
 
 func prepareDst(t *testing.T) {
-	currentSink, err := sink.NewSinker(Dst, helpers.TransferID, 0, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
+	currentSink, err := sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
 	require.NoError(t, err)
 
 	require.NoError(t, currentSink.Push([]abstract.ChangeItem{{
@@ -84,7 +83,7 @@ func prepareDst(t *testing.T) {
 }
 
 func fillDestination(t *testing.T) {
-	currentSink, err := sink.NewSinker(Dst, helpers.TransferID, 0, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
+	currentSink, err := sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
 	require.NoError(t, err)
 	defer require.NoError(t, currentSink.Close())
 

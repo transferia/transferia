@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/adapter"
-	"github.com/doublecloud/transfer/pkg/base/events"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/adapter"
+	"github.com/transferia/transferia/pkg/base/events"
 )
 
 type CSVEvent struct {
@@ -54,21 +55,22 @@ func (e *CSVEvent) ToOldChangeItem() (*abstract.ChangeItem, error) {
 		}
 	}
 	return &abstract.ChangeItem{
-		ID:           0,
-		LSN:          0,
-		CommitTime:   uint64(e.readerTime.UnixNano()),
-		Counter:      0,
-		Kind:         abstract.InsertKind,
-		Schema:       e.table.Namespace,
-		Table:        e.table.Name,
-		PartID:       "",
-		ColumnNames:  e.colNames,
-		ColumnValues: row,
-		TableSchema:  e.cols,
-		OldKeys:      *new(abstract.OldKeysType),
-		TxID:         "",
-		Query:        "",
-		Size:         abstract.EmptyEventSize(),
+		ID:               0,
+		LSN:              0,
+		CommitTime:       uint64(e.readerTime.UnixNano()),
+		Counter:          0,
+		Kind:             abstract.InsertKind,
+		Schema:           e.table.Namespace,
+		Table:            e.table.Name,
+		PartID:           "",
+		ColumnNames:      e.colNames,
+		ColumnValues:     row,
+		TableSchema:      e.cols,
+		OldKeys:          *new(abstract.OldKeysType),
+		Size:             abstract.EmptyEventSize(),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}, nil
 }
 

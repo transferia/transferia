@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -16,6 +16,7 @@ const ReadRetries = 5
 type readerWrapper struct {
 	currentIdx uint64
 	upperIdx   uint64
+	columns    []string
 	reader     yt.TableReader
 	txID       yt.TxID
 	lgr        log.Logger
@@ -48,7 +49,11 @@ func (r *readerWrapper) Close() {
 
 func (r *readerWrapper) batchPath() *ypath.Rich {
 	rng := ypath.Interval(ypath.RowIndex(int64(r.currentIdx)), ypath.RowIndex(int64(r.upperIdx)))
-	return r.tblPath.Rich().AddRange(rng)
+	res := r.tblPath.Rich().AddRange(rng)
+	if len(r.columns) > 0 {
+		res = res.SetColumns(r.columns)
+	}
+	return res
 }
 
 func (r *readerWrapper) Row() (*lazyYSON, error) {
@@ -92,12 +97,14 @@ func (r *readerWrapper) Row() (*lazyYSON, error) {
 func (s *snapshotSource) readTableRange(
 	ctx context.Context,
 	lowerIdx, upperIdx uint64,
-	stopCh <-chan bool) error {
+	stopCh <-chan bool,
+	columns []string) error {
 	rd := readerWrapper{
 		ctx:        ctx,
 		tblPath:    s.part.NodeID().YPath(),
 		currentIdx: lowerIdx,
 		upperIdx:   upperIdx,
+		columns:    columns,
 		reader:     nil,
 		txID:       s.txID,
 		lgr:        s.lgr,

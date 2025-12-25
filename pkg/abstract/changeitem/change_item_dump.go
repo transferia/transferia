@@ -5,8 +5,8 @@ import (
 	"os"
 	"sort"
 
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/olekukonko/tablewriter"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 

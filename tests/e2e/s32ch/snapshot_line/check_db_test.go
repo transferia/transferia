@@ -10,12 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	chrecipe "github.com/doublecloud/transfer/pkg/providers/clickhouse/recipe"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 func init() {
@@ -23,7 +23,7 @@ func init() {
 }
 
 var (
-	testBucket = s3.EnvOrDefault("TEST_BUCKET", "barrel")
+	testBucket = s3recipe.EnvOrDefault("TEST_BUCKET", "barrel")
 	target     = *chrecipe.MustTarget(chrecipe.WithInitFile("dump/dump.sql"), chrecipe.WithDatabase("clickhouse_test"))
 	//go:embed dump/data.log
 	content []byte
@@ -38,7 +38,7 @@ func TestNativeS3(t *testing.T) {
 		))
 	}()
 
-	src := s3.PrepareCfg(t, testBucket, "")
+	src := s3recipe.PrepareCfg(t, testBucket, "")
 	sess, err := session.NewSession(&aws.Config{
 		Endpoint:         aws.String(src.ConnectionConfig.Endpoint),
 		Region:           aws.String(src.ConnectionConfig.Region),

@@ -5,29 +5,33 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/internal/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/parsers"
-	_ "github.com/doublecloud/transfer/pkg/parsers/registry"
-	audittrailsv1engine "github.com/doublecloud/transfer/pkg/parsers/registry/audittrailsv1/engine"
-	cloudeventsengine "github.com/doublecloud/transfer/pkg/parsers/registry/cloudevents/engine"
-	cloudloggingengine "github.com/doublecloud/transfer/pkg/parsers/registry/cloudlogging/engine"
-	confluentschemaregistryengine "github.com/doublecloud/transfer/pkg/parsers/registry/confluentschemaregistry/engine"
-	debeziumengine "github.com/doublecloud/transfer/pkg/parsers/registry/debezium/engine"
-	jsonparser "github.com/doublecloud/transfer/pkg/parsers/registry/json"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoparser"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoparser/gotest/prototest"
-	"github.com/doublecloud/transfer/pkg/parsers/registry/protobuf/protoscanner"
-	"github.com/doublecloud/transfer/pkg/stats"
-	confluentsrmock "github.com/doublecloud/transfer/tests/helpers/confluent_schema_registry_mock"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsers"
+	_ "github.com/transferia/transferia/pkg/parsers/registry"
+	audittrailsv1engine "github.com/transferia/transferia/pkg/parsers/registry/audittrailsv1/engine"
+	cloudeventsengine "github.com/transferia/transferia/pkg/parsers/registry/cloudevents/engine"
+	cloudloggingengine "github.com/transferia/transferia/pkg/parsers/registry/cloudlogging/engine"
+	confluentschemaregistryengine "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine"
+	debeziumengine "github.com/transferia/transferia/pkg/parsers/registry/debezium/engine"
+	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser/gotest/prototest"
+	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoscanner"
+	"github.com/transferia/transferia/pkg/stats"
+	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
+	"github.com/transferia/transferia/tests/tcrecipes"
 )
 
 // TestCanonizeParserConfigsList
 // We need canonize parserConfig names, bcs for now they work via reflect dispatching,
 // but it will break production, if someone renames parserConfig struct.
 func TestCanonizeParserConfigsList(t *testing.T) {
+	if tcrecipes.Enabled() {
+		t.Skip()
+	}
 	parserConfigs := parsers.KnownParsersConfigs()
 	parsersConfigsMap := make(map[string]bool)
 	for _, parserConfig := range parserConfigs {
@@ -104,7 +108,7 @@ func TestUnparsed(t *testing.T) {
 	t.Run("confluentschemaregistry", func(t *testing.T) {
 		schemaRegistryMock := confluentsrmock.NewConfluentSRMock(nil, nil)
 		defer schemaRegistryMock.Close()
-		parser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, logger.Log)
+		parser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
 		checkEx(t, parser, parsers.Message{Value: []byte("{]")})
 	})
 	t.Run("debezium", func(t *testing.T) {

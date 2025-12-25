@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -25,6 +25,8 @@ type CommitOptions struct {
 	OptimizeFor      string
 	CustomAttributes map[string]any
 	Logger           log.Logger
+	IsDynamicSorted  bool
+	ReduceBinaryPath ypath.Path
 }
 
 func Commit(client yt.Client, opts *CommitOptions) error {
@@ -43,7 +45,7 @@ func commit(client yt.Client, opts *CommitOptions) error {
 		currentStageTablePath := makeTablePath(opts.Path, opts.TransferID, tmpNamePostfix)
 		sortedTablePath := makeTablePath(opts.Path, opts.TransferID, sortedNamePostfix)
 
-		commitCl := newCommitClient(tx, client, opts.Schema, opts.Pool, opts.OptimizeFor, opts.CustomAttributes)
+		commitCl := newCommitClient(tx, client, opts.Schema, opts.Pool, opts.OptimizeFor, opts.CustomAttributes, opts.IsDynamicSorted)
 
 		var err error
 		var startMoment time.Time
@@ -60,11 +62,21 @@ func commit(client yt.Client, opts *CommitOptions) error {
 		if opts.CleanupType != model.Drop {
 			startMoment = time.Now()
 			sortedMerge := currentStageTablePath == sortedTablePath
-			if err := commitCl.mergeTables(currentStageTablePath, opts.Path, sortedMerge); err != nil {
-				return xerrors.Errorf("merging static table error: %w", err)
+			if opts.IsDynamicSorted {
+				reducedTablePath := makeTablePath(opts.Path, opts.TransferID, reducedNamePostfix)
+				currentStageTablePath, err = commitCl.reduceTables(currentStageTablePath, opts.Path, reducedTablePath, opts.ReduceBinaryPath) // add actual binary path
+				if err != nil {
+					return xerrors.Errorf("reducing static table error: %w", err)
+				}
+				opts.Logger.Info("successfully completed commit step: static table reducing",
+					log.Any("table_path", opts.Path), log.Duration("elapsed_time", time.Since(startMoment)))
+			} else {
+				if err := commitCl.mergeTables(currentStageTablePath, opts.Path, sortedMerge); err != nil {
+					return xerrors.Errorf("merging static table error: %w", err)
+				}
+				opts.Logger.Info("successfully completed commit step: static table merging",
+					log.Any("table_path", opts.Path), log.Duration("elapsed_time", time.Since(startMoment)))
 			}
-			opts.Logger.Info("successfully completed commit step: static table merging",
-				log.Any("table_path", opts.Path), log.Duration("elapsed_time", time.Since(startMoment)))
 		}
 
 		if err := commitCl.moveTables(currentStageTablePath, opts.Path); err != nil {

@@ -3,13 +3,26 @@ package changeitem
 import (
 	"encoding/json"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type TableSchema struct {
-	columns TableColumns
-	hash    string
+	tableID         TableID
+	fastTableSchema FastTableSchema
+	columns         TableColumns
+	hash            string
+}
+
+func (s *TableSchema) TableID() TableID {
+	if s.tableID.Name == "" && len(s.columns) != 0 {
+		return s.columns[0].TableID()
+	}
+	return s.tableID
+}
+
+func (s *TableSchema) SetTableID(TableID TableID) {
+	s.tableID = TableID
 }
 
 func (s *TableSchema) Copy() *TableSchema {
@@ -31,7 +44,11 @@ func (s *TableSchema) ColumnNames() []string {
 }
 
 func (s *TableSchema) FastColumns() FastTableSchema {
-	return MakeFastTableSchema(s.columns)
+	if s.fastTableSchema != nil {
+		return s.fastTableSchema
+	}
+	s.fastTableSchema = MakeFastTableSchema(s.columns)
+	return s.fastTableSchema
 }
 
 func (s *TableSchema) Hash() (string, error) {
@@ -49,9 +66,26 @@ func (s *TableSchema) Hash() (string, error) {
 	return s.hash, nil
 }
 
+func (s *TableSchema) Equal(o *TableSchema) bool {
+	sh, err := s.Hash()
+	if err != nil {
+		return false
+	}
+	oh, err := o.Hash()
+	if err != nil {
+		return false
+	}
+	return sh == oh
+}
+
 func NewTableSchema(columns []ColSchema) *TableSchema {
 	return &TableSchema{
 		columns: columns,
 		hash:    "",
+		tableID: TableID{
+			Namespace: "",
+			Name:      "",
+		},
+		fastTableSchema: nil,
 	}
 }

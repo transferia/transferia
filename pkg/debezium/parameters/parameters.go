@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 // Contract for parameters: all possible keys are present
@@ -36,19 +36,22 @@ const (
 	MoneyFractionDigits         = "money.fraction.digits"
 	UnavailableValuePlaceholder = "unavailable.value.placeholder"
 
-	KeyConverter                           = "key.converter"
-	KeyConverterSchemasEnable              = "key.converter.schemas.enable"
-	KeyConverterSchemaRegistryURL          = "key.converter.schema.registry.url"
-	KeyConverterBasicAuthCredentialsSource = "key.converter.basic.auth.credentials.source"
-	KeyConverterBasicAuthUserInfo          = "key.converter.basic.auth.user.info"
-	KeyConverterSslCa                      = "key.converter.ssl.ca"
+	KeyConverter                                  = "key.converter"
+	KeyConverterSchemasEnable                     = "key.converter.schemas.enable"
+	KeyConverterSchemaRegistryURL                 = "key.converter.schema.registry.url"
+	KeyConverterBasicAuthCredentialsSource        = "key.converter.basic.auth.credentials.source"
+	KeyConverterBasicAuthUserInfo                 = "key.converter.basic.auth.user.info"
+	KeyConverterSslCa                             = "key.converter.ssl.ca"
+	KeyConverterDTJSONGenerateClosedContentSchema = "key.converter.dt.json.generate.closed.content.schema"
 
-	ValueConverter                           = "value.converter"
-	ValueConverterSchemasEnable              = "value.converter.schemas.enable"
-	ValueConverterSchemaRegistryURL          = "value.converter.schema.registry.url"
-	ValueConverterBasicAuthCredentialsSource = "value.converter.basic.auth.credentials.source"
-	ValueConverterBasicAuthUserInfo          = "value.converter.basic.auth.user.info"
-	ValueConverterSslCa                      = "value.converter.ssl.ca"
+	ValueConverter                                  = "value.converter"
+	ValueConverterSchemasEnable                     = "value.converter.schemas.enable"
+	ValueConverterSchemaRegistryURL                 = "value.converter.schema.registry.url"
+	ValueConverterBasicAuthCredentialsSource        = "value.converter.basic.auth.credentials.source"
+	ValueConverterBasicAuthUserInfo                 = "value.converter.basic.auth.user.info"
+	ValueConverterSslCa                             = "value.converter.ssl.ca"
+	ValueConverterDTJSONGenerateClosedContentSchema = "value.converter.dt.json.generate.closed.content.schema"
+	ValueConverterYSRNamespaceID                    = "value.converter.ysr.namespace.id"
 
 	KeySubjectNameStrategy   = "key.converter.key.subject.name.strategy"
 	ValueSubjectNameStrategy = "value.converter.value.subject.name.strategy"
@@ -111,6 +114,7 @@ var converterParams = set.New([]string{
 	ValueConverterBasicAuthCredentialsSource,
 	ValueConverterBasicAuthUserInfo,
 	ValueConverterSslCa,
+	ValueConverterYSRNamespaceID,
 }...)
 
 func IsConverterParam(param string) bool {
@@ -142,20 +146,31 @@ var connectorSettings = []connectorSetting{
 	{MoneyFractionDigits, []string{}, "2"},
 	{UnavailableValuePlaceholder, []string{}, "__debezium_unavailable_value"},
 
+	// key/value stuff
+
 	{KeyConverter, []string{ConverterApacheKafkaJSON, ConverterConfluentJSON}, ConverterApacheKafkaJSON},
-	{KeyConverterSchemasEnable, []string{BoolFalse, BoolTrue}, BoolTrue},
 	{ValueConverter, []string{ConverterApacheKafkaJSON, ConverterConfluentJSON}, ConverterApacheKafkaJSON},
+
+	{KeyConverterSchemasEnable, []string{BoolFalse, BoolTrue}, BoolTrue},
 	{ValueConverterSchemasEnable, []string{BoolFalse, BoolTrue}, BoolTrue},
-	{ValueConverterSchemaRegistryURL, []string{}, ""},
+
 	{KeyConverterSchemaRegistryURL, []string{}, ""},
+	{ValueConverterSchemaRegistryURL, []string{}, ""},
+
 	{KeyConverterBasicAuthCredentialsSource, []string{}, ""},
-	{KeyConverterBasicAuthUserInfo, []string{}, ""},
 	{ValueConverterBasicAuthCredentialsSource, []string{}, ""},
+
+	{KeyConverterBasicAuthUserInfo, []string{}, ""},
 	{ValueConverterBasicAuthUserInfo, []string{}, ""},
+
 	{KeySubjectNameStrategy, []string{SubjectTopicNameStrategy, SubjectRecordNameStrategy, SubjectTopicRecordNameStrategy}, SubjectTopicNameStrategy},
 	{ValueSubjectNameStrategy, []string{SubjectTopicNameStrategy, SubjectRecordNameStrategy, SubjectTopicRecordNameStrategy}, SubjectTopicNameStrategy},
-	{ValueConverterSslCa, []string{}, ""},
+
 	{KeyConverterSslCa, []string{}, ""},
+	{ValueConverterSslCa, []string{}, ""},
+
+	{KeyConverterDTJSONGenerateClosedContentSchema, []string{BoolFalse, BoolTrue}, BoolFalse},
+	{ValueConverterDTJSONGenerateClosedContentSchema, []string{BoolFalse, BoolTrue}, BoolFalse},
 }
 
 func possibleSettingValues(settingName string) []string {
@@ -257,4 +272,13 @@ func IsKeySchemaDisabled(in map[string]string) bool {
 }
 func IsValueSchemaDisabled(in map[string]string) bool {
 	return GetValueConverterSchemasEnable(in) == BoolFalse
+}
+func GetKeyConverterDTJSONGenerateClosedContentSchema(in map[string]string) bool {
+	return in[KeyConverterDTJSONGenerateClosedContentSchema] == BoolTrue
+}
+func GetValueConverterDTJSONGenerateClosedContentSchema(in map[string]string) bool {
+	return in[ValueConverterDTJSONGenerateClosedContentSchema] == BoolTrue
+}
+func GetYSRNamespaceID(in map[string]string) string {
+	return in[ValueConverterYSRNamespaceID]
 }

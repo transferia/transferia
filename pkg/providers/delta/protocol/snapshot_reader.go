@@ -6,12 +6,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/providers/delta/action"
-	"github.com/doublecloud/transfer/pkg/providers/delta/store"
-	"github.com/doublecloud/transfer/pkg/util/set"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/providers/delta/action"
+	"github.com/transferia/transferia/pkg/providers/delta/store"
+	"github.com/transferia/transferia/pkg/util/set"
 )
 
 type SnapshotReader struct {
@@ -175,10 +175,10 @@ func (r *SnapshotReader) logSegmentForVersion(startCheckpoint int64, versionToLo
 		return res, nil
 	}
 
-	deltas := slices.Filter(newFiles, func(meta *store.FileMeta) bool {
+	deltas := yslices.Filter(newFiles, func(meta *store.FileMeta) bool {
 		return !IsCheckpointFile(meta.Path())
 	})
-	checkpoints := slices.Filter(newFiles, func(meta *store.FileMeta) bool {
+	checkpoints := yslices.Filter(newFiles, func(meta *store.FileMeta) bool {
 		return IsCheckpointFile(meta.Path())
 	})
 
@@ -192,11 +192,11 @@ func (r *SnapshotReader) logSegmentForVersion(startCheckpoint int64, versionToLo
 		}
 	}
 
-	checkpointFiles := slices.Map(checkpoints, func(f *store.FileMeta) *CheckpointInstance {
+	checkpointFiles := yslices.Map(checkpoints, func(f *store.FileMeta) *CheckpointInstance {
 		cp, _ := FromPath(f.Path()) // bad files will filter out later
 		return cp
 	})
-	checkpointFiles = slices.Filter(checkpointFiles, func(instance *CheckpointInstance) bool {
+	checkpointFiles = yslices.Filter(checkpointFiles, func(instance *CheckpointInstance) bool {
 		return instance != nil
 	})
 
@@ -222,7 +222,7 @@ func (r *SnapshotReader) emptySegment(startCheckpoint int64, deltas []*store.Fil
 		return nil, xerrors.Errorf("missing file part: %v", startCheckpoint)
 	}
 
-	deltaVersions := slices.Map(deltas, func(f *store.FileMeta) int64 {
+	deltaVersions := yslices.Map(deltas, func(f *store.FileMeta) int64 {
 		ver, _ := LogVersion(f.Path()) // bad deltas would got 0 version (i.e. no version).
 		return ver
 	})
@@ -252,7 +252,7 @@ func (r *SnapshotReader) segmentFromCheckpoint(
 	newCheckpointVersion := latestCheckpoint.Version
 	newCheckpointPaths := set.New(latestCheckpoint.GetCorrespondingFiles(r.logStore.Root())...)
 
-	deltasAfterCheckpoint := slices.Filter(deltas, func(f *store.FileMeta) bool {
+	deltasAfterCheckpoint := yslices.Filter(deltas, func(f *store.FileMeta) bool {
 		ver, err := LogVersion(f.Path())
 		if err != nil {
 			return false
@@ -260,7 +260,7 @@ func (r *SnapshotReader) segmentFromCheckpoint(
 		return ver > newCheckpointVersion
 	})
 
-	deltaVersions := slices.Map(deltasAfterCheckpoint, func(f *store.FileMeta) int64 {
+	deltaVersions := yslices.Map(deltasAfterCheckpoint, func(f *store.FileMeta) int64 {
 		ver, _ := LogVersion(f.Path()) // err is impossible here
 		return ver
 	})
@@ -284,7 +284,7 @@ func (r *SnapshotReader) segmentFromCheckpoint(
 		newVersion = latestCheckpoint.Version
 	}
 
-	newCheckpointFiles := slices.Filter(checkpoints, func(f *store.FileMeta) bool {
+	newCheckpointFiles := yslices.Filter(checkpoints, func(f *store.FileMeta) bool {
 		return newCheckpointPaths.Contains(f.Path())
 	})
 
@@ -333,7 +333,7 @@ func (r *SnapshotReader) updateInternal() (*Snapshot, error) {
 			return nil, xerrors.Errorf("reconstruct err: %w", err)
 		}
 
-		logger.Log.Infof("No delta log found for the Delta table at " + r.logStore.Root())
+		logger.Log.Infof("No delta log found for the Delta table at %s", r.logStore.Root())
 		newSnapshot, err := NewInitialSnapshot(r.logStore.Root(), r.logStore, r.checkpointReader)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to build initial snapshot: %w", err)

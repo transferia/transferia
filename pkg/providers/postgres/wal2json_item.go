@@ -1,8 +1,9 @@
 package postgres
 
 import (
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgtype"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
 // This is basically an abstract.ChangeItem, but with two additional fields:
@@ -40,20 +41,21 @@ type OldKeysType struct {
 
 func (w *Wal2JSONItem) toChangeItem() abstract.ChangeItem {
 	return abstract.ChangeItem{
-		ID:           w.ID,
-		LSN:          w.LSN,
-		CommitTime:   w.CommitTime,
-		Counter:      w.Counter,
-		Kind:         w.Kind,
-		Schema:       w.Schema,
-		Table:        w.Table,
-		PartID:       w.PartID,
-		ColumnNames:  w.ColumnNames,
-		ColumnValues: w.ColumnValues,
-		TableSchema:  nil,
-		OldKeys:      w.OldKeys.OldKeysType,
-		TxID:         w.TxID,
-		Query:        w.Query,
-		Size:         w.Size,
+		ID:               w.ID,
+		LSN:              w.LSN,
+		CommitTime:       w.CommitTime,
+		Counter:          w.Counter,
+		Kind:             w.Kind,
+		Schema:           w.Schema,
+		Table:            w.Table,
+		PartID:           w.PartID,
+		ColumnNames:      w.ColumnNames,
+		ColumnValues:     w.ColumnValues,
+		TableSchema:      nil,
+		OldKeys:          w.OldKeys.OldKeysType,
+		Size:             w.Size,
+		TxID:             w.TxID,
+		Query:            w.Query,
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }

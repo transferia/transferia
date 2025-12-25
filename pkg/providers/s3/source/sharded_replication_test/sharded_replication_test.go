@@ -11,14 +11,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/s3"
-	"github.com/doublecloud/transfer/pkg/providers/s3/sink/testutil"
-	"github.com/doublecloud/transfer/pkg/providers/s3/source"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/s3"
+	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
+	"github.com/transferia/transferia/pkg/providers/s3/sink/testutil"
+	"github.com/transferia/transferia/pkg/providers/s3/source"
 )
 
 func init() {
@@ -58,10 +59,10 @@ func (m *mockAsyncSink) getCurrentlyRead() int {
 
 func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	testCasePath := "thousands_of_csv_files"
-	src := s3.PrepareCfg(t, "data7", "")
+	src := s3recipe.PrepareCfg(t, "data7", "")
 	src.PathPrefix = testCasePath
 	if os.Getenv("S3MDS_PORT") != "" { // for local recipe we need to upload test case to internet
-		s3.PrepareTestCase(t, src, src.PathPrefix)
+		s3recipe.PrepareTestCase(t, src, src.PathPrefix)
 	}
 
 	time.Sleep(5 * time.Second)
@@ -84,14 +85,18 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 		},
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Endpoint:         aws.String(sqsEndpoint),
-		Region:           aws.String(sqsRegion),
-		S3ForcePathStyle: aws.Bool(src.ConnectionConfig.S3ForcePathStyle),
-		Credentials: credentials.NewStaticCredentials(
-			sqsUser, string(sqsQueueName), "",
-		),
-	})
+	sess, err := session.NewSession(
+		&aws.Config{
+			Endpoint:         aws.String(sqsEndpoint),
+			Region:           aws.String(sqsRegion),
+			S3ForcePathStyle: aws.Bool(src.ConnectionConfig.S3ForcePathStyle),
+			Credentials: credentials.NewStaticCredentials(
+				sqsUser,
+				sqsQueueName,
+				"",
+			),
+		},
+	)
 	require.NoError(t, err)
 
 	sqsClient := sqs.New(sess)
@@ -103,9 +108,10 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	cp := testutil.NewFakeClientWithTransferState()
 
-	sourceOne, err := source.NewSource(src, "test-1", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp)
+	parallelism := abstract.NewFakeShardingTaskRuntime(0, 1, 1, 1)
+	sourceOne, err := source.NewSource(src, "test-1", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, parallelism)
 	require.NoError(t, err)
-	sourceTwo, err := source.NewSource(src, "test-2", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp)
+	sourceTwo, err := source.NewSource(src, "test-2", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, parallelism)
 	require.NoError(t, err)
 
 	sink1 := mockAsyncSink{}

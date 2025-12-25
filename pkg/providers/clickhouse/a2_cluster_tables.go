@@ -4,13 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/filter"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/filter"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -19,7 +20,7 @@ type ClusterTables struct {
 	iter       int
 	storage    ClickhouseStorage
 	partFilter map[string]bool
-	shards     map[string][]string
+	shards     map[string][]*clickhouse.Host
 	rowFilter  map[abstract.TableID]string
 }
 
@@ -99,12 +100,17 @@ func (s *ClusterTables) AddTableDescription(desc abstract.TableDescription) erro
 }
 
 func newClusterTablesFromDescription(storage ClickhouseStorage, config *model.ChSource, descriptions []abstract.TableDescription) (*ClusterTables, error) {
+	sinkParams, err := config.ToSinkParams()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get sink params: %w", err)
+	}
+
 	objs := &ClusterTables{
 		tables:     make([]*Table, 0),
 		iter:       -1,
 		storage:    storage,
 		partFilter: map[string]bool{},
-		shards:     config.ToSinkParams().Shards(),
+		shards:     sinkParams.Shards(),
 		rowFilter:  map[abstract.TableID]string{},
 	}
 	for _, desc := range descriptions {
@@ -143,7 +149,7 @@ func NewClusterTables(storage ClickhouseStorage, config *model.ChSource, inputFi
 		if err != nil {
 			return nil, xerrors.Errorf("unable to list filters: %w", err)
 		}
-		tableDescriptions = slices.Filter(tableDescriptions, func(description abstract.TableDescription) bool {
+		tableDescriptions = yslices.Filter(tableDescriptions, func(description abstract.TableDescription) bool {
 			ok, err := inputFilter.IncludesID(description.ID())
 			return ok && err == nil
 		})
@@ -156,12 +162,16 @@ func NewClusterTables(storage ClickhouseStorage, config *model.ChSource, inputFi
 	if err != nil {
 		return nil, xerrors.Errorf("unable to list tables: %w", err)
 	}
+	sinkParams, err := config.ToSinkParams()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get sink params: %w", err)
+	}
 	objs := &ClusterTables{
 		tables:     make([]*Table, 0),
 		iter:       -1,
 		storage:    storage,
 		partFilter: map[string]bool{},
-		shards:     config.ToSinkParams().Shards(),
+		shards:     sinkParams.Shards(),
 		rowFilter:  map[abstract.TableID]string{},
 	}
 

@@ -2,33 +2,35 @@ package postgres
 
 import (
 	"context"
-	"encoding/gob"
+	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/errors"
-	"github.com/doublecloud/transfer/pkg/errors/categories"
-	"github.com/doublecloud/transfer/pkg/middlewares"
-	"github.com/doublecloud/transfer/pkg/providers"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/dblog"
-	abstract_sink "github.com/doublecloud/transfer/pkg/sink"
-	"github.com/doublecloud/transfer/pkg/stats"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/providers/postgres/dblog"
+	abstract_sink "github.com/transferia/transferia/pkg/sink"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 func init() {
-	gob.RegisterName("*server.PgSource", new(PgSource))
-	gob.RegisterName("*server.PgDestination", new(PgDestination))
-	model.RegisterDestination(ProviderType, func() model.Destination {
+	gobwrapper.RegisterName("*server.PgSource", new(PgSource))
+	gobwrapper.RegisterName("*server.PgDestination", new(PgDestination))
+	model.RegisterDestination(ProviderType, func() model.LoggableDestination {
 		return new(PgDestination)
 	})
-	model.RegisterSource(ProviderType, func() model.Source {
+	model.RegisterSource(ProviderType, func() model.LoggableSource {
 		return new(PgSource)
 	})
 
@@ -76,38 +78,40 @@ type Provider struct {
 	transfer *model.Transfer
 }
 
+func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
+	return transferType != abstract.TransferTypeSnapshotOnly
+}
+
 func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) error {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return xerrors.Errorf("error getting src params from transfer: %w", err)
 	}
-	p.fillParams(src)
 	if p.transfer.SnapshotOnly() {
 		return nil
 	}
-	if !p.transfer.SnapshotOnly() {
-		tracker := NewTracker(p.transfer.ID, p.cp)
-		if err := DropReplicationSlot(src, tracker); err != nil {
-			return xerrors.Errorf("Unable to drop replication slot: %w", err)
-		}
+	tracker := NewTracker(p.transfer.ID, p.cp)
+	if err := DropReplicationSlot(src, tracker); err != nil {
+		return xerrors.Errorf("Unable to drop replication slot: %w", err)
 	}
 	if src.DBLogEnabled {
 		if err := p.DBLogCleanup(ctx, src); err != nil {
-			return xerrors.Errorf("unable to cleenup dblog resourses")
+			return xerrors.Errorf("unable to cleanup dblog resourses")
 		}
 	}
 	return nil
 }
 
 func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation) error {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
-	}
-	p.fillParams(src)
 	if p.transfer.SnapshotOnly() {
 		return nil
 	}
+
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return xerrors.Errorf("error getting src params from transfer: %w", err)
+	}
+
 	tracker := NewTracker(p.transfer.ID, p.cp)
 	if err := DropReplicationSlot(src, tracker); err != nil {
 		return xerrors.Errorf("Unable to drop replication slot: %w", err)
@@ -126,11 +130,10 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 }
 
 func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, tables abstract.TableMap, callbacks providers.ActivateCallbacks) error {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return xerrors.Errorf("error getting src params from transfer: %w", err)
 	}
-	p.fillParams(src)
 	if err := VerifyPostgresTables(src, p.transfer, p.logger); err != nil {
 		if IsPKeyCheckError(err) {
 			if !p.transfer.SnapshotOnly() {
@@ -142,8 +145,17 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 		}
 	}
 	p.logger.Info("Preparing PostgreSQL source")
-	if !p.transfer.SnapshotOnly() {
-		tracker := NewTracker(p.transfer.ID, p.cp)
+	tracker := NewTracker(p.transfer.ID, p.cp)
+	if src.DBLogEnabled && !p.transfer.IncrementOnly() { // if there are present SNAPSHOT stage with turned-on DBLog
+		if err := p.DBLogCreateSlotAndInit(ctx, tracker); err != nil {
+			return xerrors.Errorf("unable to init dblog, err: %w", err)
+		}
+		callbacks.Rollbacks.Add(func() {
+			if err := DropReplicationSlot(src, tracker); err != nil {
+				logger.Log.Error("Unable to drop replication slot", log.Error(err), log.String("slot_name", src.SlotID))
+			}
+		})
+	} else if !p.transfer.SnapshotOnly() { // if there are present REPLICATION stage
 		if err := CreateReplicationSlot(src, tracker); err != nil {
 			return xerrors.Errorf("failed to create a replication slot %q at source: %w", src.SlotID, err)
 		}
@@ -153,6 +165,7 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 			}
 		})
 	}
+
 	if !p.transfer.IncrementOnly() {
 		if err := callbacks.Cleanup(tables); err != nil {
 			return xerrors.Errorf("failed to cleanup sink: %w", err)
@@ -196,11 +209,10 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 }
 
 func (p *Provider) Verify(ctx context.Context) error {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return xerrors.Errorf("error getting src snapshot sink params from transfer: %w", err)
 	}
-	p.fillParams(src)
 	if src.SubNetworkID != "" {
 		return xerrors.New("unable to verify derived network")
 	}
@@ -224,46 +236,49 @@ func (p *Provider) Verify(ctx context.Context) error {
 	return nil
 }
 
-func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
-	dst, ok := p.transfer.Dst.(*PgDestination)
+func (p *Provider) dstParamsFromTransfer() (*PgDestination, error) {
+	transferDst, ok := p.transfer.Dst.(*PgDestination)
 	if !ok {
-		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Dst)
 	}
-	if p.transfer.Type == abstract.TransferTypeSnapshotOnly {
-		dst.PerTransactionPush = false
-	}
-
-	isHomo := p.transfer.SrcType() == ProviderType
-	if !isHomo && !dst.MaintainTables {
+	// prevent accidental transfer params mutation as it may break tests
+	dst := *transferDst
+	if p.transfer.SrcType() != ProviderType {
 		dst.MaintainTables = true
 	}
-	s, err := NewSink(p.logger, p.transfer.ID, dst.ToSinkParams(), p.registry)
+	dst.CopyUpload = false
+	return &dst, nil
+}
+
+func (p *Provider) Sink(mwConfig middlewares.Config) (abstract.Sinker, error) {
+	dst, err := p.dstParamsFromTransfer()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create PostgreSQL sinker: %w", err)
+		return nil, xerrors.Errorf("error getting dst sink params from transfer: %w", err)
 	}
-	return s, nil
+	return NewSink(p.logger, p.transfer.ID, dst.ToSinkParams(), p.registry)
+}
+
+func (p *Provider) SnapshotSink(mwConfig middlewares.Config) (abstract.Sinker, error) {
+	dst, err := p.dstParamsFromTransfer()
+	if err != nil {
+		return nil, xerrors.Errorf("error getting dst snapshot sink params from transfer: %w", err)
+	}
+	if p.transfer.SrcType() == ProviderType {
+		dst.CopyUpload = true
+	}
+	dst.PerTransactionPush = false // should be always disabled for snapshot stage
+	return NewSink(p.logger, p.transfer.ID, dst.ToSinkParams(), p.registry)
 }
 
 func (p *Provider) Source() (abstract.Source, error) {
-	s, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	s, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return nil, xerrors.Errorf("error getting source params from transfer: %w", err)
 	}
-	p.fillParams(s)
-	var src abstract.Source
 	st := stats.NewSourceStats(p.registry)
-	if err := backoff.Retry(func() error {
-		if source, err := NewSourceWrapper(s, p.transfer.ID, p.transfer.DataObjects, p.logger, st, p.cp); err != nil {
-			p.logger.Error("unable to init", log.Error(err))
-			return xerrors.Errorf("unable to create new pg source: %w", err)
-		} else {
-			src = source
-		}
-		return nil
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)); err != nil {
-		return nil, err
-	}
-	return src, nil
+	return backoff.RetryNotifyWithData(func() (abstract.Source, error) {
+		return NewSourceWrapper(s, p.transfer.ID, p.transfer.DataObjects, p.logger, st, p.cp, false)
+	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 3), util.BackoffLoggerWarn(p.logger, "unable to init pg source"))
 }
 
 // Build a type mapping and print elapsed time in log.
@@ -277,11 +292,10 @@ func buildTypeMapping(ctx context.Context, storage *Storage) (TypeNameToOIDMap, 
 }
 
 func (p *Provider) Storage() (abstract.Storage, error) {
-	src, ok := p.transfer.Src.(*PgSource)
-	if !ok {
-		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return nil, xerrors.Errorf("error getting src storage params from transfer: %w", err)
 	}
-	p.fillParams(src)
 	opts := []StorageOpt{WithMetrics(p.registry)}
 	pgDst, ok := p.transfer.Dst.(*PgDestination)
 	if ok {
@@ -302,13 +316,16 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 		return nil, xerrors.Errorf("failed to create a PostgreSQL storage: %w", err)
 	}
 	storage.IsHomo = src.IsHomo
-	if p.transfer.DataObjects != nil && len(p.transfer.DataObjects.IncludeObjects) > 0 {
-		storage.loadDescending = src.CollapseInheritTables // For include objects we force to load parent table with all their children
-	}
 	return storage, nil
 }
 
-func (p *Provider) fillParams(src *PgSource) {
+func (p *Provider) srcParamsFromTransfer() (*PgSource, error) {
+	transferSrc, ok := p.transfer.Src.(*PgSource)
+	if !ok {
+		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	}
+	// prevent accidental transfer params mutation as it may break tests
+	src := *transferSrc
 	if src.SlotID == "" {
 		src.SlotID = p.transfer.ID
 	}
@@ -318,13 +335,14 @@ func (p *Provider) fillParams(src *PgSource) {
 	if src.NoHomo {
 		src.IsHomo = false
 	}
+
+	return &src, nil
 }
 
 func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abstract.TableDescription, error) {
-	src, ok := p.transfer.Src.(*PgSource)
-	p.fillParams(src)
-	if !ok {
-		return nil, nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return nil, nil, xerrors.Errorf("error getting src sampleable storage params from transfer: %w", err)
 	}
 	srcStorage, err := NewStorage(src.ToStorageParams(p.transfer))
 	if err != nil {
@@ -340,7 +358,7 @@ func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abst
 	}
 	var tables []abstract.TableDescription
 	for tID, tInfo := range all {
-		if tID.Name == TableConsumerKeeper || tID.Name == dblog.SignalTableName {
+		if abstract.IsSystemTable(tID.Name) {
 			continue
 		}
 		if src.Include(tID) {
@@ -368,6 +386,35 @@ func (p *Provider) Type() abstract.ProviderType {
 	return ProviderType
 }
 
+func (p *Provider) DBLogCreateSlotAndInit(ctx context.Context, tracker *Tracker) error {
+	src, ok := p.transfer.Src.(*PgSource)
+	if !ok {
+		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+	}
+
+	exists, err := CreateReplicationSlotIfNotExists(src, tracker)
+	if err != nil {
+		return xerrors.Errorf("failed to create a replication slot (1) %q at source: %w", src.SlotID, err)
+	}
+
+	pgStorage, err := NewStorage(src.ToStorageParams(p.transfer))
+	if err != nil {
+		return xerrors.Errorf("failed to create postgres storage: %w", err)
+	}
+	// ensure SignalTable exists
+	_, err = dblog.NewPgSignalTable(ctx, pgStorage.Conn, logger.Log, p.transfer.ID, src.KeeperSchema)
+	if err != nil {
+		return xerrors.Errorf("unable to create signal table: %w", err)
+	}
+	if !exists {
+		// delete previous watermarks - only if slot previously not existed. It existed - it's just dataplane restart
+		if err := dblog.DeleteWatermarks(ctx, pgStorage.Conn, src.KeeperSchema, p.transfer.ID); err != nil {
+			return xerrors.Errorf("unable to delete watermarks: %w", err)
+		}
+	}
+	return nil
+}
+
 func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap) error {
 	src, ok := p.transfer.Src.(*PgSource)
 	if !ok {
@@ -378,28 +425,11 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap) er
 		return xerrors.Errorf("failed to create postgres storage: %w", err)
 	}
 
-	// ensure SignalTable exists
-	_, err = dblog.NewPgSignalTable(ctx, pgStorage.Conn, logger.Log, p.transfer.ID, src.KeeperSchema)
-	if err != nil {
-		return xerrors.Errorf("unable to create signal table: %w", err)
-	}
-	// delete previous watermarks
-	if err := dblog.DeleteWatermarks(ctx, pgStorage.Conn, src.KeeperSchema, p.transfer.ID); err != nil {
-		return xerrors.Errorf("unable to delete watermarks: %w", err)
-	}
-
-	sourceWrapper, err := NewSourceWrapper(src, src.SlotID, p.transfer.DataObjects, p.logger, stats.NewSourceStats(p.registry), p.cp)
-	if err != nil {
-		return xerrors.Errorf("failed to create source wrapper: %w", err)
-	}
-
-	dblogStorage, err := dblog.NewStorage(p.logger, sourceWrapper, pgStorage, pgStorage.Conn, src.ChunkSize, p.transfer.ID, src.KeeperSchema, Represent)
-	if err != nil {
-		return xerrors.Errorf("failed to create DBLog storage: %w", err)
-	}
-
 	tableDescs := tables.ConvertToTableDescriptions()
 	for _, table := range tableDescs {
+		if abstract.IsSystemTable(table.Name) {
+			continue
+		}
 		asyncSink, err := abstract_sink.MakeAsyncSink(
 			p.transfer,
 			logger.Log,
@@ -414,15 +444,28 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap) er
 			return xerrors.Errorf("failed to make async sink: %w", err)
 		}
 
-		if err = backoff.Retry(func() error {
+		if err = backoff.RetryNotify(func() error {
 			logger.Log.Infof("Starting upload table: %s", table.String())
 
-			err := dblogStorage.LoadTable(ctx, table, pusher)
-			if err == nil {
-				logger.Log.Infof("Upload table %s successfully", table.String())
+			sourceWrapper, err := NewSourceWrapper(src, src.SlotID, p.transfer.DataObjects, p.logger, stats.NewSourceStats(p.registry), p.cp, true)
+			if err != nil {
+				return xerrors.Errorf("failed to create source wrapper: %w", err)
 			}
-			return err
-		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10)); err != nil {
+
+			dblogStorage, err := dblog.NewStorage(p.logger, sourceWrapper, pgStorage, pgStorage.Conn, src.ChunkSize, p.transfer.ID, src.KeeperSchema, Represent)
+			if err != nil {
+				return xerrors.Errorf("failed to create DBLog storage: %w", err)
+			}
+
+			err = dblogStorage.LoadTable(ctx, table, pusher)
+			if abstract.IsFatal(err) {
+				return backoff.Permanent(xerrors.Errorf("fatal error ocurred in dblogStorage.LoadTable, err: %w", err))
+			} else if err != nil {
+				return xerrors.Errorf("unable to dblogStorage.LoadTable, err: %w", err)
+			}
+			logger.Log.Infof("Upload table %s successfully", table.String())
+			return nil
+		}, util.NewExponentialBackOff(), util.BackoffLogger(logger.Log, fmt.Sprintf("loading table: %s", table.String()))); err != nil {
 			return xerrors.Errorf("failed to load table: %w", err)
 		}
 	}

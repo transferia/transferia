@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"golang.org/x/exp/maps"
 )
 
@@ -129,6 +130,9 @@ func makeVal(originalType string, val interface{}) (interface{}, error) {
 			return nil, xerrors.Errorf("unable to convert json.Number into int64, val:%s, err:%w", v.String(), err)
 		}
 		return time.Duration(result) * time.Microsecond, nil
+	case "ydb:Uuid":
+		v := val.(string)
+		return v, nil
 	default:
 		return nil, xerrors.Errorf("unknown originalType: %s", originalType)
 	}
@@ -194,9 +198,10 @@ func makeUpdateChangeItem(
 			KeyTypes:  make([]string, 0, len(event.Key)+len(event.OldImage)),
 			KeyValues: make([]interface{}, 0, len(event.Key)+len(event.OldImage)),
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.RawEventSize(msgSize),
+		Size:             abstract.RawEventSize(msgSize),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	index := 0
 	for _, keyVal := range event.Key {
@@ -298,9 +303,10 @@ func makeDeleteChangeItem(
 			KeyTypes:  make([]string, 0, len(event.Key)),
 			KeyValues: make([]interface{}, 0, len(event.Key)),
 		},
-		TxID:  "",
-		Query: "",
-		Size:  abstract.RawEventSize(msgSize),
+		Size:             abstract.RawEventSize(msgSize),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 	index := 0
 	for _, keyVal := range event.Key {
@@ -342,7 +348,7 @@ func convertToChangeItem(
 	msgSize uint64,
 	fillDefaults bool,
 ) (*abstract.ChangeItem, error) {
-	if event.Update != nil {
+	if event.Update != nil || event.NewImage != nil {
 		// insert/update
 		result, err := makeUpdateChangeItem(tablePath, schema, event, writeTime, offset, partitionID, msgSize, fillDefaults)
 		if err != nil {

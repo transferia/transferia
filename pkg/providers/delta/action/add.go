@@ -3,7 +3,7 @@ package action
 import (
 	"net/url"
 
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type AddFile struct {

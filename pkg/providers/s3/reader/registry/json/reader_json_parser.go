@@ -1,0 +1,360 @@
+package reader
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"math"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/goccy/go-json"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/parsers"
+	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
+	"github.com/transferia/transferia/pkg/providers/s3"
+	chunk_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	abstract_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
+	"github.com/transferia/transferia/pkg/providers/s3/s3util"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/valyala/fastjson"
+	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/yt/go/schema"
+)
+
+var (
+	_ abstract_reader.Reader             = (*JSONParserReader)(nil)
+	_ abstract_reader.RowsCountEstimator = (*JSONParserReader)(nil)
+)
+
+func init() {
+	abstract_reader.RegisterReader(model.ParsingFormatJSON, NewJSONParserReader)
+}
+
+type JSONParserReader struct {
+	table                   abstract.TableID
+	bucket                  string
+	client                  s3iface.S3API
+	downloader              *s3manager.Downloader
+	logger                  log.Logger
+	tableSchema             *abstract.TableSchema
+	hideSystemCols          bool
+	batchSize               int
+	pathPrefix              string
+	newlinesInValue         bool
+	unexpectedFieldBehavior s3.UnexpectedFieldBehavior
+	blockSize               int64
+	pathPattern             string
+	metrics                 *stats.SourceStats
+	unparsedPolicy          s3.UnparsedPolicy
+
+	parser parsers.Parser
+}
+
+func (r *JSONParserReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
+	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create reader at: %w", err)
+	}
+	return sr, nil
+}
+
+func (r *JSONParserReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
+	res := uint64(0)
+
+	totalSize, sampleReader, err := abstract_reader.EstimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
+	if err != nil {
+		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
+	}
+
+	if totalSize > 0 && sampleReader != nil {
+		chunkReader := abstract_reader.NewChunkReader(sampleReader, int(r.blockSize), r.logger)
+		defer chunkReader.Close()
+		err = chunkReader.ReadNextChunk()
+		if err != nil && !xerrors.Is(err, io.EOF) {
+			return uint64(0), xerrors.Errorf("failed to estimate row count: %w", err)
+		}
+		if len(chunkReader.Data()) > 0 {
+			lines, bytesRead := readAllMultilineLines(chunkReader.Data())
+			bytesPerLine := float64(bytesRead) / float64(len(lines))
+			totalLines := math.Ceil(float64(totalSize) / bytesPerLine)
+			res = uint64(totalLines)
+		}
+	}
+	return res, nil
+}
+
+func (r *JSONParserReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
+	res, err := r.estimateRows(ctx, []*aws_s3.Object{obj})
+	if err != nil {
+		return 0, xerrors.Errorf("failed to estimate rows of file: %s : %w", *obj.Key, err)
+	}
+	return res, nil
+}
+
+func (r *JSONParserReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	if err != nil {
+		return 0, xerrors.Errorf("unable to load file list: %w", err)
+	}
+
+	res, err := r.estimateRows(ctx, files)
+	if err != nil {
+		return 0, xerrors.Errorf("failed to estimate total rows: %w", err)
+	}
+	return res, nil
+}
+
+func (r *JSONParserReader) Read(ctx context.Context, filePath string, pusher chunk_pusher.Pusher) error {
+	s3RawReader, err := r.newS3RawReader(ctx, filePath)
+	if err != nil {
+		return xerrors.Errorf("unable to open reader: %w", err)
+	}
+
+	offset := 0
+	lineCounter := uint64(1)
+	var readBytes int
+	var lines []string
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	defer chunkReader.Close()
+
+	for lastRound := false; !lastRound; {
+		if ctx.Err() != nil {
+			r.logger.Info("Read canceled")
+			return nil
+		}
+		if err := chunkReader.ReadNextChunk(); err != nil {
+			return xerrors.Errorf("failed to read from file: %w", err)
+		}
+		if chunkReader.IsEOF() && len(chunkReader.Data()) > 0 {
+			lastRound = true
+		}
+		data := chunkReader.Data()
+		if r.newlinesInValue {
+			lines, readBytes = readAllMultilineLines(data)
+		} else {
+			lines, readBytes, err = readAllLines(data)
+			if err != nil {
+				return xerrors.Errorf("failed to read lines from file: %w", err)
+			}
+		}
+
+		// Limit readBytes to data length to prevent slice bounds out of range
+		if readBytes > len(data) {
+			readBytes = len(data)
+		}
+
+		chunkReader.FillBuffer(data[readBytes:])
+		offset += readBytes
+		var buff []abstract.ChangeItem
+		var currentSize int64
+		for i, line := range lines {
+			cis := r.parser.Do(parsers.Message{
+				Offset:     uint64(i),
+				SeqNo:      0,
+				Key:        []byte(filePath),
+				CreateTime: s3RawReader.LastModified(),
+				WriteTime:  s3RawReader.LastModified(),
+				Value:      []byte(line),
+				Headers:    nil,
+			}, abstract.NewPartition(filePath, 0))
+			for i := range cis {
+				if parsers.IsUnparsed(cis[i]) {
+					if r.unparsedPolicy == s3.UnparsedPolicyFail {
+						return abstract.NewFatalError(xerrors.Errorf("unable to parse line: %s: %w", line, err))
+					}
+					buff = append(buff, cis[i])
+					continue
+				}
+				cis[i].Table = r.table.Name
+				cis[i].Schema = r.table.Namespace
+				cis[i].PartID = filePath
+				if !r.hideSystemCols {
+					cis[i].ColumnValues[0] = filePath
+					cis[i].ColumnValues[1] = lineCounter
+				}
+				buff = append(buff, cis[i])
+			}
+
+			currentSize += int64(len(line))
+			lineCounter++
+
+			if len(buff) > r.batchSize {
+				if err := abstract_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
+					return xerrors.Errorf("unable to push: %w", err)
+				}
+				currentSize = 0
+				buff = []abstract.ChangeItem{}
+			}
+		}
+		if err := abstract_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
+			return xerrors.Errorf("unable to push last batch: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *JSONParserReader) ParsePassthrough(chunk chunk_pusher.Chunk) []abstract.ChangeItem {
+	// the most complex and useful method in the world
+	return chunk.Items
+}
+
+func (r *JSONParserReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, error) {
+	if r.tableSchema != nil && len(r.tableSchema.Columns()) != 0 {
+		return r.tableSchema, nil
+	}
+
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
+	if err != nil {
+		return nil, xerrors.Errorf("unable to load file list: %w", err)
+	}
+
+	if len(files) < 1 {
+		return nil, xerrors.Errorf("unable to resolve schema, no jsonline files found: %s", r.pathPrefix)
+	}
+
+	return r.resolveSchema(ctx, *files[0].Key)
+}
+
+func (r *JSONParserReader) ObjectsFilter() abstract_reader.ObjectsFilter {
+	return abstract_reader.IsNotEmpty
+}
+
+func (r *JSONParserReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
+	s3RawReader, err := r.newS3RawReader(ctx, key)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to open reader for file: %s: %w", key, err)
+	}
+
+	chunkReader := abstract_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
+	defer chunkReader.Close()
+	err = chunkReader.ReadNextChunk()
+	if err != nil && !xerrors.Is(err, io.EOF) {
+		return nil, xerrors.Errorf("failed to read sample from file: %s: %w", key, err)
+	}
+	if len(chunkReader.Data()) == 0 {
+		// read nothing, file was empty
+		return nil, xerrors.New(fmt.Sprintf("could not read sample data from file: %s", key))
+	}
+
+	reader := bufio.NewReader(bytes.NewReader(chunkReader.Data()))
+	var line string
+	if r.newlinesInValue {
+		line, err = readSingleJSONObject(reader)
+		if err != nil {
+			return nil, xerrors.Errorf("could not read sample data with newlines for schema deduction from %s: %w", r.pathPrefix+key, err)
+		}
+	} else {
+		line, err = reader.ReadString('\n')
+		if err != nil {
+			return nil, xerrors.Errorf("could not read sample data for schema deduction from %s: %w", r.pathPrefix+key, err)
+		}
+	}
+
+	if err := fastjson.Validate(line); err != nil {
+		return nil, xerrors.Errorf("failed to validate json line from %s: %w", r.pathPrefix+key, err)
+	}
+
+	unmarshaledJSONLine := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(line), &unmarshaledJSONLine); err != nil {
+		return nil, xerrors.Errorf("failed to unmarshal json line from %s: %w", r.pathPrefix+key, err)
+	}
+
+	keys := util.MapKeysInOrder(unmarshaledJSONLine)
+	var cols []abstract.ColSchema
+
+	for _, key := range keys {
+		val := unmarshaledJSONLine[key]
+		if val == nil {
+			col := abstract.NewColSchema(key, schema.TypeAny, false)
+			col.OriginalType = fmt.Sprintf("jsonl:%s", "null")
+			cols = append(cols, col)
+			continue
+		}
+
+		valueType, originalType, err := guessType(val)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to guess schema type for field %s from %s: %w", key, r.pathPrefix+key, err)
+		}
+
+		col := abstract.NewColSchema(key, valueType, false)
+		col.OriginalType = fmt.Sprintf("jsonl:%s", originalType)
+		cols = append(cols, col)
+	}
+
+	if r.unexpectedFieldBehavior == s3.Infer {
+		restCol := abstract.NewColSchema("_rest", schema.TypeAny, false)
+		restCol.OriginalType = fmt.Sprintf("jsonl:%s", "string")
+		cols = append(cols, restCol)
+	}
+
+	return abstract.NewTableSchema(cols), nil
+}
+
+func NewJSONParserReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, metrics *stats.SourceStats) (abstract_reader.Reader, error) {
+	if src == nil || src.Format.JSONLSetting == nil {
+		return nil, xerrors.New("uninitialized settings for jsonline reader")
+	}
+
+	jsonlSettings := src.Format.JSONLSetting
+
+	reader := &JSONParserReader{
+		bucket:                  src.Bucket,
+		hideSystemCols:          src.HideSystemCols,
+		batchSize:               src.ReadBatchSize,
+		pathPrefix:              src.PathPrefix,
+		pathPattern:             src.PathPattern,
+		newlinesInValue:         jsonlSettings.NewlinesInValue,
+		unexpectedFieldBehavior: jsonlSettings.UnexpectedFieldBehavior,
+		blockSize:               jsonlSettings.BlockSize,
+		client:                  aws_s3.New(sess),
+		downloader:              s3manager.NewDownloader(sess),
+		logger:                  lgr,
+		table: abstract.TableID{
+			Namespace: src.TableNamespace,
+			Name:      src.TableName,
+		},
+		tableSchema:    abstract.NewTableSchema(src.OutputSchema),
+		metrics:        metrics,
+		unparsedPolicy: src.UnparsedPolicy,
+		parser:         nil,
+	}
+
+	if len(reader.tableSchema.Columns()) == 0 {
+		var err error
+		reader.tableSchema, err = reader.ResolveSchema(context.Background())
+		if err != nil {
+			return nil, xerrors.Errorf("unable to resolve schema: %w", err)
+		}
+	}
+
+	// append system columns at the end if necessary
+	if !reader.hideSystemCols {
+		cols := reader.tableSchema.Columns()
+		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
+		reader.tableSchema = abstract_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
+	}
+
+	cfg := new(jsonparser.ParserConfigJSONCommon)
+	cfg.AddRest = reader.unexpectedFieldBehavior == s3.Infer
+	cfg.NullKeysAllowed = true
+	cfg.Fields = reader.tableSchema.Columns()
+	cfg.AddDedupeKeys = false
+	p, err := jsonparser.NewParserJSON(cfg, false, lgr, metrics)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to construct JSON parser: %w", err)
+	}
+
+	reader.parser = p
+	return reader, nil
+}

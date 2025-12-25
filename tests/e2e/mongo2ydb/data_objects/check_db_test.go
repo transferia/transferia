@@ -7,16 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	cpclient "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	mongodataagent "github.com/doublecloud/transfer/pkg/providers/mongo"
-	ydbStorage "github.com/doublecloud/transfer/pkg/providers/ydb"
-	"github.com/doublecloud/transfer/pkg/runtime/local"
-	"github.com/doublecloud/transfer/pkg/worker/tasks"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	mongodataagent "github.com/transferia/transferia/pkg/providers/mongo"
+	ydbStorage "github.com/transferia/transferia/pkg/providers/ydb"
+	"github.com/transferia/transferia/pkg/runtime/local"
+	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
@@ -141,7 +142,7 @@ func Load(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// check results
 
-	result, err := ydbStorage.NewStorage(Target.ToStorageParams())
+	result, err := ydbStorage.NewStorage(Target.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
 	require.NoError(t, helpers.WaitEqualRowsCount(

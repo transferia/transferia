@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -128,10 +129,11 @@ func (u *UserActivities) ToChangeItem(offset int64) abstract.ChangeItem {
 			u.eventDuration,
 		},
 		OldKeys: abstract.EmptyOldKeys(),
-		TxID:    "",
-		Query:   "",
 		// removing table string size because it is not added in column values
-		Size: abstract.RawEventSize(util.SizeOfStruct(*u) - uint64(len(u.table))),
+		Size:             abstract.RawEventSize(util.SizeOfStruct(*u) - uint64(len(u.table))),
+		TxID:             "",
+		Query:            "",
+		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
 }
 

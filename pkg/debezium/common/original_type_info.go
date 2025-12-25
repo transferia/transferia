@@ -1,7 +1,7 @@
 package common
 
 import (
-	pgcommon "github.com/doublecloud/transfer/pkg/providers/postgres"
+	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 type OriginalTypeInfo struct {

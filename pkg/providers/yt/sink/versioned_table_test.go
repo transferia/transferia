@@ -5,13 +5,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/internal/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	client2 "github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	"go.ytsaurus.tech/yt/go/ypath"
 	ytsdk "go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -48,7 +48,7 @@ func TestVersionedTable_Write(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	err = table.Push(generateVersionRows(2, 1))
 	require.NoError(t, err)
@@ -66,7 +66,7 @@ func TestVersionedTable_Write_Newest_Than_Oldest(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	err = table.Push(generateVersionRows(2, 2))
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestVersionedTable_Write_MissedOrder(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	input := append(generateVersionRows(2, 2), generateVersionRows(2, 1)...)
 	require.NoError(t, table.Push(input))
@@ -107,13 +107,31 @@ func TestVersionedTable_CustomAttributes(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", 0, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
 	require.NoError(t, err)
 	input := append(generateVersionRows(2, 2), generateVersionRows(2, 1)...)
 	require.NoError(t, table.Push(input))
 	var data bool
 	require.NoError(t, env.YT.GetNode(env.Ctx, ypath.Path(fmt.Sprintf("%s/@test", testVersionedTablePath)), &data, nil))
 	require.Equal(t, true, data)
+}
+
+func TestVersionedTable_IncludeTimeoutAttribute(t *testing.T) {
+	env, cancel := recipe.NewEnv(t)
+	defer cancel()
+	defer teardown(env.YT, testVersionedTablePath)
+	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
+	cfg.WithDefaults()
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	require.NoError(t, err)
+	input := append(generateVersionRows(2, 2), generateVersionRows(2, 1)...)
+	require.NoError(t, table.Push(input))
+	var timeout int64
+	require.NoError(t, env.YT.GetNode(env.Ctx, ypath.Path(fmt.Sprintf("%s/@expiration_timeout", testVersionedTablePath)), &timeout, nil))
+	require.Equal(t, int64(604800000), timeout)
+	var expTime string
+	require.NoError(t, env.YT.GetNode(env.Ctx, ypath.Path(fmt.Sprintf("%s/@expiration_time", testVersionedTablePath)), &expTime, nil))
+	require.Equal(t, "2200-01-12T03:32:51.298047Z", expTime)
 }
 
 func readVersionedTableStored(t *testing.T, env *yttest.Env) []testVersionedRow {
@@ -181,7 +199,9 @@ func versionTableYtConfig() yt.YtDestination {
 		Path:          "//home/cdc/test/versioned",
 		Cluster:       os.Getenv("YT_PROXY"),
 		CustomAttributes: map[string]string{
-			"test": "%true",
+			"test":               "%true",
+			"expiration_timeout": "604800000",
+			"expiration_time":    "\"2200-01-12T03:32:51.298047Z\"",
 		},
 	}
 }

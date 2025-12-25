@@ -3,11 +3,12 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -24,6 +25,7 @@ const (
 			on c.table_schema = t.table_schema
 			and c.table_name = t.table_name
 			and t.table_type in %s
+			%s
 		where c.table_schema not in ('sys', 'mysql', 'information_schema', 'performance_schema')
 		order by c.table_name, c.column_name;
 	`
@@ -46,6 +48,7 @@ const (
 				select table_name from information_schema.tables
 				where table_schema not in ('sys', 'mysql', 'information_schema', 'performance_schema')
 				and table_type in ('BASE TABLE', 'VIEW')
+				%s
 			)
 		order by
 			table_schema,
@@ -91,6 +94,7 @@ const (
 				select table_name from information_schema.tables
 				where table_schema not in ('sys', 'mysql', 'information_schema', 'performance_schema')
 				and table_type in ('BASE TABLE', 'VIEW')
+				%s
 			)
 			and generation_expression is not null and generation_expression != ''
 		;
@@ -101,12 +105,22 @@ type queryExecutor interface {
 	Query(sql string, args ...interface{}) (*sql.Rows, error)
 }
 
-func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool) (abstract.DBSchema, error) {
+type constraintColumn struct {
+	Col            abstract.ColSchema
+	ConstraintName sql.NullString
+	Position       int
+}
+
+func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool, database string) (abstract.DBSchema, error) {
 	includeViewsSQL := baseTablesAndViews
 	if !includeViews {
 		includeViewsSQL = baseTablesOnly
 	}
-	rows, err := tx.Query(fmt.Sprintf(columnList, includeViewsSQL))
+	query := fmt.Sprintf(columnList, includeViewsSQL, "")
+	if database != "" {
+		query = fmt.Sprintf(columnList, includeViewsSQL, fmt.Sprintf("and c.table_schema = '%s'", database))
+	}
+	rows, err := tx.Query(query)
 	if err != nil {
 		msg := "unable to select column list"
 		logger.Log.Error(msg, log.Error(err))
@@ -138,40 +152,55 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool) (ab
 	}
 	pKeys := make(map[abstract.TableID][]string)
 	uKeys := make(map[abstract.TableID][]string)
-	keyRows, err := tx.Query(constraintList)
+	query = fmt.Sprintf(constraintList, "")
+	if database != "" {
+		query = fmt.Sprintf(constraintList, fmt.Sprintf("and table_schema = '%s'", database))
+	}
+	keyRows, err := tx.Query(query)
 	if err != nil {
 		msg := "unable to select constraints"
 		logger.Log.Error(msg, log.Error(err))
 		return nil, xerrors.Errorf("%v: %w", msg, err)
 	}
+
+	var constraintCols []constraintColumn
 	for keyRows.Next() {
-		var col abstract.ColSchema
-		var pos int
-		var constraintName sql.NullString
-		err := keyRows.Scan(
-			&col.TableSchema,
-			&col.TableName,
-			&col.ColumnName,
-			&pos,
-			&constraintName,
-		)
-		if err != nil {
+		var constraintCol constraintColumn
+		if err := keyRows.Scan(
+			&constraintCol.Col.TableSchema,
+			&constraintCol.Col.TableName,
+			&constraintCol.Col.ColumnName,
+			&constraintCol.Position,
+			&constraintCol.ConstraintName,
+		); err != nil {
 			msg := "unable to scan constraint list"
 			logger.Log.Error(msg, log.Error(err))
 			return nil, xerrors.Errorf("%v: %w", msg, err)
 		}
-		if constraintName.Valid && constraintName.String == "PRIMARY" {
+
+		col := constraintCol.Col
+		if constraintCol.ConstraintName.Valid && constraintCol.ConstraintName.String == "PRIMARY" {
 			pKeys[col.TableID()] = append(pKeys[col.TableID()], col.ColumnName)
 		} else {
 			uKeys[col.TableID()] = append(uKeys[col.TableID()], col.ColumnName)
 		}
+		constraintCols = append(constraintCols, constraintCol)
 	}
+
+	newWayInferredTableKeys := keyNamesFromConstraints(constraintCols)
 	for tID, currSchema := range tableCols {
 		keys := pKeys[tID]
 		if len(keys) == 0 {
 			keys = uKeys[tID]
 		}
-		tableSchema := makeTableSchema(currSchema, uniq(keys))
+		uniqueKeys := uniq(keys)
+		tableSchema := makeTableSchema(currSchema, uniqueKeys)
+
+		newWayInferredKeys := newWayInferredTableKeys[tID]
+		if slices.Compare(uniqueKeys, newWayInferredKeys) != 0 {
+			logger.Log.Info("DEBUG TM-9031 SNAPSHOT: new inferred key columns differs from current cols",
+				log.String("table", tID.String()), log.Strings("old_keys", uniqueKeys), log.Strings("new_keys", newWayInferredKeys))
+		}
 
 		if useFakePrimaryKey && !tableSchema.HasPrimaryKey() {
 			for i := range tableSchema {
@@ -179,49 +208,55 @@ func LoadSchema(tx queryExecutor, useFakePrimaryKey bool, includeViews bool) (ab
 				tableSchema[i].FakeKey = true
 			}
 		}
-		tableCols[tID] = makeTableSchema(currSchema, uniq(keys))
+		tableCols[tID] = tableSchema
 	}
 	dbSchema := make(abstract.DBSchema)
-	for tableID, columns := range enrichExpressions(tx, tableCols) {
+	for tableID, columns := range enrichExpressions(tx, tableCols, database) {
 		dbSchema[tableID] = abstract.NewTableSchema(columns)
 	}
 	return dbSchema, nil
 }
 
-func LoadTableConstraints(tx queryExecutor, table abstract.TableID) (map[string][]string, error) {
+func LoadTableConstraints(tx queryExecutor, table abstract.TableID) (map[string][]string, []constraintColumn, error) {
 	constraints := make(map[string][]string)
 	cRows, err := tx.Query(tableConstraintList, table.Namespace, table.Name)
 	if err != nil {
 		errMsg := fmt.Sprintf("cannot fetch constraints for table %v.%v", table.Namespace, table.Name)
 		logger.Log.Errorf("%v: %v", errMsg, err)
-		return constraints, xerrors.Errorf("%v: %w", errMsg, err)
+		return nil, nil, xerrors.Errorf("%v: %w", errMsg, err)
 	}
+
+	var constraintCols []constraintColumn
 	for cRows.Next() {
-		var col abstract.ColSchema
-		var pos int
-		var constraintName sql.NullString
-		err := cRows.Scan(
-			&col.TableSchema,
-			&col.TableName,
-			&col.ColumnName,
-			&pos,
-			&constraintName,
-		)
-		if err != nil {
+		var constraintCol constraintColumn
+		if err := cRows.Scan(
+			&constraintCol.Col.TableSchema,
+			&constraintCol.Col.TableName,
+			&constraintCol.Col.ColumnName,
+			&constraintCol.Position,
+			&constraintCol.ConstraintName,
+		); err != nil {
 			errMsg := fmt.Sprintf("unable to scan constraint list for table %v.%v", table.Namespace, table.Name)
 			logger.Log.Errorf("%v: %v", errMsg, err)
-			return constraints, xerrors.Errorf("%v: %w", errMsg, err)
+			return nil, nil, xerrors.Errorf("%v: %w", errMsg, err)
 		}
-		if constraintName.Valid {
-			cName := constraintName.String
-			constraints[cName] = append(constraints[cName], col.ColumnName)
+
+		if constraintCol.ConstraintName.Valid {
+			cName := constraintCol.ConstraintName.String
+			constraints[cName] = append(constraints[cName], constraintCol.Col.ColumnName)
 		}
+		constraintCols = append(constraintCols, constraintCol)
 	}
-	return constraints, nil
+
+	return constraints, constraintCols, nil
 }
 
-func enrichExpressions(tx queryExecutor, schema map[abstract.TableID]abstract.TableColumns) map[abstract.TableID]abstract.TableColumns {
-	rows, err := tx.Query(expressionList)
+func enrichExpressions(tx queryExecutor, schema map[abstract.TableID]abstract.TableColumns, database string) map[abstract.TableID]abstract.TableColumns {
+	query := fmt.Sprintf(expressionList, "")
+	if database != "" {
+		query = fmt.Sprintf(expressionList, fmt.Sprintf("and table_schema = '%s'", database))
+	}
+	rows, err := tx.Query(query)
 	if err != nil {
 		logger.Log.Warnf("Unable to enrich expressions: %v", err)
 		return schema
@@ -248,6 +283,45 @@ func enrichExpressions(tx queryExecutor, schema map[abstract.TableID]abstract.Ta
 		}
 	}
 	return schema
+}
+
+func keyNamesFromConstraints(constraintCols []constraintColumn) map[abstract.TableID][]string {
+	primaryKeys := make(map[abstract.TableID][]string)
+	uniqueConstraintKeys := make(map[abstract.TableID][]string)
+
+	sort.Slice(constraintCols, func(i, j int) bool {
+		if constraintCols[i].Col.TableSchema != constraintCols[j].Col.TableSchema {
+			return constraintCols[i].Col.TableSchema < constraintCols[j].Col.TableSchema
+		}
+		if constraintCols[i].Col.TableName != constraintCols[j].Col.TableName {
+			return constraintCols[i].Col.TableName < constraintCols[j].Col.TableName
+		}
+		if constraintCols[i].Position != constraintCols[j].Position {
+			return constraintCols[i].Position < constraintCols[j].Position
+		}
+		return constraintCols[i].ConstraintName.String < constraintCols[j].ConstraintName.String
+	})
+
+	for _, constraintCol := range constraintCols {
+		col := constraintCol.Col
+		if constraintCol.ConstraintName.Valid && constraintCol.ConstraintName.String == "PRIMARY" {
+			primaryKeys[col.TableID()] = append(primaryKeys[col.TableID()], col.ColumnName)
+		} else {
+			uniqueConstraintKeys[col.TableID()] = append(uniqueConstraintKeys[col.TableID()], col.ColumnName)
+		}
+	}
+
+	tableKeys := make(map[abstract.TableID][]string)
+	for tableID, keys := range primaryKeys {
+		tableKeys[tableID] = uniq(keys)
+	}
+	for tableID, keys := range uniqueConstraintKeys {
+		if len(tableKeys[tableID]) == 0 {
+			tableKeys[tableID] = uniq(keys)
+		}
+	}
+
+	return tableKeys
 }
 
 func uniq(items []string) []string {

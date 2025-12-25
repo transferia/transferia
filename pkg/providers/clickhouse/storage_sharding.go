@@ -7,15 +7,16 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/schema"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/schema"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -51,15 +52,15 @@ func (s *ShardStorage) Version() semver.Version {
 	return s.defaultShard().Version()
 }
 
-func (s ShardStorage) LoadTablesDDL(tables []abstract.TableID) ([]schema.TableDDL, error) {
+func (s *ShardStorage) LoadTablesDDL(tables []abstract.TableID) ([]*schema.TableDDL, error) {
 	return s.defaultShard().LoadTablesDDL(tables)
 }
 
-func (s ShardStorage) BuildTableQuery(table abstract.TableDescription) (*abstract.TableSchema, string, string, error) {
+func (s *ShardStorage) BuildTableQuery(table abstract.TableDescription) (*abstract.TableSchema, string, string, error) {
 	return s.defaultShard().BuildTableQuery(table)
 }
 
-func (s ShardStorage) GetRowsCount(tableID abstract.TableID) (uint64, error) {
+func (s *ShardStorage) GetRowsCount(tableID abstract.TableID) (uint64, error) {
 	distr, err := s.defaultShard().isDistributed(tableID)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to check table engine %v: %w", tableID.Fqtn(), err)
@@ -82,13 +83,13 @@ func (s ShardStorage) GetRowsCount(tableID abstract.TableID) (uint64, error) {
 	return total, nil
 }
 
-func (s ShardStorage) Close() {
+func (s *ShardStorage) Close() {
 	for _, shard := range s.shards {
 		shard.Close()
 	}
 }
 
-func (s ShardStorage) Ping() error {
+func (s *ShardStorage) Ping() error {
 	var errs util.Errors
 	for _, shard := range s.shards {
 		if err := shard.Ping(); err != nil {
@@ -101,11 +102,11 @@ func (s ShardStorage) Ping() error {
 	return nil
 }
 
-func (s ShardStorage) TableList(f abstract.IncludeTableList) (abstract.TableMap, error) {
+func (s *ShardStorage) TableList(f abstract.IncludeTableList) (abstract.TableMap, error) {
 	return s.defaultShard().TableList(f)
 }
 
-func (s ShardStorage) TableSizeInBytes(table abstract.TableID) (uint64, error) {
+func (s *ShardStorage) TableSizeInBytes(table abstract.TableID) (uint64, error) {
 	distr, err := s.defaultShard().isDistributed(table)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to check table engine %v: %w", table.Fqtn(), err)
@@ -132,7 +133,7 @@ func (s *ShardStorage) TableSchema(ctx context.Context, table abstract.TableID) 
 	return s.defaultShard().TableSchema(ctx, table)
 }
 
-func (s ShardStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
+func (s *ShardStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
 	distr, err := s.defaultShard().isDistributed(table.ID())
 	if err != nil {
 		return xerrors.Errorf("unable to check table engine %v: %w", table.Fqtn(), err)
@@ -141,7 +142,7 @@ func (s ShardStorage) LoadTable(ctx context.Context, table abstract.TableDescrip
 		return s.defaultShard().LoadTable(ctx, table, pusher)
 	}
 
-	partID := table.PartID()
+	partID := table.GeneratePartID()
 
 	subCtx, cancel := context.WithCancel(ctx)
 	errCh := make(chan error, len(s.shards))
@@ -179,7 +180,7 @@ func (s ShardStorage) LoadTable(ctx context.Context, table abstract.TableDescrip
 	return nil
 }
 
-func (s ShardStorage) LoadTopBottomSample(table abstract.TableDescription, pusher abstract.Pusher) error {
+func (s *ShardStorage) LoadTopBottomSample(table abstract.TableDescription, pusher abstract.Pusher) error {
 	distr, err := s.defaultShard().isDistributed(table.ID())
 	if err != nil {
 		return xerrors.Errorf("unable to check table engine %v: %w", table.Fqtn(), err)
@@ -199,7 +200,7 @@ func (s ShardStorage) LoadTopBottomSample(table abstract.TableDescription, pushe
 	return nil
 }
 
-func (s ShardStorage) LoadRandomSample(table abstract.TableDescription, pusher abstract.Pusher) error {
+func (s *ShardStorage) LoadRandomSample(table abstract.TableDescription, pusher abstract.Pusher) error {
 	distr, err := s.defaultShard().isDistributed(table.ID())
 	if err != nil {
 		return xerrors.Errorf("unable to check table engine %v: %w", table.Fqtn(), err)
@@ -219,7 +220,7 @@ func (s ShardStorage) LoadRandomSample(table abstract.TableDescription, pusher a
 	return nil
 }
 
-func (s ShardStorage) LoadSampleBySet(table abstract.TableDescription, keySet []map[string]interface{}, pusher abstract.Pusher) error {
+func (s *ShardStorage) LoadSampleBySet(table abstract.TableDescription, keySet []map[string]interface{}, pusher abstract.Pusher) error {
 	distr, err := s.defaultShard().isDistributed(table.ID())
 	if err != nil {
 		return xerrors.Errorf("unable to check table engine %v: %w", table.Fqtn(), err)
@@ -239,18 +240,18 @@ func (s ShardStorage) LoadSampleBySet(table abstract.TableDescription, keySet []
 	return nil
 }
 
-func (s ShardStorage) TableAccessible(table abstract.TableDescription) bool {
+func (s *ShardStorage) TableAccessible(table abstract.TableDescription) bool {
 	return s.defaultShard().TableAccessible(table)
 }
 
-func (s ShardStorage) defaultShard() *Storage {
+func (s *ShardStorage) defaultShard() *Storage {
 	for name := range s.shards {
 		return s.shards[name]
 	}
 	return nil
 }
 
-func (s ShardStorage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
+func (s *ShardStorage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
 	var total uint64
 
 	for _, shard := range s.shards {
@@ -264,11 +265,11 @@ func (s ShardStorage) ExactTableRowsCount(table abstract.TableID) (uint64, error
 	return total, nil
 }
 
-func (s ShardStorage) EstimateTableRowsCount(table abstract.TableID) (uint64, error) {
+func (s *ShardStorage) EstimateTableRowsCount(table abstract.TableID) (uint64, error) {
 	return 0, xerrors.New("not implemented")
 }
 
-func (s ShardStorage) TableExists(table abstract.TableID) (bool, error) {
+func (s *ShardStorage) TableExists(table abstract.TableID) (bool, error) {
 	for _, shard := range s.shards {
 		exists, err := shard.TableExists(table)
 		if err != nil {
@@ -283,13 +284,13 @@ func (s ShardStorage) TableExists(table abstract.TableID) (bool, error) {
 	return false, nil
 }
 
-func (s *ShardStorage) GetIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.TableDescription, error) {
-	var res []abstract.TableDescription
-	for _, table := range incremental {
+func (s *ShardStorage) GetNextIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.IncrementalState, error) {
+	var res []abstract.IncrementalState
+	for _, currTable := range incremental {
 		var maxVal string
 
 		for _, storage := range s.shards {
-			val, err := getMaxCursorFieldValue(ctx, storage.db, table)
+			val, err := getMaxCursorFieldValue(ctx, storage.db, currTable)
 			if err != nil {
 				return nil, err
 			}
@@ -304,30 +305,28 @@ func (s *ShardStorage) GetIncrementalState(ctx context.Context, incremental []ab
 			}
 		}
 
-		res = append(res, abstract.TableDescription{
-			Name:   table.Name,
-			Schema: table.Namespace,
-			Filter: abstract.WhereStatement(fmt.Sprintf(`"%s" > parseDateTime64BestEffort('%s', 9)`, table.CursorField, maxVal)),
-			EtaRow: 0,
-			Offset: 0,
+		res = append(res, abstract.IncrementalState{
+			Name:    currTable.Name,
+			Schema:  currTable.Namespace,
+			Payload: abstract.WhereStatement(fmt.Sprintf(`"%s" > parseDateTime64BestEffort('%s', 9)`, currTable.CursorField, maxVal)),
 		})
 	}
 	return res, nil
 }
 
-func (s *ShardStorage) SetInitialState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) {
-	setInitialState(tables, incremental)
+func (s *ShardStorage) BuildArrTableDescriptionWithIncrementalState(tables []abstract.TableDescription, incremental []abstract.IncrementalTable) []abstract.TableDescription {
+	return setInitialState(tables, incremental)
 }
 
 func NewShardedStorage(shards map[string]*Storage) ClickhouseStorage {
 	return &ShardStorage{shards: shards, logger: logger.Log}
 }
 
-func NewShardedFromUrls(shardUrls map[string][]string, config *model.ChStorageParams, transfer *dp_model.Transfer, opts ...StorageOpt) (ClickhouseStorage, error) {
+func NewShardedFromUrls(config *model.ChStorageParams, transfer *dp_model.Transfer, opts ...StorageOpt) (ClickhouseStorage, error) {
 	shards := map[string]*Storage{}
-	allShardsAreSingleHost := slices.IndexFunc(maps.Values(shardUrls),
-		func(hosts []string) bool { return len(hosts) > 1 }) == -1
-	for name := range shardUrls {
+	allShardsAreSingleHost := slices.IndexFunc(maps.Values(config.ConnectionParams.Shards),
+		func(hosts []*clickhouse.Host) bool { return len(hosts) > 1 }) == -1
+	for name := range config.ConnectionParams.Shards {
 		db, err := makeShardConnection(config, name)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to init connection for shard %v: %w", name, err)
@@ -350,7 +349,7 @@ func NewShardedFromUrls(shardUrls map[string][]string, config *model.ChStoragePa
 		}
 		st := WithOpts(&Storage{
 			db:        db,
-			database:  config.Database,
+			database:  config.ConnectionParams.Database,
 			cluster:   config.ChClusterName,
 			bufSize:   config.BufferSize,
 			logger:    logger.Log,

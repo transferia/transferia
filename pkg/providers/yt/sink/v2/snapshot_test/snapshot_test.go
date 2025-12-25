@@ -7,16 +7,16 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/coordinator"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/yt"
-	ytclient "github.com/doublecloud/transfer/pkg/providers/yt/client"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
-	staticsink "github.com/doublecloud/transfer/pkg/providers/yt/sink/v2"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
+	staticsink "github.com/transferia/transferia/pkg/providers/yt/sink/v2"
+	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
@@ -34,13 +34,12 @@ var (
 	})
 
 	dstSample = yt.YtDestination{
-		Path:                     "//home/cdc/test/mock2yt",
-		Cluster:                  os.Getenv("YT_PROXY"),
-		CellBundle:               "default",
-		PrimaryMedium:            "default",
-		UseStaticTableOnSnapshot: true,
-		Cleanup:                  model.DisabledCleanup,
-		Static:                   true,
+		Path:          "//home/cdc/test/mock2yt",
+		Cluster:       os.Getenv("YT_PROXY"),
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+		Cleanup:       model.DisabledCleanup,
+		Static:        true,
 	}
 
 	trueConst  = true
@@ -234,8 +233,8 @@ func retryingParts(t *testing.T) {
 	currentSink, err = staticsink.NewStaticSink(dst, cp, helpers.TransferID, helpers.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 	require.NoError(t, currentSink.Push(itemsBuilder.InitTableLoad()))
-	require.NoError(t, currentSink.Push(itemsBuilder.Inserts(t, []map[string]interface{}{{"author_id": 123, "is_deleted": 15}})))
-	require.Error(t, currentSink.Push(itemsBuilder.DoneTableLoad()))
+	require.Error(t, currentSink.Push(itemsBuilder.Inserts(t, []map[string]interface{}{{"author_id": 123, "is_deleted": 15}})))
+	require.NoError(t, currentSink.Push(itemsBuilder.DoneTableLoad()))
 
 	currentSink, err = staticsink.NewStaticSink(dst, cp, helpers.TransferID, helpers.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)

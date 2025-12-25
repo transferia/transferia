@@ -7,18 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/test/canon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/elastic"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
-	"github.com/doublecloud/transfer/tests/helpers"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/test/canon"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/elastic"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/tests/helpers"
 )
 
 var (
@@ -49,8 +49,14 @@ func init() {
 	helpers.InitSrcDst(elastic2PgTransferID, &elasticSource, &pgDestination, abstract.TransferTypeSnapshotOnly)
 }
 
-func TestElasticToPgSnapshot(t *testing.T) {
-	t.Parallel()
+func TestAllElasticSearchToPg(t *testing.T) {
+	testElasticToPgSnapshot(t) // creates index 'test_doc'
+	testExactTableRowsCount(t) // creates index 'test_table_rows_count'
+	testTableExists(t)         // creates index 'new_index'
+	testTableList(t)           // creates indexes: 'test_table_1' & 'test_table_2'
+}
+
+func testElasticToPgSnapshot(t *testing.T) {
 	// Fill the source with documents
 	createElasticTestDocs(t, "test_doc", 0, 10)
 
@@ -82,8 +88,7 @@ func TestElasticToPgSnapshot(t *testing.T) {
 	canon.SaveJSON(t, &canonData)
 }
 
-func TestExactTableRowsCount(t *testing.T) {
-	t.Parallel()
+func testExactTableRowsCount(t *testing.T) {
 	createElasticTestDocs(t, "test_table_rows_count", 0, 7)
 
 	storage, err := elastic.NewStorage(&elasticSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), elastic.ElasticSearch)
@@ -95,9 +100,7 @@ func TestExactTableRowsCount(t *testing.T) {
 	require.Equal(t, uint64(7), val)
 }
 
-func TestTableExists(t *testing.T) {
-	t.Parallel()
-
+func testTableExists(t *testing.T) {
 	storage, err := elastic.NewStorage(&elasticSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), elastic.ElasticSearch)
 	require.NoError(t, err)
 	exists, err := storage.TableExists(abstract.TableID{
@@ -115,7 +118,7 @@ func TestTableExists(t *testing.T) {
 	require.True(t, exists)
 }
 
-func TestTableList(t *testing.T) {
+func testTableList(t *testing.T) {
 	storage, err := elastic.NewStorage(&elasticSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), elastic.ElasticSearch)
 	require.NoError(t, err)
 
@@ -196,6 +199,7 @@ func generateRawMessages(table string, part, from, to int) []abstract.ChangeItem
 	var res []abstract.ChangeItem
 	for i := from; i < to; i++ {
 		res = append(res, abstract.MakeRawMessage(
+			[]byte("stub"),
 			table,
 			ciTime,
 			"test-topic",

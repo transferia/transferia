@@ -7,13 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/changeitem"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/exp/maps"
 )
 
 func timescaleDBSchemas() []string {
@@ -38,22 +39,26 @@ func pgSystemTableNames() []string {
 }
 
 type SchemaExtractor struct {
-	excludeViews      bool
-	useFakePrimaryKey bool
-	forbiddenSchemas  []string
-	forbiddenTables   []string
-	flavour           DBFlavour
-	logger            log.Logger
+	excludeViews             bool
+	useFakePrimaryKey        bool
+	forbiddenSchemas         []string
+	forbiddenTables          []string
+	flavour                  DBFlavour
+	collapseInheritTables    bool
+	disableCheckReplIdentity bool
+	logger                   log.Logger
 }
 
 func NewSchemaExtractor() *SchemaExtractor {
 	return &SchemaExtractor{
-		excludeViews:      false,
-		useFakePrimaryKey: false,
-		forbiddenSchemas:  pgSystemSchemas(),
-		forbiddenTables:   pgSystemTableNames(),
-		flavour:           NewPostgreSQLFlavour(),
-		logger:            logger.Log,
+		excludeViews:             false,
+		useFakePrimaryKey:        false,
+		forbiddenSchemas:         pgSystemSchemas(),
+		forbiddenTables:          pgSystemTableNames(),
+		flavour:                  NewPostgreSQLFlavour(),
+		collapseInheritTables:    false,
+		logger:                   logger.Log,
+		disableCheckReplIdentity: false,
 	}
 }
 
@@ -82,8 +87,21 @@ func (e *SchemaExtractor) WithFlavour(flavour DBFlavour) *SchemaExtractor {
 	return e
 }
 
+func (e *SchemaExtractor) WithCollapseInheritTables(collapseInheritTables bool) *SchemaExtractor {
+	e.collapseInheritTables = collapseInheritTables
+	return e
+}
+
 func (e *SchemaExtractor) WithLogger(logger log.Logger) *SchemaExtractor {
 	e.logger = logger
+	return e
+}
+
+// WithDisableReplicaIdentityFull disables checking REPLICA IDENTITY FULL for tables.
+// This is useful for gpfdist transfers where replica identity checks are not needed.
+// When set to true, the replicaIdentityFullTables query is skipped during schema loading.
+func (e *SchemaExtractor) WithDisableReplicaIdentityFull(isDisable bool) *SchemaExtractor {
+	e.disableCheckReplIdentity = isDisable
 	return e
 }
 
@@ -100,16 +118,17 @@ func (e *SchemaExtractor) LoadSchema(ctx context.Context, conn *pgx.Conn, specif
 	}
 
 	replIdentFullTables := make(map[abstract.TableID]bool)
-	for tID := range tableColumns {
-		if _, ok := tablePKs[tID]; !ok {
-			// query REPLICA IDENTITY FULL only when there is at least one table for which this can be useful
-			if replIdentFullTables, err = e.replicaIdentityFullTables(ctx, conn, specificTable); err != nil {
-				return nil, xerrors.Errorf("failed to list tables with REPLICA IDENTITY FULL: %w", err)
+	if !e.disableCheckReplIdentity {
+		for tID := range tableColumns {
+			if _, ok := tablePKs[tID]; !ok {
+				// query REPLICA IDENTITY FULL only when there is at least one table for which this can be useful
+				if replIdentFullTables, err = e.replicaIdentityFullTables(ctx, conn, specificTable); err != nil {
+					return nil, xerrors.Errorf("failed to list tables with REPLICA IDENTITY FULL: %w", err)
+				}
+				break
 			}
-			break
 		}
 	}
-
 	result := make(abstract.DBSchema)
 	for k, v := range tableColumns {
 		ts := makeTableSchema(v, tablePKs[k])
@@ -123,6 +142,62 @@ func (e *SchemaExtractor) LoadSchema(ctx context.Context, conn *pgx.Conn, specif
 		result[k] = abstract.NewTableSchema(ts)
 	}
 
+	if e.collapseInheritTables {
+		result, err = e.handleSchemasCollapasInheritTables(ctx, conn, result)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to load collapsed tables: %w", err)
+		}
+	}
+
+	return result, nil
+}
+
+func (e *SchemaExtractor) handleSchemasCollapasInheritTables(ctx context.Context, conn *pgx.Conn, in abstract.DBSchema) (abstract.DBSchema, error) {
+	result := in
+
+	childToParent, err := MakeChildParentMap(ctx, conn)
+	if err != nil {
+		return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - failed to make MakeChildParentMap, err: %w", err)
+	}
+
+	keys := maps.Keys(result)
+	for _, currTableID := range keys {
+		tableInfo, err := newTableInformationSchema(ctx, conn, abstract.TableDescription{
+			Schema: currTableID.Namespace,
+			Name:   currTableID.Name,
+			Filter: abstract.NoFilter,
+			EtaRow: uint64(0),
+			Offset: uint64(0),
+		})
+		if err != nil {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - failed to create table information schema for table: %s, err: %w", currTableID.Fqtn(), err)
+		}
+		if tableInfo == nil {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - newTableInformationSchema returned nil for table:%s", currTableID.Fqtn())
+		}
+		if !tableInfo.IsInherited {
+			continue
+		}
+
+		e.logger.Infof("handleSchemasCollapasInheritTables - table %s is a child, will take schema from parent table", currTableID.Fqtn())
+
+		parentTableID, ok := childToParent[currTableID]
+		if !ok {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - failed to find parent table for table %s", currTableID.Fqtn())
+		}
+		parentDBSchema, err := e.LoadSchema(ctx, conn, &parentTableID)
+		if err != nil {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - LoadSchema returned error for table: %s, err: %w", parentTableID.Fqtn(), err)
+		}
+		parentSchema := parentDBSchema[parentTableID]
+		if parentSchema == nil {
+			return nil, xerrors.Errorf("handleSchemasCollapasInheritTables - LoadSchema returned map without schema of parent table: %s", parentTableID.Fqtn())
+		}
+
+		e.logger.Infof("handleSchemasCollapasInheritTables - successfully changed schema for child table: %s for schema of parent table: %s", currTableID.Fqtn(), parentTableID.Fqtn())
+
+		result[currTableID] = parentSchema
+	}
 	return result, nil
 }
 
@@ -171,7 +246,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 
 	for rows.Next() {
 		var dummy int
-		var tSchema, tName, cName, cDefault, dataType, dataTypeUnderlyingUnderDomain, expr string
+		var tSchema, tName, cName, cDefault, dataType, dataTypeUnderlyingUnderDomain, expr, dtSchema string
 		var allEnumValues interface{}
 		var domainName *string
 		var isNullable bool
@@ -181,6 +256,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 			&cName,
 			&cDefault,
 			&dataType,
+			&dtSchema,
 			&domainName,
 			&dataTypeUnderlyingUnderDomain,
 			&allEnumValues,
@@ -190,6 +266,9 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 		)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to scan from schema retrieval query: %w", err)
+		}
+		if dataTypeUnderlyingUnderDomain == "USER-DEFINED" && !strings.Contains(dataType, dtSchema) && dtSchema != "public" {
+			dataType = fmt.Sprintf("%s.%s", dtSchema, dataType)
 		}
 		originalType := dataType
 		if domainName != nil {
@@ -434,16 +513,11 @@ func (s tableIDWithInfos) String() string {
 }
 
 // TablesList returns a list of basic information pieces about all tables in the given schema
-func (e *SchemaExtractor) TablesList(ctx context.Context, conn *pgx.Conn) ([]tableIDWithInfo, time.Time, error) {
+func (e *SchemaExtractor) TablesList(ctx context.Context, tx pgx.Tx) ([]tableIDWithInfo, time.Time, error) {
 	var ts time.Time
 	query := e.listTablesQuery()
 	e.logger.Info("Retrieving a list of tables", log.String("query", query))
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return nil, ts, xerrors.Errorf("unable to begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx)
-	rows, err := tx.Query(context.TODO(), query)
+	rows, err := tx.Query(ctx, query)
 	if err != nil {
 		return nil, ts, xerrors.Errorf("failed to list tables: %w", err)
 	}
@@ -517,7 +591,7 @@ func (e *SchemaExtractor) FindDependentViews(ctx context.Context, conn *pgx.Conn
 	return views, nil
 }
 
-// TODO: implement Set for GenericArray https://github.com/doublecloud/transfer/arc/trunk/arcadia/transfer_manager/go/pkg/dataagent/pg/generic_array.go?rev=r9238739#L132
+// TODO: implement Set for GenericArray https://github.com/transferia/transferia/arc/trunk/arcadia/transfer_manager/go/pkg/dataagent/pg/generic_array.go?rev=r9238739#L132
 func (e *SchemaExtractor) getDependentViewsQuery(tables abstract.TableMap) string {
 	schemas, names := prepareSchemasAndNamesParams(tables)
 	return fmt.Sprintf(`

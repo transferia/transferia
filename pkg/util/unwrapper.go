@@ -1,6 +1,6 @@
 package util
 
-import "github.com/doublecloud/transfer/library/go/core/xerrors"
+import "github.com/transferia/transferia/library/go/core/xerrors"
 
 func Unwrap(err error) error {
 	type causer interface {

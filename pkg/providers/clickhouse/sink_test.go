@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	dp_model "github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/model"
-	"github.com/doublecloud/transfer/pkg/providers/clickhouse/sharding"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/abstract"
+	dp_model "github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
 )
 
 var rows = []abstract.ChangeItem{
@@ -74,7 +74,9 @@ func TestMultiShard_Push(t *testing.T) {
 		ShardCol:      "test",
 	}
 	q.WithDefaults()
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
 	checker := func(row abstract.ChangeItem, expected int) {
@@ -133,7 +135,9 @@ func TestMultiShard_Push_ManualMap(t *testing.T) {
 		ShardCol: "test",
 	}
 	q.WithDefaults()
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
 	checker := func(row abstract.ChangeItem, expected int) {
@@ -172,13 +176,9 @@ func TestNewSink_shardRoundRobin(t *testing.T) {
 		ChClusterName:     "test_cluster",
 	}
 	q.WithDefaults()
-	rt := &abstract.LocalRuntime{
-		ShardingUpload: abstract.ShardUploadParams{
-			JobCount: 10,
-		},
-		CurrentJob: 7,
-	}
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
 	for i, row := range rows {
@@ -213,13 +213,9 @@ func TestNewSink_shardColumnShardingNoKey(t *testing.T) {
 		ShardCol:      "non-existing-col",
 	}
 	q.WithDefaults()
-	rt := &abstract.LocalRuntime{
-		ShardingUpload: abstract.ShardUploadParams{
-			JobCount: 10,
-		},
-		CurrentJob: 7,
-	}
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
 	for _, row := range rows {
@@ -272,13 +268,9 @@ func TestNewSink_shardColumnShardingNoKeyWithUserMapping(t *testing.T) {
 		},
 	}
 	q.WithDefaults()
-	rt := &abstract.LocalRuntime{
-		ShardingUpload: abstract.ShardUploadParams{
-			JobCount: 10,
-		},
-		CurrentJob: 7,
-	}
-	sharder, err := newSinkImpl(new(dp_model.Transfer), q.ToReplicationFromPGSinkParams(), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), rt)
+	sinkParams, err := q.ToSinkParams(&dp_model.Transfer{})
+	require.NoError(t, err)
+	sharder, err := newSinkImpl(new(dp_model.Transfer), sinkParams, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
 	for _, row := range rows {

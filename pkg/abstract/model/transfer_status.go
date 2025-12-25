@@ -1,6 +1,6 @@
 package model
 
-import "github.com/doublecloud/transfer/library/go/core/xerrors"
+import "github.com/transferia/transferia/library/go/core/xerrors"
 
 type TransferStatus string
 
@@ -18,6 +18,10 @@ const (
 	Creating     = TransferStatus("Creating")
 	Deactivating = TransferStatus("Deactivating")
 	Failing      = TransferStatus("Failing")
+
+	// tmp statuses for async transfers
+	Paused    = TransferStatus("Paused")    // replication is paused manually
+	Preparing = TransferStatus("Preparing") // replication is being started
 )
 
 var statusActivityMap = map[TransferStatus]bool{
@@ -33,9 +37,16 @@ var statusActivityMap = map[TransferStatus]bool{
 	Deactivating: true,
 	Failing:      true,
 	Stopping:     true,
+	Preparing:    true,
+
+	Paused: false,
 }
 
 var ActiveStatuses []TransferStatus
+
+func (s TransferStatus) IsActive() bool {
+	return statusActivityMap[s]
+}
 
 func IsActiveStatus(status TransferStatus) (bool, error) {
 	isActive, ok := statusActivityMap[status]

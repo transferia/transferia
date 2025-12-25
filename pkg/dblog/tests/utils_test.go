@@ -6,24 +6,24 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/dblog"
-	"github.com/doublecloud/transfer/tests/helpers"
-	mockstorage "github.com/doublecloud/transfer/tests/helpers/mock_storage"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/dblog"
+	"github.com/transferia/transferia/tests/helpers"
+	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
 var (
 	storage = CreateMockStorage()
 
-	isSupporterKeyType = func(keyType string) bool {
+	isSupporterKeyType = func(keyType string) dblog.TypeSupport {
 		if keyType == "pg:text" || keyType == "pg:int" {
-			return true
+			return dblog.TypeSupported
 		}
 
-		return false
+		return dblog.TypeUnsupported
 	}
 
 	converter = func(val interface{}, colSchema abstract.ColSchema) (string, error) {

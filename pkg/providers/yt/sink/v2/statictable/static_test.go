@@ -7,14 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/internal/metrics"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	yt2 "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
-	"github.com/doublecloud/transfer/pkg/stats"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
+	"github.com/transferia/transferia/pkg/providers/yt/sink"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yson"
@@ -73,13 +74,14 @@ func (e executor) write(path ypath.Path, input ...[]abstract.ChangeItem) error {
 	require.NoError(e.t, err)
 
 	wr, err := NewWriter(WriterConfig{
-		TransferID: e.TransferID,
-		TxClient:   txClient,
-		Path:       path,
-		Spec:       e.Cfg.Spec().GetConfig(),
-		ChunkSize:  1024 * 1024,
-		Logger:     logger.Log,
-		Metrics:    e.Metrics,
+		TransferID:  e.TransferID,
+		TxClient:    txClient,
+		Path:        path,
+		Spec:        e.Cfg.Spec().GetConfig(),
+		ChunkSize:   1024 * 1024,
+		Logger:      logger.Log,
+		Metrics:     e.Metrics,
+		StringLimit: sink.YtStatMaxStringLength,
 	})
 	require.NoError(e.t, err)
 

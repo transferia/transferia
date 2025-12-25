@@ -5,20 +5,19 @@ import (
 	"os"
 	"testing"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/metrics/solomon"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/base"
-	"github.com/doublecloud/transfer/pkg/base/filter"
-	yt_provider "github.com/doublecloud/transfer/pkg/providers/yt"
-	"github.com/doublecloud/transfer/pkg/providers/yt/recipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/base"
+	"github.com/transferia/transferia/pkg/base/filter"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
 )
 
-func buildSchema(schema []abstract.ColumnSchema) []map[string]string {
+func buildSchema(schema []yt_provider.ColumnSchema) []map[string]string {
 	res := make([]map[string]string, len(schema))
 	for idx, col := range schema {
 		res[idx] = map[string]string{
@@ -58,7 +57,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("all_tables", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -78,7 +77,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("2_tables", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -103,7 +102,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("error_for_non_tables", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -127,7 +126,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("error_for_none_table_path", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -151,7 +150,7 @@ func TestTablesDiscovery(t *testing.T) {
 	t.Run("no_error_when_ask_dir", func(t *testing.T) {
 		cfg := &yt_provider.YtSource{
 			Cluster: os.Getenv("YT_PROXY"),
-			Proxy:   os.Getenv("YT_PROXY"),
+			YtProxy: os.Getenv("YT_PROXY"),
 			Paths:   []string{rootPath.String()},
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
@@ -178,7 +177,7 @@ func TestTablesDiscovery(t *testing.T) {
 func createTestTable(env *yttest.Env, ctx context.Context, tablePath ypath.Path) error {
 	_, err := env.YT.CreateNode(ctx, tablePath, yt.NodeTable, &yt.CreateNodeOptions{
 		Attributes: map[string]interface{}{
-			"schema": buildSchema([]abstract.ColumnSchema{
+			"schema": buildSchema([]yt_provider.ColumnSchema{
 				{
 					Name:    "Column_1",
 					YTType:  "int8",

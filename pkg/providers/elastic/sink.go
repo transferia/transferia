@@ -12,15 +12,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/stats"
-	"github.com/doublecloud/transfer/pkg/util"
-	"github.com/doublecloud/transfer/pkg/util/jsonx"
-	"github.com/doublecloud/transfer/pkg/util/set"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esutil"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -99,15 +101,23 @@ func (s *Sink) applyIndexDump(item abstract.ChangeItem) error {
 
 	response, err := s.client.Indices.Exists([]string{indexName})
 	if err != nil {
+		// classify SSL/transport errors during existence check
+		if isSSLError(err) {
+			return coded.Errorf(codes.OpenSearchSSLRequired, "ssl/transport error on exists(%q): %v", indexName, err)
+		}
 		return xerrors.Errorf("unable to check if index %q exists: %w", indexName, err)
 	}
-	if response.StatusCode == 200 {
+	if response.StatusCode == http.StatusOK {
 		s.existsIndexesMutex.Lock()
 		defer s.existsIndexesMutex.Unlock()
 		s.existsIndexes.Add(tableID)
 		return nil
 	}
-	if response.StatusCode != 404 {
+	if response.StatusCode != http.StatusNotFound {
+		// try detect SSL required by response text
+		if containsSSLRequired(response.String()) {
+			return coded.Errorf(codes.OpenSearchSSLRequired, "ssl required when checking index %q: %s", indexName, response.String())
+		}
 		return xerrors.Errorf("wrong status code when checking index %q: %s", indexName, response.String())
 	}
 
@@ -123,9 +133,15 @@ func (s *Sink) applyIndexDump(item abstract.ChangeItem) error {
 		s.client.Indices.Create.WithBody(strings.NewReader(dumpParams)),
 	)
 	if err != nil {
+		if isSSLError(err) {
+			return coded.Errorf(codes.OpenSearchSSLRequired, "ssl/transport error on create(%q): %v", indexName, err)
+		}
 		return xerrors.Errorf("unable to create the index %q: %w", indexName, err)
 	}
 	if res.IsError() {
+		if containsSSLRequired(res.String()) {
+			return coded.Errorf(codes.OpenSearchSSLRequired, "ssl required on create(%q): %s", indexName, res.String())
+		}
 		return xerrors.Errorf("error on creating the index %q: %s", indexName, res.String())
 	}
 
@@ -215,10 +231,10 @@ func sanitizeKeysInMap(in map[string]interface{}) []map[string]interface{} {
 
 func sanitizeMapKey(in string) string {
 	runes := []rune(in)
-	var outStringLen = 0
+	outStringLen := 0
 
-	var startCopyStr = 0
-	var isEmptyCopyStr = true
+	startCopyStr := 0
+	isEmptyCopyStr := true
 	for i := 0; i <= len(runes); i++ {
 		if i == len(runes) || runes[i] == '.' {
 			if !isEmptyCopyStr {
@@ -243,6 +259,76 @@ func sanitizeMapKey(in string) string {
 		return string(runes[:outStringLen])
 	}
 	return "_"
+}
+
+// classifyBulkFailure converts a bulk index failure into a coded error when possible.
+// It inspects transport errors, known OpenSearch/Elastic messages and maps them to stable codes.
+func (s *Sink) classifyBulkFailure(bulkItem esutil.BulkIndexerItem, responseItem esutil.BulkIndexerResponseItem, err error) error {
+	// read (sampled) body for context
+	var bulkBody string
+	buf := new(bytes.Buffer)
+	if _, readErr := buf.ReadFrom(bulkItem.Body); readErr == nil {
+		bulkBody = buf.String()
+	}
+
+	// Transport-layer error
+	if err != nil {
+		if isSSLError(err) {
+			return coded.Errorf(codes.OpenSearchSSLRequired, "ssl/transport error (index:%v, body:%v): %v", bulkItem.Index, util.Sample(bulkBody, 8*1024), err)
+		}
+		return xerrors.Errorf("bulk item (index name:%v, body:%v) indexation error: %w", bulkItem.Index, util.Sample(bulkBody, 8*1024), err)
+	}
+
+	// Response-level error
+	reason := responseItem.Error.Reason
+	cause := responseItem.Error.Cause.Reason
+	errText := strings.ToLower(reason + " " + cause)
+
+	// invalid document keys (already existed path)
+	if util.ContainsAnySubstrings(errText, "object field starting or ending with a [.] makes object resolution ambiguous", "index -1 out of bounds for length 0") {
+		return coded.Errorf(codes.OpenSearchInvalidDocumentKeys,
+			"invalid document keys for a bulk item (index:%v, body:%v) http:%v, err:%v",
+			bulkItem.Index, util.Sample(bulkBody, 8*1024), responseItem.Status, responseItem.Error)
+	}
+
+	// total fields limit exceeded
+	if responseItem.Error.Type == "illegal_argument_exception" || util.ContainsAnySubstrings(errText, "limit of total fields") {
+		return coded.Errorf(codes.OpenSearchTotalFieldsLimitExceeded,
+			"total fields limit exceeded (index:%v, body:%v) http:%v, err:%v",
+			bulkItem.Index, util.Sample(bulkBody, 8*1024), responseItem.Status, responseItem.Error)
+	}
+
+	// mapper parsing exception
+	if responseItem.Error.Type == "mapper_parsing_exception" || util.ContainsAnySubstrings(errText, "mapper_parsing_exception", "failed to parse field") {
+		return coded.Errorf(codes.OpenSearchMapperParsingException,
+			"mapper parsing failed (index:%v, body:%v) http:%v, err:%v",
+			bulkItem.Index, util.Sample(bulkBody, 8*1024), responseItem.Status, responseItem.Error)
+	}
+
+	// ssl required hints surfaced at response level (rare)
+	if containsSSLRequired(reason) || containsSSLRequired(cause) {
+		return coded.Errorf(codes.OpenSearchSSLRequired,
+			"ssl required (index:%v, body:%v) http:%v, err:%v",
+			bulkItem.Index, util.Sample(bulkBody, 8*1024), responseItem.Status, responseItem.Error)
+	}
+
+	return xerrors.Errorf("got an indexation error for a bulk item (index name:%v, body:%v) with http code %v, error: %v",
+		bulkItem.Index, util.Sample(bulkBody, 8*1024), responseItem.Status, responseItem.Error)
+}
+
+// isSSLError detects common TLS/SSL misconfiguration errors from client/transport
+func isSSLError(err error) bool {
+	if err == nil {
+		return false
+	}
+	et := strings.ToLower(err.Error())
+	return util.ContainsAnySubstrings(et, "x509:", "certificate", "ssl", "tls", "http: server gave http response to https client", "plain http request was sent to https port")
+}
+
+// containsSSLRequired checks response text for SSL-required markers
+func containsSSLRequired(s string) bool {
+	t := strings.ToLower(s)
+	return strings.Contains(t, "ssl is required") || strings.Contains(t, "plain http request was sent to https port")
 }
 
 func validateChangeItem(changeItem abstract.ChangeItem) error {
@@ -300,7 +386,7 @@ func (s *Sink) pushBatch(changeItems []abstract.ChangeItem) error {
 	if len(changeItems) == 0 {
 		return nil
 	}
-	var indexResult = make(chan error)
+	indexResult := make(chan error)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
@@ -344,19 +430,8 @@ func (s *Sink) pushBatch(changeItems []abstract.ChangeItem) error {
 					DocumentID: makeIDFromChangeItem(changeItem),
 					Body:       bytes.NewReader(encodedBody),
 					OnFailure: func(_ context.Context, bulkItem esutil.BulkIndexerItem, responseItem esutil.BulkIndexerResponseItem, err error) {
-						var bulkBody string
-						buf := new(bytes.Buffer)
-						if _, readErr := buf.ReadFrom(bulkItem.Body); readErr == nil {
-							bulkBody = buf.String()
-						}
-						if err != nil {
-							indexResult <- xerrors.Errorf("bulk item (index name:%v, body:%v) indexation error: %w",
-								bulkItem.Index, util.Sample(bulkBody, 8*1024), err)
-							return
-						}
-						indexResult <- xerrors.Errorf(
-							"got an indexation error for a bulk item (index name:%v, body:%v) with http code %v, error: %v",
-							bulkItem.Index, util.Sample(bulkBody, 8*1024), responseItem.Status, responseItem.Error)
+						// centralized error classification for bulk item failures
+						indexResult <- s.classifyBulkFailure(bulkItem, responseItem, err)
 					},
 				})
 			if err != nil {

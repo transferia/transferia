@@ -3,10 +3,10 @@ package providers
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/cleanup"
-	"github.com/doublecloud/transfer/pkg/util"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/cleanup"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type TablesOperationFunc = func(table abstract.TableMap) error
@@ -32,9 +32,11 @@ type Activator interface {
 }
 
 // Cleanuper enable custom functionality on transfer `Activate`/`Upload`/`Reupload` tasks on `Cleanup` stage.
+// If CleanupSuitable returns false then Cleanup won't be called.
 type Cleanuper interface {
 	Provider
 	Cleanup(ctx context.Context, task *model.TransferOperation) error
+	CleanupSuitable(transferType abstract.TransferType) bool
 }
 
 // Deactivator enable custom functionality on transfer `Deactivate` task.

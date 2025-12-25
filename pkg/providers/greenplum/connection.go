@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/util"
 	"github.com/jackc/pgconn"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -52,7 +52,7 @@ func Segment(index int) GPSegPointer {
 
 // openPGStorage is a specification of a constructor of PostgreSQL storage for Greenplum.
 // May modify the passed storage parameters
-func openPGStorage(ctx context.Context, config *postgres.PgStorageParams) (*postgres.Storage, error) {
+func openPGStorage(config *postgres.PgStorageParams) (*postgres.Storage, error) {
 	// this creates a TCP connection to the segment!
 	var errs util.Errors
 
@@ -82,6 +82,8 @@ func openPGStorage(ctx context.Context, config *postgres.PgStorageParams) (*post
 func (s *Storage) configurePGStorageForGreenplum(storage *postgres.Storage) {
 	storage.ForbiddenSchemas = append(storage.ForbiddenSchemas, "gp_toolkit", "mdb_toolkit")
 	storage.Flavour = s.newFlavor(s)
+	storage.DisableCheckReplIdentity = s.postgresesCfg.DisableCheckReplIdentity
+	storage.DisableViewsExtraction = s.postgresesCfg.DisableViewsExtraction
 }
 
 func (s *Storage) getPgStorageParams(role GPRole) *postgres.PgStorageParams {
@@ -125,12 +127,12 @@ func (s *Storage) openPGStorageForAnyInPair(ctx context.Context, sp GPSegPointer
 		cfg.AllHosts = []string{hp.Host}
 		cfg.Port = hp.Port
 		logger.Log.Infof("trying to connect to Greenplum %s (%s)", sp.String(), cfg.String())
-		result, err := openPGStorage(ctx, cfg)
+		result, err := openPGStorage(cfg)
 		if err != nil {
 			_ = isGPMirrorErr(err, hp.String())
 			wrappedErr := xerrors.Errorf("failed to connect to Greenplum %s (%s): %w", sp.String(), cfg.String(), err)
 			errs[i] = wrappedErr
-			logger.Log.Infof(wrappedErr.Error())
+			logger.Log.Info(wrappedErr.Error())
 			continue
 		}
 		s.configurePGStorageForGreenplum(result)
@@ -139,7 +141,7 @@ func (s *Storage) openPGStorageForAnyInPair(ctx context.Context, sp GPSegPointer
 			_ = isGPMirrorErr(err, hp.String())
 			wrappedErr := xerrors.Errorf("connection to Greenplum %s (%s) is faulty: %w", sp.String(), cfg.String(), err)
 			errs[i] = wrappedErr
-			logger.Log.Infof(wrappedErr.Error())
+			logger.Log.Info(wrappedErr.Error())
 			continue
 		}
 		logger.Log.Infof("successfully connected to Greenplum %s (%s)", sp.String(), cfg.String())

@@ -3,10 +3,10 @@ package postgres
 import (
 	"context"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
 	"github.com/jackc/pgtype/pgxtype"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -25,6 +25,8 @@ func MakeChildParentMap(ctx context.Context, conn pgxtype.Querier) (map[abstract
 	defer inheritRows.Close()
 
 	result := map[abstract.TableID]abstract.TableID{}
+	parentChildrenMap := map[abstract.TableID][]abstract.TableID{}
+	rootTables := map[abstract.TableID]bool{}
 	for inheritRows.Next() {
 		var child, childSchema, parent, parentSchema string
 		if err := inheritRows.Scan(&child, &childSchema, &parent, &parentSchema); err != nil {
@@ -40,10 +42,30 @@ func MakeChildParentMap(ctx context.Context, conn pgxtype.Querier) (map[abstract
 			Name:      parent,
 		}
 		result[childID] = parentID
+		parentChildrenMap[parentID] = append(parentChildrenMap[parentID], childID)
+		delete(rootTables, childID)
+		if _, ok := result[parentID]; !ok {
+			rootTables[parentID] = true
+		}
 	}
 	if err := inheritRows.Err(); err != nil {
 		return nil, xerrors.Errorf("failed to get next row from inherited tables list query: %w", err)
 	}
 
+	for rootID := range rootTables {
+		for _, childID := range parentChildrenMap[rootID] {
+			resolveSubPartitions(parentChildrenMap, result, rootID, childID)
+		}
+	}
+
 	return result, nil
+}
+
+func resolveSubPartitions(parentChildrenMap map[abstract.TableID][]abstract.TableID, childParentMap map[abstract.TableID]abstract.TableID, upstreamParentID abstract.TableID, curTableID abstract.TableID) {
+	if children, ok := parentChildrenMap[curTableID]; ok {
+		for _, childID := range children {
+			resolveSubPartitions(parentChildrenMap, childParentMap, upstreamParentID, childID)
+		}
+	}
+	childParentMap[curTableID] = upstreamParentID
 }

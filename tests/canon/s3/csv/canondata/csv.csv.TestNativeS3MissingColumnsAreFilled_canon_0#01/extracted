@@ -61,11 +61,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "test_csv_all_types/all_types.csv"
+            "value": "2e369ddbbd9067518f06a0b274f07227"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -214,11 +218,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "test_csv_all_types/all_types.csv"
+            "value": "2e369ddbbd9067518f06a0b274f07227"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",
@@ -367,11 +375,15 @@
         },
         "PartID": {
             "type": "string",
-            "value": "test_csv_all_types/all_types.csv"
+            "value": "2e369ddbbd9067518f06a0b274f07227"
         },
         "Query": {
             "type": "string",
             "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
         },
         "Schema": {
             "type": "string",

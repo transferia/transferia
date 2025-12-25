@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/doublecloud/transfer/library/go/core/metrics"
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/credentials"
-	"github.com/doublecloud/transfer/pkg/format"
+	"github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/credentials"
+	"github.com/transferia/transferia/pkg/format"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -287,21 +288,22 @@ func (e *Executor) Do(data []abstract.ChangeItem) ([]abstract.ChangeItem, error)
 				continue
 			default:
 				processed = append(processed, abstract.ChangeItem{
-					ID:           data[i].ID,
-					LSN:          data[i].LSN,
-					CommitTime:   data[i].CommitTime,
-					Counter:      data[i].Counter,
-					Kind:         data[i].Kind,
-					Schema:       data[i].Schema,
-					Table:        fmt.Sprintf("%v_%v", data[i].Table, r.Result),
-					PartID:       data[i].PartID,
-					ColumnNames:  data[i].ColumnNames,
-					ColumnValues: data[i].ColumnValues,
-					TableSchema:  data[i].TableSchema,
-					OldKeys:      *new(abstract.OldKeysType),
-					TxID:         "",
-					Query:        "",
-					Size:         data[i].Size,
+					ID:               data[i].ID,
+					LSN:              data[i].LSN,
+					CommitTime:       data[i].CommitTime,
+					Counter:          data[i].Counter,
+					Kind:             data[i].Kind,
+					Schema:           data[i].Schema,
+					Table:            fmt.Sprintf("%v_%v", data[i].Table, r.Result),
+					PartID:           data[i].PartID,
+					ColumnNames:      data[i].ColumnNames,
+					ColumnValues:     data[i].ColumnValues,
+					TableSchema:      data[i].TableSchema,
+					OldKeys:          *new(abstract.OldKeysType),
+					Size:             data[i].Size,
+					TxID:             "",
+					Query:            "",
+					QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 				})
 			}
 		default:

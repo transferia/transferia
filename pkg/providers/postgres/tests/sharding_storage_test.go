@@ -2,30 +2,46 @@ package tests
 
 import (
 	"context"
+	"net"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/doublecloud/transfer/internal/logger"
-	"github.com/doublecloud/transfer/pkg/abstract"
-	"github.com/doublecloud/transfer/pkg/abstract/model"
-	"github.com/doublecloud/transfer/pkg/providers/postgres"
-	"github.com/doublecloud/transfer/pkg/providers/postgres/pgrecipe"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	proxy "github.com/transferia/transferia/tests/helpers/proxies/pg_proxy"
 )
 
 func TestShardingStorage_ShardTable(t *testing.T) {
 	_ = pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("test_scripts"))
 	srcPort, _ := strconv.Atoi(os.Getenv("PG_LOCAL_PORT"))
 	v := &postgres.PgSource{
-		Hosts:    []string{"localhost"},
+		Hosts:    []string{"127.0.0.1"},
 		User:     os.Getenv("PG_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("PG_LOCAL_DATABASE"),
 		Port:     srcPort,
 		SlotID:   "testslot",
+	}
+	listenAddr := net.JoinHostPort(v.Hosts[0], strconv.Itoa(srcPort+1))
+	postgresAddr := net.JoinHostPort(v.Hosts[0], strconv.Itoa(srcPort))
+	v.Port = srcPort + 1
+	proxy := proxy.NewProxy(listenAddr, postgresAddr)
+	defer proxy.Close()
+	proxy.Start()
+	for range 5 {
+		conn, err := net.Dial("tcp", listenAddr)
+		if err == nil {
+			_ = conn.Close()
+			break
+		}
+		time.Sleep(1 * time.Second)
 	}
 	v.WithDefaults()
 	require.NotEqual(t, 0, v.DesiredTableSize)
@@ -116,6 +132,10 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Len(t, tables, 4)
+		require.Contains(t, string(tables[0].Filter), "\"Id\" < '25000'")
+		require.Contains(t, string(tables[1].Filter), "\"Id\" >= '25000' AND \"Id\" < '50000'")
+		require.Contains(t, string(tables[2].Filter), "\"Id\" >= '50000' AND \"Id\" < '75000'")
+		require.Contains(t, string(tables[3].Filter), "\"Id\" >= '75000'")
 		var res []abstract.ChangeItem
 		for _, tbl := range tables {
 			require.NoError(t, storage.LoadTable(ctx, tbl, func(input []abstract.ChangeItem) error {
@@ -128,6 +148,86 @@ func TestShardingStorage_ShardTable(t *testing.T) {
 			}))
 		}
 		require.Len(t, res, 100_000)
+	})
+	t.Run("all keys are numeric", func(t *testing.T) {
+		tables, err := storage.ShardTable(ctx, abstract.TableDescription{
+			Name:   "__test_all_keys_are_numeric",
+			Schema: "public",
+			Filter: "",
+			EtaRow: 0,
+			Offset: 0,
+		})
+		require.NoError(t, err)
+		require.Len(t, tables, 4)
+		filter := "abs((\"id\"+\"bigserial_key\"+\"numeric_key\"+\"bigint_key\"+\"float_key\"+\"double_key\"+\"smallint_key\"+\"integer_key\"+\"real_key\")::bigint % 4)"
+		require.Contains(t, string(tables[0].Filter), filter+" = 0")
+		require.Contains(t, string(tables[1].Filter), filter+" = 1")
+		require.Contains(t, string(tables[2].Filter), filter+" = 2")
+		require.Contains(t, string(tables[3].Filter), filter+" = 3")
+		var res []abstract.ChangeItem
+		for _, tbl := range tables {
+			require.NoError(t, storage.LoadTable(ctx, tbl, func(input []abstract.ChangeItem) error {
+				for _, row := range input {
+					if row.IsRowEvent() {
+						res = append(res, row)
+					}
+				}
+				return nil
+			}))
+		}
+		require.Len(t, res, 100_000)
+	})
+	t.Run("text pk", func(t *testing.T) {
+		tables, err := storage.ShardTable(ctx, abstract.TableDescription{
+			Name:   "__test_text_pk",
+			Schema: "public",
+			Filter: "",
+			EtaRow: 0,
+			Offset: 0,
+		})
+		require.NoError(t, err)
+		require.Len(t, tables, 4)
+		filter := "abs(hashtext(row(\"serial_key\",\"txt\")::text) % 4)"
+		require.Contains(t, string(tables[0].Filter), filter+" = 0")
+		require.Contains(t, string(tables[1].Filter), filter+" = 1")
+		require.Contains(t, string(tables[2].Filter), filter+" = 2")
+		require.Contains(t, string(tables[3].Filter), filter+" = 3")
+		var res []abstract.ChangeItem
+		for _, tbl := range tables {
+			require.NoError(t, storage.LoadTable(ctx, tbl, func(input []abstract.ChangeItem) error {
+				for _, row := range input {
+					if row.IsRowEvent() {
+						res = append(res, row)
+					}
+				}
+				return nil
+			}))
+		}
+		require.Len(t, res, 100_000)
+	})
+
+	t.Run("test sharding by sequence column min/max", func(t *testing.T) {
+		counter_percentile_disc := 0
+		proxy.AddCounterHandler("percentile_disc", &counter_percentile_disc)
+		counter_min := 0
+		proxy.AddCounterHandler("select min", &counter_min)
+
+		proxy.AddErrorHandler("percentile_disc", nil)
+		tables, err := storage.ShardTable(ctx, abstract.TableDescription{
+			Name:   "__test_to_shard_int32",
+			Schema: "public",
+			Filter: "",
+			EtaRow: 0,
+			Offset: 0,
+		})
+		require.NoError(t, err)
+		require.Len(t, tables, 4)
+		require.Contains(t, string(tables[0].Filter), "\"Id\" < '25001'")
+		require.Contains(t, string(tables[1].Filter), "\"Id\" >= '25001' AND \"Id\" < '50001'")
+		require.Contains(t, string(tables[2].Filter), "\"Id\" >= '50001' AND \"Id\" < '75001'")
+		require.Contains(t, string(tables[3].Filter), "\"Id\" >= '75001'")
+		require.Equal(t, counter_percentile_disc, 1)
+		require.Equal(t, counter_min, 1)
 	})
 }
 

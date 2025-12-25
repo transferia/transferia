@@ -3,7 +3,7 @@ package postgres
 import (
 	"time"
 
-	"github.com/doublecloud/transfer/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 type PgSinkParams interface {
@@ -23,6 +23,7 @@ type PgSinkParams interface {
 	// It's like legacy
 	// private option
 	MaintainTables() bool
+	GetIsSchemaMigrationDisabled() bool
 	// PerTransactionPush
 	// It's 'SaveTxBoundaries' from proto-spec
 	PerTransactionPush() bool

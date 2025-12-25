@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doublecloud/transfer/library/go/core/xerrors"
-	"github.com/doublecloud/transfer/library/go/slices"
-	"github.com/doublecloud/transfer/pkg/abstract"
+	"github.com/transferia/transferia/library/go/core/xerrors"
+	yslices "github.com/transferia/transferia/library/go/slices"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -85,7 +85,7 @@ func BuildFullWhereStatement(f MongoCollectionFilter) *bson.D {
 		CollectionName: "$cmd",
 	})
 	result := bson.D{}
-	namespacesList := slices.Map(allowList, ToRegexp)
+	namespacesList := yslices.Map(allowList, ToRegexp)
 	// noop has no collection, but should be added
 	namespacesList = append(namespacesList, "")
 
@@ -95,7 +95,7 @@ func BuildFullWhereStatement(f MongoCollectionFilter) *bson.D {
 	}
 	if len(f.ExcludedCollections) > 0 {
 		result = append(result, bson.E{Key: "ns", Value: bson.D{{Key: "$not", Value: primitive.Regex{
-			Pattern: buildRegex(slices.Map(f.ExcludedCollections, ToRegexp)),
+			Pattern: buildRegex(yslices.Map(f.ExcludedCollections, ToRegexp)),
 			Options: "",
 		}}}})
 	}
@@ -154,7 +154,7 @@ func (w localOplogRsWatcher) watchBatchFrom(ctx context.Context, ts primitive.Ti
 	w.logger.Infof("Begin watching batch from time %v", FromMongoTimestamp(ts))
 	// check that timestamp is still in oplog
 	from, to, err := GetLocalOplogInterval(ctx, w.client)
-	if primitive.CompareTimestamp(ts, from) < 0 {
+	if ts.Compare(from) < 0 {
 		return until, eventsRead, xerrors.Errorf("local.oplog.rs watcher is out of timeline. Requested timestamp %v, actual interval: [%v, %v]",
 			FromMongoTimestamp(ts),
 			FromMongoTimestamp(from),

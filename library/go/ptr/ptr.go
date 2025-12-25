@@ -1,6 +1,10 @@
 package ptr
 
-import "time"
+import (
+	"time"
+
+	"golang.org/x/exp/constraints"
+)
 
 // Int returns pointer to provided value
 func Int(v int) *int { return &v }
@@ -16,6 +20,16 @@ func Int32(v int32) *int32 { return &v }
 
 // Int64 returns pointer to provided value
 func Int64(v int64) *int64 { return &v }
+
+// CastInt converts given ~int pointer to another ~int pointer
+// e.g. CastInt[int64, int](new(int64(42)))
+func CastInt[S, D constraints.Integer](src *S) *D {
+	if src == nil {
+		return nil
+	}
+	dst := D(*src)
+	return &dst
+}
 
 // Uint returns pointer to provided value
 func Uint(v uint) *uint { return &v }
@@ -65,11 +79,39 @@ func Duration(v time.Duration) *time.Duration { return &v }
 // T returns pointer to provided value
 func T[T any](v T) *T { return &v }
 
-// From returns value from pointer
-func From[T any](v *T) T {
+// TOrNil returns pointer to provided value or nil if value is empty
+func TOrNil[T comparable](v T) *T {
+	if isZero(v) {
+		return nil
+	}
+
+	return &v
+}
+
+// Value returns value from pointer
+func Value[T any](v *T) T {
 	if v == nil {
-		return *new(T)
+		var zero T
+		return zero
 	}
 
 	return *v
+}
+
+// From returns value from pointer
+// Deprecated: use Value function instead
+func From[T any](v *T) T {
+	return Value[T](v)
+}
+
+// EqualVal nil-safe compare dereference values. True if both pointers are nil
+func EqualVal[T comparable](v *T, w *T) bool {
+	return (v == nil && w == nil) || (v != nil && w != nil && *v == *w)
+}
+
+// isZero checks if provided value is empty value for the T
+func isZero[T comparable](v T) bool {
+	var t T
+
+	return v == t
 }
