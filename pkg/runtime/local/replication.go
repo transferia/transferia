@@ -95,7 +95,7 @@ func runReplication(ctx context.Context, cp coordinator.Coordinator, transfer *m
 		log.Any("transfer_id", transfer.ID),
 		log.Any("src_type", transfer.SrcType()),
 		log.Any("dst_type", transfer.DstType()),
-		log.Object("transfer", transfer),
+		log.Any("transfer", transfer),
 	)
 
 	var previousAttemptErr error = nil
