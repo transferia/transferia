@@ -155,11 +155,12 @@ func (f *CoordinatorInMemory) UpdateOperationTablesParts(operationID string, tab
 }
 
 func (f *CoordinatorInMemory) CreateOperationWorkers(operationID string, workersCount int) error {
+	logger.Log.Infof("CreateOperationWorkers operationID: %s, workersCount: %d", operationID, workersCount)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	arr := make([]*model.OperationWorker, 0)
-	for i := 0; i < workersCount; i++ {
+	for i := 1; i <= workersCount; i++ {
 		arr = append(arr, &model.OperationWorker{
 			OperationID: operationID,
 			WorkerIndex: i,

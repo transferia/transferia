@@ -168,8 +168,8 @@ func TestMainWorkerRestart(t *testing.T) {
 	// first run
 	go func(inSnapshotLoader *SnapshotLoader) {
 		_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
-		_ = cp.FinishOperation(operationID, "", "", 0, nil)
 		_ = cp.FinishOperation(operationID, "", "", 1, nil)
+		_ = cp.FinishOperation(operationID, "", "", 2, nil)
 	}(snapshotLoader)
 	err := snapshotLoader.UploadTables(ctx, tables, false)
 	require.NoError(t, err)

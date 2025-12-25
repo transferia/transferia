@@ -130,8 +130,8 @@ func TestAbstract2SourcePassViaWholeUploadPipeline(t *testing.T) {
 
 		go func(inSnapshotLoader *SnapshotLoader) {
 			_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
-			_ = cp.FinishOperation(operationID, "", "", 0, nil)
 			_ = cp.FinishOperation(operationID, "", "", 1, nil)
+			_ = cp.FinishOperation(operationID, "", "", 2, nil)
 		}(snapshotLoader)
 
 		err := snapshotLoader.uploadV2Main(ctx, nil, []abstract.TableDescription{{Schema: "schema", Name: "name"}})
@@ -152,8 +152,8 @@ func TestAbstract2SourcePassViaWholeUploadPipeline(t *testing.T) {
 
 		go func(inSnapshotLoader *SnapshotLoader) {
 			_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
-			_ = cp.FinishOperation(operationID, "", "", 0, nil)
 			_ = cp.FinishOperation(operationID, "", "", 1, nil)
+			_ = cp.FinishOperation(operationID, "", "", 2, nil)
 		}(snapshotLoader)
 
 		task := &model.TransferOperation{
@@ -193,8 +193,8 @@ func TestMainWorkerRestartV2(t *testing.T) {
 	// first run
 	go func(inSnapshotLoader *SnapshotLoader) {
 		_ = inSnapshotLoader.WaitWorkersInitiated(ctx)
-		_ = cp.FinishOperation(operationID, "", "", 0, nil)
 		_ = cp.FinishOperation(operationID, "", "", 1, nil)
+		_ = cp.FinishOperation(operationID, "", "", 2, nil)
 	}(snapshotLoader)
 	err := snapshotLoader.UploadV2(ctx, nil, tables)
 	require.NoError(t, err)
