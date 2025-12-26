@@ -12,8 +12,8 @@ import (
 
 type Transformation struct {
 	Transformers      *transformer.Transformers
-	ExtraTransformers []abstract.Transformer
-	RuntimeJobIndex   int
+	ExtraTransformers []abstract.Transformer // 'ExtraTransformers' - it's generated in runtime transformers: source-specific transformers; also transformers plugged in tests
+	RuntimeJobIndex   int                    // added for some case, which is not in trunk now. Let it be for the future
 }
 
 func (t Transformation) Validate() error {
