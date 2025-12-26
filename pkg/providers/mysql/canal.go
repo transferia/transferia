@@ -427,17 +427,22 @@ func (c *Canal) prepareSyncer() error {
 		TLSConfig:               c.cfg.TLSConfig,
 	}
 
+	logger.Log.Info("mysql canal config before", log.Any("cfg.addr", c.cfg.Addr))
+
 	if strings.Contains(c.cfg.Addr, "/") {
 		cfg.Host = c.cfg.Addr
 	} else if strings.HasPrefix(c.cfg.Addr, "[") && strings.Contains(c.cfg.Addr, "]:") {
-		// addr is ipv6
+		// addr is ipv6 wth port
 		seps := strings.Split(c.cfg.Addr, ":")
 		port, err := strconv.ParseUint(seps[len(seps)-1], 10, 16)
 		if err != nil {
 			return xerrors.Errorf("failed to parse network port number: %w", err)
 		}
 		cfg.Port = uint16(port)
-		cfg.Host = strings.Join(seps[:len(seps)-1], ":")
+		cfg.Host = strings.TrimSuffix(strings.TrimPrefix(strings.Join(seps[:len(seps)-1], ":"), "["), "]")
+	} else if strings.HasPrefix(c.cfg.Addr, "[") && strings.Contains(c.cfg.Addr, "]") {
+		// addr is decorated ipv6 w/o port -- leave raw ipv6 address
+		cfg.Host = strings.TrimSuffix(strings.TrimPrefix(c.cfg.Addr, "["), "]")
 	} else {
 		seps := strings.Split(c.cfg.Addr, ":")
 		if len(seps) != 2 {
@@ -452,6 +457,8 @@ func (c *Canal) prepareSyncer() error {
 		cfg.Host = seps[0]
 		cfg.Port = uint16(port)
 	}
+
+	logger.Log.Info("mysql canal config after", log.Any("cfg.host", cfg.Host), log.Any("cfg.port", cfg.Port))
 
 	c.syncer = replication.NewBinlogSyncer(cfg)
 

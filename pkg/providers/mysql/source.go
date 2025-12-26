@@ -637,7 +637,7 @@ func NewSource(src *MysqlSource, transferID string, objects *model.DataObjects, 
 	config.MaxReconnectAttempts = 5
 
 	// user settings
-	config.Addr = fmt.Sprintf("%v:%v", connectionParams.Host, connectionParams.Port)
+	config.Addr = fmt.Sprintf("%v:%v", decorateIPv6HostWithBraces(connectionParams.Host), connectionParams.Port)
 	config.User = connectionParams.User
 	config.Password = connectionParams.Password
 	config.TimestampStringLocation = connectionParams.Location

@@ -30,6 +30,15 @@ func CreateCertPool(certPEMFile string, rootCAFiles []string) (*x509.CertPool, e
 	}
 }
 
+func decorateIPv6HostWithBraces(host string) string {
+	ip := net.ParseIP(host)
+	if ip != nil && ip.To4() == nil {
+		// it's ipv6 address
+		return fmt.Sprintf("[%v]", host)
+	}
+	return host
+}
+
 func Connect(params *ConnectionParams, configAction func(config *mysql.Config) error) (*sql.DB, error) {
 	config := mysql.NewConfig()
 
@@ -37,7 +46,7 @@ func Connect(params *ConnectionParams, configAction func(config *mysql.Config) e
 	config.Net = "tcp"
 
 	// user settings
-	config.Addr = fmt.Sprintf("%v:%v", params.Host, params.Port)
+	config.Addr = fmt.Sprintf("%v:%v", decorateIPv6HostWithBraces(params.Host), params.Port)
 	config.User = params.User
 	config.Passwd = params.Password
 	config.DBName = params.Database

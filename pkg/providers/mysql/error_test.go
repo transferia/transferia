@@ -67,3 +67,37 @@ func TestConnectionTimeoutError(t *testing.T) {
 		require.Contains(t, codedErr.Error(), "Can't ping server")
 	}
 }
+
+func TestConnectionTimeoutIPv6Error(t *testing.T) {
+	params := &ConnectionParams{
+		Host:     "::1",
+		Port:     3306,
+		User:     "user",
+		Password: "password",
+		Database: "db",
+	}
+	db, err := Connect(params, nil)
+	if db != nil {
+		_ = db.Close()
+	}
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Can't ping server")
+	require.Contains(t, err.Error(), "connect: connection refused")
+}
+
+func TestInvalidFormatOfHost(t *testing.T) {
+	params := &ConnectionParams{
+		Host:     "not:valid.192.168:0.1:at.all_cUrSeD",
+		Port:     3306,
+		User:     "user",
+		Password: "password",
+		Database: "db",
+	}
+	db, err := Connect(params, nil)
+	if db != nil {
+		_ = db.Close()
+	}
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Can't ping server")
+	require.Contains(t, err.Error(), "dial tcp: lookup not:valid.192.168:0.1:at.all_cUrSeD:3306: no such host")
+}
