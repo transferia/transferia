@@ -33,10 +33,10 @@ type DebeziumImpl struct {
 // serialized using schema registry and started with magic zero-byte
 func (p *DebeziumImpl) DoOne(partition abstract.Partition, buf []byte, offset uint64, writeTime time.Time) ([]byte, abstract.ChangeItem) {
 	if len(buf) == 0 {
-		return nil, generic.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), "", "debezium parser received empty message", 0, offset, writeTime)
+		return nil, generic.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), []byte{}, "debezium parser received empty message", 0, offset, writeTime)
 	}
 	if p.isUsedSchemaRegistry && buf[0] != 0 {
-		return nil, generic.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), string(buf), fmt.Sprintf("debezium parser configured with SR, but magic byte is not NULL, byte:%d", buf[0]), 0, offset, writeTime)
+		return nil, generic.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), buf, fmt.Sprintf("debezium parser configured with SR, but magic byte is not NULL, byte:%d", buf[0]), 0, offset, writeTime)
 	}
 
 	msgLen := len(buf)
@@ -59,7 +59,7 @@ func (p *DebeziumImpl) DoOne(partition abstract.Partition, buf []byte, offset ui
 			rawData = string(buf)
 		}
 		p.logger.Warn("Unable to receive changeItems", log.Error(err), log.Any("body", util.Sample(string(buf), 1*1024)))
-		return nil, generic.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), rawData, fmt.Sprintf("debezium receiver returned error, err: %s", err), 0, offset, writeTime)
+		return nil, generic.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), []byte(rawData), fmt.Sprintf("debezium receiver returned error, err: %s", err), 0, offset, writeTime)
 	}
 	return buf[msgLen:], *changeItem
 }

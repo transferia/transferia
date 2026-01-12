@@ -143,14 +143,14 @@ func (p *CloudEventsImpl) Do(msg parsers.Message, partition abstract.Partition) 
 	cloudEventsFields, body, protoPath, err := unpackCloudEventsProtoMessage(msg.Value)
 	if err != nil {
 		err := xerrors.Errorf("unable to unpack cloudEvents proto message, err: %w", err)
-		changeItems := []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(msg.Value), err.Error(), 0, msg.Offset, msg.WriteTime)}
+		changeItems := []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, msg.Value, err.Error(), 0, msg.Offset, msg.WriteTime)}
 		return changeItems
 	}
 
 	hostPort, schemaID, err := extractSchemaIDAndURL(cloudEventsFields.dataschema)
 	if err != nil {
 		err := xerrors.Errorf("unable to break URL into subject&version, err: %w", err)
-		changeItems := []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(msg.Value), err.Error(), 0, msg.Offset, msg.WriteTime)}
+		changeItems := []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, msg.Value, err.Error(), 0, msg.Offset, msg.WriteTime)}
 		return changeItems
 	}
 

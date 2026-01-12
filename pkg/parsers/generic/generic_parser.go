@@ -560,7 +560,7 @@ func (p *GenericParser) doGenericParser(msg parsers.Message, partition abstract.
 }
 
 func (p *GenericParser) newUnparsed(partition abstract.Partition, line, reason string, idx int, msg parsers.Message) abstract.ChangeItem {
-	return NewUnparsed(partition, p.name, line, reason, idx, msg.Offset, msg.WriteTime)
+	return NewUnparsed(partition, p.name, []byte(line), reason, idx, msg.Offset, msg.WriteTime)
 }
 
 func replaceProblemSymbols(in string) string {
@@ -577,7 +577,7 @@ func tableName(part abstract.Partition, name string) string {
 	return replaceProblemSymbols(part.Topic)
 }
 
-func NewUnparsed(partition abstract.Partition, name, line, reason string, idx int, offset uint64, writeTime time.Time) abstract.ChangeItem {
+func NewUnparsed(partition abstract.Partition, name string, line []byte, reason string, idx int, offset uint64, writeTime time.Time) abstract.ChangeItem {
 	return abstract.ChangeItem{
 		ID:          0,
 		LSN:         offset,

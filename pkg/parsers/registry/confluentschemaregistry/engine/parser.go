@@ -41,7 +41,7 @@ func (p *ConfluentSrImpl) doWithSchema(partition abstract.Partition, schema *con
 	}
 	if err != nil {
 		errStr := xerrors.Errorf("Can't make change item from message %w", err).Error()
-		changeItems = []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
+		changeItems = []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, buf, errStr, 0, offset, writeTime)}
 		return nil, changeItems
 	}
 	return buf[msgLen:], changeItems
@@ -64,12 +64,12 @@ func (p *ConfluentSrImpl) DoWithSchemaID(partition abstract.Partition, schemaID 
 
 	if p.sendSrNotFoundToUnparsed && is404 {
 		errStr := xerrors.Errorf("SchemaRegistry for schema (id: %v) returned http code 404", schemaID).Error()
-		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
+		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, buf, errStr, 0, offset, writeTime)}
 	}
 
 	if currSchema.SchemaType.String() == "" {
 		errStr := xerrors.Errorf("Schema type for schema (id: %v) not defined", schemaID).Error()
-		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
+		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, buf, errStr, 0, offset, writeTime)}
 	}
 
 	// handle 'references', if present
@@ -79,7 +79,7 @@ func (p *ConfluentSrImpl) DoWithSchemaID(partition abstract.Partition, schemaID 
 		refs, err = p.SchemaRegistryClient.ResolveReferencesRecursive(currSchema.References)
 		if err != nil {
 			errStr := xerrors.Errorf("ResolveReferencesRecursive for schema (id: %v) returned error, %w", schemaID, err).Error()
-			return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
+			return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, buf, errStr, 0, offset, writeTime)}
 		}
 	}
 
@@ -89,11 +89,11 @@ func (p *ConfluentSrImpl) DoWithSchemaID(partition abstract.Partition, schemaID 
 func (p *ConfluentSrImpl) DoOne(partition abstract.Partition, buf []byte, offset uint64, writeTime time.Time) ([]byte, []abstract.ChangeItem) {
 	if len(buf) < 5 {
 		errStr := xerrors.Errorf("Can't extract schema id form message: message length less then 5 (%v)", len(buf)).Error()
-		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
+		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, buf, errStr, 0, offset, writeTime)}
 	}
 	if buf[0] != 0 {
 		errStr := xerrors.Errorf("Unknown magic byte in message (%v) (first byte in message must be 0)", string(buf)).Error()
-		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, string(buf), errStr, 0, offset, writeTime)}
+		return nil, []abstract.ChangeItem{genericparser.NewUnparsed(partition, partition.Topic, buf, errStr, 0, offset, writeTime)}
 	}
 	schemaID := binary.BigEndian.Uint32(buf[1:5])
 	bufWithoutWirePrefix := buf[5:]

@@ -26,7 +26,7 @@ func HandleParseError(
 		ci := generic.NewUnparsed(
 			abstract.NewPartition(tableID.Name, 0),
 			tableID.Name,
-			fmt.Sprintf("%s:%v", filePath, lineCounter),
+			[]byte(fmt.Sprintf("%s:%v", filePath, lineCounter)),
 			parseErr.Error(),
 			lineCounter,
 			0,

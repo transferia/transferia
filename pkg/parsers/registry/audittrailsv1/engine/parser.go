@@ -146,7 +146,7 @@ func (p *AuditTrailsV1ParserImpl) Do(msg parsers.Message, partition abstract.Par
 		dict, err := p.parseLine(line)
 		if err != nil {
 			result = append(result, generic.NewUnparsed(
-				partition, partition.Topic, line, err.Error(), i, msg.Offset, msg.WriteTime,
+				partition, partition.Topic, []byte(line), err.Error(), i, msg.Offset, msg.WriteTime,
 			))
 			continue
 		}
