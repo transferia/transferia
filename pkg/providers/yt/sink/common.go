@@ -260,7 +260,7 @@ func unionSchemas(current, expected schema.Schema) (schema.Schema, error) {
 		}
 	}
 
-	//preserve order of deleted non key columns to avoid unnecessary alters if old rows would be inserted
+	// preserve order of deleted non key columns to avoid unnecessary alters if old rows would be inserted
 	for _, col := range current.Columns {
 		_, notAdded := currentColumns[col.Name]
 		if notAdded {
@@ -439,7 +439,7 @@ func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) 
 	case json.Number:
 		var res any
 		var err error
-		if colSchema.OriginalType == "mysql:json" {
+		if colSchema.OriginalType == "mysql:json" || strings.HasPrefix(colSchema.OriginalType, "pg:json") {
 			res = v
 		} else {
 			res, err = v.Float64()
