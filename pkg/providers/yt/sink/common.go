@@ -5,17 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/postgres"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
-	"go.ytsaurus.tech/yt/go/schema"
+	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -52,7 +52,7 @@ func NewIncompatibleSchemaErr(err error) *IncompatibleSchemaErr {
 
 var NoKeyColumnsFound = xerrors.New("No key columns found")
 
-func isSuperset(super, sub schema.Schema) bool {
+func isSuperset(super, sub ytschema.Schema) bool {
 	if len(super.Columns) < len(sub.Columns) {
 		return false
 	}
@@ -72,53 +72,53 @@ func isSuperset(super, sub schema.Schema) bool {
 	return intersection.Equal(sub)
 }
 
-func inferCommonPrimitiveType(lT, rT schema.Type) (schema.Type, error) {
+func inferCommonPrimitiveType(lT, rT ytschema.Type) (ytschema.Type, error) {
 	if lT == rT {
 		return lT, nil
 	}
 
-	types := map[schema.Type]bool{lT: true, rT: true}
+	types := map[ytschema.Type]bool{lT: true, rT: true}
 
 	switch {
 
-	case types[schema.TypeInt64] && types[schema.TypeInt32]:
-		return schema.TypeInt64, nil
-	case types[schema.TypeInt64] && types[schema.TypeInt16]:
-		return schema.TypeInt64, nil
-	case types[schema.TypeInt64] && types[schema.TypeInt8]:
-		return schema.TypeInt64, nil
-	case types[schema.TypeInt32] && types[schema.TypeInt16]:
-		return schema.TypeInt32, nil
-	case types[schema.TypeInt32] && types[schema.TypeInt8]:
-		return schema.TypeInt32, nil
-	case types[schema.TypeInt16] && types[schema.TypeInt8]:
-		return schema.TypeInt16, nil
+	case types[ytschema.TypeInt64] && types[ytschema.TypeInt32]:
+		return ytschema.TypeInt64, nil
+	case types[ytschema.TypeInt64] && types[ytschema.TypeInt16]:
+		return ytschema.TypeInt64, nil
+	case types[ytschema.TypeInt64] && types[ytschema.TypeInt8]:
+		return ytschema.TypeInt64, nil
+	case types[ytschema.TypeInt32] && types[ytschema.TypeInt16]:
+		return ytschema.TypeInt32, nil
+	case types[ytschema.TypeInt32] && types[ytschema.TypeInt8]:
+		return ytschema.TypeInt32, nil
+	case types[ytschema.TypeInt16] && types[ytschema.TypeInt8]:
+		return ytschema.TypeInt16, nil
 
-	case types[schema.TypeUint64] && types[schema.TypeUint32]:
-		return schema.TypeUint64, nil
-	case types[schema.TypeUint64] && types[schema.TypeUint16]:
-		return schema.TypeUint64, nil
-	case types[schema.TypeUint64] && types[schema.TypeUint8]:
-		return schema.TypeUint64, nil
-	case types[schema.TypeUint32] && types[schema.TypeUint16]:
-		return schema.TypeUint32, nil
-	case types[schema.TypeUint32] && types[schema.TypeUint8]:
-		return schema.TypeUint32, nil
-	case types[schema.TypeUint16] && types[schema.TypeUint8]:
-		return schema.TypeUint16, nil
+	case types[ytschema.TypeUint64] && types[ytschema.TypeUint32]:
+		return ytschema.TypeUint64, nil
+	case types[ytschema.TypeUint64] && types[ytschema.TypeUint16]:
+		return ytschema.TypeUint64, nil
+	case types[ytschema.TypeUint64] && types[ytschema.TypeUint8]:
+		return ytschema.TypeUint64, nil
+	case types[ytschema.TypeUint32] && types[ytschema.TypeUint16]:
+		return ytschema.TypeUint32, nil
+	case types[ytschema.TypeUint32] && types[ytschema.TypeUint8]:
+		return ytschema.TypeUint32, nil
+	case types[ytschema.TypeUint16] && types[ytschema.TypeUint8]:
+		return ytschema.TypeUint16, nil
 
-	case types[schema.TypeBytes] && types[schema.TypeString]:
-		return schema.TypeBytes, nil
+	case types[ytschema.TypeBytes] && types[ytschema.TypeString]:
+		return ytschema.TypeBytes, nil
 
-	case types[schema.TypeAny]:
-		return schema.TypeAny, nil
+	case types[ytschema.TypeAny]:
+		return ytschema.TypeAny, nil
 
 	default:
 		return lT, xerrors.Errorf("cannot infer common type for: %v and %v", lT.String(), rT.String())
 	}
 }
 
-func inferCommonComplexType(lT, rT schema.ComplexType) (schema.ComplexType, error) {
+func inferCommonComplexType(lT, rT ytschema.ComplexType) (ytschema.ComplexType, error) {
 	lPrimitive, err := extractType(lT)
 	if err != nil {
 		//nolint:descriptiveerrors
@@ -137,24 +137,24 @@ func inferCommonComplexType(lT, rT schema.ComplexType) (schema.ComplexType, erro
 	}
 
 	if isOptional(lT) || isOptional(rT) {
-		return schema.Optional{Item: commonPrimitive}, nil
+		return ytschema.Optional{Item: commonPrimitive}, nil
 	}
 	return commonPrimitive, nil
 }
 
-func extractType(ct schema.ComplexType) (schema.Type, error) {
+func extractType(ct ytschema.ComplexType) (ytschema.Type, error) {
 	switch t := ct.(type) {
-	case schema.Optional:
-		return t.Item.(schema.Type), nil
-	case schema.Type:
+	case ytschema.Optional:
+		return t.Item.(ytschema.Type), nil
+	case ytschema.Type:
 		return t, nil
 	default:
 		return "", xerrors.Errorf("got unsupported type_v3 complex type: %T", t)
 	}
 }
 
-func isOptional(ct schema.ComplexType) bool {
-	_, ok := ct.(schema.Optional)
+func isOptional(ct ytschema.ComplexType) bool {
+	_, ok := ct.(ytschema.Optional)
 	return ok
 }
 
@@ -162,7 +162,7 @@ func inferCommonRequireness(lR, rR bool) bool {
 	return lR && rR
 }
 
-func compatiblePKey(current, expected schema.Schema) bool {
+func compatiblePKey(current, expected ytschema.Schema) bool {
 	currentKey := current.KeyColumns()
 	expectedKey := expected.KeyColumns()
 
@@ -178,7 +178,7 @@ func compatiblePKey(current, expected schema.Schema) bool {
 	return true
 }
 
-func mergeColumns(lC, rC schema.Column) (schema.Column, error) {
+func mergeColumns(lC, rC ytschema.Column) (ytschema.Column, error) {
 	commonType, err := inferCommonType(lC, rC)
 	if err != nil {
 		return lC, xerrors.Errorf("cannot infer common type for column %v: %w", lC.Name, err)
@@ -191,7 +191,7 @@ func mergeColumns(lC, rC schema.Column) (schema.Column, error) {
 	return lC, nil
 }
 
-func inferCommonType(lC, rC schema.Column) (schema.ComplexType, error) {
+func inferCommonType(lC, rC ytschema.Column) (ytschema.ComplexType, error) {
 	if lC.ComplexType != nil && rC.ComplexType != nil {
 		//nolint:descriptiveerrors
 		return inferCommonComplexType(lC.ComplexType, rC.ComplexType)
@@ -207,13 +207,13 @@ func inferCommonType(lC, rC schema.Column) (schema.ComplexType, error) {
 		if bothRequired {
 			return commonType, nil
 		}
-		return schema.Optional{Item: commonType}, nil
+		return ytschema.Optional{Item: commonType}, nil
 	}
 
 	return nil, xerrors.New("columns have uncompatible typing: both must have ComplexType or old Type")
 }
 
-func unionSchemas(current, expected schema.Schema) (schema.Schema, error) {
+func unionSchemas(current, expected ytschema.Schema) (ytschema.Schema, error) {
 	if !compatiblePKey(current, expected) {
 		return current, xerrors.Errorf("incompatible key change: %w", NewIncompatibleSchemaErr(
 			xerrors.Errorf("changed order or some columns were deleted from key: current key: %v, expected key: %v",
@@ -227,10 +227,10 @@ func unionSchemas(current, expected schema.Schema) (schema.Schema, error) {
 	union := current
 	union.Columns = nil
 
-	keyColumns := make([]schema.Column, 0)
-	notRequiredColumns := make([]schema.Column, 0)
+	keyColumns := make([]ytschema.Column, 0)
+	notRequiredColumns := make([]ytschema.Column, 0)
 
-	currentColumns := map[string]schema.Column{}
+	currentColumns := map[string]ytschema.Column{}
 	for _, col := range current.Columns {
 		currentColumns[col.Name] = col
 	}
@@ -244,7 +244,7 @@ func unionSchemas(current, expected schema.Schema) (schema.Schema, error) {
 				return expected, err
 			}
 
-			if mergedCol.SortOrder != schema.SortNone {
+			if mergedCol.SortOrder != ytschema.SortNone {
 				keyColumns = append(keyColumns, mergedCol)
 			} else {
 				notRequiredColumns = append(notRequiredColumns, mergedCol)
@@ -253,7 +253,7 @@ func unionSchemas(current, expected schema.Schema) (schema.Schema, error) {
 			col.Required = false
 			_ = col.NormalizeType()
 			if !isOptional(col.ComplexType) {
-				col.ComplexType = schema.Optional{Item: col.ComplexType}
+				col.ComplexType = ytschema.Optional{Item: col.ComplexType}
 			}
 
 			notRequiredColumns = append(notRequiredColumns, col)
@@ -267,7 +267,7 @@ func unionSchemas(current, expected schema.Schema) (schema.Schema, error) {
 			col.Required = false
 			_ = col.NormalizeType()
 			if !isOptional(col.ComplexType) {
-				col.ComplexType = schema.Optional{Item: col.ComplexType}
+				col.ComplexType = ytschema.Optional{Item: col.ComplexType}
 			}
 			notRequiredColumns = append(notRequiredColumns, col)
 		}
@@ -284,7 +284,7 @@ func unionSchemas(current, expected schema.Schema) (schema.Schema, error) {
 }
 
 func onConflictTryAlterWithoutNarrowing(ctx context.Context, ytClient yt.Client) migrate.ConflictFn {
-	return func(path ypath.Path, actual, expected schema.Schema) error {
+	return func(path ypath.Path, actual, expected ytschema.Schema) error {
 		logger.Log.Info("table schema conflict detected", log.String("path", path.String()), log.Reflect("expected", expected), log.Reflect("actual", actual))
 		if isSuperset(actual, expected) {
 			// No error, do not retry schema comparison
@@ -298,13 +298,13 @@ func onConflictTryAlterWithoutNarrowing(ctx context.Context, ytClient yt.Client)
 		}
 		logger.Log.Info("united schema computed", log.String("path", path.String()), log.Reflect("united_schema", unitedSchema))
 
-		if err := yt2.MountUnmountWrapper(ctx, ytClient, path, migrate.UnmountAndWait); err != nil {
+		if err := yt_provider.MountUnmountWrapper(ctx, ytClient, path, migrate.UnmountAndWait); err != nil {
 			return xerrors.Errorf("unmount error: %w", err)
 		}
 		if err := ytClient.AlterTable(ctx, path, &yt.AlterTableOptions{Schema: &unitedSchema}); err != nil {
 			return xerrors.Errorf("alter error: %w", err)
 		}
-		if err := yt2.MountUnmountWrapper(ctx, ytClient, path, migrate.MountAndWait); err != nil {
+		if err := yt_provider.MountUnmountWrapper(ctx, ytClient, path, migrate.MountAndWait); err != nil {
 			return xerrors.Errorf("mount error: %w", err)
 		}
 		// Schema has been altered, no need to retry schema comparison
@@ -399,122 +399,117 @@ func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) 
 		return restored, nil
 	}
 
-	if colSchema.PrimaryKey && strings.Contains(colSchema.OriginalType, "json") {
-		// TM-2118 TM-1893 DTSUPPORT-594 if primary key, should be marshalled independently to prevent "122" == "\"122\""
-		stringifiedJSON, err := json.Marshal(val)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to marshal pkey json: %w", err)
-		}
-		return stringifiedJSON, nil
-	}
-
-	switch v := val.(type) {
-	case time.Time:
-		switch strings.ToLower(colSchema.DataType) {
-		case string(schema.TypeTimestamp):
-			casted, err := castTimeWithDataLoss(v, schema.NewTimestamp)
+	// hacks for not-strictified sources ('pg:timestamp with time zone', 'ch:Float32') AND for our ugly solutions (enums in pg)
+	if colSchema.OriginalType == "ch:Float32" || colSchema.OriginalType == "ch:Nullable(Float32)" {
+		switch v := val.(type) {
+		case float32:
+			return v, nil
+		case json.Number:
+			res, err := v.Float64()
 			if err != nil {
-				return nil, xerrors.Errorf("unable to create Timestamp: %w", err)
+				return nil, xerrors.Errorf("unable to restore from ch:Float32, err: %w", err)
 			}
-			return casted, nil
-
-		case string(schema.TypeDate):
-			casted, err := castTimeWithDataLoss(v, schema.NewDate)
-			if err != nil {
-				return nil, xerrors.Errorf("unable to create Date: %w", err)
-			}
-			return casted, nil
-
-		case string(schema.TypeDatetime):
-			casted, err := castTimeWithDataLoss(v, schema.NewDatetime)
-			if err != nil {
-				return nil, xerrors.Errorf("unable to create Datetime: %w", err)
-			}
-			return casted, nil
-
-		case string(schema.TypeInt64):
-			return -v.UnixNano(), nil
-		}
-
-	case json.Number:
-		var res any
-		var err error
-		if colSchema.OriginalType == "mysql:json" || strings.HasPrefix(colSchema.OriginalType, "pg:json") {
-			res = v
-		} else {
-			res, err = v.Float64()
-			if err != nil {
-				return nil, xerrors.Errorf("unable to parse float64 from json number: %w", err)
-			}
-		}
-		if colSchema.DataType == schema.TypeAny.String() && !isStatic {
-			//nolint:descriptiveerrors
-			return newAnyWrapper(res)
-		}
-		return res, nil
-
-	case time.Duration:
-		asInterval, err := schema.NewInterval(v)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to create interval: %w", err)
-		}
-		return asInterval, nil
-
-	default:
-		ytType := strings.ToLower(colSchema.DataType)
-		switch ytType {
-		case string(schema.TypeInt64), string(schema.TypeInt32), string(schema.TypeInt16), string(schema.TypeInt8):
-			//nolint:descriptiveerrors
-			return doNumberConversion[int64](val, ytType)
-		case string(schema.TypeUint64), string(schema.TypeUint32), string(schema.TypeUint16), string(schema.TypeUint8):
-			//nolint:descriptiveerrors
-			return doNumberConversion[uint64](val, ytType)
-		case string(schema.TypeFloat32), string(schema.TypeFloat64):
-			//nolint:descriptiveerrors
-			return doNumberConversion[float64](val, ytType)
-		case string(schema.TypeBytes), string(schema.TypeString):
-			//nolint:descriptiveerrors
-			return doTextConversion(val, ytType)
-		case string(schema.TypeBoolean):
-			converted, ok := val.(bool)
-			if !ok {
-				return nil, xerrors.Errorf("unaccepted value %v for yt type %s", val, ytType)
-			}
-			return converted, nil
-		case string(schema.TypeDate), string(schema.TypeDatetime), string(schema.TypeTimestamp):
-			converted, ok := val.(uint64)
-			if !ok {
-				return nil, xerrors.Errorf("unaccepted value %v for yt type %s", val, ytType)
-			}
-			return converted, nil
-		case string(schema.TypeInterval):
-			converted, ok := val.(int64)
-			if !ok {
-				return nil, xerrors.Errorf("unaccepted value %v for yt type %s", val, ytType)
-			}
-			return converted, nil
+			return float32(res), nil
+		default:
+			return nil, xerrors.Errorf("unable type for ch:Float32, type=%T", val)
 		}
 	}
-
-	if colSchema.PrimaryKey && colSchema.DataType == schema.TypeAny.String() { // YT not support yson as primary key
+	if postgres.IsPgEnum(colSchema) {
 		switch v := val.(type) {
 		case string:
 			return v, nil
+		case []interface{}:
+			//nolint:descriptiveerrors
+			return newAnyWrapper(v)
 		default:
-			bytes, err := yson.Marshal(val)
-			if err != nil {
-				return nil, xerrors.Errorf("unable to marshal item's value of type '%T': %w", val, err)
-			}
-			return string(bytes), nil
+			return nil, xerrors.Errorf("unknown pg:enum type: %T", val)
+		}
+	}
+	if v, ok := val.(time.Time); (colSchema.OriginalType == "pg:timestamp with time zone" || colSchema.OriginalType == "pg:timestamp without time zone") && ok {
+		//nolint:descriptiveerrors
+		if isStatic {
+			return v.Format(time.RFC3339Nano), nil
+		} else {
+			//nolint:descriptiveerrors
+			return timeCaster(v, colSchema.DataType, ytschema.NewTimestamp)
 		}
 	}
 
-	res := abstract.Restore(colSchema, val)
-	if colSchema.DataType == schema.TypeAny.String() && !isStatic {
-		//nolint:descriptiveerrors
-		return newAnyWrapper(res)
+	// some old ugly hack
+	if colSchema.DataType == string(ytschema.TypeInt64) {
+		if v, ok := val.(time.Time); ok {
+			return -v.UnixNano(), nil
+		}
 	}
-	return res, nil
+
+	switch colSchema.DataType {
+	case ytschema.TypeInt8.String(), ytschema.TypeInt16.String(), ytschema.TypeInt32.String(), ytschema.TypeInt64.String():
+		//nolint:descriptiveerrors
+		return doNumberConversion[int64](val, colSchema.DataType)
+	case ytschema.TypeUint8.String(), ytschema.TypeUint16.String(), ytschema.TypeUint32.String(), ytschema.TypeUint64.String():
+		//nolint:descriptiveerrors
+		return doNumberConversion[uint64](val, colSchema.DataType)
+	case ytschema.TypeFloat32.String(), ytschema.TypeFloat64.String():
+		switch v := val.(type) {
+		case json.Number:
+			res, err := v.Float64()
+			if err != nil {
+				return nil, xerrors.Errorf("unable to parse float64 from json number: %w", err)
+			}
+			return res, nil
+		default:
+			//nolint:descriptiveerrors
+			return doNumberConversion[float64](v, colSchema.DataType)
+		}
+	case ytschema.TypeBytes.String(), ytschema.TypeString.String():
+		//nolint:descriptiveerrors
+		return doTextConversion(val, colSchema.DataType)
+	case ytschema.TypeBoolean.String():
+		switch v := val.(type) {
+		case bool:
+			return v, nil
+		default:
+			return nil, xerrors.Errorf("unknown data type for TypeBoolean: %T", val)
+		}
+	case ytschema.TypeAny.String():
+		if isStatic {
+			return val, nil
+		}
+		if colSchema.PrimaryKey {
+			// TM-2118 TM-1893 DTSUPPORT-594 if primary key, should be marshalled independently to prevent "122" == "\"122\""
+			stringifiedJSON, err := json.Marshal(val)
+			if err != nil {
+				return nil, xerrors.Errorf("unable to marshal pkey json: %w", err)
+			}
+			return stringifiedJSON, nil
+		}
+		//nolint:descriptiveerrors
+		return newAnyWrapper(val)
+	case ytschema.TypeDate.String():
+		//nolint:descriptiveerrors
+		return timeCaster(val, colSchema.DataType, ytschema.NewDate)
+	case ytschema.TypeDatetime.String():
+		//nolint:descriptiveerrors
+		return timeCaster(val, colSchema.DataType, ytschema.NewDatetime)
+	case ytschema.TypeTimestamp.String():
+		//nolint:descriptiveerrors
+		return timeCaster(val, colSchema.DataType, ytschema.NewTimestamp)
+	case ytschema.TypeInterval.String():
+		switch v := val.(type) {
+		case int64:
+			return v, nil
+		case time.Duration:
+			asInterval, err := ytschema.NewInterval(v)
+			if err != nil {
+				return nil, xerrors.Errorf("unable to create interval: %w", err)
+			}
+			return asInterval, nil
+		default:
+			return nil, xerrors.Errorf("unknown data type for TypeInterval: %T", val)
+		}
+	default:
+		return nil, xerrors.Errorf("unknown colSchema.DataType: %s", colSchema.DataType)
+	}
 }
 
 type Number interface {
@@ -563,11 +558,6 @@ func doTextConversion(val interface{}, ytType string) (string, error) {
 	return "", xerrors.Errorf("unaccepted value %v for yt type %v", val, ytType)
 }
 
-// TODO: Completely remove this legacy hack
-func fixDatetime(c *abstract.ColSchema) schema.Type {
-	return schema.Type(strings.ToLower(c.DataType))
-}
-
 func schemasAreEqual(current, received []abstract.ColSchema) bool {
 	if len(current) != len(received) {
 		return false
@@ -589,9 +579,24 @@ func schemasAreEqual(current, received []abstract.ColSchema) bool {
 	return true
 }
 
+func timeCaster[T any](val any, dateType string, caster func(time.Time) (T, error)) (any, error) {
+	switch v := val.(type) {
+	case time.Time:
+		casted, err := castTimeWithDataLoss[T](v, caster)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to create %s: %w", dateType, err)
+		}
+		return casted, nil
+	case uint64:
+		return v, nil
+	default:
+		return nil, xerrors.Errorf("unknown data type for %s: %T", dateType, val)
+	}
+}
+
 // castTimeWithDataLoss tries to cast value and trims time if it not fits into YT's range. TODO: Remove in TM-7874.
 func castTimeWithDataLoss[T any](value time.Time, caster func(time.Time) (T, error)) (T, error) {
-	var rangeErr *schema.RangeError
+	var rangeErr *ytschema.RangeError
 	var nilT T // Used as return value if unexpected error occures.
 
 	casted, err := caster(value)

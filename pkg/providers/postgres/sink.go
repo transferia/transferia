@@ -239,7 +239,7 @@ func (s *sink) CreateTable(ctx context.Context, in abstract.TableSchema) error {
 func (s *sink) CreateEnums(ctx context.Context, in abstract.TableSchema) error {
 	ets := s.existingTableSchema[in.TableID()]
 	for _, col := range in.Columns() {
-		if !isPgEnum(col) {
+		if !IsPgEnum(col) {
 			continue
 		}
 		// if column exists in table type is considered created
@@ -259,7 +259,7 @@ func (s *sink) CreateEnums(ctx context.Context, in abstract.TableSchema) error {
 	return nil
 }
 
-func isPgEnum(col abstract.ColSchema) bool {
+func IsPgEnum(col abstract.ColSchema) bool {
 	vals := GetPropertyEnumAllValues(&col)
 	return vals != nil
 }
@@ -267,7 +267,7 @@ func isPgEnum(col abstract.ColSchema) bool {
 func (s *sink) AlterEnums(ctx context.Context, in abstract.TableSchema) error {
 	ets := s.existingTableSchema[in.TableID()]
 	for _, col := range in.Columns() {
-		if !isPgEnum(col) {
+		if !IsPgEnum(col) {
 			continue
 		}
 		queries, err := addEnumValsQuery(ets.FastColumns()[abstract.ColumnName(col.ColumnName)], col)

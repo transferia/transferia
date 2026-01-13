@@ -694,7 +694,7 @@ func hackTimestamps(cols []abstract.ColSchema) []abstract.ColSchema {
 			Required:     col.Required,
 			Expression:   col.Expression,
 			OriginalType: col.OriginalType,
-			Properties:   nil,
+			Properties:   col.Properties,
 		})
 	}
 	return res

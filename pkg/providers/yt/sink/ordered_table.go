@@ -123,7 +123,7 @@ func (t *OrderedTable) Init() error {
 	for i, col := range t.schema {
 		s[i] = schema.Column{
 			Name: col.ColumnName,
-			Type: fixDatetime(&col),
+			Type: schema.Type(col.DataType),
 		}
 	}
 

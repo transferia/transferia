@@ -64,7 +64,7 @@ func (s *Schema) BuildSchema(schemas []abstract.ColSchema) (*schema.Schema, erro
 	for i, col := range schemas {
 		target.Columns[i] = schema.Column{
 			Name:       col.ColumnName,
-			Type:       fixDatetime(&col),
+			Type:       schema.Type(col.DataType),
 			Expression: col.Expression,
 		}
 		if col.PrimaryKey {
