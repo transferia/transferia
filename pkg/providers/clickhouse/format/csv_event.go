@@ -39,7 +39,7 @@ func (e *CSVEvent) ToOldChangeItem() (*abstract.ChangeItem, error) {
 				continue
 			}
 		}
-		switch strings.ToLower(col.DataType) {
+		switch col.DataType {
 		case "date", "datetime", "timestamp":
 			strCell, ok := cell.(string)
 			if !ok {

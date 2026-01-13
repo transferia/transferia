@@ -1298,7 +1298,7 @@ func (s *sinker) ydbType(dataType, originalType string) types.Type {
 	case "DateTime":
 		return types.TypeDatetime
 	default:
-		switch schema.Type(strings.ToLower(dataType)) {
+		switch schema.Type(dataType) {
 		case schema.TypeInterval:
 			if s.config.IsTableColumnOriented {
 				return types.TypeInt64

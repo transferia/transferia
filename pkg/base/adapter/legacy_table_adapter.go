@@ -2,7 +2,6 @@ package adapter
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -263,7 +262,7 @@ func (l legacyColumnAdapter) FullName() string {
 }
 
 func (l legacyColumnAdapter) Type() base.Type {
-	switch yt_schema.Type(strings.ToLower(l.col.DataType)) {
+	switch yt_schema.Type(l.col.DataType) {
 	case yt_schema.TypeInt8:
 		return types.NewInt8Type()
 	case yt_schema.TypeInt16:

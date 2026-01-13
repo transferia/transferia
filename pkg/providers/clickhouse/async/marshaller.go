@@ -67,7 +67,7 @@ func marshalChangeItem(row abstract.ChangeItem, schema map[string]abstract.ColSc
 		colSch := schema[col]
 		if rowVal == nil {
 			vals[i] = rowVal
-		} else if colType.IsArray && strings.ToLower(colSch.DataType) == "any" {
+		} else if colType.IsArray && colSch.DataType == "any" {
 			vals[i] = rowVal
 		} else if colType.IsString {
 			switch rowValDowncasted := rowVal.(type) {

@@ -72,7 +72,7 @@ func marshalAny(val interface{}) interface{} {
 }
 
 func Restore(column abstract.ColSchema, val interface{}) interface{} {
-	switch strings.ToLower(column.DataType) {
+	switch column.DataType {
 	case "any":
 		if v, ok := val.(string); ok {
 			return v

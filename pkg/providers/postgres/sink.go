@@ -312,7 +312,7 @@ func (s *sink) AlterTable(ctx context.Context, in abstract.TableSchema) error {
 }
 
 func DataToOriginal(dataType string) (string, error) {
-	switch strings.ToLower(dataType) {
+	switch dataType {
 	case "int8", "uint8", "int16", "uint16":
 		return "smallint", nil
 	case "int32", "uint32":

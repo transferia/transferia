@@ -31,7 +31,7 @@ func Restore(column ColSchema, value interface{}) interface{} {
 	case uuid.UUID:
 		return v.String()
 	case time.Time:
-		switch strings.ToLower(column.DataType) {
+		switch column.DataType {
 		case string(schema.TypeDate), string(schema.TypeDatetime), string(schema.TypeTimestamp):
 			return v
 		case "int64":
@@ -53,7 +53,7 @@ func Restore(column ColSchema, value interface{}) interface{} {
 		return result
 	}
 
-	switch strings.ToLower(column.DataType) {
+	switch column.DataType {
 	case string(schema.TypeInterval):
 		switch v := value.(type) {
 		case time.Duration:

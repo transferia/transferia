@@ -189,7 +189,7 @@ func MarshalCItoJSON(row abstract.ChangeItem, rules *MarshallingRules, buf *byte
 				} else {
 					buf.WriteString("false")
 				}
-			} else if (strings.ToLower(colSchema.DataType) == "any" && rules.AnyAsString) || colType.IsString {
+			} else if (colSchema.DataType == "any" && rules.AnyAsString) || colType.IsString {
 				if v {
 					buf.WriteString(`"true"`)
 				} else {
@@ -230,7 +230,7 @@ func MarshalCItoJSON(row abstract.ChangeItem, rules *MarshallingRules, buf *byte
 				buf.Truncate(buf.Len() - hLen)
 				continue
 			}
-			if strings.ToLower(colSchema.DataType) != "any" || rules.AnyAsString || colType.IsString {
+			if colSchema.DataType != "any" || rules.AnyAsString || colType.IsString {
 				rr, err := json.Marshal(string(r))
 				if err != nil {
 					return xerrors.Errorf(marshalErrTpl, columnName, v, err)
