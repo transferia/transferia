@@ -12,6 +12,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors"
+	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
@@ -174,7 +176,7 @@ func (s *Storage) BuildSharedMemory(
 	return result, nil
 }
 
-func (s *Storage) CheckSecondaryWorkersDone(startTime time.Time, cp any, transfer any) (bool, error) {
+func (s *Storage) CheckSecondaryWorkersDone(startTime time.Time, cp any, transfer any, operationID string) (bool, error) {
 	cpUnwrapped, ok := cp.(coordinator.Coordinator)
 	if !ok {
 		return false, xerrors.Errorf("invalid transfer coordinator, err: %T", cp)
@@ -187,6 +189,18 @@ func (s *Storage) CheckSecondaryWorkersDone(startTime time.Time, cp any, transfe
 	if !ok {
 		return false, xerrors.Errorf("runtime is unsupported type, %T", transferUnwrapped.Runtime)
 	}
+
+	// check if any secondary worker have an error
+	workers, err := cpUnwrapped.GetOperationWorkers(operationID)
+	if err != nil {
+		return false, errors.CategorizedErrorf(categories.Internal, "can't to get workers for operation '%v': %w", operationID, err)
+	}
+	errs := model.AggregateWorkerErrors(workers, operationID)
+	if len(errs) > 0 {
+		return false, xerrors.Errorf("errors detected on secondary workers: %v", errs)
+	}
+
+	// check is all workers successfully done
 	maxEffectiveWorkersCount := effective_worker_num.DetermineMaxEffectiveWorkerNum(runtimeUnwrapped)
 	count, err := coordinator_utils.WorkersDoneCount(startTime, cpUnwrapped, s.transferID, maxEffectiveWorkersCount)
 	if err != nil {

@@ -405,7 +405,7 @@ type CustomCheckSecondaryWorkersDone interface {
 	// startTime stores time, when main-worker started waiting secondary workers.
 	// so, when all workers are done, 'time.Now()-startTime' will show snapshotting time.
 	// startTime needed here just for intermediate logging.
-	CheckSecondaryWorkersDone(startTime time.Time, cp any, transfer any) (bool, error)
+	CheckSecondaryWorkersDone(startTime time.Time, cp any, transfer any, operationID string) (bool, error)
 }
 
 //---------------------------------------------------------------------------------------------------------------------

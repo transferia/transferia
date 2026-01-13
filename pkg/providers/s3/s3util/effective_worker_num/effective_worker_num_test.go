@@ -34,10 +34,10 @@ func TestSnapshot(t *testing.T) {
 	})
 
 	t.Run("", func(t *testing.T) {
-		parallelism := abstract.NewFakeShardingTaskRuntime(1, 2, 777, 999)
+		parallelism := abstract.NewFakeShardingTaskRuntime(2, 2, 777, 999)
 		effectiveWorkerNum, err := NewEffectiveWorkerNum(logger.Log, parallelism, true)
 		require.NoError(t, err)
 		require.Equal(t, 0, effectiveWorkerNum.CurrentWorkerNum)
-		require.Equal(t, 1, effectiveWorkerNum.WorkersCount)
+		require.Equal(t, 2, effectiveWorkerNum.WorkersCount)
 	})
 }

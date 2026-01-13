@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/config/env"
 	"github.com/transferia/transferia/pkg/instanceutil"
-	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type MetricSchema string
@@ -133,18 +133,6 @@ func (rc *MeteringOpts) getInstanceID() string {
 	}
 }
 
-func getJobIndex() string {
-	if os.Getenv("YT_JOB_INDEX") != "" {
-		return os.Getenv("YT_JOB_INDEX")
-	}
-	idx, err := instanceutil.JobIndex()
-	if err != nil {
-		logger.Log.Error("failed to get job index", log.Error(err))
-		return ""
-	}
-	return fmt.Sprintf("%d", idx)
-}
-
 func NewMeteringOpts(transfer *model.Transfer, task *model.TransferOperation) (*MeteringOpts, error) {
 	return NewMeteringOptsWithTags(transfer, task, map[string]interface{}{})
 }
@@ -171,6 +159,12 @@ func NewMeteringOptsWithTags(transfer *model.Transfer, task *model.TransferOpera
 		return nil, xerrors.New("runtime is required")
 	}
 
+	jobIndex := 0
+	runtimeUnwrapped, ok := runtime.(abstract.ShardingTaskRuntime)
+	if ok {
+		jobIndex = runtimeUnwrapped.CurrentJobIndex()
+	}
+
 	config := MeteringOpts{
 		TransferID:      transfer.ID,
 		TransferType:    string(transfer.Type),
@@ -181,7 +175,7 @@ func NewMeteringOptsWithTags(transfer *model.Transfer, task *model.TransferOpera
 		DstMdbClusterID: dstMDBClusterID,
 		OperationID:     "",
 		OperationType:   "",
-		JobIndex:        getJobIndex(),
+		JobIndex:        strconv.Itoa(jobIndex),
 		ComputeVMID:     "",
 		YtOperationID:   "",
 		YtJobID:         "",

@@ -9,18 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
-	"github.com/transferia/transferia/pkg/util"
 )
-
-func aggregateWorkerErrors(workers []*model.OperationWorker, operationID string) util.Errors {
-	var result util.Errors
-	for _, worker := range workers {
-		if worker.Err != "" {
-			result = append(result, xerrors.Errorf("secondary worker [%v] of operation '%v' failed: %v", worker.WorkerIndex, operationID, worker.Err))
-		}
-	}
-	return result
-}
 
 func defaultCheckAreWorkersDone(startTime time.Time, cp coordinator.Coordinator, operationID string, workersCount int) (bool, error) {
 	totalProgress, err := cp.GetOperationProgress(operationID)
@@ -82,7 +71,7 @@ func defaultCheckAreWorkersDone(startTime time.Time, cp coordinator.Coordinator,
 		time.Since(startTime),
 	)
 
-	errs := aggregateWorkerErrors(workers, operationID)
+	errs := model.AggregateWorkerErrors(workers, operationID)
 	if len(errs) > 0 {
 		return false, xerrors.Errorf("errors detected on secondary workers: %v", errs)
 	}

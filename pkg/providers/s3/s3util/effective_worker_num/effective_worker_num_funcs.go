@@ -14,13 +14,13 @@ import (
 //   - worker '2' became worker '0'
 func determineCurrentAndMaxEffectiveWorkerNum(snapshotRuntime abstract.ShardingTaskRuntime) (int, int, error) {
 	currentJobIndex := snapshotRuntime.CurrentJobIndex()
-	workersCount := snapshotRuntime.SnapshotWorkersNum()
+	secondaryWorkersCount := snapshotRuntime.SnapshotWorkersNum()
 
 	if currentJobIndex == 0 {
 		return 0, 0, xerrors.New("impossible situation - seconary worker got workerNum==0")
 	}
 
-	if currentJobIndex == workersCount-1 {
+	if currentJobIndex == secondaryWorkersCount {
 		return 0, DetermineMaxEffectiveWorkerNum(snapshotRuntime), nil
 	} else {
 		return currentJobIndex, DetermineMaxEffectiveWorkerNum(snapshotRuntime), nil
@@ -28,5 +28,5 @@ func determineCurrentAndMaxEffectiveWorkerNum(snapshotRuntime abstract.ShardingT
 }
 
 func DetermineMaxEffectiveWorkerNum(snapshotRuntime abstract.ShardingTaskRuntime) int {
-	return snapshotRuntime.SnapshotWorkersNum() - 1
+	return snapshotRuntime.SnapshotWorkersNum()
 }

@@ -130,7 +130,7 @@ func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, sourceStorage
 				return nil
 			}
 		} else {
-			isDone, err := customCheck.CheckSecondaryWorkersDone(startTime, l.cp, l.transfer)
+			isDone, err := customCheck.CheckSecondaryWorkersDone(startTime, l.cp, l.transfer, l.operationID)
 			if err != nil {
 				return xerrors.Errorf("an error occured during custom waiting if secondary workers completed: %w", err)
 			}

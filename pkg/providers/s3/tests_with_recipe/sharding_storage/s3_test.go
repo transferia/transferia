@@ -93,6 +93,17 @@ func TestShardingTransfer(t *testing.T) {
 		err := snapshotLoader.UploadTables(ctx, []abstract.TableDescription{{Name: "test"}}, false)
 		require.NoError(t, err)
 	}()
+	go func() {
+		defer wg.Done()
+		transfer.Runtime = &abstract.LocalRuntime{
+			CurrentJob:     2, // 'SECONDARY' worker
+			ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
+		}
+		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+		ctx := context.Background()
+		err := snapshotLoader.UploadTables(ctx, []abstract.TableDescription{{Name: "test"}}, false)
+		require.NoError(t, err)
+	}()
 
 	wg.Wait()
 }

@@ -2,7 +2,7 @@ package abstract
 
 type FakeShardingTaskRuntime struct {
 	currentJobIndex             int
-	snapshotWorkersNum          int
+	snapshotWorkersNum          int // it's count of SECONDARY workers
 	snapshotThreadsNumPerWorker int
 	replicationWorkersNum       int
 }

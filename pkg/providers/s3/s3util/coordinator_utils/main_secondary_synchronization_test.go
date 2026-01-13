@@ -15,9 +15,9 @@ func TestMainSecondarySynchronization(t *testing.T) {
 	cp := testutil.NewFakeClientWithTransferState()
 	transferID := "dtt"
 
-	runtimeWorker0 := abstract.NewFakeShardingTaskRuntime(0, 3, 1, 0)
-	runtimeWorker1 := abstract.NewFakeShardingTaskRuntime(1, 3, 1, 0)
-	runtimeWorker2 := abstract.NewFakeShardingTaskRuntime(2, 3, 1, 0)
+	runtimeWorker0 := abstract.NewFakeShardingTaskRuntime(0, 2, 1, 0) // main worker
+	runtimeWorker1 := abstract.NewFakeShardingTaskRuntime(1, 2, 1, 0)
+	runtimeWorker2 := abstract.NewFakeShardingTaskRuntime(2, 2, 1, 0)
 	workers := []abstract.ShardingTaskRuntime{runtimeWorker1, runtimeWorker2}
 
 	effectiveWorkerNum1, err := effective_worker_num.NewEffectiveWorkerNum(logger.Log, runtimeWorker1, true)
