@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
@@ -47,9 +46,6 @@ func TestAlter(t *testing.T) {
 	// start worker
 
 	Target.ProtocolUnspecified = true
-	Target.MigrationOptions = &model.ChSinkMigrationOptions{
-		AddNewColumns: true,
-	}
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
 	var terminateErr error
 	localWorker := helpers.Activate(t, transfer, func(err error) {

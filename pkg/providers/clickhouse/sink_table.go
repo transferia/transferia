@@ -59,7 +59,7 @@ func (t *sinkTable) Init(cols *abstract.TableSchema) error {
 		return xerrors.Errorf("failed to check existing of table %s: %w", t.tableName, err)
 	}
 	if t.config.InferSchema() || exist {
-		if !t.config.GetIsSchemaMigrationDisabled() && t.config.MigrationOptions().AddNewColumns {
+		if !t.config.GetIsSchemaMigrationDisabled() {
 			targetCols, err := schema.DescribeTable(t.server.db, t.config.Database(), t.tableName, nil)
 			if err != nil {
 				return xerrors.Errorf("failed to discover existing schema of %s: %w", t.tableName, err)
@@ -281,7 +281,7 @@ func (t *sinkTable) ApplyChangeItems(rows []abstract.ChangeItem) error {
 }
 
 func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
-	if !t.config.GetIsSchemaMigrationDisabled() && t.config.MigrationOptions().AddNewColumns {
+	if !t.config.GetIsSchemaMigrationDisabled() {
 		if err := t.ApplySchemaDiffToDB(t.cols.Columns(), items[0].TableSchema.Columns()); err != nil {
 			return xerrors.Errorf("fail to alter table schema for new batch: %w", err)
 		}

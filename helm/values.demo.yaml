@@ -38,8 +38,6 @@ transferSpec:
       HTTPPort: 8443
       SSLEnabled: true
       NativePort: 9440
-      MigrationOptions:
-        AddNewColumns: true
       InsertParams:
         MaterializedViewsIgnoreErrors: true
       RetryCount: 20

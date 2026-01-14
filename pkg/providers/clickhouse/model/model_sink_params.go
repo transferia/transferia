@@ -57,9 +57,6 @@ type ChSinkServerParams interface {
 	//  2. Any IncrementOnly transfer in ClickHouse which can bring update for inexistent document (for instance PG->CH)
 	UpsertAbsentToastedRows() bool
 	InferSchema() bool // If table exists - get it schema
-	// MigrationOptions
-	// Sink table modification settings
-	MigrationOptions() ChSinkMigrationOptions
 	GetIsSchemaMigrationDisabled() bool
 	// UploadAsJSON enables JSON format upload. See CH destination model for details.
 	UploadAsJSON() bool
@@ -75,12 +72,6 @@ type ChSinkServerParams interface {
 	RootCertPaths() []string
 	InsertSettings() InsertParams
 	GetConnectionID() string
-}
-
-type ChSinkMigrationOptions struct {
-	// AddNewColumns
-	// automatically alter table to add new columns
-	AddNewColumns bool
 }
 
 type ChSinkServerParamsWrapper struct {

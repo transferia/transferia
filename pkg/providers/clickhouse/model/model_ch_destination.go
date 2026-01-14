@@ -38,21 +38,19 @@ var (
 // ChDestination - see description of fields in sink_params.go
 type ChDestination struct {
 	// ChSinkServerParams
-	MdbClusterID  string `json:"Cluster" log:"true"`
-	ChClusterName string `log:"true"` // Name of the ClickHouse cluster to which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
-	User          string `log:"true"`
-	Password      model.SecretString
-	Database      string `log:"true"`
-	Partition     string `log:"true"`
-	SSLEnabled    bool   `log:"true"`
-	HTTPPort      int    `log:"true"`
-	NativePort    int    `log:"true"`
-	TTL           string `log:"true"`
-	InferSchema   bool   `log:"true"`
-	// MigrationOptions deprecated
-	MigrationOptions          *ChSinkMigrationOptions `log:"true"`
-	ConnectionID              string                  `log:"true"`
-	IsSchemaMigrationDisabled bool                    `log:"true"`
+	MdbClusterID              string `json:"Cluster" log:"true"`
+	ChClusterName             string `log:"true"` // Name of the ClickHouse cluster to which data will be transfered. For Managed ClickHouse that is name of ShardGroup. Other clusters would be ignored.
+	User                      string `log:"true"`
+	Password                  model.SecretString
+	Database                  string `log:"true"`
+	Partition                 string `log:"true"`
+	SSLEnabled                bool   `log:"true"`
+	HTTPPort                  int    `log:"true"`
+	NativePort                int    `log:"true"`
+	TTL                       string `log:"true"`
+	InferSchema               bool   `log:"true"`
+	ConnectionID              string `log:"true"`
+	IsSchemaMigrationDisabled bool   `log:"true"`
 	// ForceJSONMode forces JSON protocol at sink:
 	// - allows upload records without 'required'-fields, clickhouse fills them via defaults.
 	//         BUT IF THEY ARE 'REQUIRED' - WHAT THE POINT?
@@ -171,11 +169,6 @@ func (d *ChDestination) WithDefaults() {
 	if d.BufferTriggingSize == 0 {
 		d.BufferTriggingSize = BufferTriggingSizeDefault
 	}
-	if d.MigrationOptions == nil {
-		d.MigrationOptions = &ChSinkMigrationOptions{
-			AddNewColumns: true,
-		}
-	}
 }
 
 func (d *ChDestination) BuffererConfig() *bufferer.BuffererConfig {
@@ -265,7 +258,6 @@ type ChDestinationWrapper struct {
 	connectionParams connectionParams
 	hosts            []*chConn.Host
 	useJSON          bool // useJSON is calculated in runtime, not by the model
-	migrationOpts    ChSinkMigrationOptions
 }
 
 func (d ChDestinationWrapper) InsertSettings() InsertParams {
@@ -274,12 +266,6 @@ func (d ChDestinationWrapper) InsertSettings() InsertParams {
 
 // newChDestinationWrapper copies the model provided to it in order to be able to modify the fields in it
 func newChDestinationWrapper(model ChDestination) *ChDestinationWrapper {
-	migrationOpts := ChSinkMigrationOptions{
-		AddNewColumns: false,
-	}
-	if model.MigrationOptions != nil {
-		migrationOpts = *model.MigrationOptions
-	}
 	return &ChDestinationWrapper{
 		Model: &model,
 		host: &chConn.Host{
@@ -298,9 +284,8 @@ func newChDestinationWrapper(model ChDestination) *ChDestinationWrapper {
 			PemFileContent: model.PemFileContent,
 			ClusterID:      model.MdbClusterID,
 		},
-		hosts:         make([]*chConn.Host, 0),
-		useJSON:       false,
-		migrationOpts: migrationOpts,
+		hosts:   make([]*chConn.Host, 0),
+		useJSON: false,
 	}
 }
 
@@ -372,10 +357,6 @@ func (d ChDestinationWrapper) UpsertAbsentToastedRows() bool {
 
 func (d ChDestinationWrapper) InferSchema() bool {
 	return d.Model.InferSchema
-}
-
-func (d ChDestinationWrapper) MigrationOptions() ChSinkMigrationOptions {
-	return d.migrationOpts
 }
 
 func (d ChDestinationWrapper) GetIsSchemaMigrationDisabled() bool {
@@ -454,7 +435,6 @@ func (d ChDestinationWrapper) MakeChildServerParams(host *chConn.Host) ChSinkSer
 		connectionParams: d.connectionParams,
 		hosts:            d.hosts,
 		useJSON:          d.useJSON,
-		migrationOpts:    d.MigrationOptions(),
 	}
 	return newChDestinationWrapper
 }
@@ -467,7 +447,6 @@ func (d ChDestinationWrapper) MakeChildShardParams(altHosts []*chConn.Host) ChSi
 		connectionParams: d.connectionParams,
 		hosts:            altHosts,
 		useJSON:          d.useJSON,
-		migrationOpts:    d.MigrationOptions(),
 	}
 	newChDestinationWrapper.connectionParams.Hosts = altHosts
 

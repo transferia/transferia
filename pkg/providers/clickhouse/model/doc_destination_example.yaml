@@ -6,8 +6,6 @@ PemFileContent: ''
 HTTPPort: 8443
 NativePort: 9440
 InferSchema: true
-MigrationOptions:
-  AddNewColumns: true
 ForceHTTP: false
 ProtocolUnspecified: true
 AnyAsString: true

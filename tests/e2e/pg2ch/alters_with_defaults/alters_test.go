@@ -10,7 +10,6 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
@@ -46,9 +45,6 @@ func TestAlter(t *testing.T) {
 	// start worker
 
 	Target.ProtocolUnspecified = true
-	Target.MigrationOptions = &model.ChSinkMigrationOptions{
-		AddNewColumns: true,
-	}
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
 	transfer.DataObjects = &dp_model.DataObjects{IncludeObjects: []string{"public.__test"}}
 	var terminateErr error

@@ -269,10 +269,6 @@ func (s ChSourceWrapper) InferSchema() bool {
 	return false
 }
 
-func (s ChSourceWrapper) MigrationOptions() ChSinkMigrationOptions {
-	return ChSinkMigrationOptions{false}
-}
-
 func (s ChSourceWrapper) UploadAsJSON() bool {
 	return false
 }
