@@ -83,7 +83,7 @@ require (
 	go.ytsaurus.tech/yt/go v0.0.31
 	golang.org/x/crypto v0.42.0
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6
-	golang.org/x/mod v0.27.0
+	golang.org/x/mod v0.28.0
 	golang.org/x/net v0.44.0
 	golang.org/x/sync v0.17.0
 	golang.org/x/text v0.29.0
