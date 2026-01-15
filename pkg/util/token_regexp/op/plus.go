@@ -11,6 +11,7 @@ type PlusOp struct {
 
 func (t *PlusOp) IsOp() {}
 
+// recursive function - every call is every match repeat of '+' operator
 func consumeComplex(op abstract.Op, tokens []*abstract.Token) *abstract.MatchedResults {
 	if len(tokens) == 0 {
 		result := abstract.NewMatchedResults()

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/schema/ddl_parser/clickhouse_lexer"
+	"github.com/transferia/transferia/pkg/util/token_regexp/abstract"
 	"github.com/transferia/transferia/pkg/util/token_regexp/op"
 )
 
@@ -69,6 +70,19 @@ func TestMatcher(t *testing.T) {
 		checkMatchedSubstr(t, "on cluster (", []any{"ON", "CLUSTER", op.Opt(op.MatchParentheses())}, "on cluster")
 	})
 
+	t.Run("MatchCurlyBraces, matched #0", func(t *testing.T) {
+		checkMatchedSubstr(t, "on cluster {}", []any{"ON", "CLUSTER", op.MatchCurlyBraces()}, "on cluster {}")
+	})
+	t.Run("MatchCurlyBraces, matched #1", func(t *testing.T) {
+		checkMatchedSubstr(t, "on cluster {}{}", []any{"ON", "CLUSTER", op.MatchCurlyBraces()}, "on cluster {}")
+	})
+	t.Run("MatchCurlyBraces, not matched #0", func(t *testing.T) {
+		checkMatchedSubstr(t, "on cluster {", []any{"ON", "CLUSTER", op.MatchCurlyBraces()}, "")
+	})
+	t.Run("MatchCurlyBraces, not matched #1", func(t *testing.T) {
+		checkMatchedSubstr(t, "on cluster {", []any{"ON", "CLUSTER", op.Opt(op.MatchCurlyBraces())}, "on cluster")
+	})
+
 	t.Run("Or", func(t *testing.T) {
 		checkMatchedSubstr(t, "on cluster", []any{op.Or("on", "cluster")}, "on")
 	})
@@ -89,7 +103,7 @@ func TestMatcher(t *testing.T) {
 		checkMatchedSubstr(t, "b", []any{op.Plus("a")}, "")
 	})
 	t.Run("Plus - zero matches", func(t *testing.T) {
-		var queryRecurse = []interface{}{
+		queryRecurse := []interface{}{
 			"recurse",
 			"(",
 			op.CapturingGroup(op.Plus(op.AnyToken())),
@@ -100,6 +114,27 @@ func TestMatcher(t *testing.T) {
 	})
 	t.Run("Plus - one match - complex", func(t *testing.T) {
 		checkMatchedSubstr(t, "a b", []any{op.Plus(op.Or("a", "b"))}, "a b")
+	})
+
+	t.Run("Star", func(t *testing.T) {
+		originalStr := `a c z`
+		query := []any{op.Seq(
+			op.CapturingGroup(
+				"a",
+				op.Star("b"),
+				"c",
+			),
+		),
+		}
+		currMatcher := NewTokenRegexp(query)
+		tokens := clickhouse_lexer.StringToTokens(originalStr)
+		results := currMatcher.FindAll(tokens)
+		index := abstract.FindPathWithMaxCapturingGroupAmount(results)
+		matchedPath := results.Index(index)
+		groups := matchedPath.CapturingGroups()
+		require.Equal(t, groups.GroupsNum(), 1)
+		text := groups.GroupToText(originalStr, 0)
+		require.Equal(t, `a c`, text)
 	})
 
 	t.Run("Seq", func(t *testing.T) {
@@ -131,5 +166,30 @@ func TestMatcher(t *testing.T) {
 	t.Run("capturing group", func(t *testing.T) {
 		originalStr := "CREATE TABLE qqq on cluster my_cluster() engine=q"
 		checkCapturingGroups(t, originalStr, queryFull, []string{"on cluster my_cluster", "q"})
+	})
+
+	t.Run("nested capturing group", func(t *testing.T) {
+		originalStr := `message myMessage { blablabla }`
+		query := []any{
+			op.Seq(
+				"message",
+				op.CapturingGroup(
+					op.CapturingGroup(op.AnyToken()),
+					op.Plus(op.AnyToken()),
+				),
+			),
+		}
+		currMatcher := NewTokenRegexp(query)
+		tokens := clickhouse_lexer.StringToTokens(originalStr)
+		results := currMatcher.FindAll(tokens)
+		index := abstract.FindPathWithMaxCapturingGroupAmount(results)
+		matchedPath := results.Index(index)
+		groups := matchedPath.CapturingGroups()
+		require.Equal(t, groups.GroupsNum(), 2)
+
+		z0 := groups.GroupToText(originalStr, 0)
+		require.Equal(t, `myMessage { blablabla }`, z0)
+		z1 := groups.GroupToText(originalStr, 1)
+		require.Equal(t, `myMessage`, z1)
 	})
 }

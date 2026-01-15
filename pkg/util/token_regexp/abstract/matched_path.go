@@ -36,28 +36,20 @@ func (r *MatchedPath) CapturingGroups() *CapturingGroupResults {
 	}
 
 	result := make([][]*MatchedOp, 0, len(r.path))
-	currBucket := make([]*MatchedOp, 0)
-	var newCapturingGroupAddr Op = nil
+	addrToIndex := make(map[Op]int)
 	for _, el := range r.path {
-		if newCapturingGroupAddr != nil && isParentMatched(el, newCapturingGroupAddr) {
-			currBucket = append(currBucket, el)
-		}
 		if _, ok := el.op.(IsCapturingGroup); ok {
-			// flush existing bucket
-			if len(currBucket) != 0 {
-				result = append(result, currBucket)
-				currBucket = make([]*MatchedOp, 0)
+			result = append(result, []*MatchedOp{el}) // exand by one more
+			addrToIndex[el.op] = len(result) - 1
+		}
+		if len(addrToIndex) != 0 {
+			for capturedGroupOp, index := range addrToIndex {
+				if isParentMatched(el, capturedGroupOp) {
+					result[index] = append(result[index], el)
+				}
 			}
-			currBucket = append(currBucket, el)
-			newCapturingGroupAddr = el.op
 		}
 	}
-
-	// flush existing bucket
-	if len(currBucket) != 0 {
-		result = append(result, currBucket)
-	}
-
 	return NewCapturingGroupResults(result)
 }
 

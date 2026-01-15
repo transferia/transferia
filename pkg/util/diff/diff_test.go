@@ -98,8 +98,7 @@ func TestDiff(t *testing.T) {
 }
 
 func TestLineDiff(t *testing.T) {
-	someJSONBefore :=
-		`      {
+	someJSONBefore := `      {
          "a": 1,
          "b": null,
          "c": {
@@ -107,8 +106,7 @@ func TestLineDiff(t *testing.T) {
            "z": "qwerty"
          }
        }`
-	someJSONAfter :=
-		`      {
+	someJSONAfter := `      {
          "a": 1,
          "c": {
            "x": "asdf",
@@ -119,8 +117,7 @@ func TestLineDiff(t *testing.T) {
            "z": "edited =)"
          }
        }`
-	expectedDiff :=
-		`       {
+	expectedDiff := `       {
           "a": 1,
 -         "b": null,
           "c": {

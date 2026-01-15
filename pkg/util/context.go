@@ -9,9 +9,7 @@ import (
 
 type ContextKey string
 
-var (
-	WrappedKey = ContextKey("wrapped")
-)
+var WrappedKey = ContextKey("wrapped")
 
 type Values struct {
 	ts time.Time

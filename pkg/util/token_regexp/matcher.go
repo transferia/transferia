@@ -10,24 +10,36 @@ type TokenRegexp struct {
 	ops []abstract.Op
 }
 
-// FindAll - just like in package 'regexp', method Regexp.FindAll
-func (m *TokenRegexp) FindAll(tokens []antlr.Token) *abstract.MatchedResults {
+func (m *TokenRegexp) prepareSeqAndTokens(tokens []antlr.Token) (*op.SeqOp, []*abstract.Token) {
 	matcherTokens := make([]*abstract.Token, 0, len(tokens))
 	for _, currToken := range tokens {
 		matcherTokens = append(matcherTokens, abstract.NewToken(currToken))
 	}
-
 	args := make([]any, 0, len(m.ops))
 	for _, el := range m.ops {
 		args = append(args, el)
 	}
 	seq := op.Seq(args...)
+	return seq, matcherTokens
+}
 
+// FindAll - just like in package 'regexp', method Regexp.FindAll
+func (m *TokenRegexp) FindAll(tokens []antlr.Token) *abstract.MatchedResults {
+	seq, matcherTokens := m.prepareSeqAndTokens(tokens)
 	result := abstract.NewMatchedResults()
 	for index := range matcherTokens {
 		currResult := seq.ConsumeComplex(matcherTokens[index:])
 		result.AddAllPaths(currResult)
 	}
+	return result
+}
+
+// MatchAll - just like in package 'regexp', method Regexp.MatchAll
+func (m *TokenRegexp) MatchAll(tokens []antlr.Token) *abstract.MatchedResults {
+	seq, matcherTokens := m.prepareSeqAndTokens(tokens)
+	result := abstract.NewMatchedResults()
+	currResult := seq.ConsumeComplex(matcherTokens)
+	result.AddAllPaths(currResult)
 	return result
 }
 

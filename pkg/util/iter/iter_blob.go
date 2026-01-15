@@ -7,9 +7,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
-var (
-	_ Iter[string] = (*BlobIter)(nil)
-)
+var _ Iter[string] = (*BlobIter)(nil)
 
 // FromReadCloser returns an iterator producing lines from the given reader.
 func FromReadCloser(r io.ReadCloser) *BlobIter {

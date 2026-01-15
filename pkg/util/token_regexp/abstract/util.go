@@ -6,8 +6,8 @@ import "math"
 //
 // remember, that 'pos' here - it's number of rune in source text. To extract them - need to use something like golang.org/x/exp/utf8string or substringByRuneRange
 func tokensMinMaxPos(tokens []*Token) (int, int, bool) {
-	var currMin = math.MaxInt
-	var currMax = math.MinInt
+	currMin := math.MaxInt
+	currMax := math.MinInt
 
 	for _, currToken := range tokens {
 		if currToken.AntlrToken.GetStart() < currMin {
@@ -25,8 +25,8 @@ func tokensMinMaxPos(tokens []*Token) (int, int, bool) {
 //
 // remember, that 'pos' here - it's number of rune in source text. To extract them - need to use something like golang.org/x/exp/utf8string or substringByRuneRange
 func tokensMinMaxPosArr(in []*MatchedOp) (int, int, bool) {
-	var currMin = math.MaxInt
-	var currMax = math.MinInt
+	currMin := math.MaxInt
+	currMax := math.MinInt
 
 	for _, currToken := range in {
 		newMin, newMax, isFound := tokensMinMaxPos(currToken.tokens)
@@ -53,4 +53,19 @@ func ResolveMatchedOps(originalStr string, in []*MatchedOp) string {
 
 func substringByRuneRange(in string, startRunePos, endRunePos int) string {
 	return string([]rune(in)[startRunePos : endRunePos+1])
+}
+
+func FindPathWithMaxCapturingGroupAmount(matchedResults *MatchedResults) int {
+	maxCount := 0
+	maxCountIndex := 0
+	for i := 0; i < matchedResults.Size(); i++ {
+		matchedPath := matchedResults.Index(i)
+		capturingGroups := matchedPath.CapturingGroups()
+		capturingGroupsCount := capturingGroups.GroupsNum()
+		if capturingGroupsCount > maxCount {
+			maxCount = capturingGroupsCount
+			maxCountIndex = i
+		}
+	}
+	return maxCountIndex
 }
