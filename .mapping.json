@@ -1181,7 +1181,6 @@
   "pkg/parsers/registry/protobuf/protoparser/gotest/metrika-data/metrika_hit_protoseq.desc":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/metrika-data/metrika_hit_protoseq.desc",
   "pkg/parsers/registry/protobuf/protoparser/gotest/metrika-data/metrika_hit_protoseq.proto":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/metrika-data/metrika_hit_protoseq.proto",
   "pkg/parsers/registry/protobuf/protoparser/gotest/metrika-data/metrika_hit_protoseq_data.bin":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/metrika-data/metrika_hit_protoseq_data.bin",
-  "pkg/parsers/registry/protobuf/protoparser/gotest/proto-samples":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/proto-samples",
   "pkg/parsers/registry/protobuf/protoparser/gotest/prototest":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/prototest",
   "pkg/parsers/registry/protobuf/protoparser/gotest/prototest/std_data_types.pb.go":"",
   "pkg/parsers/registry/protobuf/protoparser/gotest/prototest/std_data_types.proto":"transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/gotest/prototest/std_data_types.proto",
