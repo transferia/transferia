@@ -536,3 +536,82 @@ func TestCompareColumnSets(t *testing.T) {
 	require.Empty(t, added)
 	require.Empty(t, removed)
 }
+
+func TestCompareColumnTypes(t *testing.T) {
+	oldSchema := []abstract.ColSchema{
+		{
+			ColumnName:   "id",
+			OriginalType: "Int8",
+			DataType:     schema.TypeInt8.String(),
+			Required:     true,
+		},
+		{
+			ColumnName:   "val",
+			OriginalType: "String",
+			DataType:     schema.TypeString.String(),
+			Required:     true,
+		},
+		{
+			ColumnName:   "small",
+			OriginalType: "Int16",
+			DataType:     schema.TypeInt16.String(),
+			Required:     true,
+		},
+	}
+	newSchema := []abstract.ColSchema{
+		{
+			ColumnName:   "id",
+			OriginalType: "Int16",
+			DataType:     schema.TypeInt16.String(),
+			Required:     true,
+		},
+		{
+			ColumnName:   "val",
+			OriginalType: "String",
+			DataType:     schema.TypeString.String(),
+			Required:     true,
+		},
+		{
+			ColumnName:   "small",
+			OriginalType: "Int8",
+			DataType:     schema.TypeInt8.String(),
+			Required:     true,
+		},
+		{
+			ColumnName:   "extra",
+			OriginalType: "Int32",
+			DataType:     schema.TypeInt32.String(),
+			Required:     true,
+		},
+	}
+
+	modified := compareColumnTypes(oldSchema, newSchema)
+	require.Equal(t, []abstract.ColSchema{newSchema[0]}, modified)
+}
+
+func TestAlterTableDDL_AddAndModify(t *testing.T) {
+	current := []abstract.ColSchema{
+		{ColumnName: "id", OriginalType: "ch:Int64"},
+		{ColumnName: "val_1", OriginalType: "ch:Int32"},
+		{ColumnName: "val_2", OriginalType: "ch:Int32"},
+	}
+	newSchema := []abstract.ColSchema{
+		{ColumnName: "id", OriginalType: "ch:Int64"},
+		{ColumnName: "val_1", OriginalType: "ch:Int64"},
+		{ColumnName: "val_2", OriginalType: "ch:Int16"},
+		{ColumnName: "new_col", OriginalType: "ch:String"},
+	}
+
+	// no changes
+	require.Empty(t, compareColumnTypes(current, current))
+
+	addCols, dropCols := compareColumnSets(current, newSchema)
+	modifyCols := compareColumnTypes(current, newSchema)
+	require.Len(t, modifyCols, 1)
+	require.Equal(t, abstract.ColSchema{ColumnName: "val_1", OriginalType: "ch:Int64"}, modifyCols[0])
+
+	ddl := generateAlterTableDDL("test_table", "cluster-1", addCols, dropCols, modifyCols, true)
+	require.Equal(t,
+		"ALTER TABLE `test_table` ON CLUSTER `cluster-1` ADD COLUMN IF NOT EXISTS `new_col` String, MODIFY COLUMN `val_1` Int64",
+		ddl)
+}

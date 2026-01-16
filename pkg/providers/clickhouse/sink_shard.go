@@ -272,6 +272,7 @@ func (s *sinkShard) execMetrikaDDL(row abstract.ChangeItem) error {
 		if err != nil {
 			return xerrors.Errorf("error building metrika DDL: %w", err)
 		}
+		s.logger.Info("Executing metrica DDL", log.String("query", ddl))
 		return s.cluster.bestSinkServer().ExecDDL(context.Background(), ddl)
 	})
 }
