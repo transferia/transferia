@@ -167,7 +167,7 @@ func (s *Schema) Attrs() map[string]interface{} {
 func (s *Schema) ShardCol() (abstract.ColSchema, string) {
 	var defaultVal abstract.ColSchema
 
-	if s.config.TimeShardCount() <= 0 || s.config.HashColumn() == "" {
+	if s.config.TimeShardCount() <= 0 {
 		return defaultVal, ""
 	}
 
