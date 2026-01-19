@@ -4,6 +4,8 @@ create table __test
     id   int,
     val1 int,
     val2 varchar,
+    to_alter1 int,
+    to_alter2 int,
     primary key (id)
 );
 

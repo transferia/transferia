@@ -3539,6 +3539,7 @@
   "tests/helpers/transformers.go":"transfer_manager/go/tests/helpers/transformers.go",
   "tests/helpers/utils.go":"transfer_manager/go/tests/helpers/utils.go",
   "tests/helpers/utils/test_read_closer.go":"transfer_manager/go/tests/helpers/utils/test_read_closer.go",
+  "tests/helpers/yatestx/yatestx.go":"transfer_manager/go/tests/helpers/yatestx/yatestx.go",
   "tests/helpers/ydb.go":"transfer_manager/go/tests/helpers/ydb.go",
   "tests/helpers/ydb_recipe/recipe.go":"transfer_manager/go/tests/helpers/ydb_recipe/recipe.go",
   "tests/helpers/ydb_recipe/topic/topic.go":"transfer_manager/go/tests/helpers/ydb_recipe/topic/topic.go",

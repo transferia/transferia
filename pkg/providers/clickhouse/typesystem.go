@@ -68,13 +68,18 @@ func isAlterPossible(old, new abstract.ColSchema) error {
 	if isOldNull, isNewNull := isCHNullable(&old), isCHNullable(&new); isOldNull != isNewNull {
 		return xerrors.Errorf("Nullable cannot change (%v -> %v)", isOldNull, isNewNull)
 	}
-	if chColumnType(old) == chColumnType(new) {
-		return xerrors.Errorf("Types suggested equal (%s -> %s)", old.OriginalType, new.OriginalType)
+	oldType := chColumnType(old)
+	newType := chColumnType(new)
+	if oldType == newType {
+		return xerrors.Errorf("Types suggested equal (%s -> %s)", oldType, newType)
 	}
-	oldType := columntypes.BaseType(strings.TrimPrefix(old.OriginalType, originalTypePrefix))
-	newType := columntypes.BaseType(strings.TrimPrefix(new.OriginalType, originalTypePrefix))
-	if !slices.Contains(availableTypesAlters[oldType], newType) {
-		return xerrors.Errorf("Types change %s -> %s is not allowed", old.OriginalType, new.OriginalType)
+	if columntypes.IsCompositeType(oldType) || columntypes.IsCompositeType(newType) {
+		return xerrors.Errorf("Types change with modifiers is not allowed (%s -> %s)", oldType, newType)
+	}
+	oldBase := columntypes.BaseType(strings.TrimPrefix(oldType, originalTypePrefix))
+	newBase := columntypes.BaseType(strings.TrimPrefix(newType, originalTypePrefix))
+	if !slices.Contains(availableTypesAlters[oldBase], newBase) {
+		return xerrors.Errorf("Types change %s -> %s is not allowed", oldType, newType)
 	}
 	return nil
 }

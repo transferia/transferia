@@ -557,13 +557,24 @@ func TestCompareColumnTypes(t *testing.T) {
 			DataType:     schema.TypeInt16.String(),
 			Required:     true,
 		},
+		{
+			ColumnName:   "lc",
+			OriginalType: "ch:LowCardinality(Int8)",
+			DataType:     schema.TypeInt8.String(),
+			Required:     true,
+		},
+		{
+			ColumnName:   "lc16",
+			OriginalType: "ch:LowCardinality(Int16)",
+			DataType:     schema.TypeInt16.String(),
+			Required:     true,
+		},
 	}
 	newSchema := []abstract.ColSchema{
 		{
-			ColumnName:   "id",
-			OriginalType: "Int16",
-			DataType:     schema.TypeInt16.String(),
-			Required:     true,
+			ColumnName: "id",
+			DataType:   schema.TypeInt16.String(),
+			Required:   true,
 		},
 		{
 			ColumnName:   "val",
@@ -575,6 +586,17 @@ func TestCompareColumnTypes(t *testing.T) {
 			ColumnName:   "small",
 			OriginalType: "Int8",
 			DataType:     schema.TypeInt8.String(),
+			Required:     true,
+		},
+		{
+			ColumnName: "lc",
+			DataType:   schema.TypeInt16.String(),
+			Required:   true,
+		},
+		{
+			ColumnName:   "lc16",
+			OriginalType: "ch:LowCardinality(Int32)",
+			DataType:     schema.TypeInt32.String(),
 			Required:     true,
 		},
 		{

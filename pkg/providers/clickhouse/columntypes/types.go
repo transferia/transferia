@@ -144,6 +144,19 @@ func divideTypeToExtAndInt(chType string) (extPart string, intPart string) {
 	return chType, ""
 }
 
+// IsCompositeType checks if type has external modifier (e.g. LowCardinality) except for Nullable.
+func IsCompositeType(chType string) bool {
+	extType, intType := divideTypeToExtAndInt(chType)
+	if intType == "" {
+		return false
+	}
+	if extType != "Nullable" {
+		return true
+	}
+	_, inner := divideTypeToExtAndInt(intType)
+	return inner != ""
+}
+
 var chTypeWithModifierRe *regexp.Regexp = regexp.MustCompile(`(\w*)\((.*)\)`)
 
 // ToYtType converts the given ClickHouse type to YT type and a requiredness flag.

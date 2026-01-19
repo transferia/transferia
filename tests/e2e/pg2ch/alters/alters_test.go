@@ -15,13 +15,14 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/e2e/pg2ch"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
 var (
 	databaseName = "public"
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
-	Source       = *pgrecipe.RecipeSource(pgrecipe.WithInitDir("dump/pg"), pgrecipe.WithPrefix(""))
-	Target       = *chrecipe.MustTarget(chrecipe.WithInitDir("dump/ch"), chrecipe.WithDatabase(databaseName))
+	Source       = *pgrecipe.RecipeSource(pgrecipe.WithInitDir(yatestx.ProjectSource("dump/pg")), pgrecipe.WithPrefix(""))
+	Target       = *chrecipe.MustTarget(chrecipe.WithInitDir(yatestx.ProjectSource("dump/ch")), chrecipe.WithDatabase(databaseName))
 )
 
 func init() {
@@ -36,6 +37,7 @@ func TestAlter(t *testing.T) {
 			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
+	Source.DBTables = []string{"__test"}
 
 	connConfig, err := pgcommon.MakeConnConfigFromSrc(logger.Log, &Source)
 	require.NoError(t, err)
@@ -63,10 +65,13 @@ func TestAlter(t *testing.T) {
 		rows, err = conn.Query(context.Background(), "ALTER TABLE __test ADD COLUMN new_val INTEGER")
 		require.NoError(t, err)
 		rows.Close()
+		rows, err = conn.Query(context.Background(), "ALTER TABLE __test ALTER COLUMN to_alter1 TYPE BIGINT")
+		require.NoError(t, err)
+		rows.Close()
 
 		time.Sleep(10 * time.Second)
 
-		rows, err = conn.Query(context.Background(), "INSERT INTO __test (id, val1, val2, new_val) VALUES (7, 7, 'd', 7)")
+		rows, err = conn.Query(context.Background(), "INSERT INTO __test (id, val1, val2, new_val, to_alter1) VALUES (7, 7, 'd', 7, 7)")
 		require.NoError(t, err)
 		rows.Close()
 
@@ -87,8 +92,11 @@ func TestAlter(t *testing.T) {
 			rows, err = tx.Query(context.Background(), "ALTER TABLE __test ADD COLUMN new_val2 INTEGER")
 			require.NoError(t, err)
 			rows.Close()
+			rows, err = tx.Query(context.Background(), "ALTER TABLE __test ALTER COLUMN to_alter2 TYPE BIGINT")
+			require.NoError(t, err)
+			rows.Close()
 
-			rows, err = tx.Query(context.Background(), "INSERT INTO __test (id, val1, val2, new_val2) VALUES (9, 9, 'f', 9)")
+			rows, err = tx.Query(context.Background(), "INSERT INTO __test (id, val1, val2, new_val2, to_alter2) VALUES (9, 9, 'f', 9, 9)")
 			require.NoError(t, err)
 			rows.Close()
 			return nil

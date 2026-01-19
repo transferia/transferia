@@ -63,6 +63,27 @@ func TestIsAlterPossible(t *testing.T) {
 		))
 	})
 
+	t.Run("allow widening integer type without original type", func(t *testing.T) {
+		require.NoError(t, isAlterPossible(
+			makeCol("Int8", schema.TypeInt8.String(), true),
+			makeCol("", schema.TypeInt16.String(), true),
+		))
+	})
+
+	t.Run("disallow composite type change", func(t *testing.T) {
+		require.Error(t, isAlterPossible(
+			makeCol("ch:LowCardinality(Int8)", schema.TypeInt8.String(), true),
+			makeCol("", schema.TypeInt16.String(), true),
+		))
+	})
+
+	t.Run("disallow composite type change with original type", func(t *testing.T) {
+		require.Error(t, isAlterPossible(
+			makeCol("ch:LowCardinality(Int8)", schema.TypeInt8.String(), true),
+			makeCol("ch:LowCardinality(Int16)", schema.TypeInt16.String(), true),
+		))
+	})
+
 	t.Run("disallow limiting integer type", func(t *testing.T) {
 		require.Error(t, isAlterPossible(
 			makeCol("Int16", schema.TypeInt16.String(), true),
