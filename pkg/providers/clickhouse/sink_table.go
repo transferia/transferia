@@ -388,7 +388,7 @@ func (t *sinkTable) uploadAsJSON(rows []abstract.ChangeItem) error {
 }
 
 // by vals from OldKeys!
-func buildDeleteKindArgs(changeItem *abstract.ChangeItem, suffix []interface{}, cols []abstract.ColSchema) []interface{} {
+func buildDeleteKindArgs(changeItem *abstract.ChangeItem, suffix []interface{}, cols []abstract.ColSchema, fillRequiredColumn bool) []interface{} {
 	var args []interface{}
 	pkeys := make(map[string]interface{})
 	for i, key := range changeItem.OldKeys.KeyNames {
@@ -397,29 +397,29 @@ func buildDeleteKindArgs(changeItem *abstract.ChangeItem, suffix []interface{}, 
 	for _, col := range cols {
 		if val, ok := pkeys[col.ColumnName]; ok {
 			args = append(args, columntypes.Restore(col, val))
+		} else if col.Required && fillRequiredColumn {
+			args = append(args, abstract.DefaultValue(&col))
 		} else {
-			if col.Required {
-				args = append(args, abstract.DefaultValue(&col))
-			} else {
-				args = append(args, interface{}(nil))
-			}
+			// if the column is not nullable,
+			// the "insert_null_as_default" parameter fills in the default value on the clickhouse side
+			args = append(args, nil)
 		}
 	}
 	args = append(args, suffix...)
 	return args
 }
 
-func buildChangeItemArgs(changeItem *abstract.ChangeItem, cols []abstract.ColSchema, isUpdatable bool) [][]interface{} {
+func buildChangeItemArgs(changeItem *abstract.ChangeItem, cols []abstract.ColSchema, isUpdatable bool, fillRequiredColumn bool) [][]interface{} {
 	var args []interface{}
 	if isUpdatable {
 		suffixWithDeleteTime := []interface{}{changeItem.CommitTime, changeItem.CommitTime}
 		suffixWithoutDeleteTime := []interface{}{changeItem.CommitTime, uint64(0)}
 
 		if changeItem.Kind == abstract.DeleteKind {
-			args = buildDeleteKindArgs(changeItem, suffixWithDeleteTime, cols)
+			args = buildDeleteKindArgs(changeItem, suffixWithDeleteTime, cols, fillRequiredColumn)
 		} else if changeItem.KeysChanged() {
 			result := make([][]interface{}, 0)
-			result = append(result, buildDeleteKindArgs(changeItem, suffixWithDeleteTime, cols))
+			result = append(result, buildDeleteKindArgs(changeItem, suffixWithDeleteTime, cols, fillRequiredColumn))
 			result = append(result, append(restoreVals(changeItem.ColumnValues, cols), suffixWithoutDeleteTime...))
 			return result
 		} else {
@@ -649,7 +649,7 @@ func doOperation(t *sinkTable, tx *sql.Tx, items []abstract.ChangeItem) (err err
 		strings.Join(colVals, ","),
 	)
 
-	insertCtx := clickhouse.Context(context.Background(), t.config.InsertSettings().ToQueryOption())
+	insertCtx := clickhouse.Context(context.Background(), t.config.InsertSettings().ToQueryOption(t.version))
 	insertQuery, err := tx.PrepareContext(insertCtx, q)
 	if err != nil {
 		if err.Error() == "Decimal128 is not supported" {
@@ -660,9 +660,10 @@ func doOperation(t *sinkTable, tx *sql.Tx, items []abstract.ChangeItem) (err err
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
+	fillRequiredColumn := t.version.LT(model.InsertNullAsDefaultExistedVersion)
 	for i := range items {
 		// TODO - handle AlterTable
-		argsArr := buildChangeItemArgs(&items[i], currSchema, t.config.IsUpdateable())
+		argsArr := buildChangeItemArgs(&items[i], currSchema, t.config.IsUpdateable(), fillRequiredColumn)
 		for _, args := range argsArr {
 			if _, err := insertQuery.ExecContext(ctx, args...); err != nil {
 				t.logger.Error("Unable to exec changeItem", log.Error(err))

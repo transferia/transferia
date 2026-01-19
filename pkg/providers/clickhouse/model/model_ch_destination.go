@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/blang/semver/v4"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -17,6 +18,8 @@ import (
 )
 
 var (
+	// the oldest version found with the existing insert_null_as_default_ setting
+	InsertNullAsDefaultExistedVersion = semver.MustParse("21.7.11")
 	//go:embed doc_destination_usage.md
 	destinationUsage []byte
 	//go:embed doc_destination_example.yaml
@@ -115,10 +118,14 @@ func (p InsertParams) AsQueryPart() string {
 	return ""
 }
 
-func (p InsertParams) ToQueryOption() clickhouse.QueryOption {
+func (p InsertParams) ToQueryOption(version semver.Version) clickhouse.QueryOption {
 	settings := make(clickhouse.Settings)
 	if p.MaterializedViewsIgnoreErrors {
 		settings["materialized_views_ignore_errors"] = "1"
+	}
+	// to fill column by default value if value unknown
+	if version.GTE(InsertNullAsDefaultExistedVersion) {
+		settings["insert_null_as_default"] = "1"
 	}
 	return clickhouse.WithSettings(settings)
 }
