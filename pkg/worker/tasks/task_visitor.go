@@ -251,7 +251,7 @@ func Run(ctx context.Context, task model.TransferOperation, command abstract.Run
 		log.Any("dst_type", transfer.DstType()),
 		log.Any("task_id", task.OperationID),
 		log.Any("task_type", task.TaskType),
-		log.Object("transfer", &transfer),
+		log.Any("transfer", &transfer),
 	)
 
 	commandName := fmt.Sprintf("%T", command)
