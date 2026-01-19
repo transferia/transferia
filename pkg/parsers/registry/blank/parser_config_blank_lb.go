@@ -1,7 +1,6 @@
 package blank
 
-type ParserConfigBlankLb struct {
-}
+type ParserConfigBlankLb struct{}
 
 func (c *ParserConfigBlankLb) IsNewParserConfig() {}
 

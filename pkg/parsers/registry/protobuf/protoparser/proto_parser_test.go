@@ -326,7 +326,7 @@ func makeRequiredSetTestCases() []struct {
 			keys:     []string{"doubleField", parsers.SyntheticIdxCol, parsers.SyntheticOffsetCol, parsers.SyntheticPartitionCol},
 		},
 		{
-			//10
+			// 10
 			conf: ProtoParserConfig{
 				PrimaryKeys: []string{"doubleField"},
 				IncludeColumns: []ColParams{

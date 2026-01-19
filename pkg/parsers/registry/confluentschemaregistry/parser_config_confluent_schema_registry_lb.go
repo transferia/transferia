@@ -1,5 +1,9 @@
 package confluentschemaregistry
 
+import (
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/table_name_policy"
+)
+
 type ParserConfigConfluentSchemaRegistryLb struct {
 	SchemaRegistryURL string
 	SkipAuth          bool
@@ -9,6 +13,7 @@ type ParserConfigConfluentSchemaRegistryLb struct {
 	NamespaceID       string // when specified, all other connection settings are ignored
 
 	IsGenerateUpdates bool
+	TableNamePolicy   table_name_policy.TableNamePolicy
 }
 
 func (c *ParserConfigConfluentSchemaRegistryLb) IsNewParserConfig() {}

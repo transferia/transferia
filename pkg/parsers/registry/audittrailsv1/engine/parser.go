@@ -272,7 +272,6 @@ func getElasticFields() *abstract.TableSchema {
 func NewAuditTrailsV1ParserImpl(
 	useElasticSchema, sniff bool, logger log.Logger, registry *stats.SourceStats,
 ) (*AuditTrailsV1ParserImpl, error) {
-
 	res := &AuditTrailsV1ParserImpl{
 		useElasticSchema: useElasticSchema,
 		parser:           nil,

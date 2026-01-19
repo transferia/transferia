@@ -20,8 +20,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var idToBuf = make(map[int]string)
-var messagesData [][]byte
+var (
+	idToBuf      = make(map[int]string)
+	messagesData [][]byte
+)
 
 //go:embed testdata/test_schemas.json
 var jsonSchemas []byte

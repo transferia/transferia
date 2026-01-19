@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsers"
 	genericparser "github.com/transferia/transferia/pkg/parsers/generic"
 	confluentschemaregistryengine "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine"
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/table_name_policy"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -100,9 +101,11 @@ func (p *CloudEventsImpl) getConfluentSRParserImpl(hostPort string) (*confluents
 		return parser, nil
 	}
 
+	tableNamePolicy := table_name_policy.DefaultDerivedTableNamePolicy()
+
 	p.logger.Infof("try to create confluentSRParser for host/port:%s, username:%s", hostPort, p.username)
 
-	confluentSRParser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(hostPort, p.caCert, p.username, p.password, false, p.SendSrNotFoundToUnparsed, p.logger)
+	confluentSRParser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(hostPort, p.caCert, p.username, p.password, false, tableNamePolicy, p.SendSrNotFoundToUnparsed, p.logger)
 	isAuthorizedPrimaryPass, err := confluentSRParser.SchemaRegistryClient.IsAuthorized()
 	if err != nil {
 		return nil, xerrors.Errorf("unable to check if authorized with primary password, err: %w", err)
@@ -114,7 +117,7 @@ func (p *CloudEventsImpl) getConfluentSRParserImpl(hostPort string) (*confluents
 	}
 	p.logger.Info("tested original password, didn't work. Try fallback password")
 
-	confluentSRParser = confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(hostPort, p.caCert, p.username, p.passwordFallback, false, p.SendSrNotFoundToUnparsed, p.logger)
+	confluentSRParser = confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(hostPort, p.caCert, p.username, p.passwordFallback, false, tableNamePolicy, p.SendSrNotFoundToUnparsed, p.logger)
 	isAuthorizedFallbackPass, err := confluentSRParser.SchemaRegistryClient.IsAuthorized()
 	if err != nil {
 		return nil, xerrors.Errorf("unable to check if authorized with fallback password, err: %w", err)

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/table_name_policy"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 )
 
@@ -29,7 +30,7 @@ func TestProcessPayload(t *testing.T) {
 	}
 	buf := []byte(`{"id": 2, "name": "Bob"}`)
 
-	result, _, err := makeChangeItemsFromMessageWithJSON(schema, buf, 0, time.Time{}, false)
+	result, _, err := makeChangeItemsFromMessageWithJSON(schema, buf, 0, time.Time{}, false, table_name_policy.DefaultDerivedTableNamePolicy())
 	require.NoError(t, err)
 	require.Equal(t, 1, len(result))
 	require.Equal(t, 3, len(result[0].ColumnNames))

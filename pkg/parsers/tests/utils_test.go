@@ -15,6 +15,7 @@ import (
 	cloudeventsengine "github.com/transferia/transferia/pkg/parsers/registry/cloudevents/engine"
 	cloudloggingengine "github.com/transferia/transferia/pkg/parsers/registry/cloudlogging/engine"
 	confluentschemaregistryengine "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine"
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/table_name_policy"
 	debeziumengine "github.com/transferia/transferia/pkg/parsers/registry/debezium/engine"
 	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
@@ -108,7 +109,8 @@ func TestUnparsed(t *testing.T) {
 	t.Run("confluentschemaregistry", func(t *testing.T) {
 		schemaRegistryMock := confluentsrmock.NewConfluentSRMock(nil, nil)
 		defer schemaRegistryMock.Close()
-		parser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
+		tableNamePolicy := table_name_policy.DefaultDerivedTableNamePolicy()
+		parser := confluentschemaregistryengine.NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, tableNamePolicy, false, logger.Log)
 		checkEx(t, parser, parsers.Message{Value: []byte("{]")})
 	})
 	t.Run("debezium", func(t *testing.T) {

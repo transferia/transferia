@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
 	genericparser "github.com/transferia/transferia/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/table_name_policy"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	"github.com/transferia/transferia/pkg/schemaregistry/warmup"
 	"github.com/transferia/transferia/pkg/util"
@@ -22,19 +23,29 @@ type ConfluentSrImpl struct {
 	SchemaRegistryClient      *confluent.SchemaRegistryClient
 	schemaRegistryClientMutex sync.Mutex
 	isGenerateUpdates         bool
+	tableNamePolicy           table_name_policy.TableNamePolicy
 	sendSrNotFoundToUnparsed  bool
 	inMDBuilder               *mdBuilder
 }
 
-func (p *ConfluentSrImpl) doWithSchema(partition abstract.Partition, schema *confluent.Schema, refs map[string]confluent.Schema, name string, buf []byte, offset uint64, writeTime time.Time, isCloudevents bool) ([]byte, []abstract.ChangeItem) {
+func (p *ConfluentSrImpl) doWithSchema(
+	partition abstract.Partition,
+	schema *confluent.Schema,
+	refs map[string]confluent.Schema,
+	messageName string, // not-empty string is only for case 'cloudevents'
+	buf []byte,
+	offset uint64,
+	writeTime time.Time,
+	isCloudevents bool,
+) ([]byte, []abstract.ChangeItem) {
 	var changeItems []abstract.ChangeItem
 	var msgLen int
 	var err error
 	switch schema.SchemaType {
 	case confluent.JSON:
-		changeItems, msgLen, err = makeChangeItemsFromMessageWithJSON(schema, buf, offset, writeTime, p.isGenerateUpdates)
+		changeItems, msgLen, err = makeChangeItemsFromMessageWithJSON(schema, buf, offset, writeTime, p.isGenerateUpdates, p.tableNamePolicy)
 	case confluent.PROTOBUF:
-		changeItems, err = makeChangeItemsFromMessageWithProtobuf(p.inMDBuilder, schema, refs, name, buf, offset, writeTime, isCloudevents, p.isGenerateUpdates)
+		changeItems, err = makeChangeItemsFromMessageWithProtobuf(p.inMDBuilder, schema, refs, messageName, buf, offset, writeTime, isCloudevents, p.isGenerateUpdates, p.tableNamePolicy)
 		msgLen = len(buf)
 	default:
 		err = xerrors.Errorf("Schema type is not JSON/PROTOBUF (%v) (currently only the json & protobuf schema is supported)", schema.SchemaType)
@@ -47,7 +58,15 @@ func (p *ConfluentSrImpl) doWithSchema(partition abstract.Partition, schema *con
 	return buf[msgLen:], changeItems
 }
 
-func (p *ConfluentSrImpl) DoWithSchemaID(partition abstract.Partition, schemaID uint32, messageName string, buf []byte, offset uint64, writeTime time.Time, isCloudevents bool) ([]byte, []abstract.ChangeItem) {
+func (p *ConfluentSrImpl) DoWithSchemaID(
+	partition abstract.Partition,
+	schemaID uint32,
+	messageName string, // not-empty string is only for case 'cloudevents'
+	buf []byte,
+	offset uint64,
+	writeTime time.Time,
+	isCloudevents bool,
+) ([]byte, []abstract.ChangeItem) {
 	is404 := false
 
 	var currSchema *confluent.Schema
@@ -131,7 +150,16 @@ func (p *ConfluentSrImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeI
 	return result
 }
 
-func NewConfluentSchemaRegistryImpl(srURL string, caCert string, username string, password string, isGenerateUpdates bool, sendSrNotFoundToUnparsed bool, logger log.Logger) *ConfluentSrImpl {
+func NewConfluentSchemaRegistryImpl(
+	srURL string,
+	caCert string,
+	username string,
+	password string,
+	isGenerateUpdates bool,
+	tableNamePolicy table_name_policy.TableNamePolicy,
+	sendSrNotFoundToUnparsed bool,
+	logger log.Logger,
+) *ConfluentSrImpl {
 	client, err := confluent.NewSchemaRegistryClientWithTransport(srURL, caCert, logger)
 	if err != nil {
 		logger.Warnf("Unable to create schema registry client: %v", err)
@@ -143,6 +171,7 @@ func NewConfluentSchemaRegistryImpl(srURL string, caCert string, username string
 		SchemaRegistryClient:      client,
 		schemaRegistryClientMutex: sync.Mutex{},
 		isGenerateUpdates:         isGenerateUpdates,
+		tableNamePolicy:           tableNamePolicy,
 		sendSrNotFoundToUnparsed:  sendSrNotFoundToUnparsed,
 		inMDBuilder:               newMDBuilder(),
 	}

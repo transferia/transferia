@@ -56,7 +56,7 @@ func (b *mdBuilder) toMD(schema *confluent.Schema, refs map[string]confluent.Sch
 
 	fd := fds[0]
 	var md *desc.MessageDescriptor
-	var recordName = name
+	recordName := name
 	if recordName != "" {
 		md = fd.FindMessage(recordName)
 	}

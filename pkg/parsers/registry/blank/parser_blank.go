@@ -52,19 +52,17 @@ func colIDX(schema []abstract.ColSchema) map[string]int {
 	return res
 }
 
-var (
-	BlankSchema = abstract.NewTableSchema([]abstract.ColSchema{
-		{ColumnName: PartitionColum, PrimaryKey: true, DataType: "string"},
-		{ColumnName: OffsetColumn, PrimaryKey: true, DataType: "uint64"},
-		{ColumnName: SeqNoColumn, DataType: "uint64"},
-		{ColumnName: SourceIDColumn, DataType: "string"},
-		{ColumnName: CreateTimeColumn, DataType: "datetime"},
-		{ColumnName: WriteTimeColumn, DataType: "datetime"},
-		{ColumnName: IPColumn, DataType: "string"},
-		{ColumnName: RawMessageColumn, DataType: "string"},
-		{ColumnName: ExtrasColumn, DataType: "any"},
-	})
-)
+var BlankSchema = abstract.NewTableSchema([]abstract.ColSchema{
+	{ColumnName: PartitionColum, PrimaryKey: true, DataType: "string"},
+	{ColumnName: OffsetColumn, PrimaryKey: true, DataType: "uint64"},
+	{ColumnName: SeqNoColumn, DataType: "uint64"},
+	{ColumnName: SourceIDColumn, DataType: "string"},
+	{ColumnName: CreateTimeColumn, DataType: "datetime"},
+	{ColumnName: WriteTimeColumn, DataType: "datetime"},
+	{ColumnName: IPColumn, DataType: "string"},
+	{ColumnName: RawMessageColumn, DataType: "string"},
+	{ColumnName: ExtrasColumn, DataType: "any"},
+})
 
 func NewRawMessage(msg parsers.Message, partition abstract.Partition) abstract.ChangeItem {
 	return abstract.ChangeItem{
@@ -99,8 +97,7 @@ func NewRawMessage(msg parsers.Message, partition abstract.Partition) abstract.C
 
 //---
 
-type ParserBlank struct {
-}
+type ParserBlank struct{}
 
 func (p *ParserBlank) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem {
 	var res []abstract.ChangeItem

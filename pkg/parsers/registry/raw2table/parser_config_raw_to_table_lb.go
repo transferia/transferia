@@ -1,7 +1,6 @@
 package raw2table
 
-type ParserConfigRawToTableLb struct {
-}
+type ParserConfigRawToTableLb struct{}
 
 func (c *ParserConfigRawToTableLb) IsNewParserConfig() {}
 

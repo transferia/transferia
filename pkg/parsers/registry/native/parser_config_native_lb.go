@@ -1,7 +1,6 @@
 package native
 
-type ParserConfigNativeLb struct {
-}
+type ParserConfigNativeLb struct{}
 
 func (c *ParserConfigNativeLb) IsNewParserConfig() {}
 

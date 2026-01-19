@@ -1,7 +1,6 @@
 package cloudlogging
 
-type ParserConfigCloudLoggingCommon struct {
-}
+type ParserConfigCloudLoggingCommon struct{}
 
 func (c *ParserConfigCloudLoggingCommon) IsNewParserConfig() {}
 

@@ -2,14 +2,14 @@ package engine
 
 import (
 	"strings"
-	"time"
 
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/protobuf_extractor"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
+	"github.com/transferia/transferia/pkg/util"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -29,16 +29,6 @@ func getRecordName(in *desc.FileDescriptor) string {
 		return el.GetFullyQualifiedName()
 	}
 	return ""
-}
-
-func parseRecordName(in string) (string, string, error) {
-	separatedTitle := strings.SplitN(in, ".", 4)
-	if len(separatedTitle) != 4 {
-		return "", "", xerrors.Errorf("Can't split recordName %q into schema and table names", in)
-	}
-	schemaName := separatedTitle[1]
-	tableName := separatedTitle[2]
-	return schemaName, tableName, nil
 }
 
 func dirtyPatch(in string) string {
@@ -61,78 +51,6 @@ func dirtyPatch(in string) string {
 	result = append(result, `import "confluent/meta.proto";`)
 	result = append(result, lines[index+1:]...)
 	return strings.Join(result, "\n")
-}
-
-func makeChangeItemsFromMessageWithProtobuf(
-	inMDBuilder *mdBuilder,
-	schema *confluent.Schema,
-	refs map[string]confluent.Schema,
-	messageName string,
-	buf []byte,
-	offset uint64,
-	writeTime time.Time,
-	isCloudevents bool,
-	isGenerateUpdates bool,
-) ([]abstract.ChangeItem, error) {
-	currBuf := buf
-	if !isCloudevents {
-		arrayIndexesFirstByte := buf[0]
-		if arrayIndexesFirstByte != 0 {
-			return nil, xerrors.Errorf("for now supported only case, when 'message indexes' is zero byte")
-		}
-		currBuf = buf[1:]
-	}
-
-	messageDescriptor, recordName, err := inMDBuilder.toMD(schema, refs, messageName)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to build MessageDescriptor, err: %w", err)
-	}
-	dynamicMessage := dynamic.NewMessage(messageDescriptor)
-
-	if !isCloudevents {
-		currBuf = currBuf[0 : len(currBuf)-1] // it ends with '\n'
-	}
-
-	err = dynamicMessage.Unmarshal(currBuf)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to unmarshal message, err: %w", err)
-	}
-
-	var schemaName, tableName string
-	if !isCloudevents {
-		schemaName, tableName, err = parseRecordName(recordName)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to parse record name, recordName: %s, err: %w", recordName, err)
-		}
-	}
-
-	tableColumns, names, values, err := unpackProtobufDynamicMessage(schemaName, tableName, dynamicMessage)
-	if err != nil {
-		return nil, xerrors.Errorf("Can't process payload:%w", err)
-	}
-	kind := abstract.InsertKind
-	if isGenerateUpdates {
-		kind = abstract.UpdateKind
-	}
-	changeItem := abstract.ChangeItem{
-		ID:               0,
-		LSN:              offset,
-		CommitTime:       uint64(writeTime.UnixNano()),
-		Counter:          0,
-		Kind:             kind,
-		Schema:           schemaName,
-		Table:            tableName,
-		PartID:           "",
-		ColumnNames:      names,
-		ColumnValues:     values,
-		TableSchema:      tableColumns,
-		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		Size:             abstract.RawEventSize(uint64(len(buf))),
-		TxID:             "",
-		Query:            "",
-		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
-	}
-	return []abstract.ChangeItem{changeItem}, nil
 }
 
 func handleField(schemaName, tableName, colName, protoType string, isRequired, isRepeated bool) (abstract.ColSchema, error) {
@@ -184,4 +102,39 @@ func unpackProtobufDynamicMessage(schemaName, tableName string, dynamicMessage *
 		values = append(values, val)
 	}
 	return abstract.NewTableSchema(colSchema), names, values, nil
+}
+
+func handleMessageIndexes(inBuf []byte, schema *confluent.Schema) (string, []byte, error) {
+	messageIndexes, leastBuf, err := extractMessageIndexes(inBuf)
+	if err != nil {
+		return "", nil, xerrors.Errorf("unable to extract message indexes, err: %w", err)
+	}
+	fullName, err := protobuf_extractor.ExtractMessageFullNameByIndex(schema.Schema, messageIndexes)
+	if err != nil {
+		return "", nil, xerrors.Errorf("unable to extract message full name, err: %w", err)
+	}
+	return fullName, leastBuf, nil
+}
+
+func extractMessageIndexes(inBuf []byte) ([]int, []byte, error) {
+	if len(inBuf) == 0 {
+		return nil, nil, xerrors.Errorf("empty input")
+	}
+
+	arrayLen, consumed, err := util.ZigzagVarIntDecode(inBuf)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("unable to extract array length, err: %w", err)
+	}
+	currBuf := inBuf[consumed:]
+	resultArr := make([]int, 0, arrayLen)
+	for i := 0; i < int(arrayLen); i++ {
+		var nextVal int64
+		nextVal, consumed, err = util.ZigzagVarIntDecode(currBuf)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("unable to handle message indexes, err: %w", err)
+		}
+		currBuf = currBuf[consumed:]
+		resultArr = append(resultArr, int(nextVal))
+	}
+	return resultArr, currBuf, nil
 }

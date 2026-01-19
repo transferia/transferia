@@ -14,11 +14,14 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem/strictify"
 	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/table_name_policy"
 	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 )
 
-var idToBuf = make(map[int]string)
-var messagesData [][]byte
+var (
+	idToBuf      = make(map[int]string)
+	messagesData [][]byte
+)
 
 //go:embed testdata/test_schemas.json
 var jsonSchemas []byte
@@ -73,7 +76,8 @@ func TestClient(t *testing.T) {
 	schemaRegistryMock := confluentsrmock.NewConfluentSRMock(idToBuf, nil)
 	defer schemaRegistryMock.Close()
 
-	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
+	tableNamePolicy := table_name_policy.DefaultDerivedTableNamePolicy()
+	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, tableNamePolicy, false, logger.Log)
 	var canonArr []abstract.ChangeItem
 	for i, data := range messagesData {
 		if len(data) == 0 {
@@ -99,7 +103,8 @@ func TestIncorrectMagicByte(t *testing.T) {
 	schemaRegistryMock := confluentsrmock.NewConfluentSRMock(idToBuf, nil)
 	defer schemaRegistryMock.Close()
 
-	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, false, logger.Log)
+	tableNamePolicy := table_name_policy.DefaultDerivedTableNamePolicy()
+	parser := NewConfluentSchemaRegistryImpl(schemaRegistryMock.URL(), "", "uname", "pass", false, tableNamePolicy, false, logger.Log)
 
 	for i := 1; i < 255; i++ {
 		buf := make([]byte, 0)

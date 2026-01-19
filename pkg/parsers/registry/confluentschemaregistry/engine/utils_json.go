@@ -3,13 +3,9 @@ package engine
 import (
 	"bytes"
 	"encoding/json"
-	"strings"
-	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/changeitem"
-	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/jsonx"
 	"github.com/transferia/transferia/pkg/util/set"
@@ -22,55 +18,6 @@ type JSONProperties struct {
 	Properties map[string]*JSONProperties `json:"properties"`
 	Title      string                     `json:"title"`
 	Required   []string                   `json:"required"`
-}
-
-func makeChangeItemsFromMessageWithJSON(schema *confluent.Schema, buf []byte, offset uint64, writeTime time.Time, isGenerateUpdates bool) ([]abstract.ChangeItem, int, error) {
-	var jsonProperties JSONProperties
-	err := json.Unmarshal([]byte(schema.Schema), &jsonProperties)
-	if err != nil {
-		return nil, 0, xerrors.Errorf("Can't unmarshal JSON schema %q: %w", schema.Schema, err)
-	}
-
-	separatedTitle := strings.SplitN(jsonProperties.Title, ".", 2)
-	if len(separatedTitle) != 2 {
-		return nil, 0, xerrors.Errorf("Can't split title %q from json into schema and table names", jsonProperties.Title)
-	}
-	schemaName := separatedTitle[0]
-	tableName := separatedTitle[1]
-
-	msgLen := len(buf)
-	zeroIndex := bytes.Index(buf, []byte{0})
-	if zeroIndex != -1 {
-		msgLen = zeroIndex
-	}
-
-	tableColumns, names, values, err := processPayload(schemaName, tableName, &jsonProperties, buf[0:msgLen], isGenerateUpdates)
-	if err != nil {
-		return nil, 0, xerrors.Errorf("Can't process payload:%w", err)
-	}
-	kind := abstract.InsertKind
-	if isGenerateUpdates {
-		kind = abstract.UpdateKind
-	}
-	changeItem := abstract.ChangeItem{
-		ID:               0,
-		LSN:              offset,
-		CommitTime:       uint64(writeTime.UnixNano()),
-		Counter:          0,
-		Kind:             kind,
-		Schema:           schemaName,
-		Table:            tableName,
-		PartID:           "",
-		ColumnNames:      names,
-		ColumnValues:     values,
-		TableSchema:      tableColumns,
-		OldKeys:          abstract.OldKeysType{KeyNames: nil, KeyTypes: nil, KeyValues: nil},
-		Size:             abstract.RawEventSize(uint64(len(buf))),
-		TxID:             "",
-		Query:            "",
-		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
-	}
-	return []abstract.ChangeItem{changeItem}, msgLen, nil
 }
 
 func processPayload(schemaName, tableName string, jsonSchema *JSONProperties, payload []byte, isGenerateUpdates bool) (*abstract.TableSchema, []string, []interface{}, error) {
