@@ -108,14 +108,25 @@ func SourceCompatible(src model.Source, transferType abstract.TransferType, seri
 	}
 }
 
+func marshalSanitizedSerializationFormat(formatSettings model.SerializationFormat) (string, error) {
+	fsSanitized := formatSettings.Copy()
+	fsSanitized.SanitizeSecrets()
+
+	fsMarshalled, err := json.Marshal(fsSanitized)
+	if err != nil {
+		return "", xerrors.Errorf("unable to marshal sanitizedformat settings: %w", err)
+	}
+	return string(fsMarshalled), nil
+}
+
 func InferFormatSettings(lgr log.Logger, src model.Source, formatSettings model.SerializationFormat) (model.SerializationFormat, error) {
-	formatSettingsArr, _ := json.Marshal(formatSettings)
-	lgr.Infof("InferFormatSettings - input - srcProviderName:%s, formatSettings:%s", src.GetProviderType().Name(), string(formatSettingsArr))
+	formatSettingsBefore, err := marshalSanitizedSerializationFormat(formatSettings)
+	lgr.Info("InferFormatSettings - input", log.String("src_provider_name", src.GetProviderType().Name()), log.String("format_settings", formatSettingsBefore), log.Error(err))
 	result, err := inferFormatSettings(src, formatSettings)
 	if err != nil {
 		return emptyObject, xerrors.Errorf("unable to infer format settings: %w", err)
 	}
-	resultArr, _ := json.Marshal(result)
-	lgr.Infof("InferFormatSettings - output:%s", string(resultArr))
+	formatSettingsAfter, err := marshalSanitizedSerializationFormat(result)
+	lgr.Info("InferFormatSettings - output", log.String("src_provider_name", src.GetProviderType().Name()), log.String("format_settings", formatSettingsAfter), log.Error(err))
 	return result, nil
 }

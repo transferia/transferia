@@ -739,6 +739,7 @@
   "pkg/abstract/model/model_mock_destination_test.go":"transfer_manager/go/pkg/abstract/model/model_mock_destination_test.go",
   "pkg/abstract/model/model_mock_source.go":"transfer_manager/go/pkg/abstract/model/model_mock_source.go",
   "pkg/abstract/model/serialization.go":"transfer_manager/go/pkg/abstract/model/serialization.go",
+  "pkg/abstract/model/serialization_test.go":"transfer_manager/go/pkg/abstract/model/serialization_test.go",
   "pkg/abstract/model/tmp_policy_config.go":"transfer_manager/go/pkg/abstract/model/tmp_policy_config.go",
   "pkg/abstract/model/transfer.go":"transfer_manager/go/pkg/abstract/model/transfer.go",
   "pkg/abstract/model/transfer_dataobjects.go":"transfer_manager/go/pkg/abstract/model/transfer_dataobjects.go",
