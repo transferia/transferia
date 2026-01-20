@@ -75,13 +75,8 @@ var (
 	YDBOverloaded = coded.Register("ydb", "overloaded")
 
 	// ytsaurus
-	YTSaurusNotFound              = coded.Register("yt", "not_found")
-	YTSaurusGenericError          = coded.Register("yt", "generic_error")
-	YTSaurusOOMKilled             = coded.Register("yt", "oom_killed")
-	YTSaurusProcessExitedWithCode = coded.Register("yt", "process_exited_with_code")
-	YTSaurusJobsFailed            = coded.Register("yt", "jobs_failed")
-	YTSaurusTooManyOperations     = coded.Register("yt", "too_many_operations")
-	YTSaurusAuthorizationError    = coded.Register("yt", "authorization_error")
+	YTSaurusNotFound = coded.Register("yt", "not_found")
+
 	// greenplum
 	GreenplumExternalUrlsExceedSegments = coded.Register("greenplum", "external_urls_exceed_segments")
 
@@ -103,6 +98,14 @@ var (
 	YCTopologyNoCommonZone                = coded.Register("yc", "topology_no_common_zone")
 	YCTopologySubnetAddressSpaceCollision = coded.Register("yc", "subnet_address_space_collision")
 	YCSecurityGroupsDoNotMatch            = coded.Register("yc", "subnet_security_groups_do_not_match")
+
+	// YT runtime
+	YTRuntimeGenericError          = coded.Register("yt_runtime", "generic_error")
+	YTRuntimeOOMKilled             = coded.Register("yt_runtime", "oom_killed")
+	YTRuntimeProcessExitedWithCode = coded.Register("yt_runtime", "process_exited_with_code")
+	YTRuntimeJobsFailed            = coded.Register("yt_runtime", "jobs_failed")
+	YTRuntimeTooManyOperations     = coded.Register("yt_runtime", "too_many_operations")
+	YTRuntimeAuthorizationError    = coded.Register("yt_runtime", "authorization_error")
 
 	// unspecified
 	Unspecified = coded.Register("unspecified")
