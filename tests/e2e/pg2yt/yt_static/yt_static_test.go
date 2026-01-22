@@ -151,4 +151,25 @@ WHERE id >= 101 AND id <= 200;
 		}
 		require.False(t, table.Next())
 	})
+
+	t.Run("upload_with_lastest_type_system_ver", func(t *testing.T) {
+		transferWithLatestVer := transfer
+		transferWithLatestVer.TypeSystemVersion = model.LatestVersion
+		tables := []abstract.TableDescription{{Name: "test_timestamp2", Schema: "public"}}
+		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation1", transferWithLatestVer, helpers.EmptyRegistry())
+		require.NoError(t, snapshotLoader.UploadTables(ctx, tables, true))
+		table, err := ytEnv.YT.ReadTable(ctx, ypath.Path("//home/cdc/tests/e2e/pg2yt/yt_static/test_timestamp2"), nil)
+		require.NoError(t, err)
+		defer func(table yt.TableReader) {
+			err := table.Close()
+			require.NoError(t, err)
+		}(table)
+		for id := 1; id <= 2; id++ {
+			require.Truef(t, table.Next(), "no row for id %v", id)
+			var row testTableRow
+			require.NoErrorf(t, table.Scan(&row), "unable to scan row for id %v", id)
+			require.Equal(t, id, row.ID)
+		}
+		require.False(t, table.Next())
+	})
 }

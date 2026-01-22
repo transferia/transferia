@@ -425,8 +425,13 @@ func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) 
 			return nil, xerrors.Errorf("unknown pg:enum type: %T", val)
 		}
 	}
-	if v, ok := val.(time.Time); (colSchema.OriginalType == "pg:timestamp with time zone" || colSchema.OriginalType == "pg:timestamp without time zone") && ok {
-		//nolint:descriptiveerrors
+
+	// it's for TM-4877
+	if (colSchema.OriginalType == "pg:timestamp with time zone" || colSchema.OriginalType == "pg:timestamp without time zone") && colSchema.DataType == ytschema.TypeString.String() {
+		v, ok := val.(time.Time)
+		if !ok {
+			return nil, xerrors.Errorf("unable type for pg:timestamp with time zone, type=%T", val)
+		}
 		if isStatic {
 			return v.Format(time.RFC3339Nano), nil
 		} else {
