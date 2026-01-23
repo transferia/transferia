@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	cpclient "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	mongodataagent "github.com/transferia/transferia/pkg/providers/mongo"
+	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
@@ -149,4 +151,27 @@ func Load(t *testing.T) {
 	exists, err := ytEnv.YT.NodeExists(context.Background(), ypath.Path(Target.Path()).Child("db_test_excl"), nil)
 	require.NoError(t, err)
 	require.False(t, exists)
+
+	//------------------------------------------------------------------------------------
+	// extract and check that numbers transferred as strings (DTSUPPORT-6418)
+
+	result := make([]abstract.ChangeItem, 0)
+	storage, err := yt_storage.NewStorage(Target.ToStorageParams())
+	require.NoError(t, err)
+	err = storage.LoadTable(context.Background(), abstract.TableDescription{Name: "db_test_incl"}, func(input []abstract.ChangeItem) error {
+		result = append(result, input...)
+		return nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, len(result))
+
+	for _, item := range result {
+		q, _ := json.Marshal(item)
+		fmt.Println("QQQ", string(q))
+
+		document := item.AsMap()["document"]
+		documentUnp := document.(map[string]interface{})
+		age := documentUnp["age"]
+		require.True(t, age == "1" || age == "2")
+	}
 }

@@ -1,10 +1,12 @@
 package sink
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -13,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/jsonx"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -438,6 +441,24 @@ func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) 
 			//nolint:descriptiveerrors
 			return timeCaster(v, colSchema.DataType, ytschema.NewTimestamp)
 		}
+	}
+
+	if strings.HasPrefix(colSchema.OriginalType, "mongo:bson") {
+		valTmp, err := json.Marshal(val)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to marshal mongo:bson")
+		}
+
+		var repackedValue interface{}
+		err = jsonx.NewDefaultDecoder(bytes.NewReader(valTmp)).Decode(&repackedValue)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to unmarshal mongo:bson, err: %w", err)
+		}
+		result, err := newAnyWrapper(repackedValue)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to wrap mongo:bson into yson, err: %w", err)
+		}
+		return result, nil
 	}
 
 	// some old ugly hack
