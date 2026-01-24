@@ -253,7 +253,7 @@ func wrongOrderOfValuesInChangeItem(t *testing.T) {
 			ColumnNames:  bigRowSchema.Columns().ColumnNames(),
 			ColumnValues: values,
 		}})
-	require.ErrorContains(t, err, "unaccepted value false for yt type int64")
+	require.ErrorContains(t, err, "unaccepted 'number' value false (type:bool) for yt type int64")
 	err = statTable.Push([]abstract.ChangeItem{{
 		TableSchema: bigRowSchema,
 		Kind:        abstract.DoneTableLoad,

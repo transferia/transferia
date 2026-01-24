@@ -40,6 +40,7 @@ func TestGroup(t *testing.T) {
 	}()
 
 	t.Run("Snapshot", Snapshot)
+	t.Run("SnapshotOldVersion", SnapshotOldVersion)
 }
 
 func Snapshot(t *testing.T) {
@@ -49,4 +50,13 @@ func Snapshot(t *testing.T) {
 	_ = helpers.Activate(t, transfer)
 
 	require.NoError(t, helpers.CompareStorages(t, Source, Target.LegacyModel(), helpers.NewCompareStorageParams()))
+}
+
+func SnapshotOldVersion(t *testing.T) {
+	SourceCopy := Source
+	SourceCopy.DBTables = []string{"test_timestamp"}
+	transfer := helpers.MakeTransfer(helpers.TransferID, &SourceCopy, Target, abstract.TransferTypeSnapshotOnly)
+	transfer.TypeSystemVersion = 1
+
+	_ = helpers.Activate(t, transfer)
 }

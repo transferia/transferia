@@ -435,12 +435,7 @@ func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) 
 		if !ok {
 			return nil, xerrors.Errorf("unable type for pg:timestamp with time zone, type=%T", val)
 		}
-		if isStatic {
-			return v.Format(time.RFC3339Nano), nil
-		} else {
-			//nolint:descriptiveerrors
-			return timeCaster(v, colSchema.DataType, ytschema.NewTimestamp)
-		}
+		return v.Format(time.RFC3339Nano), nil
 	}
 
 	if strings.HasPrefix(colSchema.OriginalType, "mongo:bson") {
@@ -569,7 +564,7 @@ func doNumberConversion[T Number](val interface{}, ytType string) (T, error) {
 	case float64:
 		return T(v), nil
 	}
-	return *new(T), xerrors.Errorf("unaccepted value %v for yt type %v", val, ytType)
+	return *new(T), xerrors.Errorf("unaccepted 'number' value %v (type:%T) for yt type %v", val, val, ytType)
 }
 
 func doTextConversion(val interface{}, ytType string) (string, error) {
@@ -581,7 +576,7 @@ func doTextConversion(val interface{}, ytType string) (string, error) {
 	case byte:
 		return string(v), nil
 	}
-	return "", xerrors.Errorf("unaccepted value %v for yt type %v", val, ytType)
+	return "", xerrors.Errorf("unaccepted 'text' value %v (type:%T) for yt type %v", val, val, ytType)
 }
 
 func schemasAreEqual(current, received []abstract.ColSchema) bool {

@@ -21,3 +21,16 @@ INSERT INTO json_special_cases_test(j, jb) VALUES
     '"\"\"String in double quotes\"\""', -- j
     '"\"\"String in double quotes\"\""' -- jb
 );
+
+---
+
+CREATE TABLE test_timestamp(
+    id integer primary key,
+    tsz timestamp with time zone,
+    ts timestamp without time zone,
+    t timestamp not null
+);
+
+INSERT INTO test_timestamp VALUES
+    (1, '2004-10-19 10:23:54+02', '2004-10-19 10:23:54', '2004-10-19 10:23:54')
+;
