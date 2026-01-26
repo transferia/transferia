@@ -51,3 +51,33 @@ func TestSystemKeysWorkaround(t *testing.T) {
 		require.Equal(t, "val", cols[5].ColumnName)
 	})
 }
+
+func TestFirstColumnFallbackForSharding(t *testing.T) {
+	config := yt.NewYtDestinationV1(yt.YtDestination{
+		Path:           "//home/cdc/test/ok/DUTYLOGS-3511",
+		TimeShardCount: 50,
+	})
+
+	schema := NewSchema(
+		[]abstract.ColSchema{
+			{
+				DataType:   "string",
+				ColumnName: "image_id",
+				PrimaryKey: true,
+			},
+			{
+				DataType:   "string",
+				ColumnName: "data",
+			},
+		},
+		config,
+		"",
+	)
+
+	cols := schema.Cols()
+	require.Equal(t, 3, len(cols))
+	require.Equal(t, shardIndexColumnName, cols[0].ColumnName)
+	require.Equal(t, "farm_hash(image_id) % 50", cols[0].Expression)
+	require.Equal(t, "image_id", cols[1].ColumnName)
+	require.Equal(t, "data", cols[2].ColumnName)
+}

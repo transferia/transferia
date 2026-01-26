@@ -171,9 +171,14 @@ func (s *Schema) ShardCol() (abstract.ColSchema, string) {
 		return defaultVal, ""
 	}
 
-	hashC := s.config.HashColumn()
-	if !slices.ContainsFunc(s.cols, func(c abstract.ColSchema) bool { return c.ColumnName == hashC }) {
-		return defaultVal, ""
+	var hashC string
+	if s.config.HashColumn() == "" {
+		hashC = s.cols[0].ColumnName
+	} else {
+		hashC = s.config.HashColumn()
+		if !slices.ContainsFunc(s.cols, func(c abstract.ColSchema) bool { return c.ColumnName == hashC }) {
+			return defaultVal, ""
+		}
 	}
 
 	shardE := "farm_hash(" + hashC + ") % " + strconv.Itoa(s.config.TimeShardCount())

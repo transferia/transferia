@@ -117,8 +117,23 @@ func (s *sinker) convertStaticToDynamic(ctx context.Context, tableYPath ypath.Pa
 			return xerrors.Errorf("unable to get node info: %w", err)
 		}
 		attrs := dyn_sink.BuildDynamicAttrs(dyn_sink.GetCols(dstInfo.Attrs.Schema), s.config)
+
+		// "pivot_keys" attribute cannot be set onto an existing table.
+		// reshard_table command should be used instead.
+		pivotKeys := attrs["pivot_keys"]
+		delete(attrs, "pivot_keys")
+
 		if err = s.ytClient.MultisetAttributes(ctx, tableYPath.Attrs(), attrs, nil); err != nil {
 			return xerrors.Errorf("unable to set destination attributes: %w", err)
+		}
+
+		if pivotKeys != nil {
+			reshardOptions := yt.ReshardTableOptions{
+				PivotKeys: pivotKeys,
+			}
+			if err := s.ytClient.ReshardTable(ctx, tableYPath, &reshardOptions); err != nil {
+				return xerrors.Errorf("unable to reshard destination table %q: %w", tableYPath, err)
+			}
 		}
 
 		if err := yt2.MountUnmountWrapper(ctx, s.ytClient, tableYPath, migrate.MountAndWait); err != nil {

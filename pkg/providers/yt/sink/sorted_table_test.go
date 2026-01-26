@@ -63,6 +63,74 @@ func TestInsertWithFloat(t *testing.T) {
 	}
 }
 
+func TestInsertWithFirstColumnFallbackForSharding(t *testing.T) {
+	const tablePath = "//home/cdc/test/generic/temp"
+
+	env, cancel := recipe.NewEnv(t)
+	defer cancel()
+	defer teardown(env.YT, tablePath)
+
+	schema_ := abstract.NewTableSchema([]abstract.ColSchema{
+		{
+			DataType:   "string",
+			ColumnName: "image_id",
+			PrimaryKey: true,
+		},
+		{
+			DataType:   "string",
+			ColumnName: "data",
+		},
+	})
+
+	cfg := yt2.NewYtDestinationV1(yt2.YtDestination{
+		CellBundle:     "default",
+		PrimaryMedium:  "default",
+		TimeShardCount: 50,
+	})
+	cfg.WithDefaults()
+
+	table, err := NewSortedTable(env.YT, tablePath, schema_.Columns(), cfg, stats.NewSinkerStats(metrics.NewRegistry()), logger.Log)
+	require.NoError(t, err)
+
+	require.NoError(t, table.Write([]abstract.ChangeItem{
+		{
+			TableSchema:  schema_,
+			Kind:         "insert",
+			ColumnNames:  []string{"image_id", "data"},
+			ColumnValues: []any{"abc", "def"},
+		},
+	}))
+
+	{
+		var outputSchema schema.Schema
+		err = env.YT.GetNode(env.Ctx, ypath.Path(tablePath+"/@schema"), &outputSchema, nil)
+		require.NoError(t, err)
+
+		cols := outputSchema.Columns
+		require.Equal(t, 3, len(cols))
+		require.Equal(t, shardIndexColumnName, cols[0].Name)
+		require.Equal(t, "farm_hash(image_id) % 50", cols[0].Expression)
+		require.Equal(t, "image_id", cols[1].Name)
+		require.Equal(t, "data", cols[2].Name)
+	}
+
+	{
+		rows, err := env.YT.LookupRows(env.Ctx, tablePath, []any{map[string]any{"image_id": "abc"}}, nil)
+		require.NoError(t, err)
+		defer func() { _ = rows.Close() }()
+
+		row := new(struct {
+			Data string `yson:"data"`
+		})
+		require.True(t, rows.Next())
+		require.NoError(t, rows.Scan(row))
+		require.Equal(t, "def", row.Data)
+
+		require.False(t, rows.Next())
+		require.NoError(t, rows.Err())
+	}
+}
+
 func TestOnlyPKTable(t *testing.T) {
 	env, cancel := recipe.NewEnv(t)
 	defer cancel()
