@@ -47,3 +47,19 @@ func NewTransformationFromJSON(inJSON string) (*Transformation, error) {
 	}
 	return nil, nil
 }
+
+func DeepCopyTransformation(in *Transformation) (*Transformation, error) {
+	if in == nil {
+		return nil, nil
+	}
+	data, err := json.Marshal(in)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to marshal transformation: %w", err)
+	}
+
+	newTransformation := new(Transformation)
+	if err := json.Unmarshal(data, newTransformation); err != nil {
+		return nil, xerrors.Errorf("failed to unmarshal transformation: %w", err)
+	}
+	return newTransformation, nil
+}
