@@ -317,6 +317,25 @@ func UnmarshalChangeItems(changeItemsBuf []byte) ([]ChangeItem, error) {
 		return nil, xerrors.Errorf("changeItems are invalid - err: %w", err)
 	}
 	RestoreChangeItems(batch)
+
+	// handle pg:enum_all_values
+	for i := range batch {
+		cols := batch[i].TableSchema.Columns()
+		for j := range cols {
+			if cols[j].Properties != nil && cols[j].Properties["pg:enum_all_values"] != nil {
+				val := cols[j].Properties["pg:enum_all_values"]
+				if valUnp, ok := val.([]interface{}); ok {
+					newVal := make([]string, 0)
+					for _, v := range valUnp {
+						newVal = append(newVal, v.(string))
+					}
+					cols[j].Properties["pg:enum_all_values"] = newVal
+				}
+			}
+		}
+		batch[i].TableSchema = NewTableSchema(cols)
+	}
+
 	return batch, nil
 }
 

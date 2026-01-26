@@ -131,3 +131,33 @@ func colSchema(datatype string, primary bool) ColSchema {
 		OriginalType: "",
 	}
 }
+
+func TestRestorePgEnum(t *testing.T) {
+	const pgEnumAllValues = "pg:enum_all_values"
+
+	col := ColSchema{
+		TableSchema:  "MyTableSchema",
+		TableName:    "MyTableName",
+		Path:         "",
+		ColumnName:   "MyColumnName",
+		DataType:     "any",
+		PrimaryKey:   false,
+		FakeKey:      false,
+		Required:     false,
+		Expression:   "",
+		OriginalType: "pg:val",
+		Properties:   nil,
+	}
+	col.AddProperty(pgEnumAllValues, []string{"a", "b"})
+
+	currChangeItem := ChangeItem{
+		TableSchema: NewTableSchema([]ColSchema{col}),
+	}
+	changeItems, err := UnmarshalChangeItems([]byte(`[` + currChangeItem.ToJSONString() + `]`))
+	require.NoError(t, err)
+	require.Len(t, changeItems, 1)
+	outChangeItem := changeItems[0]
+	val, ok := outChangeItem.TableSchema.Columns()[0].Properties[pgEnumAllValues]
+	require.True(t, ok)
+	assert.Equal(t, []string{"a", "b"}, val)
+}

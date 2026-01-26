@@ -431,11 +431,14 @@ func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) 
 
 	// it's for TM-4877
 	if (colSchema.OriginalType == "pg:timestamp with time zone" || colSchema.OriginalType == "pg:timestamp without time zone") && colSchema.DataType == ytschema.TypeString.String() {
-		v, ok := val.(time.Time)
-		if !ok {
-			return nil, xerrors.Errorf("unable type for pg:timestamp with time zone, type=%T", val)
+		switch valUnp := val.(type) {
+		case string: // pg->lb->yt
+			return valUnp, nil
+		case time.Time: // pg->yt
+			return valUnp.Format(time.RFC3339Nano), nil
+		default:
+			return nil, xerrors.Errorf("unable type for pg:timestamp with time zone, type=%T, val=%v", val, val)
 		}
-		return v.Format(time.RFC3339Nano), nil
 	}
 
 	if strings.HasPrefix(colSchema.OriginalType, "mongo:bson") {
