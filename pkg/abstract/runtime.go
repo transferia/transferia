@@ -37,6 +37,28 @@ func GetRuntimeType(r Runtime, defaultRuntime RuntimeType) RuntimeType {
 	return r.Type()
 }
 
+func GetRuntimeJSON(runtime Runtime) (string, error) {
+	b, err := json.Marshal(runtime)
+	if err != nil {
+		return "", xerrors.Errorf("Unable to serialize runtime: %w", err)
+	}
+	return string(b), nil
+}
+
+func RuntimeParamsEqual(runtime, anotherRuntime Runtime) bool {
+	runtimeStr, err := GetRuntimeJSON(RuntimeCopyWithDefaults(runtime))
+	if err != nil {
+		return false
+	}
+
+	anotherRuntimeStr, err := GetRuntimeJSON(RuntimeCopyWithDefaults(anotherRuntime))
+	if err != nil {
+		return false
+	}
+
+	return runtimeStr == anotherRuntimeStr
+}
+
 func NewRuntime(runtime RuntimeType, runtimeSpec string) (Runtime, error) {
 	switch runtime {
 	case LocalRuntimeType:
