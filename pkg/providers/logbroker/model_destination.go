@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/dustin/go-humanize"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -15,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 	"go.uber.org/zap/zapcore"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type LbDestination struct {
@@ -102,12 +104,10 @@ func (d *LbDestination) WithDefaults() {
 	}
 	if d.FormatSettings.BatchingSettings == nil {
 		d.FormatSettings.BatchingSettings = &model.Batching{
-			Enabled:        true,
+			Enabled:        false,
 			Interval:       0,
-			MaxChangeItems: 1000,
-			// there is a limit on the total size of messages in one write (logbroker 120mb, yds 64mb), so
-			// the value chosen here is not more than 64/2 (to avoid problem with too large messages), but also not too small
-			MaxMessageSize: 32 * 1024 * 1024,
+			MaxChangeItems: 0,
+			MaxMessageSize: 0,
 		}
 	}
 }
@@ -161,6 +161,28 @@ func (d *LbDestination) BuffererConfig() *bufferer.BuffererConfig {
 		TriggingCount:    d.FormatSettings.BatchingSettings.MaxChangeItems,
 		TriggingSize:     uint64(d.FormatSettings.BatchingSettings.MaxMessageSize),
 		TriggingInterval: d.FormatSettings.BatchingSettings.Interval,
+	}
+}
+
+// TODO: Remove batching settings in this FillDependentFields in TM-9722.
+func (d *LbDestination) FillDependentFields(transfer *model.Transfer) {
+	if d.FormatSettings.BatchingSettings != nil && d.FormatSettings.BatchingSettings.Enabled {
+		return
+	}
+	infered, err := coherence_check.InferFormatSettings(logger.Log, transfer.Src, d.FormatSettings)
+	if err != nil {
+		logger.Log.Warn("Unable to infer format settings to fill dependent fields", log.Error(err))
+	}
+	if infered.Name == model.SerializationFormatNative {
+		// Forcely enable batching for Native.
+		d.FormatSettings.BatchingSettings = &model.Batching{
+			Enabled:        true,
+			Interval:       0,
+			MaxChangeItems: 1000,
+			// Most destinations have limited size of one write (e.g. logbroker 120mb, yds 64mb).
+			// Avoid using MaxMessageSize more than 64/2 (to avoid problem with too large messages), but also not too small.
+			MaxMessageSize: 32 * humanize.MiByte,
+		}
 	}
 }
 
