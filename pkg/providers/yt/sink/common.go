@@ -430,7 +430,7 @@ func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) 
 	}
 
 	// it's for TM-4877 --- typesystem version=1
-	if (colSchema.OriginalType == "pg:timestamp with time zone" || colSchema.OriginalType == "pg:timestamp without time zone") && colSchema.DataType == ytschema.TypeString.String() {
+	if (postgres.IsPgTypeTimestampWithTimeZone(colSchema.OriginalType) || postgres.IsPgTypeTimestampWithoutTimeZone(colSchema.OriginalType)) && colSchema.DataType == ytschema.TypeString.String() {
 		switch valUnp := val.(type) {
 		case string: // pg->lb->yt
 			return valUnp, nil
