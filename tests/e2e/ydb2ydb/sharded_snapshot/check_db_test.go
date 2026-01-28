@@ -13,7 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
 	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
-	ydb3 "github.com/ydb-platform/ydb-go-sdk/v3"
+	ydbtable "github.com/transferia/transferia/tests/helpers/ydb_recipe/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
@@ -44,21 +44,6 @@ func applyUdf(t *testing.T, items []abstract.ChangeItem) abstract.TransformerRes
 
 func anyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
 	return true
-}
-
-func execQuery(t *testing.T, ydbConn *ydb3.Driver, query string) {
-	err := ydbConn.Table().Do(context.Background(), func(ctx context.Context, session table.Session) (err error) {
-		writeTx := table.TxControl(
-			table.BeginTx(
-				table.WithSerializableReadWrite(),
-			),
-			table.CommitTx(),
-		)
-
-		_, _, err = session.Execute(ctx, writeTx, query, nil)
-		return err
-	})
-	require.NoError(t, err)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -105,7 +90,7 @@ func TestGroup(t *testing.T) {
 					}
 					q := fmt.Sprintf("--!syntax_v1\nUPSERT INTO `%s` (c_custkey, random_val) VALUES  (%s, %d);", tablePath, leftBorder, i)
 					fmt.Printf("query to execute ydb:%s\n", q)
-					execQuery(t, ydbConn, q)
+					ydbtable.ExecQuery(t, ydbConn, q)
 				}
 				return nil
 			},

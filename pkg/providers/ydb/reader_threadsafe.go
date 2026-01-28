@@ -15,6 +15,8 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+const sourceBatchMaxLen = 10000
+
 type readerThreadSafe struct {
 	mutex      sync.Mutex
 	readerImpl *topicreader.Reader
@@ -53,7 +55,7 @@ func newReader(feedName, consumerName, dbname string, tables []string, ydbClient
 		selectors,
 		topicoptions.WithReaderCommitTimeLagTrigger(0),
 		topicoptions.WithReaderCommitMode(commitMode),
-		topicoptions.WithReaderBatchMaxCount(batchMaxLen),
+		topicoptions.WithReaderBatchMaxCount(sourceBatchMaxLen),
 		topicoptions.WithReaderTrace(trace.Topic{
 			OnReaderError: func(info trace.TopicReaderErrorInfo) {
 				if xerrors.Is(info.Error, io.EOF) {

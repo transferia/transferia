@@ -43,8 +43,8 @@ type TemplateModel struct {
 }
 
 const (
-	batchMaxLen  = 10000
-	batchMaxSize = 48 * humanize.MiByte // NOTE: RPC message limit for YDB upsert is 64 MB.
+	writeBatchMaxLen  = 10000
+	writeBatchMaxSize = 48 * humanize.MiByte // NOTE: RPC message limit for YDB upsert is 64 MB.
 )
 
 var rowTooLargeRegexp = regexp.MustCompile(`Row cell size of [0-9]+ bytes is larger than the allowed threshold [0-9]+`)
@@ -652,7 +652,7 @@ func splitToChunks(items []abstract.ChangeItem) [][]abstract.ChangeItem {
 	left := 0
 	for right := range len(items) {
 		batchSize += items[right].Size.Read
-		if batchSize >= batchMaxSize || right-left >= batchMaxLen {
+		if batchSize >= writeBatchMaxSize || right-left >= writeBatchMaxLen {
 			res = append(res, items[left:right+1])
 			batchSize = 0
 			left = right + 1

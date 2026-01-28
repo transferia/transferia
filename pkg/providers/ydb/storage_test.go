@@ -3,7 +3,7 @@ package ydb
 import (
 	"context"
 	"fmt"
-	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -13,6 +13,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/util"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	ydbtable "github.com/transferia/transferia/tests/helpers/ydb_recipe/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -40,24 +45,14 @@ var (
 )
 
 func TestYdbStorage_TableLoad(t *testing.T) {
-
-	endpoint, ok := os.LookupEnv("YDB_ENDPOINT")
-	if !ok {
-		t.Fail()
-	}
-	prefix, ok := os.LookupEnv("YDB_DATABASE")
-	if !ok {
-		t.Fail()
-	}
-	token, ok := os.LookupEnv("YDB_TOKEN")
-	if !ok {
-		token = "anyNotEmptyString"
-	}
+	endpoint, port, database, _ := ydbrecipe.InstancePortDatabaseCreds(t)
+	instance := fmt.Sprintf("%s:%d", endpoint, port)
+	token := ydbrecipe.Token()
 
 	src := &YdbSource{
 		Token:    model.SecretString(token),
-		Database: prefix,
-		Instance: endpoint,
+		Database: database,
+		Instance: instance,
 		Tables:   nil,
 		TableColumnsFilter: []YdbColumnsFilter{{
 			TableNamesRegexp:  "^foo_t_.*",
@@ -74,9 +69,9 @@ func TestYdbStorage_TableLoad(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := YdbDestination{
-		Database: prefix,
+		Database: database,
 		Token:    model.SecretString(token),
-		Instance: endpoint,
+		Instance: instance,
 	}
 	cfg.WithDefaults()
 	sinker, err := NewSinker(logger.Log, &cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
@@ -118,25 +113,14 @@ func TestYdbStorage_TableLoad(t *testing.T) {
 }
 
 func TestYdbStorage_TableList(t *testing.T) {
-	endpoint, ok := os.LookupEnv("YDB_ENDPOINT")
-	if !ok {
-		t.Fail()
-	}
-
-	prefix, ok := os.LookupEnv("YDB_DATABASE")
-	if !ok {
-		t.Fail()
-	}
-
-	token, ok := os.LookupEnv("YDB_TOKEN")
-	if !ok {
-		token = "anyNotEmptyString"
-	}
+	endpoint, port, database, _ := ydbrecipe.InstancePortDatabaseCreds(t)
+	instance := fmt.Sprintf("%s:%d", endpoint, port)
+	token := ydbrecipe.Token()
 
 	src := YdbSource{
 		Token:              model.SecretString(token),
-		Database:           prefix,
-		Instance:           endpoint,
+		Database:           database,
+		Instance:           instance,
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -149,9 +133,9 @@ func TestYdbStorage_TableList(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := YdbDestination{
-		Database: prefix,
+		Database: database,
 		Token:    model.SecretString(token),
-		Instance: endpoint,
+		Instance: instance,
 	}
 	cfg.WithDefaults()
 	sinker, err := NewSinker(logger.Log, &cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
@@ -183,8 +167,8 @@ func TestYdbStorage_TableList(t *testing.T) {
 	}
 
 	tableForTest := 0
-	for table := range tables {
-		if len(table.Name) > 10 && table.Name[:10] == "table_list" {
+	for currTable := range tables {
+		if len(currTable.Name) > 10 && currTable.Name[:10] == "table_list" {
 			tableForTest++
 		}
 	}
@@ -198,4 +182,84 @@ func TestYdbStorage_TableList(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+func TestYdbStorage_MaxBatchLenAndSize(t *testing.T) {
+	endpoint, port, database, _ := ydbrecipe.InstancePortDatabaseCreds(t)
+	instance := fmt.Sprintf("%s:%d", endpoint, port)
+	token := ydbrecipe.Token()
+
+	testTableName := "max_read_test_table"
+	prepareTestTable(t, path.Join(database, testTableName))
+
+	cfg := &YdbStorageParams{
+		Database: database,
+		Instance: instance,
+		Tables:   []string{testTableName},
+		Token:    model.SecretString(token),
+	}
+
+	loadWithLimits := func(maxLen int, maxSize int) [][]abstract.ChangeItem {
+		cfg.MaxBatchLen = maxLen
+		cfg.MaxBatchSize = maxSize
+
+		storage, err := NewStorage(cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		require.NoError(t, err)
+
+		res := make([][]abstract.ChangeItem, 0)
+		require.NoError(t, storage.LoadTable(context.Background(), abstract.TableDescription{Name: testTableName}, func(input []abstract.ChangeItem) error {
+			res = append(res, input)
+			return nil
+		}))
+
+		return res
+	}
+
+	t.Run("ZeroMaxBatchLenAndSize", func(t *testing.T) {
+		loadResult := loadWithLimits(0, 0)
+
+		require.Len(t, loadResult, 1)
+		require.Len(t, loadResult[0], 2)
+	})
+
+	t.Run("LowMaxBatchLen", func(t *testing.T) {
+		loadResult := loadWithLimits(1, 1024*1024)
+
+		require.Len(t, loadResult, 2)
+		require.Len(t, loadResult[0], 1)
+		require.Len(t, loadResult[1], 1)
+	})
+
+	t.Run("LowMaxBatchSize", func(t *testing.T) {
+		loadResult := loadWithLimits(10000, 32)
+
+		require.Len(t, loadResult, 2)
+		require.Len(t, loadResult[0], 1)
+		require.Len(t, loadResult[1], 1)
+	})
+
+	t.Run("HighMaxBatchLenAndSize", func(t *testing.T) {
+		loadResult := loadWithLimits(10000, 1024*1024)
+
+		require.Len(t, loadResult, 1)
+		require.Len(t, loadResult[0], 2)
+	})
+}
+
+func prepareTestTable(t *testing.T, tableName string) {
+	driver := ydbrecipe.Driver(t)
+
+	err := driver.Table().Do(context.Background(), func(ctx context.Context, tableSession table.Session) error {
+		return tableSession.CreateTable(ctx, tableName,
+			options.WithColumn("id", types.Optional(types.TypeUint64)),
+			options.WithColumn("value", types.Optional(types.TypeString)),
+			options.WithPrimaryKeyColumn("id"),
+		)
+	})
+	require.NoError(t, err)
+
+	ydbtable.ExecQueries(t, driver, []string{
+		fmt.Sprintf("--!syntax_v1\nUPSERT INTO `%s` (id, value) VALUES  (%d, '%s');", path.Base(tableName), 1, "32bytes-aaaaaaaaaaaaaaaaaaaaaaaa"),
+		fmt.Sprintf("--!syntax_v1\nUPSERT INTO `%s` (id, value) VALUES  (%d, '%s');", path.Base(tableName), 2, "32bytes-aaaaaaaaaaaaaaaaaaaaaaaa"),
+	})
 }

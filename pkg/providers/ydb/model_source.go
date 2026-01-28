@@ -206,6 +206,8 @@ func (s *YdbSource) ToStorageParams() *YdbStorageParams {
 		Tables:             s.Tables,
 		TableColumnsFilter: s.TableColumnsFilter,
 		UseFullPaths:       s.UseFullPaths,
+		MaxBatchLen:        0,
+		MaxBatchSize:       0,
 		Token:              s.Token,
 		ServiceAccountID:   s.ServiceAccountID,
 		UserdataAuth:       s.UserdataAuth,

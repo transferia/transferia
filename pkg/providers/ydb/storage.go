@@ -276,7 +276,11 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 		cols[i] = c.ColumnName
 	}
 
-	batch := make([]abstract.ChangeItem, 0, batchMaxLen)
+	maxBatchLen := s.config.MaxBatchLenOrDefault()
+	maxBatchSize := s.config.MaxBatchSizeOrDefault()
+
+	var batchSize uint64
+	batch := make([]abstract.ChangeItem, 0, maxBatchLen)
 	for res.NextResultSet(ctx) {
 		for res.NextRow() {
 			scannerValues := make([]scanner, len(schema.Columns()))
@@ -317,13 +321,18 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 				Query:            "",
 				QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 			})
+			batchSize += valuesSize
+
 			s.metrics.ChangeItems.Inc()
 			s.metrics.Size.Add(int64(valuesSize))
-			if len(batch) >= batchMaxLen {
+
+			if len(batch) >= maxBatchLen || batchSize >= uint64(maxBatchSize) {
 				if err := pusher(batch); err != nil {
 					return xerrors.Errorf("unable to push: %w", err)
 				}
-				batch = make([]abstract.ChangeItem, 0, batchMaxLen)
+
+				batchSize = 0
+				batch = make([]abstract.ChangeItem, 0, maxBatchLen)
 			}
 		}
 	}

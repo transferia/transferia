@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	ydbtable "github.com/transferia/transferia/tests/helpers/ydb_recipe/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
@@ -123,7 +124,7 @@ func TestSourceCDC(t *testing.T) {
 				}
 			}
 		}
-		execQueries(t, db, upsertQueries)
+		ydbtable.ExecQueries(t, db, upsertQueries)
 
 		srcCfg := srcCfgTemplate
 		srcCfg.Tables = []string{tableName}
@@ -174,7 +175,7 @@ func TestSourceCDC(t *testing.T) {
 			upsertQuery(1, "key_1", 123, "2019-09-16T00:00:00Z"),
 			deleteQuery(1, "key_1"),
 		}
-		execQueries(t, db, upsertQueries)
+		ydbtable.ExecQueries(t, db, upsertQueries)
 
 		srcCfg := srcCfgTemplate
 		srcCfg.Tables = []string{tableName}
@@ -200,9 +201,7 @@ func checkSchemaUpdateWithMode(t *testing.T, db *ydb.Driver, transferID string, 
 		options.WithPrimaryKeyColumn("id"),
 	)
 
-	execQueries(t, db, []string{
-		fmt.Sprintf("UPSERT INTO `%s` (id, val) VALUES (%d, '%s');", tablePath, 1, "val_1"),
-	})
+	ydbtable.ExecQuery(t, db, fmt.Sprintf("UPSERT INTO `%s` (id, val) VALUES (%d, '%s');", tablePath, 1, "val_1"))
 
 	srcCfg := srcCfgTemplate
 	srcCfg.Tables = []string{tableName}
@@ -232,9 +231,7 @@ func checkSchemaUpdateWithMode(t *testing.T, db *ydb.Driver, transferID string, 
 	require.NoError(t, db.Table().Do(context.Background(), func(ctx context.Context, s table.Session) error {
 		return s.AlterTable(ctx, tablePath, options.WithAddColumn("new_val", types.Optional(types.TypeString)))
 	}))
-	execQueries(t, db, []string{
-		fmt.Sprintf("UPSERT INTO `%s` (id, val, new_val) VALUES (%d, '%s', '%s');", tablePath, 2, "val_2", "new_val_2"),
-	})
+	ydbtable.ExecQuery(t, db, fmt.Sprintf("UPSERT INTO `%s` (id, val, new_val) VALUES (%d, '%s', '%s');", tablePath, 2, "val_2", "new_val_2"))
 
 	for len(pushedItems) != 2 {
 		require.False(t, time.Since(waitingStartTime) > time.Second*20)
@@ -329,26 +326,9 @@ func prepareTableAndFeed(t *testing.T, feedName, tableName string, differentKeys
 			)
 		}
 	}
-	execQueries(t, db, upsertQueries)
+	ydbtable.ExecQueries(t, db, upsertQueries)
 
 	return len(upsertQueries)
-}
-
-func execQueries(t *testing.T, db *ydb.Driver, queries []string) {
-	require.NoError(t, db.Table().Do(context.Background(), func(ctx context.Context, s table.Session) error {
-		writeTx := table.TxControl(
-			table.BeginTx(
-				table.WithSerializableReadWrite(),
-			),
-			table.CommitTx(),
-		)
-		for _, q := range queries {
-			if _, _, err := s.Execute(ctx, writeTx, q, nil); err != nil {
-				return err
-			}
-		}
-		return nil
-	}))
 }
 
 func createTableAndFeed(t *testing.T, db *ydb.Driver, feedName, tablePath string, opts ...options.CreateTableOption) {

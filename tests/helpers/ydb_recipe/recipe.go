@@ -40,10 +40,14 @@ func InstancePortDatabaseCreds(t *testing.T) (string, int, string, credentials.C
 	}
 
 	var creds credentials.Credentials
-	token := os.Getenv("YDB_TOKEN")
+	token := Token()
 	if token != "" {
 		creds = credentials.NewAccessTokenCredentials(token)
 	}
 
 	return instance, port, database, creds
+}
+
+func Token() string {
+	return os.Getenv("YDB_TOKEN")
 }

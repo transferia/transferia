@@ -116,6 +116,8 @@ func (d *YdbDestination) ToStorageParams() *YdbStorageParams {
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		UseFullPaths:       false,
+		MaxBatchLen:        0,
+		MaxBatchSize:       0,
 		Token:              d.Token,
 		ServiceAccountID:   d.ServiceAccountID,
 		UserdataAuth:       d.UserdataAuth,
