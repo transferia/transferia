@@ -21,17 +21,27 @@ func (p Partition) LegacyShittyString() string {
 	return fmt.Sprintf("rt3.%s--%s:%v", p.Cluster, oldFashionTopic, p.Partition)
 }
 
-func NewPartition(topicWithCluster string, partition uint32) Partition {
-	if len(topicWithCluster) < 4 {
+func NewPartition(topic string, partition uint32) Partition {
+	if !strings.HasPrefix(topic, "rt3.") {
+		return Partition{
+			Partition: partition,
+			Cluster:   "",
+			Topic:     topic,
+		}
+	}
+
+	// for pqv0 legacy topic with cluster string
+	// will be simplified in TM-9591
+	if len(topic) < 4 {
 		return Partition{
 			Partition: partition,
 			Cluster:   "",
 			Topic:     "",
 		}
 	}
-	topicWithCluster = topicWithCluster[4:]
+	topic = topic[4:]
 
-	splittedParts := strings.Split(topicWithCluster, "--")
+	splittedParts := strings.Split(topic, "--")
 	if len(splittedParts) == 1 {
 		return Partition{
 			Partition: partition,
@@ -40,11 +50,19 @@ func NewPartition(topicWithCluster string, partition uint32) Partition {
 		}
 	}
 
-	topic := strings.ReplaceAll(topicWithCluster[len(splittedParts[0])+2:], "--", "/")
-	topic = strings.ReplaceAll(topic, "@", "/")
+	topicName := strings.ReplaceAll(topic[len(splittedParts[0])+2:], "--", "/")
+	topicName = strings.ReplaceAll(topicName, "@", "/")
 	return Partition{
 		Partition: partition,
 		Cluster:   splittedParts[0],
-		Topic:     topic,
+		Topic:     topicName,
+	}
+}
+
+func NewEmptyPartition() Partition {
+	return Partition{
+		Partition: 0,
+		Cluster:   "",
+		Topic:     "",
 	}
 }

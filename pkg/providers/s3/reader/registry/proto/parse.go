@@ -32,7 +32,7 @@ func readFileAndParse(ctx context.Context, r *ProtoReader, filePath string, push
 		return xerrors.Errorf("unable to read whole file: %w", err)
 	}
 	msg := constructMessage(s3RawReader.LastModified(), fullFile, []byte(filePath))
-	parser, err := r.parserBuilder.BuildLazyParser(msg, abstract.NewPartition(filePath, 0))
+	parser, err := r.parserBuilder.BuildLazyParser(msg, abstract.NewEmptyPartition())
 	if err != nil {
 		return xerrors.Errorf("unable to prepare parser: %w", err)
 	}

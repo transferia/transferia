@@ -1415,6 +1415,8 @@ func checkIfKeyContainsValue(t *testing.T, changeItem ChangeItem, key string, va
 }
 
 func TestNewPartition(t *testing.T) {
+	require.Equal(t, "{\"cluster\":\"\",\"partition\":1,\"topic\":\"yabs-rt-bs-tracking-log\"}", NewPartition("yabs-rt-bs-tracking-log", 1).String())
+	require.Equal(t, "{\"cluster\":\"\",\"partition\":1,\"topic\":\"yabs-rt/bs-tracking-log\"}", NewPartition("yabs-rt/bs-tracking-log", 1).String())
 	require.Equal(t, "{\"cluster\":\"vla\",\"partition\":1,\"topic\":\"yabs-rt/bs-tracking-log\"}", NewPartition("rt3.vla--yabs-rt--bs-tracking-log", 1).String())
 	require.Equal(t, "{\"cluster\":\"kafka-bs\",\"partition\":2,\"topic\":\"cdc/prod/edadeal_wallet\"}", NewPartition("rt3.kafka-bs--cdc@prod--edadeal_wallet", 2).String())
 }

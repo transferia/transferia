@@ -34,7 +34,7 @@ func resolveSchema(ctx context.Context, r *ProtoReader, key string) (*abstract.T
 	if err != nil {
 		return nil, xerrors.Errorf("failed to read sample content for schema deduction: %w", err)
 	}
-	parser, err := r.parserBuilder.BuildLazyParser(constructMessage(s3RawReader.LastModified(), content, []byte(key)), abstract.NewPartition(key, 0))
+	parser, err := r.parserBuilder.BuildLazyParser(constructMessage(s3RawReader.LastModified(), content, []byte(key)), abstract.NewEmptyPartition())
 	if err != nil {
 		return nil, xerrors.Errorf("failed to prepare parser: %w", err)
 	}

@@ -61,7 +61,7 @@ func TestStreamParseFile(t *testing.T) {
 	}
 
 	parser := genericParserReader.parserBuilder.BuildBaseParser()
-	itemsParsedByDo := parser.Do(constructMessage(time.Now(), data, nil), abstract.NewPartition("metrika-data/metrika_hit_protoseq_data.bin", 0))
+	itemsParsedByDo := parser.Do(constructMessage(time.Now(), data, nil), abstract.NewEmptyPartition())
 	require.Equal(t, expectedItems, len(itemsParsedByDo))
 	require.True(t, allParsed(itemsParsedByDo))
 

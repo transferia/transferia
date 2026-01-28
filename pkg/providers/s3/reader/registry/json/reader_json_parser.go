@@ -166,7 +166,7 @@ func (r *JSONParserReader) Read(ctx context.Context, filePath string, pusher chu
 				WriteTime:  s3RawReader.LastModified(),
 				Value:      []byte(line),
 				Headers:    nil,
-			}, abstract.NewPartition(filePath, 0))
+			}, abstract.NewEmptyPartition())
 			for i := range cis {
 				if parsers.IsUnparsed(cis[i]) {
 					if r.unparsedPolicy == s3.UnparsedPolicyFail {

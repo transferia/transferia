@@ -24,7 +24,7 @@ func streamParseFile(ctx context.Context, r *ProtoReader, filePath string, chunk
 			return xerrors.Errorf("failed to read sample from file: %s: %w", filePath, err)
 		}
 		data := chunkReader.Data()
-		parsed := parser.Do(constructMessage(lastModified, data, []byte(filePath)), abstract.NewPartition(filePath, 0))
+		parsed := parser.Do(constructMessage(lastModified, data, []byte(filePath)), abstract.NewEmptyPartition())
 		if len(parsed) == 0 {
 			continue
 		}
@@ -52,7 +52,7 @@ func streamParseFile(ctx context.Context, r *ProtoReader, filePath string, chunk
 
 	if len(lastUnparsedData) > 0 {
 		data := chunkReader.Data()
-		parsed := parser.Do(constructMessage(lastModified, data, []byte(filePath)), abstract.NewPartition(filePath, 0))
+		parsed := parser.Do(constructMessage(lastModified, data, []byte(filePath)), abstract.NewEmptyPartition())
 		if err := abstract_reader.FlushChunk(ctx, filePath, uint64(chunkReader.Offset()), int64(len(data)), parsed, pusher); err != nil {
 			return xerrors.Errorf("unable to push: %w", err)
 		}

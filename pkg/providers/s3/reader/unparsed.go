@@ -24,7 +24,7 @@ func HandleParseError(
 		return nil, xerrors.Errorf("unable to parse: %s:%v: %w", filePath, lineCounter, parseErr)
 	default:
 		ci := generic.NewUnparsed(
-			abstract.NewPartition(tableID.Name, 0),
+			abstract.NewEmptyPartition(),
 			tableID.Name,
 			[]byte(fmt.Sprintf("%s:%v", filePath, lineCounter)),
 			parseErr.Error(),
