@@ -41,9 +41,23 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}
 	transfer := helpers.MakeTransfer("fake", Source, &target, abstract.TransferTypeSnapshotAndIncrement)
 	checksTriggered := 0
+	nullColWithPKTriggered := 0
 
 	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, changeItem := range input {
+			if changeItem.Kind == abstract.UpdateKind && changeItem.Table == "null_col_with_pk" {
+				nullColWithPKTriggered += 1
+				for _, col := range changeItem.TableSchema.Columns() {
+					if col.ColumnName == "max_score" {
+						require.False(t, col.Required)
+						require.NotContains(t, changeItem.OldKeys.KeyNames, col.ColumnName)
+					} else {
+						require.True(t, col.Required)
+						require.Contains(t, changeItem.OldKeys.KeyNames, col.ColumnName)
+					}
+				}
+			}
+
 			if changeItem.Kind == abstract.DeleteKind || changeItem.Kind == abstract.UpdateKind {
 				checksTriggered += 1
 				for _, col := range changeItem.TableSchema.Columns() {
@@ -69,5 +83,8 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	_, err = srcConn.Exec(ctx, `DELETE FROM public.test  WHERE value = '21'`)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitCond(time.Second*60, func() bool { return checksTriggered == 2 }))
+	_, err = srcConn.Exec(ctx, `UPDATE public.null_col_with_pk SET max_score = '1337' WHERE id = 1`)
+	require.NoError(t, err)
+
+	require.NoError(t, helpers.WaitCond(time.Second*60, func() bool { return checksTriggered == 3 && nullColWithPKTriggered == 1 }))
 }

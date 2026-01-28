@@ -34,3 +34,19 @@ INSERT INTO test (value) VALUES
 INSERT INTO test (value, another) VALUES
 ('21', 'aaaaa')
 ;
+
+CREATE TABLE null_col_with_pk (
+    id serial PRIMARY KEY,
+    status int4 NOT NULL,
+    max_score int4
+);
+
+ALTER TABLE null_col_with_pk REPLICA IDENTITY FULL;
+
+INSERT INTO null_col_with_pk (
+    status
+) VALUES 
+(1),
+(2),
+(3);
+

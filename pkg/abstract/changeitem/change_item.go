@@ -54,7 +54,11 @@ type ChangeItem struct {
 	// OldKeys is a set of (PRIMARY) keys identifying the previous version of the tuple which this item represents.
 	//
 	// There are also special cases when this field contains different data:
-	//   - PG source: contains PRIMARY KEY fields as well as other fields for which UNIQUE indexes exist. Note that when there is no PRIMARY KEY, PG source considers one of the UNIQUE indexes to be the PRIMARY KEY. When REPLICA IDENTITY FULL is set, contains all fields.
+	//   - PG source: contains PRIMARY KEY fields as well as other fields for which UNIQUE indexes exist.
+	//     Note that when there is no PRIMARY KEY, PG source considers one of the UNIQUE indexes to be the PRIMARY KEY.
+	//     When REPLICA IDENTITY FULL is set:
+	//       - if a PRIMARY KEY exists: contains all columns except those whose values are NULL
+	//       - if no PRIMARY KEY exists: contains all columns (including NULL-valued ones)
 	//   - MySQL source: contains the same fields as columnNames or keys, depends on binlog_row_image.
 	//
 	// There may be other specific cases in addition to the ones mentioned above. In any case, one must rely on TableSchema, not on the presence or absence of particular columns inside this field.
