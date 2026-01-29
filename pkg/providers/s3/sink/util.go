@@ -32,34 +32,20 @@ func rowPart(row abstract.ChangeItem) string {
 }
 
 func createSerializer(outputFormat model.ParsingFormat, anyAsString bool) (serializer.BatchSerializer, error) {
-	switch outputFormat {
-	case model.ParsingFormatRaw:
-		return serializer.NewRawBatchSerializer(
-			&serializer.RawBatchSerializerConfig{
-				SerializerConfig: &serializer.RawSerializerConfig{
-					AddClosingNewLine: true,
-				},
-				BatchConfig: nil,
-			},
-		), nil
-	case model.ParsingFormatJSON:
-		return serializer.NewJSONBatchSerializer(
-			&serializer.JSONBatchSerializerConfig{
-				SerializerConfig: &serializer.JSONSerializerConfig{
-					AddClosingNewLine:    true,
-					UnsupportedItemKinds: nil,
-					AnyAsString:          anyAsString,
-				},
-				BatchConfig: nil,
-			},
-		), nil
-	case model.ParsingFormatCSV:
-		return serializer.NewCsvBatchSerializer(nil), nil
-	case model.ParsingFormatPARQUET:
-		return serializer.NewParquetBatchSerializer(), nil
-	default:
+	config := &serializer.BatchSerializerCommonConfig{
+		UnsupportedItemKinds: nil,
+		Format:               outputFormat,
+		AddClosingNewLine:    true,
+		AnyAsString:          anyAsString,
+		CompressionCodec:     nil, // TODO: add compression codec for parquet
+	}
+
+	batchSerializer := serializer.NewBatchSerializer(config)
+	if batchSerializer == nil {
 		return nil, xerrors.New("s3_sink: Unsupported format")
 	}
+
+	return batchSerializer, nil
 }
 
 func hashLongPart(text string, maxLen int) string {

@@ -1,16 +1,33 @@
 package serializer
 
 import (
+	"bytes"
 	"runtime"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"golang.org/x/xerrors"
 )
 
 type dummySerializer struct {
+	Serializer
 	hook func()
+}
+
+func (s *dummySerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, separator []byte, buf *bytes.Buffer) error {
+	data, err := s.Serialize(item)
+	if err != nil {
+		return xerrors.Errorf("dummySerializer: unable to serialize item: %w", err)
+	}
+	if _, err := buf.Write(data); err != nil {
+		return xerrors.Errorf("dummySerializer: unable to write data to buffer: %w", err)
+	}
+	if _, err := buf.Write(separator); err != nil {
+		return xerrors.Errorf("dummySerializer: unable to write separator: %w", err)
+	}
+	return nil
 }
 
 func (s *dummySerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
@@ -19,6 +36,10 @@ func (s *dummySerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 	}
 
 	return strconv.AppendUint(nil, item.LSN, 10), nil
+}
+
+func (s *dummySerializer) Close() ([]byte, error) {
+	return nil, nil
 }
 
 func TestBatchSerializer(t *testing.T) {

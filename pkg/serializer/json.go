@@ -1,6 +1,7 @@
 package serializer
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 
@@ -24,6 +25,54 @@ type jsonStreamSerializer struct {
 	writer     io.Writer
 }
 
+func (s *jsonSerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, separator []byte, buf *bytes.Buffer) error {
+	if !item.IsRowEvent() {
+		return nil
+	}
+	if s.config.UnsupportedItemKinds[item.Kind] {
+		return xerrors.Errorf("JsonSerializer: unsupported kind: %s", item.Kind)
+	}
+
+	kv := make(map[string]interface{}, len(item.ColumnNames))
+	for i := range item.ColumnNames {
+		columnName := item.ColumnNames[i]
+		value := item.ColumnValues[i]
+
+		finalValue := value
+		if s.config.AnyAsString && item.TableSchema.Columns()[i].DataType == string(schema.TypeAny) && value != nil {
+			valueData, err := json.Marshal(value)
+			if err != nil {
+				return xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", err)
+			}
+			finalValue = string(valueData)
+		}
+
+		kv[columnName] = finalValue
+	}
+
+	// Use encoder with SetEscapeHTML(false) to preserve original characters like &, <, >
+	encoder := json.NewEncoder(buf)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(kv); err != nil {
+		return xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", err)
+	}
+	// Remove trailing newline added by Encode()
+	data := buf.Bytes()
+	if len(data) > 0 && data[len(data)-1] == '\n' && !s.config.AddClosingNewLine {
+		buf.Truncate(buf.Len() - 1)
+	} else if s.config.AddClosingNewLine && (len(data) == 0 || data[len(data)-1] != '\n') {
+		buf.WriteByte('\n')
+	}
+
+	if len(separator) > 0 {
+		if _, err := buf.Write(separator); err != nil {
+			return xerrors.Errorf("JsonSerializer: unable to write separator: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (s *jsonSerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 	if !item.IsRowEvent() {
 		return nil, nil
@@ -34,27 +83,42 @@ func (s *jsonSerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 
 	kv := make(map[string]interface{}, len(item.ColumnNames))
 	for i := range item.ColumnNames {
-		if s.config.AnyAsString && item.TableSchema.Columns()[i].DataType == string(schema.TypeAny) && item.ColumnValues[i] != nil {
-			valueData, err := json.Marshal(item.ColumnValues[i])
+		columnName := item.ColumnNames[i]
+		value := item.ColumnValues[i]
+
+		var finalValue interface{}
+		finalValue = value
+		if s.config.AnyAsString && item.TableSchema.Columns()[i].DataType == string(schema.TypeAny) && value != nil {
+			valueData, err := json.Marshal(value)
 			if err != nil {
 				return nil, xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", err)
 			}
-			kv[item.ColumnNames[i]] = string(valueData)
-		} else {
-			kv[item.ColumnNames[i]] = item.ColumnValues[i]
+			finalValue = string(valueData)
 		}
+
+		kv[columnName] = finalValue
 	}
 
-	data, err := json.Marshal(kv)
-	if err != nil {
+	// Use encoder with SetEscapeHTML(false) to preserve original characters like &, <, >
+	buf := new(bytes.Buffer)
+	encoder := json.NewEncoder(buf)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(kv); err != nil {
 		return nil, xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", err)
 	}
-
-	if s.config.AddClosingNewLine {
+	// Remove trailing newline added by Encode()
+	data := buf.Bytes()
+	if len(data) > 0 && data[len(data)-1] == '\n' && !s.config.AddClosingNewLine {
+		data = data[:len(data)-1]
+	} else if s.config.AddClosingNewLine && (len(data) == 0 || data[len(data)-1] != '\n') {
 		data = append(data, byte('\n'))
 	}
 
 	return data, nil
+}
+
+func (s *jsonSerializer) Close() ([]byte, error) {
+	return nil, nil
 }
 
 func (s *jsonStreamSerializer) Serialize(items []*abstract.ChangeItem) error {

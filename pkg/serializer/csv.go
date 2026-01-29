@@ -41,6 +41,38 @@ func (s *csvSerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
+func (s *csvSerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, separator []byte, buf *bytes.Buffer) error {
+	rowOut := csv.NewWriter(buf)
+	cells := make([]string, len(item.ColumnValues))
+	for i, v := range item.ColumnValues {
+		cell, err := castx.ToStringE(v)
+		if err != nil {
+			rawJSON, err := json.Marshal(v)
+			if err != nil {
+				return xerrors.Errorf("CsvSerializer: unable to marshal composite cell: %w", err)
+			}
+			cell = string(rawJSON)
+		}
+		cells[i] = cell
+	}
+	if err := rowOut.Write(cells); err != nil {
+		return xerrors.Errorf("CsvSerializer: unable to write cells: %w", err)
+	}
+	rowOut.Flush()
+
+	if len(separator) > 0 {
+		if _, err := buf.Write(separator); err != nil {
+			return xerrors.Errorf("CsvSerializer: unable to write separator: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *csvSerializer) Close() ([]byte, error) {
+	return nil, nil
+}
+
 func (s *csvStreamSerializer) Serialize(items []*abstract.ChangeItem) error {
 	for _, item := range items {
 		data, err := s.serializer.Serialize(item)

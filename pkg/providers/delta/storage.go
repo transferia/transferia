@@ -197,6 +197,7 @@ func NewStorage(cfg *DeltaSource, lgr log.Logger, registry metrics.Registry) (*S
 	s3Source.ReadBatchSize = defaultReadBatchSize
 	s3Source.HideSystemCols = cfg.HideSystemCols
 	s3Source.InputFormat = model.ParsingFormatPARQUET
+	s3Source.PathPattern = "*.parquet"
 
 	reader, err := reader_factory.NewReader(s3Source, lgr, sess, stats.NewSourceStats(registry))
 	if err != nil {

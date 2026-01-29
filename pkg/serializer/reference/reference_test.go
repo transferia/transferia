@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/serializer"
 	e2e "github.com/transferia/transferia/tests/canon"
 	"golang.org/x/exp/slices"
@@ -80,45 +81,39 @@ func TestBatchSerializer(t *testing.T) {
 	}{
 		{
 			Name: "csv:default",
-			Serializer: serializer.NewCsvBatchSerializer(
-				&serializer.CsvBatchSerializerConfig{},
-			),
+			Serializer: serializer.NewBatchSerializer(&serializer.BatchSerializerCommonConfig{
+				Format: model.ParsingFormatCSV,
+			}),
 			Generator: ReadChangeItems,
 		},
 		{
 			Name: "json:default",
-			Serializer: serializer.NewJSONBatchSerializer(
-				&serializer.JSONBatchSerializerConfig{},
-			),
+			Serializer: serializer.NewBatchSerializer(&serializer.BatchSerializerCommonConfig{
+				Format: model.ParsingFormatJSON,
+			}),
 			Generator: ReadChangeItems,
 		},
 		{
 			Name: "json:newline",
-			Serializer: serializer.NewJSONBatchSerializer(
-				&serializer.JSONBatchSerializerConfig{
-					SerializerConfig: &serializer.JSONSerializerConfig{
-						AddClosingNewLine: true,
-					},
-				},
-			),
+			Serializer: serializer.NewBatchSerializer(&serializer.BatchSerializerCommonConfig{
+				Format:            model.ParsingFormatJSON,
+				AddClosingNewLine: true,
+			}),
 			Generator: ReadChangeItems,
 		},
 		{
 			Name: "raw:default",
-			Serializer: serializer.NewRawBatchSerializer(
-				&serializer.RawBatchSerializerConfig{},
-			),
+			Serializer: serializer.NewBatchSerializer(&serializer.BatchSerializerCommonConfig{
+				Format: model.ParsingFormatRaw,
+			}),
 			Generator: MakeChangeItems,
 		},
 		{
 			Name: "raw:newline",
-			Serializer: serializer.NewRawBatchSerializer(
-				&serializer.RawBatchSerializerConfig{
-					SerializerConfig: &serializer.RawSerializerConfig{
-						AddClosingNewLine: true,
-					},
-				},
-			),
+			Serializer: serializer.NewBatchSerializer(&serializer.BatchSerializerCommonConfig{
+				Format:            model.ParsingFormatRaw,
+				AddClosingNewLine: true,
+			}),
 			Generator: MakeChangeItems,
 		},
 	}

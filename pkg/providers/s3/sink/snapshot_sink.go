@@ -105,6 +105,11 @@ func (s *SnapshotSink) pushItem(row *abstract.ChangeItem, buckets buckets) error
 		snapshots := s.snapshots[rowPart(*row)]
 		s.logger.Info("finishing uploading table", log.String("table", fullTableName))
 		for _, holder := range snapshots {
+			lastBytes, err := holder.serializer.Close()
+			if err != nil {
+				return xerrors.Errorf("unable to close serializer: %w", err)
+			}
+			holder.snapshot.FeedChannel() <- lastBytes
 			holder.snapshot.Close()
 			if err := <-holder.uploadDone; err != nil {
 				return xerrors.Errorf("unable to finish uploading table %q: %w", fullTableName, err)

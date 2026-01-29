@@ -1,9 +1,9 @@
 package reader
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -106,12 +106,7 @@ func (r *ReaderParquet) ResolveSchema(ctx context.Context) (*abstract.TableSchem
 }
 
 func (r *ReaderParquet) ObjectsFilter() abstract_reader.ObjectsFilter {
-	return func(file *aws_s3.Object) bool {
-		if !abstract_reader.IsNotEmpty(file) {
-			return false
-		}
-		return strings.HasSuffix(*file.Key, ".parquet")
-	}
+	return abstract_reader.IsNotEmpty
 }
 
 func (r *ReaderParquet) resolveSchema(ctx context.Context, filePath string) (*abstract.TableSchema, error) {
@@ -196,6 +191,19 @@ func (r *ReaderParquet) openReader(ctx context.Context, filePath string) (*parqu
 		return nil, xerrors.Errorf("unable to create reader at: %w", err)
 	}
 	r.s3RawReader = sr
+
+	// For compressed files, parquet-go requires correct Size() which should return uncompressed size.
+	// wrappedReader.Size() returns compressed size from S3 metadata, which breaks footer reading.
+	// Solution: if reader implements ReaderAll (i.e., it's a compressed file wrapper),
+	// load the full uncompressed content and create bytes.Reader.
+	if readerAll, ok := sr.(s3raw.ReaderAll); ok {
+		data, err := readerAll.ReadAll()
+		if err != nil {
+			return nil, xerrors.Errorf("unable to read full object for parquet: %w", err)
+		}
+		return parquet.NewReader(bytes.NewReader(data)), nil
+	}
+
 	return parquet.NewReader(sr), nil
 }
 

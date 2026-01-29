@@ -2,46 +2,75 @@ package serializer
 
 import (
 	"bytes"
+	"context"
 	"io"
 
 	"github.com/parquet-go/parquet-go"
+	"github.com/parquet-go/parquet-go/compress"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 )
 
 type parquetStreamSerializer struct {
-	schema      *parquet.Schema
-	writer      *parquet.GenericWriter[struct{}]
-	tableSchema abstract.FastTableSchema
+	schema           *parquet.Schema
+	compressionCodec compress.Codec
+	writer           *parquet.GenericWriter[struct{}]
+	tableSchema      abstract.FastTableSchema
 }
+
+var _ BatchSerializer = (*parquetBatchSerializer)(nil)
 
 // works via stream serializer
 type parquetBatchSerializer struct {
-	schema      *parquet.Schema
-	tableSchema abstract.FastTableSchema
+	schema           *parquet.Schema
+	compressionCodec compress.Codec
+	tableSchema      abstract.FastTableSchema
+	streamSerializer *parquetStreamSerializer
+
+	buffer *bytes.Buffer
+}
+
+func (s *parquetBatchSerializer) SerializeAndWrite(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) error {
+	serialized, err := s.Serialize(items)
+	if err != nil {
+		return xerrors.Errorf("ParquetBatchSerialize: unable to serialize items: %w", err)
+	}
+	if _, err := writer.Write(serialized); err != nil {
+		return xerrors.Errorf("ParquetBatchSerialize: unable to write data: %w", err)
+	}
+	return nil
 }
 
 func (s *parquetBatchSerializer) Serialize(items []*abstract.ChangeItem) ([]byte, error) {
-	var buffer = bytes.NewBuffer(make([]byte, 0))
 	if s.schema == nil {
+		s.buffer = bytes.NewBuffer(make([]byte, 0))
 		parquetSchema, err := BuildParquetSchema(items[0].TableSchema.FastColumns())
 		if err != nil {
 			return nil, xerrors.Errorf("s3_sink: failed to create serializer: %w", err)
 		}
 		s.schema = parquetSchema
 		s.tableSchema = items[0].TableSchema.FastColumns()
+
+		s.streamSerializer, err = NewParquetStreamSerializer(s.buffer, s.schema, s.tableSchema, s.compressionCodec)
+		if err != nil {
+			return nil, xerrors.Errorf("ParquetBatchSerialize: unable to build underlying stream serializer: %w", err)
+		}
 	}
-	streamSerializer, err := NewParquetStreamSerializer(buffer, s.schema, s.tableSchema)
-	if err != nil {
-		return nil, xerrors.Errorf("ParquetBatchSerialize: unable to build underlying stream serializer: %w", err)
-	}
-	if err := streamSerializer.Serialize(items); err != nil {
+	if err := s.streamSerializer.Serialize(items); err != nil {
 		return nil, xerrors.Errorf("ParquetBatchSerialize: unable to serialize items: %w", err)
 	}
-	if err := streamSerializer.Close(); err != nil {
-		return nil, xerrors.Errorf("ParquetBatchSerialize: unable to serialize items: %w", err)
+
+	serialized := s.buffer.Bytes()
+	s.buffer.Reset()
+
+	return serialized, nil
+}
+
+func (s *parquetBatchSerializer) Close() ([]byte, error) {
+	if err := s.streamSerializer.Close(); err != nil {
+		return nil, xerrors.Errorf("ParquetBatchSerialize: unable to close stream serializer: %w", err)
 	}
-	return buffer.Bytes(), nil
+	return s.buffer.Bytes(), nil
 }
 
 func (s *parquetStreamSerializer) SetStream(ostream io.Writer) error {
@@ -49,7 +78,8 @@ func (s *parquetStreamSerializer) SetStream(ostream io.Writer) error {
 		return xerrors.Errorf("parquetStreamSerializer: failed to close sink: %w", err)
 	}
 
-	s.writer = parquet.NewGenericWriter[struct{}](ostream, s.schema)
+	options := []parquet.WriterOption{parquet.Compression(s.compressionCodec), s.schema}
+	s.writer = parquet.NewGenericWriter[struct{}](ostream, options...)
 
 	return nil
 }
@@ -99,11 +129,12 @@ func (s *parquetStreamSerializer) Close() (err error) {
 	return err
 }
 
-func NewParquetStreamSerializer(ostream io.Writer, schema *parquet.Schema, tableSchema abstract.FastTableSchema) (*parquetStreamSerializer, error) {
+func NewParquetStreamSerializer(ostream io.Writer, schema *parquet.Schema, tableSchema abstract.FastTableSchema, compressionCodec compress.Codec) (*parquetStreamSerializer, error) {
 	pqSerializer := parquetStreamSerializer{
-		schema:      schema,
-		writer:      nil,
-		tableSchema: tableSchema,
+		schema:           schema,
+		writer:           nil,
+		tableSchema:      tableSchema,
+		compressionCodec: compressionCodec,
 	}
 
 	err := pqSerializer.SetStream(ostream)
@@ -114,9 +145,12 @@ func NewParquetStreamSerializer(ostream io.Writer, schema *parquet.Schema, table
 	return &pqSerializer, nil
 }
 
-func NewParquetBatchSerializer() *parquetBatchSerializer {
+func NewParquetBatchSerializer(compressionCodec compress.Codec) *parquetBatchSerializer {
 	return &parquetBatchSerializer{
-		schema:      nil,
-		tableSchema: nil,
+		schema:           nil,
+		tableSchema:      nil,
+		compressionCodec: compressionCodec,
+		streamSerializer: nil,
+		buffer:           nil,
 	}
 }

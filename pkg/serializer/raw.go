@@ -1,6 +1,7 @@
 package serializer
 
 import (
+	"bytes"
 	"io"
 
 	"github.com/transferia/transferia/pkg/abstract"
@@ -33,6 +34,36 @@ func (s *rawSerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 		data = append(data, byte('\n'))
 	}
 	return data, nil
+}
+
+func (s *rawSerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, separator []byte, buf *bytes.Buffer) error {
+	if !item.IsMirror() {
+		return abstract.NewFatalError(xerrors.New("unexpected input, expect no converted raw data"))
+	}
+	data, err := abstract.GetRawMessageData(*item)
+	if err != nil {
+		return xerrors.Errorf("unable to construct raw message data: %w", err)
+	}
+
+	if s.config.AddClosingNewLine {
+		data = append(data, byte('\n'))
+	}
+	_, err = buf.Write(data)
+	if err != nil {
+		return xerrors.Errorf("rawSerializer: unable to write data to buffer: %w", err)
+	}
+
+	if len(separator) > 0 {
+		if _, err := buf.Write(separator); err != nil {
+			return xerrors.Errorf("rawSerializer: unable to write separator: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *rawSerializer) Close() ([]byte, error) {
+	return nil, nil
 }
 
 func createDefaultRawSerializerConfig() *RawSerializerConfig {

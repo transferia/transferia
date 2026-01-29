@@ -1,6 +1,7 @@
 package sink
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -160,13 +161,9 @@ func (s *ReplicationSink) tryUploadWithIntersectionGuard(cache *FileCache, fileP
 	resCh := make([]chan error, len(cacheParts))
 
 	for i, part := range cacheParts {
-		batchSerializer, err := createSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
+		data, err := s.serialize(part)
 		if err != nil {
-			return xerrors.Errorf("unable to upload file part: %w", err)
-		}
-		data, err := batchSerializer.Serialize(part.items)
-		if err != nil {
-			return xerrors.Errorf("unable to upload file part: %w", err)
+			return xerrors.Errorf("unable to serialize part: %w", err)
 		}
 
 		resCh[i] = make(chan error, 1)
@@ -195,6 +192,26 @@ func (s *ReplicationSink) tryUploadWithIntersectionGuard(cache *FileCache, fileP
 		return xerrors.Errorf("unable to upload file part: %w", errs)
 	}
 	return nil
+}
+
+func (s *ReplicationSink) serialize(part *FileCache) ([]byte, error) {
+	batchSerializer, err := createSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to upload file part: %w", err)
+	}
+	data, err := batchSerializer.Serialize(part.items)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to upload file part: %w", err)
+	}
+	buffer := bytes.NewBuffer(make([]byte, 0, len(data)))
+	buffer.Write(data)
+	remainingData, err := batchSerializer.Close()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to close batch serializer: %w", err)
+	}
+	buffer.Write(remainingData)
+
+	return buffer.Bytes(), nil
 }
 
 func (s *ReplicationSink) bucket(row abstract.ChangeItem) string {
