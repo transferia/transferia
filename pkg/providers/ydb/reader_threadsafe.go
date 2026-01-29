@@ -18,19 +18,25 @@ import (
 const sourceBatchMaxLen = 10000
 
 type readerThreadSafe struct {
-	mutex      sync.Mutex
+	// RWMutex is used to make Close() mutually exclusive with any in-flight reader operations.
+	//
+	// We allow ReadMessageBatch()/Commit() under RLock: they may run in parallel with each other,
+	// and the ydb-go-sdk/topicreader implementation is responsible for synchronizing read/commit semantics.
+	// but Close() must acquire the write lock to ensure the underlying topic reader isn't closed
+	// while a read/commit RPC is still using it.
+	mutex      sync.RWMutex
 	readerImpl *topicreader.Reader
 }
 
 func (r *readerThreadSafe) ReadMessageBatch(ctx context.Context) (*topicreader.Batch, error) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	return r.readerImpl.ReadMessagesBatch(ctx)
 }
 
 func (r *readerThreadSafe) Commit(ctx context.Context, batch *topicreader.Batch) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	return r.readerImpl.Commit(ctx, batch)
 }
 
@@ -71,7 +77,7 @@ func newReader(feedName, consumerName, dbname string, tables []string, ydbClient
 	}
 
 	return &readerThreadSafe{
-		mutex:      sync.Mutex{},
+		mutex:      sync.RWMutex{},
 		readerImpl: readerImpl,
 	}, nil
 }

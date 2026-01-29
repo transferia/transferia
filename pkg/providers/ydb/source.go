@@ -204,8 +204,9 @@ func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {
 					s.logger.Warn("failed to commit change items", log.Error(err))
 					return nil
 				}
+				return err
 			}
-			return err
+			return nil
 		}()
 		if err != nil {
 			util.Send(s.ctx, s.errCh, xerrors.Errorf("failed to commit change items: %w", err))
@@ -299,7 +300,6 @@ func discoverChangeFeedMode(ydbClient *ydb.Driver, tablePath, changeFeedName str
 		}
 		return nil
 	}, table.WithIdempotent()) // User already created changefeed and specified its name, so we only try to get it's mode.
-
 	if err != nil {
 		return "", xerrors.Errorf("failed to define ChangeFeed Mode: %w", err)
 	}
