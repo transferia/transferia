@@ -45,18 +45,22 @@ func GetRuntimeJSON(runtime Runtime) (string, error) {
 	return string(b), nil
 }
 
-func RuntimeParamsEqual(runtime, anotherRuntime Runtime) bool {
-	runtimeStr, err := GetRuntimeJSON(RuntimeCopyWithDefaults(runtime))
+func RuntimesEqual(runtime, anotherRuntime Runtime) bool {
+	runtimeStr, err := GetRuntimeJSON(runtime)
 	if err != nil {
 		return false
 	}
 
-	anotherRuntimeStr, err := GetRuntimeJSON(RuntimeCopyWithDefaults(anotherRuntime))
+	anotherRuntimeStr, err := GetRuntimeJSON(anotherRuntime)
 	if err != nil {
 		return false
 	}
 
 	return runtimeStr == anotherRuntimeStr
+}
+
+func RuntimesParamsEqual(runtime, anotherRuntime Runtime) bool {
+	return RuntimesEqual(RuntimeCopyWithDefaults(runtime), RuntimeCopyWithDefaults(anotherRuntime))
 }
 
 func NewRuntime(runtime RuntimeType, runtimeSpec string) (Runtime, error) {
