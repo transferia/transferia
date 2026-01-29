@@ -1571,6 +1571,7 @@
   "pkg/providers/kafka/reader/partition_reader.go":"transfer_manager/go/pkg/providers/kafka/reader/partition_reader.go",
   "pkg/providers/kafka/recipe.go":"transfer_manager/go/pkg/providers/kafka/recipe.go",
   "pkg/providers/kafka/resolver.go":"transfer_manager/go/pkg/providers/kafka/resolver.go",
+  "pkg/providers/kafka/resolver_test.go":"transfer_manager/go/pkg/providers/kafka/resolver_test.go",
   "pkg/providers/kafka/sink.go":"transfer_manager/go/pkg/providers/kafka/sink.go",
   "pkg/providers/kafka/sink_test.go":"transfer_manager/go/pkg/providers/kafka/sink_test.go",
   "pkg/providers/kafka/source.go":"transfer_manager/go/pkg/providers/kafka/source.go",

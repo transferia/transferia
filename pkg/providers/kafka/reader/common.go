@@ -20,12 +20,12 @@ func ensureTopicsExistWithRetries(client *kgo.Client, topics ...string) error {
 	if err := backoff.Retry(func() error {
 		return ensureTopicExists(client, topics)
 	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5)); err != nil {
-		return abstract.NewFatalError(xerrors.Errorf("unable to ensure topic exists: %w", err))
+		return xerrors.Errorf("unable to ensure topic exists: %w", err)
 	}
 	return nil
 }
 
-func ensureTopicExists(cl *kgo.Client, topics []string) error {
+func ensureTopicExists(requestor kmsg.Requestor, topics []string) error {
 	req := kmsg.NewMetadataRequest()
 	for _, topic := range topics {
 		reqTopic := kmsg.NewMetadataRequestTopic()
@@ -35,7 +35,7 @@ func ensureTopicExists(cl *kgo.Client, topics []string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	resp, err := req.RequestWith(ctx, cl)
+	resp, err := req.RequestWith(ctx, requestor)
 	if err != nil {
 		return xerrors.Errorf("unable to check topics existence: %w", err)
 	}
@@ -56,7 +56,7 @@ func ensureTopicExists(cl *kgo.Client, topics []string) error {
 		missedTopics = append(missedTopics, name)
 	}
 	if len(missedTopics) != 0 {
-		return coded.Errorf(codes.MissingData, "%v not found", missedTopics)
+		return abstract.NewFatalError(coded.Errorf(codes.MissingData, "%v not found", missedTopics))
 	}
 
 	return nil

@@ -8,7 +8,6 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
-	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/connection"
 	"github.com/transferia/transferia/pkg/connection/kafka"
@@ -31,7 +30,7 @@ func ResolveBrokers(s *KafkaConnectionOptions) ([]string, error) {
 		brokers = s.Brokers
 	}
 	if len(brokers) == 0 {
-		return nil, abstract.NewFatalError(xerrors.New("unable to connect, no brokers found"))
+		return nil, xerrors.New("unable to connect, no brokers found")
 	}
 	return brokers, nil
 }
