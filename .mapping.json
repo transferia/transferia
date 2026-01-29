@@ -1032,6 +1032,8 @@
   "pkg/kv/yt_dyn_table_kv_wrapper_test.go":"transfer_manager/go/pkg/kv/yt_dyn_table_kv_wrapper_test.go",
   "pkg/logging/batching_logger/batching_logger.go":"transfer_manager/go/pkg/logging/batching_logger/batching_logger.go",
   "pkg/logging/batching_logger/batching_logger_funcs.go":"transfer_manager/go/pkg/logging/batching_logger/batching_logger_funcs.go",
+  "pkg/logging/batching_logger/throttler.go":"transfer_manager/go/pkg/logging/batching_logger/throttler.go",
+  "pkg/logging/batching_logger/throttler_test.go":"transfer_manager/go/pkg/logging/batching_logger/throttler_test.go",
   "pkg/metering/agent.go":"transfer_manager/go/pkg/metering/agent.go",
   "pkg/metering/agent_stub.go":"transfer_manager/go/pkg/metering/agent_stub.go",
   "pkg/metering/initializer_os.go":"transfer_manager/go/pkg/metering/initializer_os.go",

@@ -42,7 +42,7 @@ func ListNewMyFiles(
 				return false
 			}
 
-			currLogger := batching_logger.NewBatchingLogger(func(in string) { logger.Debug(in) }, "ListNewMyFiles", "|", true)
+			currLogger := batching_logger.NewBatchingLogger(batching_logger.NewAbsentThrottler(), func(in string) { logger.Debug(in) }, "ListNewMyFiles", "|", true)
 			defer currLogger.Close()
 
 			for _, currentFile := range o.Contents {

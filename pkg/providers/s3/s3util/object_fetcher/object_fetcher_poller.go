@@ -91,7 +91,7 @@ func initDispatcherFromState(
 	if err != nil {
 		return xerrors.Errorf("unable to get transfer state: %w", err)
 	}
-	batching_logger.LogLine(func(in string) { logger.Info(in) }, "load state", log.Any("state", stateMap))
+	batching_logger.LogLine(batching_logger.NewAbsentThrottler(), func(in string) { logger.Info(in) }, "load state", log.Any("state", stateMap))
 	for k, v := range stateMap {
 		kNum, err := strconv.Atoi(k)
 		if err != nil {

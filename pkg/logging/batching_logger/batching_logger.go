@@ -14,6 +14,7 @@ const maxStringLengthConst = size.MiB / 2
 type loggingFunc func(in string)
 type BatchingLogger struct {
 	// config
+	throttler       Throttler
 	loggingFunc     loggingFunc
 	header          string
 	delimiter       string
@@ -37,6 +38,12 @@ func (l *BatchingLogger) flush(isFromClose bool) {
 	l.flushLine(sumString)
 }
 func (l *BatchingLogger) flushLine(in string) {
+	if !l.throttler.IsAllowed() {
+		l.loggingFunc("[batching-logger] skipped 'flushLine' by throttler")
+		return
+	}
+	l.throttler.WillLog()
+
 	l.loggingFunc(in)
 	l.state = make([]string, 0)
 	l.sumLen = 0
@@ -68,8 +75,9 @@ func (l *BatchingLogger) Log(in string) {
 func (l *BatchingLogger) Close() {
 	l.flush(true)
 }
-func NewBatchingLogger(inLoggingFunc loggingFunc, header string, delimiter string, addTime bool) *BatchingLogger {
+func NewBatchingLogger(throttler Throttler, inLoggingFunc loggingFunc, header string, delimiter string, addTime bool) *BatchingLogger {
 	return &BatchingLogger{
+		throttler:       throttler,
 		loggingFunc:     inLoggingFunc,
 		header:          header,
 		delimiter:       delimiter,
