@@ -22,14 +22,21 @@ func ChangeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Part
 	case string:
 		data = []byte(v)
 	}
+
 	var headers map[string]string
-	if rawHeaders, ok := ci.ColumnValues[5].(map[string]string); ok {
+	if rawHeaders, ok := ci.ColumnValues[abstract.RawDataColsIDX[abstract.RawMessageMeta]].(map[string]string); ok {
 		headers = rawHeaders
 	}
+
+	var key []byte
+	if rawKey, ok := ci.ColumnValues[abstract.RawDataColsIDX[abstract.RawSequenceKey]].([]byte); ok {
+		key = rawKey
+	}
+
 	return parsers.Message{
 			Offset:     ci.LSN,
 			SeqNo:      seqNo,
-			Key:        nil,
+			Key:        key,
 			CreateTime: time.Unix(0, int64(ci.CommitTime)),
 			WriteTime:  wTime,
 			Value:      data,

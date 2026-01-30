@@ -56,6 +56,8 @@ var RawMessageTopic = changeitem.RawMessageTopic
 var RawMessagePartition = changeitem.RawMessagePartition
 var RawMessageSeqNo = changeitem.RawMessageSeqNo
 var RawMessageWriteTime = changeitem.RawMessageWriteTime
+var RawMessageMeta = changeitem.RawMessageMeta
+var RawSequenceKey = changeitem.RawSequenceKey
 
 //---
 
