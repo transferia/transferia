@@ -2,13 +2,13 @@ package reader
 
 import (
 	"context"
-	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/twmb/franz-go/pkg/kadm"
-	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
+
+var ErrGroupNotFound = xerrors.New("group not found")
 
 type kafkaClient interface {
 	PollRecords(ctx context.Context, maxPollRecords int) kgo.Fetches
@@ -86,21 +86,20 @@ func NewPartitionReader(group string, partition int32, topic string, clientOpts 
 		return nil, xerrors.Errorf("unable to create kafka client: %w", err)
 	}
 
-	if err := ensureTopicsExistWithRetries(client, topic); err != nil { // TODO move to a general code to avoid many requests per partition
-		return nil, err
-	}
-
 	offsetClient := kadm.NewClient(client)
-	offset, err := fetchPartitionNextOffset(group, partition, topic, offsetClient)
-	if err != nil {
-		// CoordinatorNotAvailable may be caused by the absence of the consumer group
-		if xerrors.Is(err, kerr.CoordinatorNotAvailable) {
+	if err := groupExists(offsetClient, group); err != nil {
+		if xerrors.Is(err, ErrGroupNotFound) {
 			if err := createConsumerGroup(group, clientOpts); err != nil {
 				return nil, xerrors.Errorf("failed to create consumer group: %w", err)
 			}
 		} else {
-			return nil, xerrors.Errorf("unable to get offsets: %w", err)
+			return nil, xerrors.Errorf("failed to check if consumer group exists: %w", err)
 		}
+	}
+
+	offset, err := fetchPartitionNextOffset(group, partition, topic, offsetClient)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get offsets: %w", err)
 	}
 	client.AddConsumePartitions(map[string]map[int32]kgo.Offset{
 		topic: {partition: offset},
@@ -111,49 +110,4 @@ func NewPartitionReader(group string, partition int32, topic string, clientOpts 
 		offsetClient: offsetClient,
 		client:       client,
 	}, nil
-}
-
-// fetchPartitionOffset retrieves the committed offset for a specific partition
-// in a consumer group. Returns a zero offset if no offset has been committed.
-func fetchPartitionNextOffset(group string, partition int32, topic string, offsetCl kafkaOffsetClient) (kgo.Offset, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	offsetResponses, err := offsetCl.FetchOffsets(ctx, group)
-	if err != nil {
-		return kgo.Offset{}, xerrors.Errorf("failed to fetch offsets for topic %s partition %d: %w", topic, partition, err)
-	}
-
-	offset := kgo.NewOffset()
-	if topicPartitionOffsets, ok := offsetResponses[topic]; ok {
-		if partitionOffset, ok := topicPartitionOffsets[partition]; ok {
-			if partitionOffset.Err != nil {
-				return kgo.Offset{}, xerrors.Errorf("topic %s partition %d offset response error: %w", topic, partition, partitionOffset.Err)
-			}
-			offset = offset.At(partitionOffset.At + 1)
-		}
-	}
-
-	return offset, nil
-}
-
-// createConsumerGroup creates a consumer group in Kafka by initializing a client
-// and performing a single poll operation. The group is created lazily on first poll.
-func createConsumerGroup(group string, clientOpts []kgo.Opt) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	clientOptsWithGroup := append(clientOpts,
-		kgo.ConsumerGroup(group),
-		kgo.DisableAutoCommit(),
-	)
-	client, err := kgo.NewClient(clientOptsWithGroup...)
-	if err != nil {
-		return xerrors.Errorf("unable to create kafka client to initialize consumer group: %w", err)
-	}
-	defer client.Close()
-
-	_ = client.PollRecords(ctx, 1)
-
-	return nil
 }

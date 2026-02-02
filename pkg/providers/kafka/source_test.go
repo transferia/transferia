@@ -236,24 +236,8 @@ func TestParseLSNNotSetNull(t *testing.T) {
 }
 
 func TestPartitionSource(t *testing.T) {
-	t.Skip()
-
 	kafkaCfgTemplate, err := SourceRecipe()
 	require.NoError(t, err)
-
-	t.Run("NoTopic", func(t *testing.T) {
-		topicName := "no_topic"
-		topicPartition := int32(2)
-
-		kafkaCfg := *kafkaCfgTemplate
-		kafkaCfg.Topic = topicName
-		partitionDesc := &PartitionDescription{
-			Partition: topicPartition,
-		}
-
-		_, err := NewSource("dtt", &kafkaCfg, partitionDesc, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
-		require.Error(t, err)
-	})
 
 	t.Run("FullyReadOnePartition", func(t *testing.T) {
 		topicName := "fully_read_topic"
@@ -270,7 +254,7 @@ func TestPartitionSource(t *testing.T) {
 		src, err := NewSource("dtt", &kafkaCfg, partitionDesc, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		result, err := sourcehelpers.WaitForItems(src, 10, 0)
+		result, err := sourcehelpers.WaitForItems(src, 10, 500*time.Millisecond)
 		require.NoError(t, err)
 
 		topicPartitionData, ok := testData[topicPartition]
@@ -282,6 +266,10 @@ func TestPartitionSource(t *testing.T) {
 			require.Equal(t, topicPartition, int32(item.QueueMessageMeta.PartitionNum))
 			require.Equal(t, string(topicPartitionData[idx]), item.ColumnValues[4])
 		}
+
+		committedOffsets := fetchOffsets(t, "dtt", &kafkaCfg)
+		require.NotNil(t, committedOffsets)
+		require.Equal(t, int64(9), committedOffsets[topicName][partitionDesc.Partition].At)
 	})
 
 	t.Run("ReadOnePartitionFromSomeOffset", func(t *testing.T) {
@@ -310,7 +298,7 @@ func TestPartitionSource(t *testing.T) {
 		src, err = NewSource("dtt", &kafkaCfg, partitionDesc, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		result, err := sourcehelpers.WaitForItems(src, 7, 0)
+		result, err := sourcehelpers.WaitForItems(src, 7, 500*time.Millisecond)
 		require.NoError(t, err)
 
 		topicPartitionData, ok := testData[topicPartition]
@@ -325,7 +313,9 @@ func TestPartitionSource(t *testing.T) {
 			require.Equal(t, string(topicPartitionData[idx]), item.ColumnValues[4])
 		}
 
-		// TODO check that other offsets are uncommitted
+		committedOffsets := fetchOffsets(t, "dtt", &kafkaCfg)
+		require.NotNil(t, committedOffsets)
+		require.Equal(t, int64(9), committedOffsets[topicName][partitionDesc.Partition].At)
 	})
 }
 

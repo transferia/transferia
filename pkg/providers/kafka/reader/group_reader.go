@@ -51,10 +51,6 @@ func NewGroupReader(group string, topics []string, clientOpts []kgo.Opt) (*Group
 		return nil, xerrors.Errorf("unable to create kafka client: %w", err)
 	}
 
-	if err := ensureTopicsExistWithRetries(client, topics...); err != nil {
-		return nil, err
-	}
-
 	return &GroupReader{
 		client: client,
 	}, nil

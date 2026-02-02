@@ -561,6 +561,19 @@ func NewSource(transferID string, cfg *KafkaSource, partitionDesc *PartitionDesc
 		cfg.BufferSize = 100 * 1024 * 1024
 	}
 
+	kfClient, err := kgo.NewClient(opts...)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create kafka client to ensure topics: %w", err)
+	}
+	topics := cfg.GroupTopics
+	if len(topics) == 0 {
+		topics = []string{cfg.Topic}
+	}
+	if err := ensureTopicsExistWithRetries(kfClient, topics...); err != nil {
+		return nil, xerrors.Errorf("unable to ensure topic exists: %w", err)
+	}
+	kfClient.Close()
+
 	if partitionDesc != nil {
 		source, err := newPartitionSource(transferID, cfg, partitionDesc, logger, registry, opts)
 		if err != nil {
