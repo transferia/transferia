@@ -87,6 +87,8 @@ func RunReplication(ctx context.Context, cp coordinator.Coordinator, transfer *m
 }
 
 func runReplication(ctx context.Context, cp coordinator.Coordinator, transfer *model.Transfer, registry metrics.Registry, lgr log.Logger) error {
+	transfer.WithDefault()
+	transfer.FillDependentFields()
 	if err := provideradapter.ApplyForTransfer(transfer); err != nil {
 		return xerrors.Errorf("unable to adapt transfer: %w", err)
 	}

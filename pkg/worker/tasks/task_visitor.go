@@ -201,6 +201,8 @@ func (v runTaskVisitor) PushOperationHealthMeta(t time.Time) {
 }
 
 func Run(ctx context.Context, task model.TransferOperation, command abstract.RunnableTask, cp coordinator.Coordinator, transfer model.Transfer, params interface{}, registry metrics.Registry) error {
+	transfer.WithDefault()
+	transfer.FillDependentFields()
 	logger.Log.Info("Run task", log.Bool("async_operations", transfer.AsyncOperations))
 	if _, ok := command.(abstract.ShardableTask); !ok {
 		if rt, ok := transfer.Runtime.(abstract.ShardingTaskRuntime); ok && !rt.SnapshotIsMain() {
