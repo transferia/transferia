@@ -155,7 +155,11 @@ func (s *Storage) BuildSharedMemory(
 		if !ok {
 			return nil, xerrors.Errorf("runtime is unsupported type, %T", transferUnwrapped.Runtime)
 		}
-		err := coordinator_utils.ResetWorkersDone(cpUnwrapped, transferUnwrapped.ID, runtimeUnwrapped)
+		err := coordinator_utils.ResetTransferState(s.logger, cpUnwrapped, transferUnwrapped.ID, runtimeUnwrapped, s.cfg.SyntheticPartitionsNum)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to reset transfer state: %w", err)
+		}
+		err = coordinator_utils.ResetWorkersDone(s.logger, cpUnwrapped, transferUnwrapped.ID, runtimeUnwrapped)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to reset workers, err: %w", err)
 		}

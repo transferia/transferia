@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -22,12 +23,20 @@ type OperationTablesParts struct {
 	statuses []tablePartStatus
 }
 
+func clearUseless(in *abstract.OperationTablePart) *abstract.OperationTablePart {
+	inCopy := in.Copy()
+	inCopy.CompletedRows = 0
+	inCopy.ReadBytes = 0
+	inCopy.Completed = false
+	return inCopy
+}
+
 func (p *OperationTablesParts) CreateOperationTablesParts(inTables []*abstract.OperationTablePart) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for _, table := range inTables {
-		p.tables = append(p.tables, table)
+		p.tables = append(p.tables, clearUseless(table))
 		p.statuses = append(p.statuses, tablePartStatusNew)
 	}
 	return nil
@@ -40,7 +49,7 @@ func (p *OperationTablesParts) AssignOperationTablePart() *abstract.OperationTab
 	for index, table := range p.tables {
 		if p.statuses[index] == tablePartStatusNew {
 			p.statuses[index] = tablePartStatusAssigned
-			return table
+			return table.Copy()
 		}
 	}
 	return nil
@@ -50,13 +59,19 @@ func (p *OperationTablesParts) UpdateOperationTablesParts(in *abstract.Operation
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	inCleared := clearUseless(in)
+
 	for index, table := range p.tables {
-		if table == in {
-			p.statuses[index] = tablePartStatusDone
+		if *table == *inCleared {
+			if in.Completed {
+				p.statuses[index] = tablePartStatusDone
+			}
 			return nil
 		}
 	}
-	return xerrors.New("operation table part not found")
+	inClearedSerializedBytes, _ := json.Marshal(inCleared)
+	tablesBytes, _ := json.Marshal(p.tables)
+	return xerrors.Errorf("operation table part not found, inCleared: %s, tablesBytes: %s", string(inClearedSerializedBytes), string(tablesBytes))
 }
 
 func NewOperationTablesParts() *OperationTablesParts {

@@ -25,6 +25,7 @@ type S3SharedMemorySecondaryWorker struct {
 	transferID         string
 	effectiveWorkerNum *effective_worker_num.EffectiveWorkerNum
 	cp                 coordinator.Coordinator
+	lgr                log.Logger
 
 	poller object_fetcher.ObjectFetcher // poller wrapped over contractor
 	files  []file.File
@@ -37,7 +38,7 @@ func (m *S3SharedMemorySecondaryWorker) Store([]*abstract.OperationTablePart) er
 // TAKE task
 func (m *S3SharedMemorySecondaryWorker) NextOperationTablePart(ctx context.Context) (*abstract.OperationTablePart, error) {
 	if len(m.files) == 0 {
-		err := coordinator_utils.SetWorkerDone(m.cp, m.transferID, m.effectiveWorkerNum)
+		err := coordinator_utils.SetWorkerDone(m.lgr, m.cp, m.transferID, m.effectiveWorkerNum)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to reset workers state, err: %w", err)
 		}
@@ -72,7 +73,23 @@ func (m *S3SharedMemorySecondaryWorker) UpdateOperationTablesParts(operationID s
 	if len(tables) != 1 {
 		return xerrors.Errorf("S3SharedMemorySecondaryWorker.UpdateOperationTablesParts - impossible situation, len(tables) can't not be equal to 1")
 	}
-	return m.poller.Commit(tables[0].Filter)
+	currTablePart := tables[0]
+
+	if !currTablePart.Completed {
+		return nil
+	}
+
+	filter := currTablePart.Filter
+	var fileList []string
+	err := json.Unmarshal([]byte(filter), &fileList)
+	if err != nil {
+		return xerrors.Errorf("unable to unmarshal filter, val:%s, err: %w", filter, err)
+	}
+	if len(fileList) != 1 {
+		return xerrors.Errorf("len(fileList)!=1, filter=%s", filter)
+	}
+
+	return m.poller.Commit(fileList[0])
 }
 
 func (m *S3SharedMemorySecondaryWorker) Close() error {
@@ -150,6 +167,7 @@ func NewS3SharedMemorySecondaryWorker(
 		transferID:         transferID,
 		effectiveWorkerNum: effectiveWorkerNum,
 		cp:                 cp,
+		lgr:                logger,
 		poller:             poller,
 		files:              files,
 	}, nil

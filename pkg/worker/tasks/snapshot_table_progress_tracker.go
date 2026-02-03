@@ -6,8 +6,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -53,7 +56,7 @@ func (t *SnapshotTableProgressTracker) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-pushTicker.C:
-			t.Flush(t.sharedMemory)
+			_ = t.Flush(false)
 		}
 	}
 }
@@ -63,11 +66,11 @@ func (t *SnapshotTableProgressTracker) Close() {
 	t.closeOnce.Do(func() {
 		t.cancel()
 		t.wg.Wait()
-		t.Flush(t.sharedMemory)
+		_ = t.Flush(true)
 	})
 }
 
-func (t *SnapshotTableProgressTracker) Flush(sharedMemory abstract.SharedMemory) {
+func (t *SnapshotTableProgressTracker) Flush(isTableDone bool) error {
 	t.progressUpdateMutex.Lock()
 	partsCopy := make([]*abstract.OperationTablePart, 0, len(t.parts))
 	for _, table := range t.parts {
@@ -75,15 +78,27 @@ func (t *SnapshotTableProgressTracker) Flush(sharedMemory abstract.SharedMemory)
 	}
 	t.progressUpdateMutex.Unlock()
 
-	if len(partsCopy) <= 0 {
-		return
+	if len(partsCopy) == 0 {
+		return nil
 	}
 
-	if err := sharedMemory.UpdateOperationTablesParts(t.operationID, partsCopy); err != nil {
-		logger.Log.Warn(
-			fmt.Sprintf("Failed to send tables progress for operation '%v'", t.operationID),
-			log.String("OperationID", t.operationID), log.Error(err))
-		return // Try next time
+	var currBackOff backoff.BackOff = &backoff.StopBackOff{}
+	if isTableDone {
+		currBackOff = backoff.NewExponentialBackOff()
+	}
+	err := backoff.RetryNotify(func() error {
+		return t.sharedMemory.UpdateOperationTablesParts(t.operationID, partsCopy)
+	}, currBackOff, util.BackoffLoggerWarn(logger.Log, "UpdateOperationTablesParts"))
+	if err != nil {
+		if !isTableDone {
+			logger.Log.Warn(
+				fmt.Sprintf("Failed to send tables progress for operation '%v'", t.operationID),
+				log.String("OperationID", t.operationID),
+				log.Error(err),
+			)
+			return nil
+		}
+		return xerrors.Errorf("failed to update operation tables parts, err: %w", err)
 	}
 
 	// Clear completed tables parts
@@ -100,6 +115,7 @@ func (t *SnapshotTableProgressTracker) Flush(sharedMemory abstract.SharedMemory)
 		}
 	}
 	t.progressUpdateMutex.Unlock()
+	return nil
 }
 
 func (t *SnapshotTableProgressTracker) Add(part *abstract.OperationTablePart) {

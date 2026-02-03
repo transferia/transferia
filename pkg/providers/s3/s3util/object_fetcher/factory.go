@@ -107,7 +107,7 @@ func newObjectFetcherWrapped(
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create ObjectFetcher, err: %w", err)
 	}
-	return NewObjectFetcherContractor(objectFetcher), nil
+	return NewObjectFetcherContractor(logger, objectFetcher), nil
 }
 
 // main factory function
@@ -156,7 +156,7 @@ func NewObjectFetcherPollerWrapped(
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create new ObjectFetcher poller, err: %w", err)
 	}
-	return NewObjectFetcherContractor(result), nil
+	return NewObjectFetcherContractor(logger, result), nil
 }
 
 // used in:

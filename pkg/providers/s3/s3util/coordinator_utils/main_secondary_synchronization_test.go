@@ -55,23 +55,23 @@ func TestMainSecondarySynchronization(t *testing.T) {
 	checkPresenceEffectiveWorkers(t, map[int]bool{0: false, 1: false, 2: false, 3: false}) // checkPresenceEffectiveWorkers in cp absent worker_done_key
 	checkDone(t, workers, 0, false)
 
-	err = ResetWorkersDone(cp, transferID, runtimeWorker0)
+	err = ResetWorkersDone(logger.Log, cp, transferID, runtimeWorker0)
 	require.NoError(t, err)
 
 	checkPresenceEffectiveWorkers(t, map[int]bool{0: true, 1: true, 2: false, 3: false}) // checkPresenceEffectiveWorkers in cp present worker_done_key - for key 0..2
 	checkDone(t, workers, 0, false)
 
-	err = SetWorkerDone(cp, transferID, effectiveWorkerNum1) // 1nd (effectiveWorkerNum=#1) worker done
+	err = SetWorkerDone(logger.Log, cp, transferID, effectiveWorkerNum1) // 1nd (effectiveWorkerNum=#1) worker done
 	require.NoError(t, err)
 
 	checkDone(t, workers, 1, false)
 
-	err = SetWorkerDone(cp, transferID, effectiveWorkerNum1) // idempotency
+	err = SetWorkerDone(logger.Log, cp, transferID, effectiveWorkerNum1) // idempotency
 	require.NoError(t, err)
 
 	checkDone(t, workers, 1, false)
 
-	err = SetWorkerDone(cp, transferID, effectiveWorkerNum0) // 2nd (effectiveWorkerNum=#0) worker done
+	err = SetWorkerDone(logger.Log, cp, transferID, effectiveWorkerNum0) // 2nd (effectiveWorkerNum=#0) worker done
 	require.NoError(t, err)
 
 	checkDone(t, workers, 2, true)

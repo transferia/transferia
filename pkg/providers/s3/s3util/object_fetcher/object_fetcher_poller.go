@@ -123,7 +123,7 @@ func newObjectFetcherPoller(
 	currDispatcher := dispatcher.NewDispatcher(rWindow, srcModel.SyntheticPartitionsNum, effectiveWorkerNum, srcModel.OverlapDuration)
 
 	logger.Infof(
-		"worker %d/%d (for %d synthetic_partitions) took next synthetic_partitions: %v",
+		"effective_worker %d/%d (for %d synthetic_partitions) took next synthetic_partitions: %v",
 		effectiveWorkerNum.CurrentWorkerNum,
 		effectiveWorkerNum.WorkersCount,
 		srcModel.SyntheticPartitionsNum,

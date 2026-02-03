@@ -2,6 +2,8 @@ package sharding_storage
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -24,7 +26,10 @@ func init() {
 	providers.Register(s3.ProviderType, s3provider.New)
 }
 
-const line = `{"Item":{"OrderID":{"S":"1"},"OrderDate":{"S":"2023-07-01T12:00:00Z"},"CustomerName":{"S":"John Doe"},"OrderAmount":{"N":"3540"}}}
+const line0 = `{"Item":{"OrderID":{"S":"0"},"OrderDate":{"S":"2023-07-01T12:00:00Z"},"CustomerName":{"S":"John Doe0"},"OrderAmount":{"N":"3540"}}}
+`
+
+const line1 = `{"Item":{"OrderID":{"S":"1"},"OrderDate":{"S":"2023-07-01T12:00:00Z"},"CustomerName":{"S":"John Doe1"},"OrderAmount":{"N":"3540"}}}
 `
 
 func buildSourceModel(t *testing.T) *s3.S3Source {
@@ -48,21 +53,21 @@ func TestShardingTransfer(t *testing.T) {
 	cfg := buildSourceModel(t)
 	operationID := "dtj"
 
-	s3recipe.UploadOneFromMemory(t, cfg, "file_0.jsonl", []byte(line))
-	s3recipe.UploadOneFromMemory(t, cfg, "file_1.jsonl", []byte(line))
+	s3recipe.UploadOneFromMemory(t, cfg, "file_0.jsonl", []byte(line0))
+	s3recipe.UploadOneFromMemory(t, cfg, "file_1.jsonl", []byte(line1))
 
-	mockSink := mocksink.NewMockSink(func(_ []abstract.ChangeItem) error {
+	var result []abstract.ChangeItem
+	var mockSinkMutex sync.Mutex
+	mockSink := mocksink.NewMockSink(func(in []abstract.ChangeItem) error {
+		mockSinkMutex.Lock()
+		defer mockSinkMutex.Unlock()
+		for _, changeItem := range in {
+			fmt.Printf("QQQ::MockSink::changeItem=%s\n", changeItem.ToJSONString())
+			result = append(result, changeItem)
+		}
 		return nil
 	})
 
-	transfer := &model.Transfer{
-		Src: cfg,
-		Dst: &model.MockDestination{
-			SinkerFactory: func() abstract.Sinker {
-				return mockSink
-			},
-		},
-	}
 	cp := coordinator.NewStatefulFakeClient()
 
 	wg := sync.WaitGroup{}
@@ -70,11 +75,19 @@ func TestShardingTransfer(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		transfer.Runtime = &abstract.LocalRuntime{
-			CurrentJob:     0, // 'MAIN' worker
-			ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
+		transferMain := &model.Transfer{
+			Src: cfg,
+			Dst: &model.MockDestination{
+				SinkerFactory: func() abstract.Sinker {
+					return mockSink
+				},
+			},
+			Runtime: &abstract.LocalRuntime{
+				CurrentJob:     0, // 'MAIN' worker
+				ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
+			},
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transferMain, solomon.NewRegistry(nil))
 		ctx := context.Background()
 		err := snapshotLoader.UploadTables(ctx, []abstract.TableDescription{{Name: "test"}}, false)
 		require.NoError(t, err)
@@ -84,26 +97,59 @@ func TestShardingTransfer(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		transfer.Runtime = &abstract.LocalRuntime{
-			CurrentJob:     1, // 'SECONDARY' worker
-			ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
+		transferJob1 := &model.Transfer{
+			Src: cfg,
+			Dst: &model.MockDestination{
+				SinkerFactory: func() abstract.Sinker {
+					return mockSink
+				},
+			},
+			Runtime: &abstract.LocalRuntime{
+				CurrentJob:     1, // 'SECONDARY' worker
+				ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
+			},
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transferJob1, solomon.NewRegistry(nil))
 		ctx := context.Background()
 		err := snapshotLoader.UploadTables(ctx, []abstract.TableDescription{{Name: "test"}}, false)
 		require.NoError(t, err)
 	}()
 	go func() {
 		defer wg.Done()
-		transfer.Runtime = &abstract.LocalRuntime{
-			CurrentJob:     2, // 'SECONDARY' worker
-			ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
+		transferJob2 := &model.Transfer{
+			Src: cfg,
+			Dst: &model.MockDestination{
+				SinkerFactory: func() abstract.Sinker {
+					return mockSink
+				},
+			},
+			Runtime: &abstract.LocalRuntime{
+				CurrentJob:     2, // 'SECONDARY' worker
+				ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
+			},
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transferJob2, solomon.NewRegistry(nil))
 		ctx := context.Background()
 		err := snapshotLoader.UploadTables(ctx, []abstract.TableDescription{{Name: "test"}}, false)
 		require.NoError(t, err)
 	}()
 
 	wg.Wait()
+
+	line1Found := false
+	line2Found := false
+	rowEventsNum := 0
+	for _, changeItem := range result {
+		if strings.Contains(changeItem.ToJSONString(), `John Doe0`) {
+			line1Found = true
+		}
+		if strings.Contains(changeItem.ToJSONString(), `John Doe1`) {
+			line2Found = true
+		}
+		if changeItem.IsRowEvent() {
+			rowEventsNum++
+		}
+	}
+	require.Equal(t, 2, rowEventsNum)
+	require.True(t, line1Found && line2Found)
 }

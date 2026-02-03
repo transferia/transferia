@@ -46,7 +46,7 @@ func TestObjectFetcherPoller(t *testing.T) {
 
 	poller0Impl, err := newObjectFetcherPoller(context.Background(), logger.Log, srcModel, fakeS3Client, coordinatorStateAdapter, effectiveWorkerNum, r_window.NewRWindowEmpty(0))
 	require.NoError(t, err)
-	poller0 := NewObjectFetcherContractor(poller0Impl)
+	poller0 := NewObjectFetcherContractor(logger.Log, poller0Impl)
 
 	sess := fake_s3.NewSess()
 	currReader, err := reader_factory.NewReader(srcModel, logger.Log, sess, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
@@ -186,7 +186,7 @@ func TestFlush(t *testing.T) {
 
 	poller0Impl, err := newObjectFetcherPoller(context.Background(), logger.Log, srcModel, fakeS3Client, coordinatorStateAdapter, effectiveWorkerNum, r_window.NewRWindowEmpty(0))
 	require.NoError(t, err)
-	poller0 := NewObjectFetcherContractor(poller0Impl)
+	poller0 := NewObjectFetcherContractor(logger.Log, poller0Impl)
 
 	sess := fake_s3.NewSess()
 	currReader, err := reader_factory.NewReader(srcModel, logger.Log, sess, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
