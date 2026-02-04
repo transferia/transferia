@@ -159,6 +159,7 @@ func (s *MysqlSource) GetConnectionID() string {
 func (s *MysqlSource) WithDefaults() {
 	s.WithEssentialDefaults()
 	s.WithMysqlDumpDefaults()
+	s.WithSnapshotShardingDefaults()
 }
 
 func (s *MysqlSource) WithEssentialDefaults() {
@@ -171,6 +172,9 @@ func (s *MysqlSource) WithEssentialDefaults() {
 	if s.Timezone == "" {
 		s.Timezone = "Local"
 	}
+}
+
+func (s *MysqlSource) WithSnapshotShardingDefaults() {
 	if s.SnapshotDegreeOfParallelism <= 0 {
 		s.SnapshotDegreeOfParallelism = 4
 	}

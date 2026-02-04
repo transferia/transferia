@@ -271,6 +271,7 @@ func (s *PgSource) AuxTables() []string {
 func (s *PgSource) WithDefaults() {
 	s.WithEssentialDefaults()
 	s.WithPGDumpDefaults()
+	s.WithSnapshotShardingDefaults()
 }
 
 func (s *PgSource) WithEssentialDefaults() {
@@ -289,7 +290,9 @@ func (s *PgSource) WithEssentialDefaults() {
 	if s.KeeperSchema == "" {
 		s.KeeperSchema = "public"
 	}
+}
 
+func (s *PgSource) WithSnapshotShardingDefaults() {
 	if s.DesiredTableSize == 0 {
 		s.DesiredTableSize = pgDesiredTableSize
 	}
