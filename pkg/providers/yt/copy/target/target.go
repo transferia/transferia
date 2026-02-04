@@ -37,6 +37,10 @@ type ytMimimalClient interface {
 	yt.OperationStartClient
 }
 
+// User attribute on the target table storing source content_revision (TM-9579).
+// If source content_revision equals this value, we skip copying the table.
+const ContentRevisionAttr = "__dt_content_revision"
+
 type copyTask struct {
 	evt      events.TableEvent
 	yt       ytMimimalClient
@@ -55,6 +59,29 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 	outYPath, err := ypath.Parse(outPath)
 	if err != nil {
 		return xerrors.Errorf("error parsing ypath %s: %w", outPath, err)
+	}
+
+	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != nil {
+		// Skip copy if source content_revision unchanged.
+		exists, err := task.yt.NodeExists(ctx, outYPath, nil)
+		if err != nil {
+			return xerrors.Errorf("error checking target table %s: %w", outPath, err)
+		}
+		if exists {
+			revAttrPath := outYPath.Copy().Child("@" + ContentRevisionAttr)
+			attrExists, err := task.yt.NodeExists(ctx, revAttrPath, nil)
+			if err != nil {
+				return xerrors.Errorf("error checking %s on target %s: %w", ContentRevisionAttr, outPath, err)
+			}
+			if attrExists {
+				var storedRev int64
+				err := task.yt.GetNode(ctx, revAttrPath, &storedRev, nil)
+				if err == nil && storedRev == *tbl.ContentRevision {
+					t.logger.Infof("Skipping table %s (source content_revision %d unchanged)", tbl.FullName(), *tbl.ContentRevision)
+					return nil
+				}
+			}
+		}
 	}
 
 	copySpec := spec.Spec{
@@ -97,6 +124,14 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			return xerrors.Errorf("RemoteCopy (id=%s) error for table %s: %w", opID, outPath, status.Result.Error)
 		}
 		break
+	}
+
+	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != nil {
+		// Store source content_revision on target so next run can skip if unchanged.
+		revAttrPath := outYPath.Copy().Child("@" + ContentRevisionAttr)
+		if err := task.yt.SetNode(ctx, revAttrPath, *tbl.ContentRevision, nil); err != nil {
+			t.logger.Warnf("Failed to set %s on target table %s (next run may re-copy): %v", ContentRevisionAttr, outPath, err)
+		}
 	}
 	return nil
 }

@@ -49,7 +49,7 @@ func (s *source) BeginSnapshot() error {
 	s.logger.Debug("Begining snapshot")
 	ctx := context.Background()
 	var err error
-	if s.tables, err = tablemeta.ListTables(ctx, s.yt, s.cfg.GetCluster(), s.cfg.GetPaths(), s.logger); err != nil {
+	if s.tables, err = tablemeta.ListTables(ctx, s.yt, s.cfg.GetCluster(), s.cfg.GetPaths(), s.logger, tablemeta.ContentRevisionAttr); err != nil {
 		return xerrors.Errorf("error getting list of tables: %w", err)
 	}
 	s.logger.Infof("Got %d tables to copy", len(s.tables))

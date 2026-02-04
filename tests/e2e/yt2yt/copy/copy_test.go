@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/copy/target"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -185,4 +187,97 @@ func TestYTHomoProvider(t *testing.T) {
 
 	err = checkDstData(dstYTEnv, testData)
 	require.NoError(t, err, "Error checking destination data")
+}
+
+func uploadSlice(t *testing.T, ytEnv *yttest.Env, path string, data []row) {
+	ytpath, err := ypath.Parse(path)
+	require.NoError(t, err)
+	require.NoError(t, ytEnv.UploadSlice(ytpath, data))
+}
+
+// checkPathsHaveContentRevisionAttr fails if at least one of provided paths does not have ContentRevisionAttr.
+func checkPathsHaveContentRevisionAttr(t *testing.T, cl yt.Client, paths []string) {
+	for _, path := range paths {
+		ytpath, err := ypath.Parse(path)
+		require.NoError(t, err)
+		attrPath := ytpath.Child("@" + target.ContentRevisionAttr)
+		var rev int64
+		require.NoError(t, cl.GetNode(t.Context(), attrPath, &rev, nil))
+		require.Greater(t, rev, int64(0))
+	}
+}
+
+// getTablesUpdatedAt returns modification_time attribute for each path.
+func getTablesUpdatedAt(t *testing.T, cl yt.Client, paths []string) []any {
+	times := make([]any, len(paths))
+	for i, path := range paths {
+		ytpath, err := ypath.Parse(path)
+		require.NoError(t, err)
+		attrPath := ytpath.Child("@modification_time")
+		require.NoError(t, cl.GetNode(t.Context(), attrPath, &times[i], nil))
+	}
+	return times
+}
+
+func TestYTCopySkipUnchangedTables(t *testing.T) {
+	Source.WithDefaults()
+	Target.WithDefaults()
+	Target.SkipUnchangedTables = true
+	srcYT := os.Getenv("YT_PROXY_SRC")
+	dstYT := os.Getenv("YT_PROXY_DST")
+	require.NotEmpty(t, srcYT)
+	require.NotEmpty(t, dstYT)
+	srcYTEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: srcYT}), yttest.WithLogger(logger.Log.Structured()))
+	dstYTEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: dstYT}), yttest.WithLogger(logger.Log.Structured()))
+
+	// Four tables: a, b — unchanged between runs; c, d — we edit on source before second run.
+	testData := []ytTbl{
+		{InPath: "//a", OutPath: "//dst_pref/a", Data: []row{{1, "A1"}, {2, "A2"}}},
+		{InPath: "//nested/test/b", OutPath: "//dst_pref/b", Data: []row{{1, "B1"}, {2, "B2"}}},
+		{InPath: "//test_dir/c", OutPath: "//dst_pref/c", Data: []row{{1, "C1"}, {2, "C2"}}},
+		{InPath: "//test_dir/d", OutPath: "//dst_pref/d", Data: []row{{1, "D1"}, {2, "D2"}}},
+	}
+	afterUpdateDataC := []row{{1, "C1_updated"}, {2, "C2_updated"}}
+	afterUpdateDataD := []row{{1, "D1_updated"}, {2, "D2_updated"}}
+
+	unchangedIndices := []int{0, 1} // a, b — not edited
+	changedIndices := []int{2, 3}   // c, d — edit on source before second run
+	outPaths := make([]string, 0, len(testData))
+	for _, tbl := range testData {
+		outPaths = append(outPaths, tbl.OutPath)
+	}
+
+	require.NoError(t, initSrcData(srcYTEnv, testData))
+	initialRowCounts := make([]int, len(testData))
+	for i := range testData {
+		initialRowCounts[i] = len(testData[i].Data)
+	}
+	transfer := helpers.MakeTransfer(helpers.TransferID+"-skip-unchanged", &Source, &Target, TransferType)
+	snapshotLoader := tasks.NewSnapshotLoader(client2.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+
+	// First run: copy all tables.
+	require.NoError(t, snapshotLoader.UploadV2(t.Context(), nil, nil))
+	require.NoError(t, checkDstData(dstYTEnv, testData))
+	checkPathsHaveContentRevisionAttr(t, dstYTEnv.YT, outPaths)
+	firstUpdatedAt := getTablesUpdatedAt(t, dstYTEnv.YT, outPaths)
+
+	// Edit source tables that should be re-copied (c and d).
+	uploadSlice(t, srcYTEnv, testData[2].InPath, afterUpdateDataC)
+	uploadSlice(t, srcYTEnv, testData[3].InPath, afterUpdateDataD)
+
+	// Second run: unchanged (a, b) must be skipped; changed (c, d) must be re-copied.
+	require.NoError(t, snapshotLoader.UploadV2(t.Context(), nil, nil))
+	secondUpdatedAt := getTablesUpdatedAt(t, dstYTEnv.YT, outPaths)
+	for _, i := range unchangedIndices {
+		require.Equal(t, firstUpdatedAt[i], secondUpdatedAt[i], outPaths[i])
+	}
+	for _, i := range changedIndices {
+		require.NotEqual(t, firstUpdatedAt[i], secondUpdatedAt[i], outPaths[i])
+	}
+
+	// Expected on dst after second run: a and b unchanged, c and d with new data.
+	expectedAfterSecond := slices.Clone(testData)
+	expectedAfterSecond[2].Data = afterUpdateDataC
+	expectedAfterSecond[3].Data = afterUpdateDataD
+	require.NoError(t, checkDstData(dstYTEnv, expectedAfterSecond))
 }
