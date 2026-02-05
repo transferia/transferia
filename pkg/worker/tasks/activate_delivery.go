@@ -118,7 +118,7 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 			}
 		} else {
 			if noKeysTables := tables.NoKeysTables(); len(noKeysTables) > 0 {
-				return coded.Errorf(codes.PostgresNoPrimaryKeyCode, "PRIMARY KEY check failed: %v: no key columns found", noKeysTables)
+				return coded.Errorf(codes.GenericNoPKey, "PRIMARY KEY check failed: %v: no key columns found", noKeysTables)
 			}
 			if err := coordinator.ReportFakePKey(cp, transfer.ID, coordinator.FakePKeyStatusMessageCategory, tables.FakePkeyTables()); err != nil {
 				logger.Log.Warn("failed to report fake primary key presence or absence in tables", log.Error(err))

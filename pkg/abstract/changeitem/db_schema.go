@@ -39,7 +39,7 @@ func (s DBSchema) CheckPrimaryKeys(filter includeable) error {
 			continue
 		}
 		if !columns.Columns().HasPrimaryKey() {
-			errs = append(errs, coded.Errorf(codes.PostgresNoPrimaryKeyCode, "%s: no key columns found", tID.Fqtn()))
+			errs = append(errs, coded.Errorf(codes.GenericNoPKey, "%s: no key columns found", tID.Fqtn()))
 		}
 	}
 	if len(errs) > 0 {
