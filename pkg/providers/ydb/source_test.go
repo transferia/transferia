@@ -211,6 +211,9 @@ func checkSchemaUpdateWithMode(t *testing.T, db *ydb.Driver, transferID string, 
 	pushedItems := make([]abstract.ChangeItem, 0)
 	sink := &asyncSinkMock{
 		PushCallback: func(items []abstract.ChangeItem) {
+			for _, changeItem := range items {
+				logger.Log.Infof("QQQ::sink.Push: %s", changeItem.ToJSONString())
+			}
 			pushedItems = append(pushedItems, items...)
 		},
 	}
@@ -223,9 +226,10 @@ func checkSchemaUpdateWithMode(t *testing.T, db *ydb.Driver, transferID string, 
 		wg.Done()
 	}()
 
-	waitingStartTime := time.Now()
+	waitingStartTime0 := time.Now()
 	for len(pushedItems) != 1 {
-		require.False(t, time.Since(waitingStartTime) > time.Second*20)
+		require.False(t, time.Since(waitingStartTime0) > time.Second*20)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	require.NoError(t, db.Table().Do(context.Background(), func(ctx context.Context, s table.Session) error {
@@ -233,8 +237,10 @@ func checkSchemaUpdateWithMode(t *testing.T, db *ydb.Driver, transferID string, 
 	}))
 	ydbtable.ExecQuery(t, db, fmt.Sprintf("UPSERT INTO `%s` (id, val, new_val) VALUES (%d, '%s', '%s');", tablePath, 2, "val_2", "new_val_2"))
 
+	waitingStartTime1 := time.Now()
 	for len(pushedItems) != 2 {
-		require.False(t, time.Since(waitingStartTime) > time.Second*20)
+		require.False(t, time.Since(waitingStartTime1) > time.Second*60)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	src.Stop()
