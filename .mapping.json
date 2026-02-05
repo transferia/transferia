@@ -625,6 +625,7 @@
   "library/go/slices/chunk.go":"library/go/slices/chunk.go",
   "library/go/slices/contains.go":"library/go/slices/contains.go",
   "library/go/slices/dedup.go":"library/go/slices/dedup.go",
+  "library/go/slices/doc.go":"library/go/slices/doc.go",
   "library/go/slices/equal.go":"library/go/slices/equal.go",
   "library/go/slices/filter.go":"library/go/slices/filter.go",
   "library/go/slices/group_by.go":"library/go/slices/group_by.go",
