@@ -81,7 +81,12 @@ func (s *shardPart) Merge() error {
 	if err := s.partsDao.AttachTablePartsTo(s.baseDB, s.baseTable, s.tmpDB, s.tmpTable); err != nil {
 		return xerrors.Errorf("error attaching parts from tmp table: %w", err)
 	}
-	return s.dao.DropTable(s.tmpDB, s.tmpTable)
+	dropTable := func() error { return s.dao.DropTable(s.tmpDB, s.tmpTable) }
+	err := backoff.Retry(dropTable, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3))
+	if err != nil {
+		return xerrors.Errorf("unable to drop tmp table '%s'.'%s': %w", s.baseDB, s.baseTable, err)
+	}
+	return nil
 }
 
 func (s *shardPart) Close() error {
