@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/scheme"
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
@@ -229,6 +230,63 @@ func TestSinker_Push(t *testing.T) {
 				Table:  "drop_test",
 			},
 		}))
+	})
+	t.Run("drop with path", func(t *testing.T) {
+		cfgWithPath := YdbDestination{
+			Database:           prefix,
+			Token:              model.SecretString(token),
+			Path:               "cfg_with_custom_path/for_drop_policy",
+			Instance:           endpoint,
+			DropUnknownColumns: true,
+			ShardCount:         -1,
+		}
+		cfgWithPath.WithDefaults()
+		sinkerWithPath, err := NewSinker(logger.Log, &cfgWithPath, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		require.NoError(t, err)
+
+		db, err := ydb.Open(
+			context.Background(),
+			sugar.DSN(endpoint, prefix),
+			ydb.WithAccessTokenCredentials(token),
+		)
+		require.NoError(t, err)
+
+		// assert that table does not exist before any insert
+		tableFullPath := "/local/cfg_with_custom_path/for_drop_policy/foo_drop_test_with_path"
+		exists, err := sugar.IsEntryExists(t.Context(), db.Scheme(), tableFullPath, scheme.EntryTable, scheme.EntryColumnTable)
+		require.NoError(t, err)
+		require.False(t, exists)
+
+		// insert item
+		require.NoError(t, sinkerWithPath.Push([]abstract.ChangeItem{
+			{
+				Kind:         abstract.InsertKind,
+				Schema:       "foo",
+				Table:        "drop_test_with_path",
+				ColumnNames:  []string{"id", "val"},
+				ColumnValues: []interface{}{1, "loh"},
+				TableSchema:  testSchema,
+			},
+		}))
+
+		// assert that table exists after insert
+		exists, err = sugar.IsEntryExists(t.Context(), db.Scheme(), tableFullPath, scheme.EntryTable, scheme.EntryColumnTable)
+		require.NoError(t, err)
+		require.True(t, exists)
+
+		// drop table (custom path from config should be respected)
+		require.NoError(t, sinkerWithPath.Push([]abstract.ChangeItem{
+			{
+				Kind:   abstract.DropTableKind,
+				Schema: "foo",
+				Table:  "drop_test_with_path",
+			},
+		}))
+
+		// assert that table does not exist after drop
+		exists, err = sugar.IsEntryExists(t.Context(), db.Scheme(), tableFullPath, scheme.EntryTable, scheme.EntryColumnTable)
+		require.NoError(t, err)
+		require.False(t, exists)
 	})
 
 	tableSchemaWithFlowColumn := abstract.NewTableSchema([]abstract.ColSchema{

@@ -549,28 +549,48 @@ func (s *sinker) runRotator() {
 	}
 }
 
+func (s *sinker) getTablePathForChangeItem(item abstract.ChangeItem) ydbPath {
+	tableName := Fqtn(item.TableID())
+
+	if altName, ok := s.config.AltNames[item.Fqtn()]; ok {
+		tableName = altName
+	} else if altName, ok = s.config.AltNames[tableName]; ok {
+		// for backward compatibility need to check both name and old Fqtn
+		tableName = altName
+	}
+	tablePath := ydbPath(tableName)
+	if item.Kind == abstract.InsertKind || item.Kind == abstract.UpdateKind || item.Kind == abstract.DeleteKind {
+		tablePath = ydbPath(s.config.Rotation.AnnotateWithTimeFromColumn(tableName, item))
+	}
+	if s.config.Path != "" {
+		tablePath = ydbPath(path.Join(s.config.Path, string(tablePath)))
+	}
+	return tablePath
+}
+
 func (s *sinker) Push(input []abstract.ChangeItem) error {
 	batches := make(map[ydbPath][]abstract.ChangeItem)
 	for _, item := range input {
 		switch item.Kind {
 		// Truncate - implemented as drop
 		case abstract.DropTableKind, abstract.TruncateTableKind:
+			tablePath := s.getTablePathForChangeItem(item)
 			if s.config.Cleanup == model.DisabledCleanup {
-				s.logger.Infof("Skipped dropping/truncating table '%v' due cleanup policy", s.getTableFullPath(item.Fqtn()))
+				s.logger.Infof("Skipped dropping/truncating table '%v' due cleanup policy", s.getFullPath(tablePath))
 				continue
 			}
-			exists, err := sugar.IsEntryExists(context.Background(), s.db.Scheme(), s.getFullPath(ydbPath(Fqtn(item.TableID()))), scheme.EntryTable, scheme.EntryColumnTable)
+			exists, err := sugar.IsEntryExists(context.Background(), s.db.Scheme(), s.getFullPath(tablePath), scheme.EntryTable, scheme.EntryColumnTable)
 			if err != nil {
-				return xerrors.Errorf("unable to check table existence %s: %w", s.getFullPath(ydbPath(Fqtn(item.TableID()))), err)
+				return xerrors.Errorf("unable to check table existence %s: %w", s.getFullPath(tablePath), err)
 			}
 
 			if !exists {
 				return nil
 			}
 
-			s.logger.Infof("try to drop table: %v", s.getFullPath(ydbPath(Fqtn(item.TableID()))))
+			s.logger.Infof("try to drop table: %v", s.getFullPath(tablePath))
 			if err := s.db.Table().Do(context.Background(), func(ctx context.Context, session table.Session) error {
-				dropTable := DropTableTemplate{s.getFullPath(ydbPath(Fqtn(item.TableID())))}
+				dropTable := DropTableTemplate{s.getFullPath(tablePath)}
 
 				var query strings.Builder
 				if err := dropTableQueryTemplate.Execute(&query, dropTable); err != nil {
@@ -584,21 +604,10 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			}); err != nil {
 				s.logger.Warn("Unable to delete table", log.Error(err))
 
-				return xerrors.Errorf("unable to drop table %s: %w", s.getFullPath(ydbPath(Fqtn(item.TableID()))), err)
+				return xerrors.Errorf("unable to drop table %s: %w", s.getFullPath(tablePath), err)
 			}
 		case abstract.InsertKind, abstract.UpdateKind, abstract.DeleteKind:
-			tableName := Fqtn(item.TableID())
-
-			if altName, ok := s.config.AltNames[item.Fqtn()]; ok {
-				tableName = altName
-			} else if altName, ok = s.config.AltNames[tableName]; ok {
-				// for backward compatibility need to check both name and old Fqtn
-				tableName = altName
-			}
-			tablePath := ydbPath(s.config.Rotation.AnnotateWithTimeFromColumn(tableName, item))
-			if s.config.Path != "" {
-				tablePath = ydbPath(path.Join(s.config.Path, string(tablePath)))
-			}
+			tablePath := s.getTablePathForChangeItem(item)
 			batches[tablePath] = append(batches[tablePath], item)
 		case abstract.SynchronizeKind:
 			// do nothing
