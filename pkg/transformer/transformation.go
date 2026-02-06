@@ -1,6 +1,7 @@
 package transformer
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -166,7 +167,7 @@ func (u *transformation) Push(items []abstract.ChangeItem) error {
 	u.sta.Elapsed.RecordDuration(elapsed)
 	u.sta.Errors.Add(int64(len(errors)))
 
-	u.logIfErrors(errors, "transformation of %d plans applied in %s; converted %d into %d items (%+d items), %d errors", len(plans), elapsed.String(), itemsIncomingCount, itemsTransformedCount, -itemsDroppedCount, len(errors))
+	u.logFormatStringIfErrors(errors, "transformation of %d plans applied in %s; converted %d into %d items (%+d items), %d errors", len(plans), elapsed.String(), itemsIncomingCount, itemsTransformedCount, -itemsDroppedCount, len(errors))
 
 	if len(errors) > 0 {
 		if err := u.pushErrors(errors); err != nil {
@@ -184,7 +185,7 @@ func (u *transformation) Close() error {
 	return nil
 }
 
-func (u *transformation) logIfErrors(errors []abstract.TransformerError, msg string, args ...any) {
+func (u *transformation) logFormatStringIfErrors(errors []abstract.TransformerError, msg string, args ...any) {
 	lgr := u.logger.Debugf
 	if len(errors) > 0 {
 		lgr = u.logger.Warnf
@@ -257,13 +258,13 @@ func errorChangeItems(errors []abstract.TransformerError) []abstract.ChangeItem 
 	return res
 }
 
-func (u *transformation) do(tid abstract.TableID, tablePlans map[string][]abstract.Transformer, items []abstract.ChangeItem, resCh chan abstract.TransformerResult) {
+func (u *transformation) do(tableID abstract.TableID, tablePlans map[string][]abstract.Transformer, items []abstract.ChangeItem, resCh chan abstract.TransformerResult) {
 	result := abstract.TransformerResult{
 		Transformed: make([]abstract.ChangeItem, 0),
 		Errors:      make([]abstract.TransformerError, 0),
 	}
 	input := items
-	u.logger.Debugf("for '%s' are '%v' plans to transform '%v' changeitems", tid.String(), len(tablePlans), len(input))
+	u.logger.Debugf("for '%s' are '%v' plans to transform '%v' changeitems", tableID.String(), len(tablePlans), len(input))
 	currentSchemaHash, _ := input[0].TableSchema.Hash()
 
 	for i, lastIndex := 0, 0; i <= len(input); i++ {
@@ -276,21 +277,29 @@ func (u *transformation) do(tid abstract.TableID, tablePlans map[string][]abstra
 		}
 		toApply := input[lastIndex:i]
 
-		for _, tr := range tablePlans[currentSchemaHash] {
+		for _, transformer := range tablePlans[currentSchemaHash] {
 			st := time.Now()
-			iResult := tr.Apply(toApply)
-			result.Errors = append(result.Errors, iResult.Errors...)
-			toApply = iResult.Transformed
-			u.logIfErrors(
-				iResult.Errors,
-				"transformation plan applied for table '%s':\n%s\n"+
-					"got %d items, transformed %d items with %d errors in %v milliseconds",
-				tid.String(),
-				tr.Description(),
+			currentTransformerResult := transformer.Apply(toApply)
+
+			toApply = currentTransformerResult.Transformed
+			result.Errors = append(result.Errors, currentTransformerResult.Errors...)
+
+			errorExample := ""
+			if len(currentTransformerResult.Errors) != 0 {
+				mapBytes, _ := json.Marshal(currentTransformerResult.Errors[0].Input.AsMap())
+				errorExample = fmt.Sprintf("err:%s, changeItem:%s", currentTransformerResult.Errors[0].Error, mapBytes)
+			}
+
+			u.logFormatStringIfErrors(
+				currentTransformerResult.Errors,
+				"transformation plan applied for table '%s' - transformer '%s' - got %d items, transformed %d items with %d errors in %v milliseconds, err: %s",
+				tableID.String(),
+				transformer.Description(),
 				len(toApply),
-				len(iResult.Transformed),
-				len(iResult.Errors),
+				len(currentTransformerResult.Transformed),
+				len(currentTransformerResult.Errors),
 				time.Since(st).Milliseconds(),
+				errorExample,
 			)
 		}
 		result.Transformed = append(result.Transformed, toApply...)
