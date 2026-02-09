@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"runtime"
@@ -18,7 +17,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
-	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/registry/logfeller/lib"
 	"github.com/transferia/transferia/pkg/stats"
@@ -185,7 +183,8 @@ func (c *GenericParserConfig) isParserConfig() {}
 //---------------------------------------------------------------------------------------------------------------------
 
 type GenericParser struct {
-	logger  log.Logger
+	logger log.Logger
+
 	metrics *stats.SourceStats
 
 	lfParser   bool
@@ -446,11 +445,6 @@ func (p *GenericParser) Do(msg parsers.Message, partition abstract.Partition) []
 		result = p.doGenericParser(msg, partition)
 	}
 	p.metrics.DecodeTime.RecordDuration(time.Since(start))
-	p.logger.Debug(
-		"Done generic parse",
-		log.Any("elapsed", time.Since(start)),
-		log.Any("size", format.Size(binary.Size(msg.Value)).String()),
-	)
 	for i := range result {
 		result[i].FillQueueMessageMeta(partition.Topic, int(partition.Partition), msg.Offset, i)
 	}
@@ -1231,14 +1225,15 @@ func NewGenericParser(cfg ParserConfig, fields []abstract.ColSchema, logger log.
 	}
 	logger.Info("Final schema", log.Any("columns", colNames), log.Any("s", finalSchema))
 	checkParserCorrectness(*opts, finalSchema, logger)
+
 	return &GenericParser{
+		logger:           logger,
 		rawFields:        fields,
 		known:            known,
 		schema:           abstract.NewTableSchema(finalSchema),
 		auxFieldsToIndex: auxFieldsToIndex,
 		columns:          colNames,
 		colTypeMap:       colType,
-		logger:           logger,
 		metrics:          registry,
 		lfParser:         isLf,
 		lfCfg:            lfCfg,

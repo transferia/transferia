@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/pkg/util/size"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 const maxStringLengthConst = size.MiB / 2
@@ -71,6 +72,10 @@ func (l *BatchingLogger) Log(in string) {
 	}
 	l.state = append(l.state, prefix+in)
 	l.sumLen += len(in)
+}
+func (l *BatchingLogger) LogWithFields(msg string, fields ...log.Field) {
+	sumStr := msg + fieldsToString(fields...)
+	l.Log(sumStr)
 }
 func (l *BatchingLogger) Close() {
 	l.flush(true)

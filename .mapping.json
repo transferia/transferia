@@ -2443,6 +2443,8 @@
   "pkg/util/size/size.go":"transfer_manager/go/pkg/util/size/size.go",
   "pkg/util/sizeof.go":"transfer_manager/go/pkg/util/sizeof.go",
   "pkg/util/sizeof_test.go":"transfer_manager/go/pkg/util/sizeof_test.go",
+  "pkg/util/slicesx/split_by_size.go":"transfer_manager/go/pkg/util/slicesx/split_by_size.go",
+  "pkg/util/slicesx/split_by_size_test.go":"transfer_manager/go/pkg/util/slicesx/split_by_size_test.go",
   "pkg/util/slicesx/split_to_chunks.go":"transfer_manager/go/pkg/util/slicesx/split_to_chunks.go",
   "pkg/util/slicesx/split_to_chunks_test.go":"transfer_manager/go/pkg/util/slicesx/split_to_chunks_test.go",
   "pkg/util/smart_timer.go":"transfer_manager/go/pkg/util/smart_timer.go",

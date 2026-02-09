@@ -10,6 +10,14 @@ type BatchingLoggerable interface {
 	ToBatchingLines() []string
 }
 
+func fieldsToString(fields ...log.Field) string {
+	fieldsArr := make([]string, 0)
+	for _, field := range fields {
+		fieldsArr = append(fieldsArr, field.String())
+	}
+	return strings.Join(fieldsArr, " ")
+}
+
 func LogLine(throttler Throttler, inLoggingFunc loggingFunc, msg string, fields ...log.Field) {
 	if !throttler.IsAllowed() {
 		inLoggingFunc("[batching-logger] skipped 'LogLine' by throttler")
@@ -19,11 +27,7 @@ func LogLine(throttler Throttler, inLoggingFunc loggingFunc, msg string, fields 
 
 	currLogger := NewBatchingLogger(NewAbsentThrottler(), inLoggingFunc, "", "", false)
 	defer currLogger.Close()
-	fieldsArr := make([]string, 0)
-	for _, field := range fields {
-		fieldsArr = append(fieldsArr, field.String())
-	}
-	sumStr := msg + strings.Join(fieldsArr, " ")
+	sumStr := msg + fieldsToString(fields...)
 	currLogger.Log(sumStr)
 }
 
