@@ -16,11 +16,15 @@ const (
 // it allows to be filled both fields - 'host' & 'hosts' - can be useful on migration period.
 // it saves order, but enforces uniqueness.
 func HandleHostAndHosts(host string, hosts []string) []string {
-	allHosts := yslices.Filter(append([]string{host}, hosts...), func(s string) bool { return s != "" })
-	allHosts = set.New(allHosts...).SortedSliceFunc(func(a, b string) bool {
-		return a < b
-	})
-
+	var allHosts []string
+	if host == "" {
+		allHosts = yslices.Filter(hosts, func(s string) bool { return s != "" })
+	} else {
+		allHosts = yslices.Filter(append([]string{host}, hosts...), func(s string) bool { return s != "" })
+		allHosts = set.New(allHosts...).SortedSliceFunc(func(a, b string) bool {
+			return a < b
+		})
+	}
 	if len(allHosts) == 0 {
 		return nil
 	}

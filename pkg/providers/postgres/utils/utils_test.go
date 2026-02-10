@@ -43,6 +43,13 @@ func TestHandleHostAndHosts(t *testing.T) {
 		require.Len(t, result, 1)
 		require.Equal(t, "B", result[0])
 	})
+	t.Run("mutual exclusive case - only hosts non-alfabetically", func(t *testing.T) {
+		result := HandleHostAndHosts("", []string{"M", "A", "", "B", "", ""})
+		require.Len(t, result, 3)
+		require.Equal(t, "M", result[0])
+		require.Equal(t, "A", result[1])
+		require.Equal(t, "B", result[2])
+	})
 
 	// invalid cases
 	t.Run("invalid case - both fields: 'host' & 'hosts' not filled, hosts=nil", func(t *testing.T) {
