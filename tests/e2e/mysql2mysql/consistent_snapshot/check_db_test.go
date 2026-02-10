@@ -130,9 +130,7 @@ func Snapshot(t *testing.T) {
 
 	dropData(t)
 
-	operationID := "test-operation"
-
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), operationID, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 
 	tppGetter, _, err := snapshotLoader.BuildTPP(
 		context.Background(),

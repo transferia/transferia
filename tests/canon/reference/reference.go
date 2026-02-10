@@ -22,11 +22,11 @@ import (
 )
 
 func constructSinkCleanupAndPush(t *testing.T, transfer *model.Transfer, items []abstract.ChangeItem, tables abstract.TableMap) {
-	as, err := sink.MakeAsyncSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	as, err := sink.MakeAsyncSink(transfer, &model.TransferOperation{}, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, as.Close()) }()
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "reference-test-cleanup-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	require.NoError(t, snapshotLoader.CleanupSinker(tables))
 
 	errCh := as.AsyncPush(items)

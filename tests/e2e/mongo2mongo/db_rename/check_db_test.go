@@ -9,10 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
-	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -125,11 +123,7 @@ func Snapshot(t *testing.T) {
 	// Upload snapshot
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-	snapshotLoader := tasks.NewSnapshotLoader(client2.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(ctx, tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
+	_ = helpers.Activate(t, transfer)
 
 	//------------------------------------------------------------------------------------
 	// Check results

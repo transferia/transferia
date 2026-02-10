@@ -34,12 +34,12 @@ func init() {
 func (l *SnapshotLoader) WaitWorkersInitiated(ctx context.Context) error {
 	return backoff.RetryNotify(
 		func() error {
-			workersCount, err := l.cp.GetOperationWorkersCount(l.operationID, false)
+			workersCount, err := l.cp.GetOperationWorkersCount(l.operation.OperationID, false)
 			if err != nil {
-				return errors.CategorizedErrorf(categories.Internal, "can't to get workers count for operation '%v': %w", l.operationID, err)
+				return errors.CategorizedErrorf(categories.Internal, "can't to get workers count for operation '%v': %w", l.operation.OperationID, err)
 			}
 			if workersCount <= 0 {
-				return errors.CategorizedErrorf(categories.Internal, "workers for operation '%v' not ready yet", l.operationID)
+				return errors.CategorizedErrorf(categories.Internal, "workers for operation '%v' not ready yet", l.operation.OperationID)
 			}
 			return nil
 		},
@@ -52,14 +52,14 @@ func (l *SnapshotLoader) ReadFromCPShardState(ctx context.Context) (string, erro
 	if err := l.WaitWorkersInitiated(ctx); err != nil {
 		return "", errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task metadata initialization: %w", err)
 	}
-	return shared_memory.GetShardStateNoWait(ctx, l.cp, l.operationID)
+	return shared_memory.GetShardStateNoWait(ctx, l.cp, l.operation.OperationID)
 }
 
 // OperationStateExists returns true if the state of the operation of the given task exists (is not nil)
 func (l *SnapshotLoader) OperationStateExists(ctx context.Context) (bool, error) {
 	result, err := backoff.RetryNotifyWithData(
 		func() (bool, error) {
-			_, err := l.cp.GetOperationState(l.operationID)
+			_, err := l.cp.GetOperationState(l.operation.OperationID)
 			if err != nil {
 				if xerrors.Is(err, coordinator.OperationStateNotFoundError) {
 					return false, nil
@@ -89,7 +89,7 @@ func (l *SnapshotLoader) enrichShardedState(storage abstract.Storage, tablePartP
 	if shardingContextStorage, ok := storage.(abstract.ShardingContextStorage); ok {
 		shardedStateBytes, err := shardingContextStorage.ShardingContext()
 		if err != nil {
-			return xerrors.Errorf("unable to prepare sharded state for operation '%v': %w", l.operationID, err)
+			return xerrors.Errorf("unable to prepare sharded state for operation '%v': %w", l.operation.OperationID, err)
 		}
 		shardedState := string(shardedStateBytes)
 		shardedState, err = tablePartProviderSetter.EnrichShardedState(shardedState)
@@ -98,7 +98,7 @@ func (l *SnapshotLoader) enrichShardedState(storage abstract.Storage, tablePartP
 		}
 
 		logger.Log.Info("will upload sharded state", log.Any("state", shardedState))
-		err = l.cp.SetOperationState(l.operationID, shardedState)
+		err = l.cp.SetOperationState(l.operation.OperationID, shardedState)
 		if err != nil {
 			return xerrors.Errorf("unable to set sharded state: %w", err)
 		}
@@ -122,7 +122,7 @@ func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, sourceStorage
 	}
 	for {
 		if customCheck, ok := sourceStorage.(abstract.CustomCheckSecondaryWorkersDone); !ok {
-			isDone, err := defaultCheckAreWorkersDone(startTime, l.cp, l.operationID, workersCount)
+			isDone, err := defaultCheckAreWorkersDone(startTime, l.cp, l.operation.OperationID, workersCount)
 			if err != nil {
 				return errors.CategorizedErrorf(categories.Internal, "an error occured during default waiting if secondary workers completed, err: %w", err)
 			}
@@ -130,7 +130,7 @@ func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, sourceStorage
 				return nil
 			}
 		} else {
-			isDone, err := customCheck.CheckSecondaryWorkersDone(startTime, l.cp, l.transfer, l.operationID)
+			isDone, err := customCheck.CheckSecondaryWorkersDone(startTime, l.cp, l.transfer, l.operation.OperationID)
 			if err != nil {
 				return xerrors.Errorf("an error occured during custom waiting if secondary workers completed: %w", err)
 			}

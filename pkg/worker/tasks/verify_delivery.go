@@ -30,7 +30,7 @@ func VerifyDelivery(transfer model.Transfer, lgr log.Logger, registry metrics.Re
 			dst.MaintainTables = dstMaintainTables
 		}()
 	}
-	sink, err := sink.MakeAsyncSink(&transfer, lgr, registry, coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink.MakeAsyncSink(&transfer, new(model.TransferOperation), lgr, registry, coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	if err != nil {
 		return xerrors.Errorf("unable to make sinker: %w", err)
 	}

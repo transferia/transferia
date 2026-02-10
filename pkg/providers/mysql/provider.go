@@ -225,7 +225,7 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 		if err := callbacks.Cleanup(tables); err != nil {
 			return xerrors.Errorf("Sinker cleanup failed: %w", err)
 		}
-		if err := LoadMysqlSchema(p.transfer, registry, false); err != nil {
+		if err := LoadMysqlSchema(p.transfer, task, registry, false); err != nil {
 			return xerrors.Errorf("Cannot load schema from source database: %w", err)
 		}
 
@@ -236,7 +236,7 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 			return xerrors.Errorf("Snapshot loading failed: %w", err)
 		}
 		if p.transfer.SnapshotOnly() {
-			if err := LoadMysqlSchema(p.transfer, registry, true); err != nil {
+			if err := LoadMysqlSchema(p.transfer, task, registry, true); err != nil {
 				return xerrors.Errorf("Cannot load schema from source database: %w", err)
 			}
 		}
@@ -256,7 +256,7 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 		return xerrors.Errorf("Unable to remove tracker: %w", err)
 	}
 	if !p.transfer.IncrementOnly() {
-		if err := LoadMysqlSchema(p.transfer, solomon.NewRegistry(solomon.NewRegistryOpts()), true); err != nil {
+		if err := LoadMysqlSchema(p.transfer, task, solomon.NewRegistry(solomon.NewRegistryOpts()), true); err != nil {
 			return xerrors.Errorf("Cannot load schema from source database: %w", err)
 		}
 	}
@@ -276,14 +276,14 @@ func (p *Provider) Cleanup(ctx context.Context, task *model.TransferOperation) e
 }
 
 func (p *Provider) Update(ctx context.Context, addedTables []abstract.TableDescription) error {
-	return LoadMysqlSchema(p.transfer, p.registry, false)
+	return LoadMysqlSchema(p.transfer, new(model.TransferOperation), p.registry, false)
 }
 
 func (p *Provider) Type() abstract.ProviderType {
 	return ProviderType
 }
 
-func New(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer) providers.Provider {
+func New(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, operation *model.TransferOperation) providers.Provider {
 	return &Provider{
 		logger:   lgr,
 		registry: registry,

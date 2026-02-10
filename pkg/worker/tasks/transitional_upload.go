@@ -22,7 +22,7 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 
-	snapshotLoader := NewSnapshotLoader(cp, task.OperationID, &transfer, registry)
+	snapshotLoader := NewSnapshotLoader(cp, task, &transfer, registry)
 	if !transfer.IsMain() {
 		if err := snapshotLoader.UploadTables(ctx, nil, false); err != nil {
 			return xerrors.Errorf("Snapshot loading failed: %w", err)
@@ -126,7 +126,7 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 			utTransfer = transfer // we should save original transfer object if there is no transit upload pairs
 		}
 
-		utSnapshotLoader := NewSnapshotLoader(cp, task.OperationID, &utTransfer, registry)
+		utSnapshotLoader := NewSnapshotLoader(cp, task, &utTransfer, registry)
 		if err := utSnapshotLoader.UploadTables(ctx, spec.Tables, false); err != nil {
 			return xerrors.Errorf("Failed to UploadTables (%v): %w", utTransfer.ID, err)
 		}
@@ -141,7 +141,7 @@ func TransitUpload(ctx context.Context, cp coordinator.Coordinator, transfer mod
 
 // TransitReupload is shitty method mainly for transfers with LB in the middle, same as TransitUpload
 func TransitReupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task model.TransferOperation, registry metrics.Registry) error {
-	snapshotLoader := NewSnapshotLoader(cp, task.OperationID, &transfer, registry)
+	snapshotLoader := NewSnapshotLoader(cp, &task, &transfer, registry)
 	if !transfer.IsMain() {
 		if err := snapshotLoader.UploadTables(ctx, nil, false); err != nil {
 			return xerrors.Errorf("Snapshot loading failed: %w", err)
@@ -189,7 +189,7 @@ func TransitReupload(ctx context.Context, cp coordinator.Coordinator, transfer m
 	}
 
 	for _, rut := range transfers {
-		rutSnapshotLoader := NewSnapshotLoader(cp, task.OperationID, rut, registry)
+		rutSnapshotLoader := NewSnapshotLoader(cp, &task, rut, registry)
 		if rut.IsAbstract2() {
 			if err := rutSnapshotLoader.UploadV2(ctx, nil, nil); err != nil {
 				return xerrors.Errorf("upload (v2) failed: %w", err)
@@ -278,11 +278,12 @@ func TransitionalAddTables(ctx context.Context, cp coordinator.Coordinator, tran
 			logger.Log.Infof("Direct upload %v >> %v", syntheticTransfer.SrcType(), syntheticTransfer.DstType())
 
 			syntheticTransfer.FillDependentFields()
-			if err := applyAddedTablesSchema(&syntheticTransfer, registry); err != nil {
+			if err := applyAddedTablesSchema(&syntheticTransfer, &task, registry); err != nil {
 				return xerrors.Errorf("Cannot load schema for added table to target: %w", err)
 			}
 
-			childTask := task.OperationID + "-" + terryid.GenerateJobID()
+			childTask := task.Copy()
+			childTask.OperationID = task.OperationID + "-" + terryid.GenerateJobID()
 			snapshotLoader := NewSnapshotLoader(cp, childTask, &syntheticTransfer, registry)
 			if err := snapshotLoader.LoadSnapshot(context.TODO()); err != nil {
 				return xerrors.Errorf("Unable to load snapshot: %w", err)

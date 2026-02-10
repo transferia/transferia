@@ -68,7 +68,7 @@ type Sampleable interface {
 	DestinationSampleableStorage() (abstract.SampleableStorage, error)
 }
 
-type ProviderFactory func(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer) Provider
+type ProviderFactory func(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, operation *model.TransferOperation) Provider
 
 var knownProviders = map[abstract.ProviderType]ProviderFactory{}
 
@@ -84,7 +84,7 @@ func Source[T Provider](lgr log.Logger, registry metrics.Registry, cp coordinato
 	if !ok {
 		return defRes, false
 	}
-	res := f(lgr, registry, cp, transfer)
+	res := f(lgr, registry, cp, transfer, nil)
 	typedRes, ok := res.(T)
 	return typedRes, ok
 }
@@ -114,7 +114,7 @@ func ProviderIs[T Provider](provider abstract.ProviderType) bool {
 	if !ok {
 		return false
 	}
-	res := f(logger.Log, nil, coordinator.NewFakeClient(), new(model.Transfer))
+	res := f(logger.Log, nil, coordinator.NewFakeClient(), new(model.Transfer), nil)
 	_, ok = res.(T)
 	return ok
 }
@@ -125,19 +125,19 @@ func ProviderAs[T Provider](provider abstract.ProviderType) (T, bool) {
 		var t T
 		return t, false
 	}
-	res := f(logger.Log, nil, coordinator.NewFakeClient(), new(model.Transfer))
+	res := f(logger.Log, nil, coordinator.NewFakeClient(), new(model.Transfer), nil)
 	typed, ok := res.(T)
 	return typed, ok
 }
 
 // Destination resolve a specific provider interface from registry by `transfer.DstType()` provider type.
-func Destination[T Provider](lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer) (T, bool) {
+func Destination[T Provider](lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, operation *model.TransferOperation) (T, bool) {
 	var defRes T
 	f, ok := knownProviders[transfer.DstType()]
 	if !ok {
 		return defRes, false
 	}
-	res := f(lgr, registry, cp, transfer)
+	res := f(lgr, registry, cp, transfer, operation)
 	typedRes, ok := res.(T)
 	return typedRes, ok
 }

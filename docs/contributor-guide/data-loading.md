@@ -44,12 +44,12 @@ graph TD
 ### 1. Initialization
 
 ```go
-loader := NewSnapshotLoader(coordinator, operationID, transfer, registry)
+loader := NewSnapshotLoader(coordinator, operation, transfer, registry)
 ```
 
 The loader is initialized with:
 - Coordinator for distributed operations
-- Operation ID for tracking
+- Operation for context about current operation
 - Transfer configuration
 - Metrics registry
 

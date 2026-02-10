@@ -36,6 +36,8 @@ type Provider struct {
 	registry metrics.Registry
 	cp       cpclient.Coordinator
 	transfer *model.Transfer
+
+	operation *model.TransferOperation
 }
 
 func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, tables abstract.TableMap, callbacks providers.ActivateCallbacks) error {
@@ -89,7 +91,7 @@ func (p *Provider) Source() (abstract.Source, error) {
 	return source.NewSource(src, p.transfer.ID, p.logger, p.registry, p.cp, shardingRuntime)
 }
 
-func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
+func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
 	dst, ok := p.transfer.Dst.(*s3.S3Destination)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
@@ -97,6 +99,10 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 
 	switch p.transfer.Type {
 	case abstract.TransferTypeSnapshotOnly:
+		if p.operation == nil {
+			return nil, xerrors.Errorf("operation is nil")
+		}
+		_ = p.operation.CreatedAt
 		sink, err := s3_sink.NewSnapshotSink(p.logger, dst, p.registry, p.cp, p.transfer.ID)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to create snapshot sink: %w", err)
@@ -113,11 +119,13 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 	}
 }
 
-func New(lgr log.Logger, registry metrics.Registry, cp cpclient.Coordinator, transfer *model.Transfer) providers.Provider {
+func New(lgr log.Logger, registry metrics.Registry, cp cpclient.Coordinator, transfer *model.Transfer, operation *model.TransferOperation) providers.Provider {
 	return &Provider{
 		logger:   lgr,
 		registry: registry,
 		cp:       cp,
 		transfer: transfer,
+
+		operation: operation,
 	}
 }

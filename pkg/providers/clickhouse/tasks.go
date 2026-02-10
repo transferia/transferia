@@ -17,7 +17,7 @@ func (p *Provider) loadClickHouseSchema() error {
 	if _, ok := p.transfer.Dst.(*model.ChDestination); !ok {
 		return nil
 	}
-	sink, err := sink_factory.MakeAsyncSink(p.transfer, p.logger, p.registry, coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink_factory.MakeAsyncSink(p.transfer, new(dp_model.TransferOperation), p.logger, p.registry, coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	if err != nil {
 		return xerrors.Errorf("unable to make sinker: %w", err)
 	}

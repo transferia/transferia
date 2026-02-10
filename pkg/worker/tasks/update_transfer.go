@@ -45,13 +45,13 @@ func UpdateTransfer(ctx context.Context, cp coordinator.Coordinator, transfer mo
 					return xerrors.Errorf("Cannot run update-transfer hook for %s: %w", transfer.SrcType(), err)
 				}
 			} else {
-				if err := applyAddedTablesSchema(&transfer, registry); err != nil {
+				if err := applyAddedTablesSchema(&transfer, &task, registry); err != nil {
 					return xerrors.Errorf("Cannot load schema for added table to target: %w", err)
 				}
 			}
 		}
 		if !transfer.IncrementOnly() {
-			snapshotLoader := NewSnapshotLoader(cp, task.OperationID, &transfer, registry)
+			snapshotLoader := NewSnapshotLoader(cp, &task, &transfer, registry)
 			if err := snapshotLoader.UploadTables(ctx, tables, false); err != nil {
 				return xerrors.Errorf("failed to upload tables: %w", err)
 			}

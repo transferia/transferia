@@ -112,7 +112,7 @@ func (v runTaskVisitor) OnChecksum(t abstract.Checksum) interface{} {
 	if err := util.MapFromJSON(v.params, &us); err != nil {
 		return err
 	}
-	if err := Checksum(v.transfer, logger.Log, v.registry, &us); err != nil {
+	if err := Checksum(v.transfer, logger.Log, v.registry, &us, &v.task); err != nil {
 		return err
 	}
 	return nil

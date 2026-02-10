@@ -45,7 +45,7 @@ func TestTransformerTypeInference(t *testing.T) {
 	}})
 	transfer := helpers.MakeTransfer(helpers.TransferID, &source, &target, abstract.TransferTypeSnapshotOnly)
 	transfer.Labels = `{"dt-async-ch": "on"}`
-	sink, err := sink.MakeAsyncSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig())
+	sink, err := sink.MakeAsyncSink(transfer, &model.TransferOperation{}, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig())
 	require.NoError(t, err)
 	host := &chconn.Host{
 		Name:       "localhost",

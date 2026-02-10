@@ -32,7 +32,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 	cp, err := s3coordinator.NewS3Recipe(os.Getenv("S3_BUCKET"))
 	require.NoError(t, err)
 	ctx := context.Background()
-	transfer := "dtt"
+	transferID := "dtt"
 
 	tables := []abstract.TableDescription{
 		{Schema: "sc", Name: "t1"},
@@ -49,7 +49,9 @@ func TestShardedUploadCoordinator(t *testing.T) {
 		return err
 	}
 	t.Run("happy shard uploader", func(t *testing.T) {
+		task := &model.TransferOperation{}
 		taskID := terryid.GenerateJobID()
+		task.OperationID = taskID
 		go func() {
 			// slave 1
 			time.Sleep(3 * time.Second)
@@ -78,7 +80,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 			require.NoError(t, terminateSlave(taskID, 3, nil))
 		}()
 		transfer := &model.Transfer{
-			ID: transfer,
+			ID: transferID,
 			Runtime: &abstract.LocalRuntime{
 				ShardingUpload: abstract.ShardUploadParams{JobCount: 3},
 				CurrentJob:     0,
@@ -97,11 +99,13 @@ func TestShardedUploadCoordinator(t *testing.T) {
 				},
 			},
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(cp, taskID, transfer, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		snapshotLoader := tasks.NewSnapshotLoader(cp, task, transfer, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, snapshotLoader.UploadTables(ctx, tables, false))
 	})
 	t.Run("sad shard uploader (one slave is dead)", func(t *testing.T) {
 		taskID := terryid.GenerateJobID()
+		task := &model.TransferOperation{}
+		task.OperationID = taskID
 		go func() {
 			// slave 1
 			time.Sleep(3 * time.Second)
@@ -130,7 +134,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 			require.NoError(t, terminateSlave(taskID, 3, nil))
 		}()
 		transfer := &model.Transfer{
-			ID: transfer,
+			ID: transferID,
 			Runtime: &abstract.LocalRuntime{
 				ShardingUpload: abstract.ShardUploadParams{JobCount: 3},
 				CurrentJob:     0,
@@ -149,7 +153,7 @@ func TestShardedUploadCoordinator(t *testing.T) {
 				},
 			},
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(cp, taskID, transfer, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		snapshotLoader := tasks.NewSnapshotLoader(cp, task, transfer, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.Error(t, snapshotLoader.UploadTables(ctx, tables, false))
 	})
 }

@@ -90,6 +90,7 @@ func TestAllSinks(t *testing.T) {
 			r := solomon.NewRegistry(solomon.NewRegistryOpts())
 			sink, err := sink.ConstructBaseSink(
 				transfer,
+				&model.TransferOperation{},
 				logger.Log,
 				r, // metrics registry
 				coordinator.NewFakeClient(),

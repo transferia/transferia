@@ -130,7 +130,7 @@ func (w *LocalWorker) initialize() (err error) {
 	if err := tasks.AddExtraTransformers(w.ctx, w.transfer, w.registry); err != nil {
 		return xerrors.Errorf("failed to set extra runtime transformations: %w", err)
 	}
-	w.sink, err = sink.MakeAsyncSink(w.transfer, w.logger, w.registry, w.cp, middlewares.MakeConfig(middlewares.AtReplicationStage))
+	w.sink, err = sink.MakeAsyncSink(w.transfer, new(model.TransferOperation), w.logger, w.registry, w.cp, middlewares.MakeConfig(middlewares.AtReplicationStage))
 	if err != nil {
 		return errors.CategorizedErrorf(categories.Target, "failed to create sink: %w", err)
 	}

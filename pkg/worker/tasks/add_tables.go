@@ -60,10 +60,10 @@ func AddTables(ctx context.Context, cp coordinator.Coordinator, transfer model.T
 		"Initial load for tables",
 		log.Any("tables", tables),
 	)
-	if err := applyAddedTablesSchema(&transfer, registry); err != nil {
+	if err := applyAddedTablesSchema(&transfer, &task, registry); err != nil {
 		return xerrors.Errorf("failed to transfer schema of the added tables: %w", err)
 	}
-	snapshotLoader := NewSnapshotLoader(cp, task.OperationID, &transfer, registry)
+	snapshotLoader := NewSnapshotLoader(cp, &task, &transfer, registry)
 	if err := snapshotLoader.LoadSnapshot(ctx); err != nil {
 		return xerrors.Errorf("failed to load data of the added tables (at snapshot): %w", err)
 	}
@@ -115,7 +115,7 @@ func verifyCanAddTables(source model.Source, tables []string, transfer *model.Tr
 	}
 }
 
-func applyAddedTablesSchema(transfer *model.Transfer, registry metrics.Registry) error {
+func applyAddedTablesSchema(transfer *model.Transfer, task *model.TransferOperation, registry metrics.Registry) error {
 	switch src := transfer.Src.(type) {
 	case *postgres.PgSource:
 		if src.PreSteps.AnyStepIsTrue() {
@@ -123,7 +123,7 @@ func applyAddedTablesSchema(transfer *model.Transfer, registry metrics.Registry)
 			if err != nil {
 				return errors.CategorizedErrorf(categories.Source, "failed to extract schema from source: %w", err)
 			}
-			if err := postgres.ApplyPgDumpPreSteps(pgdump, transfer, registry); err != nil {
+			if err := postgres.ApplyPgDumpPreSteps(pgdump, transfer, task, registry); err != nil {
 				return errors.CategorizedErrorf(categories.Target, "failed to apply pre-steps to transfer schema: %w", err)
 			}
 		}

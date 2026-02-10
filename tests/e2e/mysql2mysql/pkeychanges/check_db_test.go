@@ -15,7 +15,6 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
@@ -53,12 +52,7 @@ func Existence(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.TODO(), tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
-
+	helpers.Activate(t, transfer)
 	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
 }
 

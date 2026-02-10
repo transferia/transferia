@@ -71,7 +71,7 @@ func TestBinlogFirstFileMissing_ReturnsCodedError(t *testing.T) {
 
 	transfer := &model.Transfer{ID: "test-transfer-id", Src: src, Dst: &model.MockDestination{}}
 	src.WithDefaults()
-	provider := pmysql.New(logger.Log, nil, coordinator.NewFakeClient(), transfer)
+	provider := pmysql.New(logger.Log, nil, coordinator.NewFakeClient(), transfer, &model.TransferOperation{})
 
 	// Пробуем создать Source и запустить publisher
 	registry := solomon.NewRegistry(solomon.NewRegistryOpts())

@@ -80,7 +80,7 @@ func RemoveTracker(src *MysqlSource, id string, cp coordinator.Coordinator) erro
 	return nil
 }
 
-func LoadMysqlSchema(transfer *model.Transfer, registry metrics.Registry, isAfter bool) error {
+func LoadMysqlSchema(transfer *model.Transfer, task *model.TransferOperation, registry metrics.Registry, isAfter bool) error {
 	mysqlSource, ok := transfer.Src.(*MysqlSource)
 	if !ok {
 		return nil
@@ -88,7 +88,7 @@ func LoadMysqlSchema(transfer *model.Transfer, registry metrics.Registry, isAfte
 	if transfer.SrcType() != transfer.DstType() {
 		return nil
 	}
-	sink, err := sink.MakeAsyncSink(transfer, logger.Log, registry, coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink.MakeAsyncSink(transfer, task, logger.Log, registry, coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	if err != nil {
 		return xerrors.Errorf("unable to make sinker: %w", err)
 	}

@@ -211,6 +211,7 @@ import (
 
     "github.com/stretchr/testify/require"
     "github.com/transferia/transferia/pkg/abstract"
+    "github.com/transferia/transferia/pkg/abstract/model"
     "github.com/transferia/transferia/pkg/providers/clickhouse/model"
     chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
     "github.com/transferia/transferia/pkg/providers/postgres"
@@ -270,7 +271,7 @@ func TestSnapshot(t *testing.T) {
     // Load data
     snapshotLoader := tasks.NewSnapshotLoader(
         client2.NewFakeClient(),
-        "test-operation",
+        new(model.TransferOperation),
         transfer,
         helpers.EmptyRegistry(),
     )

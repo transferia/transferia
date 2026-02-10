@@ -26,7 +26,7 @@ func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tr
 		return TransitReupload(ctx, cp, transfer, task, registry)
 	}
 
-	snapshotLoader := NewSnapshotLoader(cp, task.OperationID, &transfer, registry)
+	snapshotLoader := NewSnapshotLoader(cp, &task, &transfer, registry)
 	if !transfer.IsMain() {
 		if err := snapshotLoader.UploadTables(ctx, nil, false); err != nil {
 			return xerrors.Errorf("Snapshot loading failed: %w", err)

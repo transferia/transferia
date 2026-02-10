@@ -40,6 +40,7 @@ func TestYTStatic(t *testing.T) {
 		Password: model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("PG_LOCAL_DATABASE"),
 		Port:     helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		DBTables: []string{"public.test_table"},
 	}
 	src.WithDefaults()
 
@@ -58,9 +59,7 @@ func TestYTStatic(t *testing.T) {
 	tablePath := ypath.Path("//home/cdc/tests/e2e/pg2yt/yt_static/test_table")
 
 	t.Run("upload_without_cleanup", func(t *testing.T) {
-		tables := []abstract.TableDescription{{Name: "test_table", Schema: "public"}}
-		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation1", transfer, helpers.EmptyRegistry())
-		require.NoError(t, snapshotLoader.UploadTables(ctx, tables, true))
+		helpers.Activate(t, transfer)
 		table, err := ytEnv.YT.ReadTable(ctx, tablePath, nil)
 		require.NoError(t, err)
 		defer func(table yt.TableReader) {
@@ -87,7 +86,7 @@ FROM generate_series(101, 200) AS t(id);
 		require.NoError(t, err)
 		dstModel.Cleanup = model.DisabledCleanup
 		tables := []abstract.TableDescription{{Name: "test_table", Schema: "public", Filter: "id >= 101 AND id <= 200"}}
-		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation2", transfer, helpers.EmptyRegistry())
+		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 		require.NoError(t, snapshotLoader.UploadTables(ctx, tables, true))
 		table, err := ytEnv.YT.ReadTable(ctx, tablePath, nil)
 		require.NoError(t, err)
@@ -113,9 +112,7 @@ WHERE id >= 101 AND id <= 200;
 `)
 		require.NoError(t, err)
 		dstModel.Cleanup = model.Drop
-		tables := []abstract.TableDescription{{Name: "test_table", Schema: "public"}}
-		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation3", transfer, helpers.EmptyRegistry())
-		require.NoError(t, snapshotLoader.UploadTables(ctx, tables, true))
+		_ = helpers.Activate(t, transfer)
 		table, err := ytEnv.YT.ReadTable(ctx, tablePath, nil)
 		require.NoError(t, err)
 		defer func(table yt.TableReader) {
@@ -134,9 +131,8 @@ WHERE id >= 101 AND id <= 200;
 	t.Run("upload_with_old_type_system_ver", func(t *testing.T) {
 		transferWithOldVer := transfer
 		transferWithOldVer.TypeSystemVersion = 1
-		tables := []abstract.TableDescription{{Name: "test_timestamp", Schema: "public"}}
-		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation1", transferWithOldVer, helpers.EmptyRegistry())
-		require.NoError(t, snapshotLoader.UploadTables(ctx, tables, true))
+		src.DBTables = []string{"public.test_timestamp"}
+		helpers.Activate(t, transferWithOldVer)
 		table, err := ytEnv.YT.ReadTable(ctx, ypath.Path("//home/cdc/tests/e2e/pg2yt/yt_static/test_timestamp"), nil)
 		require.NoError(t, err)
 		defer func(table yt.TableReader) {
@@ -155,9 +151,8 @@ WHERE id >= 101 AND id <= 200;
 	t.Run("upload_with_lastest_type_system_ver", func(t *testing.T) {
 		transferWithLatestVer := transfer
 		transferWithLatestVer.TypeSystemVersion = model.LatestVersion
-		tables := []abstract.TableDescription{{Name: "test_timestamp2", Schema: "public"}}
-		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation1", transferWithLatestVer, helpers.EmptyRegistry())
-		require.NoError(t, snapshotLoader.UploadTables(ctx, tables, true))
+		src.DBTables = []string{"public.test_timestamp2"}
+		helpers.Activate(t, transferWithLatestVer)
 		table, err := ytEnv.YT.ReadTable(ctx, ypath.Path("//home/cdc/tests/e2e/pg2yt/yt_static/test_timestamp2"), nil)
 		require.NoError(t, err)
 		defer func(table yt.TableReader) {

@@ -38,10 +38,10 @@ const (
 )
 
 type SnapshotLoader struct {
-	cp          coordinator.Coordinator
-	operationID string
-	transfer    *model.Transfer
-	registry    metrics.Registry
+	cp        coordinator.Coordinator
+	operation *model.TransferOperation
+	transfer  *model.Transfer
+	registry  metrics.Registry
 
 	cancelUpload    context.CancelFunc
 	waitErrOrDoneCh chan error
@@ -61,12 +61,12 @@ type SnapshotLoader struct {
 	schemaLock  sync.Mutex
 }
 
-func NewSnapshotLoader(cp coordinator.Coordinator, operationID string, transfer *model.Transfer, registry metrics.Registry) *SnapshotLoader {
+func NewSnapshotLoader(cp coordinator.Coordinator, operation *model.TransferOperation, transfer *model.Transfer, registry metrics.Registry) *SnapshotLoader {
 	return &SnapshotLoader{
-		cp:          cp,
-		operationID: operationID,
-		transfer:    transfer,
-		registry:    registry,
+		cp:        cp,
+		operation: operation,
+		transfer:  transfer,
+		registry:  registry,
 
 		cancelUpload:    nil,
 		waitErrOrDoneCh: make(chan error),
@@ -336,7 +336,7 @@ func (l *SnapshotLoader) endSnapshot(
 
 func (l *SnapshotLoader) endDestination() error {
 	cfg := middlewares.MakeConfig(middlewares.WithNoData)
-	baseSink, err := sink.ConstructBaseSink(l.transfer, logger.Log, l.registry, l.cp, cfg)
+	baseSink, err := sink.ConstructBaseSink(l.transfer, l.operation, logger.Log, l.registry, l.cp, cfg)
 	if err != nil {
 		return xerrors.Errorf("unable to create sink to complete snapshot: %w", err)
 	}
@@ -452,7 +452,7 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		sourceStorage,
 		tables,
 		l.transfer.ID,
-		l.operationID,
+		l.operation.OperationID,
 		func() error {
 			return l.checkLoaderError()
 		},
@@ -508,7 +508,7 @@ func (l *SnapshotLoader) uploadShardedMode(ctx context.Context, tables []abstrac
 }
 
 func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.TableDescription, updateIncrementalState bool) error {
-	workers, err := l.cp.GetOperationWorkers(l.operationID)
+	workers, err := l.cp.GetOperationWorkers(l.operation.OperationID)
 	if err != nil {
 		return xerrors.Errorf("failed to get operation workers: %w", err)
 	}
@@ -518,7 +518,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 	if !ok || runtime.SnapshotWorkersNum() <= 1 {
-		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
+		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operation.OperationID)
 	}
 
 	if len(inTables) == 0 {
@@ -561,15 +561,15 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to set sharded state: %w", err)
 	}
 
-	metricsTracker := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operationID, l.cp)
+	metricsTracker := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operation.OperationID, l.cp)
 
 	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to start loading tables: %w", err)
 	}
 
 	// Start load tables on secondary workers
-	if err := l.cp.CreateOperationWorkers(l.operationID, runtime.SnapshotWorkersNum()); err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to create operation workers for operation '%v': %w", l.operationID, err)
+	if err := l.cp.CreateOperationWorkers(l.operation.OperationID, runtime.SnapshotWorkersNum()); err != nil {
+		return errors.CategorizedErrorf(categories.Internal, "unable to create operation workers for operation '%v': %w", l.operation.OperationID, err)
 	}
 
 	l.waitErrOrDoneCh = make(chan error, 1)
@@ -587,7 +587,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		sourceStorage,
 		tables,
 		l.transfer.ID,
-		l.operationID,
+		l.operation.OperationID,
 		func() error {
 			return l.checkLoaderError()
 		},
@@ -626,7 +626,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 	if !ok || runtime.SnapshotWorkersNum() <= 1 {
-		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operationID)
+		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operation.OperationID)
 	}
 
 	if l.transfer.TmpPolicy != nil {
@@ -643,7 +643,7 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 		return errors.CategorizedErrorf(categories.Internal, "unable to get shard state: %w", err)
 	}
 
-	prevAssignedTablesParts, err := l.cp.ClearAssignedTablesParts(ctx, l.operationID, l.workerIndex)
+	prevAssignedTablesParts, err := l.cp.ClearAssignedTablesParts(ctx, l.operation.OperationID, l.workerIndex)
 	if err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable clear assigned tables parts for worker %v: %w", l.workerIndex, err)
 	}
@@ -696,7 +696,7 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 // created sink.
 func (l *SnapshotLoader) createServicePusher() (abstract.Pusher, *util.Rollbacks, error) {
 	cfg := middlewares.MakeConfig(middlewares.WithNoData)
-	serviceSink, err := sink.MakeAsyncSink(l.transfer, logger.Log, l.registry, l.cp, cfg)
+	serviceSink, err := sink.MakeAsyncSink(l.transfer, l.operation, logger.Log, l.registry, l.cp, cfg)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("failed to create sink: %w", err)
 	}
@@ -930,7 +930,7 @@ func (l *SnapshotLoader) DoUploadTables(
 	errorOnce := sync.Once{}
 	var tableUploadErr error
 
-	progressTracker := NewSnapshotTableProgressTracker(ctx, tppGetter.SharedMemory(), l.operationID, &l.progressUpdateMutex)
+	progressTracker := NewSnapshotTableProgressTracker(ctx, tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex)
 	defer progressTracker.Close()
 
 	for ctx.Err() == nil {
@@ -987,6 +987,7 @@ func (l *SnapshotLoader) DoUploadTables(
 				progress := NewLoadProgress(l.workerIndex, nextPartPtr, &l.progressUpdateMutex)
 				currSink, err := sink.MakeAsyncSink(
 					l.transfer,
+					l.operation,
 					logger.Log,
 					l.registry,
 					l.cp,
@@ -1139,10 +1140,10 @@ func (l *SnapshotLoader) BuildTPP(
 	} else {
 		if workerType == abstract.WorkerTypeSingleWorker {
 			lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewLocal")
-			sharedMemory = shared_memory.NewLocal(l.operationID)
+			sharedMemory = shared_memory.NewLocal(l.operation.OperationID)
 		} else {
 			lgr.Infof("BuildTPP - factory calls shared_memory_for_async_tpp.NewRemote")
-			sharedMemory = shared_memory.NewRemote(l.cp, l.operationID, l.workerIndex)
+			sharedMemory = shared_memory.NewRemote(l.cp, l.operation.OperationID, l.workerIndex)
 		}
 	}
 
@@ -1151,7 +1152,7 @@ func (l *SnapshotLoader) BuildTPP(
 		lgr,
 		inStorage,
 		l.transfer.ID,
-		l.operationID,
+		l.operation.OperationID,
 		l.workerIndex,
 		sharedMemory,
 	)
@@ -1165,7 +1166,7 @@ func (l *SnapshotLoader) BuildTPP(
 			l.transfer.Dst,
 			tables,
 			l.transfer.TmpPolicy,
-			l.operationID,
+			l.operation.OperationID,
 			sharedMemory,
 		)
 		if err != nil {

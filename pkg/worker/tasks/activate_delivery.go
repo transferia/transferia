@@ -37,12 +37,12 @@ func ActivateDelivery(ctx context.Context, task *model.TransferOperation, cp coo
 			}
 		}
 	})
-
-	var operationID string
-	if task != nil {
-		operationID = task.OperationID
+	operation := task
+	if operation == nil {
+		operation = new(model.TransferOperation)
 	}
-	snapshotLoader := NewSnapshotLoader(cp, operationID, &transfer, registry)
+
+	snapshotLoader := NewSnapshotLoader(cp, operation, &transfer, registry)
 
 	if !transfer.IsMain() {
 		rollbacks.Cancel()

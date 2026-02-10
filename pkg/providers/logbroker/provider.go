@@ -152,8 +152,8 @@ func (p *Provider) Verify(ctx context.Context) error {
 	return nil
 }
 
-func New(provider abstract.ProviderType) func(lgr log.Logger, registry metrics.Registry, cp cpclient.Coordinator, transfer *model.Transfer) providers.Provider {
-	return func(lgr log.Logger, registry metrics.Registry, cp cpclient.Coordinator, transfer *model.Transfer) providers.Provider {
+func New(provider abstract.ProviderType) func(lgr log.Logger, registry metrics.Registry, cp cpclient.Coordinator, transfer *model.Transfer, _ *model.TransferOperation) providers.Provider {
+	return func(lgr log.Logger, registry metrics.Registry, cp cpclient.Coordinator, transfer *model.Transfer, _ *model.TransferOperation) providers.Provider {
 		return &Provider{
 			logger:   lgr,
 			registry: registry,

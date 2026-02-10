@@ -9,13 +9,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	pg_provider "github.com/transferia/transferia/pkg/providers/postgres"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -112,12 +109,8 @@ func testUploadToYt(t *testing.T) {
 	require.False(t, rows.Next())
 
 	// upload tableName from public database to YT
-	solomonDefaultRegistry := solomon.NewRegistry(nil)
-	tables, err := tasks.ObtainAllSrcTables(transfer, solomonDefaultRegistry)
-	require.NoError(t, err)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(testContext, tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
 
 	// see how many rows in YT
 	query := fmt.Sprintf(`

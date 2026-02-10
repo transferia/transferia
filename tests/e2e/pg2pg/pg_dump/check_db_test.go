@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
@@ -64,8 +65,8 @@ func Snapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	// apply on target
-	require.NoError(t, postgres.ApplyPgDumpPreSteps(itemsSource, transfer, helpers.EmptyRegistry()))
-	require.NoError(t, postgres.ApplyPgDumpPostSteps(itemsSource, transfer, helpers.EmptyRegistry()))
+	require.NoError(t, postgres.ApplyPgDumpPreSteps(itemsSource, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
+	require.NoError(t, postgres.ApplyPgDumpPostSteps(itemsSource, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
 
 	// make target a source and extract its schema
 	targetAsSource.PreSteps = Source.PreSteps
@@ -187,8 +188,8 @@ func extractPgDumpTypToCnt(t *testing.T, DBTables []string, schemas []string) ma
 	require.NoError(t, err)
 
 	// apply on target
-	require.NoError(t, postgres.ApplyPgDumpPreSteps(itemsSource, transfer, helpers.EmptyRegistry()))
-	require.NoError(t, postgres.ApplyPgDumpPostSteps(itemsSource, transfer, helpers.EmptyRegistry()))
+	require.NoError(t, postgres.ApplyPgDumpPreSteps(itemsSource, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
+	require.NoError(t, postgres.ApplyPgDumpPostSteps(itemsSource, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
 
 	// make target a source and extract its schema
 	targetAsSource.DBTables = Source.DBTables

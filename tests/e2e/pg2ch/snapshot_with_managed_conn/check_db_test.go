@@ -1,19 +1,16 @@
 package snapshot
 
 import (
-	"context"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
-	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/connection"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/e2e/pg2ch"
 	"github.com/transferia/transferia/tests/helpers"
 )
@@ -43,12 +40,7 @@ func testSnapshot(t *testing.T, source *postgres.PgSource, target model.ChDestin
 	}()
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, source, &target, TransferType)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-	snapshotLoader := tasks.NewSnapshotLoader(client2.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
-
+	helpers.Activate(t, transfer)
 	require.NoError(t, helpers.CompareStorages(t, source, target, helpers.NewCompareStorageParams().WithEqualDataTypes(pg2ch.PG2CHDataTypesComparator)))
 }
 

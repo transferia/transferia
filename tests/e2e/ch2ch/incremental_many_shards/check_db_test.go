@@ -11,12 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
@@ -50,11 +48,8 @@ func TestIncrementalSnapshot(t *testing.T) {
 	transfer := helpers.MakeTransferForIncrementalSnapshot(helpers.TransferID, &Source, &Target, TransferType, databaseName, tableName, cursorField, cursorValue, 15)
 	transfer.Runtime = new(abstract.LocalRuntime)
 
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
+	cp := helpers.NewFakeCPErrRepl()
+	_, err := helpers.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)
 
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount(databaseName, tableName, helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 7))
@@ -67,7 +62,7 @@ func TestIncrementalSnapshot(t *testing.T) {
 
 	addData(t, conn)
 
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
+	_, err = helpers.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)
 
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount(databaseName, tableName, helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 9))

@@ -7,10 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/mysql"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -61,7 +59,6 @@ func TestGroup(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &source, target, abstract.TransferTypeSnapshotOnly)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	require.NoError(t, snapshotLoader.LoadSnapshot(context.Background()))
+	_ = helpers.Activate(t, transfer)
 	require.NoError(t, helpers.CompareStorages(t, source, target.LegacyModel(), helpers.NewCompareStorageParams()))
 }

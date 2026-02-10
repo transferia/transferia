@@ -11,13 +11,11 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	dp_model "github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	ytprovider "github.com/transferia/transferia/pkg/providers/yt"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -95,8 +93,9 @@ func TestSnapshot(t *testing.T) {
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
 	transfer.Labels = `{"dt-async-ch": "on"}`
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	require.NoError(t, snapshotLoader.UploadV2(context.Background(), nil, nil))
+
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
 
 	chTarget := helpers.GetSampleableStorageByModel(t, Target)
 	rowCnt := 0

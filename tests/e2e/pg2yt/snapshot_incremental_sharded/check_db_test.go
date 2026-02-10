@@ -11,10 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	pg_provider "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/pkg/worker/tasks"
+	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -72,18 +71,17 @@ func TestGroup(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	Source.PreSteps.Constraint = true
+	ytDst, ok := Target.(*yt_provider.YtDestinationWrapper)
+	require.True(t, ok)
+	ytDst.Model.Cleanup = "Disabled"
 	transfer := helpers.MakeTransferForIncrementalSnapshot(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly,
 		"public", "__test", "id", "", 15)
-
-	fakeClient := coordinator.NewStatefulFakeClient()
 
 	//------------------------------------------------------------------------------
 	removeAddedData(t)
 
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-	snapshotLoader := tasks.NewSnapshotLoader(fakeClient, "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
+	cp := helpers.NewFakeCPErrRepl()
+	_, err := helpers.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)
 
 	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test",
@@ -97,7 +95,7 @@ func Snapshot(t *testing.T) {
 	addSomeData(t, conn)
 	done := addSomeConcurrentDataAsyncWithDelay(t, 15, conn)
 
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
+	_, err = helpers.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)
 	logger.Log.Infof("Done loading data %v", <-done)
 
@@ -111,7 +109,7 @@ func Snapshot(t *testing.T) {
 	require.Contains(t, ids, int64(18), "Id 18 should be loaded!!")
 	require.NotContains(t, ids, int64(20), "Id 20 should not be loaded during current increment cycle!")
 
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
+	_, err = helpers.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)
 
 	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test",

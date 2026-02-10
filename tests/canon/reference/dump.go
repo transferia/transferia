@@ -37,7 +37,7 @@ import (
 // ConductSequenceWithAllSubsequencesTest is the method which MUST be called by concrete sequence checking tests.
 // It automatically conducts a test for all subsequences of the given sequence test and canonizes the output.
 func ConductSequenceWithAllSubsequencesTest(t *testing.T, sequenceCase dt_canon.CanonizedSequenceCase, transfer *dp_model.Transfer, sink abstract.Sinker, sinkAsSource dp_model.Source) {
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, solomon.NewRegistry(nil).WithTags(map[string]string{"ts": time.Now().String()}))
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), new(dp_model.TransferOperation), transfer, solomon.NewRegistry(nil).WithTags(map[string]string{"ts": time.Now().String()}))
 	require.NoError(t, snapshotLoader.CleanupSinker(sequenceCase.Tables))
 
 	for i, subSeq := range dt_canon.AllSubsequences(sequenceCase.Items) {

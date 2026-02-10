@@ -31,7 +31,7 @@ func TestCheckIncludeDirectives_DataObjects_NoError(t *testing.T) {
 		{Name: "table1", Schema: "schema1"},
 		{Name: "table1", Schema: "schema2"},
 	}
-	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.NoError(t, err)
 }
@@ -50,7 +50,7 @@ func TestCheckIncludeDirectives_DataObjects_Error(t *testing.T) {
 	tables := []abstract.TableDescription{
 		{Name: "table1", Schema: "schema1"},
 	}
-	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.Error(t, err)
 	require.Equal(t, "some tables from include list are missing in the source database: [schema1.table2 schema2.*]", err.Error())
@@ -70,7 +70,7 @@ func TestCheckIncludeDirectives_DataObjects_FqtnVariants(t *testing.T) {
 		{Name: "table1", Schema: "schema1"},
 		{Name: "table1", Schema: "schema2"},
 	}
-	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.NoError(t, err)
 }
@@ -85,7 +85,7 @@ func TestCheckIncludeDirectives_Src_NoError(t *testing.T) {
 		{Name: "table1", Schema: "schema1"},
 		{Name: "table1", Schema: "schema2"},
 	}
-	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.NoError(t, err)
 }
@@ -100,7 +100,7 @@ func TestCheckIncludeDirectives_Src_Error(t *testing.T) {
 	tables := []abstract.TableDescription{
 		{Name: "table1", Schema: "schema1"},
 	}
-	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.Error(t, err)
 	require.Equal(t, "some tables from include list are missing in the source database: [schema1.table2 schema2.*]", err.Error())
@@ -115,7 +115,7 @@ func TestDoUploadTables_CtxCancelledNoErr(t *testing.T) {
 	}}
 
 	storage := mockstorage.NewMockStorage()
-	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -140,6 +140,7 @@ func TestMainWorkerRestart(t *testing.T) {
 
 	tables := []abstract.TableDescription{{Schema: "schema1", Name: "table1"}}
 	operationID := "dtj"
+	task := &model.TransferOperation{OperationID: operationID}
 
 	transfer := &model.Transfer{
 		Runtime: &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1}},
@@ -162,7 +163,7 @@ func TestMainWorkerRestart(t *testing.T) {
 
 	cp := coordinator.NewStatefulFakeClient()
 
-	snapshotLoader := NewSnapshotLoader(cp, operationID, transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(cp, task, transfer, solomon.NewRegistry(nil))
 	ctx := context.Background()
 
 	// first run

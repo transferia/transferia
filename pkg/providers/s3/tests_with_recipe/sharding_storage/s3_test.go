@@ -51,7 +51,8 @@ func buildSourceModel(t *testing.T) *s3.S3Source {
 
 func TestShardingTransfer(t *testing.T) {
 	cfg := buildSourceModel(t)
-	operationID := "dtj"
+	task := &model.TransferOperation{}
+	task.OperationID = "dtj"
 
 	s3recipe.UploadOneFromMemory(t, cfg, "file_0.jsonl", []byte(line0))
 	s3recipe.UploadOneFromMemory(t, cfg, "file_1.jsonl", []byte(line1))
@@ -87,7 +88,7 @@ func TestShardingTransfer(t *testing.T) {
 				ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
 			},
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transferMain, solomon.NewRegistry(nil))
+		snapshotLoader := tasks.NewSnapshotLoader(cp, task, transferMain, solomon.NewRegistry(nil))
 		ctx := context.Background()
 		err := snapshotLoader.UploadTables(ctx, []abstract.TableDescription{{Name: "test"}}, false)
 		require.NoError(t, err)
@@ -109,7 +110,7 @@ func TestShardingTransfer(t *testing.T) {
 				ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
 			},
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transferJob1, solomon.NewRegistry(nil))
+		snapshotLoader := tasks.NewSnapshotLoader(cp, task, transferJob1, solomon.NewRegistry(nil))
 		ctx := context.Background()
 		err := snapshotLoader.UploadTables(ctx, []abstract.TableDescription{{Name: "test"}}, false)
 		require.NoError(t, err)
@@ -128,7 +129,7 @@ func TestShardingTransfer(t *testing.T) {
 				ShardingUpload: abstract.ShardUploadParams{JobCount: 2, ProcessCount: 1},
 			},
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(cp, operationID, transferJob2, solomon.NewRegistry(nil))
+		snapshotLoader := tasks.NewSnapshotLoader(cp, task, transferJob2, solomon.NewRegistry(nil))
 		ctx := context.Background()
 		err := snapshotLoader.UploadTables(ctx, []abstract.TableDescription{{Name: "test"}}, false)
 		require.NoError(t, err)

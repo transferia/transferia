@@ -225,7 +225,7 @@ func (p *Provider) Test(ctx context.Context) *abstract.TestResult {
 	return tr
 }
 
-func New(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *dp_model.Transfer) providers.Provider {
+func New(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *dp_model.Transfer, _ *dp_model.TransferOperation) providers.Provider {
 	return &Provider{
 		logger:   lgr,
 		registry: registry,

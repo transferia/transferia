@@ -189,13 +189,7 @@ type transferStage func(t *testing.T, inserter func() uint64, transfer *model.Tr
 
 func snapshotOnlyStage(t *testing.T, inserter func() uint64, transfer *model.Transfer, _, _ string) {
 	_ = inserter()
-
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-
-	snapshotLoader := tasks.NewSnapshotLoader(cpclient.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
+	_ = helpers.Activate(t, transfer)
 }
 
 func replicationOnlyStage(t *testing.T, inserter func() uint64, transfer *model.Transfer, targetDatabase, targetCollection string) {

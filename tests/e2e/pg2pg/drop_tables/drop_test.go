@@ -87,7 +87,7 @@ func DropAll(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.NoError(t, err)
 
@@ -122,7 +122,7 @@ func DropFilter(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "cannot drop table ids_1 because other objects depend on it")
@@ -158,7 +158,7 @@ func DropAllSnapshotOnly(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.NoError(t, err)
 
@@ -194,7 +194,7 @@ func DropNoViewAll(t *testing.T) {
 	logger.Log.Infof("got tables: %v", tables)
 
 	// must not drop VIEW in target when it is absent in source
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed dependent VIEWs check")
@@ -231,7 +231,7 @@ func DropNoViewFilter(t *testing.T) {
 	logger.Log.Infof("got tables: %v", tables)
 
 	// must not drop VIEW in target when it is absent in source
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed dependent VIEWs check")
@@ -268,7 +268,7 @@ func DropSelective(t *testing.T) {
 	}
 	logger.Log.Infof("got tables: %v", tables)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	err := snapshotLoader.CleanupSinker(tables)
 	require.NoError(t, err)
 

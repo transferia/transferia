@@ -18,6 +18,7 @@ type TransferOperation struct {
 	Progress    *AggregatedProgress
 	Author      string
 	PingedAt    time.Time
+	CreatedAt   time.Time
 }
 
 type OperationWorkflow interface {
@@ -67,4 +68,41 @@ func (s TaskStatus) IsFinal() bool {
 
 func (s TaskStatus) IsSuccess() bool {
 	return s == CompletedTask
+}
+
+// Copy creates a copy of TransferOperation
+// Params and Runtime are not copied
+func (t *TransferOperation) Copy() *TransferOperation {
+	if t == nil {
+		return nil
+	}
+
+	// Deep copy Progress
+	var progress *AggregatedProgress
+	if t.Progress != nil {
+		progress = &AggregatedProgress{
+			PartsCount:          t.Progress.PartsCount,
+			CompletedPartsCount: t.Progress.CompletedPartsCount,
+			ETARowsCount:        t.Progress.ETARowsCount,
+			CompletedRowsCount:  t.Progress.CompletedRowsCount,
+			TotalReadBytes:      t.Progress.TotalReadBytes,
+			TotalDuration:       t.Progress.TotalDuration,
+			LastUpdateAt:        t.Progress.LastUpdateAt,
+		}
+	}
+
+	copy := &TransferOperation{
+		OperationID: t.OperationID,
+		TransferID:  t.TransferID,
+		TaskType:    t.TaskType,
+		Status:      t.Status,
+		Params:      t.Params,
+		Runtime:     t.Runtime,
+		Progress:    progress,
+		Author:      t.Author,
+		PingedAt:    t.PingedAt,
+		CreatedAt:   t.CreatedAt,
+	}
+
+	return copy
 }

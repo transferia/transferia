@@ -44,6 +44,7 @@ func TestTopicResolver(t *testing.T) {
 		solomon.NewRegistry(solomon.NewRegistryOpts()),
 		cpclient.NewFakeClient(),
 		&model.Transfer{Src: kafkaSource, ID: "asd"},
+		&model.TransferOperation{},
 	).(*Provider)
 
 	sniffer, err := provider.Sniffer(context.Background())

@@ -239,7 +239,7 @@ func TestTargetEndpoint(transfer *model.Transfer) error {
 			dst.MaintainTables = dstMaintainTables
 		}()
 	}
-	sink, err := sink.MakeAsyncSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink.MakeAsyncSink(transfer, new(model.TransferOperation), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	if err != nil {
 		return xerrors.Errorf("unable to make sinker: %w", err)
 	}

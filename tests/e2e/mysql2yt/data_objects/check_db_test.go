@@ -77,7 +77,7 @@ func Load(t *testing.T) {
 
 	ctx := context.Background()
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	err := snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(t, err)
 

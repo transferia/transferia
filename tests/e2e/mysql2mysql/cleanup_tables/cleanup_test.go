@@ -50,7 +50,7 @@ func DropAll(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	sink, err := sink.MakeAsyncSink(transfer, logger.Log, helpers.EmptyRegistry(), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink.MakeAsyncSink(transfer, &model.TransferOperation{}, logger.Log, helpers.EmptyRegistry(), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	require.NoError(t, err)
 
 	err = cleanup.CleanupTables(sink, tables, model.Drop)
@@ -64,7 +64,7 @@ func DropFilter(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	sink, err := sink.MakeAsyncSink(transfer, logger.Log, helpers.EmptyRegistry(), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink.MakeAsyncSink(transfer, &model.TransferOperation{}, logger.Log, helpers.EmptyRegistry(), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	require.NoError(t, err)
 
 	err = cleanup.CleanupTables(sink, tables, model.Drop)
@@ -80,7 +80,7 @@ func TruncateAll(t *testing.T) {
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	sink, err := sink.MakeAsyncSink(transfer, logger.Log, helpers.EmptyRegistry(), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink.MakeAsyncSink(transfer, &model.TransferOperation{}, logger.Log, helpers.EmptyRegistry(), coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	require.NoError(t, err)
 
 	err = cleanup.CleanupTables(sink, tables, model.Truncate)

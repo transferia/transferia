@@ -56,9 +56,8 @@ func inaccessibleTables(transfer *model.Transfer, registry metrics.Registry, req
 }
 
 func Upload(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task *model.TransferOperation, spec UploadSpec, registry metrics.Registry) error {
-	var taskID string
-	if task != nil {
-		taskID = task.OperationID
+	if task == nil {
+		task = new(model.TransferOperation)
 	}
 	if transfer.IsTransitional() {
 		if transfer.AsyncOperations {
@@ -70,7 +69,7 @@ func Upload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tran
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 
-	snapshotLoader := NewSnapshotLoader(cp, taskID, &transfer, registry)
+	snapshotLoader := NewSnapshotLoader(cp, task, &transfer, registry)
 	if !transfer.IsMain() {
 		if err := snapshotLoader.UploadTables(ctx, nil, false); err != nil {
 			return xerrors.Errorf("Snapshot loading failed: %w", err)
@@ -81,7 +80,7 @@ func Upload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tran
 	if !transfer.AsyncOperations {
 		rollbacks.Add(func() {
 			if err := cp.SetStatus(transfer.ID, model.Failed); err != nil {
-				logger.Log.Error("Unable to change status", log.Any("id", transfer.ID), log.Any("task_id", taskID))
+				logger.Log.Error("Unable to change status", log.Any("id", transfer.ID), log.Any("task_id", task.OperationID))
 			}
 		})
 		if err := StopJob(cp, transfer); err != nil {

@@ -1,19 +1,16 @@
 package snapshot
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
-	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 )
 
@@ -49,12 +46,7 @@ func testSnapshot(t *testing.T, source *postgres.PgSource, target model.ChDestin
 		`'2022-09-27 00:00:00Z'`,
 		0,
 	)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
-
-	snapshotLoader := tasks.NewSnapshotLoader(client2.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
+	_ = helpers.Activate(t, transfer)
 
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
 		"public",

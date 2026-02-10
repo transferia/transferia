@@ -206,7 +206,7 @@ func (f *fixture) waitMarker() {
 }
 
 func (f *fixture) loadAndCheckSnapshot() {
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), "test-operation", f.transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), &model.TransferOperation{}, f.transfer, helpers.EmptyRegistry())
 	err := snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(f.t, err)
 

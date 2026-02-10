@@ -163,7 +163,7 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 	return NewSinker(p.logger, dst, p.registry)
 }
 
-func New(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer) providers.Provider {
+func New(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, _ *model.TransferOperation) providers.Provider {
 	return &Provider{
 		logger:   lgr,
 		registry: registry,

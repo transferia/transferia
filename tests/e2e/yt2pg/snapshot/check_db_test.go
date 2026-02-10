@@ -13,12 +13,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -242,8 +240,8 @@ func doSnapshotForTSV(t *testing.T, typeSystemVersion int) {
 		if typeSystemVersion != 0 {
 			transfer.TypeSystemVersion = typeSystemVersion
 		}
-		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-		require.NoError(t, snapshotLoader.UploadV2(context.Background(), nil, nil))
+		worker := helpers.Activate(t, transfer)
+		defer worker.Close(t)
 
 		pgTarget := helpers.GetSampleableStorageByModel(t, Target)
 		totalInserts := 0

@@ -92,7 +92,7 @@ func TestDateTime(t *testing.T) {
 
 	ytDestination := makeTarget()
 	transfer := helpers.MakeTransfer(helpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 	err = snapshotLoader.LoadSnapshot(context.Background())
 	require.NoError(t, err)
 

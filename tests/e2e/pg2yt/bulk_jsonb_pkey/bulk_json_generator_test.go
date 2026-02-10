@@ -255,7 +255,7 @@ func testFactoryPumpDatabaseToYt(ytDest yt_provider.YtDestinationModel, table st
 		require.NoError(t, err)
 
 		logger.Log.Info("Load snapshot", log.String("table", table), log.Any("tablePath", tablePath))
-		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
+		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
 		err = snapshotLoader.LoadSnapshot(ctx)
 		require.NoError(t, err)
 

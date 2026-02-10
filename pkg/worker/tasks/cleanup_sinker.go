@@ -46,7 +46,7 @@ func (l *SnapshotLoader) CleanupSinker(tables abstract.TableMap) error {
 	mode := l.transfer.Dst.CleanupMode()
 
 	logger.Log.Infof("need to cleanup (%v) tables", string(mode))
-	sink, err := sink.MakeAsyncSink(l.transfer, logger.Log, l.registry, l.cp, middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink.MakeAsyncSink(l.transfer, l.operation, logger.Log, l.registry, l.cp, middlewares.MakeConfig(middlewares.WithNoData))
 	if err != nil {
 		return errors.CategorizedErrorf(categories.Target, "failed to connect to the target database: %w", err)
 	}

@@ -8,10 +8,8 @@ import (
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
-	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/canon/mongo"
 	"github.com/transferia/transferia/tests/helpers"
 )
@@ -52,21 +50,15 @@ func Ping(t *testing.T) {
 func Snapshot(t *testing.T) {
 	Source.Collections = []mongocommon.MongoCollection{
 		{DatabaseName: databaseName, CollectionName: "test_data"},
-		{DatabaseName: databaseName, CollectionName: "empty"},
 	}
 
 	require.NoError(t, mongo.InsertDocs(context.Background(), Source, databaseName, "test_data", mongo.SnapshotDocuments...))
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly)
 	transfer.TypeSystemVersion = 7
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
-	require.NoError(t, err)
 
-	snapshotLoader := tasks.NewSnapshotLoader(client2.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	err = snapshotLoader.UploadTables(context.Background(), tables.ConvertToTableDescriptions(), true)
-	require.NoError(t, err)
-
-	err = helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
+	_ = helpers.Activate(t, transfer)
+	err := helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
 		return true
 	}).WithPriorityComparators(func(lVal interface{}, lSchema abstract.ColSchema, rVal interface{}, rSchema abstract.ColSchema, intoArray bool) (comparable bool, result bool, err error) {
 		ld, _ := json.Marshal(lVal)

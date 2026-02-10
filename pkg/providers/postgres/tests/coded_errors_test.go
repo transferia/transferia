@@ -64,6 +64,7 @@ func TestCodedErrors_DropTableWithDependencies(t *testing.T) {
 	}
 	sink, err := sink.ConstructBaseSink(
 		transfer,
+		&model.TransferOperation{},
 		logger.Log,
 		solomon.NewRegistry(solomon.NewRegistryOpts()),
 		coordinator.NewFakeClient(),

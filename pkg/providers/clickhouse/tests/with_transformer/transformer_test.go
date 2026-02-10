@@ -101,7 +101,7 @@ FROM table
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, &source, &target, abstract.TransferTypeSnapshotOnly)
 	require.NoError(t, transfer.AddExtraTransformer(transformer))
-	sinker, err := sink.MakeAsyncSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig())
+	sinker, err := sink.MakeAsyncSink(transfer, &model.TransferOperation{}, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig())
 	require.NoError(t, err)
 	require.NoError(t, <-sinker.AsyncPush(items))
 	reference.Dump(t, &targetAsSource)

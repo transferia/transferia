@@ -13,8 +13,8 @@ import (
 
 var UnknownTargetError = xerrors.New("unknown event target for destination, try legacy sinker instead")
 
-func NewTarget(transfer *model.Transfer, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, opts ...abstract.SinkOption) (t base.EventTarget, err error) {
-	if factory, ok := providers.Destination[providers.Abstract2Sinker](lgr, mtrcs, cp, transfer); ok {
+func NewTarget(transfer *model.Transfer, task *model.TransferOperation, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, opts ...abstract.SinkOption) (t base.EventTarget, err error) {
+	if factory, ok := providers.Destination[providers.Abstract2Sinker](lgr, mtrcs, cp, transfer, task); ok {
 		return factory.Target(opts...)
 	}
 	return nil, UnknownTargetError

@@ -137,7 +137,7 @@ func (p *ChecksumParameters) GetPriorityComparators() []ChecksumComparator {
 	return p.PriorityComparators
 }
 
-func Checksum(transfer model.Transfer, lgr log.Logger, registry metrics.Registry, params *ChecksumParameters) error {
+func Checksum(transfer model.Transfer, lgr log.Logger, registry metrics.Registry, params *ChecksumParameters, task *model.TransferOperation) error {
 	var err error
 	var srcStorage, dstStorage abstract.SampleableStorage
 	var tables []abstract.TableDescription
@@ -154,7 +154,7 @@ func Checksum(transfer model.Transfer, lgr log.Logger, registry metrics.Registry
 	if len(params.Tables) > 0 {
 		tables = params.Tables
 	}
-	dstF, ok := providers.Destination[providers.Sampleable](lgr, registry, coordinator.NewFakeClient(), &transfer)
+	dstF, ok := providers.Destination[providers.Sampleable](lgr, registry, coordinator.NewFakeClient(), &transfer, task)
 	if !ok {
 		return fmt.Errorf("unsupported source type for checksum: %T", transfer.Src)
 	}

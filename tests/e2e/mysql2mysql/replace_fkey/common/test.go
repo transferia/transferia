@@ -121,7 +121,7 @@ func Load(t *testing.T) {
 
 	require.NoError(t, waitForSync(t))
 
-	require.NoError(t, tasks.Checksum(*transfer, logger.Log, helpers.EmptyRegistry(), defaultChecksumParams()))
+	require.NoError(t, tasks.Checksum(*transfer, logger.Log, helpers.EmptyRegistry(), defaultChecksumParams(), &model.TransferOperation{}))
 }
 
 func waitForSync(t *testing.T) error {

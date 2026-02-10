@@ -40,7 +40,7 @@ func TestMergeWithIncrementalState(t *testing.T) {
 		{Name: "table2", Schema: "public"},
 	}
 	incrementalStorage := newFakeIncrementalStorage()
-	snapshotLoader := NewSnapshotLoader(client, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(client, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	outTables, err := snapshotLoader.getIncrementalStateAndMergeWithTables(tables, incrementalStorage)
 	require.NoError(t, err)
 	slices.SortFunc(outTables, func(a, b abstract.TableDescription) int {

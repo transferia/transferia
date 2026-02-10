@@ -177,7 +177,7 @@ func TestCheckIncludeDirectives_Src_YDBSpecific(t *testing.T) {
 		// thus this addition by user of table with leading slash should not lead to error
 		"/table2/full/path",
 	}}
-	snapshotLoader := tasks.NewSnapshotLoader(&coordinator.CoordinatorNoOp{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := tasks.NewSnapshotLoader(&coordinator.CoordinatorNoOp{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	err := snapshotLoader.CheckIncludeDirectives(tables, func() (abstract.Storage, error) { return mockstorage.NewMockStorage(), nil })
 	require.NoError(t, err)
 }

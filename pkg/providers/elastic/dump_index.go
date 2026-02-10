@@ -85,7 +85,7 @@ func WaitForIndexToExist(client *elasticsearch.Client, indexName string, timeout
 }
 
 func applyDump(indexName string, indexParams []byte, transfer *model.Transfer, registry metrics.Registry) error {
-	sink, err := sink_factory.MakeAsyncSink(transfer, logger.Log, registry, coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
+	sink, err := sink_factory.MakeAsyncSink(transfer, new(model.TransferOperation), logger.Log, registry, coordinator.NewFakeClient(), middlewares.MakeConfig(middlewares.WithNoData))
 	if err != nil {
 		return err
 	}

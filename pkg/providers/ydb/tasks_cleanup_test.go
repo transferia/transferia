@@ -83,7 +83,7 @@ func testCaseYDBCleanupPaths(
 
 	emptyRegistry := solomon.NewRegistry(nil).WithTags(map[string]string{"ts": time.Now().String()})
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), "test-operation", transfer, emptyRegistry)
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, emptyRegistry)
 	err := snapshotLoader.CleanupSinker(ConvertTableMapToYDBRelPath(src.ToStorageParams(), tables))
 	require.NoError(t, err)
 }

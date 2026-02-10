@@ -28,19 +28,27 @@ var NoAsyncSinkErr = xerrors.NewSentinel("no applicable AsyncSink for this trans
 
 // MakeAsyncSink creates a ready-to-use complete sink pipeline, topped with an asynchronous sink wrapper.
 // The pipeline may include multiple middlewares and transformations. Their concrete set depends on transfer settings, its source and destination.
-func MakeAsyncSink(transfer *model.Transfer, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, config middlewares.Config, opts ...abstract.SinkOption) (abstract.AsyncSink, error) {
+func MakeAsyncSink(
+	transfer *model.Transfer,
+	task *model.TransferOperation,
+	lgr log.Logger,
+	mtrcs metrics.Registry,
+	cp coordinator.Coordinator,
+	config middlewares.Config,
+	opts ...abstract.SinkOption,
+) (abstract.AsyncSink, error) {
 	var pipelineAsync abstract.AsyncSink = nil
 	middleware, err := syncMiddleware(transfer, lgr, mtrcs, cp, opts...)
 	if err != nil {
 		return nil, xerrors.Errorf("error building sync middleware pipeline: %w", err)
 	}
 
-	pipelineAsync, err = constructBaseAsyncSink(transfer, lgr, mtrcs, cp, middleware)
+	pipelineAsync, err = constructBaseAsyncSink(transfer, task, lgr, mtrcs, cp, middleware)
 	if err != nil {
 		if !xerrors.Is(err, NoAsyncSinkErr) {
 			return nil, errors.CategorizedErrorf(categories.Target, "failed to construct async sink: %w", err)
 		}
-		sink, err := ConstructBaseSink(transfer, lgr, mtrcs, cp, config)
+		sink, err := ConstructBaseSink(transfer, task, lgr, mtrcs, cp, config)
 		if err != nil {
 			return nil, errors.CategorizedErrorf(categories.Target, "failed to construct sink: %w", err)
 		}
@@ -89,13 +97,13 @@ func syncMiddleware(transfer *model.Transfer, lgr log.Logger, mtrcs metrics.Regi
 }
 
 // ConstructBaseSink creates a sink of proper type
-func ConstructBaseSink(transfer *model.Transfer, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, config middlewares.Config) (abstract.Sinker, error) {
+func ConstructBaseSink(transfer *model.Transfer, task *model.TransferOperation, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, config middlewares.Config) (abstract.Sinker, error) {
 	switch dst := transfer.Dst.(type) {
 	case *model.MockDestination:
 		return dst.SinkerFactory(), nil
 	default:
 		if !config.ReplicationStage {
-			factory, ok := providers.Destination[providers.SnapshotSinker](lgr, mtrcs, cp, transfer)
+			factory, ok := providers.Destination[providers.SnapshotSinker](lgr, mtrcs, cp, transfer, task)
 			if ok {
 				res, err := factory.SnapshotSink(config)
 				if err != nil {
@@ -104,7 +112,7 @@ func ConstructBaseSink(transfer *model.Transfer, lgr log.Logger, mtrcs metrics.R
 				return res, nil
 			}
 		}
-		factory, ok := providers.Destination[providers.Sinker](lgr, mtrcs, cp, transfer)
+		factory, ok := providers.Destination[providers.Sinker](lgr, mtrcs, cp, transfer, task)
 		if !ok {
 			return nil, xerrors.Errorf("sink: %s: %T not supported", transfer.DstType(), transfer.Dst)
 		}
@@ -116,8 +124,8 @@ func ConstructBaseSink(transfer *model.Transfer, lgr log.Logger, mtrcs metrics.R
 	}
 }
 
-func constructBaseAsyncSink(transfer *model.Transfer, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, middleware abstract.Middleware) (abstract.AsyncSink, error) {
-	if asyncF, ok := providers.Destination[providers.AsyncSinker](lgr, mtrcs, cp, transfer); ok {
+func constructBaseAsyncSink(transfer *model.Transfer, operation *model.TransferOperation, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, middleware abstract.Middleware) (abstract.AsyncSink, error) {
+	if asyncF, ok := providers.Destination[providers.AsyncSinker](lgr, mtrcs, cp, transfer, operation); ok {
 		return asyncF.AsyncSink(middleware)
 	}
 	return nil, NoAsyncSinkErr

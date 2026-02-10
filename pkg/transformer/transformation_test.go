@@ -74,6 +74,7 @@ func TestMultipleTransformers(t *testing.T) {
 	}
 	asink, err := sink.MakeAsyncSink(
 		transfer,
+		&model.TransferOperation{},
 		logger.Log,
 		solomon.NewRegistry(solomon.NewRegistryOpts()),
 		coordinator.NewFakeClient(),

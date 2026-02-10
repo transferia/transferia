@@ -211,7 +211,7 @@ func TestEveryTableHasOwnSink(t *testing.T) {
 	// need to synchronize load tables in parallel
 	waitTable1LoadStarted.Add(1)
 
-	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, "test-operation", transfer, solomon.NewRegistry(nil))
+	snapshotLoader := NewSnapshotLoader(&FakeControlplane{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
 	err = snapshotLoader.UploadTables(
 		context.Background(),
 		[]abstract.TableDescription{

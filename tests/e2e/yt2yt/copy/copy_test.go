@@ -11,10 +11,8 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/copy/target"
-	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -182,8 +180,8 @@ func TestYTHomoProvider(t *testing.T) {
 	require.NoError(t, err, "Error initializing data in source YT")
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	snapshotLoader := tasks.NewSnapshotLoader(client2.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
-	require.NoError(t, snapshotLoader.UploadV2(context.Background(), nil, nil))
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
 
 	err = checkDstData(dstYTEnv, testData)
 	require.NoError(t, err, "Error checking destination data")
@@ -253,10 +251,11 @@ func TestYTCopySkipUnchangedTables(t *testing.T) {
 		initialRowCounts[i] = len(testData[i].Data)
 	}
 	transfer := helpers.MakeTransfer(helpers.TransferID+"-skip-unchanged", &Source, &Target, TransferType)
-	snapshotLoader := tasks.NewSnapshotLoader(client2.NewFakeClient(), "test-operation", transfer, helpers.EmptyRegistry())
 
 	// First run: copy all tables.
-	require.NoError(t, snapshotLoader.UploadV2(t.Context(), nil, nil))
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
+
 	require.NoError(t, checkDstData(dstYTEnv, testData))
 	checkPathsHaveContentRevisionAttr(t, dstYTEnv.YT, outPaths)
 	firstUpdatedAt := getTablesUpdatedAt(t, dstYTEnv.YT, outPaths)
@@ -266,7 +265,8 @@ func TestYTCopySkipUnchangedTables(t *testing.T) {
 	uploadSlice(t, srcYTEnv, testData[3].InPath, afterUpdateDataD)
 
 	// Second run: unchanged (a, b) must be skipped; changed (c, d) must be re-copied.
-	require.NoError(t, snapshotLoader.UploadV2(t.Context(), nil, nil))
+	worker2 := helpers.Activate(t, transfer)
+	defer worker2.Close(t)
 	secondUpdatedAt := getTablesUpdatedAt(t, dstYTEnv.YT, outPaths)
 	for _, i := range unchangedIndices {
 		require.Equal(t, firstUpdatedAt[i], secondUpdatedAt[i], outPaths[i])

@@ -58,7 +58,7 @@ func cleanupTmp(ctx context.Context, transfer model.Transfer, logger log.Logger,
 		return xerrors.Errorf(model.ErrInvalidTmpPolicy, err)
 	}
 
-	cleanuper, ok := providers.Destination[providers.TMPCleaner](logger, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, &transfer)
+	cleanuper, ok := providers.Destination[providers.TMPCleaner](logger, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, &transfer, &task)
 	if !ok {
 		return nil
 	}

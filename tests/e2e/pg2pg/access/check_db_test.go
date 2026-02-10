@@ -105,7 +105,7 @@ func UploadTestAccessible(t *testing.T) {
 
 	pgdump, err := postgres.ExtractPgDumpSchema(transfer)
 	require.NoError(t, err)
-	require.NoError(t, postgres.ApplyPgDumpPreSteps(pgdump, transfer, helpers.EmptyRegistry()))
+	require.NoError(t, postgres.ApplyPgDumpPreSteps(pgdump, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
 
 	require.NoError(t, tasks.Upload(context.TODO(), coordinator.NewFakeClient(), *transfer, nil, tasks.UploadSpec{Tables: tablesA}, helpers.EmptyRegistry()))
 }
@@ -114,7 +114,7 @@ func UploadTestInaccessible(t *testing.T) {
 	transferForDump := helpers.MakeTransfer(sourceIAForDumpTID, &SourceIAForDump, &Target, abstract.TransferTypeSnapshotOnly)
 	pgdump, err := postgres.ExtractPgDumpSchema(transferForDump)
 	require.NoError(t, err)
-	require.NoError(t, postgres.ApplyPgDumpPreSteps(pgdump, transferForDump, helpers.EmptyRegistry()))
+	require.NoError(t, postgres.ApplyPgDumpPreSteps(pgdump, transferForDump, &model.TransferOperation{}, helpers.EmptyRegistry()))
 
 	transfer := helpers.MakeTransfer(sourceIATID, &SourceIA, &Target, abstract.TransferTypeSnapshotOnly)
 	err = tasks.Upload(context.TODO(), coordinator.NewFakeClient(), *transfer, nil, tasks.UploadSpec{Tables: tablesIA}, helpers.EmptyRegistry())
