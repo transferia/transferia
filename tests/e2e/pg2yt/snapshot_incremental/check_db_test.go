@@ -123,7 +123,7 @@ func Snapshot(t *testing.T) {
 	removeAddedData(t)
 }
 
-func readIdsFromTarget(t *testing.T, storage abstract.SampleableStorage) []int64 {
+func readIdsFromTarget(t *testing.T, storage abstract.Storage) []int64 {
 	ids := make([]int64, 0)
 
 	require.NoError(t, storage.LoadTable(context.Background(), abstract.TableDescription{

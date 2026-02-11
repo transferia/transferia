@@ -38,8 +38,8 @@ func withTextSerialization(storageParams *pgStorage.PgStorageParams) *pgStorage.
 	return storageParams
 }
 
-func GetSampleableStorageByModel(t *testing.T, serverModel interface{}) abstract.SampleableStorage {
-	var result abstract.SampleableStorage
+func GetSampleableStorageByModel(t *testing.T, serverModel interface{}) abstract.ChecksumableStorage {
+	var result abstract.ChecksumableStorage
 	var err error
 
 	switch model := serverModel.(type) {

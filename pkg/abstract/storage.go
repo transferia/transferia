@@ -353,15 +353,26 @@ type SchemaStorage interface {
 	LoadSchema() (DBSchema, error)
 }
 
-// SampleableStorage is for dataplane tests
-type SampleableStorage interface {
+type SizeableStorage interface {
 	Storage
-
 	TableSizeInBytes(table TableID) (uint64, error)
-	LoadTopBottomSample(table TableDescription, pusher Pusher) error
+}
+
+type Sampleable interface {
 	LoadRandomSample(table TableDescription, pusher Pusher) error
-	LoadSampleBySet(table TableDescription, keySet []map[string]interface{}, pusher Pusher) error
+}
+
+type AccessCheckable interface {
 	TableAccessible(table TableDescription) bool
+}
+
+// ChecksumableStorage is for dataplane tests
+type ChecksumableStorage interface {
+	SizeableStorage
+	Sampleable
+
+	LoadTopBottomSample(table TableDescription, pusher Pusher) error
+	LoadSampleBySet(table TableDescription, keySet []map[string]interface{}, pusher Pusher) error
 }
 
 // ShardingStorage is for in table sharding

@@ -61,11 +61,11 @@ type AsyncSinker interface {
 	AsyncSink(middleware abstract.Middleware) (abstract.AsyncSink, error)
 }
 
-// Sampleable add ability to run `Checksum` to provider.
-type Sampleable interface {
+// Checksumable add ability to run `Checksum` to provider.
+type Checksumable interface {
 	Provider
-	SourceSampleableStorage() (abstract.SampleableStorage, []abstract.TableDescription, error)
-	DestinationSampleableStorage() (abstract.SampleableStorage, error)
+	SourceChecksumableStorage() (abstract.ChecksumableStorage, []abstract.TableDescription, error)
+	DestinationChecksumableStorage() (abstract.ChecksumableStorage, error)
 }
 
 type ProviderFactory func(lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, operation *model.TransferOperation) Provider

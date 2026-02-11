@@ -162,7 +162,7 @@ func SniffSnapshotData(ctx context.Context, tr *abstract.TestResult, transfer *m
 			cnt = exactCnt
 		}
 
-		if sampleable, ok := sourceStorage.(abstract.SampleableStorage); ok && cnt > 2000 {
+		if sampleable, ok := sourceStorage.(abstract.Sampleable); ok && cnt > 2000 {
 			err = sampleable.LoadRandomSample(tdesc, sinker.Push)
 		} else {
 			err = sourceStorage.LoadTable(cctx, tdesc, sinker.Push)

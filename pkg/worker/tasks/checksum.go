@@ -139,13 +139,13 @@ func (p *ChecksumParameters) GetPriorityComparators() []ChecksumComparator {
 
 func Checksum(transfer model.Transfer, lgr log.Logger, registry metrics.Registry, params *ChecksumParameters, task *model.TransferOperation) error {
 	var err error
-	var srcStorage, dstStorage abstract.SampleableStorage
+	var srcStorage, dstStorage abstract.ChecksumableStorage
 	var tables []abstract.TableDescription
-	srcF, ok := providers.Source[providers.Sampleable](lgr, registry, coordinator.NewFakeClient(), &transfer)
+	srcF, ok := providers.Source[providers.Checksumable](lgr, registry, coordinator.NewFakeClient(), &transfer)
 	if !ok {
 		return fmt.Errorf("unsupported source type for checksum: %T", transfer.Src)
 	}
-	srcStorage, tables, err = srcF.SourceSampleableStorage()
+	srcStorage, tables, err = srcF.SourceChecksumableStorage()
 	if err != nil {
 		return xerrors.Errorf("unabel to init source: %w", err)
 	}
@@ -154,11 +154,11 @@ func Checksum(transfer model.Transfer, lgr log.Logger, registry metrics.Registry
 	if len(params.Tables) > 0 {
 		tables = params.Tables
 	}
-	dstF, ok := providers.Destination[providers.Sampleable](lgr, registry, coordinator.NewFakeClient(), &transfer, task)
+	dstF, ok := providers.Destination[providers.Checksumable](lgr, registry, coordinator.NewFakeClient(), &transfer, task)
 	if !ok {
 		return fmt.Errorf("unsupported source type for checksum: %T", transfer.Src)
 	}
-	dstStorage, err = dstF.DestinationSampleableStorage()
+	dstStorage, err = dstF.DestinationChecksumableStorage()
 	if err != nil {
 		return xerrors.Errorf("unable to init dst storage: %w", err)
 	}
@@ -173,7 +173,7 @@ func Checksum(transfer model.Transfer, lgr log.Logger, registry metrics.Registry
 
 type primaryKeys map[abstract.TableID][]string /* column name */
 
-func loadSchema(storage abstract.SampleableStorage) (abstract.DBSchema, primaryKeys, error) {
+func loadSchema(storage abstract.ChecksumableStorage) (abstract.DBSchema, primaryKeys, error) {
 	var schema abstract.DBSchema
 	var err error
 	switch s := storage.(type) {
@@ -203,8 +203,8 @@ type SingleStorageSchema interface {
 }
 
 func CompareChecksum(
-	src abstract.SampleableStorage,
-	dst abstract.SampleableStorage,
+	src abstract.ChecksumableStorage,
+	dst abstract.ChecksumableStorage,
 	tables []abstract.TableDescription,
 	lgr log.Logger,
 	registry metrics.Registry,
@@ -354,7 +354,7 @@ TBLS:
 	return nil
 }
 
-func lightCompare(table abstract.TableDescription, src abstract.SampleableStorage, dst abstract.SampleableStorage) bool {
+func lightCompare(table abstract.TableDescription, src abstract.ChecksumableStorage, dst abstract.ChecksumableStorage) bool {
 	result := map[string]abstract.ChangeItem{}
 	var keys []map[string]interface{}
 	if err := src.LoadRandomSample(table, func(input []abstract.ChangeItem) error {
@@ -1096,7 +1096,7 @@ func tryComparePgTextRepresentation(lVal interface{}, lSchema abstract.ColSchema
 	return true, bytes.Equal(lText, rText), nil
 }
 
-func loadTopBottomKeyset(st abstract.SampleableStorage, table abstract.TableDescription, lgr log.Logger, fullOption bool) (map[string]abstract.ChangeItem, error) {
+func loadTopBottomKeyset(st abstract.ChecksumableStorage, table abstract.TableDescription, lgr log.Logger, fullOption bool) (map[string]abstract.ChangeItem, error) {
 	var err error
 	var keyset map[string]abstract.ChangeItem
 	if fullOption {
@@ -1113,7 +1113,7 @@ func loadTopBottomKeyset(st abstract.SampleableStorage, table abstract.TableDesc
 	return keyset, nil
 }
 
-func loadFull(st abstract.SampleableStorage, table abstract.TableDescription) (map[string]abstract.ChangeItem, error) {
+func loadFull(st abstract.ChecksumableStorage, table abstract.TableDescription) (map[string]abstract.ChangeItem, error) {
 	result := map[string]abstract.ChangeItem{}
 	last := time.Now()
 	upCtx := util.ContextWithTimestamp(context.Background(), last)
@@ -1134,7 +1134,7 @@ func loadFull(st abstract.SampleableStorage, table abstract.TableDescription) (m
 	return result, nil
 }
 
-func loadTopBottom(st abstract.SampleableStorage, table abstract.TableDescription, lgr log.Logger) (map[string]abstract.ChangeItem, error) {
+func loadTopBottom(st abstract.ChecksumableStorage, table abstract.TableDescription, lgr log.Logger) (map[string]abstract.ChangeItem, error) {
 	result := map[string]abstract.ChangeItem{}
 	lgr.Infof("table is to big %v (%v rows), would compare sample", table.Fqtn(), table.EtaRow)
 	if err := st.LoadTopBottomSample(table, func(input []abstract.ChangeItem) error {
@@ -1155,7 +1155,7 @@ func loadTopBottom(st abstract.SampleableStorage, table abstract.TableDescriptio
 	return result, nil
 }
 
-func loadRandomKeyset(st abstract.SampleableStorage, table abstract.TableDescription) (map[string]abstract.ChangeItem, []map[string]interface{}, error) {
+func loadRandomKeyset(st abstract.ChecksumableStorage, table abstract.TableDescription) (map[string]abstract.ChangeItem, []map[string]interface{}, error) {
 	result := map[string]abstract.ChangeItem{}
 	var keySet []map[string]interface{}
 	err := st.LoadRandomSample(table, func(input []abstract.ChangeItem) error {
@@ -1178,7 +1178,7 @@ func loadRandomKeyset(st abstract.SampleableStorage, table abstract.TableDescrip
 	return result, keySet, nil
 }
 
-func loadExactKeyset(st abstract.SampleableStorage, table abstract.TableDescription, keySet []map[string]interface{}) (map[string]abstract.ChangeItem, error) {
+func loadExactKeyset(st abstract.ChecksumableStorage, table abstract.TableDescription, keySet []map[string]interface{}) (map[string]abstract.ChangeItem, error) {
 	result := map[string]abstract.ChangeItem{}
 	if err := st.LoadSampleBySet(table, keySet, func(input []abstract.ChangeItem) error {
 		for _, row := range input {

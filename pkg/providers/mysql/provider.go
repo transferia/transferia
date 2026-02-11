@@ -64,10 +64,10 @@ const ProviderType = abstract.ProviderType("mysql")
 
 // To verify providers contract implementation
 var (
-	_ providers.Snapshot    = (*Provider)(nil)
-	_ providers.Replication = (*Provider)(nil)
-	_ providers.Sinker      = (*Provider)(nil)
-	_ providers.Sampleable  = (*Provider)(nil)
+	_ providers.Snapshot     = (*Provider)(nil)
+	_ providers.Replication  = (*Provider)(nil)
+	_ providers.Sinker       = (*Provider)(nil)
+	_ providers.Checksumable = (*Provider)(nil)
 
 	_ providers.Activator   = (*Provider)(nil)
 	_ providers.Deactivator = (*Provider)(nil)
@@ -82,7 +82,7 @@ type Provider struct {
 	transfer *model.Transfer
 }
 
-func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abstract.TableDescription, error) {
+func (p *Provider) SourceChecksumableStorage() (abstract.ChecksumableStorage, []abstract.TableDescription, error) {
 	src, ok := p.transfer.Src.(*MysqlSource)
 	if !ok {
 		return nil, nil, xerrors.Errorf("unexpected src type: %T", p.transfer.Src)
@@ -117,7 +117,7 @@ func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abst
 	return srcStorage, tables, nil
 }
 
-func (p *Provider) DestinationSampleableStorage() (abstract.SampleableStorage, error) {
+func (p *Provider) DestinationChecksumableStorage() (abstract.ChecksumableStorage, error) {
 	dst, ok := p.transfer.Dst.(*MysqlDestination)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected src type: %T", p.transfer.Src)

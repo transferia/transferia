@@ -56,7 +56,7 @@ var (
 )
 
 type ClickhouseStorage interface {
-	abstract.SampleableStorage
+	abstract.ChecksumableStorage
 	LoadTablesDDL(tables []abstract.TableID) ([]*schema.TableDDL, error)
 	BuildTableQuery(table abstract.TableDescription) (*abstract.TableSchema, string, string, error)
 	GetRowsCount(tableID abstract.TableID) (uint64, error)

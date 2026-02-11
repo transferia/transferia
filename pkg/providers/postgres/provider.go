@@ -61,14 +61,14 @@ const ProviderType = abstract.ProviderType("pg")
 
 // To verify providers contract implementation
 var (
-	_ providers.Sampleable  = (*Provider)(nil)
-	_ providers.Snapshot    = (*Provider)(nil)
-	_ providers.Replication = (*Provider)(nil)
-	_ providers.Sinker      = (*Provider)(nil)
-	_ providers.Verifier    = (*Provider)(nil)
-	_ providers.Activator   = (*Provider)(nil)
-	_ providers.Deactivator = (*Provider)(nil)
-	_ providers.Cleanuper   = (*Provider)(nil)
+	_ providers.Checksumable = (*Provider)(nil)
+	_ providers.Snapshot     = (*Provider)(nil)
+	_ providers.Replication  = (*Provider)(nil)
+	_ providers.Sinker       = (*Provider)(nil)
+	_ providers.Verifier     = (*Provider)(nil)
+	_ providers.Activator    = (*Provider)(nil)
+	_ providers.Deactivator  = (*Provider)(nil)
+	_ providers.Cleanuper    = (*Provider)(nil)
 )
 
 type Provider struct {
@@ -339,7 +339,7 @@ func (p *Provider) srcParamsFromTransfer() (*PgSource, error) {
 	return &src, nil
 }
 
-func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abstract.TableDescription, error) {
+func (p *Provider) SourceChecksumableStorage() (abstract.ChecksumableStorage, []abstract.TableDescription, error) {
 	src, err := p.srcParamsFromTransfer()
 	if err != nil {
 		return nil, nil, xerrors.Errorf("error getting src sampleable storage params from transfer: %w", err)
@@ -374,7 +374,7 @@ func (p *Provider) SourceSampleableStorage() (abstract.SampleableStorage, []abst
 	return srcStorage, tables, nil
 }
 
-func (p *Provider) DestinationSampleableStorage() (abstract.SampleableStorage, error) {
+func (p *Provider) DestinationChecksumableStorage() (abstract.ChecksumableStorage, error) {
 	dst, ok := p.transfer.Dst.(*PgDestination)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)

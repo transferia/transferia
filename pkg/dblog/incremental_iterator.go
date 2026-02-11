@@ -13,7 +13,7 @@ import (
 type IncrementalIterator struct {
 	logger log.Logger
 
-	storage     tablequery.StorageTableQueryable
+	storage     tablequery.TableQueryable
 	tableQuery  *tablequery.TableQuery
 	signalTable SignalTable
 
@@ -30,7 +30,7 @@ type IncrementalIterator struct {
 
 func NewIncrementalIterator(
 	logger log.Logger,
-	storage tablequery.StorageTableQueryable,
+	storage tablequery.TableQueryable,
 	tableQuery *tablequery.TableQuery,
 	signalTable SignalTable,
 	itemConverter ChangeItemConverter,

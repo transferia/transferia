@@ -32,7 +32,7 @@ const (
 
 type ChangeItemConverter func(val interface{}, colSchema abstract.ColSchema) (string, error)
 
-func InferChunkSize(storage abstract.SampleableStorage, tableID abstract.TableID, chunkSizeInBytes uint64) (uint64, error) {
+func InferChunkSize(storage abstract.SizeableStorage, tableID abstract.TableID, chunkSizeInBytes uint64) (uint64, error) {
 	tableSize, err := storage.TableSizeInBytes(tableID)
 	if err != nil {
 		return 0, xerrors.Errorf("failed to resolve table size: %w", err)

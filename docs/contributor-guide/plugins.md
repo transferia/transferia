@@ -48,10 +48,10 @@ type SnapshotSinker interface {
     SnapshotSink(config middlewares.Config) (abstract.Sinker, error)
 }
 
-type Sampleable interface {
+type Checksumable interface {
     Provider
-    SourceSampleableStorage() (abstract.SampleableStorage, []abstract.TableDescription, error)
-    DestinationSampleableStorage() (abstract.SampleableStorage, error)
+    SourceChecksumableStorage() (abstract.ChecksumableStorage, []abstract.TableDescription, error)
+    DestinationChecksumableStorage() (abstract.ChecksumableStorage, error)
 }
 ```
 

@@ -6,9 +6,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 )
 
-// StorageTableQueryable is storage with table query loading
-type StorageTableQueryable interface {
-	abstract.SampleableStorage
-
+type TableQueryable interface {
 	LoadQueryTable(ctx context.Context, table TableQuery, pusher abstract.Pusher) error
 }

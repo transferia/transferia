@@ -40,14 +40,14 @@ func inaccessibleTables(transfer *model.Transfer, registry metrics.Registry, req
 	}
 	defer srcStorage.Close()
 
-	sampleableSrcStorage, ok := srcStorage.(abstract.SampleableStorage)
+	accessCheckable, ok := srcStorage.(abstract.AccessCheckable)
 	if !ok {
 		return nil, nil
 	}
 
 	result := make([]string, 0)
 	for _, rTD := range requested {
-		if !sampleableSrcStorage.TableAccessible(rTD) {
+		if !accessCheckable.TableAccessible(rTD) {
 			result = append(result, rTD.String())
 		}
 	}

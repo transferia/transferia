@@ -11,11 +11,16 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+type queriableStorage interface {
+	abstract.SizeableStorage
+	tablequery.TableQueryable
+}
+
 type Storage struct {
 	logger log.Logger
 
 	src       abstract.Source
-	pgStorage tablequery.StorageTableQueryable
+	pgStorage queriableStorage
 	conn      *pgxpool.Pool
 
 	chunkSize uint64
@@ -29,7 +34,7 @@ type Storage struct {
 func NewStorage(
 	logger log.Logger,
 	src abstract.Source,
-	pgStorage tablequery.StorageTableQueryable,
+	pgStorage queriableStorage,
 	conn *pgxpool.Pool,
 	chunkSize uint64,
 	transferID string,

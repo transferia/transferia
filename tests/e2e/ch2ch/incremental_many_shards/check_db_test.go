@@ -78,7 +78,7 @@ func addData(t *testing.T, conn *sql.DB) {
 	require.NoError(t, err)
 }
 
-func readIdsFromTarget(t *testing.T, storage abstract.SampleableStorage) []uint16 {
+func readIdsFromTarget(t *testing.T, storage abstract.Storage) []uint16 {
 	ids := make([]uint16, 0)
 
 	require.NoError(t, storage.LoadTable(context.Background(), abstract.TableDescription{
