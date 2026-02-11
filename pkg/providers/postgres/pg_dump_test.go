@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract/model"
 )
 
 func TestParseCreateTableDDL(t *testing.T) {
@@ -315,7 +316,9 @@ func TestBuildArgs(t *testing.T) {
 	require.Equal(t, `host=1.1.1.1 port=5432 dbname=db_creatio_uat user=dwh_replic`, connString)
 
 	// with DBTables
-	args, err := pgDumpSchemaArgs(&pgSrc, nil, nil)
+	ddlIncludeTableIDs, err := resolveTablesIncluded(&pgSrc, &model.Transfer{})
+	require.NoError(t, err)
+	args, err := pgDumpSchemaArgs(&pgSrc, ddlIncludeTableIDs, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{
 		`--no-publications`,
@@ -323,19 +326,18 @@ func TestBuildArgs(t *testing.T) {
 		`--format=plain`,
 		`--no-owner`,
 		`--schema-only`,
-		`-t`,
-		`"cms"."FooContents"`,
-		`-t`,
-		`"cms"."__consumer_keeper"`,
-		`-t`,
-		`"cms"."__data_transfer_lsn"`,
-		`-t`,
-		`"cms"."__data_transfer_signal_table"`,
+		`-t`, `"cms"."FooContents"`,
+		`-t`, `"cms"."__consumer_keeper"`,
+		`-t`, `"cms"."__data_transfer_lsn"`,
+		`-t`, `"cms"."__data_transfer_signal_table"`,
+		`-T`, `"public"."repl_mon"`, // Excludes because of PGGlobalExclude.
 	}, args)
 
 	// without DBTables
 	pgSrc.DBTables = []string{}
-	args, err = pgDumpSchemaArgs(&pgSrc, nil, nil)
+	ddlIncludeTableIDs, err = resolveTablesIncluded(&pgSrc, &model.Transfer{})
+	require.NoError(t, err)
+	args, err = pgDumpSchemaArgs(&pgSrc, ddlIncludeTableIDs, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{
 		`--no-publications`,

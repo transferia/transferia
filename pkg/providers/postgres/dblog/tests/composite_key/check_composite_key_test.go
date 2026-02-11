@@ -17,11 +17,12 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/yatestx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
 var (
-	Source        = *pgrecipe.RecipeSource(pgrecipe.WithInitDir("dump"), pgrecipe.WithPrefix(""))
+	Source        = *pgrecipe.RecipeSource(pgrecipe.WithInitDir(yatestx.ProjectSource("dump")), pgrecipe.WithPrefix(""))
 	testTableName = "text_int_pk"
 
 	rowsAfterInserts = uint64(14)

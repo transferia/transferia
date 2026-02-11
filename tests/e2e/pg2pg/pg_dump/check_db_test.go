@@ -12,12 +12,14 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	"github.com/transferia/transferia/pkg/util/set"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
 var (
 	TransferType   = abstract.TransferTypeSnapshotOnly
-	Source         = *pgrecipe.RecipeSource(pgrecipe.WithInitDir("dump"), pgrecipe.WithPrefix(""))
+	Source         = *pgrecipe.RecipeSource(pgrecipe.WithInitDir(yatestx.ProjectSource("dump")), pgrecipe.WithPrefix(""))
 	Target         = *pgrecipe.RecipeTarget(pgrecipe.WithPrefix("DB0_"))
 	targetAsSource = postgres.PgSource{
 		ClusterID:     Target.ClusterID,
@@ -169,6 +171,51 @@ func Snapshot(t *testing.T) {
 	// table attach with regex included dbtables like schema.*
 	itemTypToCnt = extractPgDumpTypToCnt(t, []string{"public.*"}, []string{"public"})
 	require.Equal(t, 2, itemTypToCnt["TABLE_ATTACH"])
+
+	// Subtest to check that tablelist is intersection of endpoint and transfer, and endpoint exclude_tables.
+	t.Run("table-list", func(t *testing.T) {
+		t.Run("intersection", func(t *testing.T) {
+			src := Source
+			includedTable := "public.__test"
+			includedTable2 := "public.table_with_pk"
+			notIncludedTable := "public.table_with_fk"
+			src.DBTables = []string{includedTable, includedTable2, notIncludedTable}
+			transfer := helpers.MakeTransfer(helpers.TransferID, &src, &Target, abstract.TransferTypeSnapshotOnly)
+			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{includedTable, includedTable2}}
+			items, err := postgres.ExtractPgDumpSchema(transfer)
+			require.NoError(t, err)
+			tableNames := set.New[string]()
+			for _, i := range items {
+				if i.Typ == "TABLE" {
+					tableNames.Add(i.Schema + "." + i.Name)
+				}
+			}
+			require.True(t, tableNames.Contains(includedTable))
+			require.True(t, tableNames.Contains(includedTable2))
+			require.False(t, tableNames.Contains(notIncludedTable))
+		})
+
+		// Subtest: endpoint exclude_tables is respected when include list is set
+		t.Run("exclude_tables", func(t *testing.T) {
+			src := Source
+			excludedTable := "public.__test"
+			notIncludedTable := "santa.Ho-Ho-Ho"
+			src.DBTables = []string{"public.*"}
+			src.ExcludedTables = []string{excludedTable}
+			transfer := helpers.MakeTransfer(helpers.TransferID, &src, &Target, abstract.TransferTypeSnapshotOnly)
+			items, err := postgres.ExtractPgDumpSchema(transfer)
+			require.NoError(t, err)
+			tableNames := set.New[string]()
+			for _, i := range items {
+				if i.Typ == "TABLE" {
+					tableNames.Add(i.Schema + "." + i.Name)
+				}
+			}
+			require.True(t, tableNames.Equals(set.New("public.table_with_fk", "public.table_with_pk", "public.wide_boys", "public.wide_boys_part_1", "public.wide_boys_part_2")))
+			require.False(t, tableNames.Contains(excludedTable))
+			require.False(t, tableNames.Contains(notIncludedTable))
+		})
+	})
 }
 
 func extractPgDumpTypToCnt(t *testing.T, DBTables []string, schemas []string) map[string]int {
