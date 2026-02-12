@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	yaslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -390,21 +391,24 @@ func loadPgDumpSchema(ctx context.Context, src *PgSource, transfer *model.Transf
 		tablesSchemas.Add(tableID.Namespace)
 	}
 
-	result := dumpCollations(userDefinedItems["COLLATION"], tablesSchemas)
-
-	types, err := dumpUserDefinedTypes(ctx, userDefinedItems["TYPE"], src, tablesSchemas)
-	if err != nil {
-		return nil, err
+	var result []*pgDumpItem
+	var userDefinedBeforeTables []*pgDumpItem
+	var userDefinedAfterTables []*pgDumpItem
+	if len(userDefinedItems) > 0 {
+		userDefinedFiltered, err := filterUserDefinedItemsInOrder(ctx, userDefinedItems, src, tablesSchemas)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to filter user defined items: %w", err)
+		}
+		for _, d := range userDefinedFiltered {
+			switch d.Typ {
+			case string(Function), string(Cast):
+				userDefinedAfterTables = append(userDefinedAfterTables, d)
+			default:
+				userDefinedBeforeTables = append(userDefinedBeforeTables, d)
+			}
+		}
+		result = append(result, userDefinedBeforeTables...)
 	}
-	result = append(result, types...)
-
-	excludedTypes := determineExcludedTypes(userDefinedItems["TYPE"], types)
-
-	functions := dumpFunctions(userDefinedItems["FUNCTION"], src, excludedTypes, tablesSchemas)
-	result = append(result, functions...)
-
-	casts := dumpCasts(userDefinedItems["CAST"], src, excludedTypes, tablesSchemas)
-	result = append(result, casts...)
 
 	pgDumpArgs, err := pgDumpSchemaArgs(src, tablesIncluded, seqsIncluded, seqsExcluded)
 	if err != nil {
@@ -420,7 +424,9 @@ func loadPgDumpSchema(ctx context.Context, src *PgSource, transfer *model.Transf
 		result = append(result, filterDump(dump, abstract.NewIntersectionIncludeable(src, transfer))...)
 	}
 
-	if (src.PreSteps.SequenceSet == nil || *src.PreSteps.SequenceSet) || (src.PostSteps.SequenceSet == nil || *src.PostSteps.SequenceSet) {
+	result = append(result, userDefinedAfterTables...)
+
+	if shouldDumpSequenceValues(src) {
 		sequenceValuesDump, err := dumpSequenceValues(ctx, tx.Conn(), seqsIncluded)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to dump current SEQUENCE values: %w", err)
@@ -428,6 +434,68 @@ func loadPgDumpSchema(ctx context.Context, src *PgSource, transfer *model.Transf
 		result = append(result, sequenceValuesDump...)
 	}
 
+	return result, nil
+}
+
+// shouldDumpSequenceValues returns true only when at least one phase (Pre or Post) creates Sequence and sets their current values (SequenceSet).
+func shouldDumpSequenceValues(src *PgSource) bool {
+	preSeqSet := src.PreSteps.SequenceSet == nil || *src.PreSteps.SequenceSet
+	postSeqSet := src.PostSteps.SequenceSet == nil || *src.PostSteps.SequenceSet
+	return (src.PreSteps.Sequence && preSeqSet) || (src.PostSteps.Sequence && postSeqSet)
+}
+
+func resolveExcludedTypes(ctx context.Context, dump []*pgDumpItem, src *PgSource, tablesSchemas *set.Set[string]) (*set.Set[string], error) {
+	allTypes := yaslices.Filter(dump, func(i *pgDumpItem) bool { return i.Typ == "TYPE" })
+	allowedTypes, err := dumpUserDefinedTypes(ctx, allTypes, src, tablesSchemas)
+	if err != nil {
+		return nil, err
+	}
+	return determineExcludedTypes(allTypes, allowedTypes), nil
+}
+
+// filterUserDefinedItemsInOrder filters the ordered user-defined dump (COLLATION, TYPE, FUNCTION, CAST)
+// preserving pg_dump order so that dependency order (e.g. function before domain type) is kept.
+func filterUserDefinedItemsInOrder(ctx context.Context, dump []*pgDumpItem, src *PgSource, tablesSchemas *set.Set[string]) ([]*pgDumpItem, error) {
+	if len(dump) == 0 || tablesSchemas.Empty() || src == nil {
+		return nil, nil
+	}
+	pre := src.PreSteps
+	post := src.PostSteps
+	if pre == nil && post == nil {
+		return nil, nil
+	}
+	wantType := (pre != nil && pre.Type) || (post != nil && post.Type)
+	wantCollation := (pre != nil && pre.Collation) || (post != nil && post.Collation)
+	wantFunction := (pre != nil && pre.Function) || (post != nil && post.Function)
+	wantCast := (pre != nil && pre.Cast) || (post != nil && post.Cast)
+
+	excludedTypes, err := resolveExcludedTypes(ctx, dump, src, tablesSchemas)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*pgDumpItem, 0, len(dump))
+	for _, d := range dump {
+		switch d.Typ {
+		case string(Collation):
+			if wantCollation && tablesSchemas.Contains(d.Schema) {
+				result = append(result, d)
+			}
+		case string(Type):
+			if wantType && tablesSchemas.Contains(d.Schema) {
+				result = append(result, d)
+			}
+
+		case string(Function):
+			if wantFunction && tablesSchemas.Contains(d.Schema) && isAllowedFunction(d, excludedTypes) {
+				result = append(result, d)
+			}
+		case string(Cast):
+			if wantCast && isAllowedCast(d.Body, excludedTypes, tablesSchemas) {
+				result = append(result, d)
+			}
+		}
+	}
 	return result, nil
 }
 
@@ -531,9 +599,9 @@ func isAllowedCast(createCastSQL string, excludedTypes *set.Set[string], tablesS
 	return tablesSchemas.Contains(schemaPart[0])
 }
 
-func dumpDefinedItems(connString string, connPass model.SecretString, src *PgSource, hasTableFilter bool) (map[string][]*pgDumpItem, error) {
+func dumpDefinedItems(connString string, connPass model.SecretString, src *PgSource, hasTableFilter bool) ([]*pgDumpItem, error) {
 	if !hasTableFilter {
-		return make(map[string][]*pgDumpItem), nil
+		return nil, nil
 	}
 	args := []string{
 		"--no-publications",
@@ -549,13 +617,7 @@ func dumpDefinedItems(connString string, connPass model.SecretString, src *PgSou
 	if err != nil {
 		return nil, xerrors.Errorf("failed to execute pg_dump to get user-defined entities: %w", err)
 	}
-
-	result := make(map[string][]*pgDumpItem, 0)
-	for _, d := range dump {
-		result[d.Typ] = append(result[d.Typ], d)
-	}
-
-	return result, nil
+	return dump, nil
 }
 
 // strings.Split without considering the separator inside the quotes

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/ptr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 )
@@ -43,6 +44,68 @@ func TestPgDumpDefaults(t *testing.T) {
 	require.NoError(t, src.Validate())
 	require.NotNil(t, src.PreSteps)
 	require.NotNil(t, src.PostSteps)
+}
+
+func TestValidatePgDumpSteps_SequenceSetRequiresSequence(t *testing.T) {
+	t.Run("PreSteps: SequenceSet without Sequence fails", func(t *testing.T) {
+		src := PgSource{
+			ClusterID: "c",
+			PreSteps:  &PgDumpSteps{Sequence: false, SequenceSet: ptr.T(true)},
+			PostSteps: DefaultPgDumpPostSteps(),
+		}
+		src.WithEssentialDefaults()
+		require.Error(t, src.Validate())
+	})
+	t.Run("PostSteps: SequenceSet without Sequence fails", func(t *testing.T) {
+		src := PgSource{
+			ClusterID: "c",
+			PreSteps:  DefaultPgDumpPreSteps(),
+			PostSteps: &PgDumpSteps{Sequence: false, SequenceSet: ptr.T(true), Constraint: true, FkConstraint: true, Index: true, Trigger: true},
+		}
+		src.WithEssentialDefaults()
+		require.Error(t, src.Validate())
+	})
+	t.Run("SequenceSet with Sequence in same step passes", func(t *testing.T) {
+		src := PgSource{
+			ClusterID: "c",
+			PreSteps:  &PgDumpSteps{Sequence: true, SequenceSet: ptr.T(true)},
+			PostSteps: DefaultPgDumpPostSteps(),
+		}
+		src.WithEssentialDefaults()
+		require.NoError(t, src.Validate())
+	})
+}
+
+func TestValidatePgDumpSteps_SequenceOwnedByRequiresSequence(t *testing.T) {
+	t.Run("SequenceOwnedBy without Sequence in any phase fails", func(t *testing.T) {
+		src := PgSource{
+			ClusterID: "c",
+			PreSteps:  &PgDumpSteps{Sequence: false, SequenceOwnedBy: true},
+			PostSteps: DefaultPgDumpPostSteps(),
+		}
+		src.WithEssentialDefaults()
+		require.Error(t, src.Validate())
+	})
+	t.Run("Sequence in PreSteps and SequenceOwnedBy in PostSteps is valid", func(t *testing.T) {
+		src := PgSource{
+			ClusterID: "c",
+			PreSteps:  DefaultPgDumpPreSteps(),
+			PostSteps: &PgDumpSteps{Sequence: false, SequenceOwnedBy: true, Constraint: true, FkConstraint: true, Index: true, Trigger: true},
+		}
+		src.WithEssentialDefaults()
+		require.NoError(t, src.Validate())
+	})
+	t.Run("SequenceOwnedBy in PreSteps without Sequence in PreSteps fails", func(t *testing.T) {
+		src := PgSource{
+			ClusterID: "c",
+			PreSteps:  &PgDumpSteps{Sequence: false, SequenceOwnedBy: true},
+			PostSteps: &PgDumpSteps{Sequence: true, Constraint: true, FkConstraint: true, Index: true, Trigger: true},
+		}
+		src.WithEssentialDefaults()
+		err := src.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "PreSteps")
+	})
 }
 
 func TestIsPreferReplica(t *testing.T) {

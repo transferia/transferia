@@ -369,12 +369,39 @@ func (p *PgDumpSteps) AnyStepIsTrue() bool {
 	}, true)
 }
 
+// ValidatePgDumpSteps verifies SEQUENCE_SET requirement of SEQUENCE in the same phase.
+func (p *PgDumpSteps) ValidatePgDumpSteps() error {
+	if p != nil && p.SequenceSet != nil && *p.SequenceSet && !p.Sequence {
+		return xerrors.Errorf("cannot transfer current sequence values without sequences themselves")
+	}
+	return nil
+}
+
 func (s *PgSource) Validate() error {
 	if err := utils.ValidatePGTables(s.DBTables); err != nil {
 		return xerrors.Errorf("validate include tables error: %w", err)
 	}
 	if err := utils.ValidatePGTables(s.ExcludedTables); err != nil {
 		return xerrors.Errorf("validate exclude tables error: %w", err)
+	}
+	if err := s.PreSteps.ValidatePgDumpSteps(); err != nil {
+		return xerrors.Errorf("PreSteps (before data): %w", err)
+	}
+	if err := s.PostSteps.ValidatePgDumpSteps(); err != nil {
+		return xerrors.Errorf("PostSteps (after data): %w", err)
+	}
+	if (s.PreSteps != nil && s.PreSteps.SequenceOwnedBy) || (s.PostSteps != nil && s.PostSteps.SequenceOwnedBy) {
+		// SequenceOwnedBy is enabled. It requires sequence to exist BEFORE owned by is applied.
+		// 1. Disallow SequenceOwnedBy without Sequence.
+		isSeqPre := s.PreSteps != nil && s.PreSteps.Sequence
+		isSeqPost := s.PostSteps != nil && s.PostSteps.Sequence
+		if !isSeqPre && !isSeqPost {
+			return xerrors.Errorf("cannot transfer sequences ownedBy without sequences themselves (enable Sequence transferring)")
+		}
+		// 2. Disallow SequenceOwnedBy in PreSteps without Sequence.
+		if s.PreSteps != nil && s.PreSteps.SequenceOwnedBy && !s.PreSteps.Sequence {
+			return xerrors.Errorf("cannot transfer sequences ownedBy in PreSteps without sequences themselves (enable Sequence in PreSteps)")
+		}
 	}
 	return nil
 }
