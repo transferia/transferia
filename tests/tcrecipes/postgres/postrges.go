@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -197,6 +198,13 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 		ExposedPorts: []string{defaultPort.Port()},
 		Cmd:          []string{"postgres", "-c", "fsync=off"},
 		WaitingFor:   wait.ForAll(wait.NewHostPortStrategy(defaultPort)),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.PortBindings = nat.PortMap{
+				defaultPort: []nat.PortBinding{
+					{HostIP: "0.0.0.0", HostPort: ""},
+				},
+			}
+		},
 	}
 
 	genericContainerReq := testcontainers.GenericContainerRequest{
@@ -207,8 +215,8 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 	for _, opt := range opts {
 		_ = opt.Customize(&genericContainerReq)
 	}
-	if req.FromDockerfile.Dockerfile != "" {
-		req.Image = ""
+	if genericContainerReq.ContainerRequest.FromDockerfile.Dockerfile != "" {
+		genericContainerReq.ContainerRequest.Image = ""
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, genericContainerReq)
