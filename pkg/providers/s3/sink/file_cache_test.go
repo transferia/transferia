@@ -42,7 +42,7 @@ func createItem(lsn uint64) []abstract.ChangeItem {
 func checkCache(t *testing.T, cache *FileCache, expected []abstract.ChangeItem) {
 	require.Equal(t, len(expected), len(cache.items))
 	for i, item := range cache.items {
-		require.Equal(t, expected[i], *item)
+		require.Equal(t, &expected[i], item)
 	}
 }
 

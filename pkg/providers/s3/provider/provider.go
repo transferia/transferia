@@ -102,8 +102,7 @@ func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
 		if p.operation == nil {
 			return nil, xerrors.Errorf("operation is nil")
 		}
-		_ = p.operation.CreatedAt
-		sink, err := s3_sink.NewSnapshotSink(p.logger, dst, p.registry, p.cp, p.transfer.ID)
+		sink, err := s3_sink.NewSnapshotSink(p.logger, dst, p.registry, p.cp, p.transfer.ID, p.operation.CreatedAt.Unix())
 		if err != nil {
 			return nil, xerrors.Errorf("failed to create snapshot sink: %w", err)
 		}

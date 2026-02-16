@@ -39,6 +39,7 @@ var (
 		YtToken:          "",
 		RowIdxColumnName: "row_idx",
 	}
+	taskCreatedAt = time.Date(2026, 1, 3, 3, 7, 6, 7, time.UTC)
 )
 
 func init() {
@@ -63,6 +64,7 @@ func runSecondaryWorker(ctx context.Context, t *testing.T, cp coordinator.Coordi
 		TransferID:  transfer.ID,
 		TaskType:    abstract.TaskType{Task: abstract.Activate{}},
 		Status:      dp_model.RunningTask,
+		CreatedAt:   taskCreatedAt,
 	}
 
 	logger.Log.Infof("Starting secondary worker %d for operation %s", workerIndex, operationID)
@@ -175,6 +177,7 @@ func TestBigTable(t *testing.T) {
 func TestBigTableWithParallelWorkers(t *testing.T) {
 	source.DesiredPartSizeBytes = 1024 * 1024 // 1MB
 	target := s3recipe.PrepareS3(t, t.Name(), dp_model.ParsingFormatJSON, s3.NoEncoding)
+	target.MaxItemsPerFile = 30000
 	helpers.InitSrcDst(helpers.TransferID, source, target, transferType)
 
 	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
@@ -199,6 +202,7 @@ func TestBigTableWithParallelWorkers(t *testing.T) {
 		TransferID:  transfer.ID,
 		TaskType:    abstract.TaskType{Task: abstract.Activate{}},
 		Status:      dp_model.RunningTask,
+		CreatedAt:   taskCreatedAt,
 	}
 
 	logger.Log.Info("Starting main worker")
@@ -279,13 +283,9 @@ func TestBigTableWithParallelWorkers(t *testing.T) {
 	logger.Log.Info("end transfer from s3 to mock sink")
 	logger.Log.Infof("totalCnt: %d", totalCnt)
 
-	// here 20 parts every worker rewrite item values with last one
-	// it`s not ok and should be fixed in future with new s3 snapshot sink
-	require.Equal(t, rowCount/20, totalCnt)
-	// require.Equal(t, int64(1), minVal)
-	// should be 1'000'000, but it's not with parallel workers for s3 sink now, worker rewrite item values with last one
-	//require.Equal(t, totalCnt, int64(1000000))
-	//require.Equal(t, rowCount, totalCnt)
+	require.Equal(t, int64(1), minVal)
+	require.Equal(t, totalCnt, int64(1000000))
+	require.Equal(t, rowCount, totalCnt)
 
 	itemValues := someItem.AsMap()
 	rowIdx := itemValues["row_idx"].(int64)

@@ -6,12 +6,13 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	s3_provider "github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/serializer"
 	"github.com/transferia/transferia/pkg/util"
 )
 
 type buckets map[string]map[string]*FileCache
+
+const maxPartIDLen = 24
 
 func rowFqtn(tableID abstract.TableID) string {
 	if tableID.Namespace != "" {
@@ -26,7 +27,7 @@ func rowPart(row abstract.ChangeItem) string {
 	}
 	res := rowFqtn(row.TableID())
 	if row.PartID != "" {
-		res = fmt.Sprintf("%s_%s", res, hashLongPart(row.PartID, 24))
+		res = fmt.Sprintf("%s_%s", res, hashLongPart(row.PartID, maxPartIDLen))
 	}
 	return res
 }
@@ -55,22 +56,12 @@ func hashLongPart(text string, maxLen int) string {
 	return util.Hash(text)
 }
 
-func createSnapshotIOHolder(outputEncoding s3_provider.Encoding, outputFormat model.ParsingFormat, anyAsString bool) (*snapshotHolder, error) {
-	uploadDone := make(chan error)
-	var snapshot Snapshot
-	if outputEncoding == s3_provider.GzipEncoding {
-		snapshot = NewSnapshotGzip()
-	} else {
-		snapshot = NewSnapshotRaw()
+func countInsertItems(input []abstract.ChangeItem) int {
+	count := 0
+	for _, item := range input {
+		if item.Kind == abstract.InsertKind {
+			count++
+		}
 	}
-	batchSerializer, err := createSerializer(outputFormat, anyAsString)
-	if err != nil {
-		return nil, err
-	}
-
-	return &snapshotHolder{
-		uploadDone: uploadDone,
-		snapshot:   snapshot,
-		serializer: batchSerializer,
-	}, nil
+	return count
 }

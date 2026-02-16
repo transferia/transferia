@@ -78,15 +78,6 @@ func (f *FileCache) Split(intervals []ObjectRange, maxCacheSize uint64) []*FileC
 	return parts
 }
 
-func (f *FileCache) Clear() {
-	for j := 0; j < len(f.items); j++ {
-		f.items[j] = nil
-	}
-	f.items = make([]*abstract.ChangeItem, 0)
-	f.minLSN = math.MaxUint64
-	f.maxLSN = 0
-}
-
 func (f *FileCache) ExtractLsns() []uint64 {
 	lsns := make([]uint64, 0)
 	for _, item := range f.items {

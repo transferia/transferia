@@ -135,8 +135,8 @@ func Existence(t *testing.T) {
 func Verify(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 	err := tasks.VerifyDelivery(*transfer, logger.Log, helpers.EmptyRegistry())
-	require.Error(t, err, "sink: no InitTableLoad event")
-	checkBucket(t, Target, 0)
+	require.NoError(t, err)
+	checkBucket(t, Target, 1)
 }
 
 func Snapshot(t *testing.T) {

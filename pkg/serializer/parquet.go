@@ -30,15 +30,17 @@ type parquetBatchSerializer struct {
 	buffer *bytes.Buffer
 }
 
-func (s *parquetBatchSerializer) SerializeAndWrite(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) error {
+func (s *parquetBatchSerializer) SerializeAndWrite(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) (int, error) {
 	serialized, err := s.Serialize(items)
 	if err != nil {
-		return xerrors.Errorf("ParquetBatchSerialize: unable to serialize items: %w", err)
+		return 0, xerrors.Errorf("ParquetBatchSerialize: unable to serialize items: %w", err)
 	}
-	if _, err := writer.Write(serialized); err != nil {
-		return xerrors.Errorf("ParquetBatchSerialize: unable to write data: %w", err)
+	written, err := writer.Write(serialized)
+	if err != nil {
+		return 0, xerrors.Errorf("ParquetBatchSerialize: unable to write data: %w", err)
 	}
-	return nil
+
+	return written, nil
 }
 
 func (s *parquetBatchSerializer) Serialize(items []*abstract.ChangeItem) ([]byte, error) {

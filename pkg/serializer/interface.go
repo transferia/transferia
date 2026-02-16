@@ -16,7 +16,7 @@ type Serializer interface {
 
 type BatchSerializer interface {
 	Serialize(items []*abstract.ChangeItem) ([]byte, error)
-	SerializeAndWrite(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) error
+	SerializeAndWrite(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) (int, error)
 	Close() ([]byte, error)
 }
 

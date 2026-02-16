@@ -9,6 +9,7 @@ import (
 
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/serializer/buffer"
+	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 )
@@ -115,17 +116,19 @@ func (s *batchSerializer) Serialize(items []*abstract.ChangeItem) ([]byte, error
 	return joinedBuffers, nil
 }
 
-func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) error {
+func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) (int, error) {
 	if s.concurrency < 2 || len(items) <= s.threshold {
 		buf := s.bufferPool.Get(ctx)
+		defer s.bufferPool.Put(ctx, buf)
 		if err := s.serializeToBuffer(ctx, items, buf); err != nil {
-			return xerrors.Errorf("batchSerializer: unable to serialize items: %w", err)
+			return 0, xerrors.Errorf("batchSerializer: unable to serialize items: %w", err)
 		}
-		if _, err := writer.Write(buf.Bytes()); err != nil {
-			return xerrors.Errorf("batchSerializer: unable to write: %w", err)
+		written, err := writer.Write(buf.Bytes())
+		if err != nil {
+			return 0, xerrors.Errorf("batchSerializer: unable to write: %w", err)
 		}
 
-		return nil
+		return written, nil
 	}
 
 	cancelableCtx, cancel := context.WithCancel(ctx)
@@ -143,10 +146,12 @@ func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstra
 		cond.L.Unlock()
 	}()
 
+	totalWritten := atomic.NewInt32(0)
+
 	bufsCnt := (len(items) + s.threshold - 1) / s.threshold
 	for i := range bufsCnt {
 		if egCtx.Err() != nil {
-			return xerrors.Errorf("batchSerializer: context error: %w", egCtx.Err())
+			return 0, xerrors.Errorf("batchSerializer: context error: %w", egCtx.Err())
 		}
 
 		i := i
@@ -178,10 +183,12 @@ func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstra
 			if egCtx.Err() != nil {
 				return xerrors.Errorf("batchSerializer: context canceled: %w", egCtx.Err())
 			}
-			_, err := writer.Write(buf.Bytes())
+			written, err := writer.Write(buf.Bytes())
 			if err != nil {
 				return xerrors.Errorf("batchSerializer: unable to write serialized part: %w", err)
 			}
+			totalWritten.Add(int32(written))
+
 			nextToWrite++
 			cond.Broadcast()
 
@@ -190,10 +197,10 @@ func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstra
 	}
 
 	if err := eg.Wait(); err != nil {
-		return xerrors.Errorf("batchSerializer: processing error: %w", err)
+		return 0, xerrors.Errorf("batchSerializer: processing error: %w", err)
 	}
 
-	return nil
+	return int(totalWritten.Load()), nil
 }
 
 func (s *batchSerializer) serializeToBuffer(ctx context.Context, items []*abstract.ChangeItem, out *bytes.Buffer) error {
@@ -207,22 +214,6 @@ func (s *batchSerializer) serializeToBuffer(ctx context.Context, items []*abstra
 	}
 	if err := s.serializer.SerializeWithSeparatorTo(items[len(items)-1], nil, out); err != nil {
 		return xerrors.Errorf("unable to serialize last item: %w", err)
-	}
-	return nil
-}
-
-func (s *batchSerializer) serializeToWriter(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) error {
-	buf := s.bufferPool.Get(ctx)
-	if buf == nil {
-		return xerrors.New("batchSerializer: context canceled while getting buffer")
-	}
-	defer s.bufferPool.Put(ctx, buf)
-
-	if err := s.serializeToBuffer(ctx, items, buf); err != nil {
-		return xerrors.Errorf("batchSerializer: unable to serialize to buffer: %w", err)
-	}
-	if _, err := writer.Write(buf.Bytes()); err != nil {
-		return xerrors.Errorf("batchSerializer: unable to write to writer: %w", err)
 	}
 	return nil
 }

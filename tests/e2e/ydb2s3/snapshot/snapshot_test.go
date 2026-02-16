@@ -147,5 +147,7 @@ func TestGroup(t *testing.T) {
 	data, err := io.ReadAll(obj.Body)
 	require.NoError(t, err)
 	logger.Log.Infof("read file: %s /n%s", *objects.Contents[0].Key, string(data))
-	require.True(t, strings.HasSuffix(*objects.Contents[0].Key, "foo/insert_into_s3.json"))
+	expectedPrefix := "test/foo/insert_into_s3/part-"
+	comment := fmt.Sprintf("expected prefix: %s, got: %s", expectedPrefix, *objects.Contents[0].Key)
+	require.True(t, strings.HasPrefix(*objects.Contents[0].Key, expectedPrefix), comment)
 }

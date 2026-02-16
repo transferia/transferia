@@ -30,6 +30,7 @@ type Encoding string
 const (
 	NoEncoding   = Encoding("UNCOMPRESSED")
 	GzipEncoding = Encoding("GZIP")
+	ZlibEncoding = Encoding("ZLIB")
 )
 
 type S3Destination struct {
@@ -52,6 +53,8 @@ type S3Destination struct {
 	PartSize         int64  `log:"true"`
 	Concurrency      int64  `log:"true"`
 	AnyAsString      bool   `log:"true"`
+	MaxItemsPerFile  int    `log:"true"`
+	MaxBytesPerFile  int    `log:"true"`
 }
 
 var _ dp_model.Destination = (*S3Destination)(nil)
