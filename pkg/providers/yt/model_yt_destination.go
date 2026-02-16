@@ -326,6 +326,14 @@ func (d *YtDestinationWrapper) AltNames() map[string]string {
 }
 
 func (d *YtDestinationWrapper) Spec() *YTSpec {
+	if d.Model.UseStaticTableOnSnapshot {
+		if _, ok := d.Model.Spec.config["block_size"]; !ok {
+			d.Model.Spec.config["block_size"] = 256 * 1024
+		}
+		if _, ok := d.Model.Spec.config["desired_chunk_size"]; !ok {
+			d.Model.Spec.config["desired_chunk_size"] = 100 * 1024 * 1024
+		}
+	}
 	return &d.Model.Spec
 }
 
@@ -403,6 +411,9 @@ func (d *YtDestinationWrapper) WithDefaults() {
 	}
 	if d.Model.BufferTriggingSize == 0 {
 		d.Model.BufferTriggingSize = model.BufferTriggingSizeDefault
+	}
+	if d.Model.Spec.config == nil {
+		d.Model.Spec.config = make(map[string]interface{})
 	}
 }
 

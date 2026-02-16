@@ -18,6 +18,8 @@ import (
 const (
 	blockSize         = 256 * (2 << 10)
 	maxFailedJobCount = 5
+	dynBlockSize      = 256 * (1 << 10)
+	dynChunkSize      = 100 * (1 << 20)
 )
 
 func init() {
@@ -34,6 +36,7 @@ type commitClient struct {
 	Pool             string
 	OptimizedFor     string
 	CustomAttributes map[string]any
+	IsDynamicSorted  bool
 }
 
 func (c *commitClient) sortTable(currentPath ypath.Path, sortedPath ypath.Path) (ypath.Path, error) {
@@ -56,6 +59,14 @@ func (c *commitClient) sortTable(currentPath ypath.Path, sortedPath ypath.Path) 
 	sortSpec.MergeJobIO = &spec.JobIO{TableWriter: map[string]any{"block_size": blockSize}}
 	sortSpec.SortJobIO = &spec.JobIO{TableWriter: map[string]any{"block_size": blockSize}}
 	sortSpec.MaxFailedJobCount = maxFailedJobCount
+	if c.IsDynamicSorted {
+		sortSpec.PartitionJobIO = &spec.JobIO{TableWriter: map[string]any{"desired_chunk_size": dynChunkSize,
+			"block_size": dynBlockSize}}
+		sortSpec.MergeJobIO = &spec.JobIO{TableWriter: map[string]any{"desired_chunk_size": dynChunkSize,
+			"block_size": dynBlockSize}}
+		sortSpec.SortJobIO = &spec.JobIO{TableWriter: map[string]any{"desired_chunk_size": dynChunkSize,
+			"block_size": dynBlockSize}}
+	}
 	mergeOperation, err := sortClient.Sort(sortSpec)
 	if err != nil {
 		return "", xerrors.Errorf("unable to start sorting operation: %w", err)
@@ -104,6 +115,10 @@ func (c *commitClient) mergeTables(currentPath ypath.Path, userPath ypath.Path, 
 	mergeSpec.MergeBy = keyCols
 	mergeSpec.CombineChunks = true
 	mergeSpec.MaxFailedJobCount = maxFailedJobCount
+	if c.IsDynamicSorted {
+		mergeSpec.MergeJobIO = &spec.JobIO{TableWriter: map[string]any{"desired_chunk_size": dynChunkSize,
+			"block_size": dynBlockSize}}
+	}
 	mergeOperation, err := mergeClient.Merge(mergeSpec)
 	if err != nil {
 		return xerrors.Errorf("unable to start merging operation: %w", err)
@@ -147,6 +162,11 @@ func (c *commitClient) reduceTables(currentPath, userPath, reducedPath, pathToBi
 	if pathToBinary != "" {
 		reduceSpec.PatchUserBinary(pathToBinary)
 		reduceOpts = append(reduceOpts, mapreduce.SkipSelfUpload())
+	}
+
+	if c.IsDynamicSorted {
+		reduceSpec.ReduceJobIO = &spec.JobIO{TableWriter: map[string]any{"desired_chunk_size": dynChunkSize,
+			"block_size": dynBlockSize}}
 	}
 
 	reduceOperation, err := reduceClient.Reduce(ytmerge.NewMergeWithDeduplicationJob(), reduceSpec, reduceOpts...)
@@ -207,9 +227,9 @@ func (c *commitClient) checkTablesAttrsCompatibility(tmpTable, userTable ypath.P
 	return nil
 }
 
-func newCommitClient(tx yt.Tx, client yt.Client, scheme []abstract.ColSchema, pool string, optimizedFor string, customAttributes map[string]any, useUniqueKeys bool) *commitClient {
+func newCommitClient(tx yt.Tx, client yt.Client, scheme []abstract.ColSchema, pool string, optimizedFor string, customAttributes map[string]any, isDynamicSorted bool) *commitClient {
 	finalSchema := makeYtSchema(scheme)
-	if useUniqueKeys {
+	if isDynamicSorted {
 		finalSchema.UniqueKeys = true
 	}
 	return &commitClient{
@@ -219,5 +239,6 @@ func newCommitClient(tx yt.Tx, client yt.Client, scheme []abstract.ColSchema, po
 		Pool:             pool,
 		OptimizedFor:     optimizedFor,
 		CustomAttributes: customAttributes,
+		IsDynamicSorted:  isDynamicSorted,
 	}
 }

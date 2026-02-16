@@ -186,7 +186,15 @@ func (d *YTSaurusDynamicDestination) AltNames() map[string]string { // not suppo
 }
 
 func (d *YTSaurusDynamicDestination) Spec() *YTSpec { // Do we need it? Will only be used whe static on snapshot is on
-	return new(YTSpec)
+	spec := YTSpec{
+		config: make(map[string]any),
+	}
+
+	if d.UseStaticTableOnSnapshot() {
+		spec.config["block_size"] = 256 * 1024
+		spec.config["desired_chunk_size"] = 100 * 1024 * 1024
+	}
+	return &spec
 }
 
 func (d *YTSaurusDynamicDestination) TolerateKeyChanges() bool { //ordered or versioned
