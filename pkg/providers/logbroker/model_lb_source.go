@@ -22,8 +22,10 @@ type LbSource struct {
 
 	IsLbSink bool `log:"true"` // it's like IsHomo
 
-	RootCAFiles []string
-	TLS         TLSMode `log:"true"`
+	RootCAFiles    []string
+	TLS            TLSMode                `log:"true"`
+	ParserConfig   map[string]interface{} // not used, just for api consistency
+	ReadOptionsSet bool                   // for api consistency
 }
 
 var _ model.Source = (*LbSource)(nil)
