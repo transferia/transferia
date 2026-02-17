@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"go.ytsaurus.tech/yt/go/schema"
-	"golang.org/x/xerrors"
 )
 
 type JSONSerializerConfig struct {
@@ -25,6 +24,28 @@ type jsonStreamSerializer struct {
 	writer     io.Writer
 }
 
+// buildJsonKV converts all ChangeItem columns to a JSON-serializable key-value map.
+// Uses toJsonValue for type-aware conversion when TableSchema is available.
+func buildJsonKV(item *abstract.ChangeItem, anyAsString bool) (map[string]interface{}, error) {
+	kv := make(map[string]interface{}, len(item.ColumnNames))
+	var columns []abstract.ColSchema
+	if item.TableSchema != nil {
+		columns = item.TableSchema.Columns()
+	}
+	for i := range item.ColumnNames {
+		var col *abstract.ColSchema
+		if i < len(columns) {
+			col = &columns[i]
+		}
+		finalValue, err := toJsonValue(item.ColumnValues[i], col, anyAsString)
+		if err != nil {
+			return nil, xerrors.Errorf("column %q: %w", item.ColumnNames[i], err)
+		}
+		kv[item.ColumnNames[i]] = finalValue
+	}
+	return kv, nil
+}
+
 func (s *jsonSerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, separator []byte, buf *bytes.Buffer) error {
 	if !item.IsRowEvent() {
 		return nil
@@ -33,21 +54,9 @@ func (s *jsonSerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, sep
 		return xerrors.Errorf("JsonSerializer: unsupported kind: %s", item.Kind)
 	}
 
-	kv := make(map[string]interface{}, len(item.ColumnNames))
-	for i := range item.ColumnNames {
-		columnName := item.ColumnNames[i]
-		value := item.ColumnValues[i]
-
-		finalValue := value
-		if s.config.AnyAsString && item.TableSchema.Columns()[i].DataType == string(schema.TypeAny) && value != nil {
-			valueData, err := json.Marshal(value)
-			if err != nil {
-				return xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", err)
-			}
-			finalValue = string(valueData)
-		}
-
-		kv[columnName] = finalValue
+	kv, err := buildJsonKV(item, s.config.AnyAsString)
+	if err != nil {
+		return xerrors.Errorf("JsonSerializer: %w", err)
 	}
 
 	// Use encoder with SetEscapeHTML(false) to preserve original characters like &, <, >
@@ -81,22 +90,9 @@ func (s *jsonSerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 		return nil, xerrors.Errorf("JsonSerializer: unsupported kind: %s", item.Kind)
 	}
 
-	kv := make(map[string]interface{}, len(item.ColumnNames))
-	for i := range item.ColumnNames {
-		columnName := item.ColumnNames[i]
-		value := item.ColumnValues[i]
-
-		var finalValue interface{}
-		finalValue = value
-		if s.config.AnyAsString && item.TableSchema.Columns()[i].DataType == string(schema.TypeAny) && value != nil {
-			valueData, err := json.Marshal(value)
-			if err != nil {
-				return nil, xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", err)
-			}
-			finalValue = string(valueData)
-		}
-
-		kv[columnName] = finalValue
+	kv, err := buildJsonKV(item, s.config.AnyAsString)
+	if err != nil {
+		return nil, xerrors.Errorf("JsonSerializer: %w", err)
 	}
 
 	// Use encoder with SetEscapeHTML(false) to preserve original characters like &, <, >

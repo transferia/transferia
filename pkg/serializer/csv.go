@@ -3,11 +3,9 @@ package serializer
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
 	"io"
 
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/util/castx"
 	"golang.org/x/xerrors"
 )
 
@@ -19,20 +17,34 @@ type csvStreamSerializer struct {
 	writer     io.Writer
 }
 
+// buildCsvCells converts all ChangeItem column values to CSV string cells.
+// Uses toCsvValue for type-aware conversion when TableSchema is available.
+func buildCsvCells(item *abstract.ChangeItem) ([]string, error) {
+	cells := make([]string, len(item.ColumnValues))
+	var columns []abstract.ColSchema
+	if item.TableSchema != nil {
+		columns = item.TableSchema.Columns()
+	}
+	for i, v := range item.ColumnValues {
+		var col *abstract.ColSchema
+		if i < len(columns) {
+			col = &columns[i]
+		}
+		cell, err := toCsvValue(v, col)
+		if err != nil {
+			return nil, xerrors.Errorf("column %d: %w", i, err)
+		}
+		cells[i] = cell
+	}
+	return cells, nil
+}
+
 func (s *csvSerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 	res := &bytes.Buffer{}
 	rowOut := csv.NewWriter(res)
-	cells := make([]string, len(item.ColumnValues))
-	for i, v := range item.ColumnValues {
-		cell, err := castx.ToStringE(v)
-		if err != nil {
-			rawJSON, err := json.Marshal(v)
-			if err != nil {
-				return nil, xerrors.Errorf("CsvSerializer: unable to marshal composite cell: %w", err)
-			}
-			cell = string(rawJSON)
-		}
-		cells[i] = cell
+	cells, err := buildCsvCells(item)
+	if err != nil {
+		return nil, xerrors.Errorf("CsvSerializer: %w", err)
 	}
 	if err := rowOut.Write(cells); err != nil {
 		return nil, xerrors.Errorf("CsvSerializer: unable to write cells: %w", err)
@@ -43,17 +55,9 @@ func (s *csvSerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 
 func (s *csvSerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, separator []byte, buf *bytes.Buffer) error {
 	rowOut := csv.NewWriter(buf)
-	cells := make([]string, len(item.ColumnValues))
-	for i, v := range item.ColumnValues {
-		cell, err := castx.ToStringE(v)
-		if err != nil {
-			rawJSON, err := json.Marshal(v)
-			if err != nil {
-				return xerrors.Errorf("CsvSerializer: unable to marshal composite cell: %w", err)
-			}
-			cell = string(rawJSON)
-		}
-		cells[i] = cell
+	cells, err := buildCsvCells(item)
+	if err != nil {
+		return xerrors.Errorf("CsvSerializer: %w", err)
 	}
 	if err := rowOut.Write(cells); err != nil {
 		return xerrors.Errorf("CsvSerializer: unable to write cells: %w", err)

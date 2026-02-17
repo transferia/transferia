@@ -147,12 +147,12 @@ func NewParquetStreamSerializer(ostream io.Writer, schema *parquet.Schema, table
 	return &pqSerializer, nil
 }
 
-func NewParquetBatchSerializer(compressionCodec compress.Codec) *parquetBatchSerializer {
-	return &parquetBatchSerializer{
+func NewParquetBatchSerializer(compressionCodec compress.Codec) BatchSerializer {
+	return NewStrictifyingBatchSerializer(&parquetBatchSerializer{
 		schema:           nil,
 		tableSchema:      nil,
 		compressionCodec: compressionCodec,
 		streamSerializer: nil,
 		buffer:           nil,
-	}
+	})
 }

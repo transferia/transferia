@@ -23,6 +23,11 @@ import (
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
+var testTableSchema = abstract.NewTableSchema([]abstract.ColSchema{
+	abstract.NewColSchema("test1", schema.TypeString, false),
+	abstract.NewColSchema("test2", schema.TypeString, false),
+})
+
 func generateBullets(table string, count int) []abstract.ChangeItem {
 	var res []abstract.ChangeItem
 	for i := 0; i < count; i++ {
@@ -30,8 +35,9 @@ func generateBullets(table string, count int) []abstract.ChangeItem {
 			Kind:         abstract.InsertKind,
 			CommitTime:   uint64(time.Now().UnixNano()),
 			Table:        table,
-			TableSchema:  abstract.NewTableSchema([]abstract.ColSchema{{DataType: string(schema.TypeString)}, {DataType: string(schema.TypeString)}}),
 			ColumnValues: []interface{}{fmt.Sprintf("test1_value_%v", i), fmt.Sprintf("test2_value_%v", i)},
+			ColumnNames:  []string{"test1", "test2"},
+			TableSchema:  testTableSchema,
 		})
 	}
 	return res
@@ -206,14 +212,17 @@ func testRotationParquet(t *testing.T) {
 		snapshotWriter:     nil,
 		logger:             logger.Log,
 		metrics:            stats.NewSinkerStats(solomon.NewRegistry(solomon.NewRegistryOpts())),
-		fileSplitter:       newFileSplitter(1, 0),
+		fileSplitter:       newFileSplitter(10, 0),
 	}
 
 	require.NoError(t, currSink.Push([]abstract.ChangeItem{
 		{Kind: abstract.InitTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))
 
-	require.NoError(t, currSink.Push(generateBullets("test_table", 10)))
+	// generate 10 same items to test rotation
+	for i := 0; i < 10; i++ {
+		require.NoError(t, currSink.Push(generateBullets("test_table", 10)))
+	}
 	require.NoError(t, currSink.Push([]abstract.ChangeItem{
 		{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))

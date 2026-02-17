@@ -116,6 +116,13 @@ func TestBatchSerializer(t *testing.T) {
 			}),
 			Generator: MakeChangeItems,
 		},
+		{
+			Name: "parquet:default",
+			Serializer: serializer.NewBatchSerializer(&serializer.BatchSerializerCommonConfig{
+				Format: model.ParsingFormatPARQUET,
+			}),
+			Generator: ReadChangeItems,
+		},
 	}
 
 	for _, test := range tests {
@@ -124,6 +131,10 @@ func TestBatchSerializer(t *testing.T) {
 
 			data, err := test.Serializer.Serialize(items)
 			require.NoError(t, err)
+
+			closeData, err := test.Serializer.Close()
+			require.NoError(t, err)
+			data = append(data, closeData...)
 
 			err = os.WriteFile("result", data, 0644)
 			require.NoError(t, err)
@@ -193,7 +204,7 @@ func TestStreamSerializer(t *testing.T) {
 			items := test.Generator(10)
 
 			var buf bytes.Buffer
-			s := test.NewSerializer(&buf)
+			s := serializer.NewStrictifyingStreamSerializer(test.NewSerializer(&buf))
 
 			var (
 				half = items[:len(items)/2]

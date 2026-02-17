@@ -62,7 +62,7 @@ func newBatchSerializer(s Serializer, sep []byte, config *BatchSerializerConfig)
 	}
 
 	return &batchSerializer{
-		serializer:  s,
+		serializer:  NewStrictifyingSerializer(s),
 		separator:   sep,
 		concurrency: concurrency,
 		threshold:   threshold,

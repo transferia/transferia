@@ -8,6 +8,9 @@
     "reference.reference.TestBatchSerializer/json:newline": {
         "uri": "file://reference.reference.TestBatchSerializer_json_newline/result"
     },
+    "reference.reference.TestBatchSerializer/parquet:default": {
+        "uri": "file://reference.reference.TestBatchSerializer_parquet_default/result"
+    },
     "reference.reference.TestBatchSerializer/raw:default": {
         "uri": "file://reference.reference.TestBatchSerializer_raw_default/result"
     },
