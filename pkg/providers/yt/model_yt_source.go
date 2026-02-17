@@ -1,6 +1,8 @@
 package yt
 
 import (
+	"reflect"
+
 	"github.com/dustin/go-humanize"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -23,6 +25,18 @@ type ConnectionData struct {
 	// For YTSaurus only
 	ClusterID        string `log:"true"`
 	ServiceAccountID string `log:"true"`
+
+	// For api consistency
+	ConnectionConfigured bool
+}
+
+func (c ConnectionData) IsConfigured() bool {
+	if c.ConnectionConfigured {
+		return true
+	}
+	//nolint:exhaustivestruct
+	emptyConnection := ConnectionData{}
+	return !reflect.DeepEqual(c, emptyConnection)
 }
 
 type YtSourceModel interface {

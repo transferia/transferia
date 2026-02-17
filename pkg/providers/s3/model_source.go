@@ -52,8 +52,9 @@ type S3Source struct {
 	TableName      string `log:"true"`
 	TableNamespace string `log:"true"`
 
-	InputFormat  model.ParsingFormat  `log:"true"`
-	OutputSchema []abstract.ColSchema `log:"true"`
+	InputFormat   model.ParsingFormat  `log:"true"`
+	OutputSchema  []abstract.ColSchema `log:"true"`
+	IsInferSchema bool                 `log:"true"`
 
 	AirbyteFormat string `log:"true"` // this is for backward compatibility with airbyte. we store raw format for later parsing.
 	PathPattern   string `log:"true"`
@@ -69,7 +70,8 @@ type S3Source struct {
 	ThrottleCPDuration     time.Duration
 
 	// FetchInterval - fixed interval for fetching objects. If set to 0, exponential backoff is used
-	FetchInterval time.Duration `log:"true"`
+	FetchInterval       time.Duration `log:"true"`
+	HasAdvancedSettings bool          `log:"true"` // for api consistency
 }
 
 type ConnectionConfig struct {

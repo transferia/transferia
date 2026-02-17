@@ -76,6 +76,7 @@ func PrepareS3(t *testing.T, bucket string, format model.ParsingFormat, encoding
 		AnyAsString:      false,
 		MaxItemsPerFile:  0,
 		MaxBytesPerFile:  0,
+		SerializerSet:    false,
 	}
 	cfg.WithDefaults()
 	bucket = strings.ToLower(bucket)

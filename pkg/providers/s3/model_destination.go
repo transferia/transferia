@@ -55,6 +55,7 @@ type S3Destination struct {
 	AnyAsString      bool   `log:"true"`
 	MaxItemsPerFile  int    `log:"true"`
 	MaxBytesPerFile  int    `log:"true"`
+	SerializerSet    bool
 }
 
 var _ dp_model.Destination = (*S3Destination)(nil)
