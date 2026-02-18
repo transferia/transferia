@@ -15,7 +15,7 @@ require (
 	github.com/alecthomas/participle v0.4.1
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/araddon/dateparse v0.0.0-20190510211750-d2ba70357e92
-	github.com/aws/aws-sdk-go v1.55.6
+	github.com/aws/aws-sdk-go v1.55.7
 	github.com/blang/semver/v4 v4.0.0
 	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/cenkalti/backoff/v4 v4.3.0
