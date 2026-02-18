@@ -55,29 +55,31 @@ func (p *Source) YSRNamespaceID() string {
 }
 
 func (p *Source) Run(sink abstract.AsyncSink) error {
+	var transformFunc lbyds.TransformFunc
+	if p.executor != nil {
+		transformFunc = func(data []abstract.ChangeItem) []abstract.ChangeItem {
+			st := time.Now()
+			p.logger.Infof("begin transform for batches %v rows", len(data))
+			transformed, err := p.executor.Do(data)
+			if err != nil {
+				p.logger.Errorf("Cloud function transformation error in %v, %v rows -> %v rows, err: %v", time.Since(st), len(data), len(transformed), err)
+				p.onceErr.Do(func() {
+					p.errCh <- err
+				})
+				return nil
+			}
+			p.logger.Infof("Cloud function transformation done in %v, %v rows -> %v rows", time.Since(st), len(data), len(transformed))
+			p.metrics.TransformTime.RecordDuration(time.Since(st))
+
+			return transformed
+		}
+	}
+
 	parseWrapper := func(batch committableBatch) []abstract.ChangeItem {
 		if len(batch.Batches) == 0 {
 			return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}
 		}
-		transformFunc := func(data []abstract.ChangeItem) []abstract.ChangeItem {
-			if p.executor != nil {
-				st := time.Now()
-				p.logger.Infof("begin transform for batches %v rows", len(data))
-				transformed, err := p.executor.Do(data)
-				if err != nil {
-					p.logger.Errorf("Cloud function transformation error in %v, %v rows -> %v rows, err: %v", time.Since(st), len(data), len(transformed), err)
-					p.onceErr.Do(func() {
-						p.errCh <- err
-					})
-					return nil
-				}
-				p.logger.Infof("Cloud function transformation done in %v, %v rows -> %v rows", time.Since(st), len(data), len(transformed))
-				p.metrics.TransformTime.RecordDuration(time.Since(st))
-				return transformed
-			} else {
-				return data
-			}
-		}
+
 		return lbyds.Parse(batch.Batches, p.parser, p.metrics, p.logger, transformFunc, p.useFullTopicName)
 	}
 	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, parseWrapper, p.ack)

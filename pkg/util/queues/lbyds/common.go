@@ -49,14 +49,9 @@ func ChangeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Part
 }
 
 func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch, useFullTopicName bool) abstract.ChangeItem {
-	topicID := path.Base(b.Topic)
-	if len(topicID) == 0 || useFullTopicName {
-		topicID = b.Topic
-	}
-
 	return abstract.MakeRawMessageWithMeta(
 		m.Key,
-		topicID,
+		topicFromTopicPath(b.Topic, useFullTopicName),
 		m.WriteTime,
 		b.Topic,
 		int(b.Partition),
@@ -69,29 +64,18 @@ func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch, useFullTopic
 type TransformFunc func([]abstract.ChangeItem) []abstract.ChangeItem
 
 func Parse(batches []parsers.MessageBatch, parser parsers.Parser, metrics *stats.SourceStats, logger log.Logger, transformFunc TransformFunc, useFullTopicName bool) []abstract.ChangeItem {
-	totalSize := 0
 	st := time.Now()
 	var data []abstract.ChangeItem
-	for _, batch := range batches {
-		for _, m := range batch.Messages {
-			data = append(data, MessageAsChangeItem(m, batch, useFullTopicName))
-			totalSize += len(m.Value)
-		}
+	if transformFunc == nil && parser != nil {
+		data = parse(batches, parser, useFullTopicName)
+	} else {
+		data = parseWithTransform(batches, parser, transformFunc, useFullTopicName)
 	}
-	if transformFunc != nil {
-		data = transformFunc(data)
-	}
-	if parser != nil {
-		var res []abstract.ChangeItem
-		for _, row := range data {
-			changeItem, partition := ChangeItemAsMessage(row)
-			res = append(res, parser.Do(changeItem, partition)...)
-		}
-		data = res
-		metrics.DecodeTime.RecordDuration(time.Since(st))
-		logger.Debugf("Converter done in %v, %v rows", time.Since(st), len(data))
-	}
+
+	metrics.DecodeTime.RecordDuration(time.Since(st))
 	metrics.ChangeItems.Add(int64(len(data)))
+	logger.Debugf("Converter done in %v, %v rows", time.Since(st), len(data))
+
 	for _, ci := range data {
 		if ci.IsRowEvent() {
 			if parsers.IsUnparsed(ci) {
@@ -119,4 +103,76 @@ func BuildMapPartitionToLbOffsetsRange(v []parsers.MessageBatch) map[string][]ui
 		}
 	}
 	return partitionToLbOffsetsRange
+}
+
+func topicFromTopicPath(topicName string, useFullTopicName bool) string {
+	topic := path.Base(topicName)
+	if len(topic) == 0 || useFullTopicName {
+		topic = topicName
+	}
+	return topic
+}
+
+func parse(batches []parsers.MessageBatch, parser parsers.Parser, useFullTopicName bool) []abstract.ChangeItem {
+	batches = combineBatches(batches)
+
+	var data []abstract.ChangeItem
+	for _, b := range batches {
+
+		b.Topic = topicFromTopicPath(b.Topic, useFullTopicName)
+		data = append(data, parser.DoBatch(b)...)
+	}
+
+	return data
+}
+
+func combineBatches(batches []parsers.MessageBatch) []parsers.MessageBatch {
+	batchesOrder := make([]int, 0)
+	topicPartitionMessages := make(map[string]map[uint32][]parsers.Message)
+	for idx, b := range batches {
+		if _, ok := topicPartitionMessages[b.Topic]; !ok {
+			topicPartitionMessages[b.Topic] = make(map[uint32][]parsers.Message)
+		}
+		if _, ok := topicPartitionMessages[b.Topic][b.Partition]; !ok {
+			batchesOrder = append(batchesOrder, idx)
+		}
+
+		topicPartitionMessages[b.Topic][b.Partition] = append(topicPartitionMessages[b.Topic][b.Partition], b.Messages...)
+	}
+
+	res := make([]parsers.MessageBatch, 0, len(batchesOrder))
+	for _, idx := range batchesOrder {
+		topic := batches[idx].Topic
+		partition := batches[idx].Partition
+
+		res = append(res, parsers.MessageBatch{
+			Topic:     topic,
+			Partition: partition,
+			Messages:  topicPartitionMessages[topic][partition],
+		})
+	}
+
+	return res
+}
+
+func parseWithTransform(batches []parsers.MessageBatch, parser parsers.Parser, transformFunc TransformFunc, useFullTopicName bool) []abstract.ChangeItem {
+	var data []abstract.ChangeItem
+	for _, batch := range batches {
+		for _, m := range batch.Messages {
+			data = append(data, MessageAsChangeItem(m, batch, useFullTopicName))
+		}
+	}
+	if transformFunc != nil {
+		data = transformFunc(data)
+	}
+	if parser != nil {
+		var res []abstract.ChangeItem
+		for _, row := range data {
+			changeItem, partition := ChangeItemAsMessage(row)
+			res = append(res, parser.Do(changeItem, partition)...)
+		}
+		data = res
+	}
+
+	return data
 }
