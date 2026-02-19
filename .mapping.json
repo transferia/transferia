@@ -3549,6 +3549,7 @@
   "tests/helpers/fake_storage.go":"transfer_manager/go/tests/helpers/fake_storage.go",
   "tests/helpers/gp_helpers.go":"transfer_manager/go/tests/helpers/gp_helpers.go",
   "tests/helpers/grpc/stream_mock.go":"transfer_manager/go/tests/helpers/grpc/stream_mock.go",
+  "tests/helpers/iceberg/iceberg_cluster.go":"transfer_manager/go/tests/helpers/iceberg/iceberg_cluster.go",
   "tests/helpers/load_table.go":"transfer_manager/go/tests/helpers/load_table.go",
   "tests/helpers/load_table_test.go":"transfer_manager/go/tests/helpers/load_table_test.go",
   "tests/helpers/metering_test.go":"transfer_manager/go/tests/helpers/metering_test.go",
