@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -124,4 +125,160 @@ func TestRepresent(t *testing.T) {
 			require.Equal(t, currTestCase.outValue, newVal)
 		})
 	}
+}
+
+func TestBuildMultiRowInsertStatements_BasicWithOnConflict(t *testing.T) {
+	table := `"public"."t"`
+	s := &sink{
+		keys: map[string][]string{
+			table: {`"id"`},
+		},
+	}
+	schema := []abstract.ColSchema{
+		{ColumnName: "id", DataType: "int64", OriginalType: "pg:bigint"},
+		{ColumnName: "val", DataType: "utf8", OriginalType: "pg:text"},
+	}
+	items := []abstract.ChangeItem{
+		{Kind: abstract.InsertKind, ColumnNames: []string{"id", "val"}, ColumnValues: []any{int64(1), "a"}},
+		{Kind: abstract.InsertKind, ColumnNames: []string{"id", "val"}, ColumnValues: []any{int64(2), "b"}},
+	}
+
+	stmts, err := s.buildBulkInsertQuery(table, schema, items)
+	require.NoError(t, err)
+	require.Len(t, stmts, 1)
+
+	require.Equal(t,
+		`insert into "public"."t" ("id", "val") values (`+
+			`'1'::bigint, 'a'::text), (`+
+			`'2'::bigint, 'b'::text)`+
+			` on conflict ("id") do update set ("id", "val")=row(excluded."id", excluded."val");`,
+		stmts[0].query,
+	)
+	require.Equal(t, 2, stmts[0].rows)
+}
+
+func TestBuildMultiRowInsertStatements_SkipsGeneratedColumns(t *testing.T) {
+	table := `"public"."t"`
+	s := &sink{
+		keys: map[string][]string{
+			table: {`"id"`},
+		},
+	}
+	schema := []abstract.ColSchema{
+		{ColumnName: "id", DataType: "int64", OriginalType: "pg:bigint"},
+		{ColumnName: "val", DataType: "utf8", OriginalType: "pg:text"},
+		{ColumnName: "gen", DataType: "utf8", OriginalType: "pg:text", Expression: "now()"},
+	}
+	items := []abstract.ChangeItem{
+		{Kind: abstract.InsertKind, ColumnNames: []string{"id", "val", "gen"}, ColumnValues: []any{int64(1), "a", "ignored"}},
+		{Kind: abstract.InsertKind, ColumnNames: []string{"id", "val", "gen"}, ColumnValues: []any{int64(2), "b", "ignored"}},
+	}
+
+	stmts, err := s.buildBulkInsertQuery(table, schema, items)
+	require.NoError(t, err)
+	require.Len(t, stmts, 1)
+	require.NotContains(t, stmts[0].query, `"gen"`)
+	require.NotContains(t, stmts[0].query, "ignored")
+	require.Contains(t, stmts[0].query, `("id", "val") values`)
+}
+
+func TestBuildMultiRowInsertStatements_SplitsByMaxBytes(t *testing.T) {
+	old := maxPostgresQueryBytes
+	maxPostgresQueryBytes = 120
+	defer func() { maxPostgresQueryBytes = old }()
+
+	table := "t"
+	s := &sink{keys: map[string][]string{}}
+	schema := []abstract.ColSchema{
+		{ColumnName: "id", DataType: "int64"},
+		{ColumnName: "val", DataType: "utf8"},
+	}
+
+	long := strings.Repeat("x", 70)
+	items := []abstract.ChangeItem{
+		{Kind: abstract.InsertKind, ColumnNames: []string{"id", "val"}, ColumnValues: []any{int64(1), long}},
+		{Kind: abstract.InsertKind, ColumnNames: []string{"id", "val"}, ColumnValues: []any{int64(2), long}},
+		{Kind: abstract.InsertKind, ColumnNames: []string{"id", "val"}, ColumnValues: []any{int64(3), long}},
+	}
+
+	stmts, err := s.buildBulkInsertQuery(table, schema, items)
+	require.NoError(t, err)
+	require.Len(t, stmts, 3)
+	for _, stmt := range stmts {
+		require.Equal(t, 1, stmt.rows)
+		require.True(t, strings.HasSuffix(stmt.query, ";"))
+	}
+}
+
+func TestBuildInsertQuery_WithOnConflictAndCasts(t *testing.T) {
+	table := `"public"."t"`
+	s := &sink{
+		config: (&PgDestination{}).ToSinkParams(),
+		keys: map[string][]string{
+			table: {`"id"`},
+		},
+	}
+	schema := []abstract.ColSchema{
+		{ColumnName: "id", DataType: "int64", OriginalType: "pg:bigint"},
+		{ColumnName: "val", DataType: "utf8", OriginalType: "pg:text"},
+	}
+	row := abstract.ChangeItem{
+		Kind:         abstract.InsertKind,
+		ColumnNames:  []string{"id", "val"},
+		ColumnValues: []any{int64(10), "hello"},
+	}
+
+	rev := abstract.MakeMapColNameToIndex(schema)
+	q, err := s.buildInsertQuery(table, schema, row, rev)
+	require.NoError(t, err)
+	require.Equal(t, `insert into "public"."t" ("id", "val") values ('10'::bigint, 'hello'::text) on conflict ("id") do update set ("id", "val")=row(excluded."id", excluded."val");`, q)
+}
+
+func TestBuildInsertQuery_WithoutKeys_NoOnConflict(t *testing.T) {
+	table := `"public"."t"`
+	s := &sink{
+		config: (&PgDestination{}).ToSinkParams(),
+		keys:   map[string][]string{},
+	}
+	schema := []abstract.ColSchema{
+		{ColumnName: "id", DataType: "int64", OriginalType: "pg:bigint"},
+		{ColumnName: "val", DataType: "utf8", OriginalType: "pg:text"},
+	}
+	row := abstract.ChangeItem{
+		Kind:         abstract.InsertKind,
+		ColumnNames:  []string{"id", "val"},
+		ColumnValues: []any{int64(1), "a"},
+	}
+
+	rev := abstract.MakeMapColNameToIndex(schema)
+	q, err := s.buildInsertQuery(table, schema, row, rev)
+	require.NoError(t, err)
+	require.Equal(t, `insert into "public"."t" ("id", "val") values ('1'::bigint, 'a'::text);`, q)
+}
+
+func TestBuildInsertQuery_SkipsGeneratedColumns(t *testing.T) {
+	table := `"public"."t"`
+	s := &sink{
+		config: (&PgDestination{}).ToSinkParams(),
+		keys: map[string][]string{
+			table: {`"id"`},
+		},
+	}
+	schema := []abstract.ColSchema{
+		{ColumnName: "id", DataType: "int64", OriginalType: "pg:bigint"},
+		{ColumnName: "val", DataType: "utf8", OriginalType: "pg:text"},
+		{ColumnName: "gen", DataType: "utf8", OriginalType: "pg:text", Expression: "now()"},
+	}
+	row := abstract.ChangeItem{
+		Kind:         abstract.InsertKind,
+		ColumnNames:  []string{"id", "val", "gen"},
+		ColumnValues: []any{int64(1), "a", "ignored"},
+	}
+
+	rev := abstract.MakeMapColNameToIndex(schema)
+	q, err := s.buildInsertQuery(table, schema, row, rev)
+	require.NoError(t, err)
+	require.NotContains(t, q, `"gen"`)
+	require.NotContains(t, q, "ignored")
+	require.Equal(t, `insert into "public"."t" ("id", "val") values ('1'::bigint, 'a'::text) on conflict ("id") do update set ("id", "val")=row(excluded."id", excluded."val");`, q)
 }

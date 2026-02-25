@@ -88,6 +88,10 @@ type sink struct {
 	pendingTableCounts  map[abstract.TableID]int
 }
 
+// maxPostgresQueryBytes limits the size of generated SQL statements.
+// https://dba.stackexchange.com/questions/131399/is-there-a-maximum-length-constraint-for-a-postgres-query
+var maxPostgresQueryBytes = uint64(64 * humanize.MiByte)
+
 func (s *sink) Close() error {
 	if s.currentTX != nil {
 		if err := s.currentTX.Rollback(context.TODO()); err != nil {
@@ -611,6 +615,24 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 		}
 		insertCtx, insertCtxCancel := context.WithTimeout(context.Background(), s.config.QueryTimeout())
 		defer insertCtxCancel()
+
+		remaining, fastErr := s.bulkInsert(insertCtx, pgTable, tableSchema, batch)
+		if fastErr != nil {
+			applied := len(batch) - len(remaining)
+			s.logger.Warn(
+				"multi-row insert failed; falling back to per-row SQL for remaining rows",
+				log.String("table", table),
+				log.Int("applied_rows", applied),
+				log.Int("remaining_rows", len(remaining)),
+				log.Error(fastErr),
+			)
+		}
+		if len(remaining) == 0 {
+			s.metrics.Table(table, "rows", len(batch))
+			continue
+		}
+		batch = remaining
+
 		if err := s.insert(insertCtx, pgTable, tableSchema, batch); err != nil {
 			s.metrics.Table(table, "error", 1)
 			return xerrors.Errorf("failed to insert %d rows into table %s using plain INSERT: %w", len(batch), table, err)
@@ -946,18 +968,27 @@ func (s *sink) buildInsertQuery(
 		table,
 		strings.Join(colNames, ", "),
 		strings.Join(values, ", "))
-	if keyCols, ok := s.keys[table]; ok && len(keyCols) > 0 {
-		excludedNames := make([]string, len(colNames))
-		for i := range colNames {
-			excludedNames[i] = "excluded." + colNames[i]
-		}
-		insertQuery += fmt.Sprintf(
-			" on conflict (%v) do update set (%v)=row(%v)",
-			strings.Join(keyCols, ", "),
-			strings.Join(colNames, ", "),
-			strings.Join(excludedNames, ", "))
-	}
+	insertQuery += s.buildOnConflictClause(table, colNames)
 	return insertQuery + ";", nil
+}
+
+func (s *sink) buildOnConflictClause(table string, colNames []string) string {
+	keyCols, ok := s.keys[table]
+	if !ok || len(keyCols) == 0 || len(colNames) == 0 {
+		return ""
+	}
+
+	excludedNames := make([]string, len(colNames))
+	for i := range colNames {
+		excludedNames[i] = "excluded." + colNames[i]
+	}
+
+	return fmt.Sprintf(
+		" on conflict (%v) do update set (%v)=row(%v)",
+		strings.Join(keyCols, ", "),
+		strings.Join(colNames, ", "),
+		strings.Join(excludedNames, ", "),
+	)
 }
 
 func (s *sink) buildDeleteQuery(table string, schema []abstract.ColSchema, row abstract.ChangeItem, rev map[string]int) (string, error) {
@@ -1024,6 +1055,113 @@ func (s *sink) buildQuery(table string, schema []abstract.ColSchema, items []abs
 	return queries[0], nil
 }
 
+type bulkInsertQuery struct {
+	query string
+	rows  int
+}
+
+func (s *sink) buildBulkInsertQuery(
+	table string,
+	schema []abstract.ColSchema,
+	items []abstract.ChangeItem,
+) ([]bulkInsertQuery, error) {
+	generatedCols := s.getGeneratedCols(schema)
+
+	// Use table schema as a source of truth for column order and types.
+	colNames := make([]string, 0, len(schema))
+	schemaIdxs := make([]int, 0, len(schema))
+	colPlainNames := make([]string, 0, len(schema))
+	for i := range schema {
+		colName := schema[i].ColumnName
+		if generatedCols[colName] {
+			continue
+		}
+		colPlainNames = append(colPlainNames, colName)
+		colNames = append(colNames, fmt.Sprintf("\"%v\"", colName))
+		schemaIdxs = append(schemaIdxs, i)
+	}
+	if len(colNames) == 0 {
+		return nil, xerrors.Errorf("no columns to insert for %s after filtering generated columns", table)
+	}
+
+	header := fmt.Sprintf("insert into %v (%v) values ", table, strings.Join(colNames, ", "))
+	trailer := s.buildOnConflictClause(table, colNames) + ";"
+
+	// Limit statement size similarly to the old path.
+	headerBytes := uint64(len(header))
+	trailerBytes := uint64(len(trailer))
+	if headerBytes+trailerBytes >= maxPostgresQueryBytes {
+		return nil, xerrors.Errorf("statement overhead too large for %s", table)
+	}
+
+	var (
+		stmts       []bulkInsertQuery
+		sb          strings.Builder
+		currentRows int
+	)
+	reset := func() {
+		sb.Reset()
+		sb.WriteString(header)
+		currentRows = 0
+	}
+	flush := func() {
+		if currentRows == 0 {
+			return
+		}
+		sb.WriteString(trailer)
+		q := sb.String()
+		stmts = append(stmts, bulkInsertQuery{
+			query: q,
+			rows:  currentRows,
+		})
+	}
+
+	reset()
+	for _, row := range items {
+		colIdx := row.ColumnNameIndices()
+
+		// Build tuple string for this row.
+		tupleParts := make([]string, len(schemaIdxs))
+		for j := range schemaIdxs {
+			schemaIdx := schemaIdxs[j]
+			valIdx, ok := colIdx[colPlainNames[j]]
+			if !ok {
+				return nil, xerrors.Errorf("multi-row insert requires column %q to be present in change item for table %s", colPlainNames[j], table)
+			}
+			representation, err := RepresentWithCast(row.ColumnValues[valIdx], schema[schemaIdx])
+			if err != nil {
+				return nil, xerrors.Errorf("failed to represent value for column %q: %w", colPlainNames[j], err)
+			}
+			tupleParts[j] = representation
+		}
+		tuple := "(" + strings.Join(tupleParts, ", ") + ")"
+
+		// Estimate resulting size if we append this tuple now.
+		extraSep := uint64(0)
+		if currentRows > 0 {
+			extraSep = 2 // ", "
+		}
+		estimatedBytes := uint64(sb.Len()) + extraSep + uint64(len(tuple)) + trailerBytes
+		if estimatedBytes > maxPostgresQueryBytes {
+			// If this tuple alone doesn't fit - refuse fast-path.
+			if currentRows == 0 {
+				return nil, xerrors.Errorf("single row tuple too large for multi-row insert into %s", table)
+			}
+			flush()
+			reset()
+		}
+
+		if currentRows > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(tuple)
+		currentRows++
+	}
+	flush()
+
+	return stmts, nil
+}
+
 // executeQueries executes the given queries using the given connection.
 func (s *sink) executeQueries(ctx context.Context, conn *pgx.Conn, queries []string) error {
 	combinedQuery := strings.Join(queries, "\n")
@@ -1042,6 +1180,82 @@ func (s *sink) executeQueries(ctx context.Context, conn *pgx.Conn, queries []str
 		return coded.Errorf(codes.PostgresGeneratedColumnWriteAttempt, "failed to execute %d queries at sink: %w", len(queries), err)
 	}
 	return xerrors.Errorf("failed to execute %d queries at sink: %w", len(queries), err)
+}
+
+func (s *sink) bulkInsert(
+	ctx context.Context,
+	table string,
+	schema []abstract.ColSchema,
+	items []abstract.ChangeItem,
+) ([]abstract.ChangeItem, error) {
+	if err := prepareOriginalTypes(schema); err != nil {
+		return items, xerrors.Errorf("failed to prepare original types for multi-row insert: %w", err)
+	}
+
+	conn, err := s.conn.Acquire(ctx)
+	if err != nil {
+		return items, xerrors.Errorf("failed to acquire a connection for multi-row insert: %w", err)
+	}
+	defer conn.Release()
+
+	return s.bulkInsertWithConn(ctx, conn.Conn(), table, schema, items)
+}
+
+func (s *sink) bulkInsertWithConn(
+	ctx context.Context,
+	conn *pgx.Conn,
+	table string,
+	schema []abstract.ColSchema,
+	items []abstract.ChangeItem,
+) ([]abstract.ChangeItem, error) {
+	if len(items) <= 1 {
+		return items, nil
+	}
+	for i := range items {
+		if items[i].Kind != abstract.InsertKind {
+			return items, nil
+		}
+	}
+
+	stmts, buildErr := s.buildBulkInsertQuery(table, schema, items)
+	if buildErr != nil || len(stmts) == 0 {
+		return items, nil
+	}
+
+	execStart := time.Now()
+	totalStatements := len(stmts)
+	minRows := 0
+	maxRows := 0
+	for i, stmt := range stmts {
+		if i == 0 || stmt.rows < minRows {
+			minRows = stmt.rows
+		}
+		if i == 0 || stmt.rows > maxRows {
+			maxRows = stmt.rows
+		}
+	}
+
+	appliedRows := 0
+	for _, stmt := range stmts {
+		if err := s.executeQueries(ctx, conn, []string{stmt.query}); err != nil {
+			if appliedRows < 0 || appliedRows > len(items) {
+				return items, xerrors.Errorf("multi-row insert failed for table %s (invalid appliedRows=%d): %w", table, appliedRows, err)
+			}
+			return items[appliedRows:], xerrors.Errorf("multi-row insert failed for table %s after applying %d rows: %w", table, appliedRows, err)
+		}
+		appliedRows += stmt.rows
+	}
+
+	s.logger.Info(
+		"successfully processed rows at sink using multi-row INSERT",
+		log.String("table", table),
+		log.Int("rows", len(items)),
+		log.Int("statements", totalStatements),
+		log.Int("min_rows_per_statement", minRows),
+		log.Int("max_rows_per_statement", maxRows),
+		log.Duration("elapsed", time.Since(execStart)),
+	)
+	return nil, nil
 }
 
 func (s *sink) insert(ctx context.Context, table string, schema []abstract.ColSchema, items []abstract.ChangeItem) error {
@@ -1066,9 +1280,9 @@ func (s *sink) insert(ctx context.Context, table string, schema []abstract.ColSc
 	for processedQueries < len(queries) {
 		queriesBatchSizeInBytes := uint64(0)
 		batchFinishI := processedQueries
-		// Limit queries' size by 64 MiB
+		// Limit queries' size by maxPostgresQueryBytes
 		// https://dba.stackexchange.com/questions/131399/is-there-a-maximum-length-constraint-for-a-postgres-query
-		for batchFinishI < len(queries) && queriesBatchSizeInBytes < uint64(64*humanize.MiByte) {
+		for batchFinishI < len(queries) && queriesBatchSizeInBytes < maxPostgresQueryBytes {
 			queriesBatchSizeInBytes += uint64(len(queries[batchFinishI]))
 			batchFinishI += 1
 		}
