@@ -21,6 +21,7 @@ type IncrementalIterator struct {
 	pkColNames    []string
 	lowBound      []string
 	limit         uint64
+	baseFilter    abstract.WhereStatement
 
 	LowWatermarkUUID  uuid.UUID
 	HighWatermarkUUID uuid.UUID
@@ -48,6 +49,7 @@ func NewIncrementalIterator(
 		pkColNames:        pkColNames,
 		lowBound:          lowBound,
 		limit:             limit,
+		baseFilter:        tableQuery.Filter,
 		LowWatermarkUUID:  uuid.New(),
 		HighWatermarkUUID: uuid.New(),
 		betweenMarksOpts:  betweenMarksOpts,
@@ -57,7 +59,8 @@ func NewIncrementalIterator(
 }
 
 func (i *IncrementalIterator) Next(ctx context.Context) ([]abstract.ChangeItem, error) {
-	i.tableQuery.Filter = MakeNextWhereStatement(i.pkColNames, i.lowBound)
+	pkFilter := MakeNextWhereStatement(i.pkColNames, i.lowBound)
+	i.tableQuery.Filter = abstract.FiltersIntersection(i.baseFilter, pkFilter)
 	i.logger.Infof("IncrementalIterator::Next - i.tableQuery.Filter: %s", i.tableQuery.Filter)
 	return i.loadTablePart(ctx)
 }

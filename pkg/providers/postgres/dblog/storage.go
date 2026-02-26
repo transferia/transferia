@@ -86,7 +86,7 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 		return xerrors.Errorf("unable to create signal table: %w", err)
 	}
 
-	tableQuery := tablequery.NewTableQuery(tableDescr.ID(), true, "", 0, chunkSize)
+	tableQuery := tablequery.NewTableQuery(tableDescr.ID(), true, tableDescr.Filter, 0, chunkSize)
 	s.logger.Infof("Storage.LoadTable - tableQuery: %v", tableQuery)
 	lowBound := pgSignalTable.resolveLowBound(ctx, tableDescr.ID())
 	s.logger.Infof("Storage.LoadTable - lowBound: %v", lowBound)

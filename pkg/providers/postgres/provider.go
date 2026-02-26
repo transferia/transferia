@@ -426,6 +426,9 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap, ta
 	}
 
 	tableDescs := tables.ConvertToTableDescriptions()
+	if p.transfer.RegularSnapshot != nil {
+		tableDescs = pgStorage.BuildArrTableDescriptionWithIncrementalState(tableDescs, p.transfer.RegularSnapshot.Incremental)
+	}
 	for _, table := range tableDescs {
 		if abstract.IsSystemTable(table.Name) {
 			continue
