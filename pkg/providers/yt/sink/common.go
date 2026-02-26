@@ -3,6 +3,7 @@ package sink
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -426,6 +427,17 @@ func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) 
 			return newAnyWrapper(v)
 		default:
 			return nil, xerrors.Errorf("unknown pg:enum type: %T", val)
+		}
+	}
+
+	// Took it from global abstract restore
+	// If typesystem is <= 7 we transform all byte columns into strings(utf8)
+	// But fithout applying this hack, insert falls with  `not a valid utf8 string` error
+	if (colSchema.OriginalType == "pg:bytea" || abstract.IsMysqlBinaryType(colSchema.OriginalType)) && colSchema.DataType == ytschema.TypeString.String() {
+		switch v := val.(type) {
+		case string:
+			result, _ := base64.StdEncoding.DecodeString(v)
+			return result, nil
 		}
 	}
 

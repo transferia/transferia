@@ -2126,8 +2126,6 @@
   "pkg/providers/yt/recipe/test_container.go":"transfer_manager/go/pkg/providers/yt/recipe/test_container.go",
   "pkg/providers/yt/recipe/test_container_test.go":"transfer_manager/go/pkg/providers/yt/recipe/test_container_test.go",
   "pkg/providers/yt/recipe/yt_helpers.go":"transfer_manager/go/pkg/providers/yt/recipe/yt_helpers.go",
-  "pkg/providers/yt/reference/canondata/result.json":"transfer_manager/go/pkg/providers/yt/reference/canondata/result.json",
-  "pkg/providers/yt/reference/reference_test.go":"transfer_manager/go/pkg/providers/yt/reference/reference_test.go",
   "pkg/providers/yt/sink/bechmarks/sorted_table_bench_test.go":"transfer_manager/go/pkg/providers/yt/sink/bechmarks/sorted_table_bench_test.go",
   "pkg/providers/yt/sink/change_item_view.go":"transfer_manager/go/pkg/providers/yt/sink/change_item_view.go",
   "pkg/providers/yt/sink/common.go":"transfer_manager/go/pkg/providers/yt/sink/common.go",

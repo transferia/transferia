@@ -36,6 +36,21 @@ func GetEnvOfFail(t *testing.T, key string) string {
 	return res
 }
 
+func TableMapFromItems(items []abstract.ChangeItem) abstract.TableMap {
+	tables := make(abstract.TableMap)
+	for _, item := range items {
+		if _, ok := tables[item.TableID()]; ok {
+			continue
+		}
+		tables[item.TableID()] = abstract.TableInfo{
+			EtaRow: 1,
+			IsView: false,
+			Schema: item.TableSchema,
+		}
+	}
+	return tables
+}
+
 func GetIntFromEnv(varName string) int {
 	val, err := strconv.Atoi(os.Getenv(varName))
 	if err != nil {

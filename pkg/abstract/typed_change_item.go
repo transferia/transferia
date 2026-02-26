@@ -167,6 +167,19 @@ func unpackTypedValue(item *fastjson.Value) (any, error) {
 		if columns, extractErr := extractVal[[]ColSchema](rawValue); extractErr != nil {
 			err = extractErr
 		} else {
+			// handle pg:enum_all_values
+			for j := range columns {
+				if columns[j].Properties != nil && columns[j].Properties["pg:enum_all_values"] != nil {
+					val := columns[j].Properties["pg:enum_all_values"]
+					if valUnp, ok := val.([]interface{}); ok {
+						newVal := make([]string, 0)
+						for _, v := range valUnp {
+							newVal = append(newVal, v.(string))
+						}
+						columns[j].Properties["pg:enum_all_values"] = newVal
+					}
+				}
+			}
 			val = NewTableSchema(columns)
 		}
 	case typeName[[]interface{}]():

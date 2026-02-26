@@ -60,6 +60,8 @@ func FallbackBytesAsStringGoType(ci *abstract.ChangeItem, cache map[string]*abst
 			} else if colValueAsBytes, ok := colValue.([]byte); ok {
 				ci.ColumnValues[colIndex] = string(colValueAsBytes)
 				fallbackApplied = true
+			} else if colValueAsBytes, ok := colValue.(string); ok {
+				fallbackApplied = true // ch:FixedString(64) is with yt byte type yet value is already stored as go string
 			} else {
 				return nil, xerrors.Errorf("invalid value type for '%v' type in schema: expected '%T', actual '%T'",
 					schemaType, colValueAsBytes, colValue)

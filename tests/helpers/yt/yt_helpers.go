@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,6 +37,58 @@ func SetRecipeYt(dst *yt2.YtDestination) *yt2.YtDestination {
 	dst.CellBundle = "default"
 	dst.PrimaryMedium = "default"
 	return dst
+}
+
+type ReferenceTable struct {
+	TableID     ypath.Path
+	Rows        []any
+	TableSchema schema.Schema
+}
+
+func DumpYtDirectoryToString(ytClient yt.Client, tablePath ypath.Path) (string, error) {
+	var output strings.Builder
+
+	var outNodes []struct {
+		Name string `yson:",value"`
+		Path string `yson:"path,attr"`
+		Type string `yson:"type,attr"`
+	}
+	if err := ytClient.ListNode(context.Background(), ypath.Path(tablePath), &outNodes, &yt.ListNodeOptions{Attributes: []string{"type", "path"}}); err != nil {
+		return "", xerrors.Errorf("list nodes error: %w", err)
+	}
+
+	for _, node := range outNodes {
+		if node.Type != "table" {
+			return "", xerrors.Errorf("no subdirectories allowed")
+		}
+
+		res := ReferenceTable{
+			TableID: ypath.Path(node.Path),
+		}
+		if err := ytClient.GetNode(context.Background(), ypath.Path(fmt.Sprintf("%s/@schema", node.Path)), &res.TableSchema, nil); err != nil {
+			return "", xerrors.Errorf("get schema: %w", err)
+		}
+		res.TableSchema.Strict = nil
+
+		reader, err := ytClient.ReadTable(context.Background(), res.TableID, nil)
+		if err != nil {
+			return "", xerrors.Errorf("select rows: %w", err)
+		}
+		for reader.Next() {
+			var value interface{}
+			if err := reader.Scan(&value); err != nil {
+				return "", xerrors.Errorf("scan item: %w", err)
+			}
+			res.Rows = append(res.Rows, value)
+		}
+		if reader.Err() != nil {
+			return "", xerrors.Errorf("read: %w", err)
+		}
+
+		output.WriteString(fmt.Sprintf("%#v", res))
+
+	}
+	return output.String(), nil
 }
 
 func DumpDynamicYtTable(ytClient yt.Client, tablePath ypath.Path, writer io.Writer) error {
