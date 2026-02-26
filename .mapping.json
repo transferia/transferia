@@ -727,7 +727,6 @@
   "pkg/abstract/local_runtime.go":"transfer_manager/go/pkg/abstract/local_runtime.go",
   "pkg/abstract/metrics.go":"transfer_manager/go/pkg/abstract/metrics.go",
   "pkg/abstract/middleware.go":"transfer_manager/go/pkg/abstract/middleware.go",
-  "pkg/abstract/model.go":"transfer_manager/go/pkg/abstract/model.go",
   "pkg/abstract/model/endpoint.go":"transfer_manager/go/pkg/abstract/model/endpoint.go",
   "pkg/abstract/model/endpoint_cleanup_type.go":"transfer_manager/go/pkg/abstract/model/endpoint_cleanup_type.go",
   "pkg/abstract/model/endpoint_common.go":"transfer_manager/go/pkg/abstract/model/endpoint_common.go",
