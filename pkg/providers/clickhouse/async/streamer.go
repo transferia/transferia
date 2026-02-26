@@ -3,6 +3,7 @@ package async
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/column"
@@ -21,19 +22,23 @@ import (
 const (
 	memSizeLimit   = 10 * humanize.MiByte
 	batchSizeLimit = 100 * humanize.MiByte
+	idleWarnLimit  = 4 * time.Minute
 )
 
 type chV2Streamer struct {
-	conn       clickhouse.Conn
-	batch      driver.Batch
-	query      string
-	memSize    uint64
-	batchSize  uint64
-	marshaller db.ChangeItemMarshaller
-	lgr        log.Logger
-	isClosed   bool
-	err        error
-	closeOnce  sync.Once
+	conn           clickhouse.Conn
+	batch          driver.Batch
+	query          string
+	memSize        uint64
+	batchSize      uint64
+	rowsInBatch    uint64
+	marshaller     db.ChangeItemMarshaller
+	lgr            log.Logger
+	isClosed       bool
+	err            error
+	closeOnce      sync.Once
+	batchStartedAt time.Time
+	lastAppendAt   time.Time
 }
 
 // BlockMarshallingError is a wrapper for clickhouse-go/v2 *proto.BlockError
@@ -60,6 +65,18 @@ func (c *chV2Streamer) Append(row abstract.ChangeItem) error {
 	if err = c.checkClosed(); err != nil {
 		return err
 	}
+	if !c.lastAppendAt.IsZero() {
+		idleFor := time.Since(c.lastAppendAt)
+		if idleFor > idleWarnLimit {
+			c.lgr.Warn("Long idle before appending row to streaming batch",
+				log.Duration("idle_for", idleFor),
+				log.Duration("batch_age", time.Since(c.batchStartedAt)),
+				log.UInt64("batch_rows", c.rowsInBatch),
+				log.UInt64("batch_size", c.batchSize),
+				log.UInt64("batch_mem_size", c.memSize),
+			)
+		}
+	}
 	vals, err := c.marshaller(row)
 	if err != nil {
 		return xerrors.Errorf("error marshalling row for CH: %w", err)
@@ -83,17 +100,19 @@ func (c *chV2Streamer) Append(row abstract.ChangeItem) error {
 
 		return xerrors.Errorf("error appending row: %w", err)
 	}
+	c.rowsInBatch++
 	c.memSize += row.Size.Read
 	c.batchSize += row.Size.Read
 	if c.batchSize > batchSizeLimit {
 		if err = c.restart(); err != nil {
-			return xerrors.Errorf("error restarting streamer on batch size limit: %w", err)
+			return xerrors.Errorf("error restarting streamer on batch size limit (%d / %d bytes): %w", c.batchSize, batchSizeLimit, err)
 		}
 	} else if c.memSize > memSizeLimit {
 		if err = c.flush(); err != nil {
-			return xerrors.Errorf("error flushing streaming batch: %w", err)
+			return xerrors.Errorf("error flushing streaming batch (%d / %d bytes): %w", c.memSize, memSizeLimit, err)
 		}
 	}
+	c.lastAppendAt = time.Now()
 	return nil
 }
 
@@ -119,6 +138,13 @@ func (c *chV2Streamer) Close() error {
 // Finish commits all awaiting data and closes Streamer.
 func (c *chV2Streamer) Finish() error {
 	c.lgr.Infof("Commiting streaming batch")
+	c.lgr.Info("Finishing streaming batch",
+		log.UInt64("batch_rows", c.rowsInBatch),
+		log.UInt64("batch_size", c.batchSize),
+		log.UInt64("batch_mem_size", c.memSize),
+		log.Duration("batch_age", time.Since(c.batchStartedAt)),
+		log.Duration("idle_since_last_append", time.Since(c.lastAppendAt)),
+	)
 	if err := c.checkClosed(); err != nil {
 		return err
 	}
@@ -157,17 +183,30 @@ func (c *chV2Streamer) closeIfErr(fn func() error) error {
 }
 
 func (c *chV2Streamer) flush() error {
-	c.lgr.Debug("Flushing streamer")
+	c.lgr.Debug("Flushing streamer",
+		log.UInt64("batch_rows", c.rowsInBatch),
+		log.UInt64("batch_size", c.batchSize),
+		log.UInt64("batch_mem_size", c.memSize),
+		log.Duration("batch_age", time.Since(c.batchStartedAt)),
+		log.Duration("idle_since_last_append", time.Since(c.lastAppendAt)),
+	)
 	err := c.closeIfErr(c.batch.Flush)
 	c.memSize = 0
 	return err
 }
 
 func (c *chV2Streamer) restart() error {
-	c.lgr.Debug("Restarting streamer")
+	c.lgr.Debug("Restarting streamer",
+		log.UInt64("batch_rows", c.rowsInBatch),
+		log.UInt64("batch_size", c.batchSize),
+		log.UInt64("batch_mem_size", c.memSize),
+		log.Duration("batch_age", time.Since(c.batchStartedAt)),
+		log.Duration("idle_since_last_append", time.Since(c.lastAppendAt)),
+	)
 	return c.closeIfErr(func() error {
+		beforeSend := time.Now()
 		if err := c.batch.Send(); err != nil {
-			return xerrors.Errorf("error sending streaming batch: %w", err)
+			return xerrors.Errorf("error sending streaming batch in %s: %w", time.Since(beforeSend).String(), err)
 		}
 		b, err := c.conn.PrepareBatch(context.Background(), c.query)
 		if err != nil {
@@ -176,6 +215,9 @@ func (c *chV2Streamer) restart() error {
 		c.batch = b
 		c.memSize = 0
 		c.batchSize = 0
+		c.rowsInBatch = 0
+		c.batchStartedAt = time.Now()
+		c.lastAppendAt = c.batchStartedAt
 		return nil
 	})
 }
@@ -191,15 +233,18 @@ func newCHV2Streamer(opts *clickhouse.Options, query string, marshaller db.Chang
 		return nil, xerrors.Errorf("error preparing streaming batch: %w", err)
 	}
 	return &chV2Streamer{
-		conn:       conn,
-		batch:      batch,
-		query:      query,
-		memSize:    0,
-		batchSize:  0,
-		marshaller: marshaller,
-		lgr:        lgr,
-		isClosed:   false,
-		err:        nil,
-		closeOnce:  sync.Once{},
+		conn:           conn,
+		batch:          batch,
+		query:          query,
+		memSize:        0,
+		batchSize:      0,
+		rowsInBatch:    0,
+		marshaller:     marshaller,
+		lgr:            lgr,
+		isClosed:       false,
+		err:            nil,
+		closeOnce:      sync.Once{},
+		batchStartedAt: time.Now(),
+		lastAppendAt:   time.Now(),
 	}, nil
 }
