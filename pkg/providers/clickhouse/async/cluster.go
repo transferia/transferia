@@ -23,6 +23,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
 	topology2 "github.com/transferia/transferia/pkg/providers/clickhouse/topology"
+	"github.com/transferia/transferia/pkg/terryid"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/exp/maps"
 )
@@ -171,8 +172,9 @@ func (s *shardClient) queryDistributedDDLTimeout(ctx context.Context) (int, erro
 }
 
 func (s *shardClient) ExecDDL(fn db_model.DDLFactory) error {
-	// TODO: probably shard client should not support cluster ddl or should not be ddl client at all
-	ctx := context.TODO()
+	queryID := newQueryID("shard-ddl")
+	// TODO: probably shard client should not support cluster ddl or should not be ddl client at all.
+	ctx := clickhouse.Context(context.TODO(), clickhouse.WithQueryID(queryID))
 	if s.distributedDDLEnabled != nil {
 		q, err := fn(*s.distributedDDLEnabled, s.topology.ClusterName())
 		if err != nil {
@@ -184,7 +186,7 @@ func (s *shardClient) ExecDDL(fn db_model.DDLFactory) error {
 			_, err = s.db.ExecContext(ctx, q)
 		}
 		if err != nil {
-			return xerrors.Errorf("error executing DDL (distributed=%v): %w", *s.distributedDDLEnabled, err)
+			return xerrors.Errorf("error executing DDL (distributed=%v, query_id=%s): %w", *s.distributedDDLEnabled, queryID, err)
 		}
 		return nil
 	}
@@ -207,7 +209,7 @@ func (s *shardClient) ExecDDL(fn db_model.DDLFactory) error {
 		return xerrors.Errorf("error getting DDL query: %w", err)
 	}
 	if _, err = s.db.ExecContext(ctx, q); err != nil {
-		return xerrors.Errorf("error executing non-distributed DDL: %w", err)
+		return xerrors.Errorf("error executing non-distributed DDL (query_id=%s): %w", queryID, err)
 	}
 	s.distributedDDLEnabled = ptr.Bool(false)
 	return nil
@@ -330,8 +332,12 @@ func (h *hostClient) ExecDDL(fn db_model.DDLFactory) error {
 	if err != nil {
 		return xerrors.Errorf("error getting DDL query: %w", err)
 	}
-	_, err = h.db.ExecContext(context.Background(), q)
-	return err
+	queryID := newQueryID("host-ddl")
+	ctx := clickhouse.Context(context.Background(), clickhouse.WithQueryID(queryID))
+	if _, err = h.db.ExecContext(ctx, q); err != nil {
+		return xerrors.Errorf("error executing host DDL (query_id=%s): %w", queryID, err)
+	}
+	return nil
 }
 
 func (h *hostClient) Close() error {
@@ -349,4 +355,8 @@ func NewHostClient(opts *clickhouse.Options, lgr log.Logger) (DDLStreamingClient
 		opts: opts,
 		lgr:  lgr,
 	}, nil
+}
+
+func newQueryID(prefix string) string {
+	return fmt.Sprintf("%s-%d-%s", prefix, time.Now().Unix(), terryid.GenerateSuffix())
 }

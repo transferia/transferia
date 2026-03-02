@@ -28,6 +28,7 @@ const (
 type chV2Streamer struct {
 	conn           clickhouse.Conn
 	batch          driver.Batch
+	batchQueryID   string
 	query          string
 	memSize        uint64
 	batchSize      uint64
@@ -139,6 +140,7 @@ func (c *chV2Streamer) Close() error {
 func (c *chV2Streamer) Finish() error {
 	c.lgr.Infof("Commiting streaming batch")
 	c.lgr.Info("Finishing streaming batch",
+		log.String("query_id", c.batchQueryID),
 		log.UInt64("batch_rows", c.rowsInBatch),
 		log.UInt64("batch_size", c.batchSize),
 		log.UInt64("batch_mem_size", c.memSize),
@@ -184,6 +186,7 @@ func (c *chV2Streamer) closeIfErr(fn func() error) error {
 
 func (c *chV2Streamer) flush() error {
 	c.lgr.Debug("Flushing streamer",
+		log.String("query_id", c.batchQueryID),
 		log.UInt64("batch_rows", c.rowsInBatch),
 		log.UInt64("batch_size", c.batchSize),
 		log.UInt64("batch_mem_size", c.memSize),
@@ -197,6 +200,7 @@ func (c *chV2Streamer) flush() error {
 
 func (c *chV2Streamer) restart() error {
 	c.lgr.Debug("Restarting streamer",
+		log.String("query_id", c.batchQueryID),
 		log.UInt64("batch_rows", c.rowsInBatch),
 		log.UInt64("batch_size", c.batchSize),
 		log.UInt64("batch_mem_size", c.memSize),
@@ -206,13 +210,17 @@ func (c *chV2Streamer) restart() error {
 	return c.closeIfErr(func() error {
 		beforeSend := time.Now()
 		if err := c.batch.Send(); err != nil {
-			return xerrors.Errorf("error sending streaming batch in %s: %w", time.Since(beforeSend).String(), err)
+			return xerrors.Errorf("error sending streaming batch (query_id=%s) in %s: %w",
+				c.batchQueryID, time.Since(beforeSend).String(), err)
 		}
-		b, err := c.conn.PrepareBatch(context.Background(), c.query)
+		queryID := generateQueryID()
+		ctx := clickhouse.Context(context.Background(), clickhouse.WithQueryID(queryID))
+		b, err := c.conn.PrepareBatch(ctx, c.query)
 		if err != nil {
-			return xerrors.Errorf("error preparing streaming batch: %w", err)
+			return xerrors.Errorf("error preparing streaming batch (query_id=%s): %w", queryID, err)
 		}
 		c.batch = b
+		c.batchQueryID = queryID
 		c.memSize = 0
 		c.batchSize = 0
 		c.rowsInBatch = 0
@@ -222,19 +230,26 @@ func (c *chV2Streamer) restart() error {
 	})
 }
 
+func generateQueryID() string {
+	return newQueryID("chv2-streamer")
+}
+
 func newCHV2Streamer(opts *clickhouse.Options, query string, marshaller db.ChangeItemMarshaller, lgr log.Logger) (db.Streamer, error) {
 	lgr.Info("Preparing new streaming batch", log.String("query", query))
 	conn, err := clickhouse.Open(opts)
 	if err != nil {
 		return nil, xerrors.Errorf("error getting native Clickhouse connection: %w", err)
 	}
-	batch, err := conn.PrepareBatch(context.Background(), query)
+	queryID := generateQueryID()
+	ctx := clickhouse.Context(context.Background(), clickhouse.WithQueryID(queryID))
+	batch, err := conn.PrepareBatch(ctx, query)
 	if err != nil {
-		return nil, xerrors.Errorf("error preparing streaming batch: %w", err)
+		return nil, xerrors.Errorf("error preparing streaming batch (query_id=%s): %w", queryID, err)
 	}
 	return &chV2Streamer{
 		conn:           conn,
 		batch:          batch,
+		batchQueryID:   queryID,
 		query:          query,
 		memSize:        0,
 		batchSize:      0,
