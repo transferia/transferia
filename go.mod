@@ -23,7 +23,7 @@ require (
 	github.com/cloudevents/sdk-go/binding/format/protobuf/v2 v2.15.0
 	github.com/confluentinc/confluent-kafka-go/v2 v2.2.0
 	github.com/docker/docker v28.5.0+incompatible
-	github.com/docker/go-connections v0.5.0
+	github.com/docker/go-connections v0.6.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elastic/go-elasticsearch/v7 v7.17.1
 	github.com/go-git/go-git/v5 v5.14.0
@@ -71,7 +71,7 @@ require (
 	github.com/valyala/fastjson v1.6.4
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.126.4
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.127.1
 	go.mongodb.org/mongo-driver v1.17.3
 	go.opentelemetry.io/contrib/bridges/otelzap v0.12.0
 	go.opentelemetry.io/otel v1.37.0
@@ -308,11 +308,13 @@ replace github.com/insomniacslk/dhcp => github.com/insomniacslk/dhcp v0.0.0-2021
 
 replace cloud.google.com/go/pubsub => cloud.google.com/go/pubsub v1.30.0
 
-replace go.temporal.io/api => go.temporal.io/api v1.46.0
+replace go.temporal.io/api => go.temporal.io/api v1.50.1
 
-replace go.temporal.io/sdk => go.temporal.io/sdk v1.33.0
+replace go.temporal.io/sdk => go.temporal.io/sdk v1.34.0
 
-replace go.temporal.io/server => go.temporal.io/server v1.27.2
+replace go.temporal.io/server => go.temporal.io/server v1.28.2
+
+replace github.com/uber-go/tally/v4 => github.com/uber-go/tally/v4 v4.1.17-0.20240412215630-22fe011f5ff0
 
 replace github.com/jackc/pgtype => github.com/jackc/pgtype v1.12.0
 
