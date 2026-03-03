@@ -102,7 +102,7 @@ func (p *poller) reloadSchema() error {
 	dbSchema := tableMapToDBSchemaForTables(tableMap)
 	p.schema = dbSchema
 
-	dbSchemaToCheck, err := abstract.SchemaFilterByObjects(dbSchema, p.objects.GetIncludeObjects())
+	dbSchemaToCheck, err := abstract.SchemaFilterByObjects(dbSchema, p.objects.GetIncludeObjects(), ProviderType)
 	if err != nil {
 		return xerrors.Errorf("failed to filter table list extracted from source by objects set in transfer: %w", err)
 	}
@@ -324,7 +324,7 @@ func (p *poller) Run(sink abstract.AsyncSink) error {
 func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 	pullStart := time.Now()
 	peekQ := p.peekQ()
-	objectsFilter, err := abstract.BuildIncludeableFromObjects(p.objects.GetIncludeObjects())
+	objectsFilter, err := abstract.BuildIncludeableFromObjects(p.objects.GetIncludeObjects(), ProviderType)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("failed to filter table list extracted from source by objects set in transfer: %w", err)
 	}

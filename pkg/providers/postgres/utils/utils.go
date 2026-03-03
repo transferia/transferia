@@ -37,7 +37,7 @@ func ValidatePGTables(tables []string) error {
 			continue
 		}
 
-		if _, err := abstract.ParseTableID(table); err != nil {
+		if _, err := abstract.NewTableIDFromStringPg(table, false); err != nil {
 			return xerrors.Errorf("can't parse include table name '%v': %w", table, err)
 		}
 		if len(table) > postgreSQLTableNameMaxLength {

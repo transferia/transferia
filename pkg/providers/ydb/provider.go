@@ -25,6 +25,7 @@ func init() {
 	})
 
 	abstract.RegisterProviderName(ProviderType, "YDB")
+	abstract.RegisterTableIDParser(ProviderType, abstract.NewFullPathTableID)
 	providers.Register(ProviderType, New)
 }
 

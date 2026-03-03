@@ -77,7 +77,7 @@ func (a wal2jsonArguments) toSQLFormat() string {
 func addTablesList(config *PgSource, objects *model.DataObjects, dbLogSnapshot bool) ([]abstract.TableID, error) {
 	sourceIncludeTableIDs := make([]abstract.TableID, 0, len(config.DBTables))
 	for _, directive := range config.DBTables {
-		parsedDirective, err := abstract.ParseTableID(directive)
+		parsedDirective, err := abstract.NewTableIDFromStringPg(directive, false)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to parse table inclusion directive '%s' defined in source endpoint: %w", directive, err)
 		}
@@ -85,7 +85,7 @@ func addTablesList(config *PgSource, objects *model.DataObjects, dbLogSnapshot b
 	}
 	transferIncludeTableIDs := make([]abstract.TableID, 0, len(objects.GetIncludeObjects()))
 	for _, directive := range objects.GetIncludeObjects() {
-		parsedDirective, err := abstract.ParseTableID(directive)
+		parsedDirective, err := abstract.NewTableIDFromStringPg(directive, false)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to parse table inclusion directive '%s' defined in transfer: %w", directive, err)
 		}
@@ -131,7 +131,7 @@ func filterTablesList(config *PgSource) ([]abstract.TableID, error) {
 	excludeDirectives := config.ExcludeWithGlobals()
 	result := make([]abstract.TableID, 0, len(excludeDirectives))
 	for _, directive := range excludeDirectives {
-		parsedDirective, err := abstract.ParseTableID(directive)
+		parsedDirective, err := abstract.NewTableIDFromStringPg(directive, false)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to parse table exclusion directive '%s' defined in source endpoint: %w", directive, err)
 		}

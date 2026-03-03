@@ -71,6 +71,7 @@ func TestUpdateTransfer_AddedTables(t *testing.T) {
     "public.suggests"
   ]
 }`), &params))
+	params.ProviderType = ProviderType("pg")
 	added, err := params.AddedTables()
 	require.NoError(t, err)
 	require.Len(t, added, 1)

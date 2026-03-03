@@ -113,7 +113,7 @@ func (l *SnapshotLoader) CheckIncludeDirectives(tables []abstract.TableDescripti
 	unfulfilledIncludes := set.New[string]()
 	if l.transfer.DataObjects != nil {
 		for _, includeObject := range l.transfer.DataObjects.IncludeObjects {
-			requiredTableID, err := abstract.ParseTableID(includeObject)
+			requiredTableID, err := abstract.ParseTableIDForProvider(includeObject, l.transfer.SrcType())
 			if err != nil {
 				return xerrors.Errorf("unable to parse table id: %w", err)
 			}
@@ -149,7 +149,7 @@ func (l *SnapshotLoader) CheckIncludeDirectives(tables []abstract.TableDescripti
 	if skippableStorage, ok := srcStorage.(abstract.SkippableStorage); ok {
 		keys := unfulfilledIncludes.Slice()
 		for _, key := range keys {
-			requiredTableID, err := abstract.ParseTableID(key)
+			requiredTableID, err := abstract.ParseTableIDForProvider(key, l.transfer.SrcType())
 			if err != nil {
 				return xerrors.Errorf("unable to parse table id: %w", err)
 			}

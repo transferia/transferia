@@ -138,18 +138,27 @@ type TransferVersionUnfreezeParams struct {
 }
 
 type UpdateTransferParams struct {
-	OldObjects []string `json:"old_objects"`
-	NewObjects []string `json:"new_objects"`
+	OldObjects   []string     `json:"old_objects"`
+	NewObjects   []string     `json:"new_objects"`
+	ProviderType ProviderType `json:"-"`
 }
 
 func (p UpdateTransferParams) AddedTables() ([]TableDescription, error) {
-	olds, err := ParseTableIDs(p.OldObjects...)
-	if err != nil {
-		return nil, xerrors.Errorf("invalid old objects: %w", err)
+	var olds []TableID
+	for _, obj := range p.OldObjects {
+		tid, err := ParseTableIDForProvider(obj, p.ProviderType)
+		if err != nil {
+			return nil, xerrors.Errorf("invalid old objects: %w", err)
+		}
+		olds = append(olds, *tid)
 	}
-	news, err := ParseTableIDs(p.NewObjects...)
-	if err != nil {
-		return nil, xerrors.Errorf("invalid new objects: %w", err)
+	var news []TableID
+	for _, obj := range p.NewObjects {
+		tid, err := ParseTableIDForProvider(obj, p.ProviderType)
+		if err != nil {
+			return nil, xerrors.Errorf("invalid new objects: %w", err)
+		}
+		news = append(news, *tid)
 	}
 	oldSet := set.New(olds...)
 	var tables []TableDescription

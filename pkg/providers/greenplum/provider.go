@@ -27,6 +27,9 @@ func init() {
 	})
 
 	abstract.RegisterProviderName(ProviderType, "Greenplum")
+	abstract.RegisterTableIDParser(ProviderType, func(object string) (*abstract.TableID, error) {
+		return abstract.NewTableIDFromStringPg(object, false)
+	})
 	providers.Register(ProviderType, New)
 
 	gobwrapper.RegisterName("*server.GpSource", new(GpSource))

@@ -74,7 +74,7 @@ var AllDestinationSyncModes = []DestinationSyncMode{
 }
 
 func FindStream(streams []ConfiguredStream, obj string) (*ConfiguredStream, error) {
-	tid, err := abstract.ParseTableID(obj)
+	tid, err := abstract.ParseTableIDForProvider(obj, ProviderType)
 	if err != nil {
 		return nil, xerrors.Errorf("parse error: %s: %w", obj, err)
 	}

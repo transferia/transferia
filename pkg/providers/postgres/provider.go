@@ -35,6 +35,9 @@ func init() {
 	})
 
 	abstract.RegisterProviderName(ProviderType, "PostgreSQL")
+	abstract.RegisterTableIDParser(ProviderType, func(object string) (*abstract.TableID, error) {
+		return abstract.NewTableIDFromStringPg(object, false)
+	})
 	providers.Register(ProviderType, New)
 
 	/*

@@ -415,7 +415,7 @@ func (p *publisher) Run(sink abstract.AsyncSink) error {
 	if err != nil {
 		return xerrors.Errorf("failed to load schema: %w", err)
 	}
-	sch, err = abstract.SchemaFilterByObjects(sch, p.objects.GetIncludeObjects())
+	sch, err = abstract.SchemaFilterByObjects(sch, p.objects.GetIncludeObjects(), ProviderType)
 	if err != nil {
 		return xerrors.Errorf("schema filter failed: %w", err)
 	}
@@ -643,7 +643,7 @@ func NewSource(src *MysqlSource, transferID string, objects *model.DataObjects, 
 	config.TimestampStringLocation = connectionParams.Location
 	config.ServerID = src.ServerID
 	config.FailOnDecimal = failOnDecimal
-	includeObjects, err := abstract.BuildIncludeMap(objects.GetIncludeObjects())
+	includeObjects, err := abstract.BuildIncludeMap(objects.GetIncludeObjects(), ProviderType)
 	if err != nil {
 		return nil, abstract.NewFatalError(xerrors.Errorf("to build exclude map: %w", err))
 	}

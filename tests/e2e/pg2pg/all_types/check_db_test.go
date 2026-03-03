@@ -59,7 +59,7 @@ create extension if not exists citext;
 			require.NoError(t, err)
 			dstStorage, err := pg_provider.NewStorage(Target.ToStorageParams())
 			require.NoError(t, err)
-			tid, err := abstract.ParseTableID(tableName)
+			tid, err := abstract.ParseTableIDForProvider(tableName, abstract.ProviderType("pg"))
 			require.NoError(t, err)
 			require.NoError(t, helpers.WaitEqualRowsCount(t, tid.Namespace, tid.Name, srcStorage, dstStorage, time.Second*30))
 			worker.Close(t)

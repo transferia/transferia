@@ -91,7 +91,7 @@ func TestTablesDiscovery(t *testing.T) {
 		f, err := filter.NewFromObjects([]string{
 			rootPath.Child("sample_table_2").String(),
 			rootPath.Child("sample_table_5").String(),
-		})
+		}, yt_provider.ProviderType)
 		require.NoError(t, err)
 		objs, err := src.DataObjects(f)
 		require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestTablesDiscovery(t *testing.T) {
 		f, err := filter.NewFromObjects([]string{
 			rootPath.Child("sample_table_2").String(),
 			rootPath.Child("sample_table_6").String(),
-		})
+		}, yt_provider.ProviderType)
 		require.NoError(t, err)
 		objs, err := src.DataObjects(f)
 		require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestTablesDiscovery(t *testing.T) {
 		f, err := filter.NewFromObjects([]string{
 			rootPath.Child("sample_table_2").String(),
 			rootPath.Child("some_dir").Child("sample_non_table_obj").String(), // exist, but not table
-		})
+		}, yt_provider.ProviderType)
 		require.NoError(t, err)
 		objs, err := src.DataObjects(f)
 		require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestTablesDiscovery(t *testing.T) {
 		f, err := filter.NewFromObjects([]string{
 			rootPath.Child("sample_table_2").String(),
 			rootPath.Child("some_dir").String(),
-		})
+		}, yt_provider.ProviderType)
 		require.NoError(t, err)
 		objs, err := src.DataObjects(f)
 		require.NoError(t, err)

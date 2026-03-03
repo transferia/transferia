@@ -793,7 +793,7 @@ func overrideFilter(filter MongoCollectionFilter, includeTables map[abstract.Tab
 }
 
 func NewSource(src *MongoSource, transferID string, objects *model.DataObjects, logger log.Logger, registry metrics.Registry, cp coordinator.Coordinator) (abstract.Source, error) {
-	includeObjects, err := abstract.BuildIncludeMap(objects.GetIncludeObjects())
+	includeObjects, err := abstract.BuildIncludeMap(objects.GetIncludeObjects(), ProviderType)
 	if err != nil {
 		return nil, abstract.NewFatalError(xerrors.Errorf("to build exclude map: %w", err))
 	}

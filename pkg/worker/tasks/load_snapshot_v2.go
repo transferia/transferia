@@ -142,7 +142,7 @@ func IntersectFilter(transfer *model.Transfer, basic base.DataObjectFilter) (bas
 	if transfer.DataObjects == nil || len(transfer.DataObjects.IncludeObjects) == 0 {
 		return basic, nil
 	}
-	transferFilter, err := filter.NewFromObjects(transfer.DataObjects.IncludeObjects)
+	transferFilter, err := filter.NewFromObjects(transfer.DataObjects.IncludeObjects, transfer.SrcType())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to construct filter from transfer objects: %w", err)
 	}

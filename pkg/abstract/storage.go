@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/errors/coded"
-	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/set"
 )
@@ -26,11 +24,11 @@ type TableDescription struct {
 
 const IsAsyncPartsUploadedStateKey = "is-async-parts-uploaded"
 
-func BuildIncludeMap(objects []string) (map[TableID]bool, error) {
+func BuildIncludeMap(objects []string, providerType ProviderType) (map[TableID]bool, error) {
 	includeObjects := map[TableID]bool{}
 	var errs util.Errors
 	for _, obj := range objects {
-		tid, err := ParseTableID(obj)
+		tid, err := ParseTableIDForProvider(obj, providerType)
 		if err != nil {
 			errs = append(errs, xerrors.Errorf("object: %s: %w", obj, err))
 			continue
@@ -43,8 +41,8 @@ func BuildIncludeMap(objects []string) (map[TableID]bool, error) {
 	return includeObjects, nil
 }
 
-func BuildIncludeableFromObjects(objects []string) (Includeable, error) {
-	includeObjects, err := BuildIncludeMap(objects)
+func BuildIncludeableFromObjects(objects []string, providerType ProviderType) (Includeable, error) {
+	includeObjects, err := BuildIncludeMap(objects, providerType)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to build include map: %w", err)
 	}
@@ -57,13 +55,13 @@ func BuildIncludeableFromObjects(objects []string) (Includeable, error) {
 	}), nil
 }
 
-func SchemaFilterByObjects(schema DBSchema, objects []string) (DBSchema, error) {
+func SchemaFilterByObjects(schema DBSchema, objects []string, providerType ProviderType) (DBSchema, error) {
 	if objects == nil {
 		return schema, nil
 	}
 	res := make(DBSchema)
 	for _, obj := range objects {
-		id, err := ParseTableID(obj)
+		id, err := ParseTableIDForProvider(obj, providerType)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to parse: %s: %w", obj, err)
 		}
@@ -74,45 +72,6 @@ func SchemaFilterByObjects(schema DBSchema, objects []string) (DBSchema, error) 
 		res[*id] = info
 	}
 	return res, nil
-}
-
-func ParseTableID(object string) (*TableID, error) {
-	return NewTableIDFromStringPg(object, false)
-}
-
-func ParseTableIDs(objects ...string) ([]TableID, error) {
-	var res []TableID
-	for _, obj := range objects {
-		tid, err := ParseTableID(obj)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to parse table ID: %s: %w", obj, err)
-		}
-		res = append(res, *tid)
-	}
-	return res, nil
-}
-
-// NewTableIDFromStringPg parses the given FQTN in PostgreSQL syntax to construct a TableID.
-func NewTableIDFromStringPg(fqtn string, replaceOmittedSchemaWithPublic bool) (*TableID, error) {
-	parts, err := identifierToParts(fqtn)
-	if err != nil {
-		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "failed to identify parts: %s: %w", fqtn, err)
-	}
-
-	switch len(parts) {
-	case 0:
-		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "object identifier has no parts: %s", fqtn)
-	case 1:
-		if replaceOmittedSchemaWithPublic {
-			return &TableID{Namespace: "public", Name: parts[0]}, nil
-		}
-		return &TableID{Namespace: "", Name: parts[0]}, nil
-	case 2:
-		return &TableID{Namespace: parts[0], Name: parts[1]}, nil
-	default:
-		return nil, coded.Errorf(codes.InvalidObjectIdentifier, "identifier '%s' contains %d parts instead of maximum two", fqtn, len(parts))
-
-	}
 }
 
 // identifierToParts separates the given identifier into parts separated by dot.

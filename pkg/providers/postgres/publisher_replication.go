@@ -86,7 +86,7 @@ func (p *replication) Run(sink abstract.AsyncSink) error {
 		includedObjects = append(includedObjects, p.config.AuxTables()...)
 	}
 
-	if p.objectsFilter, err = abstract.BuildIncludeableFromObjects(includedObjects); err != nil {
+	if p.objectsFilter, err = abstract.BuildIncludeableFromObjects(includedObjects, ProviderType); err != nil {
 		return xerrors.Errorf("unable to build transfer data-objects: %w", err)
 	}
 
@@ -198,7 +198,7 @@ func (p *replication) reloadSchema() error {
 	dbSchema := tableMapToDBSchemaForTables(tableMap)
 	p.schema = dbSchema
 
-	dbSchemaToCheck, err := abstract.SchemaFilterByObjects(dbSchema, p.objects.GetIncludeObjects())
+	dbSchemaToCheck, err := abstract.SchemaFilterByObjects(dbSchema, p.objects.GetIncludeObjects(), ProviderType)
 	if err != nil {
 		return xerrors.Errorf("failed to filter table list extracted from source by objects set in transfer: %w", err)
 	}

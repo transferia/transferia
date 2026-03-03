@@ -109,14 +109,8 @@ func TestNewTableIDFromStringPg(t *testing.T) {
 		require.Equal(t, TableID{Namespace: "", Name: "cms!FooContents"}, *test)
 	})
 
-	t.Run("YT path as table name", func(t *testing.T) {
-		test, err := ParseTableID(`//home/market/production/mstat/analyst/regular/cubes_vertica/fact_delivery_plan`)
-		require.NoError(t, err)
-		require.Equal(t, TableID{Namespace: "", Name: "//home/market/production/mstat/analyst/regular/cubes_vertica/fact_delivery_plan"}, *test)
-	})
-
 	t.Run("only double quotes in table and schema", func(t *testing.T) {
-		test, err := ParseTableID(`"""""".""""`)
+		test, err := NewTableIDFromStringPg(`"""""".""""`, false)
 		require.NoError(t, err)
 		require.Equal(t, TableID{Namespace: `""`, Name: `"`}, *test)
 	})

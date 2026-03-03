@@ -49,10 +49,10 @@ func NewFromTableIDs(tables []abstract.TableID) *TableIDFilter {
 	return &TableIDFilter{tables: tmap}
 }
 
-func NewFromObjects(objects []string) (*TableIDFilter, error) {
+func NewFromObjects(objects []string, providerType abstract.ProviderType) (*TableIDFilter, error) {
 	tmap := map[abstract.TableID]bool{}
 	for _, t := range objects {
-		tid, err := abstract.ParseTableID(t)
+		tid, err := abstract.ParseTableIDForProvider(t, providerType)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to parse object: %w", err)
 		}

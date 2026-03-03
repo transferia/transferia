@@ -39,7 +39,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	tableCase := func(tableName string) func(t *testing.T) {
 		return func(t *testing.T) {
-			tid, err := abstract.ParseTableID(tableName)
+			tid, err := abstract.ParseTableIDForProvider(tableName, abstract.ProviderType("pg"))
 			require.NoError(t, err)
 			conn, err := pgcommon.MakeConnPoolFromSrc(Source, logger.Log)
 			require.NoError(t, err)

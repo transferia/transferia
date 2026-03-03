@@ -233,7 +233,7 @@ func (f *Transfer) Validate() error {
 func (f *Transfer) ValidateDataObjects() error {
 	tableSet := map[abstract.TableID]bool{}
 	for _, obj := range f.DataObjects.IncludeObjects {
-		tid, err := abstract.ParseTableID(obj)
+		tid, err := abstract.ParseTableIDForProvider(obj, f.SrcType())
 		if err != nil {
 			return xerrors.Errorf("unable to parse obj: %s: %w", obj, err)
 		}
@@ -419,7 +419,7 @@ func (f *Transfer) FilterObjects(result abstract.TableMap) (abstract.TableMap, e
 	var errs util.Errors
 	res := map[abstract.TableID]abstract.TableInfo{}
 	for _, obj := range f.DataObjects.IncludeObjects {
-		tid, err := abstract.ParseTableID(obj)
+		tid, err := abstract.ParseTableIDForProvider(obj, f.SrcType())
 		if err != nil {
 			errs = append(errs, xerrors.Errorf("unable to parse obj: %s: %w", obj, err))
 			continue
@@ -441,7 +441,7 @@ func (f *Transfer) IncludeTableList() ([]abstract.TableID, error) {
 	var res []abstract.TableID
 	if f.DataObjects != nil {
 		for _, obj := range f.DataObjects.IncludeObjects {
-			tid, err := abstract.ParseTableID(obj)
+			tid, err := abstract.ParseTableIDForProvider(obj, f.SrcType())
 			if err != nil {
 				return nil, xerrors.Errorf("unable to parse object: %s: %w", obj, err)
 			}
@@ -456,7 +456,7 @@ func (f *Transfer) Include(tID abstract.TableID) bool {
 		return true
 	}
 	for _, obj := range f.DataObjects.IncludeObjects {
-		parsedTID, _ := abstract.ParseTableID(obj)
+		parsedTID, _ := abstract.ParseTableIDForProvider(obj, f.SrcType())
 		if parsedTID != nil && *parsedTID == tID {
 			return true
 		}

@@ -173,7 +173,7 @@ func PostgresDumpConnString(src *PgSource) (string, model.SecretString, error) {
 func resolveTablesIncluded(src *PgSource, transfer *model.Transfer) ([]abstract.TableID, error) {
 	fromSrc := make([]abstract.TableID, 0, len(src.DBTables))
 	for _, table := range src.DBTables {
-		parsed, err := abstract.ParseTableID(table)
+		parsed, err := abstract.NewTableIDFromStringPg(table, false)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to parse source include directive '%s': %w", table, err)
 		}
@@ -182,7 +182,7 @@ func resolveTablesIncluded(src *PgSource, transfer *model.Transfer) ([]abstract.
 	fromTransfer := make([]abstract.TableID, 0)
 	if transfer.DataObjects != nil {
 		for _, table := range transfer.DataObjects.GetIncludeObjects() {
-			parsed, err := abstract.ParseTableID(table)
+			parsed, err := abstract.NewTableIDFromStringPg(table, false)
 			if err != nil {
 				return nil, xerrors.Errorf("failed to parse transfer include directive '%s': %w", table, err)
 			}

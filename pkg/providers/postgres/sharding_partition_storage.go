@@ -33,7 +33,7 @@ WHERE
 		if err := rows.Scan(&tableName, &etaRow); err != nil {
 			return nil, xerrors.Errorf("unable to scan row: %w", err)
 		}
-		tid, _ := abstract.ParseTableID(tableName)
+		tid, _ := abstract.NewTableIDFromStringPg(tableName, false)
 		res = append(res, abstract.TableDescription{
 			Name:   table.Name,
 			Schema: table.Schema,
