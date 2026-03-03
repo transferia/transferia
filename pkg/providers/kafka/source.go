@@ -32,6 +32,10 @@ type messageReader interface {
 	Close() error
 }
 
+type listableReader interface {
+	ListPartitions(ctx context.Context, topic string) ([]int32, error)
+}
+
 type Source struct {
 	config        *KafkaSource
 	metrics       *stats.SourceStats
@@ -198,6 +202,35 @@ func (p *Source) Stop() {
 			p.logger.Warn("unable to close reader", log.Error(err))
 		}
 	})
+}
+
+func (p *Source) ListPartitions() ([]abstract.Partition, error) {
+	listable, ok := p.reader.(listableReader)
+	if !ok {
+		return nil, xerrors.New("reader is not listable")
+	}
+
+	ctx, cancel := context.WithTimeout(p.ctx, time.Second*10)
+	defer cancel()
+
+	topics := p.config.Topics()
+	partitions := make([]abstract.Partition, 0)
+	for _, topic := range topics {
+		partitionNums, err := listable.ListPartitions(ctx, topic)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to list partitions: %w", err)
+		}
+
+		for _, partition := range partitionNums {
+			partitions = append(partitions, abstract.Partition{
+				Cluster:   "",
+				Partition: uint32(partition),
+				Topic:     topic,
+			})
+		}
+	}
+
+	return partitions, nil
 }
 
 func (p *Source) inLimits() bool {
@@ -468,12 +501,7 @@ func newGroupSource(transferID string, cfg *KafkaSource, logger log.Logger, regi
 		return nil, xerrors.Errorf("unable to create Source for group: %w", err)
 	}
 
-	var topics []string
-	if len(cfg.GroupTopics) > 0 {
-		topics = cfg.GroupTopics
-	} else if cfg.Topic != "" {
-		topics = []string{cfg.Topic}
-	}
+	topics := cfg.Topics()
 	if len(topics) == 0 {
 		return nil, abstract.NewFatalError(xerrors.New("kafka topic required"))
 	}

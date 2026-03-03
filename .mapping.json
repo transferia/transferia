@@ -1572,6 +1572,7 @@
   "pkg/providers/kafka/reader/common.go":"transfer_manager/go/pkg/providers/kafka/reader/common.go",
   "pkg/providers/kafka/reader/group_reader.go":"transfer_manager/go/pkg/providers/kafka/reader/group_reader.go",
   "pkg/providers/kafka/reader/manual_group.go":"transfer_manager/go/pkg/providers/kafka/reader/manual_group.go",
+  "pkg/providers/kafka/reader/manual_group_test.go":"transfer_manager/go/pkg/providers/kafka/reader/manual_group_test.go",
   "pkg/providers/kafka/reader/partition_reader.go":"transfer_manager/go/pkg/providers/kafka/reader/partition_reader.go",
   "pkg/providers/kafka/recipe.go":"transfer_manager/go/pkg/providers/kafka/recipe.go",
   "pkg/providers/kafka/resolver.go":"transfer_manager/go/pkg/providers/kafka/resolver.go",

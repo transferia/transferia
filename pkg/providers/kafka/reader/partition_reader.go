@@ -15,16 +15,17 @@ type kafkaClient interface {
 	Close()
 }
 
-type kafkaOffsetClient interface {
+type kafkaAdminClient interface {
 	FetchOffsets(ctx context.Context, group string) (kadm.OffsetResponses, error)
 	CommitOffsets(ctx context.Context, group string, os kadm.Offsets) (kadm.OffsetResponses, error)
+	ListTopics(ctx context.Context, topics ...string) (kadm.TopicDetails, error)
 }
 
 type PartitionReader struct {
 	group string
 
-	client       kafkaClient
-	offsetClient kafkaOffsetClient
+	client      kafkaClient
+	adminClient kafkaAdminClient
 }
 
 func (r *PartitionReader) CommitMessages(ctx context.Context, msgs ...kgo.Record) error {
@@ -32,7 +33,7 @@ func (r *PartitionReader) CommitMessages(ctx context.Context, msgs ...kgo.Record
 		return nil
 	}
 
-	responses, err := r.offsetClient.CommitOffsets(ctx, r.group, offsetsFromMessages(msgs))
+	responses, err := r.adminClient.CommitOffsets(ctx, r.group, offsetsFromMessages(msgs))
 	if err != nil {
 		return xerrors.Errorf("failed to commit offsets: %w", err)
 	}
@@ -51,6 +52,28 @@ func (r *PartitionReader) FetchMessage(ctx context.Context) (kgo.Record, error) 
 	}
 
 	return kgo.Record{}, err
+}
+
+func (r *PartitionReader) ListPartitions(ctx context.Context, topic string) ([]int32, error) {
+	topicDetailsResp, err := r.adminClient.ListTopics(ctx, topic)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to get topic %s details: %w", topic, err)
+	}
+
+	topicDetails, ok := topicDetailsResp[topic]
+	if !ok {
+		return nil, xerrors.Errorf("list topics response does not contain topic %s", topic)
+	}
+
+	partitions := make([]int32, 0)
+	for _, partitionDetails := range topicDetails.Partitions {
+		if partitionDetails.Err != nil {
+			return nil, xerrors.Errorf("list topic partitions response for %s contains error %w", topic, partitionDetails.Err)
+		}
+		partitions = append(partitions, partitionDetails.Partition)
+	}
+
+	return partitions, nil
 }
 
 func (r *PartitionReader) Close() error {
@@ -86,8 +109,8 @@ func NewPartitionReader(group string, partition int32, topic string, clientOpts 
 		return nil, xerrors.Errorf("unable to create kafka client: %w", err)
 	}
 
-	offsetClient := kadm.NewClient(client)
-	if err := groupExists(offsetClient, group); err != nil {
+	adminClient := kadm.NewClient(client)
+	if err := groupExists(adminClient, group); err != nil {
 		if xerrors.Is(err, ErrGroupNotFound) {
 			if err := createConsumerGroup(group, clientOpts); err != nil {
 				return nil, xerrors.Errorf("failed to create consumer group: %w", err)
@@ -97,7 +120,7 @@ func NewPartitionReader(group string, partition int32, topic string, clientOpts 
 		}
 	}
 
-	offset, err := fetchPartitionNextOffset(group, partition, topic, offsetClient)
+	offset, err := fetchPartitionNextOffset(group, partition, topic, adminClient)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get offsets: %w", err)
 	}
@@ -106,8 +129,8 @@ func NewPartitionReader(group string, partition int32, topic string, clientOpts 
 	})
 
 	return &PartitionReader{
-		group:        group,
-		offsetClient: offsetClient,
-		client:       client,
+		group:       group,
+		adminClient: adminClient,
+		client:      client,
 	}, nil
 }

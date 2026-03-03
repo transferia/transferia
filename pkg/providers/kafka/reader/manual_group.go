@@ -12,11 +12,11 @@ import (
 
 // fetchPartitionNextOffset retrieves the committed offset for a specific partition
 // in a consumer group. Returns a -2 (AtStart) offset if no offset has been committed.
-func fetchPartitionNextOffset(group string, partition int32, topic string, offsetCl kafkaOffsetClient) (kgo.Offset, error) {
+func fetchPartitionNextOffset(group string, partition int32, topic string, adminCl kafkaAdminClient) (kgo.Offset, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	offsetResponses, err := offsetCl.FetchOffsets(ctx, group)
+	offsetResponses, err := adminCl.FetchOffsets(ctx, group)
 	if err != nil {
 		return kgo.Offset{}, xerrors.Errorf("failed to fetch offsets for topic %s partition %d: %w", topic, partition, err)
 	}

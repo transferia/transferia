@@ -174,3 +174,14 @@ func (s *KafkaSource) WithConnectionID() error {
 
 	return nil
 }
+
+func (s *KafkaSource) Topics() []string {
+	var topics []string
+	if len(s.GroupTopics) > 0 {
+		topics = s.GroupTopics
+	} else if s.Topic != "" {
+		topics = []string{s.Topic}
+	}
+
+	return topics
+}

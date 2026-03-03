@@ -319,6 +319,40 @@ func TestPartitionSource(t *testing.T) {
 	})
 }
 
+func TestListPartitions(t *testing.T) {
+	topicName := "test_list_partitions_topic"
+	topicPartition := int32(2)
+
+	kafkaCfg, err := SourceRecipe()
+	require.NoError(t, err)
+
+	_ = createTopicAndFillWithData(t, topicName, kafkaCfg)
+
+	kafkaCfg.Topic = topicName
+	partitionDesc := &PartitionDescription{
+		Partition: topicPartition,
+	}
+
+	src, err := NewSource("dtt", kafkaCfg, partitionDesc, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	require.NoError(t, err)
+	defer src.Stop()
+
+	partitions, err := src.ListPartitions()
+	require.NoError(t, err)
+	require.Len(t, partitions, 3)
+
+	expectedPartitions := []abstract.Partition{
+		{Topic: topicName, Partition: 0},
+		{Topic: topicName, Partition: 1},
+		{Topic: topicName, Partition: 2},
+	}
+	slices.SortFunc(partitions, func(a, b abstract.Partition) int {
+		return int(a.Partition) - int(b.Partition)
+	})
+
+	require.Equal(t, expectedPartitions, partitions)
+}
+
 func createTopicAndFillWithData(t *testing.T, topicName string, sourceCfg *KafkaSource) map[int32][][]byte {
 	cl := newClient(t, sourceCfg)
 	defer cl.Close()
