@@ -45,7 +45,7 @@
 			"caller": "my_caller",
 			"msg": "my_msg",
 			"_timestamp": "2024-03-19 00:00:00.000000",
-			"_partition": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"topic1\"}",
+			"_partition": "{\"partition\":0,\"topic\":\"topic1\"}",
 			"_offset": "0",
 			"_idx": 1
 		}

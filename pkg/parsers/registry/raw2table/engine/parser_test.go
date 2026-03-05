@@ -159,7 +159,6 @@ func TestDo(t *testing.T) {
 				Value:      tc.inputData,
 				Headers:    nil,
 			}, abstract.Partition{
-				Cluster:   "",
 				Partition: 1,
 				Topic:     "test_test",
 			})

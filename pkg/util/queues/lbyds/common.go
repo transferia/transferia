@@ -42,7 +42,6 @@ func ChangeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Part
 			Value:      data,
 			Headers:    headers,
 		}, abstract.Partition{
-			Cluster:   "", // v1 protocol does not contains such entity
 			Partition: uint32(partition),
 			Topic:     ci.Table,
 		}

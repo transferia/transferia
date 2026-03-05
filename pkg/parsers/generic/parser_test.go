@@ -98,7 +98,7 @@ func BenchmarkNumberType(b *testing.B) {
 				}
 				msg := makePersqueueReadMessage(i, line)
 
-				result := parser.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+				result := parser.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
 				require.True(b, len(result) > 0)
 				size += int64(len(msg.Value))
 			}
@@ -116,7 +116,7 @@ func BenchmarkNumberType(b *testing.B) {
 				}
 				msg := makePersqueueReadMessage(i, line)
 
-				result := parserWithNumbers.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+				result := parserWithNumbers.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
 				require.True(b, len(result) > 0)
 				size += int64(len(msg.Value))
 			}
@@ -211,7 +211,7 @@ func TestParserNumberTypes(t *testing.T) {
 		}
 		msg := makePersqueueReadMessage(i, line)
 
-		result := parser.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parser.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		abstract.Dump(result)
 		for index := range result {
@@ -219,7 +219,7 @@ func TestParserNumberTypes(t *testing.T) {
 		}
 		canonResult.UseNumbersFalse = append(canonResult.UseNumbersFalse, result[0])
 
-		resultWithNumbers := parserWithNumbers.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		resultWithNumbers := parserWithNumbers.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, resultWithNumbers, 1)
 		abstract.Dump(resultWithNumbers)
 		for index := range resultWithNumbers {
@@ -264,7 +264,7 @@ func TestBase64Unpack(t *testing.T) {
 		}
 		msg := makePersqueueReadMessage(i, line)
 
-		result := parserJSON.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parserJSON.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		abstract.Dump(result)
 		for index := range result {
@@ -309,7 +309,7 @@ func TestUnescapeJSON(t *testing.T) {
 		}
 		msg := makePersqueueReadMessage(i, line)
 
-		result := parserJSON.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parserJSON.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		abstract.Dump(result)
 		for index := range result {
@@ -351,7 +351,7 @@ func TestUnescapeTSKV(t *testing.T) {
 		}
 		msg := makePersqueueReadMessage(i, line)
 
-		result := parserJSON.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parserJSON.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		abstract.Dump(result)
 		for index := range result {

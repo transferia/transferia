@@ -48,7 +48,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"\"}"
+                    "value": "{\"partition\":0,\"topic\":\"\"}"
                 },
                 {
                     "type": "uint64",
@@ -86,7 +86,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"\"}"
+            "value": "{\"partition\":0,\"topic\":\"\"}"
         },
         "Query": {
             "type": "string",
@@ -290,7 +290,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"\"}"
+                    "value": "{\"partition\":0,\"topic\":\"\"}"
                 },
                 {
                     "type": "uint64",
@@ -328,7 +328,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"\"}"
+            "value": "{\"partition\":0,\"topic\":\"\"}"
         },
         "Query": {
             "type": "string",
@@ -532,7 +532,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"\"}"
+                    "value": "{\"partition\":0,\"topic\":\"\"}"
                 },
                 {
                     "type": "uint64",
@@ -570,7 +570,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"\"}"
+            "value": "{\"partition\":0,\"topic\":\"\"}"
         },
         "Query": {
             "type": "string",
@@ -774,7 +774,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"\"}"
+                    "value": "{\"partition\":0,\"topic\":\"\"}"
                 },
                 {
                     "type": "uint64",
@@ -812,7 +812,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"\"}"
+            "value": "{\"partition\":0,\"topic\":\"\"}"
         },
         "Query": {
             "type": "string",

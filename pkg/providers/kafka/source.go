@@ -223,7 +223,6 @@ func (p *Source) ListPartitions() ([]abstract.Partition, error) {
 
 		for _, partition := range partitionNums {
 			partitions = append(partitions, abstract.Partition{
-				Cluster:   "",
 				Partition: uint32(partition),
 				Topic:     topic,
 			})
@@ -409,7 +408,6 @@ func (p *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, a
 			Value:      data,
 			Headers:    nil,
 		}, abstract.Partition{
-			Cluster:   "", // v1 protocol does not contains such entity
 			Partition: partition,
 			Topic:     ci.Table,
 		}

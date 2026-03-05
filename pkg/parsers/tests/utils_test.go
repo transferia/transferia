@@ -77,7 +77,6 @@ func TestParserConfigsList(t *testing.T) {
 
 func TestUnparsed(t *testing.T) {
 	abstractPartition := abstract.Partition{
-		Cluster:   "lbkx",
 		Topic:     "a/b@c",
 		Partition: 1,
 	}

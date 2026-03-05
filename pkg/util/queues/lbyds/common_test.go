@@ -75,7 +75,6 @@ func TestParse(t *testing.T) {
 			// test data contains only two partitions 0 and 1
 			var expectedPartition = uint32(idx)
 			partition := abstract.Partition{
-				Cluster:   "",
 				Topic:     "test-topic",
 				Partition: expectedPartition,
 			}
@@ -96,7 +95,6 @@ func TestParse(t *testing.T) {
 			// test data contains only two partitions 0 and 1
 			var expectedPartition = uint32(idx)
 			partition := abstract.Partition{
-				Cluster:   "",
 				Topic:     "test-topic",
 				Partition: expectedPartition,
 			}
@@ -117,7 +115,6 @@ func TestParse(t *testing.T) {
 			// test data contains only two partitions 0 and 1
 			var expectedPartition = uint32(idx)
 			partition := abstract.Partition{
-				Cluster:   "",
 				Topic:     "/directory/test-topic",
 				Partition: expectedPartition,
 			}

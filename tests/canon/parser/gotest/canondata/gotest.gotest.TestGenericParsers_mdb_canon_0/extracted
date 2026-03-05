@@ -143,7 +143,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"mdb/porto/test/perf_diag/pg_stat_activity\"}"
+                    "value": "{\"partition\":0,\"topic\":\"mdb/porto/test/perf_diag/pg_stat_activity\"}"
                 },
                 {
                     "type": "uint64",
@@ -181,7 +181,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"mdb/porto/test/perf_diag/pg_stat_activity\"}"
+            "value": "{\"partition\":0,\"topic\":\"mdb/porto/test/perf_diag/pg_stat_activity\"}"
         },
         "Query": {
             "type": "string",

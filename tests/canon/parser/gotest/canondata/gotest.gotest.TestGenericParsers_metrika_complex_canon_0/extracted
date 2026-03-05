@@ -68,7 +68,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"maps-adv-statistics/raw_metrika_log\"}"
+                    "value": "{\"partition\":0,\"topic\":\"maps-adv-statistics/raw_metrika_log\"}"
                 },
                 {
                     "type": "uint64",
@@ -106,7 +106,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"maps-adv-statistics/raw_metrika_log\"}"
+            "value": "{\"partition\":0,\"topic\":\"maps-adv-statistics/raw_metrika_log\"}"
         },
         "Query": {
             "type": "string",

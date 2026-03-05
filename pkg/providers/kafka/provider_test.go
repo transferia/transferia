@@ -55,9 +55,9 @@ func TestTopicResolver(t *testing.T) {
 	for _, row := range items {
 		topicSniff[row.Table] = append(topicSniff[row.Table], row)
 	}
-	require.Len(t, topicSniff["{\"cluster\":\"\",\"partition\":0,\"topic\":\"topic1\"}"], 3)
-	require.Len(t, topicSniff["{\"cluster\":\"\",\"partition\":0,\"topic\":\"topic3\"}"], 3)
-	require.Len(t, topicSniff["{\"cluster\":\"\",\"partition\":0,\"topic\":\"topic_GZIP\"}"], 3)
+	require.Len(t, topicSniff["{\"partition\":0,\"topic\":\"topic1\"}"], 3)
+	require.Len(t, topicSniff["{\"partition\":0,\"topic\":\"topic3\"}"], 3)
+	require.Len(t, topicSniff["{\"partition\":0,\"topic\":\"topic_GZIP\"}"], 3)
 	abstract.Dump(items)
 }
 

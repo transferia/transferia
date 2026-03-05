@@ -82,7 +82,7 @@ func (p *DebeziumImpl) doMultiThread(batch parsers.MessageBatch) []abstract.Chan
 	multiThreadResult := make([][]abstract.ChangeItem, len(batch.Messages))
 
 	currWork := func(in interface{}) {
-		multiThreadResult[in.(int)] = p.Do(batch.Messages[in.(int)], abstract.Partition{Cluster: "", Partition: batch.Partition, Topic: batch.Topic})
+		multiThreadResult[in.(int)] = p.Do(batch.Messages[in.(int)], abstract.Partition{Partition: batch.Partition, Topic: batch.Topic})
 	}
 
 	threadsNumber := p.threadsNumber
@@ -131,7 +131,7 @@ func (p *DebeziumImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem
 	}
 	result := make([]abstract.ChangeItem, 0, 1000)
 	for _, msg := range batch.Messages {
-		result = append(result, p.Do(msg, abstract.Partition{Cluster: "", Partition: batch.Partition, Topic: batch.Topic})...)
+		result = append(result, p.Do(msg, abstract.Partition{Partition: batch.Partition, Topic: batch.Topic})...)
 	}
 	return result
 }

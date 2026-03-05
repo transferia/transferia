@@ -83,7 +83,7 @@ func TestClient(t *testing.T) {
 		if len(data) == 0 {
 			continue
 		}
-		result := parser.Do(makePersqueueReadMessage(i, data), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parser.Do(makePersqueueReadMessage(i, data), abstract.Partition{Partition: 0, Topic: ""})
 		switch i {
 		case 0:
 			require.Len(t, result, 2)
@@ -113,7 +113,7 @@ func TestIncorrectMagicByte(t *testing.T) {
 
 		// parser.Do
 
-		result := parser.Do(makePersqueueReadMessage(0, buf), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parser.Do(makePersqueueReadMessage(0, buf), abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		require.True(t, strings.HasSuffix(result[0].Table, "_unparsed"))
 

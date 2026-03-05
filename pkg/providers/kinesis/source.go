@@ -187,7 +187,6 @@ func (s *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, a
 			Value:      data,
 			Headers:    nil,
 		}, abstract.Partition{
-			Cluster:   "", // v1 protocol does not contains such entity
 			Partition: partition,
 			Topic:     ci.Table,
 		}

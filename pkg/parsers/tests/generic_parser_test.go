@@ -77,7 +77,6 @@ func TestParser_TableSplitter(t *testing.T) {
 		})))
 		require.NoError(t, err)
 		res := parser.Do(samples.Data[samples.MetrikaSample], abstract.Partition{
-			Cluster:   "logbroker",
 			Partition: 777,
 			Topic:     "my/lovely/topic",
 		})
@@ -85,7 +84,7 @@ func TestParser_TableSplitter(t *testing.T) {
 		return res[0].Table
 	}
 	t.Run("utf8", func(t *testing.T) {
-		require.Equal(t, `{"cluster":"logbroker","partition":777,"topic":"my/lovely/topic"}`, testCase([]string{"_partition"}))
+		require.Equal(t, `{"partition":777,"topic":"my/lovely/topic"}`, testCase([]string{"_partition"}))
 	})
 	t.Run("[]byte", func(t *testing.T) {
 		require.Equal(t, `iOS`, testCase([]string{"AppPlatform"}))

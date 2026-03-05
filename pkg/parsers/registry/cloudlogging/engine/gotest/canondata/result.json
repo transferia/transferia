@@ -33,7 +33,7 @@
             "kind": "insert",
             "nextlsn": 0,
             "oldkeys": {},
-            "part": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"my-topic-name\"}",
+            "part": "{\"partition\":0,\"topic\":\"my-topic-name\"}",
             "query": "",
             "schema": "",
             "table": "my-topic-name",

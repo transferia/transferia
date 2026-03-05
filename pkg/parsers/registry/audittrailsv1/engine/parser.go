@@ -183,7 +183,7 @@ func (p *AuditTrailsV1ParserImpl) Do(msg parsers.Message, partition abstract.Par
 func (p *AuditTrailsV1ParserImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem {
 	result := make([]abstract.ChangeItem, 0, 1000)
 	for _, msg := range batch.Messages {
-		result = append(result, p.Do(msg, abstract.Partition{Cluster: "", Partition: batch.Partition, Topic: batch.Topic})...)
+		result = append(result, p.Do(msg, abstract.Partition{Partition: batch.Partition, Topic: batch.Topic})...)
 	}
 	return result
 }

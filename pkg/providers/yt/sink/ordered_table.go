@@ -4,6 +4,7 @@ package sink
 import (
 	"context"
 	"encoding/json"
+	"hash/fnv"
 	"path"
 	"regexp"
 	"strconv"
@@ -163,23 +164,10 @@ func (t *OrderedTable) Init() error {
 }
 
 func getTabletIndexByPartition(partition abstract.Partition) (uint32, error) {
-	var dcNum uint32
-	switch partition.Cluster {
-	case "sas":
-		dcNum = 0
-	case "vla":
-		dcNum = 1
-	case "man":
-		dcNum = 2
-	case "iva":
-		dcNum = 3
-	case "myt":
-		dcNum = 4
-	default: // for partition "default"
-		return 0, nil
-	}
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(partition.Topic))
 
-	return partition.Partition*5 + dcNum, nil
+	return partition.Partition*5 + (h.Sum32() % 5), nil
 }
 
 //nolint:descriptiveerrors

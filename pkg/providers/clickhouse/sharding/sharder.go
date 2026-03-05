@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"hash/fnv"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/connection/clickhouse"
@@ -74,18 +72,7 @@ func KeyGenUserMappingHandler(keygen func(row abstract.ChangeItem) string, mappi
 		if ok {
 			return ShardID(shardIdx)
 		}
-		if strings.HasPrefix(key, "rt3.") {
-			dc := key[4:7]
-			rawPar := strings.SplitAfter(key, "@")
-			part, err := strconv.Atoi(rawPar[len(rawPar)-1])
-			if err != nil {
-				shardIdx = 0
-			} else {
-				dcIdx := mapDc(dc)
-				shardIdx = (5*part + dcIdx) % shardsCnt
-			}
-		}
-		mapping[key] = shardIdx
+		mapping[key] = 0
 		return ShardID(shardIdx)
 	}
 }
@@ -128,20 +115,4 @@ func CHSharder(cfg model.ChSinkParams, transferID string) Sharder {
 	} else {
 		return ConstSharder()
 	}
-}
-
-func mapDc(s string) int {
-	switch s {
-	case "iva":
-		return 1
-	case "man":
-		return 2
-	case "vla":
-		return 3
-	case "sas":
-		return 4
-	case "myt":
-		return 5
-	}
-	return 1
 }

@@ -103,7 +103,7 @@ func (r parser) Apply(input []abstract.ChangeItem) abstract.TransformerResult {
 
 	for part, msgs := range batches {
 		parsed = append(parsed, r.parser.DoBatch(parsers.MessageBatch{
-			Topic:     fmt.Sprintf("rt3.na--%s", part.Topic), // lol
+			Topic:     part.Topic,
 			Partition: part.Partition,
 			Messages:  msgs,
 		})...)

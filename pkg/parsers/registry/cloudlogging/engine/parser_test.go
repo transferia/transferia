@@ -63,7 +63,7 @@ func TestParser(t *testing.T) {
 		}
 		parser := NewCloudLoggingImpl(false, logger.Log, stats.NewSourceStats(metrics.NewRegistry()))
 		msg := makePersqueueReadMessage(0, line)
-		result := parser.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: "my-topic-name"})
+		result := parser.Do(msg, abstract.Partition{Partition: 0, Topic: "my-topic-name"})
 		require.Len(t, result, 1)
 		require.Equal(t, "2022-11-18 05:39:48.017249864 +0000 UTC", result[0].ColumnValues[0].(time.Time).String())
 		result[0] = normalizeChangeItem(result[0])

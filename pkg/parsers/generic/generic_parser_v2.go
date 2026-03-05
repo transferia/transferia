@@ -416,7 +416,7 @@ func (l *ysonEventBatch) MarshalYSON(w *yson.Writer) error {
 func (p *GenericParser) logfellerParse(msg parsers.Message, partition abstract.Partition) base.EventBatch {
 	transportMeta := fmt.Sprintf(
 		"%v@@%v@@%v@@%v@@%v@@%v@@%v@@%v@@",
-		partition.LegacyShittyString(),
+		partition.String(),
 		msg.Offset,
 		string(msg.Key),
 		msg.CreateTime.UnixNano()/int64(time.Millisecond),

@@ -19,7 +19,7 @@ var rows = []abstract.ChangeItem{
 			"test",
 		},
 		ColumnValues: []any{
-			"rt3.iva-asdasd@15",
+			"{\"partition\":25,\"topic\":\"iva-asdasd\"}",
 		},
 	},
 	{
@@ -27,7 +27,7 @@ var rows = []abstract.ChangeItem{
 			"test",
 		},
 		ColumnValues: []any{
-			"rt3.myt-asdasd@15",
+			"{\"partition\":15,\"topic\":\"klg-asdasd\"}",
 		},
 	},
 	{
@@ -35,7 +35,7 @@ var rows = []abstract.ChangeItem{
 			"test",
 		},
 		ColumnValues: []any{
-			"rt3.sas-asdasd@5",
+			"{\"partition\":1,\"topic\":\"sas-asdasd\"}",
 		},
 	},
 	{
@@ -43,7 +43,7 @@ var rows = []abstract.ChangeItem{
 			"test",
 		},
 		ColumnValues: []any{
-			"rt3.man-asdasd@2",
+			"{\"partition\":2,\"topic\":\"man-asdasd\"}",
 		},
 	},
 }
@@ -116,19 +116,19 @@ func TestMultiShard_Push_ManualMap(t *testing.T) {
 		ChClusterName: "test_cluster",
 		ColumnValueToShardNameList: []model.ClickHouseColumnValueToShardName{
 			{
-				ColumnValue: "rt3.iva-asdasd@15",
+				ColumnValue: "{\"partition\":25,\"topic\":\"iva-asdasd\"}",
 				ShardName:   "s1",
 			},
 			{
-				ColumnValue: "rt3.myt-asdasd@15",
+				ColumnValue: "{\"partition\":15,\"topic\":\"klg-asdasd\"}",
 				ShardName:   "s2",
 			},
 			{
-				ColumnValue: "rt3.sas-asdasd@5",
+				ColumnValue: "{\"partition\":1,\"topic\":\"sas-asdasd\"}",
 				ShardName:   "s3",
 			},
 			{
-				ColumnValue: "rt3.man-asdasd@2",
+				ColumnValue: "{\"partition\":2,\"topic\":\"man-asdasd\"}",
 				ShardName:   "s1",
 			},
 		},
@@ -250,19 +250,19 @@ func TestNewSink_shardColumnShardingNoKeyWithUserMapping(t *testing.T) {
 		ShardCol:      "non-existing-col",
 		ColumnValueToShardNameList: []model.ClickHouseColumnValueToShardName{
 			{
-				ColumnValue: "rt3.iva-asdasd@15",
+				ColumnValue: "{\"partition\":25,\"topic\":\"iva-asdasd\"}",
 				ShardName:   "s1",
 			},
 			{
-				ColumnValue: "rt3.myt-asdasd@15",
+				ColumnValue: "{\"partition\":15,\"topic\":\"klg-asdasd\"}",
 				ShardName:   "s2",
 			},
 			{
-				ColumnValue: "rt3.sas-asdasd@5",
+				ColumnValue: "{\"partition\":1,\"topic\":\"sas-asdasd\"}",
 				ShardName:   "s3",
 			},
 			{
-				ColumnValue: "rt3.man-asdasd@2",
+				ColumnValue: "{\"partition\":2,\"topic\":\"man-asdasd\"}",
 				ShardName:   "s1",
 			},
 		},

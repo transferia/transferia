@@ -45,7 +45,7 @@ func TestParser(t *testing.T) {
 		}
 		parser := NewDebeziumImpl(logger.Log, nil, 1)
 		msg := makePersqueueReadMessage(0, []byte(line))
-		result := parser.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parser.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		canonArr = append(canonArr, result[0])
 		fmt.Println(result[0].ToJSONString())
@@ -57,7 +57,7 @@ func TestParser(t *testing.T) {
 func TestUnparsed(t *testing.T) {
 	parser := NewDebeziumImpl(logger.Log, nil, 1)
 	msg := makePersqueueReadMessage(0, []byte(`{}`))
-	result := parser.Do(msg, abstract.Partition{Cluster: "", Partition: 0, Topic: "my-topic-name"})
+	result := parser.Do(msg, abstract.Partition{Partition: 0, Topic: "my-topic-name"})
 	require.Len(t, result, 1)
 	fmt.Println(result[0].ToJSONString())
 	require.Equal(t, "my-topic-name_unparsed", result[0].Table)
@@ -106,7 +106,7 @@ func TestIncorrectMagicByte(t *testing.T) {
 
 		// parser.Do
 
-		result := parser.Do(makePersqueueReadMessage(0, buf), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parser.Do(makePersqueueReadMessage(0, buf), abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		require.True(t, strings.HasSuffix(result[0].Table, "_unparsed"))
 

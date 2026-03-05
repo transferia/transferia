@@ -73,7 +73,7 @@ func TestClient(t *testing.T) {
 		if len(data) == 0 {
 			continue
 		}
-		result := parser.Do(makePersqueueReadMessage(i, testutils.ChangeRegistryURL(t, data, schemaRegistryMock.URL())), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parser.Do(makePersqueueReadMessage(i, testutils.ChangeRegistryURL(t, data, schemaRegistryMock.URL())), abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		for j := range result {
 			// get back original sr uri
@@ -129,7 +129,7 @@ func TestTimeAbsentOrWrongType(t *testing.T) {
 			continue
 		}
 		rawLine := removeTime(t, testutils.ChangeRegistryURL(t, data, schemaRegistryMock.URL()))
-		result := parser.Do(makePersqueueReadMessage(i, rawLine), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parser.Do(makePersqueueReadMessage(i, rawLine), abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		require.True(t, parsers.IsUnparsed(result[0]), "ChangeItem should be unparsed")
 	}
@@ -139,7 +139,7 @@ func TestTimeAbsentOrWrongType(t *testing.T) {
 			continue
 		}
 		rawLine := makeTimeWrongType(t, testutils.ChangeRegistryURL(t, data, schemaRegistryMock.URL()))
-		result := parser.Do(makePersqueueReadMessage(i, rawLine), abstract.Partition{Cluster: "", Partition: 0, Topic: ""})
+		result := parser.Do(makePersqueueReadMessage(i, rawLine), abstract.Partition{Partition: 0, Topic: ""})
 		require.Len(t, result, 1)
 		require.True(t, parsers.IsUnparsed(result[0]), "ChangeItem should be unparsed")
 	}

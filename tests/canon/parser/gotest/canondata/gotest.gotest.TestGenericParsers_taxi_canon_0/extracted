@@ -148,7 +148,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
+                    "value": "{\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
                 },
                 {
                     "type": "uint64",
@@ -186,7 +186,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
+            "value": "{\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
         },
         "Query": {
             "type": "string",
@@ -718,7 +718,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
+                    "value": "{\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
                 },
                 {
                     "type": "uint64",
@@ -756,7 +756,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
+            "value": "{\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
         },
         "Query": {
             "type": "string",
@@ -1288,7 +1288,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
+                    "value": "{\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
                 },
                 {
                     "type": "uint64",
@@ -1326,7 +1326,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
+            "value": "{\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
         },
         "Query": {
             "type": "string",
@@ -1858,7 +1858,7 @@
                 },
                 {
                     "type": "string",
-                    "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
+                    "value": "{\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
                 },
                 {
                     "type": "uint64",
@@ -1896,7 +1896,7 @@
         },
         "PartID": {
             "type": "string",
-            "value": "{\"cluster\":\"\",\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
+            "value": "{\"partition\":0,\"topic\":\"taxi/taxi-chatterbox-yandex-taxi-chatterbox-log\"}"
         },
         "Query": {
             "type": "string",

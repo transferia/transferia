@@ -81,9 +81,9 @@ func TestOrderedTablet_Write(t *testing.T) {
 		tablets[row.TabletIDX] = append(tablets[row.TabletIDX], row)
 	}
 
-	require.Equal(t, 5, len(tablets[1]))
-	require.Equal(t, 10, len(tablets[2]))
-	require.Equal(t, 15, len(tablets[3]))
+	require.Equal(t, 5, len(tablets[6]))
+	require.Equal(t, 10, len(tablets[11]))
+	require.Equal(t, 15, len(tablets[16]))
 }
 
 func TestOrderedTablet_ConcurrentWrite(t *testing.T) {
@@ -142,9 +142,9 @@ func TestOrderedTablet_ConcurrentWrite(t *testing.T) {
 		tablets[row.TabletIDX] = append(tablets[row.TabletIDX], row)
 	}
 
-	require.Equal(t, 5, len(tablets[1]))
-	require.Equal(t, 10, len(tablets[2]))
-	require.Equal(t, 15, len(tablets[3]))
+	require.Equal(t, 5, len(tablets[6]))
+	require.Equal(t, 10, len(tablets[11]))
+	require.Equal(t, 15, len(tablets[16]))
 }
 
 func TestOrderedTable_CustomAttributes(t *testing.T) {
@@ -199,8 +199,7 @@ func TestOrderedTable_IncludeTimeoutAttribute(t *testing.T) {
 
 func generateBullets(partNum, count int) []abstract.ChangeItem {
 	res := make([]abstract.ChangeItem, 0)
-	dc := []string{"sas", "vla", "man", "iva", "myt"}[partNum%5]
-	part := abstract.NewPartition(fmt.Sprintf("rt3.%s--yabs-rt--bs-tracking-log", dc), 0).String()
+	part := abstract.NewPartition("bs-tracking-log", uint32(partNum)).String()
 	for j := 0; j < count; j++ {
 		item := abstract.ChangeItem{
 			ColumnNames: []string{"_partition", "_offset", "value"},
@@ -219,7 +218,7 @@ func generateBullets(partNum, count int) []abstract.ChangeItem {
 }
 
 func Test_getTabletIndexByPartition(t *testing.T) {
-	q, err := getTabletIndexByPartition(abstract.NewPartition("rt3.vla--yabs-rt--bs-tracking-log", 2))
+	q, err := getTabletIndexByPartition(abstract.NewPartition("bs-tracking-log", 2))
 	require.NoError(t, err)
 	require.Equal(t, uint32(11), q)
 }

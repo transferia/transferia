@@ -186,7 +186,7 @@ func (p *CloudEventsImpl) Do(msg parsers.Message, partition abstract.Partition) 
 func (p *CloudEventsImpl) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem {
 	result := make([]abstract.ChangeItem, 0, len(batch.Messages))
 	for _, msg := range batch.Messages {
-		result = append(result, p.Do(msg, abstract.Partition{Cluster: "", Partition: batch.Partition, Topic: batch.Topic})...)
+		result = append(result, p.Do(msg, abstract.Partition{Partition: batch.Partition, Topic: batch.Topic})...)
 	}
 	return result
 }

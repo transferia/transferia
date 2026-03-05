@@ -61,7 +61,7 @@ func TestYSRableParser_Do(t *testing.T) {
 		}
 
 		msg := Message{Value: []byte("test")}
-		partition := abstract.NewPartition("rt3.test--test_topic", 0)
+		partition := abstract.NewPartition("test_topic", 0)
 
 		items := parser.Do(msg, partition)
 		require.Equal(t, expectedItems, items)
@@ -92,7 +92,7 @@ func TestYSRableParser_Do(t *testing.T) {
 		}
 
 		msg := Message{Value: []byte("test")}
-		partition := abstract.NewPartition("rt3.test--test_topic", 0)
+		partition := abstract.NewPartition("test_topic", 0)
 
 		items := parser.Do(msg, partition)
 		require.Equal(t, expectedItems, items)
