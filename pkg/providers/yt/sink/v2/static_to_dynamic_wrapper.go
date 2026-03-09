@@ -13,8 +13,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	dyn_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
@@ -50,7 +50,7 @@ func NewStaticSinkWrapper(cfg yt2.YtDestinationModel, cp coordinator.Coordinator
 		staticIndexSinks[idxCol] = staticIdxSink
 	}
 
-	ytClient, err := ytclient.FromConnParams(cfg, logger)
+	ytClient, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error getting YT Client: %w", err)
 	}

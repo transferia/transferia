@@ -11,10 +11,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	dyn_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
 	"github.com/transferia/transferia/pkg/providers/yt/sink/v2/statictable"
 	"github.com/transferia/transferia/pkg/providers/yt/sink/v2/transactions"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -260,7 +260,7 @@ func dataplaneExecutablePath(cfg yt2.YtDestinationModel, ytClient yt.Client, log
 }
 
 func NewStaticSink(cfg yt2.YtDestinationModel, cp coordinator.Coordinator, transferID string, registry metrics.Registry, logger log.Logger) (abstract.Sinker, error) {
-	ytClient, err := ytclient.FromConnParams(cfg, logger)
+	ytClient, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, err
 	}

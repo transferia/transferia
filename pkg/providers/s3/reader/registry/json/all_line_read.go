@@ -1,4 +1,4 @@
-package reader
+package json
 
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"

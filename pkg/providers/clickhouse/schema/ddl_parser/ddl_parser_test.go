@@ -1,4 +1,4 @@
-package parser
+package ddl_parser
 
 import (
 	"testing"

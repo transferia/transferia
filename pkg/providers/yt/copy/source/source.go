@@ -9,9 +9,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/base"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/pkg/providers/yt/copy/events"
 	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -133,7 +133,7 @@ func (s *source) Progress() (base.EventSourceProgress, error) {
 }
 
 func NewSource(logger log.Logger, metrics metrics.Registry, cfg yt2.YtSourceModel, transferID string) (*source, error) {
-	y, err := ytclient.FromConnParams(cfg, logger)
+	y, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error creating ytrpc client: %w", err)
 	}

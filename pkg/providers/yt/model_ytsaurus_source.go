@@ -5,7 +5,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -58,7 +58,7 @@ func (s *YTSaurusSource) RowIdxEnabled() bool {
 
 func (s *YTSaurusSource) IsAsyncShardPartsSource() {}
 
-func (s *YTSaurusSource) ConnParams() ytclient.ConnParams {
+func (s *YTSaurusSource) ConnParams() yt_client.ConnParams {
 	return s
 }
 

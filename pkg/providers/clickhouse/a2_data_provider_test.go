@@ -15,7 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/base"
 	"github.com/transferia/transferia/pkg/base/events"
 	"github.com/transferia/transferia/pkg/providers"
-	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/util"
 )
 

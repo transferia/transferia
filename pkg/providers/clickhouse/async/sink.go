@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/model/parts"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	sharding "github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/sharding"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"

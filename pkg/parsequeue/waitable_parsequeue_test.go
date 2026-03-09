@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
-	abstract "github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract"
 )
 
 func TestRandomParseDelayWithEnsure(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/config/env"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -26,7 +26,7 @@ const (
 
 type YtDestinationModel interface {
 	dp_model.TmpPolicyProvider
-	ytclient.ConnParams
+	yt_client.ConnParams
 	bufferer.Bufferable
 
 	ToStorageParams() *YtStorageParams

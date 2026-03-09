@@ -1,4 +1,4 @@
-package ytclient
+package yt_client
 
 import (
 	"fmt"
@@ -141,7 +141,7 @@ func (y *verboseErrLogger) Logger() log.Logger {
 //
 // Usage example with four commonly used parameters around Data Transfer code:
 //
-//	client, err := ytclient.NewYtClientWrapper(ytclient.HTTP, logger, &yt.Config{
+//	client, err := yt_client.NewYtClientWrapper(yt_client.HTTP, logger, &yt.Config{
 //		Proxy:                 dst.Cluster(),
 //		Token:                 dst.Token(),
 //		AllowRequestsFromJob:  true,

@@ -1,4 +1,4 @@
-package shmongo
+package mongo_sharded_cluster
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/util"
-	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -49,7 +49,7 @@ func (c Cluster) GetAllPids() ([]int, error) {
 	return pids, nil
 }
 
-func StartCluster(logger log.Logger, envInfo EnvironmentInfo, config mongoshardedconfig.MongoShardedClusterConfig) (Cluster, error) {
+func StartCluster(logger log.Logger, envInfo EnvironmentInfo, config mongo_sharded_config.MongoShardedClusterConfig) (Cluster, error) {
 	logger.Infof("Starting sharded mongodb cluster with %d shards", config.ShardReplicaSet.ReplicaSetCount())
 
 	var rollbacks util.Rollbacks

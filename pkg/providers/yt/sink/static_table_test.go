@@ -14,8 +14,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/pkg/providers/yt/recipe"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -97,7 +97,7 @@ func initYt(t *testing.T, path string) (testCfg yt2.YtDestinationModel, client y
 	})
 	cfg.WithDefaults()
 
-	cl, err := ytclient.FromConnParams(cfg, logger.Log)
+	cl, err := yt_client.FromConnParams(cfg, logger.Log)
 	require.NoError(t, err)
 	return cfg, cl
 }

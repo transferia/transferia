@@ -1,4 +1,4 @@
-package parser
+package ddl_parser
 
 import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/schema/ddl_parser/clickhouse_lexer"

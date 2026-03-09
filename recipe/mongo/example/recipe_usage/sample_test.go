@@ -1,4 +1,4 @@
-package example
+package recipe_usage
 
 import (
 	"testing"

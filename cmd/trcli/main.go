@@ -17,7 +17,7 @@ import (
 	internal_metrics "github.com/transferia/transferia/internal/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	coordinator "github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/cobraaux"
 	"github.com/transferia/transferia/pkg/coordinator/s3coordinator"
 	_ "github.com/transferia/transferia/pkg/dataplane"

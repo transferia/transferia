@@ -1,4 +1,4 @@
-package gpfdistbin
+package gpfdist_bin
 
 import (
 	"net"

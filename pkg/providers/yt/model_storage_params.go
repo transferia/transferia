@@ -1,7 +1,7 @@
 package yt
 
 import (
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 )
 
 type YtStorageParams struct {
@@ -10,7 +10,7 @@ type YtStorageParams struct {
 	Path                  string                 `log:"true"`
 	Spec                  map[string]interface{} `log:"true"`
 	DisableProxyDiscovery bool                   `log:"true"`
-	ConnParams            ytclient.ConnParams
+	ConnParams            yt_client.ConnParams
 }
 
 func (d *YtDestination) ToStorageParams() *YtStorageParams {

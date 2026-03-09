@@ -9,16 +9,16 @@
 package writer
 
 import (
-	context "context"
-	tls "crypto/tls"
-	net "net"
-	reflect "reflect"
+	"context"
+	"crypto/tls"
+	"net"
+	"reflect"
 
-	log "go.ytsaurus.tech/library/go/core/log"
-	queue "github.com/transferia/transferia/pkg/serializer/queue"
+	"go.ytsaurus.tech/library/go/core/log"
+	"github.com/transferia/transferia/pkg/serializer/queue"
 	kafka "github.com/segmentio/kafka-go"
-	sasl "github.com/segmentio/kafka-go/sasl"
-	gomock "go.uber.org/mock/gomock"
+	"github.com/segmentio/kafka-go/sasl"
+	"go.uber.org/mock/gomock"
 )
 
 // MockAbstractWriter is a mock of AbstractWriter interface.

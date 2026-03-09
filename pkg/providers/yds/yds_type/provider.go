@@ -1,4 +1,4 @@
-package ydstype
+package yds_type
 
 import "github.com/transferia/transferia/pkg/abstract"
 

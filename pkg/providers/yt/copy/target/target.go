@@ -12,8 +12,8 @@ import (
 	"github.com/transferia/transferia/pkg/base"
 	baseevent "github.com/transferia/transferia/pkg/base/events"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/pkg/providers/yt/copy/events"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/worker_pool"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -229,7 +229,7 @@ func (t *YtCopyTarget) Close() error {
 }
 
 func NewTarget(logger log.Logger, metrics metrics.Registry, cfg *yt_provider.YtCopyDestination, transferID string) (base.EventTarget, error) {
-	y, err := ytclient.FromConnParams(cfg, logger)
+	y, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error creating ytrpc client: %w", err)
 	}

@@ -1,4 +1,4 @@
-package async
+package benchmark
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package filterrows
+package filter_rows
 
 import (
 	"bytes"

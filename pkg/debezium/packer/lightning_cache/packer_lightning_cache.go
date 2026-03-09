@@ -1,4 +1,4 @@
-package lightningcache
+package lightning_cache
 
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"

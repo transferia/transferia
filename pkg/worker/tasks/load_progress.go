@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	sync "sync"
+	"sync"
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"

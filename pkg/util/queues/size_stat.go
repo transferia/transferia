@@ -1,4 +1,4 @@
-package util
+package queues
 
 import (
 	"encoding/binary"

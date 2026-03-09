@@ -15,7 +15,7 @@ import (
 	mongodataagent "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	mongoshardedcluster "github.com/transferia/transferia/recipe/mongo/pkg/cluster"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_cluster"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -50,11 +50,11 @@ const (
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 	Source       = &mongodataagent.MongoSource{
-		Hosts:      []string{os.Getenv("DB1_" + mongoshardedcluster.EnvMongoShardedClusterHost)},
-		Port:       helpers.GetIntFromEnv("DB1_" + mongoshardedcluster.EnvMongoShardedClusterPort),
-		User:       os.Getenv("DB1_" + mongoshardedcluster.EnvMongoShardedClusterUsername),
-		Password:   model.SecretString(os.Getenv("DB1_" + mongoshardedcluster.EnvMongoShardedClusterPassword)),
-		AuthSource: os.Getenv("DB1_" + mongoshardedcluster.EnvMongoShardedClusterAuthSource),
+		Hosts:      []string{os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterHost)},
+		Port:       helpers.GetIntFromEnv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
+		User:       os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterUsername),
+		Password:   model.SecretString(os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterPassword)),
+		AuthSource: os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterAuthSource),
 		Collections: []mongodataagent.MongoCollection{
 			{DatabaseName: DB, CollectionName: Collection1},
 			{DatabaseName: DB, CollectionName: Collection2},
@@ -63,11 +63,11 @@ var (
 		SlotID: slotIDAkaTransferID,
 	}
 	Target = mongodataagent.MongoDestination{
-		Hosts:      []string{os.Getenv("DB2_" + mongoshardedcluster.EnvMongoShardedClusterHost)},
-		Port:       helpers.GetIntFromEnv("DB2_" + mongoshardedcluster.EnvMongoShardedClusterPort),
-		User:       os.Getenv("DB2_" + mongoshardedcluster.EnvMongoShardedClusterUsername),
-		Password:   model.SecretString(os.Getenv("DB2_" + mongoshardedcluster.EnvMongoShardedClusterPassword)),
-		AuthSource: os.Getenv("DB2_" + mongoshardedcluster.EnvMongoShardedClusterAuthSource),
+		Hosts:      []string{os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterHost)},
+		Port:       helpers.GetIntFromEnv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
+		User:       os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterUsername),
+		Password:   model.SecretString(os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterPassword)),
+		AuthSource: os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterAuthSource),
 		Cleanup:    model.DisabledCleanup,
 	}
 )

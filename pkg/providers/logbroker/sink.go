@@ -14,7 +14,7 @@ import (
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	queues "github.com/transferia/transferia/pkg/util/queues"
+	"github.com/transferia/transferia/pkg/util/queues"
 	"github.com/transferia/transferia/pkg/xtls"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/config"

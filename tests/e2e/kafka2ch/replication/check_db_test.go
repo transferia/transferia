@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
-	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	kafkasink "github.com/transferia/transferia/pkg/providers/kafka"
 	"github.com/transferia/transferia/tests/canon/reference"
 	"github.com/transferia/transferia/tests/helpers"

@@ -1,4 +1,4 @@
-package tostring
+package to_string
 
 import (
 	"encoding/json"

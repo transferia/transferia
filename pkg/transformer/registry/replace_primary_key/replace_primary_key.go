@@ -1,4 +1,4 @@
-package replaceprimarykey
+package replace_primary_key
 
 import (
 	"fmt"

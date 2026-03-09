@@ -1,4 +1,4 @@
-package replication
+package test_patched_client
 
 import (
 	"math/rand"

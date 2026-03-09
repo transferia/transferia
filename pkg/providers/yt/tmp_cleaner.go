@@ -7,7 +7,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -20,7 +20,7 @@ type tmpCleanerYt struct {
 }
 
 func NewTmpCleaner(dst YtDestinationModel, logger log.Logger) (providers.Cleaner, error) {
-	client, err := ytclient.FromConnParams(dst, logger)
+	client, err := yt_client.FromConnParams(dst, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error getting YT Client: %w", err)
 	}

@@ -1,4 +1,4 @@
-package problemitemdetector
+package problem_item_detector
 
 import (
 	"encoding/json"

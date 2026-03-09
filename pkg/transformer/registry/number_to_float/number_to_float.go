@@ -1,4 +1,4 @@
-package numbertofloat
+package number_to_float
 
 import (
 	"container/list"

@@ -27,7 +27,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql"
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/util/set"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	dt_canon "github.com/transferia/transferia/tests/canon"
@@ -65,7 +65,7 @@ func dumpToString(t *testing.T, source dp_model.Source) string {
 	case *model.ChSource:
 		return FromClickhouse(t, src, false)
 	case *yt.YtSource:
-		ytClient, err := ytclient.FromConnParams(src, nil)
+		ytClient, err := yt_client.FromConnParams(src, nil)
 		require.NoError(t, err)
 
 		res, err := yt_helpers.DumpYtDirectoryToString(ytClient, ypath.Path(src.Paths[0]))

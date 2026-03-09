@@ -7,7 +7,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/providers/ydb"
-	ydstype "github.com/transferia/transferia/pkg/providers/yds/type"
+	"github.com/transferia/transferia/pkg/providers/yds/yds_type"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -100,7 +100,7 @@ func (s *YDSSource) WithDefaults() {
 func (s *YDSSource) IsSource() {}
 
 func (s *YDSSource) GetProviderType() abstract.ProviderType {
-	return ydstype.ProviderType
+	return yds_type.ProviderType
 }
 
 func (s *YDSSource) Validate() error {

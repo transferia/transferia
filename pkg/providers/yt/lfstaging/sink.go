@@ -7,7 +7,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	ytcommon "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/guid"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -188,7 +188,7 @@ func NewSinker(
 	transfer *model.Transfer,
 	logger log.Logger,
 ) (abstract.Sinker, error) {
-	ytClient, err := ytclient.NewYtClientWrapper(ytclient.HTTP, logger, &yt.Config{
+	ytClient, err := yt_client.NewYtClientWrapper(yt_client.HTTP, logger, &yt.Config{
 		Proxy:                 cfg.Cluster,
 		Token:                 cfg.YtToken,
 		AllowRequestsFromJob:  true,

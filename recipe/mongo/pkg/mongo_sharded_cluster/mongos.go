@@ -1,4 +1,4 @@
-package shmongo
+package mongo_sharded_cluster
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/util"
-	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -74,25 +74,25 @@ func StartSingleMongos(
 
 	// save original user configuration for diagnostics
 	originalConfigPath := path.Join(binInfo.LogsPath, commonSubPath, "original.config.yaml")
-	err = mongoshardedconfig.ProduceMongodConfig(config, originalConfigPath)
+	err = mongo_sharded_config.ProduceMongodConfig(config, originalConfigPath)
 	if err != nil {
 		return MongoS{},
 			xerrors.Errorf("cannot produce original config file for config replica set: %w", err)
 	}
 
 	// override configuration with necessary parameters
-	config = mongoshardedconfig.OverridePathValue(config, mongoshardedconfig.PropMongoSConfigDB, cfgHostsURL)
-	config = mongoshardedconfig.OverridePathValue(config, mongoshardedconfig.PropNetPort, port)
-	config = mongoshardedconfig.OverridePathValue(config, mongoshardedconfig.PropNetBindIP, "localhost")
-	config = mongoshardedconfig.OverridePathValue(config, mongoshardedconfig.PropUnixDomainSocket, false)
-	config = mongoshardedconfig.OverridePathValue(config, mongoshardedconfig.PropFork, true)
-	config = mongoshardedconfig.OverridePathValue(config, mongoshardedconfig.PropPidFile, pidPath)
-	config = mongoshardedconfig.OverridePathValue(config, mongoshardedconfig.PropSystemLogDestination, "file")
-	config = mongoshardedconfig.OverridePathValue(config, mongoshardedconfig.PropSystemLogPath, logPath)
+	config = mongo_sharded_config.OverridePathValue(config, mongo_sharded_config.PropMongoSConfigDB, cfgHostsURL)
+	config = mongo_sharded_config.OverridePathValue(config, mongo_sharded_config.PropNetPort, port)
+	config = mongo_sharded_config.OverridePathValue(config, mongo_sharded_config.PropNetBindIP, "localhost")
+	config = mongo_sharded_config.OverridePathValue(config, mongo_sharded_config.PropUnixDomainSocket, false)
+	config = mongo_sharded_config.OverridePathValue(config, mongo_sharded_config.PropFork, true)
+	config = mongo_sharded_config.OverridePathValue(config, mongo_sharded_config.PropPidFile, pidPath)
+	config = mongo_sharded_config.OverridePathValue(config, mongo_sharded_config.PropSystemLogDestination, "file")
+	config = mongo_sharded_config.OverridePathValue(config, mongo_sharded_config.PropSystemLogPath, logPath)
 
 	// save working configuration before launching mongod instance
 	configPath := path.Join(binInfo.LogsPath, commonSubPath, "config.yaml")
-	err = mongoshardedconfig.ProduceMongodConfig(config, configPath)
+	err = mongo_sharded_config.ProduceMongodConfig(config, configPath)
 	if err != nil {
 		return MongoS{},
 			xerrors.Errorf("cannot produce original config file for config replica set: %w", err)

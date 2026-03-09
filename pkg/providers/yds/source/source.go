@@ -20,7 +20,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	queues "github.com/transferia/transferia/pkg/util/queues"
+	"github.com/transferia/transferia/pkg/util/queues"
 	"github.com/transferia/transferia/pkg/util/queues/lbyds"
 	"github.com/transferia/transferia/pkg/xtls"
 	"go.ytsaurus.tech/library/go/core/log"

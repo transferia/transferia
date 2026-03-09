@@ -1,4 +1,4 @@
-package lightningcache
+package lightning_cache
 
 import (
 	"testing"

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
-	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/tests/canon/mongo"
 	"github.com/transferia/transferia/tests/helpers"

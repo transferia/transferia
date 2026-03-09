@@ -9,14 +9,14 @@
 package httpclient
 
 import (
-	context "context"
-	io "io"
-	reflect "reflect"
+	"context"
+	"io"
+	"reflect"
 
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
 
-	log "go.ytsaurus.tech/library/go/core/log"
-	clickhouse "github.com/transferia/transferia/pkg/connection/clickhouse"
+	"go.ytsaurus.tech/library/go/core/log"
+	"github.com/transferia/transferia/pkg/connection/clickhouse"
 )
 
 // MockHTTPClient is a mock of HTTPClient interface.

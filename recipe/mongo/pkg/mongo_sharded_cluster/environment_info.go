@@ -1,4 +1,4 @@
-package shmongo
+package mongo_sharded_cluster
 
 import "path"
 

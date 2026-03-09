@@ -10,8 +10,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
-	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 )
 
 func TestIncrementalShardedStorage(t *testing.T) {

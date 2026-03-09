@@ -10,8 +10,8 @@ import (
 	"github.com/transferia/transferia/library/go/test/yatest"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 )
 
 func TestShardedStorage(t *testing.T) {

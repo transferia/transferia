@@ -27,7 +27,7 @@ INCLUDE(${ARCADIA_ROOT}/transfer_manager/go/recipe/mongo/recipe.inc)
 вам бессмысленно использовать имя пользователя, пароль и источник аутентификации -- вы можете
 подключиться к кластеру только в режиме "напрямую". Пример такого
 подключения на языке Go может быть найден, например,
-[здесь](https://a.yandex-team.ru/arc_vcs/transfer_manager/go/recipe/mongo/pkg/cluster/mongod.go?rev=aebb2179ea#L265):
+[здесь](https://a.yandex-team.ru/arc_vcs/transfer_manager/go/recipe/mongo/pkg/mongo_shareded_cluster/mongod.go?rev=aebb2179ea#L265):
 в драйвере `MongoDB` для Go можно указать Direct подключение для работы с хостами.
 
 Если есть необходимость развернуть два и более шардированных кластера, то

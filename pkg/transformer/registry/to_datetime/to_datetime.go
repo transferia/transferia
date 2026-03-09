@@ -1,4 +1,4 @@
-package todatetime
+package to_datetime
 
 import (
 	"fmt"

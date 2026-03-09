@@ -1,4 +1,4 @@
-package shmongocfg
+package mongo_sharded_config
 
 import (
 	_ "embed"

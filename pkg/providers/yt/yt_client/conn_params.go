@@ -1,4 +1,4 @@
-package ytclient
+package yt_client
 
 import (
 	"context"

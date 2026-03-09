@@ -1,4 +1,4 @@
-package yt
+package tests
 
 import (
 	"context"

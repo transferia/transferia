@@ -14,7 +14,7 @@ import (
 	ydb_provider "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/providers/ydb/logadapter"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/xtls"
 	"github.com/transferia/transferia/tests/helpers"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
@@ -140,7 +140,7 @@ func prepareTargetTable(t *testing.T) {
 }
 
 func createTestData(t *testing.T) {
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: Source.YtProxy})
+	ytc, err := yt_client.NewYtClientWrapper(yt_client.HTTP, nil, &yt.Config{Proxy: Source.YtProxy})
 	require.NoError(t, err)
 
 	sch := schema.Schema{

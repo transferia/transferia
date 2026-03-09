@@ -2,7 +2,7 @@ package typefitting
 
 import (
 	"github.com/transferia/transferia/pkg/abstract/model"
-	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 )
 
 var (

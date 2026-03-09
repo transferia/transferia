@@ -16,9 +16,9 @@ import (
 	"github.com/transferia/transferia/library/go/test/yatest"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/recipe/mongo/pkg/binurl"
-	mongoshardedcluster "github.com/transferia/transferia/recipe/mongo/pkg/cluster"
-	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
-	tarutil "github.com/transferia/transferia/recipe/mongo/pkg/tar"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_cluster"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_config"
+	"github.com/transferia/transferia/recipe/mongo/pkg/tar_utils"
 	pathutil "github.com/transferia/transferia/recipe/mongo/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/library/go/core/log/zap"
@@ -32,17 +32,17 @@ func (y *shardedMongoRecipe) isLaunchedInDistBuild() bool {
 }
 
 func (y *shardedMongoRecipe) publishEnvVariables(
-	config mongoshardedconfig.MongoShardedClusterConfig,
-	cluster mongoshardedcluster.Cluster,
+	config mongo_sharded_config.MongoShardedClusterConfig,
+	cluster mongo_sharded_cluster.Cluster,
 ) error {
 	mongos := cluster.MongoSList[0]
 	// this is what you get when start recipe
 	for key, value := range map[string]string{
-		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterHost:       mongos.Host,
-		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterPort:       fmt.Sprint(mongos.Port),
-		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterUsername:   fmt.Sprint(config.PostSteps.CreateAdminUser.User),
-		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterPassword:   fmt.Sprint(config.PostSteps.CreateAdminUser.Password),
-		config.EnvPrefix + mongoshardedcluster.EnvMongoShardedClusterAuthSource: fmt.Sprint(config.PostSteps.CreateAdminUser.AuthSource),
+		config.EnvPrefix + mongo_sharded_cluster.EnvMongoShardedClusterHost:       mongos.Host,
+		config.EnvPrefix + mongo_sharded_cluster.EnvMongoShardedClusterPort:       fmt.Sprint(mongos.Port),
+		config.EnvPrefix + mongo_sharded_cluster.EnvMongoShardedClusterUsername:   fmt.Sprint(config.PostSteps.CreateAdminUser.User),
+		config.EnvPrefix + mongo_sharded_cluster.EnvMongoShardedClusterPassword:   fmt.Sprint(config.PostSteps.CreateAdminUser.Password),
+		config.EnvPrefix + mongo_sharded_cluster.EnvMongoShardedClusterAuthSource: fmt.Sprint(config.PostSteps.CreateAdminUser.AuthSource),
 	} {
 		recipe.SetEnv(key, value)
 	}
@@ -125,7 +125,7 @@ func (y *shardedMongoRecipe) produceMongoDBBinaryPath(version string) (string, e
 	}
 	destination := path.Join(MongoBinaryRoot, binLink.Tag)
 	source := fmt.Sprintf("%s.tgz", destination)
-	err = tarutil.UnpackArchive(yatest.WorkPath(source), yatest.WorkPath(destination))
+	err = tar_utils.UnpackArchive(yatest.WorkPath(source), yatest.WorkPath(destination))
 	if err != nil {
 		return "", xerrors.Errorf("unable to unpack archive '%s' to '%s': %w", source, destination, err)
 	}
@@ -143,16 +143,16 @@ func (y *shardedMongoRecipe) produceMongoDBBinaryPath(version string) (string, e
 }
 
 func (y *shardedMongoRecipe) startCluster(logger log.Logger, cfgID int, configFilePath string) (
-	mongoshardedcluster.Cluster,
-	mongoshardedconfig.MongoShardedClusterConfig,
-	mongoshardedcluster.EnvironmentInfo,
+	mongo_sharded_cluster.Cluster,
+	mongo_sharded_config.MongoShardedClusterConfig,
+	mongo_sharded_cluster.EnvironmentInfo,
 	error,
 ) {
-	var dummyLgr mongoshardedcluster.Cluster
-	var dummyCfg mongoshardedconfig.MongoShardedClusterConfig
-	var dummyEnvInfo mongoshardedcluster.EnvironmentInfo
+	var dummyLgr mongo_sharded_cluster.Cluster
+	var dummyCfg mongo_sharded_config.MongoShardedClusterConfig
+	var dummyEnvInfo mongo_sharded_cluster.EnvironmentInfo
 	absoluteConfigFilePath := yatest.SourcePath(configFilePath)
-	clusterConfig, err := mongoshardedconfig.GetConfigFromYaml(absoluteConfigFilePath)
+	clusterConfig, err := mongo_sharded_config.GetConfigFromYaml(absoluteConfigFilePath)
 	if err != nil {
 		return dummyLgr, dummyCfg, dummyEnvInfo, xerrors.Errorf("Cannot parse config: %w", err)
 	}
@@ -188,21 +188,21 @@ func (y *shardedMongoRecipe) startCluster(logger log.Logger, cfgID int, configFi
 		ldPreload = append(ldPreload, libCurl440Path)
 	}
 
-	envInfo := mongoshardedcluster.EnvironmentInfo{
+	envInfo := mongo_sharded_cluster.EnvironmentInfo{
 		BinaryPath:    yatest.WorkPath(mongoBinaryPath),
 		WorkspacePath: pathutil.MakeWorkPath(fmt.Sprintf("workspace_%d", cfgID)),
 		LogsPath:      pathutil.MakeOutputPath(fmt.Sprintf("logs_%d", cfgID)),
 		LdPreload:     ldPreload,
 	}
 
-	cluster, err := mongoshardedcluster.StartCluster(logger, envInfo, clusterConfig)
+	cluster, err := mongo_sharded_cluster.StartCluster(logger, envInfo, clusterConfig)
 	if err != nil {
 		return dummyLgr, dummyCfg, dummyEnvInfo, xerrors.Errorf("cannot start sharded cluster: %w", err)
 	}
 
 	allPids, _ := cluster.GetAllPids()
 	logger.Info("cluster has been successfully started!",
-		log.Ints("ports_mongos", yslices.Map(cluster.MongoSList, func(s mongoshardedcluster.MongoS) int {
+		log.Ints("ports_mongos", yslices.Map(cluster.MongoSList, func(s mongo_sharded_cluster.MongoS) int {
 			return s.Port
 		})),
 		log.Ints("all_pids", allPids),
@@ -234,7 +234,7 @@ func (y *shardedMongoRecipe) Start() error {
 
 	var rollbacks util.Rollbacks
 	defer rollbacks.Do()
-	envInfos := []mongoshardedcluster.EnvironmentInfo{}
+	envInfos := []mongo_sharded_cluster.EnvironmentInfo{}
 	for cfgID, configFilePath := range configFilePathsArr {
 		logger.Info("Process config",
 			log.Int("config_index", cfgID),
@@ -246,7 +246,7 @@ func (y *shardedMongoRecipe) Start() error {
 		}
 
 		rollbacks.Add(func() {
-			err = mongoshardedcluster.StopCluster(logger, envInfo)
+			err = mongo_sharded_cluster.StopCluster(logger, envInfo)
 			if err != nil {
 				logger.Error("Cannot stop mongo sharded cluster", log.Error(err))
 			}
@@ -289,14 +289,14 @@ func (y *shardedMongoRecipe) Stop() error {
 		return xerrors.Errorf("cannot read recipe environment info from file: %w", err)
 	}
 
-	var envInfos []mongoshardedcluster.EnvironmentInfo
+	var envInfos []mongo_sharded_cluster.EnvironmentInfo
 	err = json.Unmarshal(marshalledEnvInfo, &envInfos)
 	if err != nil {
 		return xerrors.Errorf("cannot unmarshal recipe environment info from file: %w", err)
 	}
 
 	for i, envInfo := range envInfos {
-		err = mongoshardedcluster.StopCluster(logger, envInfo)
+		err = mongo_sharded_cluster.StopCluster(logger, envInfo)
 		if err != nil {
 			logger.Error("Cannot stop sharded cluster", log.Int("index", i), log.Error(err))
 		}

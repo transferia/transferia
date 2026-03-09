@@ -1,4 +1,4 @@
-package gpfdistbin
+package gpfdist_bin
 
 const (
 	defaultBinPath = "/usr/bin/gpfdist"

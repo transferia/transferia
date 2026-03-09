@@ -19,7 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/parsers/generic"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -601,7 +601,7 @@ func NewSinker(
 }
 
 func newSinker(cfg yt2.YtDestinationModel, transferID string, lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator) (*sinker, error) {
-	ytClient, err := ytclient.FromConnParams(cfg, lgr)
+	ytClient, err := yt_client.FromConnParams(cfg, lgr)
 	if err != nil {
 		return nil, xerrors.Errorf("error getting YT Client: %w", err)
 	}
@@ -701,7 +701,7 @@ func hackTimestamps(cols []abstract.ColSchema) []abstract.ColSchema {
 }
 
 func NewRotatedStaticSink(cfg yt2.YtDestinationModel, registry metrics.Registry, logger log.Logger, cp coordinator.Coordinator, transferID string) (abstract.Sinker, error) {
-	ytClient, err := ytclient.FromConnParams(cfg, logger)
+	ytClient, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, err
 	}

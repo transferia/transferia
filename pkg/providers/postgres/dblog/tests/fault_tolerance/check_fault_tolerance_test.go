@@ -1,4 +1,4 @@
-package faulttolerance
+package fault_tolerance
 
 import (
 	"context"

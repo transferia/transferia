@@ -1,4 +1,4 @@
-package snapshot
+package async
 
 import (
 	"database/sql"
@@ -17,8 +17,8 @@ import (
 	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/middlewares"
 	ch_async "github.com/transferia/transferia/pkg/providers/clickhouse/async"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
-	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
 	"github.com/transferia/transferia/pkg/sink"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"

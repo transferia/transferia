@@ -1,4 +1,4 @@
-package tablesplitter
+package table_splitter
 
 import (
 	"fmt"

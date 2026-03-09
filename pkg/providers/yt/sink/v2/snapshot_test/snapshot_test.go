@@ -13,9 +13,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	staticsink "github.com/transferia/transferia/pkg/providers/yt/sink/v2"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -384,7 +384,7 @@ func pushItems(t *testing.T, cp coordinator.Coordinator, dst yt.YtDestinationMod
 }
 
 func checkData(t *testing.T, dst yt.YtDestinationModel, tableName string, expected []row, needSortRes bool) {
-	ytClient, err := ytclient.FromConnParams(dst, logger.Log)
+	ytClient, err := yt_client.FromConnParams(dst, logger.Log)
 	require.NoError(t, err)
 	rows, err := ytClient.ReadTable(context.Background(), ypath.Path(dst.Path()+"/"+tableName), nil)
 	require.NoError(t, err)

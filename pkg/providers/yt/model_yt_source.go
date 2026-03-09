@@ -8,7 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/config/env"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -40,7 +40,7 @@ func (c ConnectionData) IsConfigured() bool {
 }
 
 type YtSourceModel interface {
-	ytclient.ConnParams
+	yt_client.ConnParams
 	model.Source
 	model.StrictSource
 	model.Abstract2Source

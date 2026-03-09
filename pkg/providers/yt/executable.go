@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/library/go/test/yatest"
 	"github.com/transferia/transferia/pkg/cleanup"
 	"github.com/transferia/transferia/pkg/config/env"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/randutil"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -70,7 +70,7 @@ func DataplaneExecutablePath(cluster, revision string) ypath.Path {
 }
 
 func uploadExe(exePrefix, exePath string) error {
-	client, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, new(yt.Config))
+	client, err := yt_client.NewYtClientWrapper(yt_client.HTTP, nil, new(yt.Config))
 	if err != nil {
 		return xerrors.Errorf("unable to initialize yt client: %w", err)
 	}

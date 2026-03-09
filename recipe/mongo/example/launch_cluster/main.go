@@ -4,8 +4,8 @@ import (
 	"os"
 	"time"
 
-	mongoshardedcluster "github.com/transferia/transferia/recipe/mongo/pkg/cluster"
-	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_cluster"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_config"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/library/go/core/log/zap"
 )
@@ -24,7 +24,7 @@ func launchCluster() {
 	yamlConfig := "/Users/kry127/arcadia/transfer_manager/go/recipe/mongo/config/sample/auth.yaml"
 
 	// Then parse config into our internal representation
-	clusterConfig, err := mongoshardedconfig.GetConfigFromYaml(yamlConfig)
+	clusterConfig, err := mongo_sharded_config.GetConfigFromYaml(yamlConfig)
 	if err != nil {
 		lgr.Error("unable to parse .yaml config file", log.Error(err),
 			log.String("path", yamlConfig))
@@ -32,7 +32,7 @@ func launchCluster() {
 	}
 
 	// Provide the code with environment information:
-	envInfo := mongoshardedcluster.EnvironmentInfo{
+	envInfo := mongo_sharded_cluster.EnvironmentInfo{
 		// Download binary from official MongoDB site:
 		// https://www.mongodb.com/download-center/community/releases/archive
 		// Select 'Archive' option to download, unpack archieve to the folder and
@@ -49,7 +49,7 @@ func launchCluster() {
 	}
 
 	// Then, you are ready to start your MongoDB sharded cluster from Go code:
-	cluster, err := mongoshardedcluster.StartCluster(lgr, envInfo, clusterConfig)
+	cluster, err := mongo_sharded_cluster.StartCluster(lgr, envInfo, clusterConfig)
 	if err != nil {
 		// if error occured, all allocated resources in the intermediate stages will be freed
 		// until executing following line
@@ -59,7 +59,7 @@ func launchCluster() {
 	}
 	// don't forget to close your cluster
 	defer func() {
-		err = mongoshardedcluster.StopCluster(lgr, envInfo)
+		err = mongo_sharded_cluster.StopCluster(lgr, envInfo)
 		if err != nil {
 			lgr.Error("unable to stop sharded cluster", log.Error(err),
 				log.Any("env_info", envInfo))

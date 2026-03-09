@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	mongoshardedcluster "github.com/transferia/transferia/recipe/mongo/pkg/cluster"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_cluster"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -16,11 +16,11 @@ import (
 func TestMongoShardedClusterRecipe(t *testing.T) {
 	require.True(t, true, "should be true")
 	for _, envVariable := range []string{
-		mongoshardedcluster.EnvMongoShardedClusterHost,
-		mongoshardedcluster.EnvMongoShardedClusterPort,
-		mongoshardedcluster.EnvMongoShardedClusterUsername,
-		mongoshardedcluster.EnvMongoShardedClusterPassword,
-		mongoshardedcluster.EnvMongoShardedClusterAuthSource,
+		mongo_sharded_cluster.EnvMongoShardedClusterHost,
+		mongo_sharded_cluster.EnvMongoShardedClusterPort,
+		mongo_sharded_cluster.EnvMongoShardedClusterUsername,
+		mongo_sharded_cluster.EnvMongoShardedClusterPassword,
+		mongo_sharded_cluster.EnvMongoShardedClusterAuthSource,
 	} {
 		_, ok := os.LookupEnv(envVariable)
 		require.True(t, ok, fmt.Sprintf("environment variable %s should be published "+
@@ -28,8 +28,8 @@ func TestMongoShardedClusterRecipe(t *testing.T) {
 	}
 
 	hostSpec := fmt.Sprintf("%s:%s",
-		os.Getenv(mongoshardedcluster.EnvMongoShardedClusterHost),
-		os.Getenv(mongoshardedcluster.EnvMongoShardedClusterPort),
+		os.Getenv(mongo_sharded_cluster.EnvMongoShardedClusterHost),
+		os.Getenv(mongo_sharded_cluster.EnvMongoShardedClusterPort),
 	)
 	client, err := mongo.NewClient(
 		new(options.ClientOptions).
@@ -37,9 +37,9 @@ func TestMongoShardedClusterRecipe(t *testing.T) {
 			SetAuth(options.Credential{
 				AuthMechanism:           "",
 				AuthMechanismProperties: nil,
-				AuthSource:              os.Getenv(mongoshardedcluster.EnvMongoShardedClusterAuthSource),
-				Username:                os.Getenv(mongoshardedcluster.EnvMongoShardedClusterUsername),
-				Password:                os.Getenv(mongoshardedcluster.EnvMongoShardedClusterPassword),
+				AuthSource:              os.Getenv(mongo_sharded_cluster.EnvMongoShardedClusterAuthSource),
+				Username:                os.Getenv(mongo_sharded_cluster.EnvMongoShardedClusterUsername),
+				Password:                os.Getenv(mongo_sharded_cluster.EnvMongoShardedClusterPassword),
 				PasswordSet:             false,
 			}),
 	)

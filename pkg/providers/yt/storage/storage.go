@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	ytprovider "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -277,7 +277,7 @@ func NewStorage(config *ytprovider.YtStorageParams) (*Storage, error) {
 	var ytClient yt.Client
 	var err error
 	if config.ConnParams != nil {
-		ytClient, err = ytclient.FromConnParams(config.ConnParams, nil)
+		ytClient, err = yt_client.FromConnParams(config.ConnParams, nil)
 	} else {
 		ytConfig := yt.Config{
 			Proxy:                 config.Cluster,
@@ -286,7 +286,7 @@ func NewStorage(config *ytprovider.YtStorageParams) (*Storage, error) {
 			AllowRequestsFromJob:  true,
 			DisableProxyDiscovery: config.DisableProxyDiscovery,
 		}
-		ytClient, err = ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &ytConfig)
+		ytClient, err = yt_client.NewYtClientWrapper(yt_client.HTTP, nil, &ytConfig)
 	}
 
 	if err != nil {

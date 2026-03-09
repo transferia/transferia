@@ -12,7 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -82,7 +82,7 @@ func TestGroup(t *testing.T) {
 
 	// To run test locally set YT_PROXY and YT_TOKEN
 	config := new(yt.Config)
-	client, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, config)
+	client, err := yt_client.NewYtClientWrapper(yt_client.HTTP, nil, config)
 	require.NoError(t, err)
 
 	reader, err := client.ReadTable(context.Background(), ypath.Path(dst.Path()).Child("_foo/inserts_delete_test"), nil)

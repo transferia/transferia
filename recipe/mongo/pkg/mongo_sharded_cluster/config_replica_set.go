@@ -1,11 +1,11 @@
-package shmongo
+package mongo_sharded_cluster
 
 import (
 	"context"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/util"
-	mongoshardedconfig "github.com/transferia/transferia/recipe/mongo/pkg/config"
+	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -35,7 +35,7 @@ func (c *ConfigReplicaSet) Close() error {
 func LaunchConfigReplicaSet(
 	logger log.Logger,
 	binInfo EnvironmentInfo,
-	config mongoshardedconfig.ReplicaSetConfig,
+	config mongo_sharded_config.ReplicaSetConfig,
 ) (ConfigReplicaSet, error) {
 	if config.MongodConfigCount() == 0 {
 		return ConfigReplicaSet{}, xerrors.Errorf("try to launch config replica set with zero mongod instances specified")

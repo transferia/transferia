@@ -1,4 +1,4 @@
-package regexreplace
+package regex_replace
 
 import (
 	"fmt"

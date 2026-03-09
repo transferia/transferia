@@ -1,4 +1,4 @@
-package withtransformer
+package with_transformer
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
-	chrecipe "github.com/transferia/transferia/pkg/providers/clickhouse/recipe"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/sink"
 	clickhouse_transformer "github.com/transferia/transferia/pkg/transformer/registry/clickhouse"
 	"github.com/transferia/transferia/pkg/transformer/registry/filter"

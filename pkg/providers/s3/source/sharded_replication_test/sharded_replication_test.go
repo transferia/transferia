@@ -1,4 +1,4 @@
-package source
+package sharded_replication_test
 
 import (
 	"fmt"

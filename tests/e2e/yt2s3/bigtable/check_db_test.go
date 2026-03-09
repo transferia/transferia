@@ -20,7 +20,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/terryid"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
@@ -91,7 +91,7 @@ func TestBigTable(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
 	helpers.Activate(t, transfer)
 
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: source.YtProxy, Token: source.YtToken})
+	ytc, err := yt_client.NewYtClientWrapper(yt_client.HTTP, nil, &yt.Config{Proxy: source.YtProxy, Token: source.YtToken})
 	require.NoError(t, err)
 
 	var rowCount int64
@@ -212,7 +212,7 @@ func TestBigTableWithParallelWorkers(t *testing.T) {
 	wg.Wait()
 	logger.Log.Info("All workers completed")
 
-	ytc, err := ytclient.NewYtClientWrapper(ytclient.HTTP, nil, &yt.Config{Proxy: source.YtProxy, Token: source.YtToken})
+	ytc, err := yt_client.NewYtClientWrapper(yt_client.HTTP, nil, &yt.Config{Proxy: source.YtProxy, Token: source.YtToken})
 	require.NoError(t, err)
 
 	var rowCount int64

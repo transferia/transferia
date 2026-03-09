@@ -1,4 +1,4 @@
-package compositekey
+package composite_key
 
 import (
 	"context"

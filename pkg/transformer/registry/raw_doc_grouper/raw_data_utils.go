@@ -1,4 +1,4 @@
-package rawdocgrouper
+package raw_doc_grouper
 
 import (
 	"reflect"

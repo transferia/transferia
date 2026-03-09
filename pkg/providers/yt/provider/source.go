@@ -10,10 +10,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/base"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
-	ytclient "github.com/transferia/transferia/pkg/providers/yt/client"
 	"github.com/transferia/transferia/pkg/providers/yt/provider/dataobjects"
 	"github.com/transferia/transferia/pkg/providers/yt/provider/schema"
 	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yson"
@@ -38,7 +38,7 @@ var (
 )
 
 func NewSource(logger log.Logger, registry metrics.Registry, cfg yt2.YtSourceModel) (*source, error) {
-	ytc, err := ytclient.FromConnParams(cfg, logger)
+	ytc, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create yt client: %w", err)
 	}
