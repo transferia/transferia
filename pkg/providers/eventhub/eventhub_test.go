@@ -2,13 +2,15 @@ package eventhub_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/Azure/azure-amqp-common-go/v3/sas"
-	eventhubs "github.com/Azure/azure-event-hubs-go/v3"
+	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/metrics"
@@ -40,7 +42,7 @@ type (
 		sent, received uint
 	}
 	eventhubSender struct {
-		hub *eventhubs.Hub
+		client *azeventhubs.ProducerClient
 	}
 )
 
@@ -98,6 +100,7 @@ func TestNewSource(t *testing.T) {
 
 	sender, err := newEventhubSender(cfg)
 	require.NoError(t, err)
+	defer sender.Close(ctx)
 	logger.Info("eventhub sender was initialized")
 
 	t.Run("sender", func(t *testing.T) {
@@ -140,9 +143,14 @@ func TestNewSource(t *testing.T) {
 				return xerrors.Errorf("there is no %d'th column in ColumnValues", dataColumnIdx)
 			}
 
-			value, ok := in.ColumnValues[dataColumnIdx].(string)
-			if !ok {
-				return xerrors.Errorf("wrong type of interface: %v", in.ColumnValues[dataColumnIdx])
+			var value string
+			switch typed := in.ColumnValues[dataColumnIdx].(type) {
+			case string:
+				value = typed
+			case []byte:
+				value = string(typed)
+			default:
+				return xerrors.Errorf("wrong type of interface: %T", in.ColumnValues[dataColumnIdx])
 			}
 
 			counters, ok := cases[value]
@@ -168,21 +176,51 @@ func TestNewSource(t *testing.T) {
 }
 
 func newEventhubSender(cfg *eventhub2.EventHubSource) (*eventhubSender, error) {
-	tokenProvider, err := sas.NewTokenProvider(sas.TokenProviderWithKey(cfg.Auth.KeyName, string(cfg.Auth.KeyValue)))
+	connString := buildConnectionString(cfg)
+	client, err := azeventhubs.NewProducerClientFromConnectionString(connString, cfg.HubName, nil)
 	if err != nil {
 		return nil, err
 	}
+	return &eventhubSender{client: client}, nil
+}
 
-	h, err := eventhubs.NewHub(cfg.NamespaceName, cfg.HubName, tokenProvider)
-	if err != nil {
-		return nil, err
+func buildConnectionString(cfg *eventhub2.EventHubSource) string {
+	namespace := strings.TrimSpace(cfg.NamespaceName)
+	namespace = strings.TrimPrefix(namespace, "sb://")
+	namespace = strings.TrimSuffix(namespace, "/")
+	if !strings.Contains(namespace, ".") {
+		namespace += ".servicebus.windows.net"
 	}
+	return fmt.Sprintf(
+		"Endpoint=sb://%s/;SharedAccessKeyName=%s;SharedAccessKey=%s",
+		namespace,
+		cfg.Auth.KeyName,
+		string(cfg.Auth.KeyValue),
+	)
+}
 
-	return &eventhubSender{h}, nil
+func (sender *eventhubSender) Close(ctx context.Context) error {
+	if sender == nil || sender.client == nil {
+		return nil
+	}
+	return sender.client.Close(ctx)
 }
 
 func (sender *eventhubSender) Send(ctx context.Context, data []byte) error {
-	return sender.hub.Send(ctx, eventhubs.NewEvent(data))
+	batch, err := sender.client.NewEventDataBatch(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	err = batch.AddEventData(&azeventhubs.EventData{Body: data}, nil)
+	if err != nil {
+		if errors.Is(err, azeventhubs.ErrEventDataTooLarge) {
+			return xerrors.New("event data is too large to send")
+		}
+		return err
+	}
+
+	return sender.client.SendEventDataBatch(ctx, batch, nil)
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
