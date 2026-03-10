@@ -27,8 +27,8 @@ var primitiveTypesMap = map[schema.Type]parquet.Node{
 	schema.TypeFloat64: parquet.String(), // stringed decimal. todo fixme
 
 	schema.TypeDate:      parquet.Date(),
-	schema.TypeDatetime:  parquet.Date(),
-	schema.TypeTimestamp: parquet.Date(),
+	schema.TypeDatetime:  parquet.Timestamp(parquet.Nanosecond),
+	schema.TypeTimestamp: parquet.Timestamp(parquet.Nanosecond),
 
 	schema.TypeInterval: parquet.Timestamp(parquet.Nanosecond),
 
