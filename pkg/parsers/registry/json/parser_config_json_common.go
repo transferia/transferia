@@ -17,6 +17,7 @@ type ParserConfigJSONCommon struct {
 	AddDedupeKeys     bool
 	UseNumbersInAny   bool
 	UnpackBytesBase64 bool
+	Timezone          string
 }
 
 func (c *ParserConfigJSONCommon) IsNewParserConfig() {}

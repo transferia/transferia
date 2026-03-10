@@ -287,6 +287,7 @@ func NewAuditTrailsV1ParserImpl(
 			UseNumbersInAny:      false,
 			UnescapeStringValues: false,
 			UnpackBytesBase64:    false,
+			Timezone:             "",
 		}
 		var err error
 		res.parser, err = jsonparser.NewParserJSON(config, sniff, logger, registry)

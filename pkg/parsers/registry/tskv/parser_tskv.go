@@ -43,6 +43,7 @@ func newParserTSKVLb(in *ParserConfigTSKVLb, sniff bool, logger log.Logger) (*ge
 			UseNumbersInAny:        false,
 			UnescapeStringValues:   in.UnescapeStringValues,
 			UnpackBytesBase64:      false,
+			Timezone:               "",
 		},
 	}, finalSchema, resourcesObj, nil
 }
@@ -80,6 +81,7 @@ func newParserTSKVCommon(in *ParserConfigTSKVCommon, sniff bool, logger log.Logg
 			UseNumbersInAny:        false,
 			UnescapeStringValues:   in.UnescapeStringValues,
 			UnpackBytesBase64:      false,
+			Timezone:               "",
 		},
 	}, finalSchema, resourcesObj, nil
 }

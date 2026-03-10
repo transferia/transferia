@@ -87,6 +87,7 @@ func NewCloudLoggingImpl(sniff bool, logger log.Logger, registry *stats.SourceSt
 			UseNumbersInAny:        false,
 			UnescapeStringValues:   false,
 			UnpackBytesBase64:      false,
+			Timezone:               "",
 		},
 	}
 

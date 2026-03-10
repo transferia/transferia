@@ -59,6 +59,7 @@ type AuxParserOpts struct {
 
 	TimeField     *abstract.TimestampCol
 	InferTimeZone bool
+	Timezone      string // Timezone for parsing timestamps (e.g., "Europe/Moscow", "UTC")
 
 	NullKeysAllowed   bool
 	DropUnparsed      bool
@@ -837,8 +838,15 @@ func (p *GenericParser) extractTimeValue(col interface{}, defaultTime time.Time)
 				return &t, true, nil
 			}
 		}
-
-		if t, err := dateparse.ParseLocal(v); err == nil {
+		timeZone := time.Local
+		if p.auxOpts.Timezone != "" {
+			loc, err := time.LoadLocation(p.auxOpts.Timezone)
+			if err != nil {
+				return nil, false, xerrors.Errorf("unable to load location %v: %w", p.auxOpts.Timezone, err)
+			}
+			timeZone = loc
+		}
+		if t, err := dateparse.ParseIn(v, timeZone); err == nil {
 			return &t, true, nil
 		} else {
 			if t, err := time.Parse("2006.01.02 15:04:05.999999", v); err == nil {

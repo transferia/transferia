@@ -43,6 +43,7 @@ func newParserJSONLb(in *ParserConfigJSONLb, sniff bool, logger log.Logger) (*ge
 			UseNumbersInAny:        in.UseNumbersInAny,
 			UnescapeStringValues:   in.UnescapeStringValues,
 			UnpackBytesBase64:      false,
+			Timezone:               "",
 		},
 	}, finalSchema, resourcesObj, nil
 }
@@ -80,6 +81,7 @@ func newParserJSONCommon(in *ParserConfigJSONCommon, sniff bool, logger log.Logg
 			UseNumbersInAny:        in.UseNumbersInAny,
 			UnescapeStringValues:   in.UnescapeStringValues,
 			UnpackBytesBase64:      in.UnpackBytesBase64,
+			Timezone:               in.Timezone,
 		},
 	}, finalSchema, resourcesObj, nil
 }

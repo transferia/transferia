@@ -361,3 +361,91 @@ func TestUnescapeTSKV(t *testing.T) {
 	}
 	canon.SaveJSON(t, canonResult)
 }
+
+// TestTimezoneRFC3339Parsing tests that both RFC3339 formats (Z suffix and +XX:YY offset) are parsed correctly
+// This addresses the issue where "2026-02-03T12:51:05.000225908Z" was incorrectly parsed in local timezone (MSK)
+// while "2026-02-04T07:34:12.001036741+00:00" was parsed correctly in UTC
+func TestTimezoneRFC3339Parsing(t *testing.T) {
+	fields := []abstract.ColSchema{
+		{
+			ColumnName: "id",
+			DataType:   schema.TypeInt8.String(),
+		},
+		{
+			ColumnName: "timestamp_z",
+			DataType:   "datetime",
+		},
+		{
+			ColumnName: "timestamp_offset",
+			DataType:   "datetime",
+		},
+	}
+
+	testCases := []struct {
+		name           string
+		jsonLine       string
+		timezone       string
+		expectedTimeZ  time.Time // Expected time for timestamp_z field
+		expectedOffset time.Time // Expected time for timestamp_offset field
+	}{
+		{
+			name:           "RFC3339 with Z suffix and +00:00 offset - UTC timezone specified",
+			jsonLine:       `{"id":1,"timestamp_z":"2026-02-03T12:51:05.000225908Z","timestamp_offset":"2026-02-04T07:34:12.001036741+00:00"}`,
+			timezone:       "UTC",
+			expectedTimeZ:  time.Date(2026, 2, 3, 12, 51, 5, 225908, time.UTC),
+			expectedOffset: time.Date(2026, 2, 4, 7, 34, 12, 1036741, time.UTC),
+		},
+		{
+			name:           "RFC3339 with Z suffix and +00:00 offset - Moscow timezone specified",
+			jsonLine:       `{"id":1,"timestamp_z":"2026-02-03T12:51:05.000225908Z","timestamp_offset":"2026-02-04T07:34:12.001036741+00:00"}`,
+			timezone:       "UTC",
+			expectedTimeZ:  time.Date(2026, 2, 3, 12, 51, 5, 225908, time.UTC),
+			expectedOffset: time.Date(2026, 2, 4, 7, 34, 12, 1036741, time.UTC),
+		},
+		{
+			name:           "RFC3339 with Z suffix without nanoseconds - UTC timezone specified",
+			jsonLine:       `{"id":2,"timestamp_z":"2026-02-03T12:51:05Z","timestamp_offset":"2026-02-04T07:34:12+00:00"}`,
+			timezone:       "UTC",
+			expectedTimeZ:  time.Date(2026, 2, 3, 12, 51, 5, 0, time.UTC),
+			expectedOffset: time.Date(2026, 2, 4, 7, 34, 12, 0, time.UTC),
+		},
+		{
+			name:           "RFC3339 with +03:00 offset (Moscow time) - UTC timezone specified",
+			jsonLine:       `{"id":3,"timestamp_z":"2026-02-03T15:51:05+03:00","timestamp_offset":"2026-02-04T10:34:12+03:00"}`,
+			timezone:       "UTC",
+			expectedTimeZ:  time.Date(2026, 2, 3, 12, 51, 5, 0, time.UTC), // Should be converted to UTC
+			expectedOffset: time.Date(2026, 2, 4, 7, 34, 12, 0, time.UTC), // Should be converted to UTC
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			parserConfig := &GenericParserConfig{
+				Format:             "json",
+				SchemaResourceName: "",
+				Fields:             fields,
+				AuxOpts: AuxParserOpts{
+					Topic:    "test_topic",
+					Timezone: tc.timezone,
+				},
+			}
+			parser := NewGenericParser(parserConfig, fields, logger.Log, stats.NewSourceStats(metrics.NewRegistry().WithTags(map[string]string{"id": "TestTimezoneRFC3339Parsing"})))
+
+			msg := makePersqueueReadMessage(1, tc.jsonLine)
+			result := parser.Do(msg, abstract.Partition{Partition: 0, Topic: ""})
+
+			require.Len(t, result, 1, "Expected exactly one parsed result")
+			require.Equal(t, abstract.InsertKind, result[0].Kind, "Expected InsertKind")
+
+			// Check that both timestamps are parsed correctly
+			timestampZ, ok := result[0].ColumnValues[1].(time.Time)
+			require.True(t, ok, "timestamp_z should be time.Time")
+			timestampOffset, ok := result[0].ColumnValues[2].(time.Time)
+			require.True(t, ok, "timestamp_offset should be time.Time")
+
+			// Verify timestamps are in UTC and match expected values
+			require.Equal(t, tc.expectedTimeZ.UTC(), timestampZ.UTC(), "timestamp_z should match expected UTC time")
+			require.Equal(t, tc.expectedOffset.UTC(), timestampOffset.UTC(), "timestamp_offset should match expected UTC time")
+		})
+	}
+}
