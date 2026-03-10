@@ -18,7 +18,7 @@ type PackerRenewableOnExpiration struct {
 func (s *PackerRenewableOnExpiration) renewPacker() error {
 	newPacker, newExpirer, err := s.factory()
 	if err != nil {
-		return xerrors.Errorf("cannnot create new packer: %w", err)
+		return xerrors.Errorf("cannnot create new packer, err: %w", err)
 	}
 	if abstract.Expired(newExpirer) {
 		return xerrors.Errorf("cannot renew packer because new issue time is less than current time")
@@ -40,7 +40,7 @@ func (s *PackerRenewableOnExpiration) Pack(
 ) ([]byte, error) {
 	if abstract.Expired(s.expirer) {
 		if err := s.renewPacker(); err != nil {
-			return nil, xerrors.Errorf("can't renew packer on expiration: %w", err)
+			return nil, xerrors.Errorf("can't renew packer on expiration, err: %w", err)
 		}
 	}
 	return s.Packer.Pack(changeItem, payloadBuilder, kafkaSchemaBuilder, maybeCachedRawSchema)
@@ -57,7 +57,7 @@ func NewPackerRenewableOnExpiration(
 		expirer: nil,
 	}
 	if err := result.renewPacker(); err != nil {
-		return nil, xerrors.Errorf("cannot construct new packer: %w", err)
+		return nil, xerrors.Errorf("cannot construct new packer, err: %w", err)
 	}
 	return result, nil
 }

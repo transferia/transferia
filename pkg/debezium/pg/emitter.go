@@ -318,7 +318,7 @@ func AddPg(v *debeziumcommon.Values, colSchema *abstract.ColSchema, colName stri
 		case json.Number: // original replication
 			val, err := t.Int64()
 			if err != nil {
-				return xerrors.Errorf("json.Number.Int64() returned an error: %w", err)
+				return xerrors.Errorf("json.Number.Int64() returned an error, err: %w", err)
 			}
 			v.AddVal(colName, val)
 		case uint32: // into ARRAY
@@ -333,7 +333,7 @@ func AddPg(v *debeziumcommon.Values, colSchema *abstract.ColSchema, colName stri
 		case json.Number: // original replication
 			val, err := t.Int64()
 			if err != nil {
-				return xerrors.Errorf("json.Number.Int64() returned an error: %w", err)
+				return xerrors.Errorf("json.Number.Int64() returned an error, err: %w", err)
 			}
 			v.AddVal(colName, val)
 		default:
@@ -513,7 +513,7 @@ func AddPg(v *debeziumcommon.Values, colSchema *abstract.ColSchema, colName stri
 			}
 			t, err := postgres.TimeWithTimeZoneToTime(val)
 			if err != nil {
-				return xerrors.Errorf("pg - failed to parse %s: %w", originalType, err)
+				return xerrors.Errorf("pg - failed to parse %s, err: %w", originalType, err)
 			}
 			t = t.UTC()
 			tFormat := "15:04:05.999999Z"
@@ -526,14 +526,14 @@ func AddPg(v *debeziumcommon.Values, colSchema *abstract.ColSchema, colName stri
 		} else if postgres.IsPgTypeTimeWithoutTimeZone(originalType) {
 			t := new(pgtype.Time)
 			if err := t.Scan(colVal); err != nil {
-				return xerrors.Errorf("pg - unable to parse %s %v: %w", originalType, colVal, err)
+				return xerrors.Errorf("pg - unable to parse %s %v, err: %w", originalType, colVal, err)
 			}
 			if t.Status != pgtype.Present {
 				return xerrors.Errorf("pg - unable to parse %s %v: parsed to nil", originalType, colVal)
 			}
 			divider, err := typeutil.GetTimeDivider(typeutil.OriginalTypeWithoutProvider(originalType))
 			if err != nil {
-				return xerrors.Errorf("pg - unable to get time precision for %s: %w", originalType, err)
+				return xerrors.Errorf("pg - unable to get time precision for original_type='%s', err: %w", originalType, err)
 			}
 			if intoArr {
 				// debezium-specific behaviour
@@ -549,17 +549,17 @@ func AddPg(v *debeziumcommon.Values, colSchema *abstract.ColSchema, colName stri
 		} else if postgres.IsPgTypeTimestampWithoutTimeZone(originalType) {
 			ts := new(pgtype.Timestamp)
 			if err := ts.Set(colVal); err != nil {
-				return xerrors.Errorf("pg - unable to parse %s %v: %w", originalType, colVal, err)
+				return xerrors.Errorf("pg - unable to parse original_type:'%s', value:%v, err: %w", originalType, colVal, err)
 			}
 			if ts.Status != pgtype.Present {
-				return xerrors.Errorf("pg - unable to parse %s %v: parsed to nil", originalType, colVal)
+				return xerrors.Errorf("pg - unable to parse original_type:'%s', value:%v: parsed to nil", originalType, colVal)
 			}
 			if ts.InfinityModifier != pgtype.None {
-				return xerrors.Errorf("pg - unable to parse %s %v: parsed to infinity timestamp", originalType, colVal)
+				return xerrors.Errorf("pg - unable to parse original_type:'%s', value:%v: parsed to infinity timestamp", originalType, colVal)
 			}
 			divider, err := typeutil.GetTimeDivider(typeutil.OriginalTypeWithoutProvider(originalType))
 			if err != nil {
-				return xerrors.Errorf("pg - unable to get time precision for %s: %w", originalType, err)
+				return xerrors.Errorf("pg - unable to get time precision for %s, err: %w", originalType, err)
 			}
 			if intoArr {
 				divider = 1

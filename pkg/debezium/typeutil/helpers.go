@@ -199,11 +199,11 @@ func mysqlParsePrecisionScale(colType string) (int, int, error) {
 	if len(arr) == 3 {
 		precision, err := strconv.Atoi(arr[1])
 		if err != nil {
-			return 0, 0, xerrors.Errorf("unable to parse precision: %w", err)
+			return 0, 0, xerrors.Errorf("unable to parse precision, err: %w", err)
 		}
 		scale, err := strconv.Atoi(arr[2])
 		if err != nil {
-			return 0, 0, xerrors.Errorf("unable to parse scale: %w", err)
+			return 0, 0, xerrors.Errorf("unable to parse scale, err: %w", err)
 		}
 		return precision, scale, nil
 	}
@@ -339,7 +339,7 @@ func exponentialFloatFormToNumericPositivePart(in string) (string, error) {
 			if expVal >= len(basePart) {
 				result, err := fillByZeroesToAlignL(basePart, expVal)
 				if err != nil {
-					return "", xerrors.Errorf("unable to align L, err:%w", err)
+					return "", xerrors.Errorf("unable to align L, err: %w", err)
 				}
 				return "0." + result, nil
 			} else {
@@ -352,7 +352,7 @@ func exponentialFloatFormToNumericPositivePart(in string) (string, error) {
 		if expVal >= len(basePart) {
 			result, err := fillByZeroesToAlignR(basePart, expVal)
 			if err != nil {
-				return "", xerrors.Errorf("unable to align R, err:%w", err)
+				return "", xerrors.Errorf("unable to align R, err: %w", err)
 			}
 			return result, nil
 		} else {
@@ -440,7 +440,7 @@ func DecimalToDebeziumPrimitives(decimal string, connectorParameters map[string]
 	case debeziumparameters.DecimalHandlingModePrecise:
 		result, _, err := DecimalToDebeziumPrimitivesImpl(decimal)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to emit decimal debezium, val:%s, err:%w", decimal, err)
+			return nil, xerrors.Errorf("unable to emit decimal debezium, val:%s, err: %w", decimal, err)
 		}
 		return result, nil
 	case debeziumparameters.DecimalHandlingModeDouble:
@@ -707,7 +707,7 @@ func ExtractPostgresIntervalArray(interval string) ([]string, error) {
 		result[6] = interval[index+1:]
 		tmp, err := fillByZeroesToAlignR(result[6], 6)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to align R, err:%w", err)
+			return nil, xerrors.Errorf("unable to align R, err: %w", err)
 		}
 		result[6] = tmp
 	}

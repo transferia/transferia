@@ -116,7 +116,7 @@ func arrColSchemaToFieldsDescr(arrColSchema []abstract.ColSchema, snapshot bool,
 					continue
 				}
 			}
-			return nil, xerrors.Errorf("unable to add field description: %w", err)
+			return nil, xerrors.Errorf("unable to add field description, err: %w", err)
 		}
 	}
 	return fields, nil
@@ -128,7 +128,7 @@ func arrColSchemaToFieldsDescrKeys(arrColSchema []abstract.ColSchema, snapshot b
 		if el.PrimaryKey {
 			err := fields.AddFieldDescr(el, snapshot, connectorParameters)
 			if err != nil {
-				return nil, xerrors.Errorf("unable to add field description: %w", err)
+				return nil, xerrors.Errorf("unable to add field description, err: %w", err)
 			}
 		}
 	}
@@ -268,7 +268,7 @@ func (m *Emitter) makeKey(changeItem *abstract.ChangeItem, useAfter bool, ignore
 
 	result, err := makeValues(changeItem.TableSchema.Columns(), m.connectorParameters, changeItem.OldKeys.KeyNames, changeItem.OldKeys.KeyValues, true, ignoreUnknownSources, snapshot)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to make key: %w", err)
+		return nil, xerrors.Errorf("unable to make key, err: %w", err)
 	}
 	return result, nil
 }
@@ -288,7 +288,7 @@ func hasPreviousValues(changeItem *abstract.ChangeItem) bool {
 func BuildKVMap(changeItem *abstract.ChangeItem, connectorParameters map[string]string, snapshot bool) (map[string]interface{}, error) {
 	values, err := buildKV(changeItem, connectorParameters, false, true, snapshot)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to build kv: %w", err)
+		return nil, xerrors.Errorf("unable to build kv, err: %w", err)
 	}
 	return values.V, nil
 }
@@ -302,7 +302,7 @@ func buildKV(changeItem *abstract.ChangeItem, connectorParameters map[string]str
 
 	result, err := makeValues(changeItem.TableSchema.Columns(), connectorParameters, changeItem.ColumnNames, changeItem.ColumnValues, keysOnly, ignoreUnknownSources, snapshot)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to emit value: %w", err)
+		return nil, xerrors.Errorf("unable to emit value, err: %w", err)
 	}
 
 	if keysOnly {
@@ -374,7 +374,7 @@ func (m *Emitter) buildSource(changeItem *abstract.ChangeItem, snapshot bool) ma
 func (m *Emitter) ToKafkaSchemaKey(changeItem *abstract.ChangeItem, snapshot bool) ([]byte, error) {
 	fieldsKey, err := arrColSchemaToFieldsDescrKeys(changeItem.TableSchema.Columns(), snapshot, m.connectorParameters)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to get field keys: %w", err)
+		return nil, xerrors.Errorf("unable to get field keys, err: %w", err)
 	}
 	resultMap := map[string]interface{}{
 		"fields":   fieldsKey.V,
@@ -393,7 +393,7 @@ func (m *Emitter) ToKafkaSchemaKey(changeItem *abstract.ChangeItem, snapshot boo
 func (m *Emitter) ToKafkaPayloadKey(changeItem *abstract.ChangeItem, snapshot bool, emitType emitType) ([]byte, error) {
 	afterKey, err := m.makeKey(changeItem, emitType == insertEventEmitType, m.ignoreUnknownSources, snapshot)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to make key payload: %w", err)
+		return nil, xerrors.Errorf("unable to make key payload, err: %w", err)
 	}
 	return util.JSONMarshalUnescape(afterKey.V)
 }
@@ -402,7 +402,7 @@ func (m *Emitter) ToKafkaPayloadKey(changeItem *abstract.ChangeItem, snapshot bo
 func (m *Emitter) ToKafkaSchemaVal(changeItem *abstract.ChangeItem, snapshot bool) ([]byte, error) {
 	fieldsVal, err := arrColSchemaToFieldsDescr(changeItem.TableSchema.Columns(), snapshot, m.connectorParameters)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to make fields description: %w", err)
+		return nil, xerrors.Errorf("unable to make fields description, err: %w", err)
 	}
 
 	beforeSchema := make(map[string]interface{})
@@ -444,7 +444,7 @@ func (m *Emitter) ToKafkaSchemaVal(changeItem *abstract.ChangeItem, snapshot boo
 func (m *Emitter) ToKafkaPayloadVal(changeItem *abstract.ChangeItem, payloadTSMS time.Time, snapshot bool, emitType emitType) ([]byte, error) {
 	payloadObj, err := m.valPayload(changeItem, payloadTSMS, snapshot, emitType)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to make key payload: %w", err)
+		return nil, xerrors.Errorf("unable to make key payload, err: %w", err)
 	}
 	return util.JSONMarshalUnescape(payloadObj)
 }
@@ -453,7 +453,7 @@ func (m *Emitter) ToKafkaPayloadVal(changeItem *abstract.ChangeItem, payloadTSMS
 func (m *Emitter) valPayload(changeItem *abstract.ChangeItem, payloadTSMS time.Time, snapshot bool, emitType emitType) (map[string]interface{}, error) {
 	op, err := kindToOp(changeItem.Kind, snapshot, emitType)
 	if err != nil {
-		return nil, xerrors.Errorf("unsupported kind: %w", err)
+		return nil, xerrors.Errorf("unsupported kind, err: %w", err)
 	}
 	var after, before map[string]interface{}
 	if op == "d" {
@@ -466,7 +466,7 @@ func (m *Emitter) valPayload(changeItem *abstract.ChangeItem, payloadTSMS time.T
 		if debeziumparameters.GetSourceType(m.connectorParameters) == debeziumparameters.SourceTypeMysql {
 			result, err := makeValues(changeItem.TableSchema.Columns(), m.connectorParameters, changeItem.ColumnNames, changeItem.ColumnValues, false, m.ignoreUnknownSources, snapshot)
 			if err != nil {
-				return nil, xerrors.Errorf("unable to emit value: %w", err)
+				return nil, xerrors.Errorf("unable to emit value, err: %w", err)
 			}
 			for k, v := range result.V {
 				before[k] = v
@@ -483,7 +483,7 @@ func (m *Emitter) valPayload(changeItem *abstract.ChangeItem, payloadTSMS time.T
 	} else {
 		afterVals, err := buildKV(changeItem, m.connectorParameters, false, m.ignoreUnknownSources, snapshot)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to build key-value: %w", err)
+			return nil, xerrors.Errorf("unable to build key-value, err: %w", err)
 		}
 
 		after = afterVals.V
@@ -514,11 +514,11 @@ func (m *Emitter) valPayload(changeItem *abstract.ChangeItem, payloadTSMS time.T
 func (m *Emitter) toConfluentSchema(schemaArr []byte, makeClosedContentModel bool) ([]byte, error) {
 	kafkaSchema, err := format.KafkaJSONSchemaFromArr(schemaArr)
 	if err != nil {
-		return nil, xerrors.Errorf("can't convert map into kafka json schema: %w", err)
+		return nil, xerrors.Errorf("can't convert map into kafka json schema, err: %w", err)
 	}
 	rawSchema, err := util.JSONMarshalUnescape(kafkaSchema.ToConfluentSchema(makeClosedContentModel))
 	if err != nil {
-		return nil, xerrors.Errorf("unable to marshal schema in confluent json format: %w", err)
+		return nil, xerrors.Errorf("unable to marshal schema in confluent json format, err: %w", err)
 	}
 	return rawSchema, nil
 }
@@ -526,11 +526,11 @@ func (m *Emitter) toConfluentSchema(schemaArr []byte, makeClosedContentModel boo
 func (m *Emitter) ToConfluentSchemaKey(changeItem *abstract.ChangeItem, snapshot bool) ([]byte, error) {
 	keySchema, err := m.ToKafkaSchemaKey(changeItem, snapshot)
 	if err != nil {
-		return nil, xerrors.Errorf("can't build key schema: %w", err)
+		return nil, xerrors.Errorf("can't build key schema, err: %w", err)
 	}
 	result, err := m.toConfluentSchema(keySchema, debeziumparameters.GetKeyConverterDTJSONGenerateClosedContentSchema(m.connectorParameters))
 	if err != nil {
-		return nil, xerrors.Errorf("can't convert key schema into confluent: %w", err)
+		return nil, xerrors.Errorf("can't convert key schema into confluent, err: %w", err)
 	}
 	return result, nil
 }
@@ -538,11 +538,11 @@ func (m *Emitter) ToConfluentSchemaKey(changeItem *abstract.ChangeItem, snapshot
 func (m *Emitter) ToConfluentSchemaVal(changeItem *abstract.ChangeItem, snapshot bool) ([]byte, error) {
 	valSchema, err := m.ToKafkaSchemaVal(changeItem, snapshot)
 	if err != nil {
-		return nil, xerrors.Errorf("can't build val schema: %w", err)
+		return nil, xerrors.Errorf("can't build val schema, err: %w", err)
 	}
 	result, err := m.toConfluentSchema(valSchema, debeziumparameters.GetValueConverterDTJSONGenerateClosedContentSchema(m.connectorParameters))
 	if err != nil {
-		return nil, xerrors.Errorf("can't convert val schema into confluent: %w", err)
+		return nil, xerrors.Errorf("can't convert val schema into confluent, err: %w", err)
 	}
 	return result, nil
 }
@@ -635,15 +635,15 @@ func (m *Emitter) emitKV(changeItem *abstract.ChangeItem, payloadTSMS time.Time,
 	if changeItem.KeysChanged() {
 		key0, val0, err := m.emitOneDebeziumMessage(changeItem, payloadTSMS, snapshot, deleteEventEmitType, sessionPackers)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to emit debezium event part 0: %w", err)
+			return nil, xerrors.Errorf("unable to emit debezium event part 0, err: %w", err)
 		}
 		key1, val1, err := m.emitOneDebeziumMessage(changeItem, payloadTSMS, snapshot, tombstoneEventEmitType, sessionPackers)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to emit debezium event part 1: %w", err)
+			return nil, xerrors.Errorf("unable to emit debezium event part 1, err: %w", err)
 		}
 		key2, val2, err := m.emitOneDebeziumMessage(changeItem, payloadTSMS, snapshot, insertEventEmitType, sessionPackers)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to emit debezium event part 2: %w", err)
+			return nil, xerrors.Errorf("unable to emit debezium event part 2, err: %w", err)
 		}
 		if m.skipTombstoneEvent() {
 			return []debeziumcommon.KeyValue{{DebeziumKey: key0, DebeziumVal: val0}, {DebeziumKey: key2, DebeziumVal: val2}}, nil
@@ -654,21 +654,21 @@ func (m *Emitter) emitKV(changeItem *abstract.ChangeItem, payloadTSMS time.Time,
 	if changeItem.Kind == abstract.DeleteKind {
 		key0, val0, err := m.emitOneDebeziumMessage(changeItem, payloadTSMS, snapshot, deleteEventEmitType, sessionPackers)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to emit debezium event part 0: %w", err)
+			return nil, xerrors.Errorf("unable to emit debezium event part 0, err: %w", err)
 		}
 		if m.skipTombstoneEvent() {
 			return []debeziumcommon.KeyValue{{DebeziumKey: key0, DebeziumVal: val0}}, nil
 		}
 		key1, val1, err := m.emitOneDebeziumMessage(changeItem, payloadTSMS, snapshot, tombstoneEventEmitType, sessionPackers)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to emit debezium event part 1: %w", err)
+			return nil, xerrors.Errorf("unable to emit debezium event part 1, err: %w", err)
 		}
 		return []debeziumcommon.KeyValue{{DebeziumKey: key0, DebeziumVal: val0}, {DebeziumKey: key1, DebeziumVal: val1}}, nil
 	}
 
 	key, val, err := m.emitOneDebeziumMessage(changeItem, payloadTSMS, snapshot, regularEmitType, sessionPackers)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to emit debezium event: %w", err)
+		return nil, xerrors.Errorf("unable to emit debezium event, err: %w", err)
 	}
 	return []debeziumcommon.KeyValue{{DebeziumKey: key, DebeziumVal: val}}, nil
 }
@@ -701,14 +701,14 @@ func GetPayloadTSMS(changeItem *abstract.ChangeItem) time.Time {
 func NewMessagesEmitter(connectorParameters map[string]string, version string, dropKeys bool, logger log.Logger) (*Emitter, error) {
 	keyPacker, err := packer.NewKeyPackerFromDebeziumParameters(connectorParameters, logger)
 	if err != nil {
-		return nil, xerrors.Errorf("can't create key message processor: %w", err)
+		return nil, xerrors.Errorf("can't create key message processor, err: %w", err)
 	}
 	valuePacker, err := packer.NewValuePackerFromDebeziumParameters(connectorParameters, logger)
 	if err != nil {
-		return nil, xerrors.Errorf("can't create value message processor: %w", err)
+		return nil, xerrors.Errorf("can't create value message processor, err: %w", err)
 	}
-	if debeziumparameters.Validate(connectorParameters, dropKeys) != nil {
-		return nil, xerrors.Errorf("invalid debezium parameters - %w", err)
+	if err = debeziumparameters.Validate(connectorParameters, dropKeys); err != nil {
+		return nil, xerrors.Errorf("invalid debezium parameters, err: %w", err)
 	}
 	return &Emitter{
 		database:             debeziumparameters.GetDBName(connectorParameters),

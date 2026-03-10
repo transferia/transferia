@@ -321,7 +321,7 @@ func AddMysql(v *debeziumcommon.Values, colName string, colVal interface{}, colT
 	case "mysql:json":
 		marshaledJSON, err := util.JSONMarshalUnescape(colVal)
 		if err != nil {
-			return xerrors.Errorf("cannot marshal JSON: %w", err)
+			return xerrors.Errorf("cannot marshal JSON, err: %w", err)
 		}
 		v.AddVal(colName, string(marshaledJSON))
 	case "mysql:timestamp":

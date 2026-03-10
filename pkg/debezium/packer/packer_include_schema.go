@@ -34,7 +34,7 @@ func (s *PackerIncludeSchema) Pack(
 	}
 	message, err := util.JSONMarshalUnescape(jsonMessage)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to marshal result: %w", err)
+		return nil, xerrors.Errorf("unable to marshal result, err: %w", err)
 	}
 	return message, nil
 }

@@ -15,7 +15,7 @@ func NewKeyPackerFromDebeziumParameters(connectorParameters map[string]string, l
 		caCert := debeziumparameters.GetKeyConverterSslCa(connectorParameters)
 		srClient, err := confluent.NewSchemaRegistryClientWithTransport(url, caCert, logger)
 		if err != nil {
-			return nil, xerrors.Errorf("Unable to create schema registry client: %w", err)
+			return nil, xerrors.Errorf("Unable to create schema registry client, err: %w", err)
 		}
 		authData := debeziumparameters.GetKeyConverterSchemaRegistryUserPassword(connectorParameters)
 		if authData != "" {
@@ -46,7 +46,7 @@ func NewValuePackerFromDebeziumParameters(connectorParameters map[string]string,
 		caCert := debeziumparameters.GetValueConverterSslCa(connectorParameters)
 		srClient, err := confluent.NewSchemaRegistryClientWithTransport(url, caCert, logger)
 		if err != nil {
-			return nil, xerrors.Errorf("Unable to create schema registry client: %w", err)
+			return nil, xerrors.Errorf("Unable to create schema registry client, err: %w", err)
 		}
 		authData := debeziumparameters.GetValueConverterSchemaRegistryUserPassword(connectorParameters)
 		if authData != "" {
@@ -70,12 +70,12 @@ func NewValuePackerFromDebeziumParameters(connectorParameters map[string]string,
 		return NewPackerRenewableOnExpiration(func() (Packer, abstract.Expirer, error) {
 			ysrConnectionParameters, err := confluent.ResolveYSRNamespaceIDToConnectionParams(namespaceID)
 			if err != nil {
-				return nil, nil, xerrors.Errorf("failed to resolve namespace id: %w", err)
+				return nil, nil, xerrors.Errorf("failed to resolve namespace id, err: %w", err)
 			}
 			caCert := debeziumparameters.GetValueConverterSslCa(connectorParameters)
 			srClient, err := confluent.NewSchemaRegistryClientWithTransport(ysrConnectionParameters.URL, caCert, logger)
 			if err != nil {
-				return nil, nil, xerrors.Errorf("Unable to create schema registry client: %w", err)
+				return nil, nil, xerrors.Errorf("Unable to create schema registry client, err: %w", err)
 			}
 			srClient.SetCredentials(ysrConnectionParameters.Username, ysrConnectionParameters.Password)
 

@@ -69,11 +69,11 @@ func (r *Receiver) receiveSchema(schema []byte, tableName, schemaName string) (*
 	}
 	convertedSchema, err := r.convertSchemaFormat(schema)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("can't convert schema format: %w", err)
+		return nil, nil, nil, xerrors.Errorf("can't convert schema format, err: %w", err)
 	}
 	debeziumSchema, err := debeziumcommon.UnmarshalSchema(convertedSchema)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("can't unmarshal converted schema: %w", err)
+		return nil, nil, nil, xerrors.Errorf("can't unmarshal converted schema, err: %w", err)
 	}
 	beforeSchema, err := r.receiveTableSchema(debeziumSchema.FindBeforeSchema(), schemaName, tableName)
 	if err != nil {
@@ -125,11 +125,11 @@ func (r *Receiver) convertSchemaFormat(schema []byte) ([]byte, error) {
 	case debeziumparameters.ConverterConfluentJSON:
 		var confluentSchema format.ConfluentJSONSchema
 		if err := json.Unmarshal(schema, &confluentSchema); err != nil {
-			return nil, xerrors.Errorf("can't unmarshal confluent schema: %w", err)
+			return nil, xerrors.Errorf("can't unmarshal confluent schema, err: %w", err)
 		}
 		rawSchema, err := json.Marshal(confluentSchema.ToKafkaJSONSchema())
 		if err != nil {
-			return nil, xerrors.Errorf("unable to marshal schema in confluent json format: %w", err)
+			return nil, xerrors.Errorf("unable to marshal schema in confluent json format, err: %w", err)
 		}
 		return rawSchema, nil
 	case debeziumparameters.ConverterApacheKafkaJSON:
@@ -142,7 +142,7 @@ func (r *Receiver) convertSchemaFormat(schema []byte) ([]byte, error) {
 func (r *Receiver) Receive(in string) (*abstract.ChangeItem, error) {
 	schema, payload, err := r.Unpacker.Unpack([]byte(in))
 	if err != nil {
-		return nil, xerrors.Errorf("can't unpack message: %w", err)
+		return nil, xerrors.Errorf("can't unpack message, err: %w", err)
 	}
 
 	return r.receive(schema, payload)
@@ -164,7 +164,7 @@ func (r *Receiver) receive(schema, payload []byte) (*abstract.ChangeItem, error)
 	}
 	beforeSchema, afterSchema, debeziumSchema, err := r.receiveSchema(schema, payloadStruct.Source.Table, payloadStruct.Source.Schema)
 	if err != nil {
-		return nil, xerrors.Errorf("schema receiving errpo: %w", err)
+		return nil, xerrors.Errorf("unable to receive schema, err: %w", err)
 	}
 	var currValuesMap map[string]interface{}
 	var currTableSchema *abstract.TableSchema

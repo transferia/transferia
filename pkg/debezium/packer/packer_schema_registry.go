@@ -46,15 +46,15 @@ func (s *PackerSchemaRegistry) Pack(
 func (s *PackerSchemaRegistry) BuildFinalSchema(changeItem *abstract.ChangeItem, kafkaSchemaBuilder BuilderFunc) ([]byte, error) {
 	schemaObj, err := kafkaSchemaBuilder(changeItem)
 	if err != nil {
-		return nil, xerrors.Errorf("can't build schemaObj object: %w", err)
+		return nil, xerrors.Errorf("can't build schemaObj object, err: %w", err)
 	}
 	kafkaSchema, err := format.KafkaJSONSchemaFromArr(schemaObj)
 	if err != nil {
-		return nil, xerrors.Errorf("can't convert map into kafka json schema: %w", err)
+		return nil, xerrors.Errorf("can't convert map into kafka json schema, err: %w", err)
 	}
 	rawSchema, err := json.Marshal(kafkaSchema.ToConfluentSchema(s.makeClosedContentModel))
 	if err != nil {
-		return nil, xerrors.Errorf("unable to marshal schema in confluent json format: %w", err)
+		return nil, xerrors.Errorf("unable to marshal schema in confluent json format, err: %w", err)
 	}
 	return rawSchema, nil
 }
@@ -67,10 +67,10 @@ func (s *PackerSchemaRegistry) PackWithSchemaID(schemaID uint32, payload []byte)
 	var resultBuf bytes.Buffer
 	resultBuf.WriteByte(0)
 	if err := binary.Write(&resultBuf, binary.BigEndian, schemaID); err != nil {
-		return nil, xerrors.Errorf("can't encode a schema ID in a payload: %w", err)
+		return nil, xerrors.Errorf("can't encode a schema ID in a payload, err: %w", err)
 	}
 	if _, err := resultBuf.Write(payload); err != nil {
-		return nil, xerrors.Errorf("can't write payload: %w", err)
+		return nil, xerrors.Errorf("can't write payload, err: %w", err)
 	}
 	return resultBuf.Bytes(), nil
 }
@@ -79,7 +79,7 @@ func (s *PackerSchemaRegistry) ResolveSchemaID(schema []byte, table abstract.Tab
 	subjectName := makeSubjectName(table, s.topic, s.writeIntoOneTopic, s.isKeyProcessor, s.subjectNameStrategy)
 	schemaID, err := s.schemaRegistryClient.CreateSchema(subjectName, string(schema), confluent.JSON)
 	if err != nil {
-		return 0, xerrors.Errorf("can't push schema into the schema registry: %w", err)
+		return 0, xerrors.Errorf("can't push schema into the schema registry, err: %w", err)
 	}
 	return uint32(schemaID), nil
 }

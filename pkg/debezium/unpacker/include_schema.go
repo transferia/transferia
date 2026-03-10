@@ -17,7 +17,7 @@ func (*IncludeSchema) Unpack(message []byte) ([]byte, []byte, error) {
 	}
 	err := json.Unmarshal(message, &jsonMessage)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("can't decode message %s: %w", util.Sample(string(message), 1024), err)
+		return nil, nil, xerrors.Errorf("can't decode message %s, err: %w", util.Sample(string(message), 1024), err)
 	}
 
 	return jsonMessage.Schema, jsonMessage.Payload, nil

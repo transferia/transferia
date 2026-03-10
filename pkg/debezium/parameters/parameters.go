@@ -213,6 +213,13 @@ func EnrichedWithDefaults(params map[string]string) map[string]string {
 	return result
 }
 
+func IsUsedAnySRForValue(connectorParameters map[string]string) bool {
+	if GetValueConverterSchemaRegistryURL(connectorParameters) != "" || GetYSRNamespaceID(connectorParameters) != "" {
+		return true
+	}
+	return false
+}
+
 func GetDBName(in map[string]string) string {
 	return in[DatabaseDBName]
 }

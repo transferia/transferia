@@ -351,7 +351,7 @@ func arrayReceive(s *debeziumcommon.Schema, v interface{}, originalType *debeziu
 	for _, el := range vArr {
 		elVal, isAbsent, err := receiveField(&items, el, originalType.GetArrElemTypeDescr(), true)
 		if err != nil {
-			return nil, xerrors.Errorf("unable to receive array's element: %w", err)
+			return nil, xerrors.Errorf("unable to receive array's element, err: %w", err)
 		}
 		if isAbsent {
 			return nil, xerrors.Errorf("array can't contains absent values")
