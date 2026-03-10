@@ -1,4 +1,4 @@
-package yt_dict
+package ytdict
 
 import (
 	"github.com/transferia/transferia/pkg/abstract"

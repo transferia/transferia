@@ -1,4 +1,4 @@
-package filter_rows_by_ids
+package filterrowsbyids
 
 import (
 	"errors"

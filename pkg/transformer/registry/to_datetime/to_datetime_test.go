@@ -1,4 +1,4 @@
-package to_datetime
+package todatetime
 
 import (
 	"slices"

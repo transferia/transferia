@@ -1,4 +1,4 @@
-package yt_dict
+package ytdict
 
 import (
 	"encoding/json"

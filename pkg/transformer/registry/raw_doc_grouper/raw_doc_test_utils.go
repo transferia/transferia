@@ -1,4 +1,4 @@
-package raw_doc_grouper
+package rawdocgrouper
 
 import (
 	"sort"

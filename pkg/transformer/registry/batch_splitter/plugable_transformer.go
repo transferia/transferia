@@ -1,4 +1,4 @@
-package batch_splitter
+package batchsplitter
 
 import (
 	"github.com/transferia/transferia/internal/logger"

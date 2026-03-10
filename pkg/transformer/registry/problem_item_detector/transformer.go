@@ -1,4 +1,4 @@
-package problem_item_detector
+package problemitemdetector
 
 import (
 	"github.com/transferia/transferia/pkg/abstract"

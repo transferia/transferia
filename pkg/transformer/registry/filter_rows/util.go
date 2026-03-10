@@ -1,4 +1,4 @@
-package filter_rows
+package filterrows
 
 import (
 	"fmt"

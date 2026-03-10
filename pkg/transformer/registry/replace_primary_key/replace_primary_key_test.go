@@ -1,4 +1,4 @@
-package replace_primary_key
+package replaceprimarykey
 
 import (
 	"testing"
