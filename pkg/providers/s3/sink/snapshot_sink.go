@@ -24,7 +24,7 @@ type SnapshotSink struct {
 	operationTimestamp string
 	s3Client           s3Client
 	cfg                *s3_provider.S3Destination
-	snapshotWriter     *snapshotWriter
+	snapshotWriters    map[s3ObjectRef]*snapshotWriter
 	logger             log.Logger
 	metrics            *stats.SinkerStats
 	fileSplitter       *FileSplitter
@@ -32,7 +32,7 @@ type SnapshotSink struct {
 
 func (s *SnapshotSink) Close() error {
 	s.logger.Info("closing snapshot sink")
-	return s.snapshotWriter.close()
+	return s.closeAllSnapshotWriters()
 }
 
 func (s *SnapshotSink) Push(input []abstract.ChangeItem) error {
@@ -50,7 +50,7 @@ func (s *SnapshotSink) Push(input []abstract.ChangeItem) error {
 }
 
 func (s *SnapshotSink) initSnapshotLoaderIfNotInited(fullTableName string, ref s3ObjectRef) error {
-	if s.snapshotWriter != nil {
+	if _, ok := s.snapshotWriters[ref]; ok {
 		return nil
 	}
 	keyPartNumber := s.fileSplitter.keyNumber(ref)
@@ -78,7 +78,7 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref s3ObjectRef, keyPartNu
 		return xerrors.Errorf("unable to create snapshot writer: %w", err)
 	}
 
-	s.snapshotWriter = snapshotWriter
+	s.snapshotWriters[ref] = snapshotWriter
 	go func() {
 		defer pipeReader.Close()
 		s.logger.Info("start uploading table part", log.String("table", fullTableName), log.String("key", key))
@@ -159,10 +159,16 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 }
 
 func (s *SnapshotSink) doneTableLoad() error {
-	if err := s.snapshotWriter.close(); err != nil {
-		return xerrors.Errorf("unable to close snapshot holder: %w", err)
+	return s.closeAllSnapshotWriters()
+}
+
+func (s *SnapshotSink) closeAllSnapshotWriters() error {
+	for ref, writer := range s.snapshotWriters {
+		if err := writer.close(); err != nil {
+			return xerrors.Errorf("unable to close snapshot holder %q: %w", s.fileSplitter.key(ref), err)
+		}
+		delete(s.snapshotWriters, ref)
 	}
-	s.snapshotWriter = nil
 	return nil
 }
 
@@ -172,23 +178,25 @@ func (s *SnapshotSink) processSnapshot(insertItems []*abstract.ChangeItem) error
 		return nil
 	}
 
-	ref := s.makeS3ObjectRef(*insertItems[0])
-	table := insertItems[0].TableID().Fqtn()
-	if err := s.initSnapshotLoaderIfNotInited(table, ref); err != nil {
-		return xerrors.Errorf("unable to init snapshot loader: %w", err)
-	}
-
-	remainingItems := insertItems
-	for len(remainingItems) > 0 {
-		if s.snapshotWriter == nil {
-			return xerrors.Errorf("snapshot holder not found for %s", s.fileSplitter.key(ref))
+	groupedItems := groupSnapshotItemsByRef(insertItems, s.makeS3ObjectRef)
+	for ref, items := range groupedItems {
+		table := items[0].TableID().Fqtn()
+		if err := s.initSnapshotLoaderIfNotInited(table, ref); err != nil {
+			return xerrors.Errorf("unable to init snapshot loader: %w", err)
 		}
 
-		written, err := s.writeChunkAndRotate(ref, table, remainingItems)
-		if err != nil {
-			return xerrors.Errorf("unable to write chunk and rotate: %w", err)
+		remainingItems := items
+		for len(remainingItems) > 0 {
+			if _, ok := s.snapshotWriters[ref]; !ok {
+				return xerrors.Errorf("snapshot holder not found for %s", s.fileSplitter.key(ref))
+			}
+
+			written, err := s.writeChunkAndRotate(ref, table, remainingItems)
+			if err != nil {
+				return xerrors.Errorf("unable to write chunk and rotate: %w", err)
+			}
+			remainingItems = remainingItems[written:]
 		}
-		remainingItems = remainingItems[written:]
 	}
 
 	return nil
@@ -200,7 +208,7 @@ func (s *SnapshotSink) writeChunkAndRotate(ref s3ObjectRef, table string, items 
 	rowsToWrite := s.fileSplitter.addItems(ref, items)
 
 	if rowsToWrite > 0 {
-		if err := s.writeBatch(items[:rowsToWrite], table); err != nil {
+		if err := s.writeBatch(ref, items[:rowsToWrite], table); err != nil {
 			return 0, xerrors.Errorf("unable to write batch: %w", err)
 		}
 	}
@@ -219,8 +227,13 @@ func (s *SnapshotSink) writeChunkAndRotate(ref s3ObjectRef, table string, items 
 }
 
 // writeBatch serializes and writes items to the current snapshot file.
-func (s *SnapshotSink) writeBatch(items []*abstract.ChangeItem, table string) error {
-	writtenBytes, err := s.snapshotWriter.write(items)
+func (s *SnapshotSink) writeBatch(ref s3ObjectRef, items []*abstract.ChangeItem, table string) error {
+	snapshotWriter, ok := s.snapshotWriters[ref]
+	if !ok {
+		return xerrors.Errorf("snapshot writer not found for %s", s.fileSplitter.key(ref))
+	}
+
+	writtenBytes, err := snapshotWriter.write(items)
 	if err != nil {
 		return xerrors.Errorf("unable to write data to snapshot: %w", err)
 	}
@@ -237,9 +250,15 @@ func (s *SnapshotSink) writeBatch(items []*abstract.ChangeItem, table string) er
 func (s *SnapshotSink) rotateFile(ref s3ObjectRef, table string) error {
 	s.logger.Infof("rotating file for %s", s.fileSplitter.key(ref))
 
-	if err := s.snapshotWriter.close(); err != nil {
+	snapshotWriter, ok := s.snapshotWriters[ref]
+	if !ok {
+		return xerrors.Errorf("snapshot writer not found for %s", s.fileSplitter.key(ref))
+	}
+
+	if err := snapshotWriter.close(); err != nil {
 		return xerrors.Errorf("unable to close snapshot holder: %w", err)
 	}
+	delete(s.snapshotWriters, ref)
 
 	keyPartNumber := s.fileSplitter.keyNumber(ref)
 	if err := s.initPipe(table, ref, keyPartNumber); err != nil {
@@ -253,7 +272,7 @@ func (s *SnapshotSink) rotateFile(ref s3ObjectRef, table string) error {
 // namespace and name, the operation timestamp, and the item's partID.
 func (s *SnapshotSink) makeS3ObjectRef(row abstract.ChangeItem) s3ObjectRef {
 	return newS3ObjectRef(
-		s.cfg.Layout,
+		extractRowBucket(row, s.cfg.LayoutColumn, s.cfg.Layout),
 		row.TableID().Namespace,
 		row.TableID().Name,
 		row.PartID,
@@ -261,6 +280,15 @@ func (s *SnapshotSink) makeS3ObjectRef(row abstract.ChangeItem) s3ObjectRef {
 		s.cfg.OutputFormat,
 		s.cfg.OutputEncoding,
 	)
+}
+
+func groupSnapshotItemsByRef(items []*abstract.ChangeItem, makeRef func(abstract.ChangeItem) s3ObjectRef) map[s3ObjectRef][]*abstract.ChangeItem {
+	result := make(map[s3ObjectRef][]*abstract.ChangeItem)
+	for _, item := range items {
+		ref := makeRef(*item)
+		result[ref] = append(result[ref], item)
+	}
+	return result
 }
 
 func (s *SnapshotSink) UpdateOutputFormat(f model.ParsingFormat) {
@@ -291,7 +319,7 @@ func NewSnapshotSink(
 		cfg:                cfg,
 		logger:             lgr,
 		metrics:            stats.NewSinkerStats(mtrcs),
-		snapshotWriter:     nil,
+		snapshotWriters:    make(map[s3ObjectRef]*snapshotWriter),
 		fileSplitter:       newFileSplitter(cfg.MaxItemsPerFile, cfg.MaxBytesPerFile),
 	}, nil
 }

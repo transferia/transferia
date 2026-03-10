@@ -142,5 +142,5 @@ func Verify(t *testing.T) {
 func Snapshot(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 	helpers.Activate(t, transfer)
-	checkBucket(t, Target, 2)
+	checkBucket(t, Target, 3)
 }

@@ -2,12 +2,14 @@ package sink
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/serializer"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/xlocale"
 )
 
 type buckets map[string]map[string]*FileCache
@@ -64,4 +66,17 @@ func countInsertItems(input []abstract.ChangeItem) int {
 		}
 	}
 	return count
+}
+
+func extractRowBucket(row abstract.ChangeItem, layoutColumn string, layout string) string {
+	rowBucketTime := time.Unix(0, int64(row.CommitTime))
+	if layoutColumn != "" {
+		rowBucketTime = model.ExtractTimeCol(row, layoutColumn)
+	}
+	if layout != "" {
+		if loc, err := xlocale.Load(layout); err == nil {
+			rowBucketTime = rowBucketTime.In(loc)
+		}
+	}
+	return rowBucketTime.Format(layout)
 }

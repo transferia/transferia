@@ -29,11 +29,15 @@ var testTableSchema = abstract.NewTableSchema([]abstract.ColSchema{
 })
 
 func generateBullets(table string, count int) []abstract.ChangeItem {
+	return generateBulletsAt(table, count, time.Now().UTC())
+}
+
+func generateBulletsAt(table string, count int, commitTime time.Time) []abstract.ChangeItem {
 	var res []abstract.ChangeItem
 	for i := 0; i < count; i++ {
 		res = append(res, abstract.ChangeItem{
 			Kind:         abstract.InsertKind,
-			CommitTime:   uint64(time.Now().UnixNano()),
+			CommitTime:   uint64(commitTime.UnixNano()),
 			Table:        table,
 			ColumnValues: []interface{}{fmt.Sprintf("test1_value_%v", i), fmt.Sprintf("test2_value_%v", i)},
 			ColumnNames:  []string{"test1", "test2"},
@@ -51,6 +55,8 @@ func TestS3Sink(t *testing.T) {
 	t.Run("testS3SinkUploadTable", testS3SinkUploadTable)
 	t.Run("testS3SinkUploadTableGzip", testS3SinkUploadTableGzip)
 	t.Run("testJsonSnapshot", testJsonSnapshot)
+	t.Run("testDateLayoutSnapshot", testDateLayoutSnapshot)
+	t.Run("testLiteralLayoutSnapshot", testLiteralLayoutSnapshot)
 	t.Run("testRotationParquet", testRotationParquet)
 }
 
@@ -77,6 +83,8 @@ func testS3SinkUploadTable(t *testing.T) {
 
 func testS3SinkUploadTableGzip(t *testing.T) {
 	cfg := s3recipe.PrepareS3(t, "TestS3SinkUploadTableGzip", model.ParsingFormatCSV, s3_provider.GzipEncoding)
+	cfg.LayoutTZ = "UTC"
+	fixedTime := time.Date(2024, time.February, 3, 10, 20, 30, 0, time.UTC)
 
 	cp := testutil.NewFakeClientWithTransferState()
 	currSink, err := NewSnapshotSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestS3SinkUploadTableGzip", 0)
@@ -85,10 +93,10 @@ func testS3SinkUploadTableGzip(t *testing.T) {
 		{Kind: abstract.InitTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))
 
-	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
-	require.NoError(t, currSink.Push(generateBullets("test_table", 50000)))
+	require.NoError(t, currSink.Push(generateBulletsAt("test_table", 50000, fixedTime)))
+	require.NoError(t, currSink.Push(generateBulletsAt("test_table", 50000, fixedTime)))
+	require.NoError(t, currSink.Push(generateBulletsAt("test_table", 50000, fixedTime)))
+	require.NoError(t, currSink.Push(generateBulletsAt("test_table", 50000, fixedTime)))
 	require.NoError(t, currSink.Push([]abstract.ChangeItem{
 		{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: "test_table"},
 	}))
@@ -99,7 +107,7 @@ func testS3SinkUploadTableGzip(t *testing.T) {
 	s3Client := s3.New(sess)
 
 	// Build expected key using the sink's operation timestamp
-	expectedKey := fmt.Sprintf("%s/test_table/part-%s-%s.00000.csv.gz", cfg.Layout, currSink.operationTimestamp, hashPartID(""))
+	expectedKey := fmt.Sprintf("%s/test_table/part-%s-%s.00000.csv.gz", fixedTime.Format(cfg.Layout), currSink.operationTimestamp, hashPartID(""))
 	obj, err := s3Client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(cfg.Bucket),
 		Key:    aws.String(expectedKey),
@@ -125,6 +133,8 @@ func testS3SinkUploadTableGzip(t *testing.T) {
 func testJsonSnapshot(t *testing.T) {
 	bucket := "testjsonnoencode"
 	cfg := s3recipe.PrepareS3(t, bucket, model.ParsingFormatJSON, s3_provider.NoEncoding)
+	cfg.LayoutTZ = "UTC"
+	fixedTime := time.Date(2024, time.March, 4, 5, 6, 7, 0, time.UTC)
 	cp := testutil.NewFakeClientWithTransferState()
 
 	tests := []struct {
@@ -163,7 +173,7 @@ func testJsonSnapshot(t *testing.T) {
 			require.NoError(t, currSink.Push([]abstract.ChangeItem{
 				{
 					Kind:       abstract.InsertKind,
-					CommitTime: uint64(time.Now().UnixNano()),
+					CommitTime: uint64(fixedTime.UnixNano()),
 					Table:      table,
 					TableSchema: abstract.NewTableSchema([]abstract.ColSchema{
 						{DataType: string(schema.TypeAny)},
@@ -180,7 +190,7 @@ func testJsonSnapshot(t *testing.T) {
 			require.NoError(t, err)
 			s3Client := s3.New(sess)
 
-			expectedKey := fmt.Sprintf("%s/%v/part-%s-%s.00000.json", cfg.Layout, table, currSink.operationTimestamp, hashPartID(""))
+			expectedKey := fmt.Sprintf("%s/%v/part-%s-%s.00000.json", fixedTime.Format(cfg.Layout), table, currSink.operationTimestamp, hashPartID(""))
 			obj, err := s3Client.GetObject(&s3.GetObjectInput{
 				Bucket: aws.String(cfg.Bucket),
 				Key:    aws.String(expectedKey),
@@ -192,6 +202,113 @@ func testJsonSnapshot(t *testing.T) {
 			require.Equal(t, string(data), tc.expectedResult, fmt.Sprintf("expected result: %s, got: %s", tc.expectedResult, string(data)))
 		})
 	}
+}
+
+func testDateLayoutSnapshot(t *testing.T) {
+	cfg := &s3_provider.S3Destination{
+		OutputFormat:   model.ParsingFormatJSON,
+		OutputEncoding: s3_provider.NoEncoding,
+		Layout:         "2006/01/02",
+		LayoutTZ:       "UTC",
+		Bucket:         "testDateLayoutSnapshot",
+	}
+	mockS3Client := testutil.NewMockS3Client()
+
+	currSink := &SnapshotSink{
+		s3Client:           mockS3Client,
+		cfg:                cfg,
+		operationTimestamp: "1700000000",
+		snapshotWriters:    make(map[s3ObjectRef]*snapshotWriter),
+		logger:             logger.Log,
+		metrics:            stats.NewSinkerStats(solomon.NewRegistry(solomon.NewRegistryOpts())),
+		fileSplitter:       newFileSplitter(0, 0),
+	}
+
+	day1 := time.Date(2024, time.January, 2, 3, 4, 5, 0, time.UTC)
+	day2 := day1.Add(24 * time.Hour)
+	table := "test_table"
+
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
+		{Kind: abstract.InitTableLoad, CommitTime: uint64(day1.UnixNano()), Table: table},
+	}))
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
+		{
+			Kind:         abstract.InsertKind,
+			CommitTime:   uint64(day1.UnixNano()),
+			Table:        table,
+			TableSchema:  testTableSchema,
+			ColumnNames:  []string{"test1", "test2"},
+			ColumnValues: []any{"value1", "value2"},
+		},
+		{
+			Kind:         abstract.InsertKind,
+			CommitTime:   uint64(day2.UnixNano()),
+			Table:        table,
+			TableSchema:  testTableSchema,
+			ColumnNames:  []string{"test1", "test2"},
+			ColumnValues: []any{"value3", "value4"},
+		},
+	}))
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
+		{Kind: abstract.DoneTableLoad, CommitTime: uint64(day2.UnixNano()), Table: table},
+	}))
+
+	defaultHash := hashPartID("")
+	day1Key := fmt.Sprintf("%s/%s/part-%s-%s.00000.json", day1.Format(cfg.Layout), table, currSink.operationTimestamp, defaultHash)
+	day2Key := fmt.Sprintf("%s/%s/part-%s-%s.00000.json", day2.Format(cfg.Layout), table, currSink.operationTimestamp, defaultHash)
+
+	require.Contains(t, mockS3Client.BucketFiles[cfg.Bucket], day1Key)
+	require.Contains(t, mockS3Client.BucketFiles[cfg.Bucket], day2Key)
+	require.Equal(t, "{\"test1\":\"value1\",\"test2\":\"value2\"}\n", string(mockS3Client.BucketFiles[cfg.Bucket][day1Key]))
+	require.Equal(t, "{\"test1\":\"value3\",\"test2\":\"value4\"}\n", string(mockS3Client.BucketFiles[cfg.Bucket][day2Key]))
+}
+
+func testLiteralLayoutSnapshot(t *testing.T) {
+	cfg := s3recipe.PrepareS3(t, "testliterallayoutsnapshot", model.ParsingFormatJSON, s3_provider.NoEncoding)
+	cfg.Layout = "snapshot-prefix"
+	cfg.LayoutTZ = "UTC"
+	cp := testutil.NewFakeClientWithTransferState()
+
+	currSink, err := NewSnapshotSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestLiteralLayoutSnapshot", 0)
+	require.NoError(t, err)
+	defer require.NoError(t, currSink.Close())
+
+	table := "test_table"
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
+		{Kind: abstract.InitTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: table},
+	}))
+	defer require.NoError(t, currSink.Push([]abstract.ChangeItem{
+		{Kind: abstract.DropTableKind, CommitTime: uint64(time.Now().UnixNano()), Table: table},
+	}))
+
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
+		{
+			Kind:         abstract.InsertKind,
+			CommitTime:   uint64(time.Now().UnixNano()),
+			Table:        table,
+			TableSchema:  testTableSchema,
+			ColumnNames:  []string{"test1", "test2"},
+			ColumnValues: []any{"value1", "value2"},
+		},
+	}))
+	require.NoError(t, currSink.Push([]abstract.ChangeItem{
+		{Kind: abstract.DoneTableLoad, CommitTime: uint64(time.Now().UnixNano()), Table: table},
+	}))
+
+	sess, err := s3_provider.NewAWSSession(logger.Log, cfg.Bucket, cfg.ConnectionConfig())
+	require.NoError(t, err)
+	s3Client := s3.New(sess)
+
+	expectedKey := fmt.Sprintf("snapshot-prefix/%v/part-%s-%s.00000.json", table, currSink.operationTimestamp, hashPartID(""))
+	obj, err := s3Client.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(cfg.Bucket),
+		Key:    aws.String(expectedKey),
+	})
+	require.NoError(t, err)
+
+	data, err := io.ReadAll(obj.Body)
+	require.NoError(t, err)
+	require.Equal(t, "{\"test1\":\"value1\",\"test2\":\"value2\"}\n", string(data))
 }
 
 func testRotationParquet(t *testing.T) {
@@ -209,7 +326,7 @@ func testRotationParquet(t *testing.T) {
 		s3Client:           mockS3Client,
 		cfg:                cfg,
 		operationTimestamp: testTimestamp,
-		snapshotWriter:     nil,
+		snapshotWriters:    make(map[s3ObjectRef]*snapshotWriter),
 		logger:             logger.Log,
 		metrics:            stats.NewSinkerStats(solomon.NewRegistry(solomon.NewRegistryOpts())),
 		fileSplitter:       newFileSplitter(10, 0),

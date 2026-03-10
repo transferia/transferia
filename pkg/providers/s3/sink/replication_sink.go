@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -18,7 +17,6 @@ import (
 	s3_provider "github.com/transferia/transferia/pkg/providers/s3"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/xlocale"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/semaphore"
 )
@@ -103,7 +101,7 @@ func (s *ReplicationSink) processBuckets(buckets buckets, inputLen int) error {
 
 func (s *ReplicationSink) insert(row *abstract.ChangeItem, buckets buckets) error {
 	bufferFile := rowPart(*row)
-	bucket := s.bucket(*row)
+	bucket := extractRowBucket(*row, s.cfg.LayoutColumn, s.cfg.Layout)
 	rowFqtn := rowFqtn(row.TableID())
 	if _, ok := buckets[bucket]; !ok {
 		buckets[bucket] = map[string]*FileCache{}
@@ -214,21 +212,9 @@ func (s *ReplicationSink) serialize(part *FileCache) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *ReplicationSink) bucket(row abstract.ChangeItem) string {
-	rowBucketTime := time.Unix(0, int64(row.CommitTime))
-	if s.cfg.LayoutColumn != "" {
-		rowBucketTime = model.ExtractTimeCol(row, s.cfg.LayoutColumn)
-	}
-	if s.cfg.LayoutTZ != "" {
-		loc, _ := xlocale.Load(s.cfg.LayoutTZ)
-		rowBucketTime = rowBucketTime.In(loc)
-	}
-	return rowBucketTime.Format(s.cfg.Layout)
-}
-
 func (s *ReplicationSink) bucketKey(row abstract.ChangeItem) *string {
 	fileName := rowFqtn(row.TableID())
-	bucketKey := aws.String(fmt.Sprintf("%s/%s.%s", s.bucket(row), fileName, strings.ToLower(string(s.cfg.OutputFormat))))
+	bucketKey := aws.String(fmt.Sprintf("%s/%s.%s", extractRowBucket(row, s.cfg.LayoutColumn, s.cfg.Layout), fileName, strings.ToLower(string(s.cfg.OutputFormat))))
 
 	if s.cfg.OutputEncoding == s3_provider.GzipEncoding {
 		bucketKey = aws.String(*bucketKey + ".gz")
