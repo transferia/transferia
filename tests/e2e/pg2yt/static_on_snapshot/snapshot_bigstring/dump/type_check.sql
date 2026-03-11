@@ -1,6 +1,6 @@
 create table __test (
     id SERIAL PRIMARY KEY,
-    name TEXT
+    name jsonb
 );
 
-INSERT INTO __test VALUES (1, REPEAT('x',16777217));
+INSERT INTO __test VALUES (1, jsonb_build_object('value', REPEAT('x',16777206)));

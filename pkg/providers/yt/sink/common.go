@@ -350,7 +350,7 @@ func (w rpcAnyWrapper) MarshalYSON() ([]byte, error) {
 }
 
 func newAnyWrapper(val any) (*rpcAnyWrapper, error) {
-	res, err := yson.Marshal(val)
+	res, err := yson.MarshalFormat(val, yson.FormatBinary)
 	if err != nil {
 		return nil, err
 	}
