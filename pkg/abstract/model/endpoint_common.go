@@ -44,6 +44,7 @@ const (
 	ParsingFormatPARQUET  = ParsingFormat("PARQUET")
 	ParsingFormatDebezium = ParsingFormat("Debezium")
 	ParsingFormatRaw      = ParsingFormat("RAW")
+	ParsingFormatNginx    = ParsingFormat("NGINX")
 )
 
 type TLSMode string

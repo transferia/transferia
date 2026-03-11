@@ -109,6 +109,12 @@ type Format struct {
 	JSONLSetting   *JSONLSetting   `log:"true"`
 	ParquetSetting *ParquetSetting `log:"true"`
 	ProtoParser    *ProtoSetting   `log:"true"`
+	NginxSetting   *NginxSetting   `log:"true"`
+}
+
+type NginxSetting struct {
+	Format    string `json:"format" log:"true"`
+	BlockSize int64  `json:"block_size" log:"true"`
 }
 
 type (
@@ -222,6 +228,15 @@ func (s *S3Source) WithDefaults() {
 		}
 		if s.Format.JSONLSetting.BlockSize == 0 {
 			s.Format.JSONLSetting.BlockSize = defaultBlockSize
+		}
+	}
+
+	if s.InputFormat == model.ParsingFormatNginx {
+		if s.Format.NginxSetting == nil {
+			s.Format.NginxSetting = new(NginxSetting)
+		}
+		if s.Format.NginxSetting.BlockSize == 0 {
+			s.Format.NginxSetting.BlockSize = defaultBlockSize
 		}
 	}
 

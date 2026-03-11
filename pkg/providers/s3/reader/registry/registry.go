@@ -7,6 +7,7 @@ import (
 	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/csv"
 	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/json"
 	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/line"
+	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/nginx"
 	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/parquet"
 	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/proto"
 	"github.com/transferia/transferia/pkg/stats"

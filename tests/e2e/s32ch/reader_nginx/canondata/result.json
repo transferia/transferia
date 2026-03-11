@@ -1,0 +1,18 @@
+{
+    "reader_nginx.reader_nginx.TestNginxIncrement": {
+        "data": {
+            "uri": "file://reader_nginx.reader_nginx.TestNginxIncrement/extracted"
+        },
+        "ddl": {
+            "uri": "file://reader_nginx.reader_nginx.TestNginxIncrement/extracted.0"
+        }
+    },
+    "reader_nginx.reader_nginx.TestNginxSnapshot": {
+        "data": {
+            "uri": "file://reader_nginx.reader_nginx.TestNginxSnapshot/extracted"
+        },
+        "ddl": {
+            "uri": "file://reader_nginx.reader_nginx.TestNginxSnapshot/extracted.0"
+        }
+    }
+}
