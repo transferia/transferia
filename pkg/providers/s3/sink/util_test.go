@@ -50,7 +50,7 @@ func TestRowFqtn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := rowFqtn(tt.tableID)
+			result := RowFqtn(tt.tableID)
 			require.Equal(t, tt.expected, result)
 		})
 	}
@@ -168,7 +168,7 @@ func TestCreateSerializer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serializer, err := createSerializer(tt.outputFormat, tt.anyAsString)
+			serializer, err := CreateSerializer(tt.outputFormat, tt.anyAsString)
 
 			if tt.expectError {
 				require.Error(t, err)

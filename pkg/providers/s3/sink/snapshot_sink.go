@@ -22,9 +22,9 @@ import (
 type SnapshotSink struct {
 	transferID         string
 	operationTimestamp string
-	s3Client           s3Client
+	s3Client           S3Client
 	cfg                *s3_provider.S3Destination
-	snapshotWriters    map[s3ObjectRef]*snapshotWriter
+	snapshotWriters    map[s3ObjectRef]*SnapshotWriter
 	logger             log.Logger
 	metrics            *stats.SinkerStats
 	fileSplitter       *FileSplitter
@@ -43,7 +43,7 @@ func (s *SnapshotSink) Push(input []abstract.ChangeItem) error {
 	if err := s.processSnapshot(insertItems); err != nil {
 		return xerrors.Errorf("unable to process buckets: %w", err)
 	}
-	rowFqtn := rowFqtn(input[0].TableID())
+	rowFqtn := RowFqtn(input[0].TableID())
 	s.metrics.Table(rowFqtn, "rows", len(insertItems))
 
 	return nil
@@ -63,12 +63,12 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref s3ObjectRef, keyPartNu
 	key := s.fileSplitter.increaseKey(ref)
 	s.logger.Infof("init pipe for %s", key)
 
-	batchSerializer, err := createSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
+	batchSerializer, err := CreateSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
 	if err != nil {
 		return xerrors.Errorf("unable to create serializer with outputFormat: %s: %w", s.cfg.OutputFormat, err)
 	}
 	writer := s3_writer.NewWriter(s.cfg.OutputEncoding, pipeWriter)
-	snapshotWriter, err := newsnapshotWriter(
+	snapshotWriter, err := NewsnapshotWriter(
 		context.Background(),
 		batchSerializer,
 		writer,
@@ -103,7 +103,7 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref s3ObjectRef, keyPartNu
 		} else {
 			err = pipeReader.Close()
 		}
-		snapshotWriter.finishUpload(err)
+		snapshotWriter.FinishUpload(err)
 		s.logger.Info("upload result", log.String("table", fullTableName), log.String("key", key), log.Any("res", res), log.Error(err))
 	}()
 
@@ -115,7 +115,7 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 
 	insertItems := make([]*abstract.ChangeItem, 0, insertItemsLen)
 	for _, row := range input {
-		fullTableName := rowFqtn(row.TableID())
+		fullTableName := RowFqtn(row.TableID())
 		switch row.Kind {
 		case abstract.InsertKind:
 			insertItems = append(insertItems, &row)
@@ -164,7 +164,7 @@ func (s *SnapshotSink) doneTableLoad() error {
 
 func (s *SnapshotSink) closeAllSnapshotWriters() error {
 	for ref, writer := range s.snapshotWriters {
-		if err := writer.close(); err != nil {
+		if err := writer.Close(); err != nil {
 			return xerrors.Errorf("unable to close snapshot holder %q: %w", s.fileSplitter.key(ref), err)
 		}
 		delete(s.snapshotWriters, ref)
@@ -233,7 +233,7 @@ func (s *SnapshotSink) writeBatch(ref s3ObjectRef, items []*abstract.ChangeItem,
 		return xerrors.Errorf("snapshot writer not found for %s", s.fileSplitter.key(ref))
 	}
 
-	writtenBytes, err := snapshotWriter.write(items)
+	writtenBytes, err := snapshotWriter.Write(items)
 	if err != nil {
 		return xerrors.Errorf("unable to write data to snapshot: %w", err)
 	}
@@ -255,7 +255,7 @@ func (s *SnapshotSink) rotateFile(ref s3ObjectRef, table string) error {
 		return xerrors.Errorf("snapshot writer not found for %s", s.fileSplitter.key(ref))
 	}
 
-	if err := snapshotWriter.close(); err != nil {
+	if err := snapshotWriter.Close(); err != nil {
 		return xerrors.Errorf("unable to close snapshot holder: %w", err)
 	}
 	delete(s.snapshotWriters, ref)
@@ -315,11 +315,11 @@ func NewSnapshotSink(
 	return &SnapshotSink{
 		transferID:         transferID,
 		operationTimestamp: strconv.FormatInt(operationTimestamp, 10),
-		s3Client:           newS3ClientImpl(s3Client, uploader),
+		s3Client:           NewS3ClientImpl(s3Client, uploader),
 		cfg:                cfg,
 		logger:             lgr,
 		metrics:            stats.NewSinkerStats(mtrcs),
-		snapshotWriters:    make(map[s3ObjectRef]*snapshotWriter),
+		snapshotWriters:    make(map[s3ObjectRef]*SnapshotWriter),
 		fileSplitter:       newFileSplitter(cfg.MaxItemsPerFile, cfg.MaxBytesPerFile),
 	}, nil
 }

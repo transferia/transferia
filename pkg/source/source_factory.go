@@ -22,3 +22,16 @@ func NewSource(transfer *model.Transfer, lgr log.Logger, registry metrics.Regist
 	}
 	return res, nil
 }
+
+func NewAsyncSource(transfer *model.Transfer, lgr log.Logger, registry metrics.Registry, cp coordinator.Coordinator) (abstract.QueueToS3Source, error) {
+	replicator, ok := providers.Source[providers.AsyncReplication](lgr, registry, cp, transfer)
+	if !ok {
+		lgr.Error("Unable to create async source")
+		return nil, xerrors.Errorf("unknown async source: %s: %T", transfer.SrcType(), transfer.Src)
+	}
+	res, err := replicator.AsyncSource()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create async %T: %w", transfer.Src, err)
+	}
+	return res, nil
+}

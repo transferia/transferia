@@ -155,6 +155,12 @@ func (f *Transfer) SrcJSON() string {
 	return string(b)
 }
 
+func (f *Transfer) IsQueueToS3Replication() bool {
+	_, dstOk := f.Dst.(QueueToS3Destination)
+	_, srcOk := f.Src.(QueueToS3Source)
+	return f.Type == abstract.TransferTypeIncrementOnly && dstOk && srcOk
+}
+
 func (f *Transfer) WithDefault() {
 	if f.Src != nil {
 		f.Src.WithDefaults()

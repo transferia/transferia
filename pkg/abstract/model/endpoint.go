@@ -48,6 +48,11 @@ type LoggableSource interface {
 	zapcore.ObjectMarshaler
 }
 
+type QueueToS3Source interface {
+	Source
+	IsQueueToS3Source()
+}
+
 type Describable interface {
 	Describe() Doc
 }
@@ -66,6 +71,11 @@ type Destination interface {
 type LoggableDestination interface {
 	Destination
 	zapcore.ObjectMarshaler
+}
+
+type QueueToS3Destination interface {
+	Destination
+	IsQueueToS3Destination()
 }
 
 type AlterableDestination interface {

@@ -29,7 +29,9 @@ type LocalWorker struct {
 	registry            metrics.Registry
 	logger              log.Logger
 	sink                abstract.AsyncSink
+	asyncsink           abstract.QueueToS3Sink
 	legacySource        abstract.Source
+	asyncsource         abstract.QueueToS3Source
 	replicationProvider base.ReplicationProvider
 	replicationSource   base.EventSource
 	wg                  sync.WaitGroup
@@ -99,16 +101,27 @@ func (w *LocalWorker) Stop() error {
 		return nil
 	}
 
-	if w.legacySource != nil {
+	switch {
+	case w.asyncsource != nil:
+		w.asyncsource.Stop()
+	case w.legacySource != nil:
 		w.legacySource.Stop()
-	} else {
+	default:
 		w.StopReplicationSource()
 	}
-	w.wg.Wait()
-	if err := w.sink.Close(); err != nil {
-		return xerrors.Errorf("failed to close sink: %w", err)
-	}
 
+	w.wg.Wait()
+
+	switch {
+	case w.sink != nil:
+		if err := w.sink.Close(); err != nil {
+			return xerrors.Errorf("failed to close sink: %w", err)
+		}
+	case w.asyncsink != nil:
+		if err := w.asyncsink.Close(); err != nil {
+			return xerrors.Errorf("failed to close async sink: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -130,46 +143,66 @@ func (w *LocalWorker) initialize() (err error) {
 	if err := tasks.AddExtraTransformers(w.ctx, w.transfer, w.registry); err != nil {
 		return xerrors.Errorf("failed to set extra runtime transformations: %w", err)
 	}
-	w.sink, err = sink.MakeAsyncSink(w.transfer, new(model.TransferOperation), w.logger, w.registry, w.cp, middlewares.MakeConfig(middlewares.AtReplicationStage))
-	if err != nil {
-		return errors.CategorizedErrorf(categories.Target, "failed to create sink: %w", err)
-	}
-	rollbacks.Add(func() {
-		if err := w.sink.Close(); err != nil {
-			w.logger.Error("Failed to close sink", log.Error(err))
-		}
-	})
 
-	dataProvider, err := data.NewDataProvider(
-		w.logger,
-		w.registry,
-		w.transfer,
-		w.cp,
-	)
-	if err != nil {
-		if xerrors.Is(err, data.TryLegacySourceError) {
-			w.legacySource, err = source.NewSource(w.transfer, w.logger, w.registry, w.cp)
-		}
+	switch {
+	case w.transfer.IsQueueToS3Replication():
+		w.asyncsink, err = sink.MakeAsyncReplicationSink(w.transfer, new(model.TransferOperation), w.logger, w.registry, w.cp, middlewares.MakeConfig(middlewares.AtReplicationStage))
 		if err != nil {
-			return errors.CategorizedErrorf(categories.Source, "failed to create source: %w", err)
+			return errors.CategorizedErrorf(categories.Target, "failed to create async v2 sink: %w", err)
 		}
-	} else {
-		if replicationProvider, ok := dataProvider.(base.ReplicationProvider); ok {
-			w.replicationProvider = replicationProvider
-			if err := w.replicationProvider.Init(); err != nil {
-				return errors.CategorizedErrorf(categories.Source, "failed to initialize replication provider: %w", err)
+		rollbacks.Add(func() {
+			if err := w.asyncsink.Close(); err != nil {
+				w.logger.Error("Failed to close async v2 sink", log.Error(err))
 			}
-			w.replicationSource, err = replicationProvider.CreateReplicationSource()
+		})
+		w.asyncsource, err = source.NewAsyncSource(w.transfer, w.logger, w.registry, w.cp)
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Source, "failed to create async source: %w", err)
+		}
+
+	default:
+		w.sink, err = sink.MakeAsyncSink(w.transfer, new(model.TransferOperation), w.logger, w.registry, w.cp, middlewares.MakeConfig(middlewares.AtReplicationStage))
+		if err != nil {
+			return errors.CategorizedErrorf(categories.Target, "failed to create sink: %w", err)
+		}
+		rollbacks.Add(func() {
+			if err := w.sink.Close(); err != nil {
+				w.logger.Error("Failed to close sink", log.Error(err))
+			}
+		})
+
+		dataProvider, err := data.NewDataProvider(
+			w.logger,
+			w.registry,
+			w.transfer,
+			w.cp,
+		)
+		if err != nil {
+			if xerrors.Is(err, data.TryLegacySourceError) {
+				w.legacySource, err = source.NewSource(w.transfer, w.logger, w.registry, w.cp)
+			}
 			if err != nil {
-				return errors.CategorizedErrorf(categories.Source, "failed to create replication source: %w", err)
+				return errors.CategorizedErrorf(categories.Source, "failed to create source: %w", err)
 			}
 		} else {
-			if err := dataProvider.Close(); err != nil {
-				w.logger.Warn("unable to close data provider", log.Error(err))
+			if replicationProvider, ok := dataProvider.(base.ReplicationProvider); ok {
+				w.replicationProvider = replicationProvider
+				if err := w.replicationProvider.Init(); err != nil {
+					return errors.CategorizedErrorf(categories.Source, "failed to initialize replication provider: %w", err)
+				}
+				w.replicationSource, err = replicationProvider.CreateReplicationSource()
+				if err != nil {
+					return errors.CategorizedErrorf(categories.Source, "failed to create replication source: %w", err)
+				}
+			} else {
+				if err := dataProvider.Close(); err != nil {
+					w.logger.Warn("unable to close data provider", log.Error(err))
+				}
+				return xerrors.New("Data provider must be ReplicationProvider")
 			}
-			return xerrors.New("Data provider must be ReplicationProvider")
 		}
 	}
+
 	rollbacks.Cancel()
 	w.initialized = true
 	return nil
@@ -180,14 +213,20 @@ func (w *LocalWorker) Run() error {
 		return xerrors.Errorf("failed to initialize LocalWorker: %w", err)
 	}
 
-	if w.legacySource != nil {
+	switch {
+	case w.asyncsource != nil:
+		if err := w.asyncsource.Run(w.asyncsink); err != nil {
+			return errors.CategorizedErrorf(categories.Source, "failed to run (async source): %w", err)
+		}
+	case w.legacySource != nil:
 		if err := w.legacySource.Run(w.sink); err != nil {
 			return errors.CategorizedErrorf(categories.Source, "failed to run (abstract1 source): %w", err)
 		}
 		return nil
-	}
-	if err := eventsource.NewSource(w.logger, w.replicationSource, w.transfer.Dst.CleanupMode(), w.transfer.TmpPolicy).Run(w.sink); err != nil {
-		return errors.CategorizedErrorf(categories.Source, "failed to run (abstract2 source): %w", err)
+	default:
+		if err := eventsource.NewSource(w.logger, w.replicationSource, w.transfer.Dst.CleanupMode(), w.transfer.TmpPolicy).Run(w.sink); err != nil {
+			return errors.CategorizedErrorf(categories.Source, "failed to run (abstract2 source): %w", err)
+		}
 	}
 	return nil
 }
@@ -201,7 +240,9 @@ func NewLocalWorker(cp coordinator.Coordinator, transfer *model.Transfer, regist
 		stopCh:              make(chan struct{}),
 		cp:                  cp,
 		sink:                nil,
+		asyncsink:           nil,
 		legacySource:        nil,
+		asyncsource:         nil,
 		replicationProvider: nil,
 		replicationSource:   nil,
 		wg:                  sync.WaitGroup{},

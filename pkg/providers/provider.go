@@ -30,6 +30,11 @@ type Replication interface {
 	Source() (abstract.Source, error)
 }
 
+type AsyncReplication interface {
+	Provider
+	AsyncSource() (abstract.QueueToS3Source, error)
+}
+
 // Abstract2Provider add `base.DataProvider` factory to provider.
 // this means that provider can do abstract2 data provider
 type Abstract2Provider interface {
@@ -47,6 +52,11 @@ type Abstract2Sinker interface {
 type Sinker interface {
 	Provider
 	Sink(config middlewares.Config) (abstract.Sinker, error)
+}
+
+type QueueToS3Sink interface {
+	Provider
+	AsyncV2Sink(config middlewares.Config) (abstract.QueueToS3Sink, error)
 }
 
 // SnapshotSinker optional separate writer for snapshots. Will always called for snapshots with all control events

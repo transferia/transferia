@@ -98,7 +98,7 @@ func TestNewSnapshotWriter(t *testing.T) {
 	mockWriter := newMockWriteCloser()
 	key := "test-key"
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, key)
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, key)
 
 	require.NoError(t, err)
 	require.NotNil(t, writer)
@@ -123,14 +123,14 @@ func TestSnapshotWriter_Write(t *testing.T) {
 		},
 	}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	items := []*abstract.ChangeItem{
 		{Kind: abstract.InsertKind, Table: "test_table"},
 	}
 
-	bytesWritten, err := writer.write(items)
+	bytesWritten, err := writer.Write(items)
 
 	require.NoError(t, err)
 	require.Equal(t, len(testData), bytesWritten)
@@ -149,14 +149,14 @@ func TestSnapshotWriter_WriteError(t *testing.T) {
 		},
 	}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	items := []*abstract.ChangeItem{
 		{Kind: abstract.InsertKind, Table: "test_table"},
 	}
 
-	bytesWritten, err := writer.write(items)
+	bytesWritten, err := writer.Write(items)
 
 	require.Error(t, err)
 	require.Equal(t, 0, bytesWritten)
@@ -175,16 +175,16 @@ func TestSnapshotWriter_Close(t *testing.T) {
 		},
 	}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	// Simulate upload completion in goroutine
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		writer.finishUpload(nil)
+		writer.FinishUpload(nil)
 	}()
 
-	err = writer.close()
+	err = writer.Close()
 
 	require.NoError(t, err)
 	require.True(t, mockWriter.IsClosed())
@@ -197,7 +197,7 @@ func TestSnapshotWriter_CloseWithUploadError(t *testing.T) {
 	mockWriter := newMockWriteCloser()
 	mockSer := &mockSerializer{}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	uploadErr := errors.New("upload failed")
@@ -205,10 +205,10 @@ func TestSnapshotWriter_CloseWithUploadError(t *testing.T) {
 	// Simulate upload failure in goroutine
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		writer.finishUpload(uploadErr)
+		writer.FinishUpload(uploadErr)
 	}()
 
-	err = writer.close()
+	err = writer.Close()
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "error during upload")
@@ -227,10 +227,10 @@ func TestSnapshotWriter_CloseWithSerializerError(t *testing.T) {
 		},
 	}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
-	err = writer.close()
+	err = writer.Close()
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unable to close serializer")
@@ -250,10 +250,10 @@ func TestSnapshotWriter_CloseWithWriterError(t *testing.T) {
 
 	mockSer := &mockSerializer{}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
-	err = writer.close()
+	err = writer.Close()
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unable to close writer")
@@ -261,8 +261,8 @@ func TestSnapshotWriter_CloseWithWriterError(t *testing.T) {
 
 // TestSnapshotWriter_CloseNil tests close on nil writer
 func TestSnapshotWriter_CloseNil(t *testing.T) {
-	var writer *snapshotWriter
-	err := writer.close()
+	var writer *SnapshotWriter
+	err := writer.Close()
 	require.NoError(t, err)
 }
 
@@ -272,7 +272,7 @@ func TestSnapshotWriter_FinishUpload(t *testing.T) {
 	mockWriter := newMockWriteCloser()
 	mockSer := &mockSerializer{}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	uploadErr := errors.New("test upload error")
@@ -280,7 +280,7 @@ func TestSnapshotWriter_FinishUpload(t *testing.T) {
 	// Call finishUpload in goroutine
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		writer.finishUpload(uploadErr)
+		writer.FinishUpload(uploadErr)
 	}()
 
 	// Wait for upload to finish
@@ -296,18 +296,18 @@ func TestSnapshotWriter_FinishUploadMultipleCalls(t *testing.T) {
 	mockWriter := newMockWriteCloser()
 	mockSer := &mockSerializer{}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	firstErr := errors.New("first error")
 	secondErr := errors.New("second error")
 
 	// Call finishUpload multiple times
-	go writer.finishUpload(firstErr)
+	go writer.FinishUpload(firstErr)
 	receivedErr := <-writer.uploadDone
 	require.Equal(t, firstErr, receivedErr)
 
-	go writer.finishUpload(secondErr) // Should be ignored due to sync.Once
+	go writer.FinishUpload(secondErr) // Should be ignored due to sync.Once
 	time.Sleep(time.Second)           // wait for goroutine to finish
 	someErr, ok := <-writer.uploadDone
 	require.False(t, ok)
@@ -320,7 +320,7 @@ func TestSnapshotWriter_ContextCancellation(t *testing.T) {
 	mockWriter := newMockWriteCloser()
 	mockSer := &mockSerializer{}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	// Cancel the parent context
@@ -341,10 +341,10 @@ func TestSnapshotWriter_FinishUploadCancelsContext(t *testing.T) {
 	mockWriter := newMockWriteCloser()
 	mockSer := &mockSerializer{}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
-	go writer.finishUpload(nil)
+	go writer.FinishUpload(nil)
 	require.NoError(t, <-writer.uploadDone)
 
 	// Context should be cancelled after finishUpload
@@ -368,21 +368,21 @@ func TestSnapshotWriter_WriteWithLastBytes(t *testing.T) {
 		},
 	}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	// Write some initial data
 	items := []*abstract.ChangeItem{{Kind: abstract.InsertKind, Table: "test"}}
-	_, err = writer.write(items)
+	_, err = writer.Write(items)
 	require.NoError(t, err)
 
 	// Simulate upload completion
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		writer.finishUpload(nil)
+		writer.FinishUpload(nil)
 	}()
 
-	err = writer.close()
+	err = writer.Close()
 
 	require.NoError(t, err)
 	require.Contains(t, mockWriter.String(), string(lastBytes))
@@ -407,7 +407,7 @@ func TestSnapshotWriter_ConcurrentWrites(t *testing.T) {
 		},
 	}
 
-	writer, err := newsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
+	writer, err := NewsnapshotWriter(ctx, mockSer, mockWriter, "test-key")
 	require.NoError(t, err)
 
 	// Perform concurrent writes
@@ -419,7 +419,7 @@ func TestSnapshotWriter_ConcurrentWrites(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			items := []*abstract.ChangeItem{{Kind: abstract.InsertKind, Table: "test"}}
-			_, _ = writer.write(items)
+			_, _ = writer.Write(items)
 		}()
 	}
 

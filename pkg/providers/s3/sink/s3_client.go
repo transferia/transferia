@@ -5,7 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-type s3Client interface {
+type S3Client interface {
 	Upload(input *s3manager.UploadInput) (*s3manager.UploadOutput, error)
 	DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error)
 }
@@ -23,7 +23,7 @@ func (s *s3ClientImpl) DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObje
 	return s.client.DeleteObject(input)
 }
 
-func newS3ClientImpl(client *s3.S3, uploader *s3manager.Uploader) s3Client {
+func NewS3ClientImpl(client *s3.S3, uploader *s3manager.Uploader) S3Client {
 	return &s3ClientImpl{
 		client:   client,
 		uploader: uploader,

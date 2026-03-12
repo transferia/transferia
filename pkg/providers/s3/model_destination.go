@@ -33,6 +33,17 @@ const (
 	ZlibEncoding = Encoding("ZLIB")
 )
 
+type PartitionerType string
+
+const (
+	DefaultPartitionerType PartitionerType = "DefaultPartitioner"
+)
+
+type Rotator interface {
+	ShouldRotate(item *abstract.ChangeItem) bool
+	UpdateState(item *abstract.ChangeItem) error
+}
+
 type S3Destination struct {
 	OutputFormat     dp_model.ParsingFormat `log:"true"`
 	OutputEncoding   Encoding               `log:"true"`
@@ -56,9 +67,17 @@ type S3Destination struct {
 	MaxItemsPerFile  int    `log:"true"`
 	MaxBytesPerFile  int    `log:"true"`
 	SerializerSet    bool
+
+	// Replication from queue spesific fields
+	Rotator     Rotator
+	Partitioner PartitionerType
 }
 
 var _ dp_model.Destination = (*S3Destination)(nil)
+var _ dp_model.QueueToS3Destination = (*S3Destination)(nil)
+
+func (d *S3Destination) IsQueueToS3Destination() {
+}
 
 func (d *S3Destination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return logger.MarshalSanitizedObject(d, enc)

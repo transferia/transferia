@@ -54,9 +54,21 @@ func MakeAsyncSink(
 		}
 		pipelineAsync = wrapSinkIntoAsyncPipeline(sink, transfer, lgr, mtrcs, middleware, config)
 	}
-
 	pipelineAsync = async.Measurer(lgr)(pipelineAsync)
 	return pipelineAsync, nil
+}
+
+func MakeAsyncReplicationSink(transfer *model.Transfer, task *model.TransferOperation, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, config middlewares.Config, opts ...abstract.SinkOption) (abstract.QueueToS3Sink, error) {
+	// Construct base async sink
+	factory, ok := providers.Destination[providers.QueueToS3Sink](lgr, mtrcs, cp, transfer, task)
+	if !ok {
+		return nil, xerrors.Errorf("async v2 sink: %s: %T not supported", transfer.DstType(), transfer.Dst)
+	}
+	asyncSink, err := factory.AsyncV2Sink(config)
+	if err != nil {
+		return nil, errors.CategorizedErrorf(categories.Target, "failed to construct async v2 sink: %w", err)
+	}
+	return asyncSink, nil
 }
 
 func syncMiddleware(transfer *model.Transfer, lgr log.Logger, mtrcs metrics.Registry, cp coordinator.Coordinator, opts ...abstract.SinkOption) (abstract.Middleware, error) {

@@ -16,7 +16,7 @@ type buckets map[string]map[string]*FileCache
 
 const maxPartIDLen = 24
 
-func rowFqtn(tableID abstract.TableID) string {
+func RowFqtn(tableID abstract.TableID) string {
 	if tableID.Namespace != "" {
 		return fmt.Sprintf("%v_%v", tableID.Namespace, tableID.Name)
 	}
@@ -27,14 +27,14 @@ func rowPart(row abstract.ChangeItem) string {
 	if row.IsMirror() {
 		return fmt.Sprintf("%v_%v", row.ColumnValues[abstract.RawDataColsIDX[abstract.RawMessageTopic]], row.ColumnValues[abstract.RawDataColsIDX[abstract.RawMessagePartition]])
 	}
-	res := rowFqtn(row.TableID())
+	res := RowFqtn(row.TableID())
 	if row.PartID != "" {
 		res = fmt.Sprintf("%s_%s", res, hashLongPart(row.PartID, maxPartIDLen))
 	}
 	return res
 }
 
-func createSerializer(outputFormat model.ParsingFormat, anyAsString bool) (serializer.BatchSerializer, error) {
+func CreateSerializer(outputFormat model.ParsingFormat, anyAsString bool) (serializer.BatchSerializer, error) {
 	config := &serializer.BatchSerializerCommonConfig{
 		UnsupportedItemKinds: nil,
 		Format:               outputFormat,

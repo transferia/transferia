@@ -49,7 +49,7 @@ func (s *ReplicationSink) Push(input []abstract.ChangeItem) error {
 }
 
 func (s *ReplicationSink) pushItem(row *abstract.ChangeItem, buckets buckets) error {
-	fullTableName := rowFqtn(row.TableID())
+	fullTableName := RowFqtn(row.TableID())
 	switch row.Kind {
 	case abstract.InsertKind:
 		if err := s.insert(row, buckets); err != nil {
@@ -102,7 +102,7 @@ func (s *ReplicationSink) processBuckets(buckets buckets, inputLen int) error {
 func (s *ReplicationSink) insert(row *abstract.ChangeItem, buckets buckets) error {
 	bufferFile := rowPart(*row)
 	bucket := extractRowBucket(*row, s.cfg.LayoutColumn, s.cfg.Layout)
-	rowFqtn := rowFqtn(row.TableID())
+	rowFqtn := RowFqtn(row.TableID())
 	if _, ok := buckets[bucket]; !ok {
 		buckets[bucket] = map[string]*FileCache{}
 	}
@@ -193,7 +193,7 @@ func (s *ReplicationSink) tryUploadWithIntersectionGuard(cache *FileCache, fileP
 }
 
 func (s *ReplicationSink) serialize(part *FileCache) ([]byte, error) {
-	batchSerializer, err := createSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
+	batchSerializer, err := CreateSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to upload file part: %w", err)
 	}
@@ -213,7 +213,7 @@ func (s *ReplicationSink) serialize(part *FileCache) ([]byte, error) {
 }
 
 func (s *ReplicationSink) bucketKey(row abstract.ChangeItem) *string {
-	fileName := rowFqtn(row.TableID())
+	fileName := RowFqtn(row.TableID())
 	bucketKey := aws.String(fmt.Sprintf("%s/%s.%s", extractRowBucket(row, s.cfg.LayoutColumn, s.cfg.Layout), fileName, strings.ToLower(string(s.cfg.OutputFormat))))
 
 	if s.cfg.OutputEncoding == s3_provider.GzipEncoding {
