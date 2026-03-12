@@ -1,6 +1,7 @@
 package reader
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -31,8 +32,8 @@ func TestCompileFormatQuoted(t *testing.T) {
 	compiled, err := compileFormat(`"$remote_addr" "-" "$status"`)
 	require.NoError(t, err)
 	require.Len(t, compiled.fields, 2)
-	require.Equal(t, "remote_addr", compiled.fields[0].Name)
-	require.Equal(t, "status", compiled.fields[1].Name)
+	require.Equal(t, "remote_addr", compiled.fields[0])
+	require.Equal(t, "status", compiled.fields[1])
 
 	values, _, err := compiled.parseEntry(`"212.28.183.93" "-" "403"`)
 	require.NoError(t, err)
@@ -51,28 +52,6 @@ func TestCompileFormatWithBrackets(t *testing.T) {
 	require.Equal(t, "10/Oct/2000:13:55:36 -0700", values[2])
 	require.Equal(t, "GET /index.html HTTP/1.1", values[3])
 	require.Equal(t, "200", values[4])
-}
-
-func TestCompileFormatSchemaTypes(t *testing.T) {
-	compiled, err := compileFormat(`"$status" "$request_time" "[$time_local]" "$host"`)
-	require.NoError(t, err)
-	require.Len(t, compiled.schema, 4)
-
-	require.Equal(t, "status", compiled.schema[0].ColumnName)
-	require.Equal(t, schema.TypeInt64.String(), compiled.schema[0].DataType)
-	require.Equal(t, "0", compiled.schema[0].Path)
-
-	require.Equal(t, "request_time", compiled.schema[1].ColumnName)
-	require.Equal(t, schema.TypeFloat64.String(), compiled.schema[1].DataType)
-	require.Equal(t, "1", compiled.schema[1].Path)
-
-	require.Equal(t, "time_local", compiled.schema[2].ColumnName)
-	require.Equal(t, schema.TypeDatetime.String(), compiled.schema[2].DataType)
-	require.Equal(t, "2", compiled.schema[2].Path)
-
-	require.Equal(t, "host", compiled.schema[3].ColumnName)
-	require.Equal(t, schema.TypeString.String(), compiled.schema[3].DataType)
-	require.Equal(t, "3", compiled.schema[3].Path)
 }
 
 func TestCompileFormatDuplicateNames(t *testing.T) {
@@ -254,8 +233,8 @@ func TestParseEntryDashValuesInCDNFormat(t *testing.T) {
 	require.Equal(t, len(line), consumed)
 
 	nameToIdx := make(map[string]int)
-	for i, f := range compiled.fields {
-		nameToIdx[f.Name] = i
+	for i, name := range compiled.fields {
+		nameToIdx[name] = i
 	}
 
 	// Fields that have "-" in this line, so `convertNginxValue` must return nil for each.
@@ -328,15 +307,44 @@ func TestConvertNginxValueBooleanDash(t *testing.T) {
 	require.Nil(t, result)
 }
 
-func TestUpstreamVariablesAreString(t *testing.T) {
-	// Upstream variables may contain comma-separated lists (e.g. "0.1, 0.2")
-	// when multiple upstreams are tried, so they must be typed as String.
-	upstreamVars := []string{
-		"upstream_status", "upstream_response_time", "upstream_connect_time",
-		"upstream_header_time", "upstream_response_length",
+func TestCompiledFieldNames(t *testing.T) {
+	compiled, err := compileFormat(`"$remote_addr" "-" "$status" "$host"`)
+	require.NoError(t, err)
+	require.Equal(t, []string{"remote_addr", "status", "host"}, compiled.fields)
+}
+
+func TestOutputSchemaNameMatching(t *testing.T) {
+	compiled, err := compileFormat(`"$remote_addr" "-" "$remote_user" "[$time_local]" "$request"`)
+	require.NoError(t, err)
+	require.Len(t, compiled.fields, 4)
+	fieldIndex := make(map[string]int, len(compiled.fields))
+	for i, name := range compiled.fields {
+		fieldIndex[name] = i
 	}
-	for _, name := range upstreamVars {
-		_, found := nginxWellKnownTokenTypes[name]
-		require.False(t, found, "%s should not be in nginxWellKnownTokenTypes (defaults to String)", name)
+	cols := []abstract.ColSchema{
+		{ColumnName: "request"},
+		{ColumnName: "remote_addr"},
+		{ColumnName: "time_local"},
 	}
+	for i, col := range cols {
+		idx, ok := fieldIndex[col.ColumnName]
+		require.True(t, ok, "column %q must be found", col.ColumnName)
+		cols[i].Path = fmt.Sprintf("%d", idx)
+	}
+	require.Equal(t, "3", cols[0].Path)
+	require.Equal(t, "0", cols[1].Path)
+	require.Equal(t, "2", cols[2].Path)
+}
+
+func TestOutputSchemaUnknownColumnError(t *testing.T) {
+	compiled, err := compileFormat(`"$remote_addr" "-" "$status"`)
+	require.NoError(t, err)
+	fieldIndex := make(map[string]int, len(compiled.fields))
+	for i, name := range compiled.fields {
+		fieldIndex[name] = i
+	}
+	_, ok := fieldIndex["dash1"]
+	require.False(t, ok, "literal '-' should not appear as a format variable")
+	_, ok = fieldIndex["nonexistent"]
+	require.False(t, ok)
 }

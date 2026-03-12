@@ -28,12 +28,12 @@ func init() {
 }
 
 const (
-	testNginxFormat = `"$remote_addr" "-" "$remote_user" "[$time_local]" "$request" "$status" "$body_bytes_sent" "$http_referer" "$http_user_agent" "$bytes_sent"
+	testNginxFormat = `"$remote_addr" "-" "$remote_user" "[$date_time]" "$request" "$status_code" "$body_bytes_sent" "$http_referer" "$http_user_agent" "$bytes_sent"
 "$edgename" "$scheme" "$host" "$request_time" "$upstream_response_time" "$request_length" "$http_range" "[$responding_node]"
 "$upstream_cache_status" "$upstream_response_length" "$upstream_addr" "$gcdn_api_client_id" "$gcdn_api_resource_id" "$uid_got" "$uid_set"
 "$geoip_country_code" "$geoip_city" "$shield_type" "$server_addr" "$server_port" "$upstream_status" "-" "$upstream_connect_time"
 "$upstream_header_time" "$shard_addr" "$geoip2_data_asnumber" "$connection" "$connection_requests" "$request_id" "$http_x_forwarded_proto"
-"$http_x_forwarded_request_id" "$ssl_cipher" "$ssl_session_id" "$ssl_session_reused" "$sent_http_content_type" "$real_tcpinfo_rtt"
+"$http_x_forwarded_request_id" "$ssl_cipher" "$ssl_session_id" "$ssl_session_reused" "$sent_http_content_type" "$tcpinfo_rtt"
 "$http_x_forwarded_http_ver" "$vp_enabled" "$geoip2_region"`
 
 	testBucketName = "nginx-test"
@@ -77,6 +77,58 @@ func buildSourceModel(t *testing.T) *s3.S3Source {
 	src.TableName = TableName
 	src.Format.NginxSetting = &s3.NginxSetting{Format: testNginxFormat}
 	src.WithDefaults()
+	src.UnparsedPolicy = s3.UnparsedPolicyFail
+	src.OutputSchema = []abstract.ColSchema{
+		{ColumnName: "remote_addr", DataType: "string", PrimaryKey: true},
+		{ColumnName: "dash1", DataType: "string"},
+		{ColumnName: "remote_user", DataType: "string"},
+		{ColumnName: "date_time", DataType: "datetime", PrimaryKey: true},
+		{ColumnName: "request", DataType: "string", PrimaryKey: true},
+		{ColumnName: "status_code", DataType: "int64"},
+		{ColumnName: "body_bytes_sent", DataType: "int64"},
+		{ColumnName: "http_referer", DataType: "string"},
+		{ColumnName: "http_user_agent", DataType: "string"},
+		{ColumnName: "bytes_sent", DataType: "int64"},
+		{ColumnName: "edgename", DataType: "string"},
+		{ColumnName: "scheme", DataType: "string"},
+		{ColumnName: "host", DataType: "string", PrimaryKey: true},
+		{ColumnName: "request_time", DataType: "double"},
+		{ColumnName: "upstream_response_time", DataType: "string"},
+		{ColumnName: "request_length", DataType: "int64"},
+		{ColumnName: "http_range", DataType: "string"},
+		{ColumnName: "responding_node", DataType: "string"},
+		{ColumnName: "upstream_cache_status", DataType: "string"},
+		{ColumnName: "upstream_response_length", DataType: "string"},
+		{ColumnName: "upstream_addr", DataType: "string"},
+		{ColumnName: "gcdn_api_client_id", DataType: "string"},
+		{ColumnName: "gcdn_api_resource_id", DataType: "string"},
+		{ColumnName: "uid_got", DataType: "string"},
+		{ColumnName: "uid_set", DataType: "string"},
+		{ColumnName: "geoip_country_code", DataType: "string"},
+		{ColumnName: "geoip_city", DataType: "string"},
+		{ColumnName: "shield_type", DataType: "string"},
+		{ColumnName: "server_addr", DataType: "string"},
+		{ColumnName: "server_port", DataType: "int64"},
+		{ColumnName: "upstream_status", DataType: "string"},
+		{ColumnName: "dash2", DataType: "string"},
+		{ColumnName: "upstream_connect_time", DataType: "string"},
+		{ColumnName: "upstream_header_time", DataType: "string"},
+		{ColumnName: "shard_addr", DataType: "string"},
+		{ColumnName: "geoip2_data_asnumber", DataType: "string"},
+		{ColumnName: "connection", DataType: "int64"},
+		{ColumnName: "connection_requests", DataType: "int64"},
+		{ColumnName: "request_id", DataType: "string"},
+		{ColumnName: "http_x_forwarded_proto", DataType: "string"},
+		{ColumnName: "http_x_forwarded_request_id", DataType: "string"},
+		{ColumnName: "ssl_cipher", DataType: "string"},
+		{ColumnName: "ssl_session_id", DataType: "string"},
+		{ColumnName: "ssl_session_reused", DataType: "string"},
+		{ColumnName: "sent_http_content_type", DataType: "string"},
+		{ColumnName: "tcpinfo_rtt", DataType: "string"},
+		{ColumnName: "http_x_forwarded_http_ver", DataType: "string"},
+		{ColumnName: "vp_enabled", DataType: "string"},
+		{ColumnName: "geoip2_region", DataType: "string"},
+	}
 	s3recipe.CreateBucket(t, src)
 	s3recipe.UploadOneFromMemory(t, src, testPathPrefix+"/access_snap.log.gz", makeGzipData(t, sampleNginxLines))
 	return src

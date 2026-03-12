@@ -17,33 +17,9 @@ var nginxVarRegexp = regexp.MustCompile(`\$([A-Za-z0-9_]+)`)
 // Used to properly collapse '\n' in format to single space (' ') to normalize format.
 var multilineCollapseRegexp = regexp.MustCompile(`[ \t]*\n[ \t]*`)
 
-// nginxWellKnownTokenTypes maps well-known nginx variable names to their data types.
-// Variables not found here default to schema.TypeString.
-//
-// NOTE: Some numeric tokens (e.g. upstream_status, upstream_response_time and others) are typed as String because nginx
-// separates values from multiple upstream attempts with commas (e.g. "0.1, 0.2"), which cannot be parsed as a single number.
-// See https://nginx.org/en/docs/http/ngx_http_upstream_module.html
-var nginxWellKnownTokenTypes = map[string]schema.Type{
-	"status":              schema.TypeInt64,
-	"server_port":         schema.TypeInt64,
-	"body_bytes_sent":     schema.TypeInt64,
-	"bytes_sent":          schema.TypeInt64,
-	"request_length":      schema.TypeInt64,
-	"connection":          schema.TypeInt64,
-	"connection_requests": schema.TypeInt64,
-	"request_time":        schema.TypeFloat64,
-	"msec":                schema.TypeFloat64,
-	"time_local":          schema.TypeDatetime,
-}
-
 type nginxToken struct {
 	IsVariable bool
 	Value      string // Value is name without $ if IsVariable, literal text otherwise.
-}
-
-type nginxField struct {
-	Name    string
-	ColType schema.Type
 }
 
 // compiledNginxFormat holds the tokenized format and field metadata for parsing nginx log entries.
@@ -51,7 +27,7 @@ type nginxField struct {
 // flexibility), variables are captured up to the next literal's delimiter character.
 type compiledNginxFormat struct {
 	tokens []nginxToken
-	fields []nginxField
+	fields []string // Fields names.
 	schema []abstract.ColSchema
 }
 
@@ -93,30 +69,21 @@ func compileFormat(format string) (*compiledNginxFormat, error) {
 		return nil, xerrors.New("nginx format string contains no variables")
 	}
 
-	var fields []nginxField
+	var fields []string
 	usedNames := make(map[string]int)
 
 	for _, tok := range tokens {
 		if !tok.IsVariable {
 			continue
 		}
-
-		colName := makeUniqueColumnName(tok.Value, usedNames)
-		colType, ok := nginxWellKnownTokenTypes[tok.Value]
-		if !ok {
-			colType = schema.TypeString
-		}
-		fields = append(fields, nginxField{
-			Name:    colName,
-			ColType: colType,
-		})
+		fields = append(fields, makeUniqueColumnName(tok.Value, usedNames))
 	}
 
 	schemaCols := make([]abstract.ColSchema, 0, len(fields))
-	for idx, f := range fields {
-		col := abstract.NewColSchema(f.Name, f.ColType, false)
+	for idx, name := range fields {
+		col := abstract.NewColSchema(name, schema.TypeString, false)
 		col.Path = strconv.Itoa(idx)
-		col.OriginalType = fmt.Sprintf("nginx:%s", f.ColType.String())
+		col.OriginalType = fmt.Sprintf("nginx:%s", schema.TypeString)
 		schemaCols = append(schemaCols, col)
 	}
 

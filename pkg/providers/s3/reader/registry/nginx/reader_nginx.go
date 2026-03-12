@@ -373,10 +373,18 @@ func NewNginxReader(src *s3.S3Source, lgr log.Logger, sess *session.Session, met
 			return nil, xerrors.Errorf("unable to resolve schema: %w", err)
 		}
 	} else {
+		fieldIndex := make(map[string]int, len(compiled.fields))
+		for i, name := range compiled.fields {
+			fieldIndex[name] = i
+		}
 		var cols []abstract.ColSchema
-		for index, col := range reader.tableSchema.Columns() {
+		for _, col := range reader.tableSchema.Columns() {
 			if col.Path == "" {
-				col.Path = fmt.Sprintf("%d", index)
+				idx, ok := fieldIndex[col.ColumnName]
+				if !ok {
+					continue
+				}
+				col.Path = fmt.Sprintf("%d", idx)
 			}
 			if col.OriginalType == "" {
 				col.OriginalType = fmt.Sprintf("nginx:%s", col.DataType)
