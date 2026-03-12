@@ -1,0 +1,369 @@
+{
+    "gotest.gotest.TestAddDTSystemTables/true": [
+        {
+            "data": {
+                "payload": {
+                    "after": {
+                        "id": 1,
+                        "val": -8388605
+                    },
+                    "before": null,
+                    "op": "c",
+                    "source": {
+                        "connector": "postgresql",
+                        "db": "",
+                        "lsn": 25051056,
+                        "name": "system_tables_topic",
+                        "schema": "public",
+                        "snapshot": "false",
+                        "table": "__consumer_keeper",
+                        "ts_ms": 1643660670333,
+                        "txId": 601,
+                        "version": "1.1.2.Final",
+                        "xmin": null
+                    },
+                    "transaction": null,
+                    "ts_ms": 1643660670333
+                },
+                "schema": {
+                    "fields": [
+                        {
+                            "field": "before",
+                            "fields": [
+                                {
+                                    "field": "id",
+                                    "optional": false,
+                                    "type": "int32"
+                                },
+                                {
+                                    "field": "val",
+                                    "optional": true,
+                                    "type": "int32"
+                                }
+                            ],
+                            "name": "system_tables_topic.public.__consumer_keeper.Value",
+                            "optional": true,
+                            "type": "struct"
+                        },
+                        {
+                            "field": "after",
+                            "fields": [
+                                {
+                                    "field": "id",
+                                    "optional": false,
+                                    "type": "int32"
+                                },
+                                {
+                                    "field": "val",
+                                    "optional": true,
+                                    "type": "int32"
+                                }
+                            ],
+                            "name": "system_tables_topic.public.__consumer_keeper.Value",
+                            "optional": true,
+                            "type": "struct"
+                        },
+                        {
+                            "field": "source",
+                            "fields": [
+                                {
+                                    "field": "version",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "connector",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "name",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "ts_ms",
+                                    "optional": false,
+                                    "type": "int64"
+                                },
+                                {
+                                    "default": "false",
+                                    "field": "snapshot",
+                                    "name": "io.debezium.data.Enum",
+                                    "optional": true,
+                                    "parameters": {
+                                        "allowed": "true,last,false"
+                                    },
+                                    "type": "string",
+                                    "version": 1
+                                },
+                                {
+                                    "field": "db",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "table",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "lsn",
+                                    "optional": true,
+                                    "type": "int64"
+                                },
+                                {
+                                    "field": "schema",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "txId",
+                                    "optional": true,
+                                    "type": "int64"
+                                },
+                                {
+                                    "field": "xmin",
+                                    "optional": true,
+                                    "type": "int64"
+                                }
+                            ],
+                            "name": "io.debezium.connector.postgresql.Source",
+                            "optional": false,
+                            "type": "struct"
+                        },
+                        {
+                            "field": "op",
+                            "optional": false,
+                            "type": "string"
+                        },
+                        {
+                            "field": "ts_ms",
+                            "optional": true,
+                            "type": "int64"
+                        },
+                        {
+                            "field": "transaction",
+                            "fields": [
+                                {
+                                    "field": "id",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "total_order",
+                                    "optional": false,
+                                    "type": "int64"
+                                },
+                                {
+                                    "field": "data_collection_order",
+                                    "optional": false,
+                                    "type": "int64"
+                                }
+                            ],
+                            "optional": true,
+                            "type": "struct"
+                        }
+                    ],
+                    "name": "system_tables_topic.public.__consumer_keeper.Envelope",
+                    "optional": false,
+                    "type": "struct"
+                }
+            },
+            "index": 0,
+            "topic": "system_tables_topic.public.__consumer_keeper"
+        }
+    ],
+    "gotest.gotest.TestFormats/Test_Debezium": [
+        {
+            "data": {
+                "payload": {
+                    "after": {
+                        "id": 1,
+                        "val": -8388605
+                    },
+                    "before": null,
+                    "op": "c",
+                    "source": {
+                        "connector": "postgresql",
+                        "db": "",
+                        "lsn": 25051056,
+                        "name": "debezium_topic",
+                        "schema": "public",
+                        "snapshot": "false",
+                        "table": "basic_types15",
+                        "ts_ms": 1643660670333,
+                        "txId": 601,
+                        "version": "1.1.2.Final",
+                        "xmin": null
+                    },
+                    "transaction": null,
+                    "ts_ms": 1643660670333
+                },
+                "schema": {
+                    "fields": [
+                        {
+                            "field": "before",
+                            "fields": [
+                                {
+                                    "field": "id",
+                                    "optional": false,
+                                    "type": "int32"
+                                },
+                                {
+                                    "field": "val",
+                                    "optional": true,
+                                    "type": "int32"
+                                }
+                            ],
+                            "name": "debezium_topic.public.basic_types15.Value",
+                            "optional": true,
+                            "type": "struct"
+                        },
+                        {
+                            "field": "after",
+                            "fields": [
+                                {
+                                    "field": "id",
+                                    "optional": false,
+                                    "type": "int32"
+                                },
+                                {
+                                    "field": "val",
+                                    "optional": true,
+                                    "type": "int32"
+                                }
+                            ],
+                            "name": "debezium_topic.public.basic_types15.Value",
+                            "optional": true,
+                            "type": "struct"
+                        },
+                        {
+                            "field": "source",
+                            "fields": [
+                                {
+                                    "field": "version",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "connector",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "name",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "ts_ms",
+                                    "optional": false,
+                                    "type": "int64"
+                                },
+                                {
+                                    "default": "false",
+                                    "field": "snapshot",
+                                    "name": "io.debezium.data.Enum",
+                                    "optional": true,
+                                    "parameters": {
+                                        "allowed": "true,last,false"
+                                    },
+                                    "type": "string",
+                                    "version": 1
+                                },
+                                {
+                                    "field": "db",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "table",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "lsn",
+                                    "optional": true,
+                                    "type": "int64"
+                                },
+                                {
+                                    "field": "schema",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "txId",
+                                    "optional": true,
+                                    "type": "int64"
+                                },
+                                {
+                                    "field": "xmin",
+                                    "optional": true,
+                                    "type": "int64"
+                                }
+                            ],
+                            "name": "io.debezium.connector.postgresql.Source",
+                            "optional": false,
+                            "type": "struct"
+                        },
+                        {
+                            "field": "op",
+                            "optional": false,
+                            "type": "string"
+                        },
+                        {
+                            "field": "ts_ms",
+                            "optional": true,
+                            "type": "int64"
+                        },
+                        {
+                            "field": "transaction",
+                            "fields": [
+                                {
+                                    "field": "id",
+                                    "optional": false,
+                                    "type": "string"
+                                },
+                                {
+                                    "field": "total_order",
+                                    "optional": false,
+                                    "type": "int64"
+                                },
+                                {
+                                    "field": "data_collection_order",
+                                    "optional": false,
+                                    "type": "int64"
+                                }
+                            ],
+                            "optional": true,
+                            "type": "struct"
+                        }
+                    ],
+                    "name": "debezium_topic.public.basic_types15.Envelope",
+                    "optional": false,
+                    "type": "struct"
+                }
+            },
+            "index": 0,
+            "topic": "debezium_topic.public.basic_types15"
+        }
+    ],
+    "gotest.gotest.TestFormats/Test_JSON": [
+        {
+            "data": {
+                "id": 1,
+                "val": -8388605
+            },
+            "index": 0,
+            "topic": "json_topic"
+        }
+    ],
+    "gotest.gotest.TestFormats/Test_Mirror": [
+        {
+            "data": "my_data",
+            "index": 0,
+            "topic": "mirror_topic"
+        }
+    ]
+}

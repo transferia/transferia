@@ -13,8 +13,8 @@ import (
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/middlewares/async/bufferer"
 	"github.com/transferia/transferia/pkg/providers/ydb"
+	topicsink "github.com/transferia/transferia/pkg/providers/ydb/topics/sink"
 	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -56,25 +56,14 @@ const (
 	DisabledTLS = model.DisabledTLS
 )
 
-type CompressionCodec string
+type CompressionCodec topicsink.CompressionCodec
 
 const (
-	CompressionCodecUnspecified CompressionCodec = ""
-	CompressionCodecRaw         CompressionCodec = "raw"
-	CompressionCodecGzip        CompressionCodec = "gzip"
-	CompressionCodecZstd        CompressionCodec = "zstd"
+	CompressionCodecUnspecified = CompressionCodec(topicsink.CompressionCodecUnspecified)
+	CompressionCodecRaw         = CompressionCodec(topicsink.CompressionCodecRaw)
+	CompressionCodecGzip        = CompressionCodec(topicsink.CompressionCodecGzip)
+	CompressionCodecZstd        = CompressionCodec(topicsink.CompressionCodecZstd)
 )
-
-func (e CompressionCodec) ToTopicTypesCodec() topictypes.Codec {
-	switch e {
-	case CompressionCodecGzip:
-		return topictypes.CodecGzip
-	case CompressionCodecZstd:
-		return topictypes.CodecZstd
-	default:
-		return topictypes.CodecRaw
-	}
-}
 
 func (d *LbDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return logger.MarshalSanitizedObject(d, enc)
@@ -88,7 +77,7 @@ func (d *LbDestination) IsEmpty() bool {
 
 func (d *LbDestination) WithDefaults() {
 	if d.CompressionCodec == "" {
-		d.CompressionCodec = CompressionCodecGzip
+		d.CompressionCodec = CompressionCodec(CompressionCodecGzip)
 	}
 	if d.Cleanup == "" {
 		d.Cleanup = model.DisabledCleanup
@@ -186,14 +175,14 @@ func (d *LbDestination) FillDependentFields(transfer *model.Transfer) {
 	}
 }
 
-func (d *LbDestination) DB() string {
+func (d *LbDestination) db() string {
 	if d.Database == "" {
 		return "/Root"
 	}
 	return d.Database
 }
 
-func (d *LbDestination) InstanceWithPort() string {
+func (d *LbDestination) instanceWithPort() string {
 	res := d.Instance
 	if instanceContainsPort(res) {
 		return res
@@ -221,4 +210,24 @@ func instanceContainsPort(instance string) bool {
 	}
 
 	return true
+}
+
+func (d *LbDestination) TopicSinkConfig() *topicsink.Config {
+	return &topicsink.Config{
+		Topic:            d.Topic,
+		TopicPrefix:      d.TopicPrefix,
+		CompressionCodec: topicsink.CompressionCodec(d.CompressionCodec),
+		FormatSettings:   d.FormatSettings,
+
+		AddSystemTables: d.AddSystemTables,
+		SaveTxOrder:     d.SaveTxOrder,
+
+		Endpoint:    d.instanceWithPort(),
+		Database:    d.db(),
+		Shard:       d.Shard,
+		Credentials: d.Credentials,
+
+		TLS:         d.TLS,
+		RootCAFiles: d.RootCAFiles,
+	}
 }
