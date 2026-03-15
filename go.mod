@@ -71,7 +71,7 @@ require (
 	github.com/valyala/fastjson v1.6.4
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.127.1
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.127.3
 	go.mongodb.org/mongo-driver v1.17.3
 	go.opentelemetry.io/contrib/bridges/otelzap v0.12.0
 	go.opentelemetry.io/otel v1.39.0
@@ -82,7 +82,7 @@ require (
 	go.ytsaurus.tech/library/go/core/log v0.0.4
 	go.ytsaurus.tech/yt/go v0.0.32
 	golang.org/x/crypto v0.47.0
-	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6
+	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6
 	golang.org/x/mod v0.31.0
 	golang.org/x/net v0.49.0
 	golang.org/x/sync v0.19.0
@@ -404,5 +404,9 @@ replace go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelg
 replace github.com/moby/buildkit => github.com/moby/buildkit v0.12.2
 
 replace github.com/tonistiigi/fsutil => github.com/tonistiigi/fsutil v0.0.0-20230629203738-36ef4d8c0dbb
+
+replace github.com/substrait-io/substrait-protobuf/go => github.com/substrait-io/substrait-protobuf/go v0.71.0
+
+replace github.com/substrait-io/substrait => github.com/substrait-io/substrait v0.69.0
 
 replace github.com/segmentio/kafka-go => ./vendor_patched/github.com/segmentio/kafka-go
