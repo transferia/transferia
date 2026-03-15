@@ -24,7 +24,7 @@ type nginxToken struct {
 
 // compiledNginxFormat holds the tokenized format and field metadata for parsing nginx log entries.
 // Parsing works by walking the token sequence: literals are matched exactly (with whitespace
-// flexibility), variables are captured up to the next literal's delimiter character.
+// flexibility), variables are captured up to the next literal's delimiter string.
 type compiledNginxFormat struct {
 	tokens []nginxToken
 	fields []string // Fields names.
@@ -112,10 +112,10 @@ func (c *compiledNginxFormat) parseEntry(input string) ([]string, int, error) {
 			continue
 		}
 
-		// Variable: read until the delimiter (first char of next literal).
+		// Variable: read until the delimiter (full next literal string).
 		delimiter := c.nextDelimiter(i)
 		var end int
-		if delimiter == 0 {
+		if delimiter == "" {
 			// Last variable with no following literal — read to newline or end of input.
 			end = indexOfNewline(input[pos:])
 			if end < 0 {
@@ -124,7 +124,7 @@ func (c *compiledNginxFormat) parseEntry(input string) ([]string, int, error) {
 		} else {
 			end = findDelimiter(input[pos:], delimiter)
 			if end < 0 {
-				format := "cannot find delimiter '%c' after $%s at position %d"
+				format := "cannot find delimiter %q after $%s at position %d"
 				return nil, 0, xerrors.Errorf(format, delimiter, tok.Value, pos)
 			}
 		}
@@ -137,15 +137,15 @@ func (c *compiledNginxFormat) parseEntry(input string) ([]string, int, error) {
 	return values, pos, nil
 }
 
-// nextDelimiter returns the first character of the next literal token after afterIndex.
-// Returns 0 if there is no following literal (i.e. the variable is the last token).
-func (c *compiledNginxFormat) nextDelimiter(afterIndex int) byte {
+// nextDelimiter returns the full literal string of the next literal token after afterIndex.
+// Returns "" if there is no following literal (i.e. the variable is the last token).
+func (c *compiledNginxFormat) nextDelimiter(afterIndex int) string {
 	for j := afterIndex + 1; j < len(c.tokens); j++ {
 		if !c.tokens[j].IsVariable && len(c.tokens[j].Value) > 0 {
-			return c.tokens[j].Value[0]
+			return c.tokens[j].Value
 		}
 	}
-	return 0
+	return ""
 }
 
 // matchLiteral matches a format literal against input character by character.
@@ -181,18 +181,22 @@ func isWhitespace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
-// findDelimiter finds the position of the delimiter character in input.
-// If the delimiter is a whitespace character, matches any whitespace.
-func findDelimiter(input string, delimiter byte) int {
-	if isWhitespace(delimiter) {
-		for i := 0; i < len(input); i++ {
-			if isWhitespace(input[i]) {
-				return i
+// findDelimiter finds the position of the delimiter string in input.
+// Whitespace characters in the delimiter match any whitespace in the input.
+func findDelimiter(input string, delimiter string) int {
+	for i := 0; i < len(input); i++ {
+		if input[i] == '\\' {
+			isNewline := (i+1 < len(input) && input[i+1] == '\n')
+			if !isNewline {
+				i++
+				continue // Skip backslashed non-newline symbol.
 			}
 		}
-		return -1
+		if matchLiteral(input[i:], delimiter) >= 0 {
+			return i
+		}
 	}
-	return strings.IndexByte(input, delimiter)
+	return -1
 }
 
 func indexOfNewline(s string) int {

@@ -348,3 +348,82 @@ func TestOutputSchemaUnknownColumnError(t *testing.T) {
 	_, ok = fieldIndex["nonexistent"]
 	require.False(t, ok)
 }
+
+func TestFindDelimiterMultiChar(t *testing.T) {
+	// Multi-char delimiter "amogus" should not match on single 'a'.
+	input := `value_with_a amogus next`
+	idx := findDelimiter(input, " amogus ")
+	require.Equal(t, 12, idx)
+	require.Equal(t, "value_with_a", input[:idx])
+}
+
+func TestFindDelimiterEscape(t *testing.T) {
+	// \" inside value should not match delimiter ".
+	input := `GET /path?q=\"hello\" HTTP/1.1" "200`
+	idx := findDelimiter(input, `" "`)
+	require.Equal(t, 30, idx)
+	require.Equal(t, `GET /path?q=\"hello\" HTTP/1.1`, input[:idx])
+}
+
+func TestFindDelimiterEscapeAwareBackslash(t *testing.T) {
+	// \\ should consume both bytes, not leak the second \.
+	input := `val\\` + `" next`
+	idx := findDelimiter(input, `"`)
+	require.Equal(t, 5, idx)
+}
+
+func TestParseEntryEscapeJSON(t *testing.T) {
+	compiled, err := compileFormat(`"$addr" "$request" "$status"`)
+	require.NoError(t, err)
+
+	// \" inside request value should not break parsing.
+	line := `"1.2.3.4" "GET /path?q=\"hello\" HTTP/1.1" "200"`
+	values, consumed, err := compiled.parseEntry(line)
+	require.NoError(t, err)
+	require.Equal(t, len(line), consumed)
+	require.Equal(t, "1.2.3.4", values[0])
+	require.Equal(t, `GET /path?q=\"hello\" HTTP/1.1`, values[1])
+	require.Equal(t, "200", values[2])
+}
+
+func TestParseEntryEscapeDefault(t *testing.T) {
+	compiled, err := compileFormat(`"$addr" "$value" "$status"`)
+	require.NoError(t, err)
+
+	// \x22 in nginx default escape — value is returned as-is.
+	line := `"1.2.3.4" "hello\x22world" "200"`
+	values, consumed, err := compiled.parseEntry(line)
+	require.NoError(t, err)
+	require.Equal(t, len(line), consumed)
+	require.Equal(t, "1.2.3.4", values[0])
+	require.Equal(t, `hello\x22world`, values[1])
+	require.Equal(t, "200", values[2])
+}
+
+func TestParseEntryEscapeNone(t *testing.T) {
+	compiled, err := compileFormat(`"$addr" "$status"`)
+	require.NoError(t, err)
+
+	line := `"1.2.3.4" "200"`
+	values, _, err := compiled.parseEntry(line)
+	require.NoError(t, err)
+	require.Equal(t, "1.2.3.4", values[0])
+	require.Equal(t, "200", values[1])
+}
+
+func TestParseEntryEscapeCDNFormat(t *testing.T) {
+	format := `"$remote_addr" "-" "$remote_user" "[$time_local]" "$request" "$status"`
+	compiled, err := compileFormat(format)
+	require.NoError(t, err)
+
+	// request contains escaped quotes — values are returned with escapes intact.
+	line := `"1.2.3.4" "-" "-" "[28/Nov/2025:10:04:24 +0000]" "GET /path?q=\"test\" HTTP/1.1" "200"`
+	values, consumed, err := compiled.parseEntry(line)
+	require.NoError(t, err)
+	require.Equal(t, len(line), consumed)
+	require.Equal(t, "1.2.3.4", values[0])
+	require.Equal(t, "-", values[1])
+	require.Equal(t, "28/Nov/2025:10:04:24 +0000", values[2])
+	require.Equal(t, `GET /path?q=\"test\" HTTP/1.1`, values[3])
+	require.Equal(t, "200", values[4])
+}
