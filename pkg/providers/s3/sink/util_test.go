@@ -168,7 +168,7 @@ func TestCreateSerializer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			serializer, err := CreateSerializer(tt.outputFormat, tt.anyAsString)
+			serializer, err := CreateSerializer(tt.outputFormat, tt.anyAsString, nil)
 
 			if tt.expectError {
 				require.Error(t, err)

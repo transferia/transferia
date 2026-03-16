@@ -33,6 +33,14 @@ const (
 	ZlibEncoding = Encoding("ZLIB")
 )
 
+type SerializerSettings struct {
+	Parquet *ParquetSerializerSettings `log:"true"`
+}
+
+type ParquetSerializerSettings struct {
+	CompressionCodec string `log:"true"`
+}
+
 type PartitionerType string
 
 const (
@@ -67,6 +75,8 @@ type S3Destination struct {
 	MaxItemsPerFile  int    `log:"true"`
 	MaxBytesPerFile  int    `log:"true"`
 	SerializerSet    bool
+
+	SerializerSettings SerializerSettings `log:"true"`
 
 	// Replication from queue spesific fields
 	Rotator     Rotator

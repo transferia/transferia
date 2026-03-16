@@ -61,7 +61,7 @@ func (s *AsyncSink) pushBatch(items []*abstract.ChangeItem) error {
 func (s *AsyncSink) initPipe(fileName string) error {
 	pipeReader, pipeWriter := io.Pipe()
 
-	batchSerializer, err := snapshot_sink.CreateSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
+	batchSerializer, err := snapshot_sink.CreateSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString, nil)
 	if err != nil {
 		return xerrors.Errorf("unable to create serializer with outputFormat: %s: %w", s.cfg.OutputFormat, err)
 	}

@@ -193,7 +193,7 @@ func (s *ReplicationSink) tryUploadWithIntersectionGuard(cache *FileCache, fileP
 }
 
 func (s *ReplicationSink) serialize(part *FileCache) ([]byte, error) {
-	batchSerializer, err := CreateSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
+	batchSerializer, err := CreateSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString, s.cfg.SerializerSettings.Parquet)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to upload file part: %w", err)
 	}

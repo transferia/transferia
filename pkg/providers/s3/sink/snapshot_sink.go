@@ -63,7 +63,7 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref s3ObjectRef, keyPartNu
 	key := s.fileSplitter.increaseKey(ref)
 	s.logger.Infof("init pipe for %s", key)
 
-	batchSerializer, err := CreateSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString)
+	batchSerializer, err := CreateSerializer(s.cfg.OutputFormat, s.cfg.AnyAsString, s.cfg.SerializerSettings.Parquet)
 	if err != nil {
 		return xerrors.Errorf("unable to create serializer with outputFormat: %s: %w", s.cfg.OutputFormat, err)
 	}

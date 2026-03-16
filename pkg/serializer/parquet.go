@@ -7,6 +7,9 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 	"github.com/parquet-go/parquet-go/compress"
+	"github.com/parquet-go/parquet-go/compress/gzip"
+	"github.com/parquet-go/parquet-go/compress/snappy"
+	"github.com/parquet-go/parquet-go/compress/zstd"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 )
@@ -129,6 +132,21 @@ func (s *parquetStreamSerializer) Close() (err error) {
 		}
 	}
 	return err
+}
+
+// CodecFromString maps a parquet compression codec name to the corresponding compress.Codec.
+// Returns nil (uncompressed) for empty string or "UNCOMPRESSED".
+func CodecFromString(codec string) compress.Codec {
+	switch codec {
+	case "SNAPPY":
+		return &snappy.Codec{}
+	case "GZIP":
+		return &gzip.Codec{}
+	case "ZSTD":
+		return &zstd.Codec{}
+	default:
+		return nil
+	}
 }
 
 func NewParquetStreamSerializer(ostream io.Writer, schema *parquet.Schema, tableSchema abstract.FastTableSchema, compressionCodec compress.Codec) (*parquetStreamSerializer, error) {

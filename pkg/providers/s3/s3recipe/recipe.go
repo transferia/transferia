@@ -79,6 +79,9 @@ func PrepareS3(t *testing.T, bucket string, format model.ParsingFormat, encoding
 		SerializerSet:    false,
 		Rotator:          nil,
 		Partitioner:      s3provider.DefaultPartitionerType,
+		SerializerSettings: s3provider.SerializerSettings{
+			Parquet: nil,
+		},
 	}
 	cfg.WithDefaults()
 	bucket = strings.ToLower(bucket)
