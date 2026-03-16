@@ -458,7 +458,7 @@ func (p *GenericParser) doLfParser(msg parsers.Message, partition abstract.Parti
 	st := time.Now()
 	transportMeta := fmt.Sprintf(
 		"%v@@%v@@%v@@%v@@%v@@%v@@%v@@%v@@",
-		partition.String(),
+		partition.LegacyLogbrokerPqv0String(),
 		msg.Offset,
 		string(msg.Key),
 		msg.CreateTime.UnixNano()/int64(time.Millisecond),

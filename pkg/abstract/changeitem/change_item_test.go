@@ -1417,6 +1417,9 @@ func checkIfKeyContainsValue(t *testing.T, changeItem ChangeItem, key string, va
 func TestNewPartition(t *testing.T) {
 	require.Equal(t, "{\"partition\":1,\"topic\":\"yabs-rt-bs-tracking-log\"}", NewPartition("yabs-rt-bs-tracking-log", 1).String())
 	require.Equal(t, "{\"partition\":1,\"topic\":\"yabs-rt/bs-tracking-log\"}", NewPartition("yabs-rt/bs-tracking-log", 1).String())
+
+	require.Equal(t, "rt3.--yabs-rt-bs-tracking-log:0", NewPartition("yabs-rt-bs-tracking-log", 0).LegacyLogbrokerPqv0String())
+	require.Equal(t, "rt3.--yabs-rt--bs-tracking-log:0", NewPartition("yabs-rt/bs-tracking-log", 0).LegacyLogbrokerPqv0String())
 }
 
 type canondata struct {
