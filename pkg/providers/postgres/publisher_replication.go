@@ -158,7 +158,7 @@ func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) []abstract.
 	for _, change := range items {
 		tableID := change.TableID()
 		if _, ok := p.includeCache[tableID]; !ok {
-			p.includeCache[tableID] = isTableOrParentIncluded(p.altNames, tableID, inlcludeable, p.config.CollapseInheritTables)
+			p.includeCache[tableID] = isTableOrParentIncluded(p.altNames, tableID, inlcludeable, p.config.collapseInheritTablesEnabled())
 		}
 		if p.includeCache[change.TableID()] {
 			changes = append(changes, change)
@@ -188,7 +188,7 @@ func (p *replication) reloadSchema() error {
 		return xerrors.Errorf("failed to create PostgreSQL storage object at source endpoint: %w", err)
 	}
 	defer storage.Close()
-	storage.IsHomo = true // exclude VIEWs. This is a nasty solution which should be replaced when an Accessor is introduced instead of the jack of all trades Storage
+	storage.DisableViewsExtraction = true // exclude VIEWs. This is a nasty solution which should be replaced when an Accessor is introduced instead of the jack of all trades Storage
 
 	tableMap, err := storage.TableListWithoutSkips(nil) // to collect 'child' tables, when CollapseInheritTables=true
 	if err != nil {
@@ -203,7 +203,7 @@ func (p *replication) reloadSchema() error {
 		return xerrors.Errorf("failed to filter table list extracted from source by objects set in transfer: %w", err)
 	}
 
-	if p.config.CollapseInheritTables {
+	if p.config.collapseInheritTablesEnabled() {
 		childParentMap, err := MakeChildParentMap(p.sharedCtx, p.conn)
 		if err != nil {
 			return xerrors.Errorf("failed while reading pg_inherits: %w", err)
@@ -451,12 +451,12 @@ func (p *replication) parseWal2JsonChanges(xld *pglogrepl.XLogData) ([]abstract.
 			continue
 		}
 		if !p.changeProcessor.hasSchemaForTable(tableID) {
-			if p.config.CollapseInheritTables {
+			if p.config.collapseInheritTablesEnabled() {
 				parentID, err := p.changeProcessor.resolveParentTable(p.sharedCtx, p.conn, tableID)
 				if err != nil {
 					return nil, xerrors.Errorf("unable to resolve parent: %w", err)
 				}
-				if !isTableOrParentIncluded(p.altNames, parentID, includeableFilter, p.config.CollapseInheritTables) {
+				if !isTableOrParentIncluded(p.altNames, parentID, includeableFilter, p.config.collapseInheritTablesEnabled()) {
 					p.skippedTables[tableID] = true // to prevent next time resolve for parent
 					p.logger.Warn(
 						"skipping changes for a table, since itself or its parent is not included",

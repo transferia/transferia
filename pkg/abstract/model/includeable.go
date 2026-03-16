@@ -1,6 +1,9 @@
 package model
 
 import (
+	"context"
+	"time"
+
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 )
@@ -49,6 +52,15 @@ func FilteredTableList(storage abstract.Storage, transfer *Transfer) (abstract.T
 	result, err = transfer.FilterObjects(result)
 	if err != nil {
 		return nil, xerrors.Errorf("filter failed: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 15*time.Minute)
+	defer cancel()
+	if expander, ok := storage.(abstract.PartitionExpander); ok {
+		result, err = expander.ExpandPartitions(ctx, result)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to expand partitions: %w", err)
+		}
 	}
 	return result, nil
 }

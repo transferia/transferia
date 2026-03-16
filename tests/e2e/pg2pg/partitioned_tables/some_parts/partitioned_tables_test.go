@@ -14,11 +14,12 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
-	Source       = *pgrecipe.RecipeSource(pgrecipe.WithInitDir("dump"), pgrecipe.WithPrefix(""), pgrecipe.WithDBTables(
+	Source       = *pgrecipe.RecipeSource(pgrecipe.WithInitDir(yatestx.ProjectSource("dump")), pgrecipe.WithPrefix(""), pgrecipe.WithDBTables(
 		"public.measurement_inherited",
 		"public.measurement_inherited_y2006m02",
 		"public.measurement_inherited_y2006m04",

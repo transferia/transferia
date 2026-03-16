@@ -13,17 +13,18 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 
-	TruncateSource = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("dump"), pgrecipe.WithEdit(func(pg *postgres.PgSource) {
+	TruncateSource = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir(yatestx.ProjectSource("dump")), pgrecipe.WithEdit(func(pg *postgres.PgSource) {
 		pg.UseFakePrimaryKey = true
 	}))
 	TruncateTarget = *pgrecipe.RecipeTarget(pgrecipe.WithPrefix("DB0_"))
 
-	DropSource = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("dump"), pgrecipe.WithEdit(func(pg *postgres.PgSource) {
+	DropSource = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir(yatestx.ProjectSource("dump")), pgrecipe.WithEdit(func(pg *postgres.PgSource) {
 		pg.UseFakePrimaryKey = true
 	}))
 	DropTarget = *pgrecipe.RecipeTarget(pgrecipe.WithPrefix("DB0_"))

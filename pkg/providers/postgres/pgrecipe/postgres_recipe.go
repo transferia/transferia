@@ -21,6 +21,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/connection"
 	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/tests/helpers/yatestx"
 	"github.com/transferia/transferia/tests/tcrecipes"
 	tc_postgres "github.com/transferia/transferia/tests/tcrecipes/postgres"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -67,6 +68,7 @@ func withFiles(files ...string) ContainerOption {
 }
 
 func withInitDir(dir string) ContainerOption {
+	dir = yatestx.ProjectSource(dir)
 	return func(opt *ContainerParams) {
 		entries, err := os.ReadDir(dir)
 		if err != nil {

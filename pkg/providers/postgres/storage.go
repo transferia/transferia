@@ -67,6 +67,10 @@ type Storage struct {
 	sExTime                  time.Time
 	DisableCheckReplIdentity bool // Disables checks of replica identity full.
 	DisableViewsExtraction   bool // Do not transfers views if true.
+
+	// childToParentMap is a lazily-initialized cache of pg_inherits data.
+	// Populated on first call to getChildToParentMap.
+	childToParentMap map[abstract.TableID]abstract.TableID
 }
 
 func (s *Storage) SnapshotLSN() string {
@@ -274,6 +278,35 @@ func (s *Storage) Ping() error {
 	return nil
 }
 
+// In homogeneous pg->pg mode CollapseInheritTables is ignored.
+func (s *Storage) collapseInheritTablesEnabled() bool {
+	return s.Config.CollapseInheritTables && !s.IsHomo
+}
+
+// getChildToParentMap returns a lazily-initialized child->parent map from pg_inherits.
+// Not thread-safe. The result is cached in Storage.
+func (s *Storage) getChildToParentMap(ctx context.Context) (map[abstract.TableID]abstract.TableID, error) {
+	if s.childToParentMap != nil {
+		return s.childToParentMap, nil
+	}
+	var err error
+	s.childToParentMap, err = MakeChildParentMap(ctx, s.Conn)
+	return s.childToParentMap, err
+}
+
+func (s *Storage) getParentToChildMap(ctx context.Context) (map[abstract.TableID][]abstract.TableID, error) {
+	childToParent, err := s.getChildToParentMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Convert childToParent to parentToChildren.
+	parentToChildren := make(map[abstract.TableID][]abstract.TableID)
+	for child, parent := range childToParent {
+		parentToChildren[parent] = append(parentToChildren[parent], child)
+	}
+	return parentToChildren, nil
+}
+
 func (s *Storage) handleSkips(inTableMap abstract.TableMap) (abstract.TableMap, error) {
 	ctx := context.Background()
 
@@ -284,14 +317,14 @@ func (s *Storage) handleSkips(inTableMap abstract.TableMap) (abstract.TableMap, 
 		if err != nil {
 			return nil, xerrors.Errorf("failed to GetInheritedTables, err: %w", err)
 		}
-		if s.Config.CollapseInheritTables {
+		if s.collapseInheritTablesEnabled() {
 			result, err := handlePartitionedTables(logger.Log, in, childToParent)
 			if err != nil {
 				return nil, xerrors.Errorf("failed to handlePartitionedTables, err: %w", err)
 			}
 			return result, nil
 		} else {
-			result, err := handleNotPartitionedTables(logger.Log, in, childToParent)
+			result, err := handleNotPartitionedTables(logger.Log, in, childToParent, s.IsHomo)
 			if err != nil {
 				return nil, xerrors.Errorf("failed to handleNotPartitionedTables, err: %w", err)
 			}
@@ -376,7 +409,7 @@ func (s *Storage) tableListImpl(ctx context.Context, tx pgx.Tx, filter abstract.
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
-		WithCollapseInheritTables(s.Config.CollapseInheritTables).
+		WithCollapseInheritTables(s.collapseInheritTablesEnabled()).
 		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity)
 
 	tablesListUnfiltered, ts, err := sEx.TablesList(ctx, tx)
@@ -389,7 +422,6 @@ func (s *Storage) tableListImpl(ctx context.Context, tx pgx.Tx, filter abstract.
 	result := make(abstract.TableMap)
 
 	if s.Config.TableFilter != nil || filter != nil {
-		// filter tables
 		tablesListFiltered := make([]tableIDWithInfo, 0)
 		for _, tIDWithInfo := range tablesListUnfiltered {
 			if s.Config.TableFilter != nil && !s.Config.TableFilter.Include(tIDWithInfo.ID) {
@@ -441,18 +473,19 @@ func loadIntoTableMapForTable(ctx context.Context, table tableIDWithInfo, extrac
 }
 
 func (s *Storage) GetInheritedTables(ctx context.Context) (map[abstract.TableID]abstract.TableID, error) {
-	tablesParents, err := MakeChildParentMap(ctx, s.Conn)
-
+	allParents, err := s.getChildToParentMap(ctx)
 	if err != nil {
 		logger.Log.Error("failed query for extraction pg inherits", log.Error(err))
 		return nil, xerrors.Errorf("failed query for extraction pg inherits: %w", err)
 	}
 	if s.Config.TableFilter == nil {
-		return tablesParents, nil
+		return allParents, nil
 	}
-	for childID := range tablesParents {
-		if !s.Config.TableFilter.Include(childID) {
-			delete(tablesParents, childID)
+	// Return a filtered copy, do not mutate the cached map.
+	tablesParents := make(map[abstract.TableID]abstract.TableID, len(allParents))
+	for childID, parentID := range allParents {
+		if s.Config.TableFilter.Include(childID) {
+			tablesParents[childID] = parentID
 		}
 	}
 
@@ -664,7 +697,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
 
-	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.collapseInheritTablesEnabled())
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
@@ -735,7 +768,7 @@ func (s *Storage) LoadSchemaForTable(ctx context.Context, conn *pgx.Conn, table 
 		WithForbiddenSchemas(s.ForbiddenSchemas).
 		WithForbiddenTables(s.ForbiddenTables).
 		WithFlavour(s.Flavour).
-		WithCollapseInheritTables(s.Config.CollapseInheritTables).
+		WithCollapseInheritTables(s.collapseInheritTablesEnabled()).
 		WithDisableReplicaIdentityFull(s.DisableCheckReplIdentity).
 		LoadSchema(ctx, conn, &tableID)
 	if err != nil {
@@ -817,7 +850,7 @@ func (s *Storage) LoadRandomSample(table abstract.TableDescription, pusher abstr
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
 
-	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.collapseInheritTablesEnabled())
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
@@ -867,7 +900,7 @@ func (s *Storage) loadSampleBySet(ctx context.Context, tx pgx.Tx, startTime time
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
 
-	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.collapseInheritTablesEnabled())
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
@@ -936,7 +969,7 @@ func (s *Storage) loadTopBottomSample(ctx context.Context, tx pgx.Tx, startTime 
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", table.Fqtn(), err)
 	}
 
-	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.collapseInheritTablesEnabled())
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", table.Fqtn(), reason)
 	}
@@ -1182,7 +1215,7 @@ func (s *Storage) LoadQueryTable(ctx context.Context, tableQuery tablequery.Tabl
 		return xerrors.Errorf("failed to discover table %v loading mode: %w", tableDescription.Fqtn(), err)
 	}
 
-	excludeDescendants, reason := loadMode.ExcludeDescendants(s.Config.CollapseInheritTables)
+	excludeDescendants, reason := loadMode.ExcludeDescendants(s.collapseInheritTablesEnabled())
 	if excludeDescendants {
 		logger.Log.Infof("Use ONLY statement for selecting from table %v: %v", tableDescription.Fqtn(), reason)
 	}
@@ -1405,6 +1438,7 @@ func NewStorage(config *PgStorageParams, opts ...StorageOpt) (*Storage, error) {
 		sExTime:                  time.Time{},
 		DisableCheckReplIdentity: false,
 		DisableViewsExtraction:   false,
+		childToParentMap:         nil,
 	}
 	return storage, nil
 }

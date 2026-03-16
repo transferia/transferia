@@ -383,7 +383,7 @@ func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 		for _, item := range changes {
 			changeItem := item.toChangeItem()
 			tableID := changeItem.TableID()
-			if !isTableOrParentIncluded(p.altNames, tableID, abstract.NewIntersectionIncludeable(p.objectsFilter, p.config), p.config.CollapseInheritTables) {
+			if !isTableOrParentIncluded(p.altNames, tableID, abstract.NewIntersectionIncludeable(p.objectsFilter, p.config), p.config.collapseInheritTablesEnabled()) {
 				continue
 			}
 
@@ -396,12 +396,12 @@ func (p *poller) pullChanges() (*pollWindow, []abstract.ChangeItem, error) {
 					p.logger.Warn("skipping changes for a table added after replication had started", log.String("table", tableID.String()))
 					continue
 				}
-				if p.config.CollapseInheritTables {
+				if p.config.collapseInheritTablesEnabled() {
 					parentID, err := p.changeProcessor.resolveParentTable(context.TODO(), p.conn, tableID)
 					if err != nil {
 						return nil, nil, xerrors.Errorf("unable to resolve parent: %w", err)
 					}
-					if !isTableOrParentIncluded(p.altNames, parentID, p.objectsFilter, p.config.CollapseInheritTables) {
+					if !isTableOrParentIncluded(p.altNames, parentID, p.objectsFilter, p.config.collapseInheritTablesEnabled()) {
 						p.skippedTables[tableID] = true // to prevent next time resolve for parent
 						p.logger.Warn(
 							"skipping changes for a table, since itself or its parent is not included",

@@ -76,16 +76,26 @@ func handleNotPartitionedTables(
 	lgr log.Logger,
 	foundTables abstract.TableMap,
 	childToParent map[abstract.TableID]abstract.TableID,
+	isHomo bool,
 ) (abstract.TableMap, error) {
 	parentToChildren := makeParentToChildren(childToParent)
-	err := assertIfMatchedTableAndNotAllParts(foundTables, parentToChildren)
-	if err != nil {
-		return nil, xerrors.Errorf("check returned an error, err: %w", err)
+	// In homo, ExpandPartitions (called later) handles case when parent included with some (not all) children.
+	if !isHomo {
+		err := assertIfMatchedTableAndNotAllParts(foundTables, parentToChildren)
+		if err != nil {
+			return nil, xerrors.Errorf("check returned an error, err: %w", err)
+		}
 	}
 
 	result := map[abstract.TableID]abstract.TableInfo{}
 	for tableID, tableInfo := range foundTables {
 		_, childrenFound := parentToChildren[tableID]
+		if isHomo && childrenFound {
+			// In homogeneous pg->pg mode we preserve explicitly selected parent tables
+			// even when descendants exist, so parent data is copied with ONLY semantics.
+			result[tableID] = tableInfo
+			continue
+		}
 		if skipParentIfNotCollapseInheritTables(false, childrenFound) {
 			lgr.Infof("skip partitioned table (bcs all data in child tables): %s", tableID.Fqtn())
 			continue // throw out parts

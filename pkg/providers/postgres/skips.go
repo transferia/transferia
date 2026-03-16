@@ -31,7 +31,8 @@ func (s *Storage) Skipped(tableID abstract.TableID) (bool, error) {
 		return false, xerrors.Errorf("unable to build table info: %w", err)
 	}
 
-	return skipChildrenIfCollapseInheritTables(s.Config.CollapseInheritTables, tinfo.tableInfo.IsInherited) ||
-		skipParentIfNotCollapseInheritTables(s.Config.CollapseInheritTables, tinfo.tableInfo.HasSubclass) ||
+	collapseInheritTables := s.collapseInheritTablesEnabled()
+	return skipChildrenIfCollapseInheritTables(collapseInheritTables, tinfo.tableInfo.IsInherited) ||
+		skipParentIfNotCollapseInheritTables(collapseInheritTables, tinfo.tableInfo.HasSubclass) ||
 		skipViewIfHomogeneous(s.IsHomo, tinfo.tableInfo.IsView), nil
 }

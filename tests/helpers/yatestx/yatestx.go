@@ -1,7 +1,14 @@
 package yatestx
 
-import "github.com/transferia/transferia/library/go/test/yatest"
+import (
+	"path"
 
-func ProjectSource(path string) string {
-	return yatest.SourcePath(yatest.ProjectPath() + "/" + path)
+	"github.com/transferia/transferia/library/go/test/yatest"
+)
+
+func ProjectSource(src string) string {
+	if path.IsAbs(src) {
+		return src
+	}
+	return yatest.SourcePath(yatest.ProjectPath() + "/" + src)
 }

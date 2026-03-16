@@ -16,13 +16,14 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/yatestx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
 var (
 	SourceNoCollapse = *pgrecipe.RecipeSource(
 		pgrecipe.WithPrefix(""),
-		pgrecipe.WithInitDir("init_source"),
+		pgrecipe.WithInitDir(yatestx.ProjectSource("init_source")),
 		pgrecipe.WithEdit(func(pg *postgres.PgSource) {
 			pg.CollapseInheritTables = false
 			pg.UseFakePrimaryKey = true // PK constraint for partitioned tables is disabled for PostgreSQL < 12
@@ -32,7 +33,7 @@ var (
 
 	SourceCollapse = *pgrecipe.RecipeSource(
 		pgrecipe.WithPrefix(""),
-		pgrecipe.WithInitDir("init_source"),
+		pgrecipe.WithInitDir(yatestx.ProjectSource("init_source")),
 		pgrecipe.WithEdit(func(pg *postgres.PgSource) {
 			pg.CollapseInheritTables = true
 			pg.UseFakePrimaryKey = true // PK constraint for partitioned tables is disabled for PostgreSQL < 12
@@ -42,7 +43,7 @@ var (
 
 	SourceCollapseDBLogEnabled = *pgrecipe.RecipeSource(
 		pgrecipe.WithPrefix(""),
-		pgrecipe.WithInitDir("init_source"),
+		pgrecipe.WithInitDir(yatestx.ProjectSource("init_source")),
 		pgrecipe.WithEdit(func(pg *postgres.PgSource) {
 			pg.CollapseInheritTables = true
 			pg.UseFakePrimaryKey = true // PK constraint for partitioned tables is disabled for PostgreSQL < 12

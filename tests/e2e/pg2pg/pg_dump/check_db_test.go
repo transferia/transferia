@@ -152,11 +152,11 @@ func Snapshot(t *testing.T) {
 	require.Equal(t, 1, itemTypToCnt["INDEX_ATTACH"])
 	require.Equal(t, 1, itemTypToCnt["TABLE_ATTACH"])
 
-	// without index attach
+	// parent-only include in homo expands to partitions; index attach is preserved
 	itemTypToCnt = extractPgDumpTypToCnt(t, []string{"ia.ia_table"}, []string{"ia"})
-	require.Equal(t, 1, itemTypToCnt["INDEX"])
-	require.Equal(t, 0, itemTypToCnt["INDEX_ATTACH"])
-	require.Equal(t, 0, itemTypToCnt["TABLE_ATTACH"])
+	require.Equal(t, 3, itemTypToCnt["INDEX"])
+	require.Equal(t, 1, itemTypToCnt["INDEX_ATTACH"])
+	require.Equal(t, 1, itemTypToCnt["TABLE_ATTACH"])
 
 	// without index attach
 	itemTypToCnt = extractPgDumpTypToCnt(t, []string{"ia.ia_part_1"}, []string{"ia"})

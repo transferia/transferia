@@ -396,6 +396,18 @@ type NextArrTableDescriptionGetterBuilder interface {
 	BuildNextArrTableDescriptionGetter(tables []TableDescription) (NextArrTableDescriptionGetter, error)
 }
 
+// PartitionExpander expands parent (partitioned) tables in the given TableMap by adding parts (children).
+// This is used after filtering in FilteredTableList to expand parent table with all its children.
+// The parent itself stays in the map (e.g. in PG Storage with ONLY semantics it returns 0 data rows).
+//
+// Expansion rules:
+//   - If a parent is in the map and NONE of its children are present -> add ALL children;
+//   - If a parent is in the map and SOME children are already present -> no expansion (user chose explicitly);
+//   - If only children are in the map (no parent) -> no expansion.
+type PartitionExpander interface {
+	ExpandPartitions(ctx context.Context, tableMap TableMap) (TableMap, error)
+}
+
 // This is special workaround for partitioned_tables in postgres
 // see FulfilledIncludes
 //

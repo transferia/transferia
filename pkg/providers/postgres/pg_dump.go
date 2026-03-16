@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/jackc/pgtype/pgxtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics"
@@ -190,6 +191,47 @@ func resolveTablesIncluded(src *PgSource, transfer *model.Transfer) ([]abstract.
 		}
 	}
 	return abstract.TableIDsIntersection(fromSrc, fromTransfer), nil
+}
+
+// expandWithTablesPartitions adds all partition descendants for included parent tables.
+func expandWithTablesPartitions(ctx context.Context, conn pgxtype.Querier, tablesIncluded []abstract.TableID) ([]abstract.TableID, error) {
+	if len(tablesIncluded) == 0 {
+		return tablesIncluded, nil
+	}
+	childToParent, err := MakeChildParentMap(ctx, conn)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to get partition map for pg_dump: %w", err)
+	}
+	parentToChildren := make(map[abstract.TableID][]abstract.TableID)
+	for child, parent := range childToParent {
+		parentToChildren[parent] = append(parentToChildren[parent], child)
+	}
+	includeSet := set.New[abstract.TableID]()
+	for _, table := range tablesIncluded {
+		if !includeSet.Contains(table) {
+			includeSet.Add(table)
+		}
+		// Find each partitioned parent matched by this include, then add all descendants.
+		for parent := range parentToChildren {
+			if !table.Includes(parent) {
+				continue
+			}
+			queue := []abstract.TableID{parent}
+			for len(queue) > 0 {
+				current := queue[0]
+				queue = queue[1:]
+				for _, child := range parentToChildren[current] {
+					if !includeSet.Contains(child) {
+						includeSet.Add(child)
+						queue = append(queue, child)
+					}
+				}
+			}
+		}
+	}
+	res := includeSet.Slice()
+	slices.SortFunc(res, func(a, b abstract.TableID) int { return a.Less(b) })
+	return res, nil
 }
 
 func pgDumpSchemaArgs(src *PgSource, tablesIncluded []abstract.TableID, seqsIncluded []abstract.TableID, seqsExcluded []abstract.TableID) ([]string, error) {
@@ -378,6 +420,10 @@ func loadPgDumpSchema(ctx context.Context, src *PgSource, transfer *model.Transf
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve included tables: %w", err)
 	}
+	tablesIncluded, err = expandWithTablesPartitions(ctx, tx.Conn(), tablesIncluded)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to expand tables with their partitions: %w", err)
+	}
 	seqsIncluded, seqsExcluded := filterSequences(seqs, abstract.NewIntersectionIncludeable(src, transfer))
 
 	hasTableFilter := len(tablesIncluded) > 0
@@ -421,7 +467,15 @@ func loadPgDumpSchema(ctx context.Context, src *PgSource, transfer *model.Transf
 	if len(tablesIncluded) == 0 {
 		result = append(result, dump...)
 	} else {
-		result = append(result, filterDump(dump, abstract.NewIntersectionIncludeable(src, transfer))...)
+		filter := abstract.IncludeableFunc(func(tID abstract.TableID) bool {
+			for _, included := range tablesIncluded {
+				if included.Includes(tID) {
+					return true
+				}
+			}
+			return false
+		})
+		result = append(result, filterDump(dump, filter)...)
 	}
 
 	result = append(result, userDefinedAfterTables...)

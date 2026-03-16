@@ -406,9 +406,14 @@ func (s *PgSource) Validate() error {
 	return nil
 }
 
+// In homogeneous pg->pg mode CollapseInheritTables is ignored.
+func (s *PgSource) collapseInheritTablesEnabled() bool {
+	return s.CollapseInheritTables && !s.IsHomo
+}
+
 func (s *PgSource) ExtraTransformers(ctx context.Context, transfer *model.Transfer, registry metrics.Registry) ([]abstract.Transformer, error) {
 	var result []abstract.Transformer
-	if s.CollapseInheritTables {
+	if s.collapseInheritTablesEnabled() {
 		pgStorageAbstract, err := storage.NewStorage(transfer, coordinator.NewFakeClient(), registry)
 		if err != nil {
 			return nil, errors.CategorizedErrorf(categories.Source, "unable to resolve PG storage from transfer source: %w", err)
