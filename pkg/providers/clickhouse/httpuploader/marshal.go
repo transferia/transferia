@@ -93,6 +93,7 @@ func MarshalCItoJSON(row abstract.ChangeItem, rules *MarshallingRules, buf *byte
 		colNames = row.OldKeys.KeyNames
 		colValues = row.OldKeys.KeyValues
 	}
+	hasColumns := false
 	for idx, columnName := range colNames {
 		// if colNames same as was used to build GFMap return result from slice, otherwise map lookup.
 		colSchemaIndex, ok := rules.gfMap.Lookup(columnName, idx)
@@ -241,8 +242,11 @@ func MarshalCItoJSON(row abstract.ChangeItem, rules *MarshallingRules, buf *byte
 			}
 		}
 		buf.WriteByte(',')
+		hasColumns = true
 	}
-	buf.Truncate(buf.Len() - 1)
+	if hasColumns {
+		buf.Truncate(buf.Len() - 1)
+	}
 	buf.WriteByte('}')
 	buf.WriteByte('\n')
 	return nil

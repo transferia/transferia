@@ -101,3 +101,110 @@ func TestEscapNotCurraptNonUTF8(t *testing.T) {
 	}
 	require.True(t, hackyByteInPlace)
 }
+
+func TestNullValueMarshal(t *testing.T) {
+	tschema := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "recipient", DataType: ytschema.TypeString.String()},
+	})
+
+	t.Run("single_null_column", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		err := MarshalCItoJSON(abstract.ChangeItem{
+			ColumnNames:  []string{"recipient"},
+			ColumnValues: []any{nil},
+			TableSchema:  tschema,
+		}, NewRules(
+			tschema.ColumnNames(),
+			tschema.Columns(),
+			abstract.MakeMapColNameToIndex(tschema.Columns()),
+			map[string]*columntypes.TypeDescription{
+				"recipient": new(columntypes.TypeDescription),
+			},
+			false,
+		), buf)
+
+		require.NoError(t, err)
+		result := buf.String()
+
+		// Should be valid JSON object, even if empty
+		require.Equal(t, "{}\n", result, "Expected empty JSON object with newline")
+
+		// Verify it's valid JSON
+		var parsed map[string]interface{}
+		err = json.Unmarshal(buf.Bytes(), &parsed)
+		require.NoError(t, err, "Result should be valid JSON")
+		require.Empty(t, parsed, "Parsed object should be empty")
+	})
+
+	t.Run("multiple_columns_all_null", func(t *testing.T) {
+		tschema := abstract.NewTableSchema([]abstract.ColSchema{
+			{ColumnName: "col1", DataType: ytschema.TypeString.String()},
+			{ColumnName: "col2", DataType: ytschema.TypeString.String()},
+		})
+
+		buf := &bytes.Buffer{}
+		err := MarshalCItoJSON(abstract.ChangeItem{
+			ColumnNames:  []string{"col1", "col2"},
+			ColumnValues: []any{nil, nil},
+			TableSchema:  tschema,
+		}, NewRules(
+			tschema.ColumnNames(),
+			tschema.Columns(),
+			abstract.MakeMapColNameToIndex(tschema.Columns()),
+			map[string]*columntypes.TypeDescription{
+				"col1": new(columntypes.TypeDescription),
+				"col2": new(columntypes.TypeDescription),
+			},
+			false,
+		), buf)
+
+		require.NoError(t, err)
+		result := buf.String()
+
+		// Should be valid JSON object, even if empty
+		require.Equal(t, "{}\n", result, "Expected empty JSON object with newline")
+
+		// Verify it's valid JSON
+		var parsed map[string]interface{}
+		err = json.Unmarshal(buf.Bytes(), &parsed)
+		require.NoError(t, err, "Result should be valid JSON")
+		require.Empty(t, parsed, "Parsed object should be empty")
+	})
+
+	t.Run("mixed_null_and_values", func(t *testing.T) {
+		tschema := abstract.NewTableSchema([]abstract.ColSchema{
+			{ColumnName: "col1", DataType: ytschema.TypeString.String()},
+			{ColumnName: "col2", DataType: ytschema.TypeString.String()},
+			{ColumnName: "col3", DataType: ytschema.TypeString.String()},
+		})
+
+		buf := &bytes.Buffer{}
+		err := MarshalCItoJSON(abstract.ChangeItem{
+			ColumnNames:  []string{"col1", "col2", "col3"},
+			ColumnValues: []any{nil, "value2", nil},
+			TableSchema:  tschema,
+		}, NewRules(
+			tschema.ColumnNames(),
+			tschema.Columns(),
+			abstract.MakeMapColNameToIndex(tschema.Columns()),
+			map[string]*columntypes.TypeDescription{
+				"col1": new(columntypes.TypeDescription),
+				"col2": new(columntypes.TypeDescription),
+				"col3": new(columntypes.TypeDescription),
+			},
+			false,
+		), buf)
+
+		require.NoError(t, err)
+		result := buf.String()
+
+		// Should contain only col2
+		require.Equal(t, `{"col2":"value2"}`+"\n", result, "Expected JSON with only non-null column")
+
+		// Verify it's valid JSON
+		var parsed map[string]interface{}
+		err = json.Unmarshal(buf.Bytes(), &parsed)
+		require.NoError(t, err, "Result should be valid JSON")
+		require.Equal(t, "value2", parsed["col2"])
+	})
+}
