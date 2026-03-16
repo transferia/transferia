@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
-	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser/gotest/prototest"
+	prototestpb "github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser/gotest/prototest"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoscanner"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-var stdDataTypesFilled = &prototest.StdDataTypesMsg{
+var stdDataTypesFilled = &prototestpb.StdDataTypesMsg{
 	DoubleField:   1.11,
 	FloatField:    2.2,
 	Int32Field:    2,
@@ -40,10 +40,10 @@ var stdDataTypesFilled = &prototest.StdDataTypesMsg{
 		"key2": 12,
 	},
 	RepeatedField: []string{"1", "2", "3"},
-	MsgField: &prototest.EmbeddedMsg{
+	MsgField: &prototestpb.EmbeddedMsg{
 		StringField: "stringField",
 		Int32Field:  2,
-		EnumField:   prototest.EmbeddedEnum_ITEM_2,
+		EnumField:   prototestpb.EmbeddedEnum_ITEM_2,
 	},
 	StructField: &structpb.Struct{
 		Fields: map[string]*structpb.Value{
@@ -55,14 +55,14 @@ var stdDataTypesFilled = &prototest.StdDataTypesMsg{
 			},
 		},
 	},
-	One: &prototest.OneOfs{
-		One: &prototest.OneOfs_Int32Field{
+	One: &prototestpb.OneOfs{
+		One: &prototestpb.OneOfs_Int32Field{
 			Int32Field: 52,
 		},
 	},
 }
 
-var stdDataTypesEmpty = &prototest.StdDataTypesMsg{
+var stdDataTypesEmpty = &prototestpb.StdDataTypesMsg{
 	DoubleField: 2.223,
 }
 

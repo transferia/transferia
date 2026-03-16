@@ -8,14 +8,14 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf"
-	"github.com/transferia/transferia/tests/canon/parser/samples/dynamic/sample_proto/sample_proto"
+	sample_protopb "github.com/transferia/transferia/tests/canon/parser/samples/dynamic/sample_proto/sample_proto"
 	"github.com/transferia/transferia/tests/canon/parser/testcase"
 	"go.ytsaurus.tech/library/go/core/log"
 	"google.golang.org/protobuf/proto"
 )
 
 func makeDesc() ([]byte, error) {
-	messageDescriptorProto, _ := descriptor.MessageDescriptorProto(new(sample_proto.SampleProto))
+	messageDescriptorProto, _ := descriptor.MessageDescriptorProto(new(sample_protopb.SampleProto))
 	fd, err := desc.CreateFileDescriptor(messageDescriptorProto)
 	if err != nil {
 		return nil, xerrors.Errorf("cannot create file descriptor: %w", err)
@@ -30,7 +30,7 @@ func makeDesc() ([]byte, error) {
 
 func buildMessages() []proto.Message {
 	return []proto.Message{
-		&sample_proto.SampleProto{
+		&sample_protopb.SampleProto{
 			DoubleField:   3.14,
 			FloatField:    1.46,
 			Int32Field:    -228,
@@ -62,10 +62,10 @@ func buildMessages() []proto.Message {
 				"Раза в три круче, чем самый первый секс-партнёр",
 				"Все девчата в таком трипе, что аж «мама не горюй», йоп",
 			},
-			MsgField: &sample_proto.SampleEmbeddedMsg{
+			MsgField: &sample_protopb.SampleEmbeddedMsg{
 				StringField: "Прыгай в такт, прыгай в такт, будто ты совсем дурак",
 				Int32Field:  256,
-				EnumField:   sample_proto.SampleEmbeddedEnum_ITEM_2,
+				EnumField:   sample_protopb.SampleEmbeddedEnum_ITEM_2,
 			},
 		},
 	}

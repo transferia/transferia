@@ -19,7 +19,7 @@ import (
 	debeziumengine "github.com/transferia/transferia/pkg/parsers/registry/debezium/engine"
 	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
-	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser/gotest/prototest"
+	prototestpb "github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser/gotest/prototest"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoscanner"
 	"github.com/transferia/transferia/pkg/stats"
 	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
@@ -133,7 +133,7 @@ func TestUnparsed(t *testing.T) {
 	// 'logfeller' parser - is able to generate 'unparsed', but it's CGO - so, I will skip this check here
 	// 'native' parser can't generate 'unparsed'
 	t.Run("protobuf", func(t *testing.T) {
-		var stdDataTypesFilled = &prototest.StdDataTypesMsg{}
+		var stdDataTypesFilled = &prototestpb.StdDataTypesMsg{}
 
 		pMsg := parsers.Message{
 			Offset:     1,

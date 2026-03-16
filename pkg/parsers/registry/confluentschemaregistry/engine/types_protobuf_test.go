@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/types_protobuf_test_data"
+	types_protobuf_test_datapb "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/types_protobuf_test_data"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -18,7 +18,7 @@ import (
 var stdDataTypesProto []byte
 
 func TestUnpackVal(t *testing.T) {
-	stdDataTypesFilled := &types_protobuf_test_data.StdDataTypesMsg{
+	stdDataTypesFilled := &types_protobuf_test_datapb.StdDataTypesMsg{
 		DoubleField:   1.11,
 		FloatField:    2.2,
 		Int32Field:    2,
@@ -39,18 +39,18 @@ func TestUnpackVal(t *testing.T) {
 			"key2": 12,
 		},
 		RepeatedField: []string{"1", "2", "3"},
-		MsgField: &types_protobuf_test_data.EmbeddedMsg{
+		MsgField: &types_protobuf_test_datapb.EmbeddedMsg{
 			StringField: "stringField",
 			Int32Field:  2,
-			EnumField:   types_protobuf_test_data.EmbeddedEnum_ITEM_2,
+			EnumField:   types_protobuf_test_datapb.EmbeddedEnum_ITEM_2,
 		},
-		RepeatedMessage: []*types_protobuf_test_data.StdDataTypesMsgRepeatedMessage{
+		RepeatedMessage: []*types_protobuf_test_datapb.StdDataTypesMsgRepeatedMessage{
 			{
 				Type: "string",
-				Status: &types_protobuf_test_data.EmbeddedMsg{
+				Status: &types_protobuf_test_datapb.EmbeddedMsg{
 					StringField: "stringField2",
 					Int32Field:  3,
-					EnumField:   types_protobuf_test_data.EmbeddedEnum_ITEM_1,
+					EnumField:   types_protobuf_test_datapb.EmbeddedEnum_ITEM_1,
 				},
 				UpdatedAt: &timestamppb.Timestamp{
 					Seconds: 1234565,

@@ -12,7 +12,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/mock"
 	yslices "github.com/transferia/transferia/library/go/slices"
-	"github.com/transferia/transferia/metrika/proto/cloud_export"
+	cloud_exportpb "github.com/transferia/transferia/metrika/proto/cloud_export"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
@@ -117,7 +117,7 @@ func MetrikaHitProtoseqConfig() *protoparser.ProtoParserConfig {
 		yslices.Map(primaryKeys, protoparser.RequiredColumn),
 		yslices.Map(optionalColumns, protoparser.OptionalColumn)...,
 	)
-	msg := new(cloud_export.CloudTransferHit)
+	msg := new(cloud_exportpb.CloudTransferHit)
 	return &protoparser.ProtoParserConfig{
 		IncludeColumns:     allColumns,
 		PrimaryKeys:        primaryKeys,

@@ -6,7 +6,7 @@ import (
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/stretchr/testify/require"
-	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references"
+	referencespb "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine/testdata/references"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	"google.golang.org/protobuf/proto"
 )
@@ -31,7 +31,7 @@ func TestMDBuilder(t *testing.T) {
 	var recordName string
 	var err error
 
-	msg1 := &references.MyMsg1{}
+	msg1 := &referencespb.MyMsg1{}
 	msg1.Msg1StringField = "msg1blablabla"
 	buf, err := proto.Marshal(msg1)
 	require.NoError(t, err)
