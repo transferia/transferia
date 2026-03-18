@@ -76,11 +76,10 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 				childCfg.Database = knownDatabases[s.cfg.Cluster]
 			}
 			for {
-				source, err := NewOneDCSource(
+				source, err := newOneDCSource(
 					&childCfg,
 					log.With(s.logger, log.String("dc", string(endpoint))),
 					s.metrics.WithTags(map[string]string{"dc": string(endpoint)}),
-					5,
 				)
 				if err != nil {
 					if abstract.IsFatal(err) {
@@ -153,11 +152,10 @@ func (s *multiDcSource) Fetch() ([]abstract.ChangeItem, error) {
 			if _, ok := knownDatabases[s.cfg.Cluster]; ok && s.cfg.Database == "" {
 				childCfg.Database = knownDatabases[s.cfg.Cluster]
 			}
-			source, err := NewOneDCSource(
+			source, err := newOneDCSource(
 				&childCfg,
 				s.logger,
 				s.metrics.WithTags(map[string]string{"dc": string(endpoint)}),
-				5,
 			)
 			if err != nil {
 				errCh <- err

@@ -8,10 +8,6 @@ import (
 )
 
 func NewSource(cfg *LfSource, logger log.Logger, registry metrics.Registry) (abstract.Source, error) {
-	return NewSourceWithRetries(cfg, logger, registry, 100)
-}
-
-func NewSourceWithRetries(cfg *LfSource, logger log.Logger, registry metrics.Registry, retries int) (abstract.Source, error) {
 	if cfg.Cluster != "" && len(KnownClusters[cfg.Cluster]) > 0 {
 		result, err := NewMultiDCSource(cfg, logger, registry)
 		if err != nil {
@@ -19,7 +15,7 @@ func NewSourceWithRetries(cfg *LfSource, logger log.Logger, registry metrics.Reg
 		}
 		return result, nil
 	}
-	result, err := NewOneDCSource(cfg, logger, registry, retries)
+	result, err := newOneDCSource(cfg, logger, registry)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create one-dc source, err: %w", err)
 	}

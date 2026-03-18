@@ -26,9 +26,9 @@ func initAndStartReader(t *testing.T, lbEnv *recipe.Env, database, topic string)
 	readerOptions.Database = database
 	readerOptions.Topics = []persqueue.TopicInfo{{Topic: topic}}
 	readerOptions.WithProxy(fmt.Sprintf("%s:%d", lbEnv.Endpoint, lbEnv.Port))
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 
-	reader := persqueue.NewReader(readerOptions)
+	reader := persqueue.NewReaderV1(readerOptions)
 	_, err := reader.Start(ctx)
 	require.NoError(t, err)
 	return reader, cancel
@@ -61,6 +61,8 @@ func LoadMessages(t *testing.T, lbEnv *recipe.Env, database, topic string, expec
 			}
 
 		case *persqueue.CommitAck:
+		case *persqueue.LockV1:
+			event.StartRead(true, event.ReadOffset, event.ReadOffset)
 		default:
 			t.Fatalf("Received unexpected event %T", event)
 		}
@@ -75,7 +77,7 @@ func LoadMessages(t *testing.T, lbEnv *recipe.Env, database, topic string, expec
 }
 
 func CheckData(t *testing.T, lbEnv *recipe.Env, database, topic string, checkFunc func(msg string) bool, maxDuration time.Duration) {
-	sleepTime := time.Second * 2
+	sleepTime := 100 * time.Millisecond
 	startTime := time.Now()
 
 	reader, cancelFunc := initAndStartReader(t, lbEnv, database, topic)
@@ -96,6 +98,8 @@ func CheckData(t *testing.T, lbEnv *recipe.Env, database, topic string, checkFun
 				reader.Shutdown()
 			}
 		case *persqueue.CommitAck:
+		case *persqueue.LockV1:
+			event.StartRead(true, event.ReadOffset, event.ReadOffset)
 		default:
 			t.Fatalf("Received unexpected event %T", event)
 		}

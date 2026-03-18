@@ -21,7 +21,7 @@ func (e *LBEnv) resetConsumerOffsets() {
 	opts := e.ConsumerOptions()
 	opts.ManualPartitionAssignment = true
 
-	c := persqueue.NewReader(opts)
+	c := persqueue.NewReaderV1(opts)
 
 	_, err := c.Start(e.ctx)
 	require.NoError(e.t, err)

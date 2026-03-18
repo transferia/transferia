@@ -82,7 +82,7 @@ func (p *Provider) Source() (abstract.Source, error) {
 		}
 	case *LbSource:
 		s.IsLbSink = p.transfer.DstType() == ProviderType
-		return NewNativeSource(s, p.logger, p.registry)
+		return newNativeSource(s, p.logger, p.registry)
 	default:
 		return nil, xerrors.Errorf("Unknown source type: %T", p.transfer.Src)
 	}
@@ -128,7 +128,7 @@ func (p *Provider) Verify(ctx context.Context) error {
 	if !ok {
 		return nil
 	}
-	source, err := NewSourceWithRetries(src, p.logger, solomon.NewRegistry(solomon.NewRegistryOpts()), 1)
+	source, err := NewSource(src, p.logger, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	if err != nil {
 		return xerrors.Errorf("unable to make new logfeller source: %w", err)
 	}
