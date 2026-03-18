@@ -24,6 +24,7 @@ type PgSinkParamsRegulated struct {
 	FIgnoreUniqueConstraint   bool
 	FDisableSQLFallback       bool
 	FQueryTimeout             time.Duration
+	FMaxPostgresQueryBytes    uint64
 }
 
 func (p PgSinkParamsRegulated) GetIsSchemaMigrationDisabled() bool {
@@ -96,6 +97,13 @@ func (p PgSinkParamsRegulated) DisableSQLFallback() bool {
 
 func (p PgSinkParamsRegulated) QueryTimeout() time.Duration {
 	return p.FQueryTimeout
+}
+
+func (p PgSinkParamsRegulated) MaxPostgresQueryBytes() uint64 {
+	if p.FMaxPostgresQueryBytes == 0 {
+		return 64 * 1024 * 1024
+	}
+	return p.FMaxPostgresQueryBytes
 }
 
 func (p PgSinkParamsRegulated) ConnectionID() string {

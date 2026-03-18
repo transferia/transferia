@@ -45,6 +45,7 @@ type PgSinkParams interface {
 	IgnoreUniqueConstraint() bool
 	// QueryTimeout returns the timeout for query execution by this sink
 	QueryTimeout() time.Duration
+	MaxPostgresQueryBytes() uint64
 	// DisableSQLFallback returns true if the sink should never use SQL when copying snapshot and should always use "COPY FROM"
 	DisableSQLFallback() bool
 	ConnectionID() string

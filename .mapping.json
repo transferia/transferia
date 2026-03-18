@@ -1801,6 +1801,8 @@
   "pkg/providers/postgres/publisher_test.go":"transfer_manager/go/pkg/providers/postgres/publisher_test.go",
   "pkg/providers/postgres/queries.go":"transfer_manager/go/pkg/providers/postgres/queries.go",
   "pkg/providers/postgres/queries_test.go":"transfer_manager/go/pkg/providers/postgres/queries_test.go",
+  "pkg/providers/postgres/represent.go":"transfer_manager/go/pkg/providers/postgres/represent.go",
+  "pkg/providers/postgres/represent_test.go":"transfer_manager/go/pkg/providers/postgres/represent_test.go",
   "pkg/providers/postgres/schema.go":"transfer_manager/go/pkg/providers/postgres/schema.go",
   "pkg/providers/postgres/schema_test.go":"transfer_manager/go/pkg/providers/postgres/schema_test.go",
   "pkg/providers/postgres/sequence.go":"transfer_manager/go/pkg/providers/postgres/sequence.go",

@@ -514,6 +514,10 @@ func (d PgSourceWrapper) QueryTimeout() time.Duration {
 	return PGDefaultQueryTimeout
 }
 
+func (d PgSourceWrapper) MaxPostgresQueryBytes() uint64 {
+	return defaultMaxPostgresQueryBytes
+}
+
 func (d PgSourceWrapper) GetIsSchemaMigrationDisabled() bool {
 	return false
 }

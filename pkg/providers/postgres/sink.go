@@ -1,16 +1,12 @@
 package postgres
 
 import (
+	"bytes"
 	"context"
-	"database/sql/driver"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -23,7 +19,6 @@ import (
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
-	"go.ytsaurus.tech/yt/go/schema"
 )
 
 var (
@@ -88,9 +83,9 @@ type sink struct {
 	pendingTableCounts  map[abstract.TableID]int
 }
 
-// maxPostgresQueryBytes limits the size of generated SQL statements.
+// defaultMaxPostgresQueryBytes limits the size of generated SQL statements.
 // https://dba.stackexchange.com/questions/131399/is-there-a-maximum-length-constraint-for-a-postgres-query
-var maxPostgresQueryBytes = uint64(64 * humanize.MiByte)
+const defaultMaxPostgresQueryBytes = uint64(64 * 1024 * 1024)
 
 func (s *sink) Close() error {
 	if s.currentTX != nil {
@@ -582,6 +577,7 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 			s.logger.Infof("kind: %v not supported", item.Kind)
 		}
 	}
+
 	for table, batch := range batches {
 		pgTable := table
 		if s.config.Tables()[table] != "" {
@@ -599,7 +595,6 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 		tableSchema := batch[0].TableSchema.Columns()
 		// TODO: This must be moved into middleware (and the same must be done in other sinks)
 		batch = abstract.Collapse(batch)
-
 		if s.config.CopyUpload() {
 			copyCtx, copyCtxCancel := context.WithTimeout(context.Background(), s.config.QueryTimeout())
 			defer copyCtxCancel()
@@ -643,182 +638,6 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 	return nil
 }
 
-func Represent(val interface{}, colSchema abstract.ColSchema) (string, error) {
-	if val == nil {
-		return "null", nil
-	}
-
-	if v, ok := val.(*pgtype.CIDR); ok {
-		// pgtype.CIDR does not implement driver.Valuer, but its implementation is intended
-		val = (*pgtype.Inet)(v)
-	}
-
-	if v, ok := val.(driver.Valuer); ok {
-		vv, _ := v.Value()
-
-		if strings.HasPrefix(colSchema.OriginalType, "pg:time") &&
-			!strings.HasPrefix(colSchema.OriginalType, "pg:timestamp") {
-			// by default Value of time always returns as array of bytes which can not be processed in plain insert
-			// however if we cast decoder to pgtype.Time while unmarshalling it will lead to errors in tests because
-			// pgtype.Time doesn't store the precision and always uses the maximum(6)
-			if vvv, ok := vv.([]byte); ok && vv != nil {
-				coder := new(pgtype.Time)
-
-				// we only use binary->binary (de)serialization in homogeneous pg->pg
-				if err := coder.DecodeBinary(nil, vvv); err == nil {
-					//nolint:descriptiveerrors
-					return Represent(coder, colSchema)
-				}
-			}
-		}
-
-		if strings.HasPrefix(colSchema.OriginalType, "pg:json") {
-			if vvv, ok := vv.(string); ok && vv != nil {
-				// Valuer may start with special character, which we must erase
-				// If JSON not started with { or ] we should erase first byte
-				if vvv[0] != '{' && vvv[0] != '[' {
-					result, err := Represent(vvv[1:], colSchema)
-					if err != nil {
-						return "", xerrors.Errorf("unable to represent value from pg:json/pg:jsonb: %w", err)
-					}
-					return result, nil
-				}
-			}
-			if vvv, ok := vv.([]uint8); ok && vv != nil {
-				escapedQuotesStr := escapeSingleQuotes(string(vvv))
-				return strings.Join([]string{"'", escapedQuotesStr, "'"}, ""), nil
-			}
-		}
-		//nolint:descriptiveerrors
-		return Represent(vv, colSchema)
-	}
-
-	if colSchema.OriginalType == "" && colSchema.DataType == schema.TypeAny.String() { // no-homo json
-		s, _ := json.Marshal(val)
-		return fmt.Sprintf("'%s'", escapeSingleQuotes(string(s))), nil
-	}
-	if colSchema.OriginalType == "pg:json" || colSchema.OriginalType == "pg:jsonb" {
-		s, _ := json.Marshal(val)
-		v := escapeSingleQuotes(string(s))
-		return fmt.Sprintf("'%v'", v), nil
-	}
-
-	// handle pg:enum in homo cases, when it was fallback from COPY (if CopyUpload() allowed)
-	if strings.HasPrefix(colSchema.OriginalType, "pg:") && colSchema.DataType == schema.TypeAny.String() && GetPropertyEnumAllValues(&colSchema) != nil {
-		if bytes, ok := val.([]byte); ok {
-			return "'" + strings.ReplaceAll(string(bytes), "'", "''") + "'", nil
-		}
-	}
-
-	switch v := val.(type) {
-	case string:
-		switch colSchema.DataType {
-		case schema.TypeBytes.String():
-			return fmt.Sprintf("'%s'", escapeBackslashes(escapeSingleQuotes(v))), nil
-		default:
-			return fmt.Sprintf("'%s'", escapeSingleQuotes(v)), nil
-		}
-	case *time.Time:
-		return representTime(*v, colSchema), nil
-	case time.Time:
-		return representTime(v, colSchema), nil
-	case []byte:
-		return fmt.Sprintf("'\\x%s'", hex.EncodeToString(v)), nil
-	case int64, int, int32, uint32, uint64:
-		return fmt.Sprintf("'%d'", v), nil
-	case float64:
-		if strings.HasPrefix(colSchema.DataType, "uint") {
-			return fmt.Sprintf("'%d'", uint64(v)), nil
-		}
-		if strings.HasPrefix(colSchema.DataType, "int") || colSchema.OriginalType == "pg:bigint" {
-			return fmt.Sprintf("'%d'", int64(v)), nil
-		}
-		if strings.Contains(colSchema.OriginalType, "pg:") && strings.Contains(colSchema.OriginalType, "int") {
-			return fmt.Sprintf("'%d'", int64(v)), nil
-		}
-		if colSchema.DataType == schema.TypeFloat64.String() {
-			// Will print all avaible float point numbers
-			return fmt.Sprintf("'%g'", v), nil
-		}
-		return fmt.Sprintf("'%f'", v), nil
-	case []interface{}:
-		result := make([]string, 0, len(v))
-		for _, value := range v {
-			elemColSchema := BuildColSchemaArrayElement(colSchema)
-			representedVal, err := Represent(value, elemColSchema)
-			if err != nil {
-				return "", xerrors.Errorf("unable to represent array element: %w", err)
-			}
-			result = append(result, UnwrapArrayElement(representedVal))
-		}
-		lBracket, rBracket := workaroundChooseBrackets(colSchema)
-		return "'" + lBracket + strings.Join(result, ",") + rBracket + "'", nil
-	default:
-		if colSchema.OriginalType == "pg:hstore" {
-			s, _ := json.Marshal(val)
-			h, _ := JSONToHstore(string(s))
-			v := escapeSingleQuotes(h)
-			return fmt.Sprintf("'%v'", v), nil
-		}
-		return fmt.Sprintf("'%v'", v), nil
-	}
-}
-
-func escapeSingleQuotes(s string) string {
-	return strings.ReplaceAll(s, "'", "''")
-}
-
-func escapeBackslashes(s string) string {
-	return strings.ReplaceAll(s, "\\", "\\\\")
-}
-
-func workaroundChooseBrackets(colSchema abstract.ColSchema) (string, string) {
-	if colSchema.OriginalType == "pg:json" || colSchema.OriginalType == "pg:jsonb" {
-		return "[", "]"
-	}
-	return "{", "}"
-}
-
-const (
-	PgDateFormat      = "2006-01-02"
-	PgDatetimeFormat  = "2006-01-02 15:04:05Z07:00:00"
-	PgTimestampFormat = "2006-01-02 15:04:05.999999Z07:00:00"
-)
-
-func representTime(v time.Time, colSchema abstract.ColSchema) string {
-	var result string
-
-	switch colSchema.DataType {
-	case schema.TypeDate.String():
-		result = v.UTC().Format(PgDateFormat)
-	case schema.TypeDatetime.String():
-		result = v.UTC().Format(PgDatetimeFormat)
-	case schema.TypeTimestamp.String():
-		// note `v` is not converted to UTC. As a result, when the target field is TIMESTAMP WITHOUT TIME ZONE, the incoming value of the timestamp will be preserved, but its timezone will be (automatically) set to the local time zone of the target database
-		result = v.Format(PgTimestampFormat)
-	default:
-		result = v.UTC().Format(PgTimestampFormat)
-	}
-
-	result = MinusToBC(result)
-
-	return "'" + result + "'"
-}
-
-func RepresentWithCast(v interface{}, colSchema abstract.ColSchema) (string, error) {
-	representation, err := Represent(v, colSchema)
-	if err != nil {
-		return "", xerrors.Errorf("failed to represent %v in the form suitable for PostgreSQL sink: %w", v, err)
-	}
-
-	if strings.HasPrefix(colSchema.OriginalType, "pg:") && !IsUserDefinedType(&colSchema) {
-		castTarget := strings.TrimPrefix(colSchema.OriginalType, "pg:")
-		representation = strings.Join([]string{representation, castTarget}, "::")
-	}
-
-	return representation, nil
-}
-
 func isToastedRow(row *abstract.ChangeItem, schema []abstract.ColSchema) bool {
 	return len(row.ColumnNames) != len(schema)
 }
@@ -842,14 +661,16 @@ func (s *sink) tryGetUnchangedCols(
 	}
 
 	res := map[string]bool{}
+	var newValBuf bytes.Buffer
+	var oldValBuf bytes.Buffer
 	for i, colName := range row.ColumnNames {
 		// rev must exist now
 		if generatedCols[colName] {
 			continue
 		}
 		thisCS := schema[rev[colName]]
-		newVal, err := Represent(row.ColumnValues[i], thisCS)
-		if err != nil {
+		newValBuf.Reset()
+		if err := recursiveRepresentToWriter(&newValBuf, row.ColumnValues[i], thisCS); err != nil {
 			return nil, xerrors.Errorf("Cannot represent value of column %s: %w", colName, err)
 		}
 		if oldIDX, ok := oldKeysIDXs[colName]; ok {
@@ -857,11 +678,11 @@ func (s *sink) tryGetUnchangedCols(
 			if !ok {
 				return nil, xerrors.Errorf("Key \"%v\" not found in source table schema", colName)
 			}
-			oldVal, err := Represent(row.OldKeys.KeyValues[oldIDX], schema[schemaIndex])
-			if err != nil {
+			oldValBuf.Reset()
+			if err := recursiveRepresentToWriter(&oldValBuf, row.OldKeys.KeyValues[oldIDX], schema[schemaIndex]); err != nil {
 				return nil, xerrors.Errorf("Cannot represent key %s: %w", colName, err)
 			}
-			if oldVal == newVal {
+			if oldValBuf.String() == newValBuf.String() {
 				res[colName] = true
 			}
 		}
@@ -914,6 +735,7 @@ func (s *sink) buildInsertQuery(
 	}
 	values := make([]string, colsToUpdate)
 	colNames := make([]string, colsToUpdate)
+	var reprBuf bytes.Buffer
 	iEC := 0
 	for i, colName := range row.ColumnNames {
 		// rev must exist now
@@ -925,11 +747,11 @@ func (s *sink) buildInsertQuery(
 		}
 		thisCS := schema[rev[colName]]
 
-		representation, err := RepresentWithCast(row.ColumnValues[i], thisCS)
-		if err != nil {
+		reprBuf.Reset()
+		if err := representWithCastToWriter(&reprBuf, row.ColumnValues[i], thisCS); err != nil {
 			return "", xerrors.Errorf("failed to represent the new value of column %q: %w", colName, err)
 		}
-		values[iEC] = representation
+		values[iEC] = reprBuf.String()
 		colNames[iEC] = fmt.Sprintf("\"%v\"", colName)
 		iEC += 1
 	}
@@ -948,11 +770,11 @@ func (s *sink) buildInsertQuery(
 			if !ok {
 				return "", xerrors.Errorf("Key \"%v\" not found in source table schema", keyName)
 			}
-			keyValue, err := RepresentWithCast(row.OldKeys.KeyValues[i], schema[schemaIndex])
-			if err != nil {
+			reprBuf.Reset()
+			if err := representWithCastToWriter(&reprBuf, row.OldKeys.KeyValues[i], schema[schemaIndex]); err != nil {
 				return "", xerrors.Errorf("failed to represent the old value of a key column %q: %w", keyName, err)
 			}
-			predicate = append(predicate, fmt.Sprintf("\"%v\" = %v", keyName, keyValue))
+			predicate = append(predicate, fmt.Sprintf("\"%v\" = %v", keyName, reprBuf.String()))
 		}
 		if len(predicate) > 0 && len(setters) > 0 {
 			return fmt.Sprintf(
@@ -993,20 +815,21 @@ func (s *sink) buildOnConflictClause(table string, colNames []string) string {
 
 func (s *sink) buildDeleteQuery(table string, schema []abstract.ColSchema, row abstract.ChangeItem, rev map[string]int) (string, error) {
 	deleteConditions := make([]string, len(row.OldKeys.KeyNames))
+	var reprBuf bytes.Buffer
 	for idx := range row.OldKeys.KeyNames {
 		var keyType, keyOrigType string
 		columnIndex := rev[row.OldKeys.KeyNames[idx]]
 		keyType = schema[columnIndex].DataType
 		keyOrigType = schema[columnIndex].OriginalType
 
-		repr, err := RepresentWithCast(row.OldKeys.KeyValues[idx], abstract.MakeOriginallyTypedColSchema(row.OldKeys.KeyNames[idx], keyType, keyOrigType))
-		if err != nil {
+		reprBuf.Reset()
+		if err := representWithCastToWriter(&reprBuf, row.OldKeys.KeyValues[idx], abstract.MakeOriginallyTypedColSchema(row.OldKeys.KeyNames[idx], keyType, keyOrigType)); err != nil {
 			return "", xerrors.Errorf("failed to represent the old value of a key column %q: %w", row.OldKeys.KeyNames[idx], err)
 		}
 		deleteConditions[idx] = fmt.Sprintf(
 			"(\"%s\" = %s)",
 			row.OldKeys.KeyNames[idx],
-			repr,
+			reprBuf.String(),
 		)
 	}
 	if len(deleteConditions) == 0 {
@@ -1065,11 +888,15 @@ func (s *sink) buildBulkInsertQuery(
 	schema []abstract.ColSchema,
 	items []abstract.ChangeItem,
 ) ([]bulkInsertQuery, error) {
+	if len(items) == 0 {
+		return nil, nil
+	}
+
 	generatedCols := s.getGeneratedCols(schema)
 
 	// Use table schema as a source of truth for column order and types.
 	colNames := make([]string, 0, len(schema))
-	schemaIdxs := make([]int, 0, len(schema))
+	schemaIdxs := make([]int, 0, len(schema)) // same index as colNames
 	colPlainNames := make([]string, 0, len(schema))
 	for i := range schema {
 		colName := schema[i].ColumnName
@@ -1084,23 +911,56 @@ func (s *sink) buildBulkInsertQuery(
 		return nil, xerrors.Errorf("no columns to insert for %s after filtering generated columns", table)
 	}
 
+	castSuffixes := make([]string, len(schemaIdxs))
+	for i, schemaIdx := range schemaIdxs {
+		colSchema := schema[schemaIdx]
+		if strings.HasPrefix(colSchema.OriginalType, "pg:") && !IsUserDefinedType(&colSchema) {
+			castSuffixes[i] = "::" + strings.TrimPrefix(colSchema.OriginalType, "pg:")
+		}
+	}
+
+	// Build required value indices once from the first row and validate row layout on subsequent rows.
+	firstRow := items[0]
+	firstRowColIdx := firstRow.ColumnNameIndices()
+	valueIdxs := make([]int, len(colPlainNames))
+	for i, colName := range colPlainNames {
+		valIdx, ok := firstRowColIdx[colName]
+		if !ok {
+			return nil, xerrors.Errorf("multi-row insert requires column %q to be present in change item for table %s", colName, table)
+		}
+		valueIdxs[i] = valIdx
+	}
+
 	header := fmt.Sprintf("insert into %v (%v) values ", table, strings.Join(colNames, ", "))
 	trailer := s.buildOnConflictClause(table, colNames) + ";"
+	maxBytes := s.config.MaxPostgresQueryBytes()
 
 	// Limit statement size similarly to the old path.
 	headerBytes := uint64(len(header))
 	trailerBytes := uint64(len(trailer))
-	if headerBytes+trailerBytes >= maxPostgresQueryBytes {
+	if headerBytes+trailerBytes >= maxBytes {
 		return nil, xerrors.Errorf("statement overhead too large for %s", table)
 	}
 
 	var (
-		stmts       []bulkInsertQuery
-		sb          strings.Builder
-		currentRows int
+		stmts        []bulkInsertQuery
+		currentRows  int
+		baseCap      = len(header) + len(trailer)
+		statementCap = baseCap
 	)
+	var sb bytes.Buffer
+
+	maxGrowCap := int(maxBytes)
+	if maxGrowCap <= 0 {
+		maxGrowCap = baseCap
+	}
+
 	reset := func() {
 		sb.Reset()
+		// Adaptive pre-grow: reuse last observed statement size with a small headroom.
+		// This keeps growSlice pressure lower without reserving maxBytes for every statement.
+		// growCap := min(statementCap+statementCap/8, maxGrowCap)
+		sb.Grow(maxGrowCap)
 		sb.WriteString(header)
 		currentRows = 0
 	}
@@ -1110,40 +970,56 @@ func (s *sink) buildBulkInsertQuery(
 		}
 		sb.WriteString(trailer)
 		q := sb.String()
+		if len(q) > statementCap {
+			statementCap = len(q)
+		}
 		stmts = append(stmts, bulkInsertQuery{
 			query: q,
 			rows:  currentRows,
 		})
 	}
 
-	reset()
-	for _, row := range items {
-		colIdx := row.ColumnNameIndices()
-
-		// Build tuple string for this row.
-		tupleParts := make([]string, len(schemaIdxs))
-		for j := range schemaIdxs {
-			schemaIdx := schemaIdxs[j]
-			valIdx, ok := colIdx[colPlainNames[j]]
-			if !ok {
-				return nil, xerrors.Errorf("multi-row insert requires column %q to be present in change item for table %s", colPlainNames[j], table)
+	writeTuple := func(w *bytes.Buffer, row abstract.ChangeItem) error {
+		_ = w.WriteByte('(')
+		for j, schemaIdx := range schemaIdxs {
+			valIdx := valueIdxs[j]
+			if valIdx >= len(row.ColumnValues) || valIdx >= len(row.ColumnNames) || row.ColumnNames[valIdx] != colPlainNames[j] {
+				return xerrors.Errorf(
+					"incompatible change item column layout for table %s: expected column %q at position %d",
+					table,
+					colPlainNames[j],
+					valIdx,
+				)
 			}
-			representation, err := RepresentWithCast(row.ColumnValues[valIdx], schema[schemaIdx])
-			if err != nil {
-				return nil, xerrors.Errorf("failed to represent value for column %q: %w", colPlainNames[j], err)
+			if j > 0 {
+				_, _ = w.WriteString(", ")
 			}
-			tupleParts[j] = representation
+			if err := recursiveRepresentToWriter(w, row.ColumnValues[valIdx], schema[schemaIdx]); err != nil {
+				return xerrors.Errorf("failed to represent value for column %q: %w", colPlainNames[j], err)
+			}
+			_, _ = w.WriteString(castSuffixes[j])
 		}
-		tuple := "(" + strings.Join(tupleParts, ", ") + ")"
+		_ = w.WriteByte(')')
+		return nil
+	}
 
-		// Estimate resulting size if we append this tuple now.
+	reset()
+	var tupleBuf bytes.Buffer
+	for _, row := range items {
+		tupleBuf.Reset()
+		if err := writeTuple(&tupleBuf, row); err != nil {
+			return nil, err
+		}
+		tupleBytes := uint64(tupleBuf.Len())
+
+		// Preflight resulting size if this tuple is appended.
 		extraSep := uint64(0)
 		if currentRows > 0 {
 			extraSep = 2 // ", "
 		}
-		estimatedBytes := uint64(sb.Len()) + extraSep + uint64(len(tuple)) + trailerBytes
-		if estimatedBytes > maxPostgresQueryBytes {
-			// If this tuple alone doesn't fit - refuse fast-path.
+		estimatedBytes := uint64(sb.Len()) + extraSep + tupleBytes + trailerBytes
+		if estimatedBytes > maxBytes {
+			// If this tuple alone doesn't fit, refuse fast path for this table.
 			if currentRows == 0 {
 				return nil, xerrors.Errorf("single row tuple too large for multi-row insert into %s", table)
 			}
@@ -1154,7 +1030,7 @@ func (s *sink) buildBulkInsertQuery(
 		if currentRows > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteString(tuple)
+		_, _ = sb.Write(tupleBuf.Bytes())
 		currentRows++
 	}
 	flush()
@@ -1277,12 +1153,13 @@ func (s *sink) insert(ctx context.Context, table string, schema []abstract.ColSc
 	// s.logger.Infof("Prepare query %v rows %v for table %v", len(items), format.SizeInt(len(queries)), table)
 	execStart := time.Now()
 	processedQueries := 0
+	maxBytes := s.config.MaxPostgresQueryBytes()
 	for processedQueries < len(queries) {
 		queriesBatchSizeInBytes := uint64(0)
 		batchFinishI := processedQueries
-		// Limit queries' size by maxPostgresQueryBytes
+		// Limit queries' size by configured max query bytes.
 		// https://dba.stackexchange.com/questions/131399/is-there-a-maximum-length-constraint-for-a-postgres-query
-		for batchFinishI < len(queries) && queriesBatchSizeInBytes < maxPostgresQueryBytes {
+		for batchFinishI < len(queries) && queriesBatchSizeInBytes < maxBytes {
 			queriesBatchSizeInBytes += uint64(len(queries[batchFinishI]))
 			batchFinishI += 1
 		}

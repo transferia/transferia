@@ -40,8 +40,13 @@ type PgDestination struct {
 	BufferTriggingSize        uint64               `log:"true"`
 	BufferTriggingInterval    time.Duration        `log:"true"`
 	QueryTimeout              time.Duration        `log:"true"`
-	DisableSQLFallback        bool                 `log:"true"`
-	ConnectionID              string               `log:"true"`
+	// MaxPostgresQueryBytes is a private sink setting which limits generated SQL statement size.
+	// It is applied when building multi-row INSERT statements and when batching plain SQL queries:
+	//   - if 0, default 64 MiB is used;
+	//   - oversized batches are split into smaller statements;
+	MaxPostgresQueryBytes uint64 `log:"true"`
+	DisableSQLFallback    bool   `log:"true"`
+	ConnectionID          string `log:"true"`
 
 	UserEnabledTls *bool // tls config set by user explicitly
 }
@@ -102,6 +107,9 @@ func (d *PgDestination) WithDefaults() {
 
 	if d.QueryTimeout == 0 {
 		d.QueryTimeout = PGDefaultQueryTimeout
+	}
+	if d.MaxPostgresQueryBytes == 0 {
+		d.MaxPostgresQueryBytes = defaultMaxPostgresQueryBytes
 	}
 }
 
@@ -207,6 +215,13 @@ func (d PgDestinationWrapper) QueryTimeout() time.Duration {
 		return PGDefaultQueryTimeout
 	}
 	return d.Model.QueryTimeout
+}
+
+func (d PgDestinationWrapper) MaxPostgresQueryBytes() uint64 {
+	if d.Model.MaxPostgresQueryBytes == 0 {
+		return defaultMaxPostgresQueryBytes
+	}
+	return d.Model.MaxPostgresQueryBytes
 }
 
 func (d PgDestinationWrapper) ConnectionID() string {
