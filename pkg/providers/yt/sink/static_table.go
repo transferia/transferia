@@ -354,7 +354,7 @@ func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, item 
 			createOptions.Attributes = t.config.MergeAttributes(createOptions.Attributes)
 		}
 		logger.Log.Info(
-			"Creating YT table  with options",
+			"Creating YT table with options",
 			log.String("tmpPath", tmpTablePath.String()),
 			log.Any("options", createOptions),
 		)
