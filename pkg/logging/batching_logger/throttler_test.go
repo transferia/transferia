@@ -34,3 +34,13 @@ func TestCountThrottler(t *testing.T) {
 	LogLine(onceThrottler, func(in string) { myStr2 = in }, "blablabla")
 	require.True(t, strings.Contains(myStr2, "skipped") && strings.Contains(myStr2, "by throttler"))
 }
+
+func TestUUID(t *testing.T) {
+	onceThrottler := NewOnceThrottler()
+
+	myStrArr := make([]string, 0)
+	LogLine(onceThrottler, func(in string) { myStrArr = append(myStrArr, in) }, strings.Repeat("a", maxStringLengthConst)+"blablabla")
+	for _, str := range myStrArr {
+		require.True(t, strings.Contains(str, "[uuid:"))
+	}
+}

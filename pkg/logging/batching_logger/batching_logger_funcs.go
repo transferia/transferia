@@ -3,6 +3,7 @@ package batching_logger
 import (
 	"strings"
 
+	"github.com/google/uuid"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -28,7 +29,7 @@ func LogLine(throttler Throttler, inLoggingFunc loggingFunc, msg string, fields 
 	currLogger := NewBatchingLogger(NewAbsentThrottler(), inLoggingFunc, "", "", false)
 	defer currLogger.Close()
 	sumStr := msg + fieldsToString(fields...)
-	currLogger.Log(sumStr)
+	currLogger.LogWithUUID(sumStr, uuid.New().String())
 }
 
 func LogLines(inLogger log.Logger, header string, inLines BatchingLoggerable) {

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/pkg/util/size"
-	"go.ytsaurus.tech/library/go/core/log"
 )
 
 const maxStringLengthConst = size.MiB / 2
@@ -35,6 +34,9 @@ func (l *BatchingLogger) flush(isFromClose bool) {
 		}
 		lastStr = ":LAST"
 	}
+	if len(l.state) == 0 {
+		return // is last flush has empty list (nothing was logged) - skip it to not to log just header
+	}
 	sumString := fmt.Sprintf("[batching-logger] [flush#%d%s] ", l.flushCount, lastStr) + l.header + strings.Join(l.state, l.delimiter)
 	l.flushLine(sumString)
 }
@@ -50,19 +52,23 @@ func (l *BatchingLogger) flushLine(in string) {
 	l.sumLen = 0
 	l.flushCount++
 }
-func (l *BatchingLogger) splitAndLog(in string) {
+func (l *BatchingLogger) splitAndLog(in string, optionalUUID string) {
 	chunksIter := slices.Chunk([]rune(in), l.maxStringLength)
 	chunks := slices.Collect(chunksIter)
 	for i, chunk := range chunks {
-		sumString := fmt.Sprintf("[batching-logger] [flush#%d] [PARTS:%d/%d] ", l.flushCount, i, len(chunks)) + l.header + string(chunk)
+		uuidStr := "-"
+		if optionalUUID != "" {
+			uuidStr = fmt.Sprintf("[uuid:%s]", optionalUUID)
+		}
+		sumString := fmt.Sprintf("[batching-logger] %s [flush#%d] [PARTS:%d/%d] ", uuidStr, l.flushCount, i, len(chunks)) + l.header + string(chunk)
 		l.flushLine(sumString)
 	}
 }
-func (l *BatchingLogger) Log(in string) {
+func (l *BatchingLogger) LogWithUUID(in string, optionalUUID string) {
 	if l.sumLen+len(in) > l.maxStringLength {
 		l.flush(false)
 		if len(in) > l.maxStringLength {
-			l.splitAndLog(in)
+			l.splitAndLog(in, optionalUUID)
 			return
 		}
 	}
@@ -73,9 +79,8 @@ func (l *BatchingLogger) Log(in string) {
 	l.state = append(l.state, prefix+in)
 	l.sumLen += len(in)
 }
-func (l *BatchingLogger) LogWithFields(msg string, fields ...log.Field) {
-	sumStr := msg + fieldsToString(fields...)
-	l.Log(sumStr)
+func (l *BatchingLogger) Log(in string) {
+	l.LogWithUUID(in, "")
 }
 func (l *BatchingLogger) Close() {
 	l.flush(true)
