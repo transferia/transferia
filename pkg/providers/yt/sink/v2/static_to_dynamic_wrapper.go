@@ -35,6 +35,8 @@ type sinker struct {
 	indexMutex sync.Mutex
 }
 
+const TabletCompressedSize = 5 * (1 << 30)
+
 func NewStaticSinkWrapper(cfg yt2.YtDestinationModel, cp coordinator.Coordinator, transferID string, registry metrics.Registry, logger log.Logger) (abstract.Sinker, error) {
 	staticSink, err := NewStaticSink(cfg, cp, transferID, registry, logger)
 	if err != nil {
@@ -127,13 +129,21 @@ func (s *sinker) convertStaticToDynamic(ctx context.Context, tableYPath ypath.Pa
 			return xerrors.Errorf("unable to set destination attributes: %w", err)
 		}
 
+		reshardOptions := yt.ReshardTableOptions{}
 		if pivotKeys != nil {
-			reshardOptions := yt.ReshardTableOptions{
-				PivotKeys: pivotKeys,
+			reshardOptions.PivotKeys = pivotKeys
+		} else {
+			var compressedSize int
+			if err := s.ytClient.GetNode(ctx, tableYPath.Attr("compressed_data_size"), &compressedSize, nil); err != nil {
+				return xerrors.Errorf("unable to get compressed_data_size attribute for table: %q: %w", tableYPath, err)
 			}
-			if err := s.ytClient.ReshardTable(ctx, tableYPath, &reshardOptions); err != nil {
-				return xerrors.Errorf("unable to reshard destination table %q: %w", tableYPath, err)
-			}
+
+			tabletCount := compressedSize/TabletCompressedSize + 1
+			reshardOptions.TabletCount = &tabletCount
+		}
+
+		if err := s.ytClient.ReshardTable(ctx, tableYPath, &reshardOptions); err != nil {
+			return xerrors.Errorf("unable to reshard destination table %q: %w", tableYPath, err)
 		}
 
 		if err := yt2.MountUnmountWrapper(ctx, s.ytClient, tableYPath, migrate.MountAndWait); err != nil {
