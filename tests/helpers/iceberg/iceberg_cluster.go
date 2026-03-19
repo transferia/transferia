@@ -3,7 +3,6 @@ package iceberg
 import (
 	"context"
 	"fmt"
-	"io"
 	"testing"
 	"time"
 
@@ -25,21 +24,17 @@ const (
 
 	minioImage = "minio/minio"
 	restImage  = "apache/iceberg-rest-fixture"
-	sparkImage = "tabulario/spark-iceberg"
 
 	minioPort        = "9000/tcp"
 	minioConsolePort = "9001/tcp"
 	restPort         = "8181/tcp"
-	sparkThriftPort  = "10000/tcp"
 )
 
 // IcebergCluster encapsulates all containers required for Iceberg integration testing:
-// MinIO (S3-compatible storage), Iceberg REST Catalog,
-// and Spark-Iceberg (for running SQL queries).
+// MinIO (S3-compatible storage) and Iceberg REST Catalog.
 type IcebergCluster struct {
 	minioCont tc.Container
 	restCont  tc.Container
-	sparkCont tc.Container
 }
 
 // RunCluster creates and starts all containers that form the Iceberg test environment.
@@ -112,35 +107,6 @@ func RunCluster(ctx context.Context) (_ *IcebergCluster, err error) {
 		return nil, fmt.Errorf("start iceberg rest container: %w", err)
 	}
 
-	restIP, err := cluster.restCont.ContainerIP(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get rest container IP: %w", err)
-	}
-
-	// --- Spark-Iceberg ---
-	cluster.sparkCont, err = tc.GenericContainer(ctx, tc.GenericContainerRequest{
-		ProviderType: tc.ProviderPodman,
-		ContainerRequest: tc.ContainerRequest{
-			Image:        sparkImage,
-			ExposedPorts: []string{"8888/tcp", "8080/tcp", sparkThriftPort, "10001/tcp"},
-			ExtraHosts: []string{
-				fmt.Sprintf("minio:%s", minioIP),
-				fmt.Sprintf("%s.minio:%s", DefaultBucket, minioIP),
-				fmt.Sprintf("rest:%s", restIP),
-			},
-			Env: map[string]string{
-				"AWS_ACCESS_KEY_ID":     DefaultAccessKey,
-				"AWS_SECRET_ACCESS_KEY": DefaultSecretKey,
-				"AWS_REGION":            DefaultRegion,
-			},
-			WaitingFor: wait.ForListeningPort(sparkThriftPort).WithStartupTimeout(3 * time.Minute),
-		},
-		Started: true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("start spark-iceberg container: %w", err)
-	}
-
 	return &cluster, nil
 }
 
@@ -191,32 +157,11 @@ func (c *IcebergCluster) MinioConsoleURL(ctx context.Context) (string, error) {
 	return containerURL(ctx, c.minioCont, minioConsolePort)
 }
 
-// SparkExec runs a spark-sql statement inside the Spark container and returns its stdout output.
-func (c *IcebergCluster) SparkExec(ctx context.Context, sql string) (string, error) {
-	exitCode, reader, err := c.sparkCont.Exec(ctx, []string{
-		"spark-sql", "-e", sql,
-	})
-	if err != nil {
-		return "", fmt.Errorf("spark-sql exec: %w", err)
-	}
-
-	output, err := io.ReadAll(reader)
-	if err != nil {
-		return "", fmt.Errorf("read spark-sql output: %w", err)
-	}
-
-	if exitCode != 0 {
-		return string(output), fmt.Errorf("spark-sql exited with code %d", exitCode)
-	}
-
-	return string(output), nil
-}
-
 // Close terminates all containers in reverse startup order.
 // It collects all errors and returns them joined.
 func (c *IcebergCluster) Close(ctx context.Context) error {
 	var errs []error
-	for _, cont := range []tc.Container{c.sparkCont, c.restCont, c.minioCont} {
+	for _, cont := range []tc.Container{c.restCont, c.minioCont} {
 		if cont != nil {
 			if err := cont.Terminate(ctx); err != nil {
 				errs = append(errs, err)
