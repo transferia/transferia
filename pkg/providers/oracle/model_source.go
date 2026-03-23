@@ -112,6 +112,8 @@ func (oracle *OracleSource) WithDefaults() {
 
 func (OracleSource) IsSource() {}
 
+func (OracleSource) MaxReplicationWorkers() uint { return 1 }
+
 func (oracle *OracleSource) GetProviderType() abstract.ProviderType {
 	return ProviderType
 }

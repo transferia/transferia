@@ -222,6 +222,17 @@ func (f *Transfer) Validate() error {
 			}
 		}
 	}
+	if !f.SnapshotOnly() {
+		if limited, isLimitedSrc := f.Src.(ReplicationWorkersLimitedSource); isLimitedSrc {
+			maxWorkers := limited.MaxReplicationWorkers()
+			if rt, isSharding := f.RuntimeForReplication().(abstract.ShardingTaskRuntime); isSharding {
+				if rt.ReplicationWorkersNum() > int(maxWorkers) {
+					msg := "source of type %s supports at most %d replication worker(s), but %d configured"
+					return xerrors.Errorf(msg, f.SrcType(), maxWorkers, rt.ReplicationWorkersNum())
+				}
+			}
+		}
+	}
 	if dst, ok := f.Dst.(SourceCompatibility); ok {
 		if err := dst.Compatible(f.Src, f.Type); err != nil {
 			return xerrors.Errorf("target is not compatible with source: %w", err)

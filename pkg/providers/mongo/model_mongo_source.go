@@ -252,6 +252,8 @@ func (s *MongoSource) GetMongoCollectionFilter() MongoCollectionFilter {
 func (MongoSource) IsSource()       {}
 func (MongoSource) IsStrictSource() {}
 
+func (MongoSource) MaxReplicationWorkers() uint { return 1 }
+
 func (s *MongoSource) GetProviderType() abstract.ProviderType {
 	return ProviderType
 }

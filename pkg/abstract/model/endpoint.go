@@ -109,6 +109,12 @@ func IsStrictSource(src Source) bool {
 	return ok
 }
 
+// ReplicationWorkersLimitedSource is implemented by sources that limit replication workers number.
+// Transfer validation will fail if in transfer config number of replication workers specified bigger than MaxReplicationWorkers.
+type ReplicationWorkersLimitedSource interface {
+	MaxReplicationWorkers() uint
+}
+
 type Clusterable interface {
 	MDBClusterID() string
 }

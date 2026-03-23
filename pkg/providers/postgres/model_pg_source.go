@@ -320,6 +320,7 @@ func (s *PgSource) ExcludeWithGlobals() []string {
 
 func (*PgSource) IsSource()                      {}
 func (*PgSource) IsStrictSource()                {}
+func (*PgSource) MaxReplicationWorkers() uint    { return 1 }
 func (*PgSource) IsIncremental()                 {}
 func (*PgSource) SupportsStartCursorValue() bool { return true }
 

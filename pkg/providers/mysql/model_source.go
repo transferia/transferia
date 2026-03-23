@@ -199,6 +199,8 @@ func (s *MysqlSource) HasTLS() bool {
 func (MysqlSource) IsSource()       {}
 func (MysqlSource) IsStrictSource() {}
 
+func (MysqlSource) MaxReplicationWorkers() uint { return 1 }
+
 func (s *MysqlSource) GetProviderType() abstract.ProviderType {
 	return ProviderType
 }

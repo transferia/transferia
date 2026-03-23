@@ -48,6 +48,8 @@ func (s *GpSource) MDBClusterID() string {
 func (s *GpSource) IsSource()       {}
 func (s *GpSource) IsStrictSource() {}
 
+func (*GpSource) MaxReplicationWorkers() uint { return 1 }
+
 type GpSourceAdvancedProps struct {
 	// EnforceConsistency enables *enforcement* of consistent snapshot. When it is not set, the user is responsible for snapshot consistency
 	EnforceConsistency bool `log:"true"`
