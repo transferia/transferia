@@ -45,6 +45,7 @@ func main() {
 	logConfig := defaultLogConfig
 	coordinatorTyp := defaultCoordinator
 	coordinatorS3Bucket := ""
+	coordinatorS3Path := ""
 	runProfiler := false
 
 	promRegistry, registry := internal_metrics.NewPrometheusRegistryWithNameProcessor()
@@ -119,7 +120,7 @@ func main() {
 				}
 			case "s3":
 				var err error
-				cp, err = s3coordinator.NewS3(coordinatorS3Bucket, logger.Log)
+				cp, err = s3coordinator.NewS3(coordinatorS3Bucket, coordinatorS3Path, logger.Log)
 				if err != nil {
 					return xerrors.Errorf("unable to load s3 coordinator: %w", err)
 				}
@@ -141,6 +142,7 @@ func main() {
 	rootCommand.PersistentFlags().StringVar(&logConfig, "log-config", defaultLogConfig, "Specifies logging config for output logs (\"console\", \"json\", \"minimal\")")
 	rootCommand.PersistentFlags().StringVar(&coordinatorTyp, "coordinator", defaultCoordinator, "Specifies how to coordinate transfer nodes (\"memory\", \"s3\")")
 	rootCommand.PersistentFlags().StringVar(&coordinatorS3Bucket, "coordinator-s3-bucket", "", "Bucket for s3 coordinator")
+	rootCommand.PersistentFlags().StringVar(&coordinatorS3Path, "coordinator-s3-path", "", "Path for s3 coordinator")
 	rootCommand.PersistentFlags().BoolVar(&runProfiler, "run-profiler", true, "Run go pprof for performance profiles on 8080 port")
 	rootCommand.PersistentFlags().IntVar(&rt.CurrentJob, "coordinator-job-index", 0, "Worker job index")
 	rootCommand.PersistentFlags().IntVar(&rt.ShardingUpload.JobCount, "coordinator-job-count", 0, "Worker job count, if more then 1 - run consider as sharded, coordinator is required to be non memory")
