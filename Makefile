@@ -8,13 +8,15 @@ clean:
 
 # Define the `build` target
 API ?= trcli
+GOOS ?= linux
+GOARCH ?= amd64
 
 .PHONY: build
 build:
-	go build -o  binaries/$(API) ./cmd/trcli/*.go
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o  binaries/$(API) ./cmd/trcli/*.go
 
 docker: build
-	cp binaries/$(API) . && docker build -t transfer
+	cp binaries/$(API) . && docker buildx build --platform $(GOOS)/$(GOARCH) -t transfer .
 
 .PHONY: test
 test:
