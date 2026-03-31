@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/stretchr/testify/assert"
@@ -237,7 +238,7 @@ func TestDockerWrapper_Pull(t *testing.T) {
 				mockClient.On("ImageInspectWithRaw", mock.Anything, "alpine").
 					Return(types.ImageInspect{}, []byte{}, testErrNotFound{})
 
-				mockClient.On("ImagePull", mock.Anything, "alpine", types.ImagePullOptions{}).
+				mockClient.On("ImagePull", mock.Anything, "alpine", image.PullOptions{}).
 					Return(io.NopCloser(strings.NewReader("")), nil).Once()
 			}
 
@@ -246,7 +247,7 @@ func TestDockerWrapper_Pull(t *testing.T) {
 				logger: logger,
 			}
 
-			err := dw.Pull(context.Background(), "alpine", types.ImagePullOptions{})
+			err := dw.Pull(context.Background(), "alpine")
 			assert.NoError(t, err)
 
 			mockClient.AssertExpectations(t)
@@ -287,7 +288,7 @@ func TestDockerWrapper_Run_Success(t *testing.T) {
 			mockClient.On("ImageInspectWithRaw", mock.Anything, "alpine").
 				Return(types.ImageInspect{}, []byte{}, testErrNotFound{})
 
-			mockClient.On("ImagePull", mock.Anything, "alpine", types.ImagePullOptions{}).
+			mockClient.On("ImagePull", mock.Anything, "alpine", image.PullOptions{}).
 				Return(io.NopCloser(strings.NewReader("")), nil).Once()
 
 			containerCreateResponse := container.CreateResponse{ID: "container-id"}

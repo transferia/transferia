@@ -6,6 +6,7 @@ import (
 
 	docker_types "github.com/docker/docker/api/types"
 	docker_container "github.com/docker/docker/api/types/container"
+	docker_image "github.com/docker/docker/api/types/image"
 	docker_network "github.com/docker/docker/api/types/network"
 	opencontainers_specs "github.com/opencontainers/image-spec/specs-go/v1"
 	testify_mock "github.com/stretchr/testify/mock"
@@ -20,7 +21,7 @@ func (m *MockDockerClient) ImageInspectWithRaw(ctx context.Context, image string
 	return args.Get(0).(docker_types.ImageInspect), args.Get(1).([]byte), args.Error(2)
 }
 
-func (m *MockDockerClient) ImagePull(ctx context.Context, ref string, options docker_types.ImagePullOptions) (io.ReadCloser, error) {
+func (m *MockDockerClient) ImagePull(ctx context.Context, ref string, options docker_image.PullOptions) (io.ReadCloser, error) {
 	args := m.Called(ctx, ref, options)
 	return args.Get(0).(io.ReadCloser), args.Error(1)
 }

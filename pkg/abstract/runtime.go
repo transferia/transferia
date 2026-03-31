@@ -59,6 +59,22 @@ func RuntimesEqual(runtime, anotherRuntime Runtime) bool {
 	return runtimeStr == anotherRuntimeStr
 }
 
+func RuntimeCopyWithDefaults(r Runtime) Runtime {
+	if r == nil {
+		return nil
+	}
+	spec, err := GetRuntimeJSON(r)
+	if err != nil {
+		return r
+	}
+	cp, err := NewRuntime(r.Type(), spec)
+	if err != nil {
+		return r
+	}
+	cp.WithDefaults()
+	return cp
+}
+
 func RuntimesParamsEqual(runtime, anotherRuntime Runtime) bool {
 	return RuntimesEqual(RuntimeCopyWithDefaults(runtime), RuntimeCopyWithDefaults(anotherRuntime))
 }

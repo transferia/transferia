@@ -6,7 +6,6 @@ import (
 	"io"
 	"time"
 
-	docker_types "github.com/docker/docker/api/types"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	k8s_api "k8s.io/api/core/v1"
 	k8s_api_meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +37,7 @@ func (w *K8sWrapper) Run(ctx context.Context, opts ContainerOpts) (io.Reader, io
 	return b, nil, err
 }
 
-func (w *K8sWrapper) Pull(_ context.Context, _ string, _ docker_types.ImagePullOptions) error {
+func (w *K8sWrapper) Pull(_ context.Context, _ string) error {
 	// No need to pull images in k8s
 	return nil
 }

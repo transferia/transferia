@@ -3,6 +3,7 @@ package localstack
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -72,7 +73,6 @@ func Run(
 	localStackReq := LocalStackContainerRequest{
 		GenericContainerRequest: testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
-			Logger:           testcontainers.Logger,
 			Started:          true,
 		},
 	}
@@ -95,7 +95,7 @@ func Run(
 		return nil, err
 	}
 
-	localStackReq.GenericContainerRequest.Logger.Printf(
+	log.Printf(
 		"Setting %s to %s (%s)\n",
 		envVar,
 		req.Env[envVar],

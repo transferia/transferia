@@ -81,11 +81,7 @@ func getContainerHost(ctx context.Context, opts ...testcontainers.ContainerCusto
 		_ = opt.Customize(&req)
 	}
 
-	logging := req.Logger
-	if logging == nil {
-		logging = testcontainers.Logger
-	}
-	p, err := req.ProviderType.GetProvider(testcontainers.WithLogger(logging))
+	p, err := req.ProviderType.GetProvider()
 	if err != nil {
 		return "", err
 	}

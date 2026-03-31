@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	docker_types "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -61,7 +60,7 @@ func (r *runner) Run(ctx context.Context) error {
 }
 
 func (r *runner) initializeDocker(ctx context.Context) error {
-	if err := r.cw.Pull(ctx, r.fullImageID(), docker_types.ImagePullOptions{}); err != nil {
+	if err := r.cw.Pull(ctx, r.fullImageID()); err != nil {
 		return xerrors.Errorf("docker initialization failed: %w", err)
 	}
 	return nil

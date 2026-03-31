@@ -1,3 +1,5 @@
+//go:build persqueue
+
 package protobuf_extractor
 
 import (

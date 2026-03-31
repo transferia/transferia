@@ -1,3 +1,5 @@
+//go:build persqueue
+
 package proto
 
 import (
