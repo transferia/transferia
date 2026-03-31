@@ -3228,8 +3228,8 @@ go.ytsaurus.tech/library/go/blockcodecs v0.0.3 h1:JXCfuzDx4yoJgV0eWA+3zLAT0Mex3Y
 go.ytsaurus.tech/library/go/blockcodecs v0.0.3/go.mod h1:CtkA8XKuqwax4aPBEorIpz84gW3ijEHsnzlkODYERfU=
 go.ytsaurus.tech/library/go/core/buildinfo v0.0.0-20250809130132-fa050e73ac17 h1:URFcNi38TYQpvUA/cUY2j+w+qX0djmh1fJ/iDYFVbys=
 go.ytsaurus.tech/library/go/core/buildinfo v0.0.0-20250809130132-fa050e73ac17/go.mod h1:BfQ81zAp18zqVhndHyoigZS+pMW+x7WJdcZIBSwTs5k=
-go.ytsaurus.tech/library/go/core/log v0.0.4 h1:HQqRd2cw6TdbD0iMCmHxE+hLEES5LUFaj2Mc6rePAuc=
-go.ytsaurus.tech/library/go/core/log v0.0.4/go.mod h1:CmXfXw+wMmxr2NYdHWRLYww7WiVYdcJx0RRkt14Dmc8=
+go.ytsaurus.tech/library/go/core/log v0.0.5-0.20260331112941-0ba68ccc524f h1:CEvUt+E6kZhtY8JCrw2WJKct9XeLv8VwliLADMYcdLs=
+go.ytsaurus.tech/library/go/core/log v0.0.5-0.20260331112941-0ba68ccc524f/go.mod h1:jfPQ2GUGJq6fyMOKVXziBKEbzxddEIWTWd2tjnCLdnc=
 go.ytsaurus.tech/library/go/core/xerrors v0.0.4 h1:KDZdCGiS/Lg641TIA3s8JCg7ZgxAvtFITTeG3Kb+SoE=
 go.ytsaurus.tech/library/go/core/xerrors v0.0.4/go.mod h1:yvvvhXFbVLe1FwrgH3RY031EjKmvykQuOw+E9x1eZ5Q=
 go.ytsaurus.tech/library/go/ptr v0.0.2 h1:F2lr3y0XuMweTKjBMibcV/FBsEyvNw293FAc+flNXZ4=

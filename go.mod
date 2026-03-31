@@ -43,7 +43,6 @@ require (
 	github.com/klauspost/compress v1.18.2
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
-	github.com/montanaflynn/stats v0.7.1
 	github.com/ohler55/ojg v1.26.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/opencontainers/image-spec v1.1.1
@@ -77,7 +76,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/mock v0.5.2
 	go.uber.org/zap v1.27.1
-	go.ytsaurus.tech/library/go/core/log v0.0.4
+	go.ytsaurus.tech/library/go/core/log v0.0.5-0.20260331112941-0ba68ccc524f
 	go.ytsaurus.tech/yt/go v0.0.32
 	golang.org/x/crypto v0.47.0
 	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6
@@ -209,6 +208,7 @@ require (
 	github.com/moby/term v0.5.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
+	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a // indirect

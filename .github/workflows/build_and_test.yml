@@ -18,7 +18,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.0"
+          go-version: "1.25.0"
       - shell: bash
         run: |
           make build
@@ -60,7 +60,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.0"
+          go-version: "1.25.0"
       - shell: bash
         run: |
           go install gotest.tools/gotestsum@latest
@@ -172,7 +172,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.0"
+          go-version: "1.25.0"
       - shell: bash
         run: |
           go install gotest.tools/gotestsum@latest
