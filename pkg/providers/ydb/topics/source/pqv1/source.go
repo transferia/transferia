@@ -1,3 +1,5 @@
+//go:build persqueue
+
 package pqv1source
 
 import (

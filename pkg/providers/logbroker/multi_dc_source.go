@@ -1,3 +1,5 @@
+//go:build persqueue
+
 package logbroker
 
 import (

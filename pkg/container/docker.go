@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"time"
 
-	docker_types "github.com/docker/docker/api/types"
 	docker_container "github.com/docker/docker/api/types/container"
+	docker_image "github.com/docker/docker/api/types/image"
 	docker_network "github.com/docker/docker/api/types/network"
 	docker_client "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -57,10 +57,10 @@ func (d *DockerWrapper) isDockerReady() bool {
 	return true
 }
 
-func (d *DockerWrapper) Pull(ctx context.Context, image string, opts docker_types.ImagePullOptions) error {
+func (d *DockerWrapper) Pull(ctx context.Context, image string) error {
 	_, _, err := d.cli.ImageInspectWithRaw(ctx, image)
 	if docker_client.IsErrNotFound(err) {
-		reader, pullErr := d.cli.ImagePull(ctx, image, docker_types.ImagePullOptions{})
+		reader, pullErr := d.cli.ImagePull(ctx, image, docker_image.PullOptions{})
 		if pullErr != nil {
 			return xerrors.Errorf("error pulling image %s: %w", image, pullErr)
 		}
@@ -86,7 +86,7 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 		return nil, nil, xerrors.Errorf("docker unavailable")
 	}
 
-	if err := d.Pull(ctx, opts.Image, docker_types.ImagePullOptions{}); err != nil {
+	if err := d.Pull(ctx, opts.Image); err != nil {
 		return nil, nil, err
 	}
 

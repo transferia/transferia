@@ -6,6 +6,7 @@ import (
 
 	docker_types "github.com/docker/docker/api/types"
 	docker_container "github.com/docker/docker/api/types/container"
+	docker_image "github.com/docker/docker/api/types/image"
 	docker_network "github.com/docker/docker/api/types/network"
 	opencontainers_specs "github.com/opencontainers/image-spec/specs-go/v1"
 	k8s_api "k8s.io/api/core/v1"
@@ -14,7 +15,7 @@ import (
 
 type DockerClient interface {
 	ImageInspectWithRaw(ctx context.Context, image string) (docker_types.ImageInspect, []byte, error)
-	ImagePull(ctx context.Context, ref string, options docker_types.ImagePullOptions) (io.ReadCloser, error)
+	ImagePull(ctx context.Context, ref string, options docker_image.PullOptions) (io.ReadCloser, error)
 	ContainerCreate(ctx context.Context, config *docker_container.Config, hostConfig *docker_container.HostConfig,
 		networkingConfig *docker_network.NetworkingConfig, platform *opencontainers_specs.Platform, containerName string) (docker_container.CreateResponse, error)
 	ContainerStart(ctx context.Context, containerID string, options docker_container.StartOptions) error
