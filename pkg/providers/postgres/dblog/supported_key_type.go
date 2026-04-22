@@ -123,8 +123,14 @@ var supportedTypesSet = set.New(supportedTypesArr...)
 var unsupportedTypesSet = set.New(unsupportedTypesArr...)
 
 func CheckTypeCompatibility(keyType string) dblog.TypeSupport {
-	normalKeyType := strings.Split(keyType, "(")[0]
-	normalKeyType = strings.TrimPrefix(normalKeyType, "pg:")
+	normalKeyType := strings.TrimPrefix(keyType, "pg:")
+	// Remove precision specifier like "(0)" from types like "timestamp(0) with time zone",
+	// keeping the rest of the type name intact.
+	if start := strings.Index(normalKeyType, "("); start != -1 {
+		if end := strings.Index(normalKeyType[start:], ")"); end != -1 {
+			normalKeyType = strings.TrimSpace(normalKeyType[:start] + normalKeyType[start+end+1:])
+		}
+	}
 
 	switch {
 	case supportedTypesSet.Contains(normalKeyType):

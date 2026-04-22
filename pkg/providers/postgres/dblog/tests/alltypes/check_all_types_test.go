@@ -55,6 +55,7 @@ var (
 		"character varying",
 		"timestamptz",
 		"timestamp with time zone",
+		"timestamp(0) with time zone",
 		"timestamp without time zone",
 		"timetz",
 		"time with time zone",
@@ -133,6 +134,23 @@ func init() {
 	Source.WithDefaults()
 }
 
+func TestCheckTypeCompatibilityWithPrecision(t *testing.T) {
+	precisionTypes := []string{
+		"pg:timestamp(0) with time zone",
+		"pg:timestamp(1) with time zone",
+		"pg:timestamp(6) with time zone",
+		"pg:timestamp(0) without time zone",
+		"pg:timestamp(6) without time zone",
+		"pg:time(0) with time zone",
+		"pg:time(6) with time zone",
+		"pg:time(0) without time zone",
+		"pg:time(6) without time zone",
+	}
+	for _, keyType := range precisionTypes {
+		require.Equal(t, dblog.TypeSupported, postgres_dblog.CheckTypeCompatibility(keyType), "keyType: %s", keyType)
+	}
+}
+
 func TestIncrementalSnapshot(t *testing.T) {
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
@@ -185,6 +203,7 @@ func TestIncrementalSnapshot(t *testing.T) {
 		"character varying_pk_table":           {"'alpha'", "'beta'"},
 		"timestamptz_pk_table":                 {"'2023-01-01 00:00:00+03:00:00'", "'2023-01-02 00:00:00+03:00:00'"},
 		"timestamp with time zone_pk_table":    {"'2023-01-01 00:00:00+03:00:00'", "'2023-01-02 00:00:00+03:00:00'"},
+		"timestamp(0) with time zone_pk_table": {"'2023-01-01 00:00:00+03:00:00'", "'2023-01-02 00:00:00+03:00:00'"},
 		"timestamp without time zone_pk_table": {"'2023-01-01 00:00:00+03:00:00'", "'2023-01-02 00:00:00+03:00:00'"},
 		"timetz_pk_table":                      {"'00:00:00+03'", "'01:00:00+03'"},
 		"time with time zone_pk_table":         {"'00:00:00+03'", "'01:00:00+03'"},
