@@ -277,6 +277,12 @@ func (t *sinkTable) ApplyChangeItems(rows []abstract.ChangeItem) error {
 			return xerrors.Errorf("apply batch %d failed: %w", i, err)
 		}
 	}
+	t.logger.Info(
+		"Committed",
+		log.Any("source_table", rows[0].TableID().Fqtn()),
+		log.Any("table", t.tableName),
+		log.Any("ops", len(rows)),
+	)
 	return nil
 }
 
