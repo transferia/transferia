@@ -226,7 +226,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/rekby/fixenv v0.7.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shoenig/go-m1cpu v0.2.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
@@ -349,6 +349,8 @@ replace k8s.io/cri-api => k8s.io/cri-api v0.23.5
 replace k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.26.1
 
 replace k8s.io/dynamic-resource-allocation => k8s.io/dynamic-resource-allocation v0.26.1
+
+replace k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.31.6
 
 replace k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.26.1
 
