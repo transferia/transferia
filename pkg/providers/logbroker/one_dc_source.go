@@ -13,6 +13,7 @@ import (
 	topiccommon "github.com/transferia/transferia/pkg/providers/ydb/topics/common"
 	topicsource "github.com/transferia/transferia/pkg/providers/ydb/topics/source"
 	pqv1source "github.com/transferia/transferia/pkg/providers/ydb/topics/source/pqv1"
+	topicapisource "github.com/transferia/transferia/pkg/providers/ydb/topics/source/topicapi"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -41,7 +42,7 @@ func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Regi
 	topicSourceCfg := &topicsource.Config{
 		Connection: topiccommon.ConnectionConfig{
 			Endpoint:    topiccommon.FormatEndpoint(string(cfg.Instance), cfg.Port),
-			Database:    cfg.Database,
+			Database:    cfg.db(),
 			Credentials: cfg.Credentials,
 			TLSEnabled:  cfg.TLS == EnabledTLS,
 			RootCAFiles: cfg.RootCAFiles,
@@ -65,9 +66,17 @@ func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Regi
 		UseFullTopicNameForParsing: true,
 	}
 
-	source, err := pqv1source.NewSource(topicSourceCfg, parser, logger, sourceMetrics)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create pqv1 source: %w", err)
+	var source abstract.Source
+	if cfg.UseTopicAPI {
+		source, err = topicapisource.NewSource(topicSourceCfg, parser, logger, sourceMetrics)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to create TopicAPI source: %w", err)
+		}
+	} else {
+		source, err = pqv1source.NewSource(topicSourceCfg, parser, logger, sourceMetrics)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to create pqv1 source: %w", err)
+		}
 	}
 
 	rollbacks.Cancel()

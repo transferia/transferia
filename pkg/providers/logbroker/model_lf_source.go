@@ -39,7 +39,9 @@ type LfSource struct {
 	RootCAFiles           []string
 	ParseQueueParallelism int `log:"true"`
 
-	UsePqv1 bool `log:"true"`
+	// UsePqv1 and UseTopicAPI are migration flags. They will be removed in TM-10063 after migration
+	UsePqv1     bool `log:"true"`
+	UseTopicAPI bool `log:"true"`
 }
 
 var _ model.Source = (*LfSource)(nil)
@@ -109,3 +111,10 @@ func (s *LfSource) Parser() map[string]interface{} {
 }
 
 func (s *LfSource) MultiYtEnabled() {}
+
+func (s *LfSource) db() string {
+	if s.Database == "" {
+		return defaultLogbrokerDatabase
+	}
+	return s.Database
+}

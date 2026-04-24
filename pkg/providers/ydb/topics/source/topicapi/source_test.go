@@ -49,8 +49,11 @@ func TestSource(t *testing.T) {
 		require.Equal(t, len(testMessages), resLen)
 
 		i := 0
+		partitionName := abstract.NewPartition(topicName, 0).String()
 		for _, push := range res {
 			for _, item := range push {
+				require.Equal(t, partitionName, item.Table)
+				require.Equal(t, partitionName, item.ColumnValues[0])
 				require.Equal(t, testMessages[i], item.ColumnValues[7])
 				i++
 			}
@@ -102,6 +105,43 @@ func TestSource(t *testing.T) {
 		require.Len(t, topicToResMessage[expectedTopicName], len(testMessagesThree))
 		for i, msg := range testMessagesThree {
 			require.Equal(t, msg, topicToResMessage[expectedTopicName][i])
+		}
+	})
+
+	t.Run("ReadOneTopicWithUseFullPath", func(t *testing.T) {
+		topicName := "some_dir/one_topic_test"
+		testMessages := [][]byte{
+			[]byte("message_1"),
+			[]byte("message_2"),
+			[]byte("message_3"),
+		}
+		ydbtopic.CreateAndFillTopic(t, topicName, testMessages)
+
+		srcCfg := newTestSourceCfg(t, []string{topicName})
+		srcCfg.UseFullTopicNameForParsing = true
+		parser, err := parsers.NewParserFromParserConfig(&blankparser.ParserConfigBlankLb{}, false, logger.Log, sourceMetrics)
+		require.NoError(t, err)
+
+		src, err := NewSource(srcCfg, parser, logger.Log, sourceMetrics)
+		require.NoError(t, err)
+		res, err := sourcehelpers.WaitForItems(src, len(testMessages), 0)
+		require.NoError(t, err)
+
+		resLen := 0
+		for _, msg := range res {
+			resLen += len(msg)
+		}
+		require.Equal(t, len(testMessages), resLen)
+
+		i := 0
+		partitionName := abstract.NewPartition(topicName, 0).String()
+		for _, push := range res {
+			for _, item := range push {
+				require.Equal(t, partitionName, item.Table)
+				require.Equal(t, partitionName, item.ColumnValues[0])
+				require.Equal(t, testMessages[i], item.ColumnValues[7])
+				i++
+			}
 		}
 	})
 }

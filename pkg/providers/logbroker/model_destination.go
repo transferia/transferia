@@ -16,6 +16,8 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+const defaultLogbrokerDatabase = "/Root"
+
 type LbDestination struct {
 	Instance string `log:"true"`
 	Database string `log:"true"`
@@ -174,7 +176,7 @@ func (d *LbDestination) FillDependentFields(transfer *model.Transfer) {
 
 func (d *LbDestination) db() string {
 	if d.Database == "" {
-		return "/Root"
+		return defaultLogbrokerDatabase
 	}
 	return d.Database
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topiclistener"
 )
 
+const ipMetaKey = "_ip"
+
 type ReadEvent struct {
 	Batch parsers.MessageBatch
 
@@ -28,31 +30,42 @@ func NewReadEvent(event *topiclistener.ReadMessages) (*ReadEvent, error) {
 			return nil, err
 		}
 
-		var metadata map[string]string
-		if msg.Metadata != nil {
-			metadata = make(map[string]string, len(msg.Metadata))
-			for k, v := range msg.Metadata {
-				metadata[k] = string(v)
-			}
-		}
-
 		messages = append(messages, parsers.Message{
 			Offset:     uint64(msg.Offset),
 			Key:        []byte(msg.ProducerID),
 			Value:      value,
 			CreateTime: msg.CreatedAt,
 			WriteTime:  msg.CreatedAt,
-			Headers:    metadata,
+			Headers:    combineMetadata(msg.Metadata, msg.WriteSessionMetadata),
 			SeqNo:      uint64(msg.SeqNo),
 		})
 	}
 
 	return &ReadEvent{
 		Batch: parsers.MessageBatch{
-			Topic:     event.Batch.Topic(),
+			Topic:     event.PartitionSession.TopicPath,
 			Partition: uint32(event.PartitionSession.PartitionID),
 			Messages:  messages,
 		},
 		commit: event.ConfirmWithAck,
 	}, nil
+}
+
+func combineMetadata(userMeta map[string][]byte, writeMeta map[string]string) map[string]string {
+	if userMeta == nil && writeMeta == nil {
+		return nil
+	}
+
+	metadata := make(map[string]string, len(userMeta)+len(writeMeta))
+	for k, v := range userMeta {
+		metadata[k] = string(v)
+	}
+	for k, v := range writeMeta {
+		if k == ipMetaKey {
+			continue
+		}
+		metadata[k] = v
+	}
+
+	return metadata
 }
