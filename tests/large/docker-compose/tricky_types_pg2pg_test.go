@@ -16,6 +16,10 @@ import (
 	"github.com/transferia/transferia/tests/helpers"
 )
 
+// trickyTypesPg2PgTarget1Container matches docker-compose.yaml (tricky-types-pg2pg-target1.container_name)
+// so docker exec works with both legacy docker-compose and Compose v2 plugin naming.
+const trickyTypesPg2PgTarget1Container = "tricky-types-pg2pg-target-1"
+
 var (
 	trickyTypesPg2PgSource = postgres.PgSource{
 		Hosts:    []string{"localhost"},
@@ -56,8 +60,8 @@ func TestTrickyTypesPg2PgSupportedTypes(t *testing.T) {
 	dumpTargetDB := func() string {
 		return pgrecipe.PgDump(
 			t,
-			[]string{"docker", "exec", "docker-compose_tricky-types-pg2pg-target1_1", "pg_dump", "--table", "public.pgis_supported_types"},
-			[]string{"docker", "exec", "docker-compose_tricky-types-pg2pg-target1_1", "psql"},
+			[]string{"docker", "exec", trickyTypesPg2PgTarget1Container, "pg_dump", "--table", "public.pgis_supported_types"},
+			[]string{"docker", "exec", trickyTypesPg2PgTarget1Container, "psql"},
 			"user=postgres dbname=postgres password=123 host=localhost port=6432",
 			"public.pgis_supported_types",
 		)
@@ -129,8 +133,8 @@ func TestTrickyTypesPg2PgTemporals(t *testing.T) {
 	dumpTargetDB := func() string {
 		return pgrecipe.PgDump(
 			t,
-			[]string{"docker", "exec", "docker-compose_tricky-types-pg2pg-target1_1", "pg_dump", "--table", "public.temporals"},
-			[]string{"docker", "exec", "docker-compose_tricky-types-pg2pg-target1_1", "psql"},
+			[]string{"docker", "exec", trickyTypesPg2PgTarget1Container, "pg_dump", "--table", "public.temporals"},
+			[]string{"docker", "exec", trickyTypesPg2PgTarget1Container, "psql"},
 			"user=postgres dbname=postgres password=123 host=localhost port=6432",
 			"public.temporals",
 		)
