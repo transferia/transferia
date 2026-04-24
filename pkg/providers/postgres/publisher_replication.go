@@ -598,7 +598,9 @@ func startReplication(
 	wal2jsonArgs wal2jsonArguments,
 	lgr log.Logger,
 ) (*mutexedPgConn, error) {
-	return backoff.RetryNotifyWithData(func() (*mutexedPgConn, error) {
+	curTry, maxTries := 0, 5
+	operation := func() (*mutexedPgConn, error) {
+		curTry++
 		var rb util.Rollbacks
 		defer rb.Do()
 		rConnConfig := makeReplicationConnConfig(connConfig.Config, version)
@@ -651,14 +653,24 @@ func startReplication(
 			if strings.Contains(err.Error(), "SQLSTATE 55006") {
 				// map to coded error for UI/linking
 				err = coded.Errorf(error_codes.PostgresObjectInUse, "Replication slot is in use: %w", err)
-				tryKillSlotReader(rConn, slotName, lgr)
+				if curTry == maxTries {
+					lgr.Warn("Last retry but slot still occupied, terminating reader")
+					tryKillSlotReader(rConn, slotName, lgr)
+				} else {
+					lgr.Infof("Slot occupied on try %d of %d, waiting...", curTry, maxTries)
+				}
 			}
 			//nolint:descriptiveerrors
 			return nil, err
 		}
 		rb.Cancel()
 		return rConn, nil
-	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5), util.BackoffLoggerWarn(lgr, "cannot start replication"))
+	}
+	return backoff.RetryNotifyWithData(
+		operation,
+		backoff.WithMaxRetries(backoff.NewConstantBackOff(3*time.Minute), uint64(maxTries)),
+		util.BackoffLoggerWarn(lgr, "cannot start replication"),
+	)
 }
 
 func makeReplicationConnConfig(srcConfig pgconn.Config, version PgVersion) *pgconn.Config {

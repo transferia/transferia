@@ -61,10 +61,9 @@ func TestAddTableInSource(t *testing.T) {
 
 	// Replication, first try
 	transfer.Dst.(*postgres.PgDestination).CopyUpload = false // :(
-	wrkr := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
-	defer wrkr.Stop()
+	wrkr1 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
 	runChannel := make(chan error)
-	go func() { runChannel <- wrkr.Run() }()
+	go func() { runChannel <- wrkr1.Run() }()
 
 	// Wait until replication has started and transfers one row
 	insertOneRow(t, helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.promiscuous", tableRow{100, "100"})
@@ -83,21 +82,21 @@ func TestAddTableInSource(t *testing.T) {
 	require.Error(t, err)
 	require.False(t, abstract.IsFatal(err))
 	require.Equal(t, 0, rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2"))
+	require.NoError(t, wrkr1.Stop())
 
 	// Replication, second try
-	wrkr = local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
-	defer wrkr.Stop()
-
-	err = wrkr.Run()
+	wrkr2 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	err = wrkr2.Run()
 	require.Error(t, err)
 	require.False(t, abstract.IsFatal(err))
 	require.Equal(t, 0, rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2"))
+	require.NoError(t, wrkr2.Stop())
 
 	// Give access to the source table secret2 to loser and check that replication works after that
 	grantPrivileges(t, helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.secret2", "loser")
-	wrkr = local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
-	defer wrkr.Stop()
-	wrkr.Start() // Use asynchronous Start() instead of synchronous Run() to avoid blocking
+	wrkr3 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	defer wrkr3.Stop()
+	wrkr3.Start()
 	for rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2") == 0 {
 		time.Sleep(time.Second)
 	}

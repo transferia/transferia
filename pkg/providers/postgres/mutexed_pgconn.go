@@ -14,6 +14,13 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+const (
+	callsTimeout = 20 * time.Second
+
+	// Call timings will be logged if notificationTimeout exceeds.
+	notificationTimeout = 15 * time.Second
+)
+
 type messageReceiver interface {
 	ReceiveMessage(ctx context.Context) (pgproto3.BackendMessage, error)
 	Close(ctx context.Context) error
@@ -35,7 +42,7 @@ func newMutexedPgConn(conn *pgconn.PgConn) *mutexedPgConn {
 func (m *mutexedPgConn) Close(ctx context.Context) error {
 	defer m.lockSelf("Close")()
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, callsTimeout)
 	defer cancel()
 
 	return m.pgconn.Close(ctx)
@@ -90,7 +97,7 @@ func (m *mutexedPgConn) SendStandbyStatusUpdate(ctx context.Context, statusUpdat
 func (m *mutexedPgConn) StartReplication(ctx context.Context, slotName string, startLSN pglogrepl.LSN, startReplicationOptions pglogrepl.StartReplicationOptions) error {
 	defer m.lockSelf("StartReplication")()
 
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, callsTimeout)
 	defer cancel()
 
 	return pglogrepl.StartReplication(ctx, m.pgconn.(*pgconn.PgConn), slotName, startLSN, startReplicationOptions)
@@ -114,7 +121,7 @@ func (m *mutexedPgConn) lockSelf(method string) (unlockFn func()) {
 
 func logCallTimings(callName string, mutexLockCalledAt, mutexLockedAt time.Time) {
 	callFinishedAt := time.Now()
-	if callFinishedAt.Sub(mutexLockCalledAt) <= 10*time.Second {
+	if callFinishedAt.Sub(mutexLockCalledAt) <= notificationTimeout {
 		return // Do not log fast calls
 	}
 	logger.Log.Info("Call timings", log.String("call_name", callName), log.Duration("mutex_wait_time", mutexLockedAt.Sub(mutexLockCalledAt)), log.Duration("call_time", callFinishedAt.Sub(mutexLockedAt)))
