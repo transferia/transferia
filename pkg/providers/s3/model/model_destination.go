@@ -37,6 +37,13 @@ type SerializerSettings struct {
 	Parquet *ParquetSerializerSettings `log:"true"`
 }
 
+func (s *SerializerSettings) GetParquet() *ParquetSerializerSettings {
+	if s == nil {
+		return nil
+	}
+	return s.Parquet
+}
+
 type ParquetSerializerSettings struct {
 	CompressionCodec string `log:"true"`
 	RowGroupMaxRows  int64  `log:"true"`
