@@ -1,21 +1,20 @@
-package engine
+package raw_to_table_common
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferia/transferia/pkg/parsers/registry/raw_to_table/raw_to_table_model"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
 func TestBuildTableSchemaAndColumnNames_JSONKey(t *testing.T) {
 	cfg := &CommonConfig{
 		IsKeyEnabled: true,
-		KeyType:      raw_to_table_model.JSON,
-		ValueType:    raw_to_table_model.Bytes,
+		KeyType:      JSON,
+		ValueType:    Bytes,
 	}
 
-	tableSchema, columnNames := buildTableSchemaAndColumnNames(cfg, false)
+	tableSchema, columnNames := BuildTableSchemaAndColumnNames(cfg, false)
 	require.Contains(t, columnNames, ColNameKey)
 
 	found := false

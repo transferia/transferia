@@ -18,10 +18,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	parser_raw_to_table "github.com/transferia/transferia/pkg/parsers/registry/raw_to_table"
-	"github.com/transferia/transferia/pkg/parsers/registry/raw_to_table/raw_to_table_model"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	transformer_replace_primary_key "github.com/transferia/transferia/pkg/transformer/registry/replace_primary_key"
+	"github.com/transferia/transferia/pkg/util/raw_to_table_common"
 	"github.com/transferia/transferia/tests/helpers"
 	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
@@ -73,8 +73,8 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 		IsTimestampEnabled: true,
 		IsHeadersEnabled:   true,
 		IsKeyEnabled:       true,
-		KeyType:            raw_to_table_model.Bytes,
-		ValueType:          raw_to_table_model.Bytes,
+		KeyType:            raw_to_table_common.Bytes,
+		ValueType:          raw_to_table_common.Bytes,
 		TableName:          "my_table",
 		DLQSuffix:          "", // use default
 	})

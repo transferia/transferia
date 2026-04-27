@@ -1,4 +1,4 @@
-package raw_to_table_model
+package raw_to_table_common
 
 type DataType string
 

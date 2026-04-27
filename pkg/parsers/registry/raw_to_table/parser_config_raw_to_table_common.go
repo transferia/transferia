@@ -1,8 +1,7 @@
 package raw_to_table
 
 import (
-	raw_to_table_engine "github.com/transferia/transferia/pkg/parsers/registry/raw_to_table/engine"
-	"github.com/transferia/transferia/pkg/parsers/registry/raw_to_table/raw_to_table_model"
+	"github.com/transferia/transferia/pkg/util/raw_to_table_common"
 )
 
 // ParserConfigRawToTableCommon is the full raw-to-table parser config (optional key column).
@@ -12,9 +11,9 @@ type ParserConfigRawToTableCommon struct {
 	TableName string // by default (if empty string), tableName = topicName
 
 	IsKeyEnabled bool
-	KeyType      raw_to_table_model.DataType
+	KeyType      raw_to_table_common.DataType
 
-	ValueType raw_to_table_model.DataType
+	ValueType raw_to_table_common.DataType
 
 	IsTimestampEnabled bool
 	IsHeadersEnabled   bool
@@ -30,8 +29,8 @@ func (c *ParserConfigRawToTableCommon) IsAppendOnly() bool {
 	return true
 }
 
-func (c *ParserConfigRawToTableCommon) toCommonConfig() *raw_to_table_engine.CommonConfig {
-	return &raw_to_table_engine.CommonConfig{
+func (c *ParserConfigRawToTableCommon) toCommonConfig() *raw_to_table_common.CommonConfig {
+	return &raw_to_table_common.CommonConfig{
 		TableName: c.TableName,
 
 		IsKeyEnabled: c.IsKeyEnabled,

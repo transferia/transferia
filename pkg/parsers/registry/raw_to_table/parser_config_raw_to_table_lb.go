@@ -1,8 +1,7 @@
 package raw_to_table
 
 import (
-	raw_to_table_engine "github.com/transferia/transferia/pkg/parsers/registry/raw_to_table/engine"
-	"github.com/transferia/transferia/pkg/parsers/registry/raw_to_table/raw_to_table_model"
+	"github.com/transferia/transferia/pkg/util/raw_to_table_common"
 )
 
 // ParserConfigRawToTableLb is the variant without a key column on the main sink table.
@@ -11,7 +10,7 @@ import (
 type ParserConfigRawToTableLb struct {
 	TableName string // by default (if empty string), tableName = topicName
 
-	ValueType raw_to_table_model.DataType
+	ValueType raw_to_table_common.DataType
 
 	IsTimestampEnabled bool
 	IsHeadersEnabled   bool
@@ -27,8 +26,8 @@ func (c *ParserConfigRawToTableLb) IsAppendOnly() bool {
 	return true
 }
 
-func (c *ParserConfigRawToTableLb) toCommonConfig() *raw_to_table_engine.CommonConfig {
-	return &raw_to_table_engine.CommonConfig{
+func (c *ParserConfigRawToTableLb) toCommonConfig() *raw_to_table_common.CommonConfig {
+	return &raw_to_table_common.CommonConfig{
 		TableName: c.TableName,
 
 		ValueType: c.ValueType,

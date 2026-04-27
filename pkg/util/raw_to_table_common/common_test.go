@@ -1,10 +1,9 @@
-package engine
+package raw_to_table_common
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/transferia/transferia/pkg/parsers/registry/raw_to_table/raw_to_table_model"
 )
 
 func TestCommonConfigValidate(t *testing.T) {
@@ -17,8 +16,8 @@ func TestCommonConfigValidate(t *testing.T) {
 			name: "ValidConfig",
 			cfg: CommonConfig{
 				IsKeyEnabled: true,
-				KeyType:      raw_to_table_model.Bytes,
-				ValueType:    raw_to_table_model.String,
+				KeyType:      Bytes,
+				ValueType:    String,
 			},
 			wantErr: false,
 		},
@@ -26,8 +25,8 @@ func TestCommonConfigValidate(t *testing.T) {
 			name: "InvalidKeyType",
 			cfg: CommonConfig{
 				IsKeyEnabled: true,
-				KeyType:      raw_to_table_model.DataType("blablabla"),
-				ValueType:    raw_to_table_model.Bytes,
+				KeyType:      DataType("blablabla"),
+				ValueType:    Bytes,
 			},
 			wantErr: true,
 		},
@@ -35,8 +34,8 @@ func TestCommonConfigValidate(t *testing.T) {
 			name: "InvalidValueType",
 			cfg: CommonConfig{
 				IsKeyEnabled: true,
-				KeyType:      raw_to_table_model.Bytes,
-				ValueType:    raw_to_table_model.DataType("blablabla"),
+				KeyType:      Bytes,
+				ValueType:    DataType("blablabla"),
 			},
 			wantErr: true,
 		},
