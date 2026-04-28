@@ -54,5 +54,12 @@ func (gp *Connection) ResolveReplicaHost() *Host {
 			return host
 		}
 	}
+
+	master := gp.ResolveMasterHost()
+	for _, host := range gp.CoordinatorHosts {
+		if host.Role == RoleUndefined && host != master {
+			return host
+		}
+	}
 	return nil
 }
