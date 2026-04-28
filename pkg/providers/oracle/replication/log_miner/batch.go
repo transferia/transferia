@@ -3,7 +3,7 @@ package log_miner
 import (
 	"time"
 
-	"github.com/transferia/transferia/pkg/abstract2"
+	"github.com/transferia/transferia/pkg/abstract"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 )
 
@@ -13,14 +13,14 @@ const (
 )
 
 type logMinerBatch struct {
-	Rows             []abstract2.Event
+	Rows             []abstract.ChangeItem
 	CreateTime       time.Time
 	ProgressPosition *oracle_common.LogPosition
 }
 
 func newLogMinerBatch() *logMinerBatch {
 	return &logMinerBatch{
-		Rows:             []abstract2.Event{},
+		Rows:             []abstract.ChangeItem{},
 		CreateTime:       time.Now(),
 		ProgressPosition: nil,
 	}
@@ -45,6 +45,6 @@ func (batch *logMinerBatch) Ready() bool {
 	return len(batch.Rows) >= maxBatchSize || time.Since(batch.CreateTime) >= maxBatchTime
 }
 
-func (batch *logMinerBatch) Add(event abstract2.Event) {
-	batch.Rows = append(batch.Rows, event)
+func (batch *logMinerBatch) Add(item abstract.ChangeItem) {
+	batch.Rows = append(batch.Rows, item)
 }

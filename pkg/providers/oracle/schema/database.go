@@ -490,7 +490,7 @@ where
 }
 
 func (db *Database) loadUniqueIndexes(includeTables []*oracle_common.TableID, excludeTables []*oracle_common.TableID) error {
-	defaultCondition, err := db.getDefaultTablesCondition("cols.OWNER", "cols.TABLE_NAME", includeTables, excludeTables)
+	defaultCondition, err := db.getDefaultTablesCondition("cols.TABLE_OWNER", "cols.TABLE_NAME", includeTables, excludeTables)
 	if err != nil {
 		//nolint:descriptiveerrors
 		return err
@@ -500,7 +500,7 @@ func (db *Database) loadUniqueIndexes(includeTables []*oracle_common.TableID, ex
 select cols.INDEX_NAME, cols.TABLE_OWNER as OWNER, cols.TABLE_NAME, cols.COLUMN_NAME
 from ALL_IND_COLUMNS cols
 inner join all_indexes inds
-	on inds.TABLE_OWNER = cols.TABLE_OWNER and inds.TABLE_NAME = cols.TABLE_NAME and inds.INDEX_NAME = inds.INDEX_NAME
+	on inds.TABLE_OWNER = cols.TABLE_OWNER and inds.TABLE_NAME = cols.TABLE_NAME and inds.INDEX_NAME = cols.INDEX_NAME
 where
 	%v
     and inds.DROPPED = 'NO'

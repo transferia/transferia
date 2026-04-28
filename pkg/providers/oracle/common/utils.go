@@ -78,6 +78,7 @@ var (
 		"XDB",
 		"XS$NULL",
 		"OJVMSYS",
+		"VECSYS", // Oracle 23ai internal vector search schema
 	}
 	BannedTables = []string{
 		strings.ToUpper(EmbeddedLogTrackerTableName),
@@ -126,7 +127,7 @@ func GetConnectionString(config *provider_oracle.OracleSource) (string, error) {
 		return "", xerrors.Errorf("Invalid connections string format '%s'", oracleConnectionString)
 	}
 	godrorConnectionString := fmt.Sprintf(
-		`user="%s" password="%s" connectString="%s"`,
+		`user="%s" password="%s" connectString="%s" timezone="UTC"`,
 		config.User, config.Password, oracleConnectionString)
 
 	return godrorConnectionString, nil
@@ -302,6 +303,14 @@ func PDBQuery(sqlxDB *sqlx.DB, ctx context.Context, cdb bool, container string, 
 		}
 		//nolint:descriptiveerrors
 		return prevError
+	}
+
+	// Oracle ODPI-C requires a known session timezone to scan TIMESTAMP WITH TIME ZONE
+	// values. Without it, DST resolution may fail with ORA-01805 when timezone region
+	// data files (TZD) are absent or version-mismatched in the Instant Client.
+	// UTC is a fixed offset — no DST transitions, no TZD files needed.
+	if _, err := connection.ExecContext(ctx, "ALTER SESSION SET TIME_ZONE = 'UTC'"); err != nil {
+		return xerrors.Errorf("closing connection: %w", closeConnection(xerrors.Errorf("Can't set session time zone to UTC: %w", err)))
 	}
 
 	if cdb {

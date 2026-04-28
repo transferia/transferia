@@ -2,29 +2,20 @@ package snapshot
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/abstract2/events"
-	"github.com/transferia/transferia/pkg/middlewares/asynchronizer"
+	"github.com/transferia/transferia/pkg/abstract"
 	provider_oracle "github.com/transferia/transferia/pkg/providers/oracle"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 	oracle_schema "github.com/transferia/transferia/pkg/providers/oracle/schema"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 const (
-	// Запрос для разбиения таблички на части по ROWID
-	// Оригинал - https://bb.yandexcloud.net/projects/BI/repos/yt-scripts/browse/scripts/etl_oracle/many_tables_to_yt_by_extents.py#231
-	// Если вы не понимаете, что тут написано - это нормально, объяснение можно спросить у @darkwingduck или @xifos
-	// Запрос содержит 3 параметра (в порядке объявления): ':part_size', ':owner', ':table_name'
 	splitByRowIDSQLTemplate = `
 WITH clauses AS
          (SELECT NVL(
@@ -75,7 +66,7 @@ FROM clauses_any
 ORDER BY rn
 `
 
-	oraclePartSize = 1 * 1024 * 1024 * 1024 // 1gb
+	oraclePartSize = 1 * 1024 * 1024 * 1024
 )
 
 type oracleParallelTableSource struct {
@@ -85,20 +76,8 @@ type oracleParallelTableSource struct {
 	position         *oracle_common.LogPosition
 	table            *oracle_schema.Table
 	sourceStats      *stats.SourceStats
-
-	state oracleParallelTableSourceRunState
-
-	partStates []partLoadState
-
-	total uint64
-
-	logger log.Logger
-}
-
-type oracleParallelTableSourceRunState struct {
-	sync.Mutex
-	Cancel      context.CancelFunc
-	HasFinished bool
+	partStates       []partLoadState
+	logger           log.Logger
 }
 
 type TablePartRow struct {
@@ -112,10 +91,10 @@ type TablePartRow struct {
 }
 
 type partLoadState struct {
-	load       *loader
-	ctx        context.Context
-	syncTarget asynchronizer.Asynchronizer
-	partRow    TablePartRow
+	load    *loader
+	ctx     context.Context
+	pusher  abstract.Pusher
+	partRow TablePartRow
 }
 
 func NewParallelTableSource(
@@ -127,11 +106,7 @@ func NewParallelTableSource(
 	logger log.Logger,
 	sourceStats *stats.SourceStats,
 ) (*oracleParallelTableSource, error) {
-	total, err := getRowsCount(logger, config, sqlxDB, table)
-	if err != nil {
-		return nil, xerrors.Errorf("Can't get rows count for table '%v': %w", table.OracleSQLName(), err)
-	}
-
+	//nolint:exhaustivestruct
 	return &oracleParallelTableSource{
 		sqlxDB:           sqlxDB,
 		splitTransaction: splitTransaction,
@@ -139,77 +114,36 @@ func NewParallelTableSource(
 		position:         position,
 		table:            table,
 		sourceStats:      sourceStats,
-
-		state: oracleParallelTableSourceRunState{
-			Mutex:       sync.Mutex{},
-			Cancel:      nil,
-			HasFinished: false,
-		},
-
-		partStates: nil,
-
-		total: total,
-
-		logger: logger,
+		logger:           logger,
 	}, nil
 }
 
-func (s *oracleParallelTableSource) Start(ctx context.Context, target abstract2.EventTarget) error {
-	s.state.Lock()
-	if s.state.Cancel != nil {
-		s.state.Unlock()
-		return xerrors.Errorf("failed to Start: the parallel source is already running")
-	}
-	runCtx, cancF := context.WithCancel(ctx)
-	s.state.Cancel = cancF
-	defer s.Stop()
-	s.state.Unlock()
+func (s *oracleParallelTableSource) Load(ctx context.Context, pusher abstract.Pusher) error {
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	ddlSyncTarget := asynchronizer.NewEventTargetWrapper(target)
-	ddlSyncTargetRollbacks := util.Rollbacks{}
-	ddlSyncTargetRollbacks.Add(func() {
-		if err := ddlSyncTarget.Close(); err != nil {
-			s.logger.Error("Failed to push events into target for a part", log.Error(err))
-		}
-	})
-	defer ddlSyncTargetRollbacks.Do()
-
-	if err := ddlSyncTarget.Push(abstract2.NewEventBatch([]abstract2.Event{events.NewDefaultTableLoadEvent(s.table, events.TableLoadBegin)})); err != nil {
-		return xerrors.Errorf("failed to push TableLoadBegin: %w", err)
-	}
-
-	// prepare parts and queue them
 	var partRows []TablePartRow
 	if err := s.splitTransaction.Select(&partRows, splitByRowIDSQLTemplate,
 		oraclePartSize, s.table.OracleSchema().OracleName(), s.table.OracleName()); err != nil {
 		return xerrors.Errorf("failed to execute a query to split table into parts: %w", err)
 	}
-	s.state.Lock()
+
 	s.partStates = make([]partLoadState, len(partRows))
 	for i := 0; i < len(partRows); i++ {
 		s.partStates[i] = partLoadState{
-			load:       newLoader(s.sqlxDB, s.config, s.position, s.table, s.logger, s.sourceStats),
-			ctx:        runCtx,
-			syncTarget: asynchronizer.NewEventTargetWrapper(target),
-			partRow:    partRows[i],
+			load:    newLoader(s.sqlxDB, s.config, s.position, s.table, s.logger, s.sourceStats),
+			ctx:     runCtx,
+			pusher:  pusher,
+			partRow: partRows[i],
 		}
 	}
-	s.state.Unlock()
-	partSyncTargetRollbacks := util.Rollbacks{}
-	partSyncTargetRollbacks.Add(func() {
-		for i := 0; i < len(s.partStates); i++ {
-			if err := s.partStates[i].syncTarget.Close(); err != nil {
-				s.logger.Error("Failed to push events into target for a part", log.Int("part_index", i), log.Error(err))
-			}
-		}
-	})
+
 	partLoadQueue := make(chan *partLoadState, len(s.partStates))
 	for i := 0; i < len(partRows); i++ {
 		partLoadQueue <- &s.partStates[i]
 	}
 	close(partLoadQueue)
 
-	// load parts and wait for routines
 	errCh := make(chan error, s.config.ParallelTableLoadDegreeOfParallelism)
 	terminateCh := make(chan struct{})
 	for i := 0; i < s.config.ParallelTableLoadDegreeOfParallelism; i++ {
@@ -222,31 +156,6 @@ func (s *oracleParallelTableSource) Start(ctx context.Context, target abstract2.
 		}
 	}
 
-	// close sync targets
-	partSyncTargetRollbacks.Cancel()
-	var closeErrs []error
-	for i := 0; i < len(s.partStates); i++ {
-		if err := s.partStates[i].syncTarget.Close(); err != nil {
-			closeErrs = append(closeErrs, xerrors.Errorf("failed to push events into target for a part [%d]: %w", i, err))
-		}
-	}
-	if err := errors.Join(closeErrs...); err != nil {
-		return xerrors.Errorf("failed to push events for one or more parts: %w", err)
-	}
-
-	if err := ddlSyncTarget.Push(abstract2.NewEventBatch([]abstract2.Event{events.NewDefaultTableLoadEvent(s.table, events.TableLoadEnd)})); err != nil {
-		return xerrors.Errorf("failed to push TableLoadEnd: %w", err)
-	}
-
-	ddlSyncTargetRollbacks.Cancel()
-	if err := ddlSyncTarget.Close(); err != nil {
-		return xerrors.Errorf("failed to push events into target: %w", err)
-	}
-
-	s.state.Lock()
-	s.state.HasFinished = true
-	s.state.Unlock()
-
 	return nil
 }
 
@@ -254,11 +163,9 @@ func (s *oracleParallelTableSource) partLoadingRoutine(inputCh chan *partLoadSta
 	for state := range inputCh {
 		select {
 		case <-terminateCh:
-			// terminate routine
 			errCh <- nil
 			return
 		default:
-			// normal operation
 		}
 		if err := s.loadPart(state); err != nil {
 			errCh <- err
@@ -274,47 +181,14 @@ func (s *oracleParallelTableSource) loadPart(state *partLoadState) error {
 		return xerrors.Errorf("Can't create select columns SQL for table '%v': %w", s.table.OracleSQLName(), err)
 	}
 
-	var sql string
+	var sqlQuery string
 	if s.config.IsNonConsistentSnapshot {
-		sql = fmt.Sprintf("select %v from %v where %v",
+		sqlQuery = fmt.Sprintf("select %v from %v where %v",
 			columnsSQL, s.table.OracleSQLName(), state.partRow.WhereClause)
 	} else {
-		sql = fmt.Sprintf("select %v from %v as of scn %v where %v",
+		sqlQuery = fmt.Sprintf("select %v from %v as of scn %v where %v",
 			columnsSQL, s.table.OracleSQLName(), state.partRow.CurrentSCN, state.partRow.WhereClause)
 	}
 
-	return state.load.LoadSnapshot(state.ctx, state.syncTarget, sql)
-}
-
-func (s *oracleParallelTableSource) Running() bool {
-	s.state.Lock()
-	defer s.state.Unlock()
-
-	return s.state.Cancel != nil
-}
-
-func (s *oracleParallelTableSource) Progress() (abstract2.EventSourceProgress, error) {
-	s.state.Lock()
-	defer s.state.Unlock()
-
-	if s.state.Cancel == nil || len(s.partStates) == 0 {
-		return abstract2.NewDefaultEventSourceProgress(false, 0, s.total), nil
-	}
-
-	current := uint64(0)
-	for i := 0; i < len(s.partStates); i++ {
-		current += s.partStates[i].load.Current()
-	}
-
-	return abstract2.NewDefaultEventSourceProgress(s.state.HasFinished, current, s.total), nil
-}
-
-func (s *oracleParallelTableSource) Stop() error {
-	s.state.Lock()
-	defer s.state.Unlock()
-	if s.state.Cancel != nil {
-		s.state.Cancel()
-		s.state.Cancel = nil
-	}
-	return nil
+	return state.load.LoadSnapshot(state.ctx, state.pusher, sqlQuery)
 }

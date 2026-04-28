@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
 )
 
 type PositionType string
@@ -75,46 +74,6 @@ func (position *LogPosition) Type() PositionType {
 
 func (position *LogPosition) OnlySCN() bool {
 	return position.RSID() == nil && position.SSN() == nil
-}
-
-// abstract2.LogPosition
-
-func (position *LogPosition) Equals(otherPosition abstract2.LogPosition) bool {
-	otherOraclePosition, ok := otherPosition.(*LogPosition)
-	if !ok {
-		return false
-	}
-
-	sameSCN := position.SCN() == otherOraclePosition.SCN()
-
-	sameRSID := (position.RSID() == nil && otherOraclePosition.RSID() == nil) ||
-		(position.RSID() != nil && otherOraclePosition.RSID() != nil && *position.RSID() == *otherOraclePosition.RSID())
-
-	sameSSN := (position.SSN() == nil && otherOraclePosition.SSN() == nil) ||
-		(position.SSN() != nil && otherOraclePosition.SSN() != nil && *position.SSN() == *otherOraclePosition.SSN())
-
-	sameType := position.Type() == otherOraclePosition.Type()
-
-	return sameSCN && sameRSID && sameSSN && sameType
-
-}
-
-func (position *LogPosition) Compare(otherPosition abstract2.LogPosition) (int, error) {
-	otherOraclePosition, ok := otherPosition.(*LogPosition)
-	if !ok {
-		return 0, xerrors.Errorf("Other position must be oracle log position")
-	}
-
-	switch { // Because uint64
-	case position.SCN() == otherOraclePosition.SCN():
-		return 0, nil
-	case position.SCN() > otherOraclePosition.SCN():
-		return 1, nil
-	case position.SCN() < otherOraclePosition.SCN():
-		return -1, nil
-	default:
-		return 0, xerrors.Errorf("Compare logic error")
-	}
 }
 
 func (position *LogPosition) String() string {

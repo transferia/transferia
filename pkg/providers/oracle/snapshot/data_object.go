@@ -2,7 +2,6 @@ package snapshot
 
 import (
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract2"
 	oracle_schema "github.com/transferia/transferia/pkg/providers/oracle/schema"
 )
 
@@ -21,8 +20,6 @@ func NewOracleDataObject(table *oracle_schema.Table) *OracleDataObject {
 func (dataObject *OracleDataObject) Table() *oracle_schema.Table {
 	return dataObject.table
 }
-
-// Begin of base DataObject interface
 
 func (dataObject *OracleDataObject) Name() string {
 	return dataObject.table.Name()
@@ -48,10 +45,6 @@ func (dataObject *OracleDataObject) Close() {
 	dataObject.closed = true
 }
 
-func (dataObject *OracleDataObject) Part() (abstract2.DataObjectPart, error) {
-	return dataObject, nil
-}
-
 func (dataObject *OracleDataObject) ToOldTableID() (*abstract.TableID, error) {
 	tableID := &abstract.TableID{
 		Namespace: dataObject.table.Schema(),
@@ -59,10 +52,6 @@ func (dataObject *OracleDataObject) ToOldTableID() (*abstract.TableID, error) {
 	}
 	return tableID, nil
 }
-
-// End of base DataObject interface
-
-// Begin of base DataObjectPart interface
 
 func (dataObject *OracleDataObject) ToOldTableDescription() (*abstract.TableDescription, error) {
 	tableDesc := &abstract.TableDescription{
@@ -78,5 +67,3 @@ func (dataObject *OracleDataObject) ToOldTableDescription() (*abstract.TableDesc
 func (dataObject *OracleDataObject) ToTablePart() (*abstract.TableDescription, error) {
 	return dataObject.ToOldTableDescription()
 }
-
-// End of base DataObjectPart interface

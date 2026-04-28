@@ -1,20 +1,25 @@
 package logtracker
 
 import (
+	"sync"
+
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
+)
+
+// inMemoryStore is a process-wide map so that positions written by one
+// InMemoryLogTracker instance (e.g. during Activate) are visible to another
+// instance created later for the same transferID (e.g. during replication).
+var (
+	inMemoryStore   = make(map[string]*oracle_common.LogPosition)
+	inMemoryStoreMu sync.Mutex
 )
 
 type InMemoryLogTracker struct {
 	transferID string
-	position   *oracle_common.LogPosition
 }
 
 func NewInMemoryLogTracker(transferID string) (*InMemoryLogTracker, error) {
-	tracker := &InMemoryLogTracker{
-		transferID: transferID,
-		position:   nil,
-	}
-	return tracker, nil
+	return &InMemoryLogTracker{transferID: transferID}, nil
 }
 
 func (tracker *InMemoryLogTracker) TransferID() string {
@@ -26,15 +31,21 @@ func (tracker *InMemoryLogTracker) Init() error {
 }
 
 func (tracker *InMemoryLogTracker) ClearPosition() error {
-	tracker.position = nil
+	inMemoryStoreMu.Lock()
+	defer inMemoryStoreMu.Unlock()
+	delete(inMemoryStore, tracker.transferID)
 	return nil
 }
 
 func (tracker *InMemoryLogTracker) ReadPosition() (*oracle_common.LogPosition, error) {
-	return tracker.position, nil
+	inMemoryStoreMu.Lock()
+	defer inMemoryStoreMu.Unlock()
+	return inMemoryStore[tracker.transferID], nil
 }
 
 func (tracker *InMemoryLogTracker) WritePosition(position *oracle_common.LogPosition) error {
-	tracker.position = position
+	inMemoryStoreMu.Lock()
+	defer inMemoryStoreMu.Unlock()
+	inMemoryStore[tracker.transferID] = position
 	return nil
 }

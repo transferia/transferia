@@ -2,12 +2,11 @@ package snapshot
 
 import (
 	"database/sql"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/abstract2/events"
-	"github.com/transferia/transferia/pkg/abstract2/types"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 	oracle_schema "github.com/transferia/transferia/pkg/providers/oracle/schema"
 )
@@ -18,28 +17,26 @@ func createRawValue(column *oracle_schema.Column) (interface{}, error) {
 	case
 		"ROWID", "UROWID",
 		"CHAR", "VARCHAR2", "NCHAR", "NVARCHAR2", "LONG",
-		"NCLOB":
+		"JSON":
 		return new(string), nil
-	case "CLOB":
+	case "CLOB", "NCLOB":
 		return createCLOBRawValue(column)
 	case "NUMBER":
-		switch column.Type().(type) {
-		case *types.DecimalType:
+		if column.IsDecimalNumber() {
 			return new(sql.NullString), nil
-		default:
-			return new(sql.NullInt64), nil
 		}
+		return new(sql.NullInt64), nil
 	case "FLOAT", "BINARY_FLOAT", "BINARY_DOUBLE":
-		switch column.Type().(type) {
-		case *types.BigFloatType:
+		if column.OracleBaseType() == "FLOAT" && column.FloatBitSize() == 0 {
 			return new(sql.NullString), nil
-		default:
-			return new(sql.NullFloat64), nil
 		}
+		return new(sql.NullFloat64), nil
 	case "RAW", "LONG RAW", "BLOB":
 		return new([]byte), nil
+	case "INTERVAL YEAR TO MONTH":
+		return new(string), nil
 	case "INTERVAL DAY TO SECOND":
-		return new(sql.NullInt64), nil
+		return new(string), nil
 	case "DATE", "TIMESTAMP", "TIMESTAMP WITH LOCAL TIME ZONE", "TIMESTAMP WITH TIME ZONE":
 		return new(sql.NullTime), nil
 	default:
@@ -54,9 +51,8 @@ func createCLOBRawValue(column *oracle_schema.Column) (interface{}, error) {
 	}
 	if clobAsBLOB {
 		return new([]byte), nil
-	} else {
-		return new(string), nil
 	}
+	return new(string), nil
 }
 
 func createRawValues(table *oracle_schema.Table) ([]interface{}, error) {
@@ -73,175 +69,193 @@ func createRawValues(table *oracle_schema.Table) ([]interface{}, error) {
 }
 
 //nolint:descriptiveerrors
-func castRawValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castRawValue(rawValue interface{}, column *oracle_schema.Column) (interface{}, error) {
 	switch column.OracleBaseType() {
 	case
 		"ROWID", "UROWID",
 		"CHAR", "VARCHAR2", "NCHAR", "NVARCHAR2", "LONG",
-		"NCLOB":
-		return castStringValue(rawValue, column)
-	case "CLOB":
+		"JSON":
+		return castStringValue(rawValue)
+	case "CLOB", "NCLOB":
 		return castCLOBValue(rawValue, column)
 	case "NUMBER":
-		switch column.Type().(type) {
-		case *types.DecimalType:
-			return castDecimalValue(rawValue, column)
-		default:
-			return castIntValue(rawValue, column)
+		if column.IsDecimalNumber() {
+			return castDecimalStringValue(rawValue)
 		}
+		return castIntValue(rawValue, column)
 	case "FLOAT", "BINARY_FLOAT", "BINARY_DOUBLE":
-		switch column.Type().(type) {
-		case *types.BigFloatType:
-			return castBigFloatValue(rawValue, column)
-		default:
-			return castFloatValue(rawValue, column)
+		if column.OracleBaseType() == "FLOAT" && column.FloatBitSize() == 0 {
+			return castBigFloatStringValue(rawValue)
 		}
+		return castFloatValue(rawValue, column)
 	case "RAW", "LONG RAW", "BLOB":
-		return castBytesValue(rawValue, column)
+		return castBytesValue(rawValue)
+	case "INTERVAL YEAR TO MONTH":
+		return castStringValue(rawValue)
 	case "INTERVAL DAY TO SECOND":
-		return castIntervalValue(rawValue, column)
+		return castDSIntervalStringValue(rawValue)
 	case "DATE":
-		return castDateValue(rawValue, column)
+		return castDateValue(rawValue)
 	case "TIMESTAMP", "TIMESTAMP WITH LOCAL TIME ZONE":
-		return castTimestampValue(rawValue, column)
+		return castTimestampValue(rawValue)
 	case "TIMESTAMP WITH TIME ZONE":
-		return castTimestampTZValue(rawValue, column)
+		return castTimestampTZValue(rawValue)
 	default:
 		return nil, xerrors.Errorf("Unsupported type '%v'", column.OracleType())
 	}
 }
 
-func castCLOBValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+//nolint:descriptiveerrors
+func castCLOBValue(rawValue interface{}, column *oracle_schema.Column) (interface{}, error) {
 	clobAsBLOB, err := column.OracleTable().OracleSchema().OracleDatabase().CLOBAsBLOB()
 	if err != nil {
 		return nil, xerrors.Errorf("CLOB as BLOB strategy error: %w", err)
 	}
 	if clobAsBLOB {
-		//nolint:descriptiveerrors
-		return castBytesAsStringValue(rawValue, column)
-	} else {
-		//nolint:descriptiveerrors
-		return castStringValue(rawValue, column)
+		return castBytesAsStringValue(rawValue)
 	}
+	return castStringValue(rawValue)
 }
 
-func castBytesAsStringValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castBytesAsStringValue(rawValue interface{}) (interface{}, error) {
 	rawBytes, ok := rawValue.(*[]byte)
 	if !ok {
 		return nil, xerrors.Errorf("Expected value of '*[]byte' type, but got '%T'", rawValue)
 	}
-
 	if rawBytes == nil || *rawBytes == nil {
-		return types.NewDefaultStringValue(nil, column), nil
+		return nil, nil
 	}
-
 	valueBytes := make([]byte, len(*rawBytes))
 	copy(valueBytes, *rawBytes)
-	valueString := string(valueBytes)
-	return types.NewDefaultStringValue(&valueString, column), nil
+	return string(valueBytes), nil
 }
 
-func castBytesValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castBytesValue(rawValue interface{}) (interface{}, error) {
 	rawBytes, ok := rawValue.(*[]byte)
 	if !ok {
 		return nil, xerrors.Errorf("Expected value of '*[]byte' type, but got '%T'", rawValue)
 	}
-
 	if rawBytes == nil || *rawBytes == nil {
-		return types.NewDefaultBytesValue(nil, column), nil
+		return nil, nil
 	}
-
 	valueBytes := make([]byte, len(*rawBytes))
 	copy(valueBytes, *rawBytes)
-	return types.NewDefaultBytesValue(valueBytes, column), nil
+	return valueBytes, nil
 }
 
-func castStringValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castStringValue(rawValue interface{}) (interface{}, error) {
 	rawString, ok := rawValue.(*string)
 	if !ok {
 		return nil, xerrors.Errorf("Expected value of '*string' type, but got '%T'", rawValue)
 	}
-
 	if oracle_common.IsNullString(rawString) {
-		return types.NewDefaultStringValue(nil, column), nil
+		return nil, nil
 	}
-
-	valueString := *rawString
-	return types.NewDefaultStringValue(&valueString, column), nil
+	return *rawString, nil
 }
 
-func castIntValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castIntValue(rawValue interface{}, column *oracle_schema.Column) (interface{}, error) {
 	rawNullInt64, ok := rawValue.(*sql.NullInt64)
 	if !ok {
 		return nil, xerrors.Errorf("Expected value of '*sql.NullInt64' type, but got '%T'", rawValue)
 	}
-
-	switch column.Type().(type) {
-	case *types.Int8Type:
-		if !rawNullInt64.Valid {
-			return types.NewDefaultInt8Value(nil, column), nil
-		}
-		valueInt8 := int8(rawNullInt64.Int64)
-		return types.NewDefaultInt8Value(&valueInt8, column), nil
-	case *types.Int16Type:
-		if !rawNullInt64.Valid {
-			return types.NewDefaultInt16Value(nil, column), nil
-		}
-		valueInt16 := int16(rawNullInt64.Int64)
-		return types.NewDefaultInt16Value(&valueInt16, column), nil
-	case *types.Int32Type:
-		if !rawNullInt64.Valid {
-			return types.NewDefaultInt32Value(nil, column), nil
-		}
-		valueInt32 := int32(rawNullInt64.Int64)
-		return types.NewDefaultInt32Value(&valueInt32, column), nil
-	case *types.Int64Type:
-		if !rawNullInt64.Valid {
-			return types.NewDefaultInt64Value(nil, column), nil
-		}
-		valueInt64 := rawNullInt64.Int64
-		return types.NewDefaultInt64Value(&valueInt64, column), nil
+	if !rawNullInt64.Valid {
+		return nil, nil
+	}
+	dt := column.DataType()
+	switch dt {
+	case oracle_schema.YTTypeInt8:
+		return int8(rawNullInt64.Int64), nil
+	case oracle_schema.YTTypeInt16:
+		return int16(rawNullInt64.Int64), nil
+	case oracle_schema.YTTypeInt32:
+		return int32(rawNullInt64.Int64), nil
+	case oracle_schema.YTTypeInt64:
+		return rawNullInt64.Int64, nil
 	default:
-		return nil, xerrors.Errorf("Unsupported sub type '%v' for type '%v'. columnName: %v", column.OracleType(), column.Type(), column.FullName())
+		return nil, xerrors.Errorf("Unsupported int data type '%v' for column '%v'", dt, column.FullName())
 	}
 }
 
-func castFloatValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castFloatValue(rawValue interface{}, column *oracle_schema.Column) (interface{}, error) {
 	rawNullFloat64, ok := rawValue.(*sql.NullFloat64)
 	if !ok {
 		return nil, xerrors.Errorf("Expected value of '*sql.NullFloat64' type, but got '%T'", rawValue)
 	}
-
-	switch column.Type().(type) {
-	case *types.FloatType:
-		if !rawNullFloat64.Valid {
-			return types.NewDefaultFloatValue(nil, column), nil
+	if !rawNullFloat64.Valid {
+		return nil, nil
+	}
+	switch column.OracleBaseType() {
+	case "BINARY_FLOAT", "FLOAT":
+		if column.OracleBaseType() == "BINARY_FLOAT" || column.FloatBitSize() == 32 {
+			return float32(rawNullFloat64.Float64), nil
 		}
-		valueFloat := float32(rawNullFloat64.Float64)
-		return types.NewDefaultFloatValue(&valueFloat, column), nil
-	case *types.DoubleType:
-		if !rawNullFloat64.Valid {
-			return types.NewDefaultDoubleValue(nil, column), nil
-		}
-		valueDouble := rawNullFloat64.Float64
-		return types.NewDefaultDoubleValue(&valueDouble, column), nil
+		return rawNullFloat64.Float64, nil
+	case "BINARY_DOUBLE":
+		return rawNullFloat64.Float64, nil
 	default:
-		return nil, xerrors.Errorf("Unsupported sub type '%v' for type '%v'. columnName: %v", column.OracleType(), column.Type(), column.FullName())
+		return rawNullFloat64.Float64, nil
 	}
 }
 
-func castIntervalValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
-	rawNullInt64, ok := rawValue.(*sql.NullInt64)
+// castDSIntervalStringValue parses the VARCHAR2 representation of INTERVAL DAY TO SECOND
+// produced by a server-side CAST, e.g. "+02 10:20:30.123456", into time.Duration.
+// Oracle zero-pads days to column precision and fractional seconds to second precision.
+func castDSIntervalStringValue(rawValue interface{}) (interface{}, error) {
+	rawString, ok := rawValue.(*string)
 	if !ok {
-		return nil, xerrors.Errorf("Expected value of '*sql.NullInt64' type, but got: '%T'", rawValue)
+		return nil, xerrors.Errorf("Expected value of '*string' type, but got '%T'", rawValue)
+	}
+	if oracle_common.IsNullString(rawString) {
+		return nil, nil
+	}
+	s := *rawString
+	negative := strings.HasPrefix(s, "-")
+	s = strings.TrimLeft(s, "+-")
+
+	// Format after stripping sign: "DD HH:MI:SS.FFFFFF"
+	parts := strings.FieldsFunc(s, func(r rune) bool {
+		return r == ' ' || r == ':' || r == '.'
+	})
+	if len(parts) != 5 {
+		return nil, xerrors.Errorf("Can't parse INTERVAL DAY TO SECOND from '%v'", *rawString)
 	}
 
-	if !rawNullInt64.Valid {
-		return types.NewDefaultIntervalValue(nil, column), nil
+	days, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return nil, xerrors.Errorf("Can't parse days in '%v': %w", *rawString, err)
+	}
+	hours, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return nil, xerrors.Errorf("Can't parse hours in '%v': %w", *rawString, err)
+	}
+	minutes, err := strconv.ParseInt(parts[2], 10, 64)
+	if err != nil {
+		return nil, xerrors.Errorf("Can't parse minutes in '%v': %w", *rawString, err)
+	}
+	seconds, err := strconv.ParseInt(parts[3], 10, 64)
+	if err != nil {
+		return nil, xerrors.Errorf("Can't parse seconds in '%v': %w", *rawString, err)
+	}
+	// Normalize fractional seconds to 9 digits (nanoseconds).
+	frac := parts[4]
+	for len(frac) < 9 {
+		frac += "0"
+	}
+	nanoseconds, err := strconv.ParseInt(frac[:9], 10, 64)
+	if err != nil {
+		return nil, xerrors.Errorf("Can't parse fractional seconds in '%v': %w", *rawString, err)
 	}
 
-	valueDuration := time.Duration(rawNullInt64.Int64)
-	return types.NewDefaultIntervalValue(&valueDuration, column), nil
+	total := days*24*int64(time.Hour) +
+		hours*int64(time.Hour) +
+		minutes*int64(time.Minute) +
+		seconds*int64(time.Second) +
+		nanoseconds
+	if negative {
+		total = -total
+	}
+	return time.Duration(total), nil
 }
 
 func castTimeValueCore(rawValue interface{}) (*time.Time, error) {
@@ -249,82 +263,71 @@ func castTimeValueCore(rawValue interface{}) (*time.Time, error) {
 	if !ok {
 		return nil, xerrors.Errorf("Expected value of '*sql.NullTime' type, but got '%T'", rawValue)
 	}
-
 	if !rawNullTime.Valid {
 		return nil, nil
 	}
-
-	valueTime := rawNullTime.Time
-	return &valueTime, nil
+	t := rawNullTime.Time
+	return &t, nil
 }
 
-func castDateValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castDateValue(rawValue interface{}) (interface{}, error) {
 	valueTime, err := castTimeValueCore(rawValue)
 	if err != nil {
 		return nil, err
 	}
-
-	// In Oracle 'date' is 'datetime' value
-	return types.NewDefaultDateTimeValue(valueTime, column), nil
+	if valueTime == nil {
+		return nil, nil
+	}
+	return *valueTime, nil
 }
 
-func castTimestampValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castTimestampValue(rawValue interface{}) (interface{}, error) {
 	valueTime, err := castTimeValueCore(rawValue)
 	if err != nil {
 		return nil, err
 	}
-
-	return types.NewDefaultTimestampValue(valueTime, column), nil
+	if valueTime == nil {
+		return nil, nil
+	}
+	return *valueTime, nil
 }
 
-func castTimestampTZValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castTimestampTZValue(rawValue interface{}) (interface{}, error) {
 	valueTime, err := castTimeValueCore(rawValue)
 	if err != nil {
 		return nil, err
 	}
-
-	return types.NewDefaultTimestampTZValue(valueTime, column), nil
+	if valueTime == nil {
+		return nil, nil
+	}
+	return *valueTime, nil
 }
 
-func castDecimalValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
+func castDecimalStringValue(rawValue interface{}) (interface{}, error) {
 	rawNullString, ok := rawValue.(*sql.NullString)
 	if !ok {
 		return nil, xerrors.Errorf("Expected value of '*sql.NullString' type, but got: '%T'", rawValue)
 	}
-
 	if !rawNullString.Valid {
-		return types.NewDefaultDecimalValue(nil, column), nil
+		return nil, nil
 	}
-
-	valueString := rawNullString.String
-	return types.NewDefaultDecimalValue(&valueString, column), nil
+	return rawNullString.String, nil
 }
 
-func castBigFloatValue(rawValue interface{}, column *oracle_schema.Column) (abstract2.Value, error) {
-	rawNullString, ok := rawValue.(*sql.NullString)
-	if !ok {
-		return nil, xerrors.Errorf("Expected value of '*sql.NullString' type, but got: '%T'", rawValue)
-	}
-
-	if !rawNullString.Valid {
-		return types.NewDefaultBigFloatValue(nil, column), nil
-	}
-
-	valueString := rawNullString.String
-	return types.NewDefaultBigFloatValue(&valueString, column), nil
+func castBigFloatStringValue(rawValue interface{}) (interface{}, error) {
+	return castDecimalStringValue(rawValue)
 }
 
-func createInsertEvent(table *oracle_schema.Table, rawValues []interface{}, position abstract2.LogPosition) (events.InsertEvent, error) {
-	event := events.NewDefaultLoggedInsertEvent(table, position)
+// buildChangeItemValues casts a scanned row to values for abstract.ChangeItem.ColumnValues.
+func buildChangeItemValues(table *oracle_schema.Table, rawValues []interface{}) ([]interface{}, error) {
+	out := make([]interface{}, len(rawValues))
 	for i := 0; i < len(rawValues); i++ {
 		column := table.OracleColumn(i)
-		value, err := castRawValue(rawValues[i], column)
+		v, err := castRawValue(rawValues[i], column)
 		if err != nil {
 			return nil, xerrors.Errorf("Can't cast value for column '%v': %w", column.FullName(), err)
 		}
-		if err := event.AddNewValue(value); err != nil {
-			return nil, err
-		}
+		out[i] = v
 	}
-	return event, nil
+	return out, nil
 }

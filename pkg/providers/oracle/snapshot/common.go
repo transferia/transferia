@@ -13,7 +13,8 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func getRowsCount(logger log.Logger, config *provider_oracle.OracleSource, sqlxDB *sqlx.DB, table *oracle_schema.Table) (uint64, error) {
+// GetRowsCount returns NUM_ROWS from all_tables or falls back to COUNT(*).
+func GetRowsCount(logger log.Logger, config *provider_oracle.OracleSource, sqlxDB *sqlx.DB, table *oracle_schema.Table) (uint64, error) {
 	count := new(uint64)
 
 	queryErr := oracle_common.PDBQueryGlobal(config, sqlxDB, context.Background(),

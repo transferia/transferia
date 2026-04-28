@@ -1,10 +1,6 @@
 package common
 
-import (
-	"fmt"
-
-	"github.com/transferia/transferia/pkg/abstract2"
-)
+import "fmt"
 
 type TransactionInfo struct {
 	id    string
@@ -30,24 +26,6 @@ func (info *TransactionInfo) OracleBeginPosition() *LogPosition {
 
 func (info *TransactionInfo) OracleEndPosition() *LogPosition {
 	return info.end
-}
-
-// abstract2.Transaction
-
-func (info *TransactionInfo) BeginPosition() abstract2.LogPosition {
-	return info.begin
-}
-
-func (info *TransactionInfo) EndPosition() abstract2.LogPosition {
-	return info.end
-}
-
-func (info *TransactionInfo) Equals(otherTransaction abstract2.Transaction) bool {
-	if otherOracleTransaction, ok := otherTransaction.(*TransactionInfo); !ok {
-		return false
-	} else {
-		return info.ID() == otherOracleTransaction.ID()
-	}
 }
 
 func (info *TransactionInfo) String() string {

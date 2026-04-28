@@ -1,0 +1,15 @@
+CREATE USER dt_test IDENTIFIED BY dt_test_pass;
+ALTER USER dt_test QUOTA UNLIMITED ON USERS;
+GRANT CONNECT, RESOURCE TO dt_test;
+
+CREATE TABLE dt_test.nums (
+    id    NUMBER(10)    PRIMARY KEY,
+    cnt   NUMBER(10),
+    price NUMBER(12, 2),
+    big   NUMBER
+);
+
+INSERT INTO dt_test.nums VALUES (1, 100,   9.99,  123456789012345);
+INSERT INTO dt_test.nums VALUES (2, -42,  -1.50, -999999999999999);
+INSERT INTO dt_test.nums VALUES (3, NULL,  NULL,  NULL);
+COMMIT;

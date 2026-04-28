@@ -2,14 +2,12 @@ package snapshot
 
 import (
 	"context"
-	"database/sql"
 	"sync/atomic"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/middlewares/asynchronizer"
+	"github.com/transferia/transferia/pkg/abstract"
 	provider_oracle "github.com/transferia/transferia/pkg/providers/oracle"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 	oracle_schema "github.com/transferia/transferia/pkg/providers/oracle/schema"
@@ -17,7 +15,6 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-// loader is the basic provider of snapshot table load for Oracle source
 type loader struct {
 	sqlxDB   *sqlx.DB
 	config   *provider_oracle.OracleSource
@@ -37,57 +34,38 @@ func newLoader(sqlxDB *sqlx.DB, config *provider_oracle.OracleSource, position *
 		table:    table,
 		position: position,
 		metrics:  metrics,
-
-		current: 0,
-
-		logger: logger,
+		current:  0,
+		logger:   logger,
 	}
 }
 
-// rowsInBatch determines the size of the batch sent into bufferer. It should be small enough to ensure the buffer is not too overflowed
 const rowsInBatch int = 512
 
 func estimateRowSize(values []interface{}) uint64 {
 	var sum uint64
 	for _, v := range values {
 		switch vv := v.(type) {
-		case *string:
-			if !oracle_common.IsNullString(vv) {
-				sum += uint64(len(*vv))
-			}
-		case *[]byte:
-			if vv != nil && *vv != nil {
-				sum += uint64(len(*vv))
-			}
-		case *sql.NullString:
-			if vv != nil && vv.Valid {
-				sum += uint64(len(vv.String))
-			}
-		case *sql.NullInt64:
-			if vv != nil && vv.Valid {
-				sum += 8
-			}
-		case *sql.NullFloat64:
-			if vv != nil && vv.Valid {
-				sum += 8
-			}
-		case *sql.NullTime:
-			if vv != nil && vv.Valid {
-				sum += 16
-			}
+		case string:
+			sum += uint64(len(vv))
+		case []byte:
+			sum += uint64(len(vv))
+		case nil:
+			sum += 8
+		default:
+			sum += 8
 		}
 	}
 	return sum
 }
 
-// LoadSnapshot implements snapshot load to the given target
-func (l *loader) LoadSnapshot(ctx context.Context, syncTarget asynchronizer.Asynchronizer, sql string) error {
+// LoadSnapshot loads rows from Oracle and pushes abstract.ChangeItem batches via pusher.
+func (l *loader) LoadSnapshot(ctx context.Context, pusher abstract.Pusher, sql string) error {
 	rawValues, err := createRawValues(l.table)
 	if err != nil {
 		return xerrors.Errorf("Can't create raw values for table '%v': %w", l.table.OracleSQLName(), err)
 	}
 
-	batch := []abstract2.Event{}
+	batch := make([]abstract.ChangeItem, 0, rowsInBatch)
 	var batchBytes uint64
 	batchTime := time.Now()
 	queryErr := oracle_common.PDBQueryGlobal(
@@ -106,21 +84,21 @@ func (l *loader) LoadSnapshot(ctx context.Context, syncTarget asynchronizer.Asyn
 					return xerrors.Errorf("Can't scan values for table '%v': %w", l.table.OracleSQLName(), err)
 				}
 
-				if l.metrics != nil {
-					batchBytes += estimateRowSize(rawValues)
-				}
-
-				event, err := createInsertEvent(l.table, rawValues, l.position)
+				columnValues, err := buildChangeItemValues(l.table, rawValues)
 				if err != nil {
-					return xerrors.Errorf("Can't parse raw values for table '%v': %w", l.table.OracleSQLName(), err)
+					return xerrors.Errorf("Can't cast values for table '%v': %w", l.table.OracleSQLName(), err)
 				}
-				batch = append(batch, event)
+				if l.metrics != nil {
+					batchBytes += estimateRowSize(columnValues)
+				}
+				item := buildInsertChangeItem(l.table, columnValues, l.position)
+				batch = append(batch, item)
 
 				if len(batch) >= rowsInBatch {
-					if err := l.pushBatch(batch, batchBytes, &batchTime, syncTarget); err != nil {
+					if err := l.pushBatch(batch, batchBytes, &batchTime, pusher); err != nil {
 						return xerrors.Errorf("failed to push to target: %w", err)
 					}
-					batch = []abstract2.Event{}
+					batch = make([]abstract.ChangeItem, 0, rowsInBatch)
 					batchBytes = 0
 				}
 			}
@@ -136,18 +114,46 @@ func (l *loader) LoadSnapshot(ctx context.Context, syncTarget asynchronizer.Asyn
 	}
 
 	if len(batch) > 0 {
-		if err := l.pushBatch(batch, batchBytes, &batchTime, syncTarget); err != nil {
+		if err := l.pushBatch(batch, batchBytes, &batchTime, pusher); err != nil {
 			return xerrors.Errorf("failed to push to target: %w", err)
 		}
-		batch = []abstract2.Event{}
 	}
 
 	return nil
 }
 
-func (l *loader) pushBatch(batch []abstract2.Event, batchBytes uint64, batchTime *time.Time, syncTarget asynchronizer.Asynchronizer) error {
-	if err := syncTarget.Push(abstract2.NewEventBatch(batch)); err != nil {
-		return xerrors.Errorf("failed to push a batch of %d events: %w", len(batch), err)
+func buildInsertChangeItem(
+	table *oracle_schema.Table,
+	values []interface{},
+	position *oracle_common.LogPosition,
+) abstract.ChangeItem {
+	tableSchema, _ := table.ToOldTable()
+	columnNames := make([]string, table.ColumnsCount())
+	for i := 0; i < table.ColumnsCount(); i++ {
+		columnNames[i] = table.OracleColumn(i).Name()
+	}
+	var commitTime uint64
+	var lsn uint64
+	if position != nil {
+		commitTime = uint64(position.Timestamp().UnixNano())
+		lsn = position.SCN()
+	}
+	//nolint:exhaustivestruct
+	return abstract.ChangeItem{
+		Kind:         abstract.InsertKind,
+		Schema:       table.Schema(),
+		Table:        table.Name(),
+		TableSchema:  tableSchema,
+		ColumnNames:  columnNames,
+		ColumnValues: values,
+		CommitTime:   commitTime,
+		LSN:          lsn,
+	}
+}
+
+func (l *loader) pushBatch(batch []abstract.ChangeItem, batchBytes uint64, batchTime *time.Time, pusher abstract.Pusher) error {
+	if err := pusher(batch); err != nil {
+		return xerrors.Errorf("failed to push a batch of %d items: %w", len(batch), err)
 	}
 	if l.metrics != nil {
 		l.metrics.Size.Add(int64(batchBytes))

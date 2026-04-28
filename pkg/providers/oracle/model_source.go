@@ -122,10 +122,6 @@ func (oracle *OracleSource) Validate() error {
 	return nil
 }
 
-func (oracle *OracleSource) IsAbstract2(model.Destination) bool {
-	return true
-}
-
 func (oracle *OracleSource) SupportMultiWorkers() bool {
 	return false
 }

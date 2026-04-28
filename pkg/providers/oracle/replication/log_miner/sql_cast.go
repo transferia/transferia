@@ -9,13 +9,11 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/abstract2/types"
 	oracle_schema "github.com/transferia/transferia/pkg/providers/oracle/schema"
 	"github.com/transferia/transferia/pkg/util/xlocale"
 )
 
-func castToInt(column *oracle_schema.Column, valueStr *string, size int) (abstract2.Value, error) {
+func castToInt(valueStr *string, size int) (interface{}, error) {
 	if size != 8 && size != 16 && size != 32 && size != 64 {
 		return nil, xerrors.Errorf("Invalid size of int '%v'", size)
 	}
@@ -33,63 +31,53 @@ func castToInt(column *oracle_schema.Column, valueStr *string, size int) (abstra
 	switch size {
 	case 8:
 		if nullableValue == nil {
-			return types.NewDefaultInt8Value(nil, column), nil
+			return nil, nil
 		}
-		int8Value := int8(*nullableValue)
-		return types.NewDefaultInt8Value(&int8Value, column), nil
+		return int8(*nullableValue), nil
 	case 16:
 		if nullableValue == nil {
-			return types.NewDefaultInt16Value(nil, column), nil
+			return nil, nil
 		}
-		int16Value := int16(*nullableValue)
-		return types.NewDefaultInt16Value(&int16Value, column), nil
+		return int16(*nullableValue), nil
 	case 32:
 		if nullableValue == nil {
-			return types.NewDefaultInt32Value(nil, column), nil
+			return nil, nil
 		}
-		int32Value := int32(*nullableValue)
-		return types.NewDefaultInt32Value(&int32Value, column), nil
+		return int32(*nullableValue), nil
 	case 64:
-		return types.NewDefaultInt64Value(nullableValue, column), nil
+		if nullableValue == nil {
+			return nil, nil
+		}
+		return *nullableValue, nil
 	}
 	return nil, xerrors.Errorf("Invalid size of int '%v'", size)
 }
 
-func castToFloat(column *oracle_schema.Column, valueStr *string, size int) (abstract2.Value, error) {
+func castToFloat(valueStr *string, size int) (interface{}, error) {
 	if size != 32 && size != 64 {
 		return nil, xerrors.Errorf("Invalid size of float '%v'", size)
 	}
 
 	var nullableValue *float64
 	if valueStr == nil || *valueStr == "NULL" {
-		nullableValue = nil
-	} else {
-		value, err := strconv.ParseFloat(*valueStr, size)
-		if err != nil {
-			return nil, xerrors.Errorf("Can't parse value '%v' to float: %w", *valueStr, err)
-		}
-		nullableValue = &value
+		return nil, nil
 	}
+	value, err := strconv.ParseFloat(*valueStr, size)
+	if err != nil {
+		return nil, xerrors.Errorf("Can't parse value '%v' to float: %w", *valueStr, err)
+	}
+	nullableValue = &value
 
 	switch size {
 	case 32:
-		if nullableValue == nil {
-			return types.NewDefaultFloatValue(nil, column), nil
-		}
-		value := float32(*nullableValue)
-		return types.NewDefaultFloatValue(&value, column), nil
+		return float32(*nullableValue), nil
 	case 64:
-		return types.NewDefaultDoubleValue(nullableValue, column), nil
+		return *nullableValue, nil
 	}
 	return nil, xerrors.Errorf("Invalid size of float '%v'", size)
 }
 
 func castToStringCore(valueStr *string) (*string, error) {
-	// Input string looks like:
-	//	   EMPTY_CLOB()
-	//     'value'
-	//	   value
-
 	if valueStr == nil || *valueStr == "NULL" {
 		return nil, nil
 	}
@@ -118,7 +106,7 @@ func castToStringNumberCore(valueStr *string) (*string, error) {
 		return value, nil
 	}
 
-	if strings.HasPrefix(*value, ".") { // Handle values like '.1'
+	if strings.HasPrefix(*value, ".") {
 		formatedValue := "0" + *value
 		return &formatedValue, nil
 	}
@@ -126,71 +114,55 @@ func castToStringNumberCore(valueStr *string) (*string, error) {
 	return value, nil
 }
 
-func castToString(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
+func castToStringValue(valueStr *string) (interface{}, error) {
 	value, err := castToStringCore(valueStr)
 	if err != nil {
 		return nil, xerrors.Errorf("Error parse string value: %w", err)
 	}
-
-	return types.NewDefaultStringValue(value, column), nil
+	if value == nil {
+		return nil, nil
+	}
+	return *value, nil
 }
 
-func castToDecimal(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
+func castToDecimalString(valueStr *string) (interface{}, error) {
 	value, err := castToStringNumberCore(valueStr)
 	if err != nil {
 		return nil, err
 	}
-
-	return types.NewDefaultDecimalValue(value, column), nil
-}
-
-func castToBigFloat(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
-	value, err := castToStringNumberCore(valueStr)
-	if err != nil {
-		return nil, err
+	if value == nil {
+		return nil, nil
 	}
-
-	return types.NewDefaultBigFloatValue(value, column), nil
+	return *value, nil
 }
 
-func castToBytes(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
-	// Input string looks like:
-	//	   EMPTY_BLOB()
-	//     HEXTORAW('12ab')
-
+func castToBytesValue(valueStr *string) (interface{}, error) {
 	if valueStr == nil || *valueStr == "NULL" {
-		return types.NewDefaultBytesValue(nil, column), nil
+		return nil, nil
 	}
 
 	if *valueStr == "EMPTY_BLOB()" {
-		return types.NewDefaultBytesValue([]byte{}, column), nil
+		return []byte{}, nil
 	}
 	const hexPrefix = "HEXTORAW('"
 	const hexSuffix = "')"
 	if !strings.HasPrefix(*valueStr, hexPrefix) || !strings.HasSuffix(*valueStr, hexSuffix) {
 		const maxChars = 30
 		if len(*valueStr) > maxChars {
-			return nil, xerrors.Errorf("Value '%v...' is not hex string", (*valueStr)[:maxChars]) // TODO: fix to utf8 substring
-		} else {
-			return nil, xerrors.Errorf("Value '%v' is not hex string", *valueStr)
+			return nil, xerrors.Errorf("Value '%v...' is not hex string", (*valueStr)[:maxChars])
 		}
+		return nil, xerrors.Errorf("Value '%v' is not hex string", *valueStr)
 	}
 	hexStr := (*valueStr)[len(hexPrefix) : len(*valueStr)-len(hexSuffix)]
 
-	bytes, err := hex.DecodeString(hexStr)
+	b, err := hex.DecodeString(hexStr)
 	if err != nil {
 		return nil, xerrors.Errorf("Can't decode hex string: %w", err)
 	}
-	return types.NewDefaultBytesValue(bytes, column), nil
+	return b, nil
 }
 
 func castToTimeCore(valueStr *string) (*time.Time, error) {
-	// Input string looks like:
-	//     TIMESTAMP ' 1997-01-31 00:00:00'
-	//     TIMESTAMP ' 1997-01-31 09:26:56.660000'
-	//     TIMESTAMP ' 1997-01-31 09:26:56.660000+02:00'
-	//     TIMESTAMP ' 2021-09-17 18:19:09.728 Europe/Moscow MSK'
-
 	if valueStr == nil || *valueStr == "NULL" {
 		return nil, nil
 	}
@@ -205,64 +177,66 @@ func castToTimeCore(valueStr *string) (*time.Time, error) {
 	})
 
 	parts := strings.Fields(timestampStr)
-	// Try parse time
-	timestamp, err := dateparse.ParseAny(parts[0] + " " + parts[1])
+	ts, err := dateparse.ParseAny(parts[0] + " " + parts[1])
 	if err != nil {
 		return nil, xerrors.Errorf("Can't parse value '%v' to timestamp: %w", *valueStr, err)
 	}
-	// Try parse time location
 	if len(parts) > 2 {
 		var location *time.Location
-		var err error
+		var locErr error
 		for i := 2; i < len(parts); i++ {
-			location, err = xlocale.Load(parts[i])
-			if err != nil {
+			location, locErr = xlocale.Load(parts[i])
+			if locErr != nil {
 				continue
 			}
-			timestamp = time.Date(
-				timestamp.Year(), timestamp.Month(), timestamp.Day(),
-				timestamp.Hour(), timestamp.Minute(), timestamp.Second(),
-				timestamp.Nanosecond(), location)
+			ts = time.Date(
+				ts.Year(), ts.Month(), ts.Day(),
+				ts.Hour(), ts.Minute(), ts.Second(),
+				ts.Nanosecond(), location)
 			break
 		}
 		if location == nil {
-			return nil, xerrors.Errorf("Can't parse value '%v' to timestamp: %w", *valueStr, err)
+			return nil, xerrors.Errorf("Can't parse value '%v' to timestamp: %w", *valueStr, locErr)
 		}
 	}
 
-	return &timestamp, nil
+	return &ts, nil
 }
 
-func castToDate(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
-	time, err := castToTimeCore(valueStr)
+func castToDateValue(valueStr *string) (interface{}, error) {
+	t, err := castToTimeCore(valueStr)
 	if err != nil {
 		return nil, err
 	}
-	// In Oracle 'date' is 'datetime' value
-	return types.NewDefaultDateTimeValue(time, column), nil
-}
-
-func castToTimestamp(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
-	time, err := castToTimeCore(valueStr)
-	if err != nil {
-		return nil, err
+	if t == nil {
+		return nil, nil
 	}
-	return types.NewDefaultTimestampValue(time, column), nil
+	return *t, nil
 }
 
-func castToTimestampTZ(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
-	time, err := castToTimeCore(valueStr)
-	if err != nil {
-		return nil, err
-	}
-	return types.NewDefaultTimestampTZValue(time, column), nil
+func castToTimestampValue(valueStr *string) (interface{}, error) {
+	return castToDateValue(valueStr)
 }
 
-func castToDSInterval(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
-	// Input string looks like: TO_DSINTERVAL('+00 00:15:30.000000')
+func castToTimestampTZValue(valueStr *string) (interface{}, error) {
+	return castToDateValue(valueStr)
+}
 
+func castToYMIntervalStringValue(valueStr *string) (interface{}, error) {
 	if valueStr == nil || *valueStr == "NULL" {
-		return types.NewDefaultIntervalValue(nil, column), nil
+		return nil, nil
+	}
+	const prefix = "TO_YMINTERVAL('"
+	const suffix = "')"
+	if !strings.HasPrefix(*valueStr, prefix) || !strings.HasSuffix(*valueStr, suffix) {
+		return nil, xerrors.Errorf("Value '%v' is not a year to month interval string", *valueStr)
+	}
+	return (*valueStr)[len(prefix) : len(*valueStr)-len(suffix)], nil
+}
+
+func castToDSIntervalValue(valueStr *string) (interface{}, error) {
+	if valueStr == nil || *valueStr == "NULL" {
+		return nil, nil
 	}
 
 	const intervalPrefix = "TO_DSINTERVAL('"
@@ -315,71 +289,71 @@ func castToDSInterval(column *oracle_schema.Column, valueStr *string) (abstract2
 		interval *= -1
 	}
 
-	duration := time.Duration(interval)
-	return types.NewDefaultIntervalValue(&duration, column), nil
+	return time.Duration(interval), nil
 }
 
-func castValueFromLogMiner(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
+func castValueFromLogMiner(column *oracle_schema.Column, valueStr *string) (interface{}, error) {
 	value, err := castValueFromLogMinerCore(column, valueStr)
 	if err != nil {
-		return nil, xerrors.Errorf("Cast error, for column '%v', of type '%v(%v)': %w",
-			column.OracleSQLName(), column.OracleType(), column.Type(), err)
+		return nil, xerrors.Errorf("Cast error, for column '%v', of type '%v': %w",
+			column.OracleSQLName(), column.OracleType(), err)
 	}
 	return value, nil
 }
 
 //nolint:descriptiveerrors
-func castValueFromLogMinerCore(column *oracle_schema.Column, valueStr *string) (abstract2.Value, error) {
+func castValueFromLogMinerCore(column *oracle_schema.Column, valueStr *string) (interface{}, error) {
 	switch column.OracleBaseType() {
 	case
 		"ROWID", "UROWID",
 		"CHAR", "VARCHAR2", "NCHAR", "NVARCHAR2", "LONG",
 		"CLOB", "NCLOB":
-		return castToString(column, valueStr)
+		return castToStringValue(valueStr)
 	case "NUMBER":
-		switch column.Type().(type) {
-		case *types.Int8Type:
-			return castToInt(column, valueStr, 8)
-		case *types.Int16Type:
-			return castToInt(column, valueStr, 16)
-		case *types.Int32Type:
-			return castToInt(column, valueStr, 32)
-		case *types.Int64Type:
-			return castToInt(column, valueStr, 64)
-		case *types.FloatType:
-			return castToFloat(column, valueStr, 32)
-		case *types.DoubleType:
-			return castToFloat(column, valueStr, 64)
-		case *types.DecimalType:
-			return castToDecimal(column, valueStr)
+		dt := column.DataType()
+		switch dt {
+		case oracle_schema.YTTypeInt8:
+			return castToInt(valueStr, 8)
+		case oracle_schema.YTTypeInt16:
+			return castToInt(valueStr, 16)
+		case oracle_schema.YTTypeInt32:
+			return castToInt(valueStr, 32)
+		case oracle_schema.YTTypeInt64:
+			return castToInt(valueStr, 64)
+		case oracle_schema.YTTypeFloat32:
+			return castToFloat(valueStr, 32)
+		case oracle_schema.YTTypeFloat64:
+			return castToFloat(valueStr, 64)
+		case oracle_schema.YTTypeString:
+			return castToDecimalString(valueStr)
 		default:
-			return nil, xerrors.Errorf("Unsupported sub type '%v' for type '%v'. columnName: %v", column.OracleType(), column.Type(), column.FullName())
+			return nil, xerrors.Errorf("Unsupported data type '%v' for NUMBER. columnName: %v", dt, column.FullName())
 		}
 	case "FLOAT":
-		switch column.Type().(type) {
-		case *types.FloatType:
-			return castToFloat(column, valueStr, 32)
-		case *types.DoubleType:
-			return castToFloat(column, valueStr, 64)
-		case *types.BigFloatType:
-			return castToBigFloat(column, valueStr)
+		switch column.FloatBitSize() {
+		case 32:
+			return castToFloat(valueStr, 32)
+		case 64:
+			return castToFloat(valueStr, 64)
 		default:
-			return nil, xerrors.Errorf("Unsupported sub type '%v' for type '%v'. columnName: %v", column.OracleType(), column.Type(), column.FullName())
+			return castToDecimalString(valueStr)
 		}
 	case "BINARY_FLOAT":
-		return castToFloat(column, valueStr, 32)
+		return castToFloat(valueStr, 32)
 	case "BINARY_DOUBLE":
-		return castToFloat(column, valueStr, 64)
+		return castToFloat(valueStr, 64)
 	case "RAW", "LONG RAW", "BLOB":
-		return castToBytes(column, valueStr)
+		return castToBytesValue(valueStr)
 	case "DATE":
-		return castToDate(column, valueStr)
+		return castToDateValue(valueStr)
 	case "TIMESTAMP", "TIMESTAMP WITH LOCAL TIME ZONE":
-		return castToTimestamp(column, valueStr)
+		return castToTimestampValue(valueStr)
 	case "TIMESTAMP WITH TIME ZONE":
-		return castToTimestampTZ(column, valueStr)
+		return castToTimestampTZValue(valueStr)
+	case "INTERVAL YEAR TO MONTH":
+		return castToYMIntervalStringValue(valueStr)
 	case "INTERVAL DAY TO SECOND":
-		return castToDSInterval(column, valueStr)
+		return castToDSIntervalValue(valueStr)
 	default:
 		return nil, xerrors.Errorf("Unsupported type '%v'", column.OracleType())
 	}

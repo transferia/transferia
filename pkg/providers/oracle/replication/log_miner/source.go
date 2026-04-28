@@ -2,6 +2,7 @@ package log_miner
 
 import (
 	"context"
+	stdsql "database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,8 +12,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/jmoiron/sqlx"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/abstract2/events"
+	"github.com/transferia/transferia/pkg/abstract"
 	provider_oracle "github.com/transferia/transferia/pkg/providers/oracle"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 	"github.com/transferia/transferia/pkg/providers/oracle/logtracker"
@@ -63,7 +63,7 @@ type oracleLogMinerSource struct {
 type oracleLogMinerSourceRun struct {
 	ctx                     context.Context
 	cancel                  context.CancelFunc
-	target                  abstract2.EventTarget
+	sink                    abstract.AsyncSink
 	currentLog              *LogFileRow
 	startPosition           *oracle_common.LogPosition
 	currentPosition         *oracle_common.LogPosition
@@ -77,15 +77,15 @@ type oracleLogMinerSourceRun struct {
 	batchProcessError       error
 }
 
-func NewLogMinerSource(
+func newOracleLogMinerSource(
 	sqlxDB *sqlx.DB,
 	config *provider_oracle.OracleSource,
 	schema *oracle_schema.Database,
 	tracker logtracker.LogTracker,
 	logger log.Logger,
 	metrics *stats.SourceStats,
-) (abstract2.EventSource, error) {
-	source := &oracleLogMinerSource{
+) *oracleLogMinerSource {
+	return &oracleLogMinerSource{
 		sqlxDB:     sqlxDB,
 		config:     config,
 		schemaRepo: schema,
@@ -94,7 +94,6 @@ func NewLogMinerSource(
 		metrics:    metrics,
 		run:        nil,
 	}
-	return source, nil
 }
 
 func (source *oracleLogMinerSource) Running() bool {
@@ -133,10 +132,10 @@ func (row *LogFileRow) String() string {
 
 func (source *oracleLogMinerSource) getLogFiles(ctx context.Context, connection *sqlx.Conn, scn uint64) ([]LogFileRow, error) {
 	// About THREAD# https://docs.oracle.com/cd/B12037_01/server.101/b10755/initparams211.htm
-	sql := `
+	query := `
 select * from (
 	select ID, TYPE, FILE_NAME, FROM_SCN, TO_SCN, BYTES from (
-		select a.SEQUENCE# as ID, 'Archived' as TYPE, a.NAME as FILE_NAME, a.FIRST_CHANGE# as FROM_SCN, a.NEXT_CHANGE# as TO_SCN, NVL(a.BYTES, 0) as BYTES
+		select a.SEQUENCE# as ID, 'Archived' as TYPE, a.NAME as FILE_NAME, a.FIRST_CHANGE# as FROM_SCN, a.NEXT_CHANGE# as TO_SCN, NVL(a.BLOCKS * a.BLOCK_SIZE, 0) as BYTES
 		from V$ARCHIVED_LOG a
 		where a.THREAD# = 1 and a.STATUS = 'A' and a.STANDBY_DEST = 'NO'
 		union
@@ -150,8 +149,10 @@ select * from (
 )
 where ROWNUM <= 2`
 	var logFiles []LogFileRow
-	if err := connection.SelectContext(ctx, &logFiles, sql, scn); err != nil {
-		source.logger.Errorf("Can't get log files from DB from scn [%v]", scn)
+	// :scn appears 3 times in the WHERE clause; use sql.Named so godror binds all
+	// occurrences to the same value rather than requiring 3 positional arguments.
+	if err := connection.SelectContext(ctx, &logFiles, query, stdsql.Named("scn", scn)); err != nil {
+		source.logger.Errorf("Can't get log files from DB from scn [%v]: %v", scn, err)
 		return nil, xerrors.Errorf("Can't get log files from DB: %w", err)
 	}
 	return logFiles, nil
@@ -162,10 +163,14 @@ func (source *oracleLogMinerSource) addLogFilesToLogMiner(ctx context.Context, c
 		return xerrors.New("Can't add log file to LogMiner: log file is nil")
 	}
 
-	procedureCall := fmt.Sprintf("DBMS_LOGMNR.ADD_LOGFILE('%v')", source.run.currentLog.FileName)
+	// DBMS_LOGMNR.NEW starts a fresh session; required because in Oracle 12c+ the
+	// default option changed from NEW to ADDFILE, which requires an already-active
+	// session. Since END_LOGMNR closes the session at the end of each read cycle,
+	// every ADD_LOGFILE call must re-open with NEW.
+	procedureCall := fmt.Sprintf("DBMS_LOGMNR.ADD_LOGFILE('%v', DBMS_LOGMNR.NEW)", source.run.currentLog.FileName)
 	sql := source.createExecuteQuery(procedureCall)
 	if _, err := connection.ExecContext(ctx, sql); err != nil {
-		source.logger.Errorf("Can't add log '%v' to LogMiner", source.run.currentLog)
+		source.logger.Errorf("Can't add log '%v' to LogMiner: %v", source.run.currentLog, err)
 		return xerrors.Errorf("Can't add log file to LogMiner: %w", err)
 	}
 
@@ -202,103 +207,150 @@ func (source *oracleLogMinerSource) stopLogMiner(ctx context.Context, connection
 	return nil
 }
 
-func (source *oracleLogMinerSource) parseSQL(row *LogMinerRow, transaction *oracle_common.TransactionInfo) (abstract2.Event, error) {
+func (source *oracleLogMinerSource) parseSQL(row *LogMinerRow, _ *oracle_common.TransactionInfo) (abstract.ChangeItem, bool, error) {
+	var zero abstract.ChangeItem
 	parseResult, err := parseLogMinerSQL(row.SQLRedo)
 	if err != nil {
-		//nolint:descriptiveerrors
-		return nil, err
+		return zero, false, xerrors.Errorf("parse log miner sql: %w", err)
 	}
 
 	tableID := parseResult.TableID()
 	table := source.schemaRepo.OracleTableByID(tableID)
 	if table == nil {
-		return nil, xerrors.Errorf("Table '%v' not in loaded schema", tableID.OracleSQLName())
+		return zero, false, xerrors.Errorf("Table '%v' not in loaded schema", tableID.OracleSQLName())
 	}
 
-	position, err := oracle_common.NewLogPosition(row.SCN, &row.RSID, &row.SSN, oracle_common.PositionReplication, row.Timestamp)
+	tableSchema, err := table.ToOldTable()
 	if err != nil {
-		//nolint:descriptiveerrors
-		return nil, err
+		return zero, false, xerrors.Errorf("get table schema for '%v': %w", tableID.OracleSQLName(), err)
 	}
+
+	commitTime := uint64(row.Timestamp.UnixNano())
+	txID := row.XID
 
 	switch opCode := LogMinerOPCode(row.OPCode); opCode {
 	case LogMinerOPCodeInsert:
-		event := events.NewDefaultTransactionalInsertEvent(table, position, transaction)
+		colNames := make([]string, 0, table.ColumnsCount())
+		colVals := make([]interface{}, 0, table.ColumnsCount())
 		for i := 0; i < table.ColumnsCount(); i++ {
 			column := table.OracleColumn(i)
 			if valueStr, ok := parseResult.NewValues[column.OracleName()]; ok {
 				value, err := castValueFromLogMiner(column, valueStr)
 				if err != nil {
-					return nil, xerrors.Errorf("Cast value error: %w", err)
+					return zero, false, xerrors.Errorf("Cast value error: %w", err)
 				}
-				if err := event.AddNewValue(value); err != nil {
-					return nil, xerrors.Errorf("Add new value error: %w", err)
-				}
+				colNames = append(colNames, column.Name())
+				colVals = append(colVals, value)
 			}
 		}
-		return event, nil
+		//nolint:exhaustivestruct
+		return abstract.ChangeItem{
+			Kind:         abstract.InsertKind,
+			Schema:       table.Schema(),
+			Table:        table.Name(),
+			TableSchema:  tableSchema,
+			ColumnNames:  colNames,
+			ColumnValues: colVals,
+			CommitTime:   commitTime,
+			LSN:          row.SCN,
+			TxID:         txID,
+			OldKeys:      abstract.EmptyOldKeys(),
+		}, true, nil
 	case LogMinerOPCodeDelete:
-		keyExists := false
-		event := events.NewDefaultTransactionalDeleteEvent(table, position, transaction)
+		keyNames := make([]string, 0)
+		keyVals := make([]interface{}, 0)
 		for i := 0; i < table.ColumnsCount(); i++ {
 			column := table.OracleColumn(i)
 			if valueStr, ok := parseResult.OldValues[column.OracleName()]; ok {
 				value, err := castValueFromLogMiner(column, valueStr)
 				if err != nil {
-					return nil, xerrors.Errorf("Cast value error: %w", err)
-				}
-				if err := event.AddOldValue(value); err != nil {
-					return nil, xerrors.Errorf("Add old value error: %w", err)
+					return zero, false, xerrors.Errorf("Cast value error: %w", err)
 				}
 				if column.Key() {
-					keyExists = true
+					keyNames = append(keyNames, column.Name())
+					keyVals = append(keyVals, value)
 				}
 			}
 		}
-		if !keyExists {
-			return nil, xerrors.Errorf("Key value for table '%v' not found, maybe PK supplemental logging need to be enabled",
+		if len(keyNames) == 0 {
+			return zero, false, xerrors.Errorf("Key value for table '%v' not found, maybe PK supplemental logging need to be enabled",
 				table.OracleSQLName())
 		}
-		return event, nil
+		//nolint:exhaustivestruct
+		return abstract.ChangeItem{
+			Kind:         abstract.DeleteKind,
+			Schema:       table.Schema(),
+			Table:        table.Name(),
+			TableSchema:  tableSchema,
+			ColumnNames:  nil,
+			ColumnValues: nil,
+			CommitTime:   commitTime,
+			LSN:          row.SCN,
+			TxID:         txID,
+			//nolint:exhaustivestruct
+			OldKeys: abstract.OldKeysType{
+				KeyNames:  keyNames,
+				KeyValues: keyVals,
+			},
+		}, true, nil
 	case LogMinerOPCodeUpdate:
 		keyExists := false
-		event := events.NewDefaultTransactionalUpdateEvent(table, position, transaction)
+		colNames := make([]string, 0)
+		colVals := make([]interface{}, 0)
+		oldKeyNames := make([]string, 0)
+		oldKeyVals := make([]interface{}, 0)
 		for i := 0; i < table.ColumnsCount(); i++ {
 			column := table.OracleColumn(i)
-			var oldValue abstract2.Value
+			var oldVal interface{}
+			hadOld := false
 			if oldValueStr, oldOk := parseResult.OldValues[column.OracleName()]; oldOk {
-				oldValue, err = castValueFromLogMiner(column, oldValueStr)
-				if err != nil {
-					return nil, xerrors.Errorf("Cast value error: %w", err)
+				var castErr error
+				oldVal, castErr = castValueFromLogMiner(column, oldValueStr)
+				if castErr != nil {
+					return zero, false, xerrors.Errorf("Cast value error: %w", castErr)
 				}
-				if err := event.AddOldValue(oldValue); err != nil {
-					return nil, xerrors.Errorf("Add old value error: %w", err)
-				}
+				hadOld = true
 				if column.Key() {
 					keyExists = true
+					oldKeyNames = append(oldKeyNames, column.Name())
+					oldKeyVals = append(oldKeyVals, oldVal)
 				}
 			}
 			if newValueStr, newOk := parseResult.NewValues[column.OracleName()]; newOk {
 				newValue, err := castValueFromLogMiner(column, newValueStr)
 				if err != nil {
-					return nil, xerrors.Errorf("Cast value error: %w", err)
+					return zero, false, xerrors.Errorf("Cast value error: %w", err)
 				}
-				if err := event.AddNewValue(newValue); err != nil {
-					return nil, xerrors.Errorf("Add new value error: %w", err)
-				}
-			} else if column.Key() {
-				if err := event.AddNewValue(oldValue); err != nil {
-					return nil, xerrors.Errorf("Add new value error: %w", err)
-				}
+				colNames = append(colNames, column.Name())
+				colVals = append(colVals, newValue)
+			} else if column.Key() && hadOld {
+				colNames = append(colNames, column.Name())
+				colVals = append(colVals, oldVal)
 			}
 		}
 		if !keyExists {
-			return nil, xerrors.Errorf("Key value for table '%v' not found, maybe PK supplemental logging need to be enabled",
+			return zero, false, xerrors.Errorf("Key value for table '%v' not found, maybe PK supplemental logging need to be enabled",
 				table.OracleSQLName())
 		}
-		return event, nil
+		//nolint:exhaustivestruct
+		return abstract.ChangeItem{
+			Kind:         abstract.UpdateKind,
+			Schema:       table.Schema(),
+			Table:        table.Name(),
+			TableSchema:  tableSchema,
+			ColumnNames:  colNames,
+			ColumnValues: colVals,
+			CommitTime:   commitTime,
+			LSN:          row.SCN,
+			TxID:         txID,
+			//nolint:exhaustivestruct
+			OldKeys: abstract.OldKeysType{
+				KeyNames:  oldKeyNames,
+				KeyValues: oldKeyVals,
+			},
+		}, true, nil
 	default:
-		return nil, xerrors.Errorf("Unsupported sql statement type '%v'", opCode)
+		return zero, false, xerrors.Errorf("Unsupported sql statement type '%v'", opCode)
 	}
 }
 
@@ -323,9 +375,6 @@ func (source *oracleLogMinerSource) pushTransaction(transaction *FinishedTransac
 	}
 
 	if len(transaction.Rows) > 0 && useData {
-		beginTransactionEvent := events.NewDefaultTransactionEvent(transaction.Info.BeginPosition(), transaction.Info, events.TransactionBegin)
-		batch.Add(beginTransactionEvent)
-
 		builder := strings.Builder{}
 		for _, row := range transaction.Rows {
 			// https://docs.oracle.com/en/database/oracle/oracle-database/21/refrn/V-LOGMNR_CONTENTS.html
@@ -344,13 +393,13 @@ func (source *oracleLogMinerSource) pushTransaction(transaction *FinishedTransac
 				source.metrics.Size.Add(int64(len(row.SQLRedo)))
 			}
 
-			event, err := source.parseSQL(&row, transaction.Info)
+			item, include, err := source.parseSQL(&row, transaction.Info)
 			if err != nil {
 				source.logger.Error("Parse log miner sql statment error", log.Error(err), log.String("sql", row.SQLRedo))
 				return xerrors.Errorf("Parse sql statment error: %w", err)
 			}
-			if event != nil {
-				batch.Add(event)
+			if include {
+				batch.Add(item)
 				if source.metrics != nil {
 					source.metrics.ChangeItems.Inc()
 					source.metrics.Parsed.Inc()
@@ -361,9 +410,6 @@ func (source *oracleLogMinerSource) pushTransaction(transaction *FinishedTransac
 		if builder.Len() > 0 {
 			return xerrors.New("Failed build splitted statement")
 		}
-
-		commitTransactionEvent := events.NewDefaultTransactionEvent(transaction.Info.EndPosition(), transaction.Info, events.TransactionBegin)
-		batch.Add(commitTransactionEvent)
 	}
 
 	batch.SetProgressPosition(transaction.ProgressPosition)
@@ -556,7 +602,7 @@ func (source *oracleLogMinerSource) pushBatch(batch *logMinerBatch) {
 	}
 
 	if !batch.Empty() {
-		if err := <-source.run.target.AsyncPush(abstract2.NewEventBatch(batch.Rows)); err != nil {
+		if err := <-source.run.sink.AsyncPush(batch.Rows); err != nil {
 			source.run.batchProcessError = xerrors.Errorf("Push events error: %w", err)
 			source.logger.Error("Push events error", log.Error(err))
 			return
@@ -753,7 +799,7 @@ func estimateLagBytesForLog(log LogFileRow, fromSCN, toSCN uint64) uint64 {
 	return (log.Bytes * rem) / span
 }
 
-func (source *oracleLogMinerSource) Start(ctx context.Context, target abstract2.EventTarget) error {
+func (source *oracleLogMinerSource) Run(sink abstract.AsyncSink) error {
 	if source.run != nil {
 		return xerrors.New("Already running")
 	}
@@ -767,12 +813,12 @@ func (source *oracleLogMinerSource) Start(ctx context.Context, target abstract2.
 
 	source.logger.Infof("Start log miner replication, from position: [%v]", startPosition)
 
-	runCtx, cancel := context.WithCancel(ctx)
+	runCtx, cancel := context.WithCancel(context.Background())
 	//nolint:exhaustivestruct
 	source.run = &oracleLogMinerSourceRun{
 		ctx:                     runCtx,
 		cancel:                  cancel,
-		target:                  target,
+		sink:                    sink,
 		currentLog:              nil,
 		startPosition:           startPosition,
 		currentPosition:         startPosition,
@@ -843,9 +889,34 @@ func (source *oracleLogMinerSource) Start(ctx context.Context, target abstract2.
 	return nil
 }
 
-func (source *oracleLogMinerSource) Stop() error {
+func (source *oracleLogMinerSource) Stop() {
 	if source.run != nil {
 		source.run.cancel()
 	}
-	return nil
 }
+
+// LogMinerSource implements abstract.Source (Oracle redo via LogMiner).
+type LogMinerSource struct {
+	inner *oracleLogMinerSource
+}
+
+func NewLogMinerSource(
+	sqlxDB *sqlx.DB,
+	config *provider_oracle.OracleSource,
+	schema *oracle_schema.Database,
+	tracker logtracker.LogTracker,
+	logger log.Logger,
+	metrics *stats.SourceStats,
+) *LogMinerSource {
+	return &LogMinerSource{inner: newOracleLogMinerSource(sqlxDB, config, schema, tracker, logger, metrics)}
+}
+
+func (l *LogMinerSource) Run(sink abstract.AsyncSink) error {
+	return l.inner.Run(sink)
+}
+
+func (l *LogMinerSource) Stop() {
+	l.inner.Stop()
+}
+
+var _ abstract.Source = (*LogMinerSource)(nil)

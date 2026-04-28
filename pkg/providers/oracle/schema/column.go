@@ -6,8 +6,6 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/abstract2/types"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 )
 
@@ -28,33 +26,31 @@ type Column struct {
 	dataScale            *int
 	nullable             bool
 	virtual              bool
-	transferType         abstract2.Type
+	dataType             string // YT schema type string, e.g. "int64", "utf8"
 	oldColumn            *abstract.ColSchema
 	convertNumberToInt64 bool
 }
 
 func NewColumn(table *Table, row *ColumnRow, convertNumberToInt64 bool) (*Column, error) {
 	column := &Column{
-		table:          table,
-		name:           row.ColumnName,
-		oracleType:     "",
-		oracleBaseType: "",
-		dataLength:     row.DataLength,
-		dataPrecision:  nil,
-		dataScale:      nil,
-		// The value is N if there is a NOT NULL constraint on the column or if the column is part of a PRIMARY KEY
+		table:                table,
+		name:                 row.ColumnName,
+		oracleType:           "",
+		oracleBaseType:       "",
+		dataLength:           row.DataLength,
+		dataPrecision:        nil,
+		dataScale:            nil,
 		nullable:             row.Nullable == nil || *row.Nullable != "N",
 		virtual:              false,
-		transferType:         nil,
+		dataType:             "",
 		oldColumn:            nil,
 		convertNumberToInt64: convertNumberToInt64,
 	}
 
 	if row.DataType == nil {
 		return nil, xerrors.Errorf("Null data type for column '%v'", column.OracleSQLName())
-	} else {
-		column.oracleType = *row.DataType
 	}
+	column.oracleType = *row.DataType
 
 	if row.DataPrecision != nil {
 		dataPrecision := *row.DataPrecision
@@ -68,13 +64,11 @@ func NewColumn(table *Table, row *ColumnRow, convertNumberToInt64 bool) (*Column
 
 	if row.Virtual == nil {
 		return nil, xerrors.Errorf("Null virtual for column '%v'", column.OracleSQLName())
-	} else {
-		// Indicates whether the column is a virtual column (YES) or not (NO)
-		column.virtual = *row.Virtual == "YES"
 	}
+	column.virtual = *row.Virtual == "YES"
 
 	column.fillOracleBaseType()
-	if err := column.fillTransferType(); err != nil {
+	if err := column.fillDataType(); err != nil {
 		return nil, xerrors.Errorf("Type error for column '%v': %w", column.OracleSQLName(), err)
 	}
 
@@ -82,7 +76,6 @@ func NewColumn(table *Table, row *ColumnRow, convertNumberToInt64 bool) (*Column
 }
 
 func (column *Column) fillOracleBaseType() {
-	// Remove sizes
 	builder := strings.Builder{}
 	parenthesesCounter := 0
 	for _, char := range column.oracleType {
@@ -90,87 +83,126 @@ func (column *Column) fillOracleBaseType() {
 			parenthesesCounter++
 		} else if char == ')' {
 			parenthesesCounter--
-			// Adding space after close bracket, if this is not here
 			builder.WriteRune(' ')
 		} else if parenthesesCounter == 0 {
 			builder.WriteRune(char)
 		}
 	}
-	// Trim spaces
 	words := strings.Fields(builder.String())
 	column.oracleBaseType = strings.Join(words, " ")
 }
 
-func (column *Column) fillTransferType() error {
-	// https://docs.oracle.com/cd/E11882_01/server.112/e41085/sqlqr06002.htm#SQLQR959
+func (column *Column) fillDataType() error {
 	switch column.oracleBaseType {
 	case
 		"ROWID", "UROWID",
 		"CHAR", "VARCHAR2", "NCHAR", "NVARCHAR2", "LONG",
-		"CLOB", "NCLOB":
-		column.transferType = types.NewStringType(column.dataLength)
+		"CLOB", "NCLOB",
+		"JSON":
+		column.dataType = YTTypeString
 	case "NUMBER":
-		// DataPrecision is size of number, in decimal digits, can be zero - default case
-		// DataScale is offset from "point", can be positive (left shift) and negative (right shift)
 		if column.dataPrecision == nil {
 			if column.convertNumberToInt64 {
-				column.transferType = types.NewInt64Type()
+				column.dataType = YTTypeInt64
 			} else {
-				column.transferType = types.NewDecimalType(column.DataPrecision(), column.DataScale())
+				column.dataType = YTTypeString
 			}
 		} else {
-			if *column.dataScale > 0 {
-				column.transferType = types.NewDecimalType(column.DataPrecision(), column.DataScale())
+			if column.dataScale != nil && *column.dataScale > 0 {
+				// fractional NUMBER always maps to string regardless of the flag
+				column.dataType = YTTypeString
+			} else if !column.convertNumberToInt64 {
+				// integer NUMBER with explicit precision: respect the flag
+				column.dataType = YTTypeString
 			} else {
-				digitsCount := *column.dataPrecision - *column.dataScale
+				digitsCount := *column.dataPrecision - column.DataScale()
 				switch {
 				case digitsCount < 3:
-					column.transferType = types.NewInt8Type()
+					column.dataType = YTTypeInt8
 				case digitsCount < 5:
-					column.transferType = types.NewInt16Type()
+					column.dataType = YTTypeInt16
 				case digitsCount < 10:
-					column.transferType = types.NewInt32Type()
+					column.dataType = YTTypeInt32
 				case digitsCount < 19:
-					column.transferType = types.NewInt64Type()
+					column.dataType = YTTypeInt64
 				default:
-					column.transferType = types.NewDecimalType(column.DataPrecision(), column.DataScale())
+					column.dataType = YTTypeString
 				}
 			}
 		}
 	case "FLOAT":
-		// DataPrecision is size of number, in binary digits (bits), can be zero - default case
 		if column.dataPrecision == nil {
-			column.transferType = types.NewDoubleType()
+			column.dataType = YTTypeFloat64
 		} else {
 			switch {
 			case *column.dataPrecision <= 32:
-				column.transferType = types.NewFloatType()
+				column.dataType = YTTypeFloat32
 			case *column.dataPrecision <= 64:
-				column.transferType = types.NewDoubleType()
+				column.dataType = YTTypeFloat64
 			default:
-				column.transferType = types.NewBigFloatType(column.DataPrecision())
+				column.dataType = YTTypeString
 			}
 		}
 	case "BINARY_FLOAT":
-		column.transferType = types.NewFloatType()
+		column.dataType = YTTypeFloat32
 	case "BINARY_DOUBLE":
-		column.transferType = types.NewDoubleType()
+		column.dataType = YTTypeFloat64
 	case "RAW", "LONG RAW", "BLOB":
-		column.transferType = types.NewBytesType()
+		column.dataType = YTTypeBytes
 	case "DATE":
-		column.transferType = types.NewDateTimeType()
+		column.dataType = YTTypeDatetime
 	case "TIMESTAMP", "TIMESTAMP WITH LOCAL TIME ZONE":
-		column.transferType = types.NewTimestampType(column.DataPrecision())
+		column.dataType = YTTypeTimestamp
 	case "TIMESTAMP WITH TIME ZONE":
-		column.transferType = types.NewTimestampTZType(column.DataPrecision())
+		column.dataType = YTTypeTimestamp
 	case "INTERVAL YEAR TO MONTH":
-		column.transferType = types.NewIntervalType()
+		// INTERVAL YEAR TO MONTH has no fixed-length representation in nanoseconds
+		// (months differ in length), so it is transferred as the Oracle string form "+YY-MM".
+		column.dataType = YTTypeString
 	case "INTERVAL DAY TO SECOND":
-		column.transferType = types.NewIntervalType()
+		column.dataType = YTTypeInterval
 	default:
 		return xerrors.Errorf("Unsupported type '%v'", column.oracleType)
 	}
 	return nil
+}
+
+// DataType returns the YT schema type string used in abstract.ColSchema.DataType.
+func (column *Column) DataType() string {
+	return column.dataType
+}
+
+// IsDecimalNumber reports whether NUMBER is transferred as decimal text (sql.NullString), not as integer.
+func (column *Column) IsDecimalNumber() bool {
+	if column.oracleBaseType != "NUMBER" {
+		return false
+	}
+	if column.dataPrecision == nil {
+		return !column.convertNumberToInt64
+	}
+	if column.dataScale != nil && *column.dataScale > 0 {
+		return true
+	}
+	if !column.convertNumberToInt64 {
+		return true
+	}
+	digitsCount := *column.dataPrecision - column.DataScale()
+	return digitsCount >= 19
+}
+
+// FloatBitSize returns 32, 64, or 0 (big float → string) for FLOAT columns.
+func (column *Column) FloatBitSize() int {
+	if column.oracleBaseType != "FLOAT" || column.dataPrecision == nil {
+		return 64
+	}
+	switch {
+	case *column.dataPrecision <= 32:
+		return 32
+	case *column.dataPrecision <= 64:
+		return 64
+	default:
+		return 0
+	}
 }
 
 func (column *Column) OracleTable() *Table {
@@ -190,9 +222,35 @@ func (column *Column) OracleSQLSelect() (string, error) {
 		}
 		if clobAsBLOB {
 			return fmt.Sprintf("%[1]v(%[2]v) as %[2]v", oracle_common.CLOBToBLOBFunctionName, column.OracleSQLName()), nil
-		} else {
-			return column.OracleSQLName(), nil
 		}
+		return column.OracleSQLName(), nil
+	case "TIMESTAMP WITH TIME ZONE":
+		// SYS_EXTRACT_UTC converts TSTZ to plain TIMESTAMP in UTC, computed server-side.
+		// This avoids ORA-01805: Oracle Instant Client TZD file lookup fails for region-name
+		// timezones (e.g. 'UTC', 'America/New_York') when TZD files are absent or version-mismatched.
+		// The moment in time is preserved; only the timezone label is normalised to UTC.
+		return fmt.Sprintf("SYS_EXTRACT_UTC(%[1]v) as %[1]v", column.OracleSQLName()), nil
+	case "TIMESTAMP WITH LOCAL TIME ZONE":
+		// TSLTZ is stored as UTC; CAST to TSTZ attaches the current session TZ label, then
+		// SYS_EXTRACT_UTC strips it back to UTC — same treatment as TSTZ and equally avoids
+		// client-side TZ conversion (ORA-25137 on session/system TZ discrepancy).
+		return fmt.Sprintf("SYS_EXTRACT_UTC(CAST(%[1]v AS TIMESTAMP WITH TIME ZONE)) as %[1]v", column.OracleSQLName()), nil
+	case "NCLOB":
+		// godror's OCI path for SQLT_NCLOB diverges from SQLT_CLOB; convert server-side to CLOB
+		// so the column comes back as a standard LOB that godror reads via OCILobRead2.
+		return fmt.Sprintf("TO_CLOB(%[1]v) as %[1]v", column.OracleSQLName()), nil
+	case "BLOB":
+		// OCI cannot scan BLOB into []byte via SQLT_BIN; DBMS_LOB.SUBSTR returns RAW (≤ 32767 bytes)
+		// which godror handles correctly. BLOBs larger than 32767 bytes are not supported.
+		return fmt.Sprintf("DBMS_LOB.SUBSTR(%[1]v, 32767, 1) as %[1]v", column.OracleSQLName()), nil
+	case "INTERVAL YEAR TO MONTH":
+		// godror does not expose IntervalYM as int64/time.Duration; cast server-side to VARCHAR2
+		// to get the canonical Oracle string form, e.g. "+000005-03".
+		return fmt.Sprintf("CAST(%[1]v AS VARCHAR2(20)) as %[1]v", column.OracleSQLName()), nil
+	case "INTERVAL DAY TO SECOND":
+		// OCI rejects scanning INTERVAL DAY TO SECOND into INT8 (ORA-25137); cast server-side
+		// to VARCHAR2 to get "+DD HH:MI:SS.FFFFFF" which is then parsed into time.Duration.
+		return fmt.Sprintf("CAST(%[1]v AS VARCHAR2(50)) as %[1]v", column.OracleSQLName()), nil
 	default:
 		return column.OracleSQLName(), nil
 	}
@@ -256,26 +314,12 @@ func (column *Column) IsVirtual() bool {
 	return column.virtual
 }
 
-// Begin of base Table interface
-
-func (column *Column) Table() abstract2.Table {
-	return column.OracleTable()
-}
-
 func (column *Column) Name() string {
 	return oracle_common.ConvertOracleName(column.OracleName())
 }
 
 func (column *Column) FullName() string {
 	return oracle_common.CreateSQLName(column.OracleTable().OracleSchema().Name(), column.OracleTable().Name(), column.Name())
-}
-
-func (column *Column) Type() abstract2.Type {
-	return column.transferType
-}
-
-func (column *Column) Value(val interface{}) (abstract2.Value, error) {
-	panic("implement me")
 }
 
 func (column *Column) Nullable() bool {
@@ -292,17 +336,13 @@ func (column *Column) Key() bool {
 
 func (column *Column) ToOldColumn() (*abstract.ColSchema, error) {
 	if column.oldColumn == nil {
-		oldType, err := column.transferType.ToOldType()
-		if err != nil {
-			return nil, xerrors.Errorf("Column '%v' cannot be converted to old format: %w", column.OracleSQLName(), err)
-		}
 		//nolint:exhaustivestruct
 		column.oldColumn = &abstract.ColSchema{
-			TableSchema:  column.Table().Schema(),
-			TableName:    column.Table().Name(),
+			TableSchema:  column.OracleTable().Schema(),
+			TableName:    column.OracleTable().Name(),
 			Path:         "",
 			ColumnName:   column.Name(),
-			DataType:     string(oldType),
+			DataType:     column.dataType,
 			PrimaryKey:   column.Key(),
 			FakeKey:      false,
 			Required:     !column.Nullable(),
@@ -312,5 +352,3 @@ func (column *Column) ToOldColumn() (*abstract.ColSchema, error) {
 	}
 	return column.oldColumn, nil
 }
-
-// End of base Table interface

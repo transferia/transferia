@@ -5,7 +5,6 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract2"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 )
 
@@ -126,12 +125,6 @@ func (table *Table) selectKeyIndex() {
 	table.keyIndex = minColumnsCountUniqueIndex
 }
 
-// Begin of base Table interface
-
-func (table *Table) Database() string {
-	return table.OracleSchema().OracleDatabase().Name()
-}
-
 func (table *Table) Schema() string {
 	return table.OracleSchema().Name()
 }
@@ -146,14 +139,6 @@ func (table *Table) FullName() string {
 
 func (table *Table) ColumnsCount() int {
 	return len(table.columns)
-}
-
-func (table *Table) Column(i int) abstract2.Column {
-	return table.OracleColumn(i)
-}
-
-func (table *Table) ColumnByName(name string) abstract2.Column {
-	return table.OracleColumnByName(name)
 }
 
 func (table *Table) ToOldTable() (*abstract.TableSchema, error) {
