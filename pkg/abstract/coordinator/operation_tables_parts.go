@@ -42,36 +42,90 @@ func (p *OperationTablesParts) CreateOperationTablesParts(inTables []*abstract.O
 	return nil
 }
 
-func (p *OperationTablesParts) AssignOperationTablePart() *abstract.OperationTablePart {
+// AssignOperationTablePartForWorker picks the first unassigned part, binds it to workerIndex
+// (including main worker index 0), and returns a copy with WorkerIndex set — same idea as PG
+// repository.AssignOperationTablePart.
+func (p *OperationTablesParts) AssignOperationTablePartForWorker(workerIndex int) *abstract.OperationTablePart {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for index, table := range p.tables {
-		if p.statuses[index] == tablePartStatusNew {
-			p.statuses[index] = tablePartStatusAssigned
-			return table.Copy()
+		if p.statuses[index] != tablePartStatusNew {
+			continue
 		}
+		p.statuses[index] = tablePartStatusAssigned
+		wi := workerIndex
+		table.WorkerIndex = &wi
+		return table.Copy()
 	}
 	return nil
+}
+
+// ClearAssignedTablesPartsForWorker resets in-flight assignments for workerIndex (restart path).
+func (p *OperationTablesParts) ClearAssignedTablesPartsForWorker(workerIndex int) int64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	var cleared int64
+	for index, table := range p.tables {
+		if p.statuses[index] == tablePartStatusDone {
+			continue
+		}
+		if p.statuses[index] != tablePartStatusAssigned {
+			continue
+		}
+		if table.WorkerIndex == nil || *table.WorkerIndex != workerIndex {
+			continue
+		}
+		p.statuses[index] = tablePartStatusNew
+		table.WorkerIndex = nil
+		cleared++
+	}
+	return cleared
+}
+
+// ListParts returns copies of all parts with Completed derived from coordinator status.
+func (p *OperationTablesParts) ListParts() []*abstract.OperationTablePart {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	out := make([]*abstract.OperationTablePart, 0, len(p.tables))
+	for index, table := range p.tables {
+		c := table.Copy()
+		c.Completed = p.statuses[index] == tablePartStatusDone
+		out = append(out, c)
+	}
+	return out
+}
+
+func operationTablePartIdentityEqual(a, b *abstract.OperationTablePart) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Schema == b.Schema && a.Name == b.Name && a.Offset == b.Offset && a.Filter == b.Filter && a.PartIndex == b.PartIndex
 }
 
 func (p *OperationTablesParts) UpdateOperationTablesParts(in *abstract.OperationTablePart) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	inCleared := clearUseless(in)
-
 	for index, table := range p.tables {
-		if *table == *inCleared {
-			if in.Completed {
-				p.statuses[index] = tablePartStatusDone
-			}
-			return nil
+		if !operationTablePartIdentityEqual(table, in) {
+			continue
 		}
+		table.CompletedRows = in.CompletedRows
+		table.ReadBytes = in.ReadBytes
+		if in.ETARows != 0 {
+			table.ETARows = in.ETARows
+		}
+		if in.Completed {
+			p.statuses[index] = tablePartStatusDone
+		}
+		return nil
 	}
-	inClearedSerializedBytes, _ := json.Marshal(inCleared)
+	inSerializedBytes, _ := json.Marshal(in)
 	tablesBytes, _ := json.Marshal(p.tables)
-	return xerrors.Errorf("operation table part not found, inCleared: %s, tablesBytes: %s", string(inClearedSerializedBytes), string(tablesBytes))
+	return xerrors.Errorf("operation table part not found, in: %s, tablesBytes: %s", string(inSerializedBytes), string(tablesBytes))
 }
 
 func NewOperationTablesParts() *OperationTablesParts {

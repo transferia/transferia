@@ -1,7 +1,9 @@
 package coordinator
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -19,6 +21,8 @@ type CoordinatorInMemory struct {
 	progress             []*abstract.OperationTablePart
 	operationTablesParts map[string]*OperationTablesParts
 	operationIdToWorkers map[string][]*model.OperationWorker
+	// operationHealth stores last OperationHealth ping per operation and worker index (in-memory dataplane parity).
+	operationHealth map[string]map[int]time.Time
 }
 
 func NewStatefulFakeClient() *CoordinatorInMemory {
@@ -31,6 +35,7 @@ func NewStatefulFakeClient() *CoordinatorInMemory {
 		progress:             nil,
 		operationTablesParts: make(map[string]*OperationTablesParts),
 		operationIdToWorkers: make(map[string][]*model.OperationWorker),
+		operationHealth:      nil,
 	}
 }
 
@@ -130,7 +135,29 @@ func (f *CoordinatorInMemory) AssignOperationTablePart(operationID string, worke
 		f.operationTablesParts[operationID] = NewOperationTablesParts()
 		operationTablesParts = f.operationTablesParts[operationID]
 	}
-	return operationTablesParts.AssignOperationTablePart(), nil
+	return operationTablesParts.AssignOperationTablePartForWorker(workerIndex), nil
+}
+
+func (f *CoordinatorInMemory) ClearAssignedTablesParts(ctx context.Context, operationID string, workerIndex int) (int64, error) {
+	_ = ctx
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	operationTablesParts, ok := f.operationTablesParts[operationID]
+	if !ok || operationTablesParts == nil {
+		return 0, nil
+	}
+	return operationTablesParts.ClearAssignedTablesPartsForWorker(workerIndex), nil
+}
+
+func (f *CoordinatorInMemory) GetOperationTablesParts(operationID string) ([]*abstract.OperationTablePart, error) {
+	f.mu.Lock()
+	otp := f.operationTablesParts[operationID]
+	f.mu.Unlock()
+	if otp == nil {
+		return []*abstract.OperationTablePart{}, nil
+	}
+	return otp.ListParts(), nil
 }
 
 func (f *CoordinatorInMemory) UpdateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
@@ -155,6 +182,9 @@ func (f *CoordinatorInMemory) UpdateOperationTablesParts(operationID string, tab
 }
 
 func (f *CoordinatorInMemory) CreateOperationWorkers(operationID string, workersCount int) error {
+	if workersCount < 2 {
+		return xerrors.Errorf("invalid workers count '%v'", workersCount)
+	}
 	logger.Log.Infof("CreateOperationWorkers operationID: %s, workersCount: %d", operationID, workersCount)
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -177,16 +207,23 @@ func (f *CoordinatorInMemory) GetOperationWorkers(operationID string) ([]*model.
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	return f.operationIdToWorkers[operationID], nil
+	w := f.operationIdToWorkers[operationID]
+	if w == nil {
+		return []*model.OperationWorker{}, nil
+	}
+	return w, nil
 }
 
-func (f *CoordinatorInMemory) FinishOperation(operationID, _, _ string, shardIndex int, _ error) error {
+func (f *CoordinatorInMemory) FinishOperation(operationID, _, _ string, shardIndex int, taskErr error) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	for index := range f.operationIdToWorkers[operationID] {
 		if f.operationIdToWorkers[operationID][index].WorkerIndex == shardIndex {
 			f.operationIdToWorkers[operationID][index].Completed = true
+			if taskErr != nil {
+				f.operationIdToWorkers[operationID][index].Err = taskErr.Error()
+			}
 			return nil
 		}
 	}
@@ -197,9 +234,48 @@ func (f *CoordinatorInMemory) GetOperationWorkersCount(operationID string, compl
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	return len(f.operationIdToWorkers[operationID]), nil
+	workers := f.operationIdToWorkers[operationID]
+	n := 0
+	for _, w := range workers {
+		if w.Completed == completed {
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (f *CoordinatorInMemory) GetOperationProgress(operationID string) (*model.AggregatedProgress, error) {
-	return model.NewAggregatedProgress(), nil
+	f.mu.Lock()
+	otp := f.operationTablesParts[operationID]
+	f.mu.Unlock()
+	if otp == nil {
+		return model.NewAggregatedProgress(), nil
+	}
+	parts := otp.ListParts()
+	ag := model.NewAggregatedProgress()
+	ag.PartsCount = int64(len(parts))
+	for _, pt := range parts {
+		if pt.Completed {
+			ag.CompletedPartsCount++
+		}
+		ag.ETARowsCount += int64(pt.ETARows)
+		ag.CompletedRowsCount += int64(pt.CompletedRows)
+	}
+	return ag, nil
+}
+
+func (f *CoordinatorInMemory) OperationHealth(ctx context.Context, operationID string, workerIndex int, workerTime time.Time) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.operationHealth == nil {
+		f.operationHealth = make(map[string]map[int]time.Time)
+	}
+	if f.operationHealth[operationID] == nil {
+		f.operationHealth[operationID] = make(map[int]time.Time)
+	}
+	f.operationHealth[operationID][workerIndex] = workerTime
+	return nil
 }

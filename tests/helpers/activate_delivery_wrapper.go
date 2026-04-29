@@ -106,6 +106,17 @@ func ActivateErr(transfer *model.Transfer, onErrorCallback ...func(err error)) (
 	return activateErr(transfer, true, onErrorCallback...)
 }
 
+func ActivateSharded(t *testing.T, transfer *model.Transfer, task *model.TransferOperation, onErrorCallback ...func(err error)) *Worker {
+	w, err := ActivateShardedErr(transfer, task, onErrorCallback...)
+	require.NoError(t, err)
+	return w
+}
+
+func ActivateShardedErr(transfer *model.Transfer, task *model.TransferOperation, onErrorCallback ...func(err error)) (*Worker, error) {
+	cp := NewFakeCPErrRepl(onErrorCallback...)
+	return activateShardedWithCP(context.Background(), cp, task, transfer, EmptyRegistry())
+}
+
 func activateErr(transfer *model.Transfer, isStart bool, onErrorCallback ...func(err error)) (*Worker, error) {
 	cp := NewFakeCPErrRepl(onErrorCallback...)
 	return ActivateWithCP(transfer, cp, isStart)
@@ -117,8 +128,7 @@ func ActivateWithCP(transfer *model.Transfer, cp coordinator.Coordinator, isStar
 		cp:     cp,
 	}
 
-	err := tasks.ActivateDelivery(context.Background(), nil, result.cp, *transfer, EmptyRegistry())
-	if err != nil {
+	if err := tasks.ActivateDelivery(context.Background(), nil, result.cp, *transfer, EmptyRegistry()); err != nil {
 		return nil, err
 	}
 
