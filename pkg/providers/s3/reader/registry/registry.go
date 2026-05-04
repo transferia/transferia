@@ -10,10 +10,22 @@ import (
 	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/nginx"
 	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/parquet"
 	_ "github.com/transferia/transferia/pkg/providers/s3/reader/registry/proto"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func NewReader(src *s3_model.S3Source, lgr log.Logger, sess *aws_session.Session, metrics *stats.SourceStats) (s3_reader.Reader, error) {
-	return s3_reader.New(src, lgr, sess, metrics)
+// NewReader delegates construction to s3_reader.New for registered parsing formats.
+func NewReader(
+	src *s3_model.S3Source,
+	lgr log.Logger,
+	sess *aws_session.Session,
+	metrics *stats.SourceStats,
+	s3RawReaderBuilder s3raw.S3RawReaderBuilder,
+) (s3_reader.Reader, error) {
+	return s3_reader.New(src, lgr, sess, metrics, s3RawReaderBuilder)
+}
+
+func RegisteredFormats() []string {
+	return s3_reader.RegisteredFormats()
 }

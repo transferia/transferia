@@ -14,6 +14,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
@@ -38,7 +39,7 @@ type S3Source struct {
 }
 
 func (s *S3Source) Run(sink abstract.AsyncSink) error {
-	parseQ := parsequeue.New(s.logger, 10, sink, s.reader.ParsePassthrough, s.ack)
+	parseQ := parsequeue.New(s.logger, 10, sink, s3_reader.ParsePassthroughChunk, s.ack)
 	return s.run(parseQ)
 }
 
@@ -136,6 +137,14 @@ func (s *S3Source) run(parseQ *parsequeue.ParseQueue[s3_pusher.Chunk]) error {
 			return s.reader.Read(ctx, singleObject, currPusher)
 		})
 		if err != nil {
+			if _, ok := reader_error.AsReaderErrorNoFiles(err); ok {
+				s.logger.Infof("S3 reader: no files for schema inference under prefix (idle backoff): %v", err)
+				if err := s.sendSynchronizeEvent(); err != nil {
+					return xerrors.Errorf("failed to send synchronize event: %w", err)
+				}
+				nextFetchDelay = fetchDelayTimer.NextBackOff()
+				continue
+			}
 			return xerrors.Errorf("failed to read and push object: %w", err)
 		}
 

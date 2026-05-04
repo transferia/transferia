@@ -10,7 +10,6 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/internal/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/file"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
@@ -37,10 +36,6 @@ func (m *mockObjectFetcher) RunBackgroundThreads(_ chan error) {}
 
 type mockReader struct {
 	reader.Reader
-}
-
-func (m *mockReader) ParsePassthrough(chunk pusher.Chunk) []abstract.ChangeItem {
-	return []abstract.ChangeItem{}
 }
 
 func TestS3Source_run_fetch_delay(t *testing.T) {

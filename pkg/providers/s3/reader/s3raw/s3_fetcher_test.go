@@ -26,7 +26,7 @@ func TestCalcRange(t *testing.T) {
 	require.NoError(t, err)
 
 	offset = 120 // we have already read 0-119
-	// we want to read 100 bytes and start at 120 but we only have 80 bytes left in total to read
+	// we want to read 100 bytes and start at 120, but we only have 80 bytes left in total to read
 	start, end, err = calcRange(int64(len(buff)), offset, totalSize)
 	require.Equal(t, int64(120), start)
 	require.Equal(t, int64(199), end) // last byte in remote object is at position obj[len(obj)-1] so obj[199]

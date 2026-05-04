@@ -10,115 +10,91 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type s3Fetcher struct {
-	ctx                   context.Context
-	client                s3iface.S3API
-	bucket                string // reference S3 bucket holding all the target objects in
-	key                   string // object key identifying an object in an S3 bucket
-	objectSize            int64  // the full size of the object stored in the S3 bucket
+	ctx    context.Context
+	client s3iface.S3API
+	bucket string // reference S3 bucket holding all the target objects in
+	key    string // object key identifying an object in an S3 bucket
+
+	objectSize            uint64 // the full size of the object stored in the S3 bucket
 	lastModifiedTimestamp time.Time
 }
 
-func (f *s3Fetcher) size() int64 {
-	res, err := f.fetchSize()
-	if err != nil {
-		logger.Log.Warn("unable to fetch size", log.Error(err))
-	}
-	return res
-}
-
-func (f *s3Fetcher) fetchSize() (int64, error) {
-	if f.objectSize < 0 {
-		if err := f.headObjectInfo(&aws_s3.HeadObjectInput{
-			Bucket: aws.String(f.bucket),
-			Key:    aws.String(f.key),
-		}); err != nil {
-			return -1, xerrors.Errorf("failed to head object %s: %w", f.key, err)
-		}
-		return f.objectSize, nil
-	} else {
-		return f.objectSize, nil
-	}
-}
-
-func (f *s3Fetcher) lastModified() time.Time {
-	res, err := f.fetchLastModified()
-	if err != nil {
-		logger.Log.Warn("unable to fetch lastModified timestamp", log.Error(err))
-	}
-	return res
-}
-
-func (f *s3Fetcher) fetchLastModified() (time.Time, error) {
-	if f.lastModifiedTimestamp.IsZero() {
-		if err := f.headObjectInfo(&aws_s3.HeadObjectInput{
-			Bucket: aws.String(f.bucket),
-			Key:    aws.String(f.key),
-		}); err != nil {
-			return time.Now(), xerrors.Errorf("failed to head object %s: %w", f.key, err)
-		}
-		return f.lastModifiedTimestamp, nil
-
-	} else {
-		return f.lastModifiedTimestamp, nil
-	}
-}
-
 func (f *s3Fetcher) headObjectInfo(input *aws_s3.HeadObjectInput) error {
-	client := f.client
-
-	resp, err := client.HeadObjectWithContext(f.ctx, input)
+	resp, err := f.client.HeadObjectWithContext(f.ctx, input)
 	if err != nil {
-		return xerrors.Errorf("unable to head obj: %w", err)
+		return xerrors.Errorf("unable to get HeadObjectWithContext, err: %w", err)
 	}
 
 	if resp.ContentLength == nil || *resp.ContentLength < 0 {
-		return xerrors.Errorf("S3 object size is invalid: %d", resp.ContentLength)
+		return xerrors.Errorf("resp.ContentLength == nil || *resp.ContentLength < 0")
 	}
-
-	f.objectSize = *resp.ContentLength
+	f.objectSize = uint64(*resp.ContentLength)
 
 	if resp.LastModified == nil || (*resp.LastModified).IsZero() {
-		return xerrors.Errorf("S3 object lastModified is invalid: %v", resp.LastModified)
+		return xerrors.Errorf("resp.LastModified == nil || (*resp.LastModified).IsZero()")
 	}
-
 	f.lastModifiedTimestamp = *resp.LastModified
+
 	logger.Log.Debugf("S3 object s3://%s/%s has size %d lastModified timestamp is %v", f.bucket, f.key, f.objectSize, f.lastModifiedTimestamp)
 
 	return nil
 }
 
-func (f *s3Fetcher) getObject(input *aws_s3.GetObjectInput) (*aws_s3.GetObjectOutput, error) {
-	client := f.client
-
-	resp, err := client.GetObjectWithContext(f.ctx, input)
+func (f *s3Fetcher) init() error {
+	err := f.headObjectInfo(
+		&aws_s3.HeadObjectInput{
+			Bucket: aws.String(f.bucket),
+			Key:    aws.String(f.key),
+		},
+	)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to get object: %w", err)
+		return xerrors.Errorf("S3 HeadObject returned error, err: %w", err)
+	}
+	return nil
+}
+
+func (f *s3Fetcher) size() uint64 {
+	return f.objectSize
+}
+
+func (f *s3Fetcher) lastModified() time.Time {
+	return f.lastModifiedTimestamp
+}
+
+func (f *s3Fetcher) getObject(input *aws_s3.GetObjectInput) (*aws_s3.GetObjectOutput, error) {
+	resp, err := f.client.GetObjectWithContext(f.ctx, input)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get ObjectWithContext, err: %w", err)
 	}
 	return resp, nil
 }
 
 func (f *s3Fetcher) makeReader() (io.ReadCloser, error) {
-	resp, err := f.getObject(&aws_s3.GetObjectInput{
-		Bucket: aws.String(f.bucket),
-		Key:    aws.String(f.key),
-	})
+	resp, err := f.getObject(
+		&aws_s3.GetObjectInput{
+			Bucket: aws.String(f.bucket),
+			Key:    aws.String(f.key),
+		},
+	)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get object %s: %w", f.key, err)
+		return nil, xerrors.Errorf("unable to get Object, err: %w", err)
 	}
 	return resp.Body, nil
 }
 
 func newS3Fetcher(ctx context.Context, client s3iface.S3API, bucket string, key string) (*s3Fetcher, error) {
-	return &s3Fetcher{
-		ctx:                   ctx,
-		client:                client,
-		bucket:                bucket,
-		key:                   key,
-		objectSize:            -1,
+	result := &s3Fetcher{
+		ctx:    ctx,
+		client: client,
+		bucket: bucket,
+		key:    key,
+
+		objectSize:            0,
 		lastModifiedTimestamp: time.Time{},
-	}, nil
+	}
+	err := result.init()
+	return result, err
 }

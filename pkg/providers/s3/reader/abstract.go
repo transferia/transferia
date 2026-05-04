@@ -4,9 +4,12 @@ import (
 	"context"
 
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/transferia/transferia/pkg/abstract"
+	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
-	ytschema "go.ytsaurus.tech/yt/go/schema"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 var (
@@ -18,61 +21,52 @@ var (
 	SystemColumnNames = map[string]bool{FileNameSystemCol: true, RowIndexSystemCol: true}
 )
 
+//-----------------------------------------------------------------------------
+// external interfaces
+
+// Reader is the full reader contract used outside this package (implemented by ReaderContractor).
+// ObjectsFilter on ReaderContractor remains IsNotEmpty; schema walk listing uses SchemaWalkListing.ObjectsFilter (AcceptAllObjects).
 type Reader interface {
-	Read(ctx context.Context, filePath string, pusher s3_pusher.Pusher) error
-
-	// ParsePassthrough is used in the parsqueue pusher for replications.
-	// Since actual parsing in the S3 parsers is a rather complex process, tailored to each format, this methods
-	// is just mean as a simple passthrough to fulfill the parsqueue signature contract and forwards the already parsed CI elements for pushing.
-	ParsePassthrough(chunk s3_pusher.Chunk) []abstract.ChangeItem
-
-	// ObjectsFilter that is default for Reader implementation (e.g. filter that leaves only .parquet files).
-	ObjectsFilter() ObjectsFilter
-
-	ResolveSchema(ctx context.Context) (*abstract.TableSchema, error)
-}
-
-type RowsCountEstimator interface {
 	EstimateRowsCountAllObjects(ctx context.Context) (uint64, error)
 	EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error)
+
+	ResolveSchema(ctx context.Context) (*abstract.TableSchema, reader_error.ReaderError)
+	Read(ctx context.Context, filePath string, pusher s3_pusher.Pusher) reader_error.ReaderError
 }
 
-// ObjectsFilter returns true for needful objects, false for objects that should be ignored (skipped).
-type ObjectsFilter func(file *aws_s3.Object) bool
+//-----------------------------------------------------------------------------
+// internal interfaces
 
-var _ ObjectsFilter = IsNotEmpty
-
-// IsNotEmpty can be used as common filter that skips empty files.
-func IsNotEmpty(file *aws_s3.Object) bool {
-	if file.Size == nil || *file.Size == 0 {
-		return false
-	}
-	return true
+// SchemaWalkListing carries TableSchema and S3 listing parameters for sample-based schema inference.
+// When TableSchema is non-nil and already has columns, ExecuteSchemaResolver returns it without listing S3.
+type SchemaWalkListing struct {
+	TableSchema   *abstract.TableSchema
+	Policy        s3_model.UnparsedPolicy
+	Bucket        string
+	PathPrefix    string
+	PathPattern   string
+	Client        s3iface.S3API
+	Logger        log.Logger
+	ObjectsFilter ObjectsFilter
+	// ListOpLabel is used as the operation tag on transport errors from listing (e.g. "csv.ListFiles").
+	ListOpLabel string
+	// WrapInferErrorOp, if non-empty, wraps non-nil errors from the walk/inference step with reader_error.WrapReaderError.
+	WrapInferErrorOp string
 }
 
-func AppendSystemColsTableSchema(cols []abstract.ColSchema, isPkey bool) *abstract.TableSchema {
-	fileName := abstract.NewColSchema(FileNameSystemCol, ytschema.TypeString, isPkey)
-	rowIndex := abstract.NewColSchema(RowIndexSystemCol, ytschema.TypeUint64, isPkey)
-	cols = append([]abstract.ColSchema{fileName, rowIndex}, cols...)
-	return abstract.NewTableSchema(cols)
+// S3SchemaResolver is format-specific schema resolution for ReaderContractor.
+// SchemaWalkListing describes preset + listing; TryInferSchemaFromObject samples one object key during a walk.
+type S3SchemaResolver interface {
+	SchemaWalkListing() *SchemaWalkListing
+	TryInferSchemaFromObject(ctx context.Context, objectKey string) (*abstract.TableSchema, reader_error.ReaderError)
 }
 
-func FlushChunk(
-	ctx context.Context,
-	filePath string,
-	offset uint64,
-	currentSize int64,
-	buff []abstract.ChangeItem,
-	somePusher s3_pusher.Pusher,
-) error {
-	if len(buff) == 0 {
-		return nil
-	}
+// S3Reader performs format-specific reading when the table schema is already resolved.
+// Registry implementations return this together with S3SchemaResolver from RegisterReader constructors;
+// ReaderContractor resolves the schema once, caches it, and passes it to S3Reader.Read on every Read.
+type S3Reader interface {
+	EstimateRowsCountAllObjects(ctx context.Context) (uint64, error)
+	EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error)
 
-	chunk := s3_pusher.NewChunk(filePath, false, offset, currentSize, buff)
-	if err := somePusher.Push(ctx, chunk); err != nil {
-		return err
-	}
-
-	return nil
+	Read(ctx context.Context, schema *abstract.TableSchema, filePath string, pusher s3_pusher.Pusher) reader_error.ReaderError
 }

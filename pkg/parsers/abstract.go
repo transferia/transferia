@@ -10,7 +10,7 @@ import (
 type Message struct {
 	// Offset is server sequence of message in topic. Must be monotone growing.
 	Offset uint64
-	// Key is an uniq identifier of sequence
+	// Key is a uniq identifier of sequence
 	Key []byte
 	// Value actual data
 	Value []byte
@@ -18,7 +18,7 @@ type Message struct {
 	CreateTime time.Time
 	// WriteTime when data was written to queue (if presented)
 	WriteTime time.Time
-	// Headers lables attached to read message
+	// Headers labels attached to read message
 	Headers map[string]string
 	// Deprecated: SeqNo is client set mark of message. Must be growing.
 	// 	set it to 0 in new code, prefer using offset
@@ -54,8 +54,8 @@ type YSRable interface {
 	YSRNamespaceID() string
 }
 
-// now only one parser builder is supported
-// /transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/proto_parser_lazy_builder.go
+// ParserBuilder now only one parser builder is supported
+// transfer_manager/go/pkg/parsers/registry/protobuf/protoparser/proto_parser_lazy_builder.go
 type ParserBuilder interface {
 	// BuildLazyParser prepares instance of LazyParser for provided data.
 	BuildLazyParser(msg Message, partition abstract.Partition) (LazyParser, error)

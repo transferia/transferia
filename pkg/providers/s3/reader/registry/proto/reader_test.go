@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -31,16 +32,15 @@ func TestStreamParseFile(t *testing.T) {
 	oneItem := metrikaData[:oneItemSize]
 	expectedItems := 100
 	data := make([]byte, 0, expectedItems*oneItemSize)
-	for i := 0; i < expectedItems; i++ {
+	for range expectedItems {
 		data = append(data, oneItem...)
 	}
 
 	parserBuilder, err := protoparser.NewLazyProtoParserBuilder(MetrikaHitProtoseqConfig(), stats.NewSourceStats(mock.NewRegistry(mock.NewRegistryOpts())))
 	require.NoError(t, err)
 	genericParserReader := ProtoReader{
-		blockSize:     100,
+		logger: logger.Log, blockSize: 100,
 		parserBuilder: parserBuilder,
-		logger:        logger.Log,
 	}
 
 	var pushedItems []abstract.ChangeItem
@@ -54,7 +54,7 @@ func TestStreamParseFile(t *testing.T) {
 		return nil
 	}
 
-	rawReader := s3raw.NewFakeS3RawReader(int64(len(data)))
+	rawReader := s3raw.NewStubS3RawReader(uint64(len(data)))
 	reader := bytes.NewReader(data)
 	rawReader.ReadF = func(p []byte) (int, error) {
 		return reader.Read(p)
@@ -68,6 +68,7 @@ func TestStreamParseFile(t *testing.T) {
 	filePath := "metrika-data/metrika_hit_protoseq_data.bin"
 	chunkReader := abstract_reader.NewChunkReader(rawReader, 2184, logger.Log)
 	defer chunkReader.Close()
+
 	err = streamParseFile(context.Background(), &genericParserReader, filePath, chunkReader, pusher.NewSynchronousPusher(mockPusher), time.Now())
 	require.NoError(t, err)
 	require.Empty(t, chunkReader.Data())
@@ -76,12 +77,7 @@ func TestStreamParseFile(t *testing.T) {
 }
 
 func allParsed(items []abstract.ChangeItem) bool {
-	for _, item := range items {
-		if parsers.IsUnparsed(item) {
-			return false
-		}
-	}
-	return true
+	return !slices.ContainsFunc(items, parsers.IsUnparsed)
 }
 
 func MetrikaHitProtoseqConfig() *protoparser.ProtoParserConfig {

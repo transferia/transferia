@@ -2,7 +2,6 @@ package reader
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"math"
 	"strconv"
@@ -21,34 +20,30 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/estimators"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
-	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
 const timeLocalLayout = "02/Jan/2006:15:04:05 -0700"
 
-var (
-	_ s3_reader.Reader             = (*NginxReader)(nil)
-	_ s3_reader.RowsCountEstimator = (*NginxReader)(nil)
-)
+var _ s3_reader.S3Reader = (*NginxReader)(nil)
 
 func init() {
-	s3_reader.RegisterReader(model.ParsingFormatNginx, NewNginxReader)
+	s3_reader.RegisterReader(model.ParsingFormatNginx, NewNginxReader, NewNginxSchemaResolver)
 }
 
 type NginxReader struct {
+	s3RawReaderBuilder      s3raw.S3RawReaderBuilder
 	table                   abstract.TableID
 	bucket                  string
 	client                  s3iface.S3API
 	logger                  log.Logger
 	metrics                 *stats.SourceStats
-	tableSchema             *abstract.TableSchema
-	fastCols                abstract.FastTableSchema
-	colNames                []string
 	hideSystemCols          bool
 	batchSize               int
 	blockSize               int64
@@ -60,25 +55,26 @@ type NginxReader struct {
 	compiledFormat *compiledNginxFormat
 }
 
-func (r *NginxReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, error) {
-	if r.tableSchema != nil && len(r.tableSchema.Columns()) != 0 {
-		return r.tableSchema, nil
-	}
-	return abstract.NewTableSchema(r.compiledFormat.schema), nil
-}
-
+//nolint:descriptiveerrors
 func (r *NginxReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
-	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
+	s3RawReader, err := s3raw.CoalesceS3RawReaderBuilder(r.s3RawReaderBuilder).BuildReader(ctx, r.client, r.bucket, filePath, r.metrics)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to create S3 reader for %s: %w", filePath, err)
+		return nil, xerrors.Errorf("could not build s3 raw reader, err: %w", err)
 	}
-	return sr, nil
+	return s3RawReader, nil
 }
 
-func (r *NginxReader) Read(ctx context.Context, filePath string, pusher s3_pusher.Pusher) error {
+//nolint:descriptiveerrors
+func (r *NginxReader) Read(ctx context.Context, schema *abstract.TableSchema, filePath string, pusher s3_pusher.Pusher) reader_error.ReaderError {
+	if schema == nil || len(schema.Columns()) == 0 {
+		return nil
+	}
+	fastCols := schema.FastColumns()
+	colNames := yslices.Map(schema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
+
 	s3RawReader, err := r.newS3RawReader(ctx, filePath)
 	if err != nil {
-		return xerrors.Errorf("unable to open reader: %w", err)
+		return reader_error.NewReaderErrorTransport("nginx.parser.Read.newS3RawReader", r.pathPrefix, err)
 	}
 
 	lineCounter := uint64(1)
@@ -92,7 +88,7 @@ func (r *NginxReader) Read(ctx context.Context, filePath string, pusher s3_pushe
 		}
 
 		if err := chunkReader.ReadNextChunk(); err != nil {
-			return xerrors.Errorf("failed to read from file: %w", err)
+			return reader_error.NewReaderErrorTransport("chunk.ReadNextChunk", filePath, err)
 		}
 
 		if chunkReader.IsEOF() {
@@ -117,7 +113,7 @@ func (r *NginxReader) Read(ctx context.Context, filePath string, pusher s3_pushe
 			// No complete line in this chunk, save everything for the next chunk.
 			chunkReader.FillBuffer([]byte(data))
 			if err := s3_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
-				return xerrors.Errorf("unable to push nginx last batch: %w", err)
+				return wrapNginxReadFlushChunk(err)
 			}
 			continue
 		}
@@ -130,48 +126,50 @@ func (r *NginxReader) Read(ctx context.Context, filePath string, pusher s3_pushe
 
 			fieldValues, consumed, err := r.compiledFormat.parseEntry(line)
 			if err != nil {
-				unparsedCI, handleErr := s3_reader.HandleParseError(
-					r.table, r.unparsedPolicy, filePath, int(lineCounter), err,
-				)
+				errorData := reader_error.NewReaderErrorDataRecord("nginx.parseEntry", filePath, lineCounter, err)
+				items, handleErr := reader_error.HandleDataError(r.table, r.unparsedPolicy, errorData)
 				if handleErr != nil {
-					return xerrors.Errorf("failed to parse nginx log entry %d: %w", lineCounter, handleErr)
+					return handleErr
 				}
-				buff = append(buff, *unparsedCI)
+				buff = append(buff, items...)
 				lineCounter++
 				continue
 			}
 
 			if err := checkUnexpectedFields(line, consumed, r.unexpectedFieldBehavior); err != nil {
-				ci, handleErr := s3_reader.HandleParseError(r.table, r.unparsedPolicy, filePath, int(lineCounter), err)
+				errorData := reader_error.NewReaderErrorDataRecord("nginx.checkUnexpectedFields", filePath, lineCounter, err)
+				items, handleErr := reader_error.HandleDataError(r.table, r.unparsedPolicy, errorData)
 				if handleErr != nil {
-					return xerrors.Errorf("failed to parse nginx log entry %d: %w", lineCounter, handleErr)
+					return handleErr
 				}
-				buff = append(buff, *ci)
+				buff = append(buff, items...)
 				lineCounter++
 				continue
 			}
 
 			currentSize += int64(len(line))
 
-			ci, err := r.buildCI(fieldValues, filePath, s3RawReader.LastModified(), lineCounter)
+			changeItem, err := r.buildCI(fieldValues, filePath, s3RawReader.LastModified(), lineCounter, schema, fastCols, colNames)
 			if err != nil {
-				unparsedCI, handleErr := s3_reader.HandleParseError(
-					r.table, r.unparsedPolicy, filePath, int(lineCounter), err,
-				)
-				if handleErr != nil {
-					return xerrors.Errorf("failed to build change item for entry %d: %w", lineCounter, handleErr)
+				errorData, ok := reader_error.AsReaderErrorData(err)
+				if !ok {
+					errorData = reader_error.NewReaderErrorDataRecord("nginx.buildCI", filePath, lineCounter, err)
 				}
-				buff = append(buff, *unparsedCI)
+				items, handleErr := reader_error.HandleDataError(r.table, r.unparsedPolicy, errorData)
+				if handleErr != nil {
+					return handleErr
+				}
+				buff = append(buff, items...)
 				lineCounter++
 				continue
 			}
 
 			lineCounter++
-			buff = append(buff, *ci)
+			buff = append(buff, *changeItem)
 
 			if len(buff) > r.batchSize {
 				if err := s3_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
-					return xerrors.Errorf("unable to push nginx batch: %w", err)
+					return wrapNginxReadFlushChunk(err)
 				}
 				currentSize = 0
 				buff = nil
@@ -186,36 +184,53 @@ func (r *NginxReader) Read(ctx context.Context, filePath string, pusher s3_pushe
 		}
 
 		if err := s3_reader.FlushChunk(ctx, filePath, lineCounter, currentSize, buff, pusher); err != nil {
-			return xerrors.Errorf("unable to push nginx last batch: %w", err)
+			return wrapNginxReadFlushChunk(err)
 		}
 	}
 
 	return nil
 }
 
-func (r *NginxReader) buildCI(fieldValues []string, filePath string, lastModified time.Time, lineCounter uint64) (*abstract.ChangeItem, error) {
-	ci, err := r.constructCI(fieldValues, filePath, lastModified, lineCounter)
+//nolint:descriptiveerrors
+func (r *NginxReader) buildCI(
+	fieldValues []string,
+	filePath string,
+	lastModified time.Time,
+	lineCounter uint64,
+	schema *abstract.TableSchema,
+	fastCols abstract.FastTableSchema,
+	colNames []string,
+) (*abstract.ChangeItem, reader_error.ReaderError) {
+	changeItem, err := r.constructCI(fieldValues, filePath, lastModified, lineCounter, schema, colNames)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to construct change item: %w", err)
+		return nil, reader_error.WrapReaderError("nginx.buildCI.constructCI", err)
 	}
 
-	if err := strictify.Strictify(ci, r.fastCols); err != nil {
-		return nil, xerrors.Errorf("failed to convert value to expected data type: %w", err)
+	if err := strictify.Strictify(changeItem, fastCols); err != nil {
+		return nil, reader_error.NewReaderErrorDataRecord("nginx.buildCI.strictify", filePath, lineCounter, err)
 	}
 
-	return ci, nil
+	return changeItem, nil
 }
 
-func (r *NginxReader) constructCI(fieldValues []string, fname string, lModified time.Time, rowNumber uint64) (*abstract.ChangeItem, error) {
-	vals := make([]any, len(r.tableSchema.Columns()))
-	for i, col := range r.tableSchema.Columns() {
+//nolint:descriptiveerrors
+func (r *NginxReader) constructCI(
+	fieldValues []string,
+	fileName string,
+	lModified time.Time,
+	rowNumber uint64,
+	schema *abstract.TableSchema,
+	colNames []string,
+) (*abstract.ChangeItem, reader_error.ReaderError) {
+	vals := make([]any, len(schema.Columns()))
+	for i, col := range schema.Columns() {
 		if s3_reader.SystemColumnNames[col.ColumnName] {
 			if r.hideSystemCols {
 				continue
 			}
 			switch col.ColumnName {
 			case s3_reader.FileNameSystemCol:
-				vals[i] = fname
+				vals[i] = fileName
 			case s3_reader.RowIndexSystemCol:
 				vals[i] = rowNumber
 			}
@@ -224,7 +239,7 @@ func (r *NginxReader) constructCI(fieldValues []string, fname string, lModified 
 
 		index, err := strconv.Atoi(col.Path)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to get index of column %s: %w", col.ColumnName, err)
+			return nil, reader_error.NewReaderErrorDataRecord("nginx.constructCI.colPath", fileName, rowNumber, err)
 		}
 		if index < 0 || index >= len(fieldValues) {
 			vals[i] = abstract.DefaultValue(&col)
@@ -233,7 +248,7 @@ func (r *NginxReader) constructCI(fieldValues []string, fname string, lModified 
 
 		converted, err := convertNginxValue(fieldValues[index], col)
 		if err != nil {
-			return nil, xerrors.Errorf("column %s: %w", col.ColumnName, err)
+			return nil, reader_error.NewReaderErrorDataRecord("nginx.constructCI.convert", fileName, rowNumber, err)
 		}
 		vals[i] = converted
 	}
@@ -246,10 +261,10 @@ func (r *NginxReader) constructCI(fieldValues []string, fname string, lModified 
 		Kind:         abstract.InsertKind,
 		Schema:       r.table.Namespace,
 		Table:        r.table.Name,
-		PartID:       fname,
-		ColumnNames:  r.colNames,
+		PartID:       fileName,
+		ColumnNames:  colNames,
 		ColumnValues: vals,
-		TableSchema:  r.tableSchema,
+		TableSchema:  schema,
 		OldKeys:      abstract.EmptyOldKeys(),
 		Size:         abstract.RawEventSize(util.DeepSizeof(vals)),
 		TxID:         "",
@@ -263,53 +278,11 @@ func (r *NginxReader) constructCI(fieldValues []string, fname string, lModified 
 	}, nil
 }
 
-// checkUnexpectedFields returns an error if the line has unconsumed non-whitespace content
-// and the behavior is set to Error. Returns nil for Ignore/Unspecified or when there are no extra fields.
-func checkUnexpectedFields(line string, consumed int, behavior s3_model.NginxUnexpectedFieldBehavior) error {
-	switch behavior {
-	case s3_model.NginxUnexpectedFieldBehaviorError:
-		if consumed < len(line) && strings.TrimSpace(line[consumed:]) != "" {
-			return xerrors.Errorf("unexpected extra fields after parsed entry: %q", strings.TrimSpace(line[consumed:]))
-		}
-	}
-	return nil
-}
-
-// convertNginxValue converts a string value to the appropriate Go type based on the column schema.
-// Datetime fields (time_local) require explicit parsing; other types are handled by strictify.
-// A bare "-" is treated as a missing value and returns nil (ClickHouse will apply its column
-// default via insert_null_as_default, same as JSON reader does for null fields).
-func convertNginxValue(value string, col abstract.ColSchema) (any, error) {
-	if value == "-" {
-		return nil, nil
-	}
-	switch col.DataType {
-	case ytschema.TypeDatetime.String(), ytschema.TypeDate.String():
-		// Common strictify.Strictify uses spf13/cast.ToTimeE, which does not know timeLocalLayout.
-		t, err := time.Parse(timeLocalLayout, value)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to parse datetime %q for column %s: %w", value, col.ColumnName, err)
-		}
-		return t, nil
-	default:
-		return value, nil
-	}
-}
-
-func (r *NginxReader) ParsePassthrough(chunk s3_pusher.Chunk) []abstract.ChangeItem {
-	return chunk.Items
-}
-
-func (r *NginxReader) ObjectsFilter() s3_reader.ObjectsFilter {
-	return s3_reader.IsNotEmpty
-}
-
-// Row count estimation
-
+// EstimateRowsCountAllObjects - Row count estimation
 func (r *NginxReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, s3_reader.IsNotEmpty)
 	if err != nil {
-		return 0, xerrors.Errorf("unable to load file list: %w", err)
+		return 0, xerrors.Errorf("ListFiles returned error, err: %w", err)
 	}
 	return r.estimateRows(ctx, files)
 }
@@ -319,17 +292,18 @@ func (r *NginxReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s
 }
 
 func (r *NginxReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
-	totalSize, sampleReader, err := s3_reader.EstimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
+	totalSize, sampleReader, err := estimators.EstimateTotalSizeInBytes(ctx, r.logger, files, r.newS3RawReader)
 	if err != nil {
-		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
+		return 0, xerrors.Errorf("unable to EstimateTotalSizeInBytes, err: %w", err)
 	}
-	if totalSize > 0 && sampleReader != nil {
+	if totalSize != 0 && sampleReader != nil {
 		chunkReader := s3_reader.NewChunkReader(sampleReader, int(r.blockSize), r.logger)
 		defer chunkReader.Close()
+
 		if err := chunkReader.ReadNextChunk(); err != nil && !xerrors.Is(err, io.EOF) {
-			return 0, xerrors.Errorf("failed to estimate row count: %w", err)
+			return 0, xerrors.Errorf("unable to ReadNextChunk, err: %w", err)
 		}
-		if len(chunkReader.Data()) > 0 {
+		if len(chunkReader.Data()) != 0 {
 			data := string(chunkReader.Data())
 			entries := 0
 			for line := range strings.SplitSeq(data, "\n") {
@@ -351,33 +325,32 @@ func (r *NginxReader) estimateRows(ctx context.Context, files []*aws_s3.Object) 
 	return 0, nil
 }
 
-func ValidateFormat(format string) error {
-	_, err := compileFormat(format)
-	return err
-}
-
-func NewNginxReader(src *s3_model.S3Source, lgr log.Logger, sess *aws_session.Session, metrics *stats.SourceStats) (s3_reader.Reader, error) {
+func NewNginxReader(
+	src *s3_model.S3Source,
+	lgr log.Logger,
+	sess *aws_session.Session,
+	metrics *stats.SourceStats,
+	s3RawReaderBuilder s3raw.S3RawReaderBuilder,
+) (s3_reader.S3Reader, error) {
 	if src == nil || src.Format.NginxSetting == nil {
-		return nil, xerrors.New("uninitialized settings for nginx reader")
+		return nil, xerrors.New("nginx.reader is nil")
 	}
 
 	compiled, err := compileFormat(src.Format.NginxSetting.Format)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to compile nginx format: %w", err)
+		return nil, xerrors.Errorf("unable to compileFormat, err: %w", err)
 	}
 
-	reader := &NginxReader{
+	return &NginxReader{
+		s3RawReaderBuilder: s3RawReaderBuilder,
 		table: abstract.TableID{
 			Namespace: src.TableNamespace,
 			Name:      src.TableName,
 		},
 		bucket:                  src.Bucket,
-		client:                  aws_s3.New(sess),
+		client:                  s3RawReaderBuilder.BuildClient(sess),
 		logger:                  lgr,
 		metrics:                 metrics,
-		tableSchema:             abstract.NewTableSchema(src.OutputSchema),
-		fastCols:                abstract.NewTableSchema(src.OutputSchema).FastColumns(),
-		colNames:                nil,
 		hideSystemCols:          src.HideSystemCols,
 		batchSize:               src.ReadBatchSize,
 		blockSize:               src.Format.NginxSetting.BlockSize,
@@ -386,43 +359,5 @@ func NewNginxReader(src *s3_model.S3Source, lgr log.Logger, sess *aws_session.Se
 		unparsedPolicy:          src.UnparsedPolicy,
 		unexpectedFieldBehavior: src.Format.NginxSetting.UnexpectedFieldBehavior,
 		compiledFormat:          compiled,
-	}
-
-	if len(reader.tableSchema.Columns()) == 0 {
-		reader.tableSchema, err = reader.ResolveSchema(context.Background())
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve schema: %w", err)
-		}
-	} else {
-		fieldIndex := make(map[string]int, len(compiled.fields))
-		for i, name := range compiled.fields {
-			fieldIndex[name] = i
-		}
-		var cols []abstract.ColSchema
-		for _, col := range reader.tableSchema.Columns() {
-			if col.Path == "" {
-				idx, ok := fieldIndex[col.ColumnName]
-				if !ok {
-					continue
-				}
-				col.Path = fmt.Sprintf("%d", idx)
-			}
-			if col.OriginalType == "" {
-				col.OriginalType = fmt.Sprintf("nginx:%s", col.DataType)
-			}
-			cols = append(cols, col)
-		}
-		reader.tableSchema = abstract.NewTableSchema(cols)
-	}
-
-	if !reader.hideSystemCols {
-		cols := reader.tableSchema.Columns()
-		hasPkey := reader.tableSchema.Columns().HasPrimaryKey()
-		reader.tableSchema = s3_reader.AppendSystemColsTableSchema(cols, !hasPkey)
-	}
-
-	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
-	reader.fastCols = reader.tableSchema.FastColumns()
-
-	return reader, nil
+	}, nil
 }

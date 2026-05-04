@@ -49,7 +49,7 @@ func ListNewMyFiles(
 				currentMarker = currentFile.Key
 				currFileObject := file.NewFile(*currentFile.Key, *currentFile.Size, *currentFile.LastModified)
 
-				if s3util.SkipObject(currentFile, srcModel.PathPattern, "|", inReader.ObjectsFilter()) {
+				if s3util.SkipObject(currentFile, srcModel.PathPattern, "|", s3_reader.IsNotEmpty) {
 					listStat.skippedBcsNotMatched++
 					currLogger.Log(currFileObject.String() + ":skippedBcsNotMatched")
 					continue

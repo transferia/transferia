@@ -22,6 +22,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/pusher"
 	"github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/pkg/providers/s3/storage/s3_shared_memory"
 )
@@ -295,18 +296,21 @@ func TestEstimateTableRowsCount(t *testing.T) {
 }
 
 type mockReader struct {
+	t *testing.T
 	reader.Reader
 }
 
-func (m *mockReader) Read(ctx context.Context, filePath string, inPusher pusher.Pusher) error {
+func (m *mockReader) Read(ctx context.Context, _ string, inPusher pusher.Pusher) reader_error.ReaderError {
 	var items []abstract.ChangeItem
 	for i := range 10 {
 		items = append(items, abstract.ChangeItem{PartID: strconv.Itoa(i), Kind: abstract.InsertKind})
 	}
 
-	return inPusher.Push(ctx, pusher.Chunk{
+	err := inPusher.Push(ctx, pusher.Chunk{
 		Items: items,
 	})
+	require.NoError(m.t, err)
+	return nil
 }
 
 func TestReadFileCorrectPartID(t *testing.T) {
@@ -317,7 +321,7 @@ func TestReadFileCorrectPartID(t *testing.T) {
 		},
 		logger:   logger.Log,
 		registry: solomon.NewRegistry(solomon.NewRegistryOpts()),
-		reader:   &mockReader{},
+		reader:   &mockReader{t: t},
 	}
 
 	tableDesc := abstract.TableDescription{

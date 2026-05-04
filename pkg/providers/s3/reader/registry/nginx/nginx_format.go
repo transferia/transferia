@@ -55,7 +55,7 @@ func tokenizeFormat(format string) []nginxToken {
 func compileFormat(format string) (*compiledNginxFormat, error) {
 	tokens := tokenizeFormat(format)
 	if len(tokens) == 0 {
-		return nil, xerrors.New("empty nginx format string")
+		return nil, xerrors.Errorf("No tokens found in format, err: %s", format)
 	}
 
 	hasVariable := false
@@ -66,7 +66,7 @@ func compileFormat(format string) (*compiledNginxFormat, error) {
 		}
 	}
 	if !hasVariable {
-		return nil, xerrors.New("nginx format string contains no variables")
+		return nil, xerrors.Errorf("No variable found in format, err: %s", format)
 	}
 
 	var fields []string
@@ -141,7 +141,7 @@ func (c *compiledNginxFormat) parseEntry(input string) ([]string, int, error) {
 // Returns "" if there is no following literal (i.e. the variable is the last token).
 func (c *compiledNginxFormat) nextDelimiter(afterIndex int) string {
 	for j := afterIndex + 1; j < len(c.tokens); j++ {
-		if !c.tokens[j].IsVariable && len(c.tokens[j].Value) > 0 {
+		if !c.tokens[j].IsVariable && len(c.tokens[j].Value) != 0 {
 			return c.tokens[j].Value
 		}
 	}
@@ -175,16 +175,12 @@ func matchLiteral(input, literal string) int {
 	return inputPos
 }
 
-func isWhitespace(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
-}
-
 // findDelimiter finds the position of the delimiter string in input.
 // Whitespace characters in the delimiter match any whitespace in the input.
 func findDelimiter(input string, delimiter string) int {
 	for i := 0; i < len(input); i++ {
 		if input[i] == '\\' {
-			isNewline := (i+1 < len(input) && input[i+1] == '\n')
+			isNewline := i+1 < len(input) && input[i+1] == '\n'
 			if !isNewline {
 				i++
 				continue // Skip backslashed non-newline symbol.

@@ -5,7 +5,6 @@ import (
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/util/glob"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -13,7 +12,7 @@ import (
 // SkipObject returns true if an object should be skipped.
 // An object is skipped if the file type does not match the one covered by the reader or
 // if the objects name/path is not included in the path pattern or if custom filter returned false.
-func SkipObject(file *aws_s3.Object, pathPattern, splitter string, filter s3_reader.ObjectsFilter) bool {
+func SkipObject(file *aws_s3.Object, pathPattern, splitter string, filter func(*aws_s3.Object) bool) bool {
 	if file == nil {
 		return true
 	}
@@ -21,19 +20,19 @@ func SkipObject(file *aws_s3.Object, pathPattern, splitter string, filter s3_rea
 	return !keepObject
 }
 
-// ListFiles lists all files matching the pathPattern in a bucket.
-// A fast circuit breaker is built in for schema resolution where we do not need the full list of objects.
-func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, logger log.Logger, limit *int, filter s3_reader.ObjectsFilter) ([]*aws_s3.Object, error) {
+// ListFilesWithCallback lists objects under prefix and invokes fn for each object matching pathPattern and filter.
+// If fn returns stop=true, listing stops immediately (no further S3 pages are requested when the current page is exhausted).
+// If fn returns a non-nil error, listing aborts and the error is returned.
+func ListFilesWithCallback(
+	bucket, pathPrefix, pathPattern string,
+	client s3iface.S3API,
+	logger log.Logger,
+	filter func(*aws_s3.Object) bool,
+	fn func(*aws_s3.Object) (stop bool, err error),
+) error {
 	var currentMarker *string
-	var res []*aws_s3.Object
-	fastStop := false
 	for {
 		listBatchSize := int64(1000)
-		if limit != nil {
-			remaining := max(0, int64(*limit-len(res)))
-			// For example, if remaining == 1, its more effective to list 1 object than 1000.
-			listBatchSize = min(listBatchSize, remaining)
-		}
 		files, err := client.ListObjects(&aws_s3.ListObjectsInput{
 			Bucket:  aws.String(bucket),
 			Prefix:  aws.String(pathPrefix),
@@ -41,31 +40,48 @@ func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, log
 			Marker:  currentMarker,
 		})
 		if err != nil {
-			return nil, xerrors.Errorf("unable to load file list: %w", err)
+			return xerrors.Errorf("unable to load file list: %w", err)
 		}
 
 		for _, file := range files.Contents {
 			if SkipObject(file, pathPattern, "|", filter) {
-				logger.Debugf("ListFiles - file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, pathPattern)
+				logger.Debugf("ListFilesWithCallback - file did not pass type/path check, skipping: file %s, pathPattern: %s", *file.Key, pathPattern)
 				continue
 			}
-			res = append(res, file)
-
-			// for schema resolution we can stop the process of file fetching faster since we need only 1 file
-			if limit != nil && *limit == len(res) {
-				fastStop = true
-				break
+			stop, err := fn(file)
+			if err != nil {
+				return err
+			}
+			if stop {
+				return nil
 			}
 		}
 		if len(files.Contents) > 0 {
 			currentMarker = files.Contents[len(files.Contents)-1].Key
 		}
 
-		if fastStop || int64(len(files.Contents)) < listBatchSize {
+		if int64(len(files.Contents)) < listBatchSize {
 			break
 		}
 	}
 
+	return nil
+}
+
+// ListFiles lists all files matching the pathPattern in a bucket.
+// A fast circuit breaker is built in for schema resolution where we do not need the full list of objects.
+func ListFiles(bucket, pathPrefix, pathPattern string, client s3iface.S3API, logger log.Logger, limit *int, filter func(*aws_s3.Object) bool) ([]*aws_s3.Object, error) {
+	var res []*aws_s3.Object
+	err := ListFilesWithCallback(bucket, pathPrefix, pathPattern, client, logger, filter, func(file *aws_s3.Object) (bool, error) {
+		res = append(res, file)
+		if limit != nil && len(res) >= *limit {
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
 	return res, nil
 }
 

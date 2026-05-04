@@ -2,8 +2,10 @@ package s3raw
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"time"
 
@@ -34,38 +36,51 @@ type wrappedReader[T io.ReadCloser] struct {
 	wrapper                wrapper[T]
 }
 
+var (
+	_ ReaderAll   = (*wrappedReader[io.ReadCloser])(nil)
+	_ S3RawReader = (*wrappedReader[io.ReadCloser])(nil)
+)
+
 func (r *wrappedReader[T]) ReadAt(buffer []byte, offset int64) (int, error) {
 	if len(buffer) == 0 {
 		return 0, nil
 	}
 	if r.fullUncompressedObject == nil {
 		if err := r.loadObjectInMemory(); err != nil {
-			return 0, xerrors.Errorf("failed to load full file %s into memory: %w", r.fetcher.key, err)
+			return 0, xerrors.Errorf("unable to loadObjectInMemory, err: %w", err)
 		}
 	}
 
 	totalSize := int64(len(r.fullUncompressedObject))
-	start, end, returnErr := calcRange(int64(len(buffer)), offset, totalSize)
-	if returnErr != nil && !xerrors.Is(returnErr, io.EOF) {
-		return 0, xerrors.Errorf("unable to calculate new read range for file %s: %w", r.fetcher.key, returnErr)
+	start, end, err := calcRange(int64(len(buffer)), offset, totalSize)
+	if err != nil {
+		// Return EOF / UnexpectedEOF as-is without wrapping,
+		// to preserve io.ReaderAt contract semantics.
+		if xerrors.Is(err, io.EOF) || xerrors.Is(err, io.ErrUnexpectedEOF) {
+			n := copy(buffer, r.fullUncompressedObject[start:end+1])
+			r.stats.Size.Add(int64(n))
+			return n, err
+		}
+
+		// Wrap transport/internal errors with context.
+		return 0, xerrors.Errorf("unable to calcRange, err: %w", err)
 	}
 
+	// Adjust buffer size to the available range if needed.
 	if int64(len(buffer)) > end-start+1 {
-		buffer = buffer[:end-start+1] // Reduce buffer size to match range.
+		buffer = buffer[:end-start+1]
 	}
 
 	n := copy(buffer, r.fullUncompressedObject[start:end+1])
 	r.stats.Size.Add(int64(n))
-	if returnErr != nil {
-		return n, xerrors.Errorf("reached EOF: %w", returnErr)
-	}
+
 	return n, nil
 }
 
 func (r *wrappedReader[T]) Read(buffer []byte) (int, error) {
 	if r.closeFunc == nil {
 		if err := r.startStreamReader(); err != nil {
-			return 0, xerrors.Errorf("failed to start reader: %w", err)
+			return 0, xerrors.Errorf("unable to startStreamReader, err: %w", err)
 		}
 	}
 
@@ -75,17 +90,17 @@ func (r *wrappedReader[T]) Read(buffer []byte) (int, error) {
 func (r *wrappedReader[T]) startStreamReader() error {
 	rawReader, err := r.fetcher.makeReader()
 	if err != nil {
-		return xerrors.Errorf("failed to make reader for file %s: %w", r.fetcher.key, err)
+		return xerrors.Errorf("unable to makeReader, err: %w", err)
 	}
 	r.closeFunc = append(r.closeFunc, rawReader.Close)
 
-	wrappedReader, err := r.wrapper(rawReader)
+	currWrappedReader, err := r.wrapper(rawReader)
 	if err != nil {
-		return xerrors.Errorf("failed to initialize wrapper: %w", err)
+		return xerrors.Errorf("unable to wrapReader, err: %w", err)
 	}
-	r.currReader = wrappedReader
+	r.currReader = currWrappedReader
 
-	r.closeFunc = append(r.closeFunc, wrappedReader.Close)
+	r.closeFunc = append(r.closeFunc, currWrappedReader.Close)
 	return nil
 }
 
@@ -93,30 +108,35 @@ func (r *wrappedReader[T]) Close() error {
 	defer func() {
 		r.closeFunc = nil
 	}()
+
 	if r.closeFunc == nil {
 		return nil
 	}
-	for _, close := range r.closeFunc {
-		if err := close(); err != nil {
-			return xerrors.Errorf("failed to close reader: %w", err)
+	for _, currCloseFunc := range r.closeFunc {
+		if err := currCloseFunc(); err != nil {
+			return xerrors.Errorf("unable to close, err: %w", err)
 		}
 	}
 	return nil
 }
 
-func (r *wrappedReader[T]) ReadAll() ([]byte, error) {
-	file, err := r.client.GetObject(&aws_s3.GetObjectInput{
-		Bucket: aws.String(r.fetcher.bucket),
-		Key:    aws.String(r.fetcher.key),
-	})
+func (r *wrappedReader[T]) ReadAll(ctx context.Context) ([]byte, error) {
+	file, err := r.client.GetObjectWithContext(
+		ctx,
+		&aws_s3.GetObjectInput{
+			Bucket: aws.String(r.fetcher.bucket),
+			Key:    aws.String(r.fetcher.key),
+		},
+	)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get object %s: %w", r.fetcher.key, err)
+		return nil, xerrors.Errorf("unable to GetObject, err: %w", err)
 	}
 	defer func() {
 		if err := file.Body.Close(); err != nil {
 			logger.Log.Warnf("Unable to close body of %s: %s", r.fetcher.key, err.Error())
 		}
 	}()
+
 	compressedSize := int64(0)
 	if file.ContentLength != nil {
 		compressedSize = *file.ContentLength
@@ -124,26 +144,35 @@ func (r *wrappedReader[T]) ReadAll() ([]byte, error) {
 
 	currWrapper, err := r.wrapper(file.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to initialize wrapper: %w", err)
+		return nil, xerrors.Errorf("unable to wrapReader, err: %w", err)
 	}
 	defer currWrapper.Close()
 
 	uncompressedSize := int64(0)
 	if meta, ok := file.Metadata["uncompressed-size"]; ok && meta != nil {
-		if uncompressedSize, err = strconv.ParseInt(*meta, 10, 64); err != nil {
-			uncompressedSize = 0
+		// https://docs-go.hexacode.org/pkg/strconv
+		// the value corresponding to s cannot be represented by a signed integer of the given size, err.Err = ErrRange
+		// and the returned value is the maximum magnitude integer of the appropriate bitSize and sign.
+		currUncompressedSize, err := strconv.ParseInt(*meta, 10, 64)
+		if err != nil {
 			logger.Log.Warn(fmt.Sprintf("Unable to parse size '%s' from metadata", *meta), log.Error(err))
+		} else {
+			uncompressedSize = currUncompressedSize
 		}
 	}
 
 	res := bytes.NewBuffer(make([]byte, 0, max(uncompressedSize, compressedSize)))
 	_, err = io.Copy(res, currWrapper)
-	return res.Bytes(), err
+	if err != nil {
+		return nil, xerrors.Errorf("unable to io.Copy, err: %w", err)
+	}
+	return res.Bytes(), nil
 }
 
 func (r *wrappedReader[T]) loadObjectInMemory() error {
+	ctx := context.Background()
 	var err error
-	r.fullUncompressedObject, err = r.ReadAll()
+	r.fullUncompressedObject, err = r.ReadAll(ctx)
 	return err
 }
 
@@ -152,11 +181,18 @@ func (r *wrappedReader[T]) LastModified() time.Time {
 }
 
 func (r *wrappedReader[T]) Size() int64 {
-	return r.fetcher.size()
+	sz := r.fetcher.size()
+	if sz > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(sz)
 }
 
 func newWrappedReader[T io.ReadCloser](
-	fetcher *s3Fetcher, client s3iface.S3API, stats *stats.SourceStats, wrapper wrapper[T],
+	fetcher *s3Fetcher,
+	client s3iface.S3API,
+	stats *stats.SourceStats,
+	wrapper wrapper[T],
 ) (S3RawReader, error) {
 	if fetcher == nil {
 		return nil, xerrors.New("missing s3 fetcher for wrapped reader")

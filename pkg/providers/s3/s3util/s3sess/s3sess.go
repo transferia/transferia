@@ -8,6 +8,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	s3_reader_registry "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -19,7 +20,7 @@ func NewSessClientReaderMetrics(logger log.Logger, srcModel *s3_model.S3Source, 
 	}
 
 	currMetrics := stats.NewSourceStats(registry)
-	currReader, err := s3_reader_registry.NewReader(srcModel, logger, sess, currMetrics)
+	currReader, err := s3_reader_registry.NewReader(srcModel, logger, sess, currMetrics, s3raw.NewRealS3RawReaderBuilder())
 	if err != nil {
 		return nil, nil, nil, nil, xerrors.Errorf("unable to create reader: %w", err)
 	}

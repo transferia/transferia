@@ -17,7 +17,9 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	s3_reader_registry "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/coordinator_utils"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/effective_worker_num"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
@@ -75,6 +77,9 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 
 	for _, currFile := range fileList {
 		if err := s.reader.Read(ctx, currFile, syncPusher); err != nil {
+			if nf, ok := reader_error.AsReaderErrorNoFiles(err); ok {
+				return xerrors.Errorf("unable to read file %q: no objects match prefix %q for schema: %w", currFile, nf.Prefix(), err)
+			}
 			return xerrors.Errorf("unable to read file: %s: %w", table.Filter, err)
 		}
 	}
@@ -106,10 +111,7 @@ func (s *Storage) EstimateTableRowsCount(table abstract.TableID) (uint64, error)
 		// we are in a replication, possible millions/billions of files in bucket, estimating rows expensive
 		return 0, nil
 	}
-	if rowCounter, ok := s.reader.(s3_reader.RowsCountEstimator); ok {
-		return rowCounter.EstimateRowsCountAllObjects(context.Background())
-	}
-	return 0, nil
+	return s.reader.EstimateRowsCountAllObjects(context.Background())
 }
 
 func (s *Storage) TableExists(table abstract.TableID) (bool, error) {
@@ -224,12 +226,15 @@ func New(src *s3_model.S3Source, transferID string, lgr log.Logger, registry cor
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create aws session: %w", err)
 	}
-	currReader, err := s3_reader_registry.NewReader(src, lgr, sess, stats.NewSourceStats(registry))
+	currReader, err := s3_reader_registry.NewReader(src, lgr, sess, stats.NewSourceStats(registry), s3raw.NewRealS3RawReaderBuilder())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader: %w", err)
 	}
 	tableSchema, err := currReader.ResolveSchema(context.Background())
 	if err != nil {
+		if nf, ok := reader_error.AsReaderErrorNoFiles(err); ok {
+			return nil, xerrors.Errorf("unable to resolve schema: no S3 objects under prefix %q: %w", nf.Prefix(), err)
+		}
 		return nil, xerrors.Errorf("unable to resolve schema: %w", err)
 	}
 	return &Storage{

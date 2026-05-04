@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	reader_factory "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/coordinator_utils"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/effective_worker_num"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/file"
@@ -49,7 +50,7 @@ func TestObjectFetcherPoller(t *testing.T) {
 	poller0 := NewObjectFetcherContractor(logger.Log, poller0Impl)
 
 	sess := fake_s3.NewSess()
-	currReader, err := reader_factory.NewReader(srcModel, logger.Log, sess, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
+	currReader, err := reader_factory.NewReader(srcModel, logger.Log, sess, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())), s3raw.NewRealS3RawReaderBuilder())
 	require.NoError(t, err)
 
 	//------------------------------------------------------------------
@@ -189,7 +190,7 @@ func TestFlush(t *testing.T) {
 	poller0 := NewObjectFetcherContractor(logger.Log, poller0Impl)
 
 	sess := fake_s3.NewSess()
-	currReader, err := reader_factory.NewReader(srcModel, logger.Log, sess, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
+	currReader, err := reader_factory.NewReader(srcModel, logger.Log, sess, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())), s3raw.NewRealS3RawReaderBuilder())
 	require.NoError(t, err)
 
 	fakeS3Client.SetFiles(

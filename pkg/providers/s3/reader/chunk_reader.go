@@ -47,26 +47,30 @@ func (r *ChunkReader) ReadNextChunk() error {
 }
 
 func (r *ChunkReader) read() error {
-	read, err := r.reader.Read(r.buff[r.used:])
+	n, err := r.reader.Read(r.buff[r.used:])
+
 	if err != nil && !xerrors.Is(err, io.EOF) {
 		return err
 	}
-	if err != nil && xerrors.Is(err, io.EOF) {
-		r.foundEOF = true
-	}
-	if read == 0 {
+
+	if xerrors.Is(err, io.EOF) {
 		r.foundEOF = true
 	}
 
-	r.used += read
-	r.offset += int64(read)
+	// IMPORTANT: do not treat n == 0 as EOF
+	// 0, nil is a valid and expected case
+
+	if n > 0 {
+		r.used += n
+		r.offset += int64(n)
+	}
 
 	return nil
 }
 
 // FillBuffer fills the buffer with the data that was read from the reader
-// if the buffer is not large enough, it will be resized to the size of the data
-// if the buffer is large enough, it will be copied to the buffer
+// If the buffer is not large enough, it will be resized to the size of the data
+// If the buffer is large enough, it will be copied to the buffer
 func (r *ChunkReader) FillBuffer(data []byte) {
 	if len(data) > r.maxBuffSize {
 		r.buff = make([]byte, len(data))
@@ -101,6 +105,7 @@ func (r *ChunkReader) Offset() int64 {
 	return r.offset
 }
 
+// NewChunkReader - ctor for ChunkReader
 // if maxBuffSize is 0, use DefaultChunkReaderBlockSize
 func NewChunkReader(reader io.ReadCloser, maxBuffSize int, logger log.Logger) *ChunkReader {
 	if maxBuffSize == 0 {

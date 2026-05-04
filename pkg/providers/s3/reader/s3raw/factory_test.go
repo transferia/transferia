@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -48,8 +49,11 @@ func TestNewS3RawReader(t *testing.T) {
 			if _, ok := testData[*input.Bucket][*input.Key]; !ok {
 				return nil, xerrors.New("key not found")
 			}
+			now := time.Now()
 			return &s3.HeadObjectOutput{
 				ContentEncoding: testData[*input.Bucket][*input.Key],
+				ContentLength:   aws.Int64(1024),
+				LastModified:    &now,
 			}, nil
 		},
 	}

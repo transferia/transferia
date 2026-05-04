@@ -1,4 +1,4 @@
-package reader
+package estimators
 
 import (
 	"context"
@@ -10,17 +10,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/s3/reader"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 )
 
 // Reader function to return dummy S3RawReader with specified sizes
-func dummyReaderF(sizes map[string]int64) readerCtorF {
+func dummyReaderF(sizes map[string]uint64) ReaderCtorF {
 	return func(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
 		fileSize, exists := sizes[filePath]
 		if !exists {
 			return nil, xerrors.Errorf("file not found: %s", filePath)
 		}
-		return s3raw.NewFakeS3RawReader(fileSize), nil
+		return s3raw.NewStubS3RawReader(fileSize), nil
 	}
 }
 
@@ -28,7 +29,7 @@ func TestEstimateTotalSize(t *testing.T) {
 	tests := []struct {
 		name          string
 		files         []*s3.Object
-		fileSizes     map[string]int64
+		fileSizes     map[string]uint64
 		expectedSize  uint64
 		expectedError error
 	}{
@@ -38,7 +39,7 @@ func TestEstimateTotalSize(t *testing.T) {
 				{Key: aws.String("file1")},
 				{Key: aws.String("file2")},
 			},
-			fileSizes: map[string]int64{
+			fileSizes: map[string]uint64{
 				"file1": 100,
 				"file2": 200,
 			},
@@ -49,19 +50,19 @@ func TestEstimateTotalSize(t *testing.T) {
 			name: "more than limit files",
 			files: func() []*s3.Object {
 				files := make([]*s3.Object, 0)
-				for i := 0; i < EstimateFilesLimit+5; i++ {
+				for i := 0; i < reader.EstimateFilesLimit+5; i++ {
 					files = append(files, &s3.Object{Key: aws.String(fmt.Sprintf("file%v", i))})
 				}
 				return files
 			}(),
-			fileSizes: func() map[string]int64 {
-				sizes := map[string]int64{}
-				for i := 0; i < EstimateFilesLimit+5; i++ {
+			fileSizes: func() map[string]uint64 {
+				sizes := make(map[string]uint64)
+				for i := 0; i < reader.EstimateFilesLimit+5; i++ {
 					sizes[fmt.Sprintf("file%v", i)] = 100
 				}
 				return sizes
 			}(),
-			expectedSize:  uint64(100 * EstimateFilesLimit * (EstimateFilesLimit + 5) / EstimateFilesLimit),
+			expectedSize:  uint64(100 * reader.EstimateFilesLimit * (reader.EstimateFilesLimit + 5) / reader.EstimateFilesLimit),
 			expectedError: nil,
 		},
 		{
@@ -69,7 +70,7 @@ func TestEstimateTotalSize(t *testing.T) {
 			files: []*s3.Object{
 				{Key: aws.String("file1")},
 			},
-			fileSizes:     map[string]int64{},
+			fileSizes:     make(map[string]uint64),
 			expectedSize:  0,
 			expectedError: xerrors.New("unable to estimate size"),
 		},
@@ -77,7 +78,7 @@ func TestEstimateTotalSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			size, _, err := EstimateTotalSize(context.Background(), logger.Log, tt.files, dummyReaderF(tt.fileSizes))
+			size, _, err := EstimateTotalSizeInBytes(context.Background(), logger.Log, tt.files, dummyReaderF(tt.fileSizes))
 
 			require.Equal(t, tt.expectedSize, size)
 
@@ -89,37 +90,4 @@ func TestEstimateTotalSize(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestEstimateTotalSize_SkipNegativeSizes(t *testing.T) {
-	files := []*s3.Object{
-		{Key: aws.String("neg")},
-		{Key: aws.String("pos")},
-	}
-	sizes := map[string]int64{
-		"neg": -1,
-		"pos": 200,
-	}
-
-	total, sample, err := EstimateTotalSize(context.Background(), logger.Log, files, dummyReaderF(sizes))
-	require.NoError(t, err)
-	require.Equal(t, uint64(200), total)
-	require.NotNil(t, sample)
-	require.Equal(t, int64(200), sample.Size())
-}
-
-func TestEstimateTotalSize_AllNonPositiveSizes(t *testing.T) {
-	files := []*s3.Object{
-		{Key: aws.String("zero")},
-		{Key: aws.String("neg")},
-	}
-	sizes := map[string]int64{
-		"zero": 0,
-		"neg":  -1,
-	}
-
-	total, sample, err := EstimateTotalSize(context.Background(), logger.Log, files, dummyReaderF(sizes))
-	require.NoError(t, err)
-	require.Equal(t, uint64(0), total)
-	require.Nil(t, sample)
 }

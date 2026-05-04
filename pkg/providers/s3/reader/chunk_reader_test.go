@@ -1,6 +1,7 @@
 package reader
 
 import (
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 )
 
@@ -45,6 +47,10 @@ func (m *mockS3RawReader) Read(p []byte) (int, error) {
 
 func (m *mockS3RawReader) Close() error {
 	return nil
+}
+
+func (m *mockS3RawReader) Size() int64 {
+	return int64(len(m.data))
 }
 
 func TestChunkReader_ReadNextChunk(t *testing.T) {
@@ -101,4 +107,13 @@ func TestNewChunkReader(t *testing.T) {
 	require.Equal(t, reader, cr.reader)
 	require.Equal(t, 0, cr.used)
 	require.False(t, cr.foundEOF)
+}
+
+func q() reader_error.ReaderError {
+	return nil
+}
+
+func TestQ(t *testing.T) {
+	qq := q()
+	fmt.Println(qq == nil)
 }

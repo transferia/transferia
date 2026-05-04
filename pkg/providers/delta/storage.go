@@ -200,7 +200,7 @@ func NewStorage(cfg *DeltaSource, lgr log.Logger, registry core_metrics.Registry
 	s3Source.InputFormat = model.ParsingFormatPARQUET
 	s3Source.PathPattern = "*.parquet"
 
-	reader, err := s3_reader_registry.NewReader(s3Source, lgr, sess, stats.NewSourceStats(registry))
+	reader, err := s3_reader_registry.NewReader(s3Source, lgr, sess, stats.NewSourceStats(registry), s3raw.NewRealS3RawReaderBuilder())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to initialize parquet reader: %w", err)
 	}

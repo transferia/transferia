@@ -6,16 +6,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	aws_session "github.com/aws/aws-sdk-go/aws/session"
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -26,160 +22,113 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/estimators"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/valyala/fastjson"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
-var (
-	_ s3_reader.Reader             = (*CSVReader)(nil)
-	_ s3_reader.RowsCountEstimator = (*CSVReader)(nil)
-)
+var _ s3_reader.S3Reader = (*CSVReader)(nil)
 
 func init() {
-	s3_reader.RegisterReader(model.ParsingFormatCSV, NewCSVReader)
+	s3_reader.RegisterReader(model.ParsingFormatCSV, NewCSVReader, NewCSVSchemaResolver)
 }
 
+// CSVReader reads CSV objects; schema comes from ResolveSchema via ReaderContractor (not stored here).
 type CSVReader struct {
-	table                   abstract.TableID
-	bucket                  string
-	client                  s3iface.S3API
-	downloader              *s3manager.Downloader
-	logger                  log.Logger
-	tableSchema             *abstract.TableSchema
-	fastCols                abstract.FastTableSchema
-	colNames                []string
-	hideSystemCols          bool
-	maxBatchSize            int // from s3 file read buf-by-buf, into every buf read by #maxBatchSize amount of changeItems
-	blockSize               int64
-	pathPrefix              string
-	delimiter               rune
-	quoteChar               rune
-	escapeChar              rune
-	encoding                string
-	doubleQuote             bool
-	newlinesInValue         bool
-	additionalReaderOptions s3_model.AdditionalOptions
-	advancedOptions         s3_model.AdvancedOptions
-	headerPresent           bool
-	pathPattern             string
-	metrics                 *stats.SourceStats
-	unparsedPolicy          s3_model.UnparsedPolicy
-}
-
-func (r *CSVReader) ResolveSchema(ctx context.Context) (*abstract.TableSchema, error) {
-	if r.tableSchema != nil && len(r.tableSchema.Columns()) != 0 {
-		// Resolve schema was already called no need to redo operation, return previous schema
-		return r.tableSchema, nil
-	}
-
-	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, aws.Int(1), r.ObjectsFilter())
-	if err != nil {
-		return nil, xerrors.Errorf("unable to load file list: %w", err)
-	}
-
-	if len(files) < 1 {
-		return nil, xerrors.Errorf("unable to resolve schema, no csv files found: %s", r.pathPrefix)
-	}
-
-	return r.resolveSchema(ctx, *files[0].Key)
+	config         csvConfig
+	table          abstract.TableID
+	unparsedPolicy s3_model.UnparsedPolicy
+	maxBatchSize   int // from s3 file read buf-by-buf, into every buf read by #maxBatchSize amount of changeItems
 }
 
 func (r *CSVReader) estimateRows(ctx context.Context, files []*aws_s3.Object) (uint64, error) {
-	totalRows := float64(0)
-
-	totalSize, sampleReader, err := s3_reader.EstimateTotalSize(ctx, r.logger, files, r.newS3RawReader)
-	if err != nil {
-		return 0, xerrors.Errorf("unable to estimate rows: %w", err)
-	}
-
-	if totalSize > 0 && sampleReader != nil {
-		chunkReader := s3_reader.NewChunkReader(sampleReader, int(r.blockSize), r.logger)
-		defer chunkReader.Close()
-		err = chunkReader.ReadNextChunk()
-		if err != nil && !xerrors.Is(err, io.EOF) {
-			return 0, xerrors.Errorf("failed to estimate row count: %w", err)
+	readAllImpl := func(in []byte) ([]string, uint64, error) {
+		csvReader := r.config.newCSVReaderFromReader(bufio.NewReader(bytes.NewReader(in)))
+		rowsAndColumns, err := csvReader.ReadAll()
+		if err != nil {
+			return nil, 0, xerrors.Errorf("unable to read all csv lines, err: %w", err)
 		}
-		data := chunkReader.Data()
-		if len(data) > 0 {
-			csvReader := r.newCSVReaderFromReader(bufio.NewReader(bytes.NewReader(data)))
-			lines, err := csvReader.ReadAll()
-			if err != nil {
-				return 0, xerrors.Errorf("failed to read sample lines for row count estimation: %w", err)
-			}
-			bytesRead := csvReader.GetOffset()
-			if bytesRead == 0 || len(lines) == 0 {
-				return 0, nil
-			}
-			bytesPerRow := float64(bytesRead) / float64(len(lines))
-			totalRows = math.Ceil(float64(totalSize) / bytesPerRow)
-		}
+		bytesRead := csvReader.GetOffset()
+		resultLines := make([]string, len(rowsAndColumns))
+		return resultLines, uint64(bytesRead), nil
 	}
-	return uint64(totalRows), nil
+	return estimators.EstimateRows(ctx, r.config.logger, files, int(r.config.blockSize), r.config.newS3RawReader, readAllImpl)
 }
 
 func (r *CSVReader) EstimateRowsCountOneObject(ctx context.Context, obj *aws_s3.Object) (uint64, error) {
 	res, err := r.estimateRows(ctx, []*aws_s3.Object{obj})
 	if err != nil {
-		return 0, xerrors.Errorf("failed to estimate rows of file: %s : %w", *obj.Key, err)
+		return 0, xerrors.Errorf("unable to estimate rows count, key: %s, err: %w", *obj.Key, err)
 	}
 	return res, nil
 }
 
 func (r *CSVReader) EstimateRowsCountAllObjects(ctx context.Context) (uint64, error) {
-	files, err := s3util.ListFiles(r.bucket, r.pathPrefix, r.pathPattern, r.client, r.logger, nil, r.ObjectsFilter())
+	files, err := s3util.ListFiles(r.config.bucket, r.config.pathPrefix, r.config.pathPattern, r.config.client, r.config.logger, nil, s3_reader.IsNotEmpty)
 	if err != nil {
-		return 0, xerrors.Errorf("unable to load file list: %w", err)
+		return 0, xerrors.Errorf("unable to list files, err: %w", err)
 	}
 
 	res, err := r.estimateRows(ctx, files)
 	if err != nil {
-		return 0, xerrors.Errorf("failed to estimate total rows: %w", err)
+		return 0, xerrors.Errorf("unable to estimateRows, err: %w", err)
 	}
 	return res, nil
 }
 
-func (r *CSVReader) newS3RawReader(ctx context.Context, filePath string) (s3raw.S3RawReader, error) {
-	sr, err := s3raw.NewS3RawReader(ctx, r.client, r.bucket, filePath, r.metrics)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create reader at: %w", err)
+//nolint:descriptiveerrors
+func (r *CSVReader) Read(ctx context.Context, schema *abstract.TableSchema, filePath string, pusher s3_pusher.Pusher) reader_error.ReaderError {
+	if schema == nil || len(schema.Columns()) == 0 {
+		return nil
 	}
-	return sr, nil
-}
+	fastCols := schema.FastColumns()
+	colNames := yslices.Map(schema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
 
-func (r *CSVReader) Read(ctx context.Context, filePath string, pusher s3_pusher.Pusher) error {
-	s3RawReader, err := r.newS3RawReader(ctx, filePath)
+	s3RawReader, err := r.config.newS3RawReader(ctx, filePath)
 	if err != nil {
-		return xerrors.Errorf("unable to open reader: %w", err)
+		return reader_error.NewReaderErrorTransport("csv.parser.Read.newS3RawReader", r.config.pathPrefix, err)
 	}
 
 	offsetInFile := int64(0) // offset from beginning of file!
 	rowsCounter := uint64(1)
-	chunkReader := s3_reader.NewChunkReader(s3RawReader, s3_reader.DefaultChunkReaderBlockSize, r.logger)
+	chunkReader := s3_reader.NewChunkReader(s3RawReader, s3_reader.DefaultChunkReaderBlockSize, r.config.logger)
 	defer chunkReader.Close()
 
 	for { // this loop - over one file, read buffer-by-buffer
 		if ctx.Err() != nil {
-			r.logger.Info("Read canceled")
+			r.config.logger.Info("Read canceled")
 			return nil
 		}
 
-		csvReader, endOfFileReached, err := r.readBufferFromChunkReader(chunkReader, offsetInFile)
-		if err != nil {
-			return xerrors.Errorf("failed to read fom S3 file, err: %w", err)
+		csvReader, endOfFileReached, err2 := r.readBufferFromChunkReader(chunkReader, offsetInFile, filePath)
+		if err2 != nil {
+			if handled, res := s3_reader.TryHandleDataErrorWithFlush(ctx, r.table, r.unparsedPolicy, filePath, rowsCounter, 0, err2, pusher, wrapCSVReadFlushChunk); handled {
+				return res
+			}
+			return reader_error.WrapReaderError("csv.Read.readBufferFromChunkReader", err2)
 		}
 
 		offsetInBuf := int64(0)
 		for { // this loop - into this one buffer, which we just read from s3, parse batch-by-batch
 			offsetInBufBefore := csvReader.GetOffset()
 
-			changeItems, err := r.parseCSVRows(csvReader, filePath, s3RawReader.LastModified(), &rowsCounter, r.maxBatchSize)
-			if err != nil {
-				return xerrors.Errorf("failed to parse lines from csv file %s, err: %w", filePath, err)
+			changeItems, err3 := r.parseCSVRows(csvReader, filePath, s3RawReader.LastModified(), &rowsCounter, r.maxBatchSize, schema, fastCols, colNames)
+			if err3 != nil {
+				if handled, res := s3_reader.TryHandleDataErrorWithFlush(ctx, r.table, r.unparsedPolicy, filePath, rowsCounter, 0, err3, pusher, wrapCSVReadFlushChunk); handled {
+					if res != nil {
+						return res
+					}
+					if r.unparsedPolicy == s3_model.UnparsedPolicyContinue {
+						return nil
+					}
+					return reader_error.WrapReaderError("csv.Read.parseCSVRows", err3)
+				}
+				return reader_error.WrapReaderError("csv.Read.parseCSVRows", err3)
 			}
 
 			offsetInBuf = csvReader.GetOffset()
@@ -190,7 +139,7 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher s3_pusher.
 			}
 
 			if err := s3_reader.FlushChunk(ctx, filePath, rowsCounter, parsedSize, changeItems, pusher); err != nil {
-				return xerrors.Errorf("unable to push, err: %w", err)
+				return wrapCSVReadFlushChunk(err)
 			}
 		}
 
@@ -205,19 +154,25 @@ func (r *CSVReader) Read(ctx context.Context, filePath string, pusher s3_pusher.
 
 // readBufferFromChunkReader reads range [offset + blockSize] from S3 bucket.
 // It returns a *csv.Reader that should be used for csv rows reading.
-// It returns a boolean flag if the end of the end of the S3 file was reached.
+// It returns a boolean flag indicating whether the end of the S3 file was reached.
 // It returns any error it encounters during the reading process.
-func (r *CSVReader) readBufferFromChunkReader(chunkReader *s3_reader.ChunkReader, offsetInFile int64) (*dt_csv.Reader, bool, error) {
+//
+//nolint:descriptiveerrors
+func (r *CSVReader) readBufferFromChunkReader(
+	chunkReader *s3_reader.ChunkReader,
+	offsetInFile int64,
+	filePath string,
+) (*dt_csv.Reader, bool, reader_error.ReaderError) {
 	if err := chunkReader.ReadNextChunk(); err != nil {
 		if !xerrors.Is(err, io.EOF) {
-			return nil, false, xerrors.Errorf("failed to read from file: %w", err)
+			return nil, false, reader_error.NewReaderErrorTransport("chunk.ReadNextChunk", filePath, err)
 		}
 	}
 
-	csvReader := r.newCSVReaderFromReader(bytes.NewReader(chunkReader.Data()))
+	csvReader := r.config.newCSVReaderFromReader(bytes.NewReader(chunkReader.Data()))
 	if offsetInFile == 0 {
-		if err := r.skipUnnecessaryLines(csvReader); err != nil {
-			return nil, chunkReader.IsEOF(), xerrors.Errorf("failed to skip unnecessary rows: %w", err)
+		if err := r.skipUnnecessaryLines(csvReader, filePath); err != nil {
+			return nil, chunkReader.IsEOF(), reader_error.NewReaderErrorDataSchema("csv.skipUnnecessaryLines", filePath, err)
 		}
 	}
 
@@ -226,7 +181,18 @@ func (r *CSVReader) readBufferFromChunkReader(chunkReader *s3_reader.ChunkReader
 
 // parseCSVRows reads and parses line by line the fetched data block from S3.
 // If EOF or maxBatchSize limit is reached the extracted changeItems are returned.
-func (r *CSVReader) parseCSVRows(csvReader *dt_csv.Reader, filePath string, lastModified time.Time, rowNumber *uint64, maxBatchSize int) ([]abstract.ChangeItem, error) {
+//
+//nolint:descriptiveerrors
+func (r *CSVReader) parseCSVRows(
+	csvReader *dt_csv.Reader,
+	filePath string,
+	lastModified time.Time,
+	rowNumber *uint64,
+	maxBatchSize int,
+	schema *abstract.TableSchema,
+	fastCols abstract.FastTableSchema,
+	colNames []string,
+) ([]abstract.ChangeItem, reader_error.ReaderError) {
 	var result []abstract.ChangeItem
 	for {
 		line, err := csvReader.ReadLine()
@@ -234,17 +200,21 @@ func (r *CSVReader) parseCSVRows(csvReader *dt_csv.Reader, filePath string, last
 			return result, nil
 		}
 		if err != nil {
-			return nil, xerrors.Errorf("failed to read row form csv: %w", err)
+			return nil, reader_error.NewReaderErrorDataRecord("csv.ReadLine", filePath, *rowNumber, err)
 		}
 
-		changeItem, err := r.doParse(line, filePath, lastModified, *rowNumber)
+		changeItem, err := r.doParse(line, filePath, lastModified, *rowNumber, schema, fastCols, colNames)
 		if err != nil {
-			unparsedChangeItem, err := s3_reader.HandleParseError(r.table, r.unparsedPolicy, filePath, int(*rowNumber), err)
-			if err != nil {
-				return nil, xerrors.Errorf("failed to parse row: %w", err)
+			errorData, ok := reader_error.AsReaderErrorData(err)
+			if !ok {
+				errorData = reader_error.NewReaderErrorDataRecord("csv.doParse", filePath, *rowNumber, err)
 			}
-			result = append(result, *unparsedChangeItem)
-			*rowNumber += 1
+			items, handleErr := reader_error.HandleDataError(r.table, r.unparsedPolicy, errorData)
+			if handleErr != nil {
+				return nil, handleErr
+			}
+			result = append(result, items...)
+			*rowNumber++
 			continue
 		}
 		*rowNumber += 1
@@ -257,49 +227,60 @@ func (r *CSVReader) parseCSVRows(csvReader *dt_csv.Reader, filePath string, last
 	}
 }
 
-func (r *CSVReader) ParsePassthrough(chunk s3_pusher.Chunk) []abstract.ChangeItem {
-	// the most complex and useful method in the world
-	return chunk.Items
-}
-
-func (r *CSVReader) doParse(line []string, filePath string, lastModified time.Time, rowNumber uint64) (*abstract.ChangeItem, error) {
-	ci, err := r.constructCI(line, filePath, lastModified, rowNumber)
+func (r *CSVReader) doParse(
+	line []string,
+	filePath string,
+	lastModified time.Time,
+	rowNumber uint64,
+	schema *abstract.TableSchema,
+	fastCols abstract.FastTableSchema,
+	colNames []string,
+) (*abstract.ChangeItem, error) {
+	changeItem, err := r.constructCI(line, filePath, lastModified, rowNumber, schema, colNames)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to construct change item: %w", err)
+		return nil, xerrors.Errorf("failed to construct changeItem, err: %w", err)
 	}
-	if err := strictify.Strictify(ci, r.fastCols); err != nil {
-		return nil, xerrors.Errorf("failed to convert value to the expected data type: %w", err)
+	if err := strictify.Strictify(changeItem, fastCols); err != nil {
+		return nil, xerrors.Errorf("failed to strictify, err: %w", err)
 	}
-	return ci, nil
+	return changeItem, nil
 }
 
 // skipUnnecessaryLines skips the lines before the actual csv content starts.
 // This might include lines before the header line, the header line itself and possible lines after the header.
 // The amount of lines to skip is passed by the user in the SkipRows and SkipRowsAfterNames parameter.
-func (r *CSVReader) skipUnnecessaryLines(csvReader *dt_csv.Reader) error {
-	if err := skipRows(r.advancedOptions.SkipRows, csvReader); err != nil {
-		return xerrors.Errorf("failed to skip lines from csv file: %w", err)
+func (r *CSVReader) skipUnnecessaryLines(csvReader *dt_csv.Reader, fileKey string) error {
+	if err := skipRows(r.config.advancedOptions.SkipRows, csvReader, fileKey); err != nil {
+		return xerrors.Errorf("unable to skip rows 1, err: %w", err)
 	}
 
-	if r.headerPresent {
-		// skip past header
-		if err := skipRows(r.advancedOptions.SkipRowsAfterNames+1, csvReader); err != nil {
-			return xerrors.Errorf("failed to skip lines after header from csv file: %w", err)
+	if r.config.headerPresent {
+		if err := skipRows(r.config.advancedOptions.SkipRowsAfterNames+1, csvReader, fileKey); err != nil {
+			return xerrors.Errorf("unable to skip rows 2, err: %w", err)
 		}
 	}
 	return nil
 }
 
-func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time, rowNumber uint64) (*abstract.ChangeItem, error) {
-	vals := make([]interface{}, len(r.tableSchema.Columns()))
-	for i, col := range r.tableSchema.Columns() {
+//nolint:descriptiveerrors
+func (r *CSVReader) constructCI(
+	row []string,
+	fileName string,
+	lModified time.Time,
+	rowNumber uint64,
+	schema *abstract.TableSchema,
+	colNames []string,
+) (*abstract.ChangeItem, reader_error.ReaderError) {
+	vals := make([]any, len(schema.Columns()))
+	for i, col := range schema.Columns() {
 		if s3_reader.SystemColumnNames[col.ColumnName] {
-			if r.hideSystemCols {
+			if r.config.hideSystemCols {
+				vals[i] = nil
 				continue
 			}
 			switch col.ColumnName {
 			case s3_reader.FileNameSystemCol:
-				vals[i] = fname
+				vals[i] = fileName
 			case s3_reader.RowIndexSystemCol:
 				vals[i] = rowNumber
 			default:
@@ -310,18 +291,26 @@ func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time,
 
 		index, err := strconv.Atoi(col.Path)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to get index of column: %w", err)
+			return nil, reader_error.NewReaderErrorDataRecord("csv.constructCI.colPath", fileName, rowNumber, err)
 		}
 		if index < 0 {
 			vals[i] = abstract.DefaultValue(&col)
 		} else {
 			if index >= len(row) {
-				// missing columns should be filled with default value based on data type (if present) or nil by default
-				if r.additionalReaderOptions.IncludeMissingColumns {
+				if r.config.additionalReaderOptions.IncludeMissingColumns {
 					vals[i] = abstract.DefaultValue(&col)
 				} else {
-					return nil, xerrors.Errorf("missing row element for column: %s, row elements: %d, columns: %d",
-						col.ColumnName, len(row), len(vals))
+					return nil, reader_error.NewReaderErrorDataRecord(
+						"csv.constructCI.missing_cell",
+						fileName,
+						rowNumber,
+						fmt.Errorf(
+							"missing row element for column: %s, row elements: %d, columns: %d",
+							col.ColumnName,
+							len(row),
+							len(vals),
+						),
+					)
 				}
 			} else {
 				originalValue := row[index]
@@ -339,10 +328,10 @@ func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time,
 		Kind:             abstract.InsertKind,
 		Schema:           r.table.Namespace,
 		Table:            r.table.Name,
-		PartID:           fname,
-		ColumnNames:      r.colNames,
+		PartID:           fileName,
+		ColumnNames:      colNames,
 		ColumnValues:     vals,
-		TableSchema:      r.tableSchema,
+		TableSchema:      schema,
 		OldKeys:          abstract.EmptyOldKeys(),
 		Size:             abstract.RawEventSize(util.DeepSizeof(vals)),
 		TxID:             "",
@@ -351,333 +340,135 @@ func (r *CSVReader) constructCI(row []string, fname string, lModified time.Time,
 	}, nil
 }
 
-func (r *CSVReader) ObjectsFilter() s3_reader.ObjectsFilter { return s3_reader.IsNotEmpty }
+// getCorrespondingValue performs a check/transformation with the original value against the user provided configuration
+// such as: NullValues, TrueValues, FalseValues, TimestampParsers, DecimalPoint, to derive its corresponding value.
+func (r *CSVReader) getCorrespondingValue(originalValue string, col abstract.ColSchema) any {
+	var resultingValue any
 
-func (r *CSVReader) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, error) {
-	s3RawReader, err := r.newS3RawReader(ctx, key)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to open reader for file: %s: %w", key, err)
+	switch col.DataType {
+	case ytschema.TypeBoolean.String():
+		resultingValue = r.parseBooleanValue(originalValue)
+	case ytschema.TypeDate.String(), ytschema.TypeDatetime.String():
+		resultingValue = r.parseDateValue(originalValue)
+	case ytschema.TypeTimestamp.String():
+		resultingValue = r.parseTimestampValue(originalValue)
+	case ytschema.TypeFloat32.String(), ytschema.TypeFloat64.String():
+		resultingValue = r.parseFloatValue(originalValue)
+	default:
+		resultingValue = r.parseNullValues(originalValue, col)
 	}
 
-	chunkReader := s3_reader.NewChunkReader(s3RawReader, int(r.blockSize), r.logger)
-	defer chunkReader.Close()
-
-	err = chunkReader.ReadNextChunk()
-	if err != nil && !xerrors.Is(err, io.EOF) {
-		return nil, xerrors.Errorf("failed to read sample from file: %s: %w", key, err)
-	}
-	buff := chunkReader.Data()
-	if len(buff) == 0 {
-		// read nothing, file was empty
-		return nil, xerrors.New(fmt.Sprintf("could not read sample data from file: %s", key))
-	}
-
-	csvReader := r.newCSVReaderFromReader(bytes.NewReader(buff))
-
-	allColNames, err := r.getColumnNames(csvReader)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to extract column names from csv file '%s': %w", key, err)
-	}
-
-	filteredColNames, err := r.filterColNames(allColNames)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to filter column names based on additional reader options: %w", err)
-	}
-
-	currSchema, err := r.getColumnTypes(filteredColNames, csvReader)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to deduce column types based on sample read for file '%s': %w", key, err)
-	}
-
-	return abstract.NewTableSchema(currSchema), nil
+	return resultingValue
 }
 
-// getColumnTypes deduces the column types for the provided columns.
-// Types are inferred based on the read value.
-func (r *CSVReader) getColumnTypes(columns []abstract.ColSchema, csvReader *dt_csv.Reader) ([]abstract.ColSchema, error) {
-	readAfter := r.advancedOptions.SkipRowsAfterNames
-	elements, err := readAfterNRows(readAfter, csvReader)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to read csv line: %w", err)
-	}
-
-	var colsWithSchema []abstract.ColSchema
-
-	for _, col := range columns {
-		index, err := strconv.Atoi(col.Path)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to parse index of column for data type deduction: %w", err)
-		}
-
-		// existing column
-		if index >= len(elements) {
-			// mostly indicates that provided blockSize is to small
-			return nil, xerrors.NewSentinel("index of column out of bounds for data type deduction")
-		}
-
-		var val string
-		if index < 0 {
-			val = ""
-		} else {
-			val = elements[index]
-		}
-
-		dataType := r.deduceDataType(val)
-		column := abstract.NewColSchema(col.ColumnName, dataType, false)
-		column.OriginalType = fmt.Sprintf("csv:%s", dataType.String())
-		column.Path = col.Path
-
-		colsWithSchema = append(colsWithSchema,
-			column)
-	}
-
-	return colsWithSchema, nil
-}
-
-// deduceDataType deduces a columns type based on the type more closely matching the read value, if nothing is found it defaults to string data type.
-func (r *CSVReader) deduceDataType(val string) ytschema.Type {
-	if val == "" {
-		// nothing to deduce from, leave it as string
-		return ytschema.TypeString
-	}
-	if strings.Contains(val, string('`')) || strings.Contains(val, string('"')) {
-		// default of QuotedStringsCanBeNull is true so we need to check that it was not explicitly set to false
-		if r.additionalReaderOptions.QuotedStringsCanBeNull {
-			if yslices.Contains(r.additionalReaderOptions.NullValues, val) {
-				return ytschema.TypeString
-			}
-		}
-		// is not a nil type or a date, check if json, else leave as string
-		if err := fastjson.Validate(val); err == nil && (strings.Contains(val, "{") || strings.Contains(val, "[")) {
-			return ytschema.TypeAny
-		} else {
-			return ytschema.TypeString
-		}
-
-	} else {
-		if r.additionalReaderOptions.StringsCanBeNull && yslices.Contains(r.additionalReaderOptions.NullValues, val) {
-			return ytschema.TypeString
-		}
-		if yslices.Contains(r.additionalReaderOptions.FalseValues, val) || yslices.Contains(r.additionalReaderOptions.TrueValues, val) {
-			// is boolean
-			return ytschema.TypeBoolean
-		}
-		if r.additionalReaderOptions.DecimalPoint != "" {
-			// we briefly assume its a number
-			possibleNumber := strings.Replace(val, r.additionalReaderOptions.DecimalPoint, ".", 1)
-
-			_, err := strconv.ParseFloat(possibleNumber, 64)
-			if err == nil {
-				return ytschema.TypeFloat64
-			}
-		}
-		_, err := strconv.ParseFloat(val, 64)
+// parseFloatValue checks if the provided value can be correctly parsed to a float value
+// if the specified decimal char is used.
+// It defaults to the value itself if this conversion is not possible.
+func (r *CSVReader) parseFloatValue(originalValue string) any {
+	if r.config.additionalReaderOptions.DecimalPoint != "" {
+		possibleFloat := strings.Replace(originalValue, r.config.additionalReaderOptions.DecimalPoint, ".", 1)
+		_, err := strconv.ParseFloat(possibleFloat, 64)
 		if err == nil {
-			return ytschema.TypeFloat64
+			return possibleFloat
+		} else {
+			return originalValue
 		}
 
-		return ytschema.TypeString
+	} else {
+		return originalValue
 	}
 }
 
-// getColumnNames will extract the column names form the user provided column names.
-// If no column names where provided by the user it will check if the names should be autogenerated.
-// If both options are not feasible then it will read the first line from file (after skipping N lines as specified by skipRows)
-// and use the values read as column names.
-func (r *CSVReader) getColumnNames(csvReader *dt_csv.Reader) ([]string, error) {
-	var columnNames []string
-
-	if len(r.advancedOptions.ColumnNames) != 0 {
-		// column names where provided
-		columnNames = append(columnNames, r.advancedOptions.ColumnNames...)
-	} else if len(r.advancedOptions.ColumnNames) == 0 && r.advancedOptions.AutogenerateColumnNames {
-		// read data after skip_rows to know how many columns to generate
-		elements, err := readAfterNRows(r.advancedOptions.SkipRows, csvReader)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to read csv line after skipping rows: %w", err)
+// parseNullValues checks if the provided value is part of the null values list provided by the user.
+// If this is the case the zero value of the datatype is returned for this value.
+// It defaults to the original value if the value is not contained in the list or if the  conditions of the
+// boolean flags (QuotedStringsCanBeNull, StringsCanBeNull) are not fulfilled.
+func (r *CSVReader) parseNullValues(originalValue string, col abstract.ColSchema) any {
+	if r.config.additionalReaderOptions.QuotedStringsCanBeNull {
+		trimmedContent := originalValue
+		if strings.HasPrefix(originalValue, "\"") && strings.HasSuffix(originalValue, "\"") {
+			trimmedContent = strings.TrimSuffix(strings.TrimPrefix(originalValue, "\""), "\"")
+		} else if strings.HasPrefix(originalValue, "'") && strings.HasSuffix(originalValue, "'") {
+			trimmedContent = strings.TrimSuffix(strings.TrimPrefix(originalValue, "'"), "'")
 		}
-		for i := range elements {
-			columnNames = append(columnNames, fmt.Sprintf("f%d", i)) // generate col names
-		}
-	}
-
-	if len(columnNames) == 0 {
-		readAfter := r.advancedOptions.SkipRows
-		elements, err := readAfterNRows(readAfter, csvReader)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to read csv line after skipping rows: %w", err)
-		}
-		columnNames = append(columnNames, elements...)
-	}
-
-	return columnNames, nil
-}
-
-// filterColNames filters the required columns based on the values provided by the user in the include_columns parameter.
-// If columns not featured in the previously extracted columns are detected in teh include_columns parameter then,
-// based on the include_missing_columns its decided if an error should be raised or if a column with null values should be added.
-func (r *CSVReader) filterColNames(colNames []string) ([]abstract.ColSchema, error) {
-	var cols []abstract.ColSchema
-	if len(r.additionalReaderOptions.IncludeColumns) != 0 {
-		// only thees columns can be used
-		for _, name := range r.additionalReaderOptions.IncludeColumns {
-			contained := false
-			atIndex := -1
-			for index, element := range colNames {
-				if element == name {
-					contained = true
-					atIndex = index
-					break
-				}
-			}
-
-			if !contained && !r.additionalReaderOptions.IncludeMissingColumns {
-				// not contained and not allowed to be filled with nil values
-				return nil, xerrors.NewSentinel("could not find mandatory column in csv file")
-			}
-			column := abstract.NewColSchema(name, ytschema.TypeAny, false)
-			column.Path = strconv.Itoa(atIndex)
-			cols = append(cols, column)
+		if yslices.Contains(r.config.additionalReaderOptions.NullValues, trimmedContent) {
+			return abstract.DefaultValue(&col)
 		}
 	} else {
-		for index, name := range colNames {
-			column := abstract.NewColSchema(name, ytschema.TypeAny, false)
-			column.Path = strconv.Itoa(index)
-			cols = append(cols, column)
+		if r.config.additionalReaderOptions.StringsCanBeNull {
+			if yslices.Contains(r.config.additionalReaderOptions.NullValues, originalValue) {
+				return abstract.DefaultValue(&col)
+			}
 		}
 	}
 
-	return cols, nil
+	return originalValue
 }
 
-// skipRows reads and skips the specified amount of rows.
-func skipRows(nrOfRowsToSkip int64, csvReader *dt_csv.Reader) error {
-	for i := int64(0); i < nrOfRowsToSkip; i++ {
-		// read and ignore lines
-		_, err := csvReader.ReadLine()
+// parseDateValue checks if the provided value can be parsed to a time.Time through one of
+// the user provided TimestampParsers. It defaults to the original value if this is not the case.
+func (r *CSVReader) parseDateValue(originalValue string) any {
+	for _, parser := range r.config.additionalReaderOptions.TimestampParsers {
+		dateValue, err := time.Parse(parser, originalValue)
+		if err == nil {
+			return dateValue
+		}
+	}
+	return originalValue
+}
+
+// parseTimestampValue checks if the provided value can be parsed to a time.Time.
+// It defaults to the original value if this is not the case.
+func (r *CSVReader) parseTimestampValue(originalValue string) any {
+	toInt64, err := strconv.ParseInt(originalValue, 10, 64)
+	if err == nil {
+		return time.Unix(toInt64, 0)
+	}
+
+	return originalValue
+}
+
+// parseBooleanValue checks if the provided value is contained in one of the provided lists of
+// true/false values and returns the corresponding boolean value. If the value is contained in the null values
+// then a false boolean value is returned for this value. It defaults to the original value if no matches are found.
+func (r *CSVReader) parseBooleanValue(originalValue string) any {
+	if r.config.additionalReaderOptions.StringsCanBeNull {
+		if yslices.Contains(r.config.additionalReaderOptions.NullValues, originalValue) {
+			return false
+		}
+	}
+	if yslices.Contains(r.config.additionalReaderOptions.TrueValues, originalValue) {
+		return true
+	} else if yslices.Contains(r.config.additionalReaderOptions.FalseValues, originalValue) {
+		return false
+	} else {
+		// last ditch attempt, try string conversion
+		boolVal, err := strconv.ParseBool(originalValue)
 		if err != nil {
-			return xerrors.Errorf("failed to skip csv line: %w", err)
+			return originalValue
 		}
+		return boolVal
 	}
-	return nil
 }
 
-// readAfterNRows reads and skips the specified amount of csv rows.
-// As csv row here a full and complete row is intended (multiline rows are considered as 1 row if so configured).
-// It returns the first row read after skipping the specified rows.
-func readAfterNRows(nrOfRowsToSkip int64, csvReader *dt_csv.Reader) ([]string, error) {
-	if err := skipRows(nrOfRowsToSkip, csvReader); err != nil {
-		return nil, xerrors.Errorf("failed to skip %d rows: %w", nrOfRowsToSkip, err)
-	}
-
-	elements, err := csvReader.ReadLine()
+func NewCSVReader(
+	src *s3_model.S3Source,
+	lgr log.Logger,
+	sess *aws_session.Session,
+	metrics *stats.SourceStats,
+	s3RawReaderBuilder s3raw.S3RawReaderBuilder,
+) (s3_reader.S3Reader, error) {
+	config, _, err := newCSVConfigFromSource(src, lgr, sess, s3RawReaderBuilder, metrics)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read csv line after %d: %w", nrOfRowsToSkip, err)
+		return nil, err
 	}
-	return elements, nil
-}
-
-func (r *CSVReader) newCSVReaderFromReader(reader io.Reader) *dt_csv.Reader {
-	csvReader := dt_csv.NewReader(reader)
-	csvReader.NewlinesInValue = r.newlinesInValue
-	csvReader.QuoteChar = r.quoteChar
-	csvReader.EscapeChar = r.escapeChar
-	csvReader.Encoding = r.encoding
-	csvReader.Delimiter = r.delimiter
-	csvReader.DoubleQuote = r.doubleQuote
-	csvReader.DoubleQuoteStr = fmt.Sprintf("%s%s", string(r.quoteChar), string(r.quoteChar))
-
-	return csvReader
-}
-
-func NewCSVReader(src *s3_model.S3Source, lgr log.Logger, sess *aws_session.Session, metrics *stats.SourceStats) (s3_reader.Reader, error) {
-	if src == nil || src.Format.CSVSetting == nil {
-		return nil, xerrors.New("uninitialized settings for csv reader")
-	}
-	csvSettings := src.Format.CSVSetting
-
-	if len(csvSettings.Delimiter) != 1 {
-		return nil, xerrors.Errorf("invalid config, provided delimiter: %s", csvSettings.Delimiter)
-	}
-
-	var (
-		delimiter  rune
-		escapeChar rune
-		quoteChar  rune
-	)
-	if len(csvSettings.Delimiter) > 0 {
-		delimiter = []rune(csvSettings.Delimiter)[0]
-	}
-	if len(csvSettings.QuoteChar) > 0 {
-		quoteChar = []rune(csvSettings.QuoteChar)[0]
-	}
-	if len(csvSettings.EscapeChar) > 0 {
-		escapeChar = []rune(csvSettings.EscapeChar)[0]
-	}
-
-	reader := &CSVReader{
+	return &CSVReader{
+		config: *config,
 		table: abstract.TableID{
 			Namespace: src.TableNamespace,
 			Name:      src.TableName,
 		},
-		bucket:                  src.Bucket,
-		client:                  aws_s3.New(sess),
-		downloader:              s3manager.NewDownloader(sess),
-		logger:                  lgr,
-		tableSchema:             abstract.NewTableSchema(src.OutputSchema),
-		fastCols:                abstract.NewTableSchema(src.OutputSchema).FastColumns(),
-		colNames:                nil,
-		hideSystemCols:          src.HideSystemCols,
-		maxBatchSize:            src.ReadBatchSize,
-		blockSize:               csvSettings.BlockSize,
-		pathPrefix:              src.PathPrefix,
-		pathPattern:             src.PathPattern,
-		delimiter:               delimiter,
-		quoteChar:               quoteChar,
-		escapeChar:              escapeChar,
-		encoding:                csvSettings.Encoding,
-		doubleQuote:             csvSettings.DoubleQuote,
-		newlinesInValue:         csvSettings.NewlinesInValue,
-		additionalReaderOptions: csvSettings.AdditionalReaderOptions,
-		advancedOptions:         csvSettings.AdvancedOptions,
-		headerPresent:           false,
-		metrics:                 metrics,
-		unparsedPolicy:          src.UnparsedPolicy,
-	}
-	if len(reader.tableSchema.Columns()) == 0 {
-		if len(reader.advancedOptions.ColumnNames) == 0 && !reader.advancedOptions.AutogenerateColumnNames {
-			// header present in csv
-			reader.headerPresent = true
-		}
-
-		var err error
-		reader.tableSchema, err = reader.ResolveSchema(context.Background())
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve schema: %w", err)
-		}
-	} else {
-		// set original types and paths if not set
-		var cols []abstract.ColSchema
-		for index, col := range reader.tableSchema.Columns() {
-			if col.Path == "" {
-				col.Path = fmt.Sprintf("%d", index)
-			}
-			if col.OriginalType == "" {
-				col.OriginalType = fmt.Sprintf("csv:%s", col.DataType)
-			}
-			cols = append(cols, col)
-		}
-		reader.tableSchema = abstract.NewTableSchema(cols)
-	}
-
-	// append system columns at the end if necessary
-	if !reader.hideSystemCols {
-		cols := reader.tableSchema.Columns()
-		userDefinedSchemaHasPkey := reader.tableSchema.Columns().HasPrimaryKey()
-		reader.tableSchema = s3_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
-	}
-
-	reader.colNames = yslices.Map(reader.tableSchema.Columns(), func(t abstract.ColSchema) string { return t.ColumnName })
-	reader.fastCols = reader.tableSchema.FastColumns() // need to cache it, so we will not construct it for every line
-	return reader, nil
+		unparsedPolicy: src.UnparsedPolicy,
+		maxBatchSize:   src.ReadBatchSize,
+	}, nil
 }

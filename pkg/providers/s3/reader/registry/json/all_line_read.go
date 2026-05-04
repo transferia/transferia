@@ -1,21 +1,22 @@
 package json
 
 import (
-	"github.com/transferia/transferia/library/go/core/xerrors"
 	parsers_scanner "github.com/transferia/transferia/pkg/parsers/scanner"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	"github.com/valyala/fastjson"
 )
 
-func readAllLines(content []byte) ([]string, int, error) {
+//nolint:descriptiveerrors
+func readAllLines(content []byte, fileKey string) ([]string, uint64, reader_error.ReaderError) {
 	currScanner := parsers_scanner.NewLineBreakScanner(content)
 	scannedLines, err := currScanner.ScanAll()
 	if err != nil {
-		return nil, 0, xerrors.Errorf("failed to split all read lines: %w", err)
+		return nil, 0, reader_error.NewReaderErrorDataFile("json.readAllLines.scan", fileKey, err)
 	}
 
 	var lines []string
 
-	bytesRead := 0
+	bytesRead := uint64(0)
 	for index, line := range scannedLines {
 		if index == len(scannedLines)-1 {
 			// check if last line is complete
@@ -24,13 +25,13 @@ func readAllLines(content []byte) ([]string, int, error) {
 			}
 		}
 		lines = append(lines, line)
-		bytesRead += (len(line) + len("\n"))
+		bytesRead += uint64(len(line)) + 1 // 1 - it's 'len("\n")'
 	}
 	return lines, bytesRead, nil
 }
 
 // In order to comply with the POSIX standard definition of line https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206
-func readAllMultilineLines(content []byte) ([]string, int) {
+func readAllMultilineLines(content []byte) ([]string, uint64) {
 	if len(content) == 0 {
 		return make([]string, 0), 0
 	}
@@ -39,17 +40,17 @@ func readAllMultilineLines(content []byte) ([]string, int) {
 	extractedLine := make([]rune, 0)
 	foundStart := false
 	countCurlyBrackets := 0
-	bytesRead := 0
+	bytesRead := uint64(0)
 	inString := false
 	escaped := false
 
 	for _, char := range string(content) {
 		if foundStart && countCurlyBrackets == 0 {
 			lines = append(lines, string(extractedLine))
-			bytesRead += (len(string(extractedLine)) + len("\n"))
+			bytesRead += uint64(len(string(extractedLine)) + 1) // 1 - it's 'len("\n")'
 
 			foundStart = false
-			extractedLine = []rune{}
+			extractedLine = make([]rune, 0)
 			inString = false
 			escaped = false
 			continue
@@ -88,7 +89,7 @@ func readAllMultilineLines(content []byte) ([]string, int) {
 	}
 	if foundStart && countCurlyBrackets == 0 && content[len(content)-1] == '}' {
 		lines = append(lines, string(extractedLine))
-		bytesRead += len(string(extractedLine))
+		bytesRead += uint64(len(string(extractedLine)))
 	}
 	return lines, bytesRead
 }
