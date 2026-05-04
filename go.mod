@@ -51,10 +51,10 @@ require (
 	github.com/parquet-go/parquet-go v0.24.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/pingcap/parser v0.0.0-20210415081931-48e7f467fd74
-	github.com/prometheus/client_golang v1.22.0
+	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
-	github.com/prometheus/common v0.63.0
-	github.com/prometheus/procfs v0.16.0
+	github.com/prometheus/common v0.67.4
+	github.com/prometheus/procfs v0.19.2
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/segmentio/kafka-go v0.4.48
 	github.com/shirou/gopsutil/v3 v3.24.2
@@ -72,7 +72,7 @@ require (
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.135.1
 	go.mongodb.org/mongo-driver v1.17.3
-	go.opentelemetry.io/contrib/bridges/otelzap v0.12.0
+	go.opentelemetry.io/contrib/bridges/otelzap v0.13.0
 	go.opentelemetry.io/otel v1.43.0
 	go.opentelemetry.io/otel/metric v1.43.0
 	go.uber.org/atomic v1.11.0
@@ -182,6 +182,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
 	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.4 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
@@ -255,9 +256,10 @@ require (
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.38.0 // indirect
-	go.opentelemetry.io/otel/log v0.13.0 // indirect
+	go.opentelemetry.io/otel/log v0.15.0 // indirect
+	go.opentelemetry.io/otel/log/logtest v0.15.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
@@ -384,9 +386,11 @@ replace github.com/temporalio/omes => github.com/temporalio/omes v0.0.0-20240701
 
 replace github.com/aleroyer/rsyslog_exporter => github.com/prometheus-community/rsyslog_exporter v1.1.0
 
-replace github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
+replace github.com/prometheus/common => github.com/prometheus/common v0.63.0
 
-replace github.com/prometheus/common => github.com/prometheus/common v0.62.0
+replace github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.21.0
+
+replace github.com/prometheus/client_model => github.com/prometheus/client_model v0.6.1
 
 replace github.com/distribution/reference => github.com/distribution/reference v0.5.0
 
@@ -421,6 +425,12 @@ replace go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelg
 replace github.com/moby/buildkit => github.com/moby/buildkit v0.12.2
 
 replace github.com/tonistiigi/fsutil => github.com/tonistiigi/fsutil v0.0.0-20230629203738-36ef4d8c0dbb
+
+replace github.com/google/go-tpm-tools => github.com/google/go-tpm-tools v0.4.2
+
+replace go.opentelemetry.io/collector/config/configtls => go.opentelemetry.io/collector/config/configtls v1.31.0
+
+replace go.opentelemetry.io/otel/exporters/prometheus => go.opentelemetry.io/otel/exporters/prometheus v0.58.0
 
 replace github.com/getsentry/sentry-go => github.com/getsentry/sentry-go v0.13.0
 
