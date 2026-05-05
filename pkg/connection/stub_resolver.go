@@ -17,7 +17,7 @@ type StubConnectionResolver struct {
 }
 
 func (d *StubConnectionResolver) ResolveConnection(ctx context.Context, connectionID string, typ abstract.ProviderType) (ManagedConnection, error) {
-	logger.Log.Infof("Resolving connection data for id %s", connectionID)
+	logger.Log.Infof("Resolving stub connection data for id %s", connectionID)
 	res, ok := d.ConnectionsByID[connectionID]
 	if !ok {
 		return nil, xerrors.Errorf("Unable to resolve connection %s", connectionID)
