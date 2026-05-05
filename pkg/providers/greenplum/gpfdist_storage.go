@@ -21,21 +21,23 @@ import (
 var _ abstract.Storage = (*GpfdistStorage)(nil)
 
 type GpfdistStorage struct {
-	storage *Storage
-	src     *GpSource
-	params  gpfdistbin.GpfdistParams
+	storage          *Storage
+	src              *GpSource
+	params           gpfdistbin.GpfdistParams
+	tmpObjectsSuffix string
 }
 
-func NewGpfdistStorage(src *GpSource, mRegistry core_metrics.Registry, params gpfdistbin.GpfdistParams) *GpfdistStorage {
+func NewGpfdistStorage(src *GpSource, mRegistry core_metrics.Registry, params gpfdistbin.GpfdistParams, tmpObjectsSuffix string) *GpfdistStorage {
 	baseStorage := NewStorage(src, mRegistry)
 	baseStorage.overridePostgresesCfg(pgStorageConfig{
 		DisableCheckReplIdentity: true,
 		DisableViewsExtraction:   true,
 	})
 	return &GpfdistStorage{
-		storage: baseStorage,
-		src:     src,
-		params:  params,
+		storage:          baseStorage,
+		src:              src,
+		params:           params,
+		tmpObjectsSuffix: tmpObjectsSuffix,
 	}
 }
 
@@ -79,9 +81,18 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 		pipeReaders[i] = gpfdist.NewPipeReader(gpfdists[i], itemTemplate(table, schema))
 		go pipeReaders[i].Run(pusher)
 	}
-	logger.Log.Debugf("%d gpfdists for storage initialized", len(gpfdists))
+	logger.Log.Infof("%d gpfdists for storage initialized", len(gpfdists))
 
 	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		for _, reader := range pipeReaders {
+			if reader != nil {
+				if _, err := reader.Close(ctx); err != nil {
+					logger.Log.Warn("Unable to close pipe reader", log.Error(err))
+				}
+			}
+		}
 		for _, gpfd := range gpfdists {
 			if err := gpfd.Stop(); err != nil {
 				logger.Log.Error("Unable to stop gpfdist", log.Error(err))
@@ -90,13 +101,14 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 	}()
 
 	// Step 2. Run gpfdist export through external table.
-	ddlExecutor := gpfdistbin.NewGpfdistDDLExecutor(conn, s.params.ServiceSchema)
-	extRows, err := ddlExecutor.RunExternalTableTransaction(
+	extRows, err := gpfdistbin.RunAndCommitExternalTableTransaction(
 		ctx, mode.ToExternalTableMode(), table.ID(), schema, locations,
+		conn, s.params.ServiceSchema, s.tmpObjectsSuffix,
 	)
 	if err != nil {
 		return xerrors.Errorf("unable to create external table and insert rows: %w", err)
 	}
+	logger.Log.Info("Gpfdist storage external table transaction finished")
 
 	// Step 3. Wait PipeReaders rows count is equal to external table rows count and close them.
 	waitReadersCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
@@ -104,6 +116,8 @@ func (s *GpfdistStorage) LoadTable(ctx context.Context, table abstract.TableDesc
 	if err := waitPipeReaders(waitReadersCtx, pipeReaders, extRows); err != nil {
 		return xerrors.Errorf("unable to wait pipe readers: %w", err)
 	}
+
+	logger.Log.Info("Gpfdist storage done loading table")
 	return nil
 }
 

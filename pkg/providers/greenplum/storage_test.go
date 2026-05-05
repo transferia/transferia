@@ -10,7 +10,7 @@ import (
 
 func TestDisableCheckReplIdentity(t *testing.T) {
 	t.Run("NewGpfdistStorage", func(t *testing.T) {
-		gpfdistStorage := NewGpfdistStorage(nil, solomon.NewRegistry(nil), gpfdistbin.GpfdistParams{})
+		gpfdistStorage := NewGpfdistStorage(nil, solomon.NewRegistry(nil), gpfdistbin.GpfdistParams{}, "")
 		require.True(t, gpfdistStorage.storage.postgresesCfg.DisableCheckReplIdentity)
 		require.True(t, gpfdistStorage.storage.postgresesCfg.DisableViewsExtraction)
 	})

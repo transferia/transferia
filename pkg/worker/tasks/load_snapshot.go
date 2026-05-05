@@ -1021,7 +1021,7 @@ func (l *SnapshotLoader) DoUploadTables(
 				timestampTz := util.GetTimestampFromContextOrNow(ctx)
 				schema, err := l.tableSchema(ctx, *nextPartPtr.ToTableID(), source)
 				if err != nil {
-					return xerrors.Errorf("unable to load table: %s schema:%w", nextPartPtr.String(), err)
+					return xerrors.Errorf("unable to load schema of table %s: %w", nextPartPtr.String(), err)
 				}
 
 				var logPosition abstract.LogPosition

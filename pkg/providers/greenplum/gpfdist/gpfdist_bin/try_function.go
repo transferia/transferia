@@ -31,7 +31,7 @@ func tryFunction(ctx context.Context, function, cancel func() error) error {
 		defer close(fooResCh)
 		startedAt := time.Now()
 		fooResCh <- function()
-		logger.Log.Debugf("tryFunction: Got function return value after %s", time.Since(startedAt).String())
+		logger.Log.Infof("tryFunction: Got function return value after %s", time.Since(startedAt).String())
 	}()
 
 	select {

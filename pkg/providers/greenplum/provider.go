@@ -142,7 +142,7 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	}
 	if gpfdistParams := p.asGpfdist(); gpfdistParams != nil {
 		p.logger.Warn("Using experimental gfpdist storage")
-		return NewGpfdistStorage(src, p.registry, *gpfdistParams), nil
+		return NewGpfdistStorage(src, p.registry, *gpfdistParams, p.transfer.ID), nil
 	}
 	return NewStorage(src, p.registry), nil
 }

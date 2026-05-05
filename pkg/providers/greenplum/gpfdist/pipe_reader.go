@@ -43,7 +43,7 @@ func (r *PipeReader) readFromPipe(file *os.File, pusher abstract.Pusher) (int64,
 			logger.Log.Errorf("Unable to read pipe %s: %s", file.Name(), err.Error())
 			return pushedCnt, xerrors.Errorf("unable to read pipe: %w", err)
 		}
-		logger.Log.Debugf("Read %d bytes from pipe", n)
+		logger.Log.Infof("Read %d bytes from pipe", n)
 		splitted := splitter.Do(buffer[:n])
 		for _, line := range splitted {
 			batch = append(batch, r.itemFromTemplate(line))

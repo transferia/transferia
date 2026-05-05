@@ -225,7 +225,7 @@ func (s *Storage) LoadTableImplDistributed(ctx context.Context, table abstract.T
 	}
 
 	segAndXIDs := thisWorkerRule.GetSegments()
-	logger.Log.Debug("Loading table in distributed mode from assigned segments", log.String("table", table.Fqtn()), log.Array("segments", segAndXIDs))
+	logger.Log.Info("Loading table in distributed mode from assigned segments", log.String("table", table.Fqtn()), log.Array("segments", segAndXIDs))
 	for _, segAndXID := range segAndXIDs {
 		seg := Segment(int(segAndXID.GetSegmentID()))
 		err := backoff.RetryNotify(

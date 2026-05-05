@@ -12,8 +12,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/greenplum/gpfdist"
 	gpfdistbin "github.com/transferia/transferia/pkg/providers/greenplum/gpfdist/gpfdist_bin"
+	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/slicesx"
-	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -22,43 +22,72 @@ type GpfdistTableSink struct {
 	pipesWriters []*gpfdist.PipeWriter
 	gpfdists     []*gpfdistbin.Gpfdist
 
-	// stopExtWriter waits for ExtWriter self-stop, and forcely cancels it if `timeout` expires.
-	// Expected that ExtWriter will stop by itself after `PipeWriter` stopped and won't be forcely cancelled.
-	stopExtWriter func(timeout time.Duration) (int64, error)
+	extTableTxCloser gpfdistbin.TxCloser // extTableTxCloser manages external table writing transaction closing.
+
+	extTableWriterRes      gpfdistbin.RunResult
+	extTableWriterFinished <-chan struct{}
+	extTableWriterCancel   context.CancelFunc
 }
 
-func (s *GpfdistTableSink) Close() error {
+// commitTransaction commits the open transaction after successful load. Called when DoneTableLoad is processed.
+func (s *GpfdistTableSink) commitTransaction(ctx context.Context) error {
+	rollbacks := util.Rollbacks{}
+	defer rollbacks.Do()
+	rollbacks.Add(func() { s.extTableTxCloser.Rollback(ctx) })
+
+	timeout := 10 * time.Minute
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	logger.Log.Infof("Waiting %s for external writer to complete before commit", timeout.String())
+
+	select {
+	case <-s.extTableWriterFinished:
+	case <-timer.C:
+		s.extTableWriterCancel()
+		return xerrors.Errorf("external writer is not stopped within %s timeout and was canceled forcefully", timeout.String())
+	}
+	res := s.extTableWriterRes
+	if res.Err != nil {
+		return xerrors.Errorf("external writer failed: %w", res.Err)
+	}
+
+	if err := s.extTableTxCloser.Commit(ctx); err != nil {
+		return xerrors.Errorf("unable to commit transaction: %w", err)
+	}
+	rollbacks.Cancel()
+	logger.Log.Infof("Transaction committed successfully - %d rows inserted", res.Rows)
+	return nil
+}
+
+func (s *GpfdistTableSink) Close(ctx context.Context, needCommit bool) error {
+	var multiErr error
 	pipesRows := int64(0)
 	logger.Log.Info("Stopping pipes writers")
 	for _, writer := range s.pipesWriters {
 		rows, err := writer.Stop()
 		if err != nil {
-			logger.Log.Error("Lines writer stopped with error", log.Error(err))
+			multiErr = errors.Join(multiErr, xerrors.Errorf("pipe writer stop error: %w", err))
 		}
 		pipesRows += rows
 	}
 
-	logger.Log.Info("Pipes writers stopped, stopping external table writer")
-	beforeStop := time.Now()
-	tableRows, err := s.stopExtWriter(10 * time.Minute)
-	logger.Log.Infof("External table writer stopped in %s", time.Since(beforeStop))
-	if err != nil {
-		logger.Log.Error("External table writer stopped with error", log.Error(err))
+	if needCommit {
+		logger.Log.Info("Pipes writers stopped, stopping external table writer")
+		if err := s.commitTransaction(ctx); err != nil {
+			multiErr = errors.Join(multiErr, xerrors.Errorf("tx commit error: %w", err))
+		}
 	}
+	rollbackCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	s.extTableTxCloser.Rollback(rollbackCtx) // Does nothing after commit, no need to check `needCommit`.
 
-	if pipesRows != tableRows {
-		logger.Log.Errorf("Lines writer wrote %d lines, while external table writer – %d", pipesRows, tableRows)
-	}
 	logger.Log.Info("External table writer stopped, stopping gpfdists")
-
-	err = nil
 	for _, gpfd := range s.gpfdists {
-		err = errors.Join(err, gpfd.Stop())
+		if err := gpfd.Stop(); err != nil {
+			multiErr = errors.Join(multiErr, xerrors.Errorf("gpfdist stop error: %w", err))
+		}
 	}
-	if err != nil {
-		return xerrors.Errorf("unable to stop gpfdists: %w", err)
-	}
-	return nil
+	return multiErr
 }
 
 func (s *GpfdistTableSink) Push(items []abstract.ChangeItem) error {
@@ -87,13 +116,15 @@ func (s *GpfdistTableSink) Push(items []abstract.ChangeItem) error {
 }
 
 func InitGpfdistTableSink(
-	table abstract.TableID, tableSchema *abstract.TableSchema, localAddr net.IP, conn *pgxpool.Pool, params gpfdistbin.GpfdistParams,
+	table abstract.TableID, tableSchema *abstract.TableSchema, localAddr net.IP, conn *pgxpool.Pool, params gpfdistbin.GpfdistParams, tmpObjectsSuffix string,
 ) (*GpfdistTableSink, error) {
 	if params.ThreadsCount <= 0 {
 		return nil, xerrors.Errorf("number of threads is not positive (%d)", params.ThreadsCount)
 	}
 	logger.Log.Infof("Creating %d-threaded gpfdist table sink", params.ThreadsCount)
 
+	rollbacks := util.Rollbacks{}
+	defer rollbacks.Do()
 	var err error
 	mode := gpfdistbin.ImportTable
 
@@ -106,38 +137,17 @@ func InitGpfdistTableSink(
 			return nil, xerrors.Errorf("unable to init gpfdist: %w", err)
 		}
 		locations[i] = gpfdists[i].Location()
-		logger.Log.Debugf("Gpfdist for sink initialized")
-	}
-
-	type workerResult struct {
-		rows int64
-		err  error
+		logger.Log.Infof("Gpfdist for sink initialized")
 	}
 
 	// Step 2. Run background export through external table.
-	ctx, cancel := context.WithCancel(context.Background())
-	extWriterCh := make(chan workerResult, 1)
-	stopExtWriter := func(timeout time.Duration) (int64, error) {
-		timer := time.NewTimer(timeout)
-		var res workerResult
-		select {
-		case res = <-extWriterCh:
-		case <-timer.C:
-			logger.Log.Errorf("External table writer not stopped during %s timeout, force cancelling it", timeout)
-			cancel()
-			res = <-extWriterCh
-		}
-		return res.rows, res.err
-	}
-	go func() {
-		defer close(extWriterCh)
-		ddlExecutor := gpfdistbin.NewGpfdistDDLExecutor(conn, params.ServiceSchema)
-		rows, err := ddlExecutor.RunExternalTableTransaction(
-			ctx, mode.ToExternalTableMode(), table, tableSchema, locations,
-		)
-		extWriterCh <- workerResult{rows: rows, err: err}
-		logger.Log.Info("External table writer goroutine stopped")
-	}()
+	// Async run transaction, which is kept open until DoneTableLoad (commit) or Close (rollback).
+	ctx, extTableWriterCancel := context.WithCancel(context.Background())
+	rollbacks.Add(extTableWriterCancel)
+	extTableTxCloser, extTableWriterCh := gpfdistbin.RunExternalTableTransaction(
+		ctx, mode.ToExternalTableMode(), table, tableSchema,
+		locations, conn, params.ServiceSchema, tmpObjectsSuffix,
+	)
 
 	// Step3. Run PipesWriters which would asyncly serve theirs `.Write()` method calls.
 	pipesWriters := make([]*gpfdist.PipeWriter, params.ThreadsCount)
@@ -148,9 +158,20 @@ func InitGpfdistTableSink(
 		}
 	}
 
-	return &GpfdistTableSink{
-		pipesWriters:  pipesWriters,
-		gpfdists:      gpfdists,
-		stopExtWriter: stopExtWriter,
-	}, nil
+	rollbacks.Cancel()
+
+	extTableWriterFinished := make(chan struct{})
+	sink := &GpfdistTableSink{
+		pipesWriters:           pipesWriters,
+		gpfdists:               gpfdists,
+		extTableTxCloser:       extTableTxCloser,
+		extTableWriterRes:      gpfdistbin.RunResult{Rows: 0, Err: xerrors.New("ext writer result not received")},
+		extTableWriterFinished: extTableWriterFinished,
+		extTableWriterCancel:   extTableWriterCancel,
+	}
+	go func() {
+		sink.extTableWriterRes = <-extTableWriterCh
+		close(extTableWriterFinished)
+	}()
+	return sink, nil
 }

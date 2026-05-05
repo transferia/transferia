@@ -192,22 +192,23 @@ func (g *Gpfdist) startCmd(id int) error {
 	}
 	go processLog(stdout, log.InfoLevel, g.mode.toLogTag()+strconv.Itoa(id), portChannel)
 
-	logger.Log.Debugf("Will start gpfdist command")
+	logger.Log.Infof("Will start gpfdist command")
 	if err = g.cmd.Start(); err != nil {
 		return err
 	}
 	timer := time.NewTimer(time.Minute)
+	defer timer.Stop()
 	select {
 	case port := <-portChannel:
 		g.port = port
-		logger.Log.Debugf("Aquired port %d", g.port)
+		logger.Log.Infof("Acquired port %d", g.port)
 		return nil
 	case <-timer.C:
 		err := g.cmd.Process.Kill()
 		if err != nil {
 			logger.Log.Errorf("Can't kill process %v", err)
 		}
-		return xerrors.Errorf("unable to aquire gpfdist port number")
+		return xerrors.Errorf("unable to acquire gpfdist port number")
 	}
 }
 
@@ -222,7 +223,7 @@ func processLog(pipe io.ReadCloser, level log.Level, prefix string, portChannel 
 		}()
 	}
 	scanner := bufio.NewScanner(pipe)
-	logger.Log.Infof("Start processing gpfdist %s level logs", level.String())
+	logger.Log.Infof("Start processing gpfdist-%s %s level logs", prefix, level.String())
 	for scanner.Scan() {
 		line := scanner.Text()
 		if portChannel != nil {
@@ -230,7 +231,7 @@ func processLog(pipe io.ReadCloser, level log.Level, prefix string, portChannel 
 			if len(matches) == 2 {
 				port, err := strconv.Atoi(matches[1])
 				if err != nil {
-					logger.Log.Errorf("Error parsing port '%s': %v", matches[1], err)
+					logger.Log.Errorf("Error parsing gpfdist-%s port '%s': %v", prefix, matches[1], err)
 				} else {
 					portChannel <- port
 				}
@@ -252,7 +253,7 @@ func processLog(pipe io.ReadCloser, level log.Level, prefix string, portChannel 
 		}
 	}
 	if scanner.Err() != nil {
-		logger.Log.Errorf("Unable to read %s level logs string: %s", level, scanner.Err().Error())
+		logger.Log.Errorf("Unable to read gpfdist-%s %s level logs string: %s", prefix, level, scanner.Err().Error())
 	}
-	logger.Log.Infof("Stopped processing gpfdist %s level logs", level.String())
+	logger.Log.Infof("Stopped processing gpfdist-%s %s level logs", prefix, level.String())
 }

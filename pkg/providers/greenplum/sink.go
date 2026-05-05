@@ -180,7 +180,7 @@ func (s *Sink) flushRowChangeItems(ctx context.Context) error {
 	if err := s.flushRowChangeItemsToCoordinator(ctx); err != nil {
 		return xerrors.Errorf("failed to flush to %s: %w", Coordinator(), err)
 	}
-	logger.Log.Debug("Rows flushed to all segments successfully")
+	logger.Log.Infof("Rows flushed to all segments successfully")
 	return nil
 }
 

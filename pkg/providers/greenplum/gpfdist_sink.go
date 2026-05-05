@@ -21,9 +21,10 @@ import (
 var _ abstract.Sinker = (*GpfdistSink)(nil)
 
 type GpfdistSink struct {
-	dst    *GpDestination
-	conn   *pgxpool.Pool
-	params gpfdistbin.GpfdistParams
+	dst              *GpDestination
+	conn             *pgxpool.Pool
+	params           gpfdistbin.GpfdistParams
+	tmpObjectsSuffix string
 
 	tableSinks   map[abstract.TableID]*GpfdistTableSink
 	tableSinksMu sync.RWMutex
@@ -37,26 +38,30 @@ func (s *GpfdistSink) Close() error {
 	defer s.tableSinksMu.Unlock()
 	var errors []error
 	for _, tableSink := range s.tableSinks {
-		if err := tableSink.Close(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		if err := tableSink.Close(ctx, false); err != nil {
 			errors = append(errors, err)
 		}
+		cancel()
 	}
 	s.tableSinks = nil
 	if len(errors) > 0 {
-		return xerrors.Errorf("unable to stop %d/%d gpfdist tableSinks: %w", len(errors), len(s.tableSinks), multierr.Combine(errors...))
+		return xerrors.Errorf("unable to stop %d gpfdist tableSinks: %w", len(errors), multierr.Combine(errors...))
 	}
 	return nil
 }
 
-func (s *GpfdistSink) removeTableSink(table abstract.TableID) error {
-	s.tableSinksMu.Lock()
-	defer s.tableSinksMu.Unlock()
+func (s *GpfdistSink) commitAndRemoveTableSink(ctx context.Context, table abstract.TableID) error {
+	s.tableSinksMu.RLock()
 	tableSink, ok := s.tableSinks[table]
+	s.tableSinksMu.RUnlock()
 	if !ok {
 		return xerrors.Errorf("sink for table %s not exists", table)
 	}
-	err := tableSink.Close()
+	err := tableSink.Close(ctx, true)
+	s.tableSinksMu.Lock()
 	delete(s.tableSinks, table)
+	s.tableSinksMu.Unlock()
 	return err
 }
 
@@ -67,7 +72,7 @@ func (s *GpfdistSink) getOrCreateTableSink(table abstract.TableID, schema *abstr
 		return nil
 	}
 
-	tableSink, err := InitGpfdistTableSink(table, schema, s.localAddr, s.conn, s.params)
+	tableSink, err := InitGpfdistTableSink(table, schema, s.localAddr, s.conn, s.params, s.tmpObjectsSuffix)
 	if err != nil {
 		return xerrors.Errorf("unable to init sink for table %s: %w", table, err)
 	}
@@ -89,7 +94,7 @@ func (s *GpfdistSink) Push(items []abstract.ChangeItem) error {
 	if ok, table := isOneTableInserts(items); ok && table != nil {
 		return s.pushToTableSink(*table, items)
 	}
-	// systemKindCtx is used to cancel system actions (cleanup or init table load)
+	// systemKindCtx is used to cancel system actions (cleanup, done or init table load)
 	// and do not applies to inserts.
 	systemKindCtx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
@@ -102,7 +107,7 @@ func (s *GpfdistSink) Push(items []abstract.ChangeItem) error {
 				return xerrors.Errorf("unable to start sink for table %s: %w", table, err)
 			}
 		case abstract.DoneTableLoad:
-			if err := s.removeTableSink(table); err != nil {
+			if err := s.commitAndRemoveTableSink(systemKindCtx, table); err != nil {
 				return xerrors.Errorf("unable to stop sink for table %s: %w", table, err)
 			}
 		case abstract.InsertKind:
@@ -204,12 +209,13 @@ func NewGpfdistSink(dst *GpDestination, registry core_metrics.Registry, lgr log.
 	}
 
 	return &GpfdistSink{
-		dst:          dst,
-		conn:         conn,
-		params:       params,
-		tableSinks:   make(map[abstract.TableID]*GpfdistTableSink),
-		tableSinksMu: sync.RWMutex{},
-		pgCoordSink:  pgCoordSinker,
-		localAddr:    localAddr,
+		dst:              dst,
+		conn:             conn,
+		params:           params,
+		tmpObjectsSuffix: transferID,
+		tableSinks:       make(map[abstract.TableID]*GpfdistTableSink),
+		tableSinksMu:     sync.RWMutex{},
+		pgCoordSink:      pgCoordSinker,
+		localAddr:        localAddr,
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -17,48 +18,116 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-type externalTableMode string
-
-const (
-	modeWritable = externalTableMode("WRITABLE")
-	modeReadable = externalTableMode("READABLE")
-)
-
-type GpfdistDDLExecutor struct {
+type gpfdistDDLExecutor struct {
 	conn          *pgxpool.Pool
 	serviceSchema string
+	extTableName  string
+	tx            pgx.Tx
+	cancelRun     context.CancelFunc
+	runFinished   chan struct{}
 }
 
-func tmpExtTableName(name string) string {
-	return "_dt_" + name + "__ext"
-}
-
-func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
-	ctx context.Context, mode externalTableMode, table abstract.TableID,
-	schema *abstract.TableSchema, locations []string,
-) (int64, error) {
-	if len(locations) == 0 {
-		return 0, xerrors.New("locations is empty")
-	}
-	serviceSchema := d.serviceSchema
+func newGpfdistDDLExecutor(conn *pgxpool.Pool, table abstract.TableID, serviceSchema, tmpObjectsSuffix string) *gpfdistDDLExecutor {
 	if serviceSchema == "" {
 		serviceSchema = table.Namespace
 	}
+	extTableName := abstract.PgName(serviceSchema, tmpExtTableName(table.Name, tmpObjectsSuffix))
+	return &gpfdistDDLExecutor{
+		conn:          conn,
+		serviceSchema: serviceSchema,
+		extTableName:  extTableName,
+		tx:            nil,
+		cancelRun:     nil,
+		runFinished:   make(chan struct{}),
+	}
+}
+
+// Commit waits for run to finish and commits transaction.
+// NOTE: Commit rollbacks transaction if error has occured.
+func (d *gpfdistDDLExecutor) Commit(ctx context.Context) error {
+	rollbacks := util.Rollbacks{}
+	defer rollbacks.Do()
+	rollbacks.Add(func() { d.Rollback(ctx) })
+
+	select {
+	case <-d.runFinished:
+	case <-ctx.Done():
+		return xerrors.Errorf("context is done: %w", ctx.Err())
+	}
+	if d.tx == nil {
+		return xerrors.New("transaction is nil")
+	}
+	err := d.tx.Commit(ctx)
+	d.tx = nil // If commit failed, tx is already aborted by DB.
+	if err != nil {
+		return err
+	}
+	dropCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if err := d.dropExtTable(dropCtx); err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to drop ext table '%s'", d.extTableName), log.Error(err))
+	}
+	rollbacks.Cancel()
+	return nil
+}
+
+// Rollback rollbacks transaction. Could be called many times, only first one matters.
+func (d *gpfdistDDLExecutor) Rollback(ctx context.Context) {
+	if d.cancelRun == nil {
+		logger.Log.Error("DDL Executor cancel function is nil")
+		return
+	}
+	d.cancelRun()
+	<-d.runFinished
+	if d.tx == nil {
+		return
+	}
+	err := d.tx.Rollback(ctx)
+	if err == nil {
+		logger.Log.Info("Transaction rolled back")
+		return
+	}
+	logger.Log.Error("Unable to rollback transaction", log.Error(err))
+	if err := d.dropExtTable(ctx); err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to drop ext table '%s'", d.extTableName), log.Error(err))
+	}
+	d.tx = nil
+}
+
+func (d *gpfdistDDLExecutor) dropExtTable(ctx context.Context) error {
+	_, err := d.conn.Exec(ctx, fmt.Sprintf("DROP EXTERNAL TABLE IF EXISTS %s", d.extTableName))
+	return err
+}
+
+func (d *gpfdistDDLExecutor) runImpl(
+	ctx context.Context, mode externalTableMode, table abstract.TableID,
+	schema *abstract.TableSchema, locations []string,
+) (int64, error) {
+	defer close(d.runFinished)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	d.cancelRun = cancel
+
+	if len(locations) == 0 {
+		return 0, xerrors.New("locations is empty")
+	}
 	var sourceTableName, targetTableName string
 	tableName := abstract.PgName(table.Namespace, table.Name)
-	externalTableName := abstract.PgName(serviceSchema, tmpExtTableName(table.Name))
 	switch mode {
 	case modeWritable:
-		sourceTableName, targetTableName = tableName, externalTableName
+		sourceTableName, targetTableName = tableName, d.extTableName
 	case modeReadable:
-		sourceTableName, targetTableName = externalTableName, tableName
+		sourceTableName, targetTableName = d.extTableName, tableName
 	}
 
-	createExtTableQuery, err := d.buildCreateExtTableQuery(externalTableName, mode, locations, schema)
+	createExtTableQuery, err := buildCreateExtTableQuery(d.extTableName, mode, locations, schema)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to generate external table creation query: %w", err)
 	}
-	selectAndInsertQuery := d.buildSelectAndInsertQuery(sourceTableName, targetTableName, schema)
+
+	if err := d.dropExtTable(ctx); err != nil {
+		return 0, xerrors.Errorf("Unable to drop external table '%s' on startup: %w", d.extTableName, err)
+	}
 
 	tx, err := d.conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted, AccessMode: pgx.ReadWrite})
 	if err != nil {
@@ -78,15 +147,7 @@ func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 		logger.Log.Error(msg, log.Error(err), log.String("sql", createExtTableQuery))
 		return 0, xerrors.Errorf("%s: %w", msg, err)
 	}
-	defer func() {
-		dropTableQuery := fmt.Sprintf("DROP EXTERNAL TABLE IF EXISTS %s", externalTableName)
-		if _, err := d.conn.Exec(ctx, dropTableQuery); err != nil {
-			logger.Log.Error("Unable to drop external table", log.Error(err), log.String("sql", dropTableQuery))
-		} else {
-			logger.Log.Infof("External table %s dropped", externalTableName)
-		}
-	}()
-
+	selectAndInsertQuery := buildSelectAndInsertQuery(sourceTableName, targetTableName, schema)
 	tag, err := tx.Exec(ctx, selectAndInsertQuery)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to select and insert with external %s table", string(mode))
@@ -102,17 +163,15 @@ func (d *GpfdistDDLExecutor) RunExternalTableTransaction(
 		}
 		return 0, xerrors.Errorf("%s: %w", msg, err)
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return 0, xerrors.Errorf("Unable to commit external %s table transaction: %w", string(mode), err)
-	}
+	d.tx = tx
 	rollbacks.Cancel()
 
 	rowsCount := tag.RowsAffected()
-	logger.Log.Debugf("Inserted %d rows from %s to %s", rowsCount, sourceTableName, targetTableName)
+	logger.Log.Infof("Inserted %d rows from %s to %s", rowsCount, sourceTableName, targetTableName)
 	return rowsCount, nil
 }
 
-func (d *GpfdistDDLExecutor) buildCreateExtTableQuery(
+func buildCreateExtTableQuery(
 	fullTableName string, mode externalTableMode, locations []string, schema *abstract.TableSchema,
 ) (string, error) {
 	columns := schema.Columns()
@@ -133,7 +192,7 @@ func (d *GpfdistDDLExecutor) buildCreateExtTableQuery(
 				return "", xerrors.Errorf("unable to convert column %s to GP type: %w", col.ColumnName, err)
 			}
 		}
-		query.WriteString(fmt.Sprintf(`"%v" %v`, col.ColumnName, colType))
+		query.WriteString(fmt.Sprintf(`"%s" %s`, col.ColumnName, colType))
 	}
 	query.WriteString("\n)\n")
 	query.WriteString(fmt.Sprintf("LOCATION ('%s')\n", strings.Join(locations, "','")))
@@ -142,7 +201,7 @@ func (d *GpfdistDDLExecutor) buildCreateExtTableQuery(
 	return query.String(), nil
 }
 
-func (d *GpfdistDDLExecutor) buildSelectAndInsertQuery(sourceTable, targetTable string, schema *abstract.TableSchema) string {
+func buildSelectAndInsertQuery(sourceTable, targetTable string, schema *abstract.TableSchema) string {
 	columns := strings.Builder{}
 	for _, col := range schema.Columns() {
 		if columns.Len() > 0 {
@@ -154,6 +213,6 @@ func (d *GpfdistDDLExecutor) buildSelectAndInsertQuery(sourceTable, targetTable 
 	return fmt.Sprintf("INSERT INTO %s (%s) SELECT %s FROM %s", targetTable, columnsString, columnsString, sourceTable)
 }
 
-func NewGpfdistDDLExecutor(conn *pgxpool.Pool, serviceSchema string) *GpfdistDDLExecutor {
-	return &GpfdistDDLExecutor{conn: conn, serviceSchema: serviceSchema}
+func tmpExtTableName(name string, tmpObjectsSuffix string) string {
+	return "_dt_" + name + "_" + tmpObjectsSuffix + "_ext"
 }
