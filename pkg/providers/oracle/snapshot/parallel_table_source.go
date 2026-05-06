@@ -13,6 +13,7 @@ import (
 	oracle_schema "github.com/transferia/transferia/pkg/providers/oracle/schema"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -76,7 +77,6 @@ type oracleParallelTableSource struct {
 	position         *oracle_common.LogPosition
 	table            *oracle_schema.Table
 	sourceStats      *stats.SourceStats
-	partStates       []partLoadState
 	logger           log.Logger
 }
 
@@ -92,7 +92,6 @@ type TablePartRow struct {
 
 type partLoadState struct {
 	load    *loader
-	ctx     context.Context
 	pusher  abstract.Pusher
 	partRow TablePartRow
 }
@@ -128,54 +127,28 @@ func (s *oracleParallelTableSource) Load(ctx context.Context, pusher abstract.Pu
 		return xerrors.Errorf("failed to execute a query to split table into parts: %w", err)
 	}
 
-	s.partStates = make([]partLoadState, len(partRows))
+	g, ctx := errgroup.WithContext(runCtx)
+	g.SetLimit(s.config.ParallelTableLoadDegreeOfParallelism)
 	for i := 0; i < len(partRows); i++ {
-		s.partStates[i] = partLoadState{
+		part := partLoadState{
 			load:    newLoader(s.sqlxDB, s.config, s.position, s.table, s.logger, s.sourceStats),
-			ctx:     runCtx,
 			pusher:  pusher,
-			partRow: partRows[i],
-		}
+			partRow: partRows[i]}
+		g.Go(func() error {
+			if err := s.loadPart(ctx, part); err != nil {
+				return xerrors.Errorf("failed to load part loading routine: %w", err)
+			}
+			return nil
+		})
 	}
-
-	partLoadQueue := make(chan *partLoadState, len(s.partStates))
-	for i := 0; i < len(partRows); i++ {
-		partLoadQueue <- &s.partStates[i]
-	}
-	close(partLoadQueue)
-
-	errCh := make(chan error, s.config.ParallelTableLoadDegreeOfParallelism)
-	terminateCh := make(chan struct{})
-	for i := 0; i < s.config.ParallelTableLoadDegreeOfParallelism; i++ {
-		go s.partLoadingRoutine(partLoadQueue, errCh, terminateCh)
-	}
-	for i := 0; i < s.config.ParallelTableLoadDegreeOfParallelism; i++ {
-		if err := <-errCh; err != nil {
-			close(terminateCh)
-			return xerrors.Errorf("part-loading routine [%d] failed: %w", i, err)
-		}
+	if err := g.Wait(); err != nil {
+		return xerrors.Errorf("oracleParallelTableSource.Load err: %w", err)
 	}
 
 	return nil
 }
 
-func (s *oracleParallelTableSource) partLoadingRoutine(inputCh chan *partLoadState, errCh chan error, terminateCh chan struct{}) {
-	for state := range inputCh {
-		select {
-		case <-terminateCh:
-			errCh <- nil
-			return
-		default:
-		}
-		if err := s.loadPart(state); err != nil {
-			errCh <- err
-			return
-		}
-	}
-	errCh <- nil
-}
-
-func (s *oracleParallelTableSource) loadPart(state *partLoadState) error {
+func (s *oracleParallelTableSource) loadPart(ctx context.Context, state partLoadState) error {
 	columnsSQL, err := getSelectColumns(s.table)
 	if err != nil {
 		return xerrors.Errorf("Can't create select columns SQL for table '%v': %w", s.table.OracleSQLName(), err)
@@ -190,5 +163,5 @@ func (s *oracleParallelTableSource) loadPart(state *partLoadState) error {
 			columnsSQL, s.table.OracleSQLName(), state.partRow.CurrentSCN, state.partRow.WhereClause)
 	}
 
-	return state.load.LoadSnapshot(state.ctx, state.pusher, sqlQuery)
+	return state.load.LoadSnapshot(ctx, state.pusher, sqlQuery)
 }
