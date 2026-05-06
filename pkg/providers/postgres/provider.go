@@ -151,8 +151,11 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 	}
 	p.logger.Info("Preparing PostgreSQL source")
 	tracker := NewTracker(p.transfer.ID, p.cp)
+	dblogSlotAlreadyExisted := false
 	if src.DBLogEnabled && !p.transfer.IncrementOnly() { // if there are present SNAPSHOT stage with turned-on DBLog
-		if err := p.DBLogCreateSlotAndInit(ctx, tracker); err != nil {
+		var err error
+		dblogSlotAlreadyExisted, err = p.DBLogCreateSlotAndInit(ctx, tracker)
+		if err != nil {
 			return xerrors.Errorf("unable to init dblog, err: %w", err)
 		}
 		callbacks.Rollbacks.Add(func() {
@@ -172,8 +175,15 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 	}
 
 	if !p.transfer.IncrementOnly() {
-		if err := callbacks.Cleanup(tables); err != nil {
-			return xerrors.Errorf("failed to cleanup sink: %w", err)
+		if src.DBLogEnabled && dblogSlotAlreadyExisted {
+			// The replication slot still exists from a previous run, so the signal table retains its saved
+			// progress (low_bound). Cleaning up the destination would drop those tables and make the saved
+			// low_bound invalid, causing data loss on resume. Skip cleanup and continue from where we left off.
+			logger.Log.Info("DBLog: replication slot already exists, skipping destination cleanup to preserve progress")
+		} else {
+			if err := callbacks.Cleanup(tables); err != nil {
+				return xerrors.Errorf("failed to cleanup sink: %w", err)
+			}
 		}
 	}
 	if src.PreSteps.AnyStepIsTrue() {
@@ -399,33 +409,35 @@ func (p *Provider) Type() abstract.ProviderType {
 	return ProviderType
 }
 
-func (p *Provider) DBLogCreateSlotAndInit(ctx context.Context, tracker *Tracker) error {
+// DBLogCreateSlotAndInit creates the replication slot if it does not exist and ensures the signal table is ready.
+// It returns true if the replication slot already existed before this call, meaning we are resuming a previous run.
+func (p *Provider) DBLogCreateSlotAndInit(ctx context.Context, tracker *Tracker) (bool, error) {
 	src, ok := p.transfer.Src.(*PgSource)
 	if !ok {
-		return xerrors.Errorf("unexpected type: %T", p.transfer.Src)
+		return false, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
 	}
 
 	exists, err := CreateReplicationSlotIfNotExists(src, tracker)
 	if err != nil {
-		return xerrors.Errorf("failed to create a replication slot (1) %q at source: %w", src.SlotID, err)
+		return false, xerrors.Errorf("failed to create a replication slot (1) %q at source: %w", src.SlotID, err)
 	}
 
 	pgStorage, err := NewStorage(src.ToStorageParams(p.transfer))
 	if err != nil {
-		return xerrors.Errorf("failed to create postgres storage: %w", err)
+		return false, xerrors.Errorf("failed to create postgres storage: %w", err)
 	}
 	// ensure SignalTable exists
 	_, err = postgres_dblog.NewPgSignalTable(ctx, pgStorage.Conn, logger.Log, p.transfer.ID, src.KeeperSchema)
 	if err != nil {
-		return xerrors.Errorf("unable to create signal table: %w", err)
+		return false, xerrors.Errorf("unable to create signal table: %w", err)
 	}
 	if !exists {
 		// delete previous watermarks - only if slot previously not existed. It existed - it's just dataplane restart
 		if err := postgres_dblog.DeleteWatermarks(ctx, pgStorage.Conn, src.KeeperSchema, p.transfer.ID); err != nil {
-			return xerrors.Errorf("unable to delete watermarks: %w", err)
+			return false, xerrors.Errorf("unable to delete watermarks: %w", err)
 		}
 	}
-	return nil
+	return exists, nil
 }
 
 func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap, task *model.TransferOperation) error {
