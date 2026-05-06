@@ -22,16 +22,16 @@ type Ps struct {
 }
 
 type RuntimeStat struct {
-	memPercentage core_metrics.Gauge
-	memAvailable,
-	memUsed,
-	cpuCounts,
-	runtimeAlloc,
-	runtimeTotalAlloc,
-	runtimeSys,
-	runtimeNumGC,
-	runtimeHeapInuse,
-	runtimeHeapIdle core_metrics.Counter
+	memPercentage      core_metrics.Gauge
+	memAvailable       core_metrics.IntGauge
+	memUsed            core_metrics.IntGauge
+	cpuCounts          core_metrics.IntGauge
+	runtimeAlloc       core_metrics.IntGauge
+	runtimeTotalAlloc  core_metrics.IntGauge
+	runtimeSys         core_metrics.IntGauge
+	runtimeNumGC       core_metrics.IntGauge
+	runtimeHeapInuse   core_metrics.IntGauge
+	runtimeHeapIdle    core_metrics.IntGauge
 	processCPU         core_metrics.Gauge
 	processRAM         core_metrics.Gauge
 	processDescriptors core_metrics.Gauge
@@ -39,16 +39,16 @@ type RuntimeStat struct {
 
 func (p *Ps) Run() {
 	r := RuntimeStat{
-		memAvailable:       p.metrics.Counter("mem.available"),
-		memUsed:            p.metrics.Counter("mem.used"),
+		memAvailable:       p.metrics.IntGauge("mem.available"),
+		memUsed:            p.metrics.IntGauge("mem.used"),
 		memPercentage:      p.metrics.Gauge("mem.percentage"),
-		cpuCounts:          p.metrics.Counter("cpu.counts"),
-		runtimeAlloc:       p.metrics.Counter("runtime.alloc"),
-		runtimeTotalAlloc:  p.metrics.Counter("runtime.totalAlloc"),
-		runtimeSys:         p.metrics.Counter("runtime.sys"),
-		runtimeNumGC:       p.metrics.Counter("runtime.numGC"),
-		runtimeHeapInuse:   p.metrics.Counter("runtime.heapInuse"),
-		runtimeHeapIdle:    p.metrics.Counter("runtime.heapIdle"),
+		cpuCounts:          p.metrics.IntGauge("cpu.counts"),
+		runtimeAlloc:       p.metrics.IntGauge("runtime.alloc"),
+		runtimeTotalAlloc:  p.metrics.IntGauge("runtime.totalAlloc"),
+		runtimeSys:         p.metrics.IntGauge("runtime.sys"),
+		runtimeNumGC:       p.metrics.IntGauge("runtime.numGC"),
+		runtimeHeapInuse:   p.metrics.IntGauge("runtime.heapInuse"),
+		runtimeHeapIdle:    p.metrics.IntGauge("runtime.heapIdle"),
 		processCPU:         p.metrics.Gauge("proc.cpu"),
 		processRAM:         p.metrics.Gauge("proc.ram"),
 		processDescriptors: p.metrics.Gauge("proc.descriptors"),
@@ -93,21 +93,21 @@ func (p *Ps) Run() {
 			logger.Log.Warnf("mem.VirtualMemory returned error: %s", err.Error())
 			continue
 		}
-		r.memAvailable.Add(int64(v.Available))
-		r.memUsed.Add(int64(v.Used))
+		r.memAvailable.Set(int64(v.Available))
+		r.memUsed.Set(int64(v.Used))
 		r.memPercentage.Set(v.UsedPercent)
 		c, _ := cpu.Counts(true)
-		r.cpuCounts.Add(int64(c))
+		r.cpuCounts.Set(int64(c))
 		var m runtime.MemStats
 		st, _ := cpu.Percent(1*time.Second, false)
 		hostCPU = append(hostCPU, st...)
 		runtime.ReadMemStats(&m)
-		r.runtimeAlloc.Add(int64(m.Alloc))
-		r.runtimeTotalAlloc.Add(int64(m.TotalAlloc))
-		r.runtimeSys.Add(int64(m.Sys))
-		r.runtimeNumGC.Add(int64(m.NumGC))
-		r.runtimeHeapInuse.Add(int64(m.HeapInuse))
-		r.runtimeHeapIdle.Add(int64(m.HeapIdle))
+		r.runtimeAlloc.Set(int64(m.Alloc))
+		r.runtimeTotalAlloc.Set(int64(m.TotalAlloc))
+		r.runtimeSys.Set(int64(m.Sys))
+		r.runtimeNumGC.Set(int64(m.NumGC))
+		r.runtimeHeapInuse.Set(int64(m.HeapInuse))
+		r.runtimeHeapIdle.Set(int64(m.HeapIdle))
 
 		sysInfo, err := GetStat(os.Getpid())
 		if err != nil {
