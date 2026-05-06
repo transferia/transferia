@@ -53,7 +53,7 @@ func SplitTables(
 					logger.Info("Unable to shard table", log.String("table", table.Fqtn()), log.Error(err))
 					addTablesParts([]abstract.TableDescription{table}...)
 				} else {
-					return nil, xerrors.Errorf("unable to split table, err: %w", err)
+					return nil, xerrors.Errorf("unable to split table '%v': %w", table.Fqtn(), err)
 				}
 			}
 			addTablesParts(tableParts...)

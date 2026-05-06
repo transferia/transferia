@@ -64,20 +64,20 @@ func (l *SnapshotLoader) mergeIncrementWithTables(currentState []abstract.TableD
 }
 
 func (l *SnapshotLoader) getIncrementalStateAndMergeWithTables(tables []abstract.TableDescription, incrementalStorage abstract.IncrementalStorage) ([]abstract.TableDescription, error) {
-	currTables := slices.Clone(tables)
+	includedTables := slices.Clone(tables)
 	if !l.transfer.CanReloadFromState() {
 		logger.Log.Info("Transfer cannot load snapshot from state!")
-		return currTables, nil
+		return includedTables, nil
 	}
 
 	logger.Log.Info("Transfer can load snapshot from state, calculating incremental state.")
 	state, err := l.cp.GetTransferState(l.transfer.ID)
 	if err != nil {
-		return currTables, errors.CategorizedErrorf(categories.Internal, "unable to get transfer state: %w", err)
+		return includedTables, errors.CategorizedErrorf(categories.Internal, "unable to get transfer state: %w", err)
 	}
-	logger.Log.Infof("get transfer(%s) state: %v", l.transfer.ID, state)
-	relTables := state[TablesFilterStateKey].GetIncrementalTables()
-	if relTables == nil {
+	logger.Log.Infof("Got transfer %s state: %v", l.transfer.ID, state)
+	tablesFromState := state[TablesFilterStateKey].GetIncrementalTables()
+	if tablesFromState == nil {
 		logger.Log.Infof("Setting initial state %v", l.transfer.RegularSnapshot.Incremental)
 		currTables2 := make([]abstract.TableDescription, 0)
 		for _, increment := range l.transfer.RegularSnapshot.Incremental {
@@ -93,37 +93,41 @@ func (l *SnapshotLoader) getIncrementalStateAndMergeWithTables(tables []abstract
 		return result, nil
 	}
 
-	merge := func(in []abstract.TableDescription, newState []abstract.IncrementalState) []abstract.TableDescription {
-		tmp := slices.Clone(in)
-		myMap := make(map[abstract.TableID]*abstract.TableDescription)
-		for _, el := range tmp {
-			myMap[el.ID()] = &el
+	if len(includedTables) == 0 {
+		// If table list not provided (e.g. can be nil for a2), use all tables from transfer params.
+		for _, increment := range l.transfer.RegularSnapshot.Incremental {
+			includedTables = append(includedTables, abstract.TableDescription{
+				Name:   increment.Name,
+				Schema: increment.Namespace,
+				Filter: "",
+				EtaRow: 0,
+				Offset: 0,
+			})
 		}
-		for _, el := range newState {
-			if ptr, ok := myMap[el.ID()]; ok {
-				if ptr.Filter != "" || ptr.Offset != 0 {
-					// table already contains predicate
-					continue
-				}
-				ptr.Filter = el.Payload
-			} else {
-				myMap[el.ID()] = &abstract.TableDescription{
-					Schema: el.Schema,
-					Name:   el.Name,
-					Filter: el.Payload,
-					EtaRow: uint64(0),
-					Offset: uint64(0),
-				}
-			}
-		}
-		result := make([]abstract.TableDescription, 0, len(myMap))
-		for _, v := range myMap {
-			result = append(result, *v)
-		}
-		return result
 	}
 
-	tmp := merge(currTables, relTables)
-	result := incrementalStorage.BuildArrTableDescriptionWithIncrementalState(tmp, l.transfer.RegularSnapshot.Incremental)
+	mergedTables := merge(includedTables, tablesFromState)
+	result := incrementalStorage.BuildArrTableDescriptionWithIncrementalState(mergedTables, l.transfer.RegularSnapshot.Incremental)
 	return result, nil
+}
+
+func merge(includedTables []abstract.TableDescription, tablesFromState []abstract.IncrementalState) []abstract.TableDescription {
+	descs := make(map[abstract.TableID]*abstract.TableDescription)
+	for _, desc := range includedTables {
+		descs[desc.ID()] = &desc
+	}
+	// Overwrite descs filters with filters (payloads) from transfer state.
+	for _, fromState := range tablesFromState {
+		if desc, ok := descs[fromState.ID()]; ok {
+			if desc.Filter != "" || desc.Offset != 0 {
+				continue // table already contains predicate
+			}
+			desc.Filter = fromState.Payload
+		}
+	}
+	result := make([]abstract.TableDescription, 0, len(descs))
+	for _, v := range descs {
+		result = append(result, *v)
+	}
+	return result
 }

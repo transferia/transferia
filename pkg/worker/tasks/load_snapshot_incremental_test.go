@@ -58,6 +58,78 @@ func TestMergeWithIncrementalState(t *testing.T) {
 	}, outTables)
 }
 
+// TestMergeWithIncrementalState_RemovedTable verifies that a table present in
+// saved state but removed from both source and transfer config is not resurrected
+// during the state merge, which would cause activation to fail with "no rows in
+// result set" when querying a non-existent table.
+func TestMergeWithIncrementalState_RemovedTable(t *testing.T) {
+	transfer := &model.Transfer{
+		ID:   "transfer1",
+		Type: abstract.TransferTypeSnapshotOnly,
+		RegularSnapshot: &abstract.RegularSnapshot{
+			Incremental: []abstract.IncrementalTable{
+				{Namespace: "public", Name: "table1", CursorField: "field1", InitialState: "100500"},
+			},
+		}}
+	client := coordinator.NewFakeClientWithOpts(func(id string) (map[string]*coordinator.TransferStateData, error) {
+		result := map[string]*coordinator.TransferStateData{}
+		if id == "transfer1" {
+			result[TablesFilterStateKey] = &coordinator.TransferStateData{
+				IncrementalTables: []abstract.TableDescription{
+					{Name: "table1", Schema: "public", Filter: "\"field1\" > 200500"},
+					// table2 was deleted from source and config, but still present in state
+					{Name: "table2", Schema: "public", Filter: "\"field1\" > 300500"},
+				},
+			}
+		}
+		return result, nil
+	}, nil, nil)
+	tables := []abstract.TableDescription{
+		{Name: "table1", Schema: "public"},
+		// table2 intentionally absent from current configured tables
+	}
+	incrementalStorage := newFakeIncrementalStorage()
+	snapshotLoader := NewSnapshotLoader(client, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
+	outTables, err := snapshotLoader.getIncrementalStateAndMergeWithTables(tables, incrementalStorage)
+	require.NoError(t, err)
+	require.Equal(t, []abstract.TableDescription{
+		{Name: "table1", Schema: "public", Filter: "\"field1\" > 200500"},
+	}, outTables)
+}
+
+// TestMergeWithIncrementalState_NilTables verifies that passing nil as the table
+// list (as ActivateDelivery does for abstract2 transfers via UploadV2(ctx, p, nil))
+// correctly applies saved cursor state from transfer config instead of producing
+// an empty result that causes a full table reload on every subsequent activation.
+func TestMergeWithIncrementalState_NilTables(t *testing.T) {
+	transfer := &model.Transfer{
+		ID:   "transfer1",
+		Type: abstract.TransferTypeSnapshotOnly,
+		RegularSnapshot: &abstract.RegularSnapshot{
+			Incremental: []abstract.IncrementalTable{
+				{Namespace: "public", Name: "table1", CursorField: "field1", InitialState: "100500"},
+			},
+		}}
+	client := coordinator.NewFakeClientWithOpts(func(id string) (map[string]*coordinator.TransferStateData, error) {
+		result := map[string]*coordinator.TransferStateData{}
+		if id == "transfer1" {
+			result[TablesFilterStateKey] = &coordinator.TransferStateData{
+				IncrementalTables: []abstract.TableDescription{
+					{Name: "table1", Schema: "public", Filter: "\"field1\" > 200500"},
+				},
+			}
+		}
+		return result, nil
+	}, nil, nil)
+	incrementalStorage := newFakeIncrementalStorage()
+	snapshotLoader := NewSnapshotLoader(client, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
+	outTables, err := snapshotLoader.getIncrementalStateAndMergeWithTables(nil, incrementalStorage)
+	require.NoError(t, err)
+	require.Equal(t, []abstract.TableDescription{
+		{Name: "table1", Schema: "public", Filter: "\"field1\" > 200500"},
+	}, outTables)
+}
+
 type fakeIncrementalStorage struct {
 }
 
