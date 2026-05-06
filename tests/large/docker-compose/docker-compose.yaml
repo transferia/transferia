@@ -144,6 +144,7 @@ services:
     network_mode: host
     environment:
       - node.name=es01
+      - network.host=0.0.0.0
       - http.port=9202
       - transport.port=9302
       - cluster.name=es-docker-cluster-1
@@ -167,6 +168,7 @@ services:
     network_mode: host
     environment:
       - node.name=es01
+      - network.host=0.0.0.0
       - http.port=9203
       - transport.port=9303
       - cluster.name=es-docker-cluster-1
@@ -329,6 +331,7 @@ services:
     network_mode: host
     environment:
       - node.name=es05
+      - network.host=0.0.0.0
       - http.port=9205
       - transport.port=9305
       - cluster.name=es-docker-cluster-5
@@ -352,6 +355,7 @@ services:
     network_mode: host
     environment:
       - node.name=es06
+      - network.host=0.0.0.0
       - http.port=9206
       - transport.port=9306
       - cluster.name=es-docker-cluster-6
@@ -375,6 +379,7 @@ services:
     network_mode: host
     environment:
       - node.name=es07
+      - network.host=0.0.0.0
       - http.port=9207
       - transport.port=9307
       - cluster.name=es-docker-cluster-7
@@ -400,6 +405,7 @@ services:
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node1
+      - network.host=0.0.0.0
       - discovery.seed_hosts=opensearch-node1
       - cluster.initial_master_nodes=opensearch-node1
       - bootstrap.memory_lock=true
