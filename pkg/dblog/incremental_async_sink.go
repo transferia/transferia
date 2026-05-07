@@ -121,7 +121,7 @@ func (s *IncrementalAsyncSink) AsyncPush(items []abstract.ChangeItem) chan error
 					return util.MakeChanWithError(err)
 				}
 
-				if len(s.chunk) == 0 {
+				if len(s.chunk) != int(s.tableIterator.limit) {
 					s.isLastIncrement = true
 				}
 
