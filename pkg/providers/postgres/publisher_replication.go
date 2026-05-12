@@ -604,7 +604,7 @@ func startReplication(
 		var rb util.Rollbacks
 		defer rb.Do()
 		rConnConfig := makeReplicationConnConfig(connConfig.Config, version)
-		rConn, err := newReplicationConnection(rConnConfig)
+		rConn, err := newReplicationConnection(rConnConfig, lgr)
 		if err != nil {
 			// Protocol violation, means that database do not accept replication protocol. Do not retry this case.
 			if strings.Contains(err.Error(), string(pgerrors.ErrcProtocolViolation)) {
@@ -687,11 +687,38 @@ func makeReplicationConnConfig(srcConfig pgconn.Config, version PgVersion) *pgco
 	return rConnConfig
 }
 
-func newReplicationConnection(rConnConfig *pgconn.Config) (*mutexedPgConn, error) {
+func tryLogConnTcpSettings(conn *pgconn.PgConn, lgr log.Logger) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	rr := conn.Exec(ctx, `SELECT
+		current_setting('tcp_keepalives_idle'),
+		current_setting('tcp_keepalives_interval'),
+		current_setting('tcp_keepalives_count'),
+		current_setting('tcp_user_timeout')`)
+	results, err := rr.ReadAll()
+	if err != nil {
+		lgr.Warn("Unable to select TCP connection settings", log.Error(err))
+		return
+	}
+	if len(results) != 1 || len(results[0].Rows) != 1 || len(results[0].Rows[0]) != 4 {
+		lgr.Warn("Got not expected TCP settings", log.Any("results", results))
+		return
+	}
+	row := results[0].Rows[0]
+	lgr.Info("Got TCP connection settings",
+		log.String("tcp_keepalives_idle", string(row[0])),
+		log.String("tcp_keepalives_interval", string(row[1])),
+		log.String("tcp_keepalives_count", string(row[2])),
+		log.String("tcp_user_timeout", string(row[3])),
+	)
+}
+
+func newReplicationConnection(rConnConfig *pgconn.Config, lgr log.Logger) (*mutexedPgConn, error) {
 	rConnRaw, err := pgconn.ConnectConfig(context.TODO(), rConnConfig)
 	if err != nil {
 		return nil, err
 	}
+	tryLogConnTcpSettings(rConnRaw, lgr)
 	return newMutexedPgConn(rConnRaw), nil
 }
 
