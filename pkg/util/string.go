@@ -1,9 +1,11 @@
 package util
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -129,4 +131,45 @@ func ContainsAnySubstrings(s string, substrs ...string) bool {
 		}
 	}
 	return false
+}
+
+func SanitizeUnicodeBytes(data []byte) string {
+	badCh := []byte("\\u0000") // Represents the null byte
+	if !bytes.Contains(data, badCh) {
+		return string(data)
+	}
+	presanitizedString := SanitizeUnicodeSymbols(string(data))
+
+	// after transforming bytes to string we lose rune info,
+	// so '\u0000' is not 1 rune anymore but 6 symbols
+	// now we only can do naive replacement
+	re := regexp.MustCompile(`\\+u0000`)
+	cleaned := re.ReplaceAllStringFunc(presanitizedString, func(match string) string {
+		// Count how many backslashes are in this specific match
+		slashCount := strings.Count(match, `\`)
+		// Odd count (e.g. 1 backslash '\u0000') -> It's BAD, remove it completely
+		if slashCount%2 != 0 {
+			return ""
+		}
+		// Even count (e.g. 2 backslashes '\\u0000') -> It's GOOD, keep it untouched
+		return match
+	})
+
+	return cleaned
+}
+
+func SanitizeUnicodeSymbols(strState string) string {
+	// 1. Remove literal null byte escapes (common in JSON strings)
+	// 2. Remove raw null bytes (actual byte value 0)
+	if !strings.Contains(strState, "\x00") && !strings.Contains(strState, "\u0000") {
+		return strState
+	}
+
+	var output strings.Builder
+	for _, r := range strState {
+		if r != '\x00' && r != '\u0000' {
+			output.WriteString(string(r))
+		}
+	}
+	return strings.ToValidUTF8(output.String(), "")
 }
