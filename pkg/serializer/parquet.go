@@ -179,7 +179,7 @@ func NewParquetStreamSerializer(ostream io.Writer, schema *parquet.Schema, table
 	return &pqSerializer, nil
 }
 
-func NewParquetBatchSerializer(config ParquetBatchSerializerConfig) BatchSerializer {
+func NewParquetBatchSerializer(config *ParquetBatchSerializerConfig) BatchSerializer {
 	if config.RowGroupMaxRows <= 0 {
 		config.RowGroupMaxRows = DefaultRowGroupMaxRows
 	}

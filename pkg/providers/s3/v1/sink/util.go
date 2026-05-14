@@ -2,15 +2,12 @@ package sink
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/model"
-	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
+	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	"github.com/transferia/transferia/pkg/serializer"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/xlocale"
 )
 
 type buckets map[string]map[string]*FileCache
@@ -35,21 +32,8 @@ func rowPart(row abstract.ChangeItem) string {
 	return res
 }
 
-func CreateSerializer(outputFormat model.ParsingFormat, anyAsString bool, parquetSetting *s3_model.ParquetSerializerSettings) (serializer.BatchSerializer, error) {
-	var parquetConfig serializer.ParquetBatchSerializerConfig
-	if parquetSetting != nil {
-		parquetConfig = serializer.ParquetBatchSerializerConfig{
-			CompressionCodec: serializer.CodecFromString(parquetSetting.CompressionCodec),
-			RowGroupMaxRows:  parquetSetting.RowGroupMaxRows,
-		}
-	}
-	config := &serializer.BatchSerializerCommonConfig{
-		UnsupportedItemKinds: nil,
-		Format:               outputFormat,
-		AddClosingNewLine:    true,
-		AnyAsString:          anyAsString,
-		ParquetConfig:        &parquetConfig,
-	}
+func CreateSerializer(s s3_v1_model.SerializerConfig) (serializer.BatchSerializer, error) {
+	config := s.AsConfig()
 
 	batchSerializer := serializer.NewBatchSerializer(config)
 	if batchSerializer == nil {
@@ -74,17 +58,4 @@ func countInsertItems(input []abstract.ChangeItem) int {
 		}
 	}
 	return count
-}
-
-func extractRowBucket(row abstract.ChangeItem, layoutColumn string, layout string) string {
-	rowBucketTime := time.Unix(0, int64(row.CommitTime))
-	if layoutColumn != "" {
-		rowBucketTime = model.ExtractTimeCol(row, layoutColumn)
-	}
-	if layout != "" {
-		if loc, err := xlocale.Load(layout); err == nil {
-			rowBucketTime = rowBucketTime.In(loc)
-		}
-	}
-	return rowBucketTime.Format(layout)
 }

@@ -120,6 +120,10 @@ func TestBatchSerializer(t *testing.T) {
 			Name: "parquet:default",
 			Serializer: serializer.NewBatchSerializer(&serializer.BatchSerializerCommonConfig{
 				Format: model.ParsingFormatPARQUET,
+				ParquetConfig: &serializer.ParquetBatchSerializerConfig{
+					CompressionCodec: nil,
+					RowGroupMaxRows:  0,
+				},
 			}),
 			Generator: ReadChangeItems,
 		},

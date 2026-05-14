@@ -10,7 +10,7 @@ type BatchSerializerCommonConfig struct {
 	UnsupportedItemKinds map[abstract.Kind]bool
 	AddClosingNewLine    bool
 	AnyAsString          bool
-	ParquetConfig        ParquetBatchSerializerConfig
+	ParquetConfig        *ParquetBatchSerializerConfig
 }
 
 func (c *BatchSerializerCommonConfig) toJSONConfig() *JSONSerializerConfig {

@@ -1,0 +1,212 @@
+package sink
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/pkg/abstract"
+	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
+)
+
+func TestRowFqtn(t *testing.T) {
+	tests := []struct {
+		name     string
+		tableID  abstract.TableID
+		expected string
+	}{
+		{
+			name: "with namespace",
+			tableID: abstract.TableID{
+				Namespace: "test_schema",
+				Name:      "test_table",
+			},
+			expected: "test_schema_test_table",
+		},
+		{
+			name: "without namespace",
+			tableID: abstract.TableID{
+				Namespace: "",
+				Name:      "test_table",
+			},
+			expected: "test_table",
+		},
+		{
+			name: "empty table name",
+			tableID: abstract.TableID{
+				Namespace: "test_schema",
+				Name:      "",
+			},
+			expected: "test_schema_",
+		},
+		{
+			name: "both empty",
+			tableID: abstract.TableID{
+				Namespace: "",
+				Name:      "",
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := RowFqtn(tt.tableID)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestRowPart(t *testing.T) {
+	tests := []struct {
+		name     string
+		row      abstract.ChangeItem
+		expected string
+	}{
+		{
+			name: "mirror row",
+			row: abstract.ChangeItem{
+				ColumnNames: []string{"topic", "partition", "seq_no", "write_time", "data", "meta", "sequence_key"},
+				ColumnValues: []interface{}{
+					"test_topic",
+					uint32(1),
+					uint64(123),
+					"2023-01-01T00:00:00Z",
+					"test_data",
+					nil,
+					[]byte("stub"),
+				},
+			},
+			expected: "test_topic_1",
+		},
+		{
+			name: "regular row with namespace and partID",
+			row: abstract.ChangeItem{
+				Schema:       "test_schema",
+				Table:        "test_table",
+				PartID:       "part123",
+				ColumnNames:  []string{"id", "name"},
+				ColumnValues: []interface{}{1, "test"},
+			},
+			expected: "test_schema_test_table_" + hashLongPart("part123", 24),
+		},
+		{
+			name: "regular row without namespace",
+			row: abstract.ChangeItem{
+				Schema:       "",
+				Table:        "test_table",
+				PartID:       "part123",
+				ColumnNames:  []string{"id", "name"},
+				ColumnValues: []interface{}{1, "test"},
+			},
+			expected: "test_table_" + hashLongPart("part123", 24),
+		},
+		{
+			name: "regular row without partID",
+			row: abstract.ChangeItem{
+				Schema:       "test_schema",
+				Table:        "test_table",
+				PartID:       "",
+				ColumnNames:  []string{"id", "name"},
+				ColumnValues: []interface{}{1, "test"},
+			},
+			expected: "test_schema_test_table",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := rowPart(tt.row)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestCreateSerializer(t *testing.T) {
+	tests := []struct {
+		name               string
+		serializerSettings s3_v1_model.SerializerConfig
+		expectError        bool
+	}{
+		{
+			name:               "json format with anyAsString false",
+			serializerSettings: &s3_v1_model.JsonSerializerConfig{AnyAsString: false},
+			expectError:        false,
+		},
+		{
+			name:               "json format with anyAsString true",
+			serializerSettings: &s3_v1_model.JsonSerializerConfig{AnyAsString: true},
+			expectError:        false,
+		},
+		{
+			name:               "csv format",
+			serializerSettings: &s3_v1_model.CSVSerializerConfig{},
+			expectError:        false,
+		},
+		{
+			name:               "parquet format",
+			serializerSettings: &s3_v1_model.ParquetSerializerConfig{},
+			expectError:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serializer, err := CreateSerializer(tt.serializerSettings)
+
+			if tt.expectError {
+				require.Error(t, err)
+				require.Nil(t, serializer)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, serializer)
+			}
+		})
+	}
+}
+
+func TestHashLongPart(t *testing.T) {
+	tests := []struct {
+		name       string
+		text       string
+		maxLen     int
+		expectHash bool
+	}{
+		{
+			name:       "short text",
+			text:       "short",
+			maxLen:     10,
+			expectHash: false,
+		},
+		{
+			name:       "exact length text",
+			text:       "exactly_ten",
+			maxLen:     10,
+			expectHash: true,
+		},
+		{
+			name:       "long text",
+			text:       "this_is_a_very_long_text_that_should_be_hashed",
+			maxLen:     10,
+			expectHash: true,
+		},
+		{
+			name:       "empty text",
+			text:       "",
+			maxLen:     5,
+			expectHash: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hashLongPart(tt.text, tt.maxLen)
+
+			if tt.expectHash {
+				require.NotEqual(t, tt.text, result)
+				require.NotEmpty(t, result)
+			} else {
+				require.Equal(t, tt.text, result)
+			}
+		})
+	}
+}

@@ -83,6 +83,7 @@ func PrepareS3(t *testing.T, bucket string, format model.ParsingFormat, encoding
 			Parquet: nil,
 		},
 	}
+
 	cfg.WithDefaults()
 	bucket = strings.ToLower(bucket)
 	if os.Getenv("S3_ACCESS_KEY") != "" {
