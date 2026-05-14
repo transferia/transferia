@@ -163,5 +163,9 @@ func (s *oracleParallelTableSource) loadPart(ctx context.Context, state partLoad
 			columnsSQL, s.table.OracleSQLName(), state.partRow.CurrentSCN, state.partRow.WhereClause)
 	}
 
-	return state.load.LoadSnapshot(ctx, state.pusher, sqlQuery)
+	if err := state.load.LoadSnapshot(ctx, state.pusher, sqlQuery); err != nil {
+		return xerrors.Errorf("loadPart: %w", err)
+	}
+
+	return nil
 }

@@ -41,6 +41,13 @@ func newLoader(sqlxDB *sqlx.DB, config *provider_oracle.OracleSource, position *
 
 const rowsInBatch int = 512
 
+// batchBytesLimit caps the in-flight memory of a single snapshot batch. The previous
+// DBMS_LOB.SUBSTR(blob, 32767, 1) wrap acted as an implicit ~32 KB/row cap; now that
+// BLOBs are read via the native godror LOB path, this explicit byte-based flush keeps
+// peak memory bounded regardless of column size. The downstream bufferer middleware
+// only protects the segment after pusher(...), not this loader's local accumulator.
+const batchBytesLimit uint64 = 16 * 1024 * 1024
+
 func estimateRowSize(values []interface{}) uint64 {
 	var sum uint64
 	for _, v := range values {
@@ -78,7 +85,6 @@ func (l *loader) LoadSnapshot(ctx context.Context, pusher abstract.Pusher, sql s
 				return xerrors.Errorf("Can't select table '%v': %w", l.table.OracleSQLName(), err)
 			}
 			defer rows.Close()
-
 			for rows.Next() {
 				if err := rows.Scan(rawValues...); err != nil {
 					return xerrors.Errorf("Can't scan values for table '%v': %w", l.table.OracleSQLName(), err)
@@ -88,13 +94,13 @@ func (l *loader) LoadSnapshot(ctx context.Context, pusher abstract.Pusher, sql s
 				if err != nil {
 					return xerrors.Errorf("Can't cast values for table '%v': %w", l.table.OracleSQLName(), err)
 				}
-				if l.metrics != nil {
-					batchBytes += estimateRowSize(columnValues)
-				}
+				// batchBytes drives the byte-based flush below, so it must be tracked unconditionally
+				// — not only when metrics are wired up.
+				batchBytes += estimateRowSize(columnValues)
 				item := buildInsertChangeItem(l.table, columnValues, l.position)
 				batch = append(batch, item)
 
-				if len(batch) >= rowsInBatch {
+				if len(batch) >= rowsInBatch || batchBytes >= batchBytesLimit {
 					if err := l.pushBatch(batch, batchBytes, &batchTime, pusher); err != nil {
 						return xerrors.Errorf("failed to push to target: %w", err)
 					}

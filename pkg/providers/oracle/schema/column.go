@@ -240,9 +240,23 @@ func (column *Column) OracleSQLSelect() (string, error) {
 		// so the column comes back as a standard LOB that godror reads via OCILobRead2.
 		return fmt.Sprintf("TO_CLOB(%[1]v) as %[1]v", column.OracleSQLName()), nil
 	case "BLOB":
-		// OCI cannot scan BLOB into []byte via SQLT_BIN; DBMS_LOB.SUBSTR returns RAW (≤ 32767 bytes)
-		// which godror handles correctly. BLOBs larger than 32767 bytes are not supported.
-		return fmt.Sprintf("DBMS_LOB.SUBSTR(%[1]v, 32767, 1) as %[1]v", column.OracleSQLName()), nil
+		// godror reads BLOB locators via OCILobRead2 and materialises them as []byte on Scan,
+		// the same path already used for CLOB. The previous DBMS_LOB.SUBSTR(col, 32767, 1) wrap
+		// returned SQL RAW, which is capped at 2000 bytes on MAX_STRING_SIZE=STANDARD databases
+		// (ORA-06502 "raw variable length too long") and at 32767 on EXTENDED — both insufficient
+		// for arbitrary BLOBs. Per-batch memory is bounded by the byte-aware flush in
+		// snapshot/loader.go.
+		return column.OracleSQLName(), nil
+	case "ROWID":
+		// godror reads ROWID via dpiRowid_getStringValue, which segfaults under AS OF SCN flashback
+		// queries (the rowid handle is sometimes returned as 0x0 by ODPI-C even when isNull is false).
+		// ROWIDTOCHAR converts the rowid to its 18-char base64 form server-side, so godror sees a
+		// regular VARCHAR2 column and avoids the rowid C path entirely.
+		return fmt.Sprintf("ROWIDTOCHAR(%[1]v) as %[1]v", column.OracleSQLName()), nil
+	case "UROWID":
+		// Same rationale as ROWID — but ROWIDTOCHAR does not accept UROWID, so cast to VARCHAR2.
+		// Max UROWID length is 4000 bytes (logical rowids of index-organized tables can be long).
+		return fmt.Sprintf("CAST(%[1]v AS VARCHAR2(4000)) as %[1]v", column.OracleSQLName()), nil
 	case "INTERVAL YEAR TO MONTH":
 		// godror does not expose IntervalYM as int64/time.Duration; cast server-side to VARCHAR2
 		// to get the canonical Oracle string form, e.g. "+000005-03".

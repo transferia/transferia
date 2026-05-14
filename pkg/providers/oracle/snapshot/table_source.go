@@ -11,6 +11,7 @@ import (
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 	oracle_schema "github.com/transferia/transferia/pkg/providers/oracle/schema"
 	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -51,11 +52,20 @@ func (s *oracleTableSource) Load(ctx context.Context, pusher abstract.Pusher) er
 		return xerrors.Errorf("Can't create select columns SQL for table '%v': %w", s.table.OracleSQLName(), err)
 	}
 	var sqlQuery string
+	var scn uint64
+	if s.position != nil {
+		scn = s.position.SCN()
+	}
 	if s.config.IsNonConsistentSnapshot || s.position == nil {
 		sqlQuery = fmt.Sprintf("select %v from %v", columnsSQL, s.table.OracleSQLName())
 	} else {
 		sqlQuery = fmt.Sprintf("select %v from %v as of scn %v", columnsSQL, s.table.OracleSQLName(), s.position.SCN())
 	}
+	s.logger.Info("Oracle: starting snapshot for table",
+		log.String("table", s.table.OracleSQLName()),
+		log.UInt64("scn", scn),
+		log.Bool("consistent", !s.config.IsNonConsistentSnapshot && s.position != nil),
+		log.String("query", util.Sample(sqlQuery, 4*1024)))
 	if err := s.load.LoadSnapshot(ctx, pusher, sqlQuery); err != nil {
 		return xerrors.Errorf("failed while loading snapshot: %w", err)
 	}

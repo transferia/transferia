@@ -5,12 +5,10 @@ import (
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_oracle "github.com/transferia/transferia/pkg/providers/oracle"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
-	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -279,8 +277,6 @@ where
 	and TEMPORARY = 'N' and SECONDARY = 'N' and STATUS = 'VALID' and DROPPED = 'NO'`,
 		defaultCondition)
 
-	logger.Log.Info("Retrieving schema", log.String("query", util.Sample(sql, 10*1024)))
-
 	tableIDs := []*oracle_common.TableID{}
 	queryErr := oracle_common.PDBQueryGlobal(db.config, db.sqlxDB, context.Background(),
 		func(ctx context.Context, connection *sqlx.Conn) error {
@@ -412,7 +408,6 @@ where
 	and cols.HIDDEN_COLUMN != 'YES'`,
 		defaultCondition)
 
-	logger.Log.Info("Loading columns info", log.String("query", util.Sample(sql, 10*1024)))
 	//nolint:descriptiveerrors
 	return oracle_common.PDBQueryGlobal(db.config, db.sqlxDB, context.Background(),
 		func(ctx context.Context, connection *sqlx.Conn) error {

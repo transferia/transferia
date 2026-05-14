@@ -78,7 +78,8 @@ var (
 		"XDB",
 		"XS$NULL",
 		"OJVMSYS",
-		"VECSYS", // Oracle 23ai internal vector search schema
+		"VECSYS",     // Oracle 23ai internal vector search schema
+		"SQLTXPLAIN", // SQLT (SQL Tuning Advisor) diagnostic tool schema; tables use user-defined object types (e.g. SQL_BIND_SET) that we don't decode
 	}
 	BannedTables = []string{
 		strings.ToUpper(EmbeddedLogTrackerTableName),
