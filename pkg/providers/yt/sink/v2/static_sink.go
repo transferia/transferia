@@ -151,6 +151,26 @@ func (s *sink) initTableLoad(tablePath ypath.Path, schema abstract.TableColumns)
 	return s.mainTx.ExecOrAbort(fn)
 }
 
+func (s *sink) disableChunkMerger(dir ypath.Path) error {
+	fn := func(mainTxID yt.TxID) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		transactionOptions := &yt.TransactionOptions{
+			TransactionID: mainTxID,
+			PingAncestors: true,
+			Ping:          true,
+		}
+
+		if err := s.ytClient.SetNode(ctx, dir.Attr("chunk_merger_mode"), "none", &yt.SetNodeOptions{TransactionOptions: transactionOptions}); err != nil {
+			return xerrors.Errorf("unable to set chunk_merger_mode = none for table %s: %w", dir.String(), err)
+		}
+		return nil
+	}
+
+	return s.mainTx.ExecOrAbort(fn)
+}
+
 func (s *sink) beginPartTx() error {
 	tx, err := s.mainTx.BeginSubTx()
 	if err != nil {
@@ -216,6 +236,12 @@ func (s *sink) commitTable(tablePath ypath.Path, scheme abstract.TableColumns) e
 			ReduceBinaryPath: reduceBinaryPath,
 		}); err != nil {
 			return err
+		}
+
+		if !s.config.Static() {
+			if err := s.disableChunkMerger(tablePath); err != nil {
+				return xerrors.Errorf("failed to disable chunk merger: %w", err)
+			}
 		}
 		s.logger.Info("table was committed", log.String("table_path", tablePath.String()),
 			log.Duration("elapsed_time", time.Since(startMoment)))
