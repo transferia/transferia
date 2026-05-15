@@ -3716,6 +3716,7 @@
   "tests/e2e/ydb2mock/debezium/replication/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2mock/debezium/replication/check_db_test.go",
   "tests/e2e/ydb2mock/incremental/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2mock/incremental/check_db_test.go",
   "tests/e2e/ydb2mock/snapshot_and_replication_filter_table/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2mock/snapshot_and_replication_filter_table/check_db_test.go",
+  "tests/e2e/ydb2pg/snapshot_and_replication/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2pg/snapshot_and_replication/check_db_test.go",
   "tests/e2e/ydb2s3/snapshot/snapshot_test.go":"transfer_manager/go/tests/e2e/ydb2s3/snapshot/snapshot_test.go",
   "tests/e2e/ydb2ydb/copy_type/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2ydb/copy_type/check_db_test.go",
   "tests/e2e/ydb2ydb/debezium/snapshot_replication_serde_via_debezium_embedded_nulls/check_db_test.go":"transfer_manager/go/tests/e2e/ydb2ydb/debezium/snapshot_replication_serde_via_debezium_embedded_nulls/check_db_test.go",

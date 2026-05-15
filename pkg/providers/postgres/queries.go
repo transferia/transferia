@@ -11,14 +11,15 @@ import (
 )
 
 func CreateTableQuery(fullTableName string, schema []abstract.ColSchema) (string, error) {
-	if err := prepareOriginalTypes(schema); err != nil {
+	preparedSchema, err := prepareOriginalTypes(schema)
+	if err != nil {
 		return "", xerrors.Errorf("failed to prepare original types for parsing: %w", err)
 	}
 
 	var primaryKeys []string
 	b := strings.Builder{}
 	b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (`, fullTableName))
-	for idx, col := range schema {
+	for idx, col := range preparedSchema {
 		var queryType string
 		if col.OriginalType != "" {
 			queryType = strings.TrimPrefix(col.OriginalType, "pg:")
@@ -43,7 +44,7 @@ func CreateTableQuery(fullTableName string, schema []abstract.ColSchema) (string
 		if col.IsKey() {
 			primaryKeys = append(primaryKeys, fmt.Sprintf(`"%s"`, col.ColumnName))
 		}
-		if idx < len(schema)-1 {
+		if idx < len(preparedSchema)-1 {
 			b.WriteString(",")
 		}
 	}
@@ -156,13 +157,14 @@ func addEnumValsQuery(currentCol, col abstract.ColSchema) ([]string, error) {
 }
 
 func addColsQuery(ftn string, added []abstract.ColSchema) (string, error) {
-	if err := prepareOriginalTypes(added); err != nil {
+	preparedAdded, err := prepareOriginalTypes(added)
+	if err != nil {
 		return "", xerrors.Errorf("addColsQuery:failed to prepare original types for parsing: %w", err)
 	}
 
 	b := strings.Builder{}
 	b.WriteString(fmt.Sprintf(`ALTER TABLE %s `, ftn))
-	for idx, col := range added {
+	for idx, col := range preparedAdded {
 		var queryType string
 		if col.OriginalType != "" {
 			queryType = strings.TrimPrefix(col.OriginalType, "pg:")
@@ -184,7 +186,7 @@ func addColsQuery(ftn string, added []abstract.ColSchema) (string, error) {
 			queryType += fmt.Sprintf(" DEFAULT %s", d)
 		}
 		b.WriteString(fmt.Sprintf(`ADD COLUMN IF NOT EXISTS "%v" %v`, col.ColumnName, queryType))
-		if idx < len(added)-1 {
+		if idx < len(preparedAdded)-1 {
 			b.WriteString(",")
 		}
 	}

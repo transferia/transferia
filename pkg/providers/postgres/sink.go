@@ -116,8 +116,15 @@ func getUniqueIndexKeys(ctx context.Context, conn *pgxpool.Pool) (map[string][]s
 			//nolint:descriptiveerrors
 			return nil, err
 		}
+		colExpr := fmt.Sprintf("\"%v\"", column)
 		pgName := abstract.PgName(schemaName, tableName)
-		result[pgName] = append(result[pgName], fmt.Sprintf("\"%v\"", column))
+		result[pgName] = append(result[pgName], colExpr)
+		// Also index by bare table name (no schema) so that items from sources with empty
+		// schema (e.g. YDB) can find their keys.
+		if schemaName == "public" {
+			bareName := abstract.PgName("", tableName)
+			result[bareName] = append(result[bareName], colExpr)
+		}
 	}
 	if rows.Err() != nil {
 		//nolint:descriptiveerrors
@@ -129,7 +136,7 @@ func getUniqueIndexKeys(ctx context.Context, conn *pgxpool.Pool) (map[string][]s
 func prepareOriginalType(col abstract.ColSchema) (abstract.ColSchema, error) {
 	res := col.Copy()
 	if res.OriginalType == "" || !strings.HasPrefix(res.OriginalType, "pg:") {
-		pgType, err := DataToOriginal(res.DataType)
+		pgType, err := DataToOriginal(col.DataType)
 		if err != nil {
 			return abstract.ColSchema{}, xerrors.Errorf("failed to convert type %q: %w", col.DataType, err)
 		}
@@ -138,15 +145,19 @@ func prepareOriginalType(col abstract.ColSchema) (abstract.ColSchema, error) {
 	return *res, nil
 }
 
-func prepareOriginalTypes(schema []abstract.ColSchema) error {
-	for i, v := range schema {
+// prepareOriginalTypes returns a new slice with PostgreSQL OriginalType filled in.
+// It must not mutate the input slice: the same TableColumns slice may be shared with
+// non-Postgres sources (e.g. YDB) that rely on ydb:* OriginalType in the cache.
+func prepareOriginalTypes(tableColumns abstract.TableColumns) (abstract.TableColumns, error) {
+	out := tableColumns.Copy()
+	for i, v := range tableColumns {
 		col, err := prepareOriginalType(v)
 		if err != nil {
-			return xerrors.Errorf("failed to convert type %q: %w", v.DataType, err)
+			return nil, xerrors.Errorf("failed to convert type %q: %w", v.DataType, err)
 		}
-		schema[i] = col
+		out[i] = col
 	}
-	return nil
+	return out, nil
 }
 
 // CreateSchemaQuery returns a CREATE SCHEMA IF NOT EXISTS query for the given schema
@@ -588,12 +599,13 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 		if err != nil {
 			return xerrors.Errorf("failed to parse TableID from %s: %w", pgTable, err)
 		}
-		batch[0].TableSchema.SetTableID(*tableID)
-		if err := s.checkTable(context.TODO(), *batch[0].TableSchema); err != nil {
+		schema := batch[0].TableSchema.Copy()
+		schema.SetTableID(*tableID)
+		if err := s.checkTable(context.TODO(), *schema); err != nil {
 			//nolint:descriptiveerrors
 			return err
 		}
-		tableSchema := batch[0].TableSchema.Columns()
+		tableSchema := schema.Columns()
 		// TODO: This must be moved into middleware (and the same must be done in other sinks)
 		batch = abstract.Collapse(batch)
 		if s.config.CopyUpload() {
@@ -1065,7 +1077,8 @@ func (s *sink) bulkInsert(
 	schema []abstract.ColSchema,
 	items []abstract.ChangeItem,
 ) ([]abstract.ChangeItem, error) {
-	if err := prepareOriginalTypes(schema); err != nil {
+	pgSchema, err := prepareOriginalTypes(schema)
+	if err != nil {
 		return items, xerrors.Errorf("failed to prepare original types for multi-row insert: %w", err)
 	}
 
@@ -1075,7 +1088,7 @@ func (s *sink) bulkInsert(
 	}
 	defer conn.Release()
 
-	return s.bulkInsertWithConn(ctx, conn.Conn(), table, schema, items)
+	return s.bulkInsertWithConn(ctx, conn.Conn(), table, pgSchema, items)
 }
 
 func (s *sink) bulkInsertWithConn(
@@ -1136,7 +1149,8 @@ func (s *sink) bulkInsertWithConn(
 }
 
 func (s *sink) insert(ctx context.Context, table string, schema []abstract.ColSchema, items []abstract.ChangeItem) error {
-	if err := prepareOriginalTypes(schema); err != nil {
+	pgSchema, err := prepareOriginalTypes(schema)
+	if err != nil {
 		return err
 	}
 
@@ -1146,7 +1160,7 @@ func (s *sink) insert(ctx context.Context, table string, schema []abstract.ColSc
 	}
 	defer conn.Release()
 
-	queries, err := s.buildQueries(table, schema, items)
+	queries, err := s.buildQueries(table, pgSchema, items)
 	if err != nil {
 		return xerrors.Errorf("failed to build queries to process items at sink: %w", err)
 	}
