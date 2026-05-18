@@ -57,7 +57,7 @@ require (
 	github.com/prometheus/procfs v0.19.2
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/segmentio/kafka-go v0.4.48
-	github.com/shirou/gopsutil/v3 v3.24.2
+	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/shopspring/decimal v1.4.0
 	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed
 	github.com/spf13/cast v1.7.1
@@ -70,7 +70,7 @@ require (
 	github.com/valyala/fastjson v1.6.4
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.135.14
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.136.2
 	go.mongodb.org/mongo-driver v1.17.4
 	go.opentelemetry.io/contrib/bridges/otelzap v0.13.0
 	go.opentelemetry.io/otel v1.43.0
@@ -147,7 +147,7 @@ require (
 	github.com/containerd/platforms v1.0.0-rc.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/creack/pty v1.1.24 // indirect
-	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
@@ -339,6 +339,8 @@ replace k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.33.0
 replace k8s.io/apimachinery => k8s.io/apimachinery v0.33.0
 
 replace k8s.io/apiserver => k8s.io/apiserver v0.33.0
+
+replace k8s.io/kms => k8s.io/kms v0.33.0
 
 replace k8s.io/cli-runtime => k8s.io/cli-runtime v0.31.6
 
