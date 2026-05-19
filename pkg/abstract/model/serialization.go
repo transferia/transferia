@@ -60,10 +60,16 @@ func (f *SerializationFormat) Copy() *SerializationFormat {
 
 // SanitizeSecrets sanitizes secrets inplace
 func (f *SerializationFormat) SanitizeSecrets() {
+	const maskString = "***SENSITIVE***"
 	for i := range f.SettingsKV {
 		key := f.SettingsKV[i][0]
 		if debezium_parameters.IsSensitiveParam(key) {
-			f.SettingsKV[i][1] = "***SENSITIVE***"
+			f.SettingsKV[i][1] = maskString
+		}
+	}
+	for key := range f.Settings {
+		if debezium_parameters.IsSensitiveParam(key) {
+			f.Settings[key] = maskString
 		}
 	}
 }

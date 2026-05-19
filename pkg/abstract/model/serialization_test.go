@@ -3,6 +3,7 @@ package model
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	debeziumparameters "github.com/transferia/transferia/pkg/debezium/parameters"
 )
 
@@ -63,15 +64,25 @@ func TestSanitizeSecrets(t *testing.T) {
 			},
 		},
 	}
+	settingsKVtoMap := func(settingsKV [][2]string) map[string]string {
+		result := make(map[string]string, len(settingsKV))
+		for _, keyValue := range settingsKV {
+			result[keyValue[0]] = keyValue[1]
+		}
+		return result
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a copy of settingsKV to avoid modifying test data
 			settingsKV := make([][2]string, len(tt.settingsKV))
 			copy(settingsKV, tt.settingsKV)
+			settings := settingsKVtoMap(tt.settingsKV)
+			expectedSettings := settingsKVtoMap(tt.expectedKV)
 
 			sf := &SerializationFormat{
 				Name:       SerializationFormatDebezium,
+				Settings:   settings,
 				SettingsKV: settingsKV,
 			}
 
@@ -79,19 +90,8 @@ func TestSanitizeSecrets(t *testing.T) {
 			sf.SanitizeSecrets()
 
 			// Verify that sensitive parameters are sanitized
-			if len(sf.SettingsKV) != len(tt.expectedKV) {
-				t.Errorf("SettingsKV length mismatch: got %d, want %d", len(sf.SettingsKV), len(tt.expectedKV))
-				return
-			}
-
-			for i, kv := range sf.SettingsKV {
-				if kv[0] != tt.expectedKV[i][0] {
-					t.Errorf("SettingsKV[%d][0] mismatch: got %s, want %s", i, kv[0], tt.expectedKV[i][0])
-				}
-				if kv[1] != tt.expectedKV[i][1] {
-					t.Errorf("SettingsKV[%d][1] mismatch: got %s, want %s", i, kv[1], tt.expectedKV[i][1])
-				}
-			}
+			require.Equal(t, tt.expectedKV, sf.SettingsKV)
+			require.Equal(t, expectedSettings, sf.Settings)
 		})
 	}
 }
