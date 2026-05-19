@@ -163,6 +163,13 @@ func TestExponentialFloatFormToNumeric(t *testing.T) {
 	helperTestExponentialFloatFormToNumeric(t, ".123e3", "123")
 	helperTestExponentialFloatFormToNumeric(t, ".123e-14", "0.00000000000000123")
 	helperTestExponentialFloatFormToNumeric(t, "1e-2", "0.01")
+
+	helperTestExponentialFloatFormToNumeric(t, "1e1", "10")
+	helperTestExponentialFloatFormToNumeric(t, "1e2", "100")
+	helperTestExponentialFloatFormToNumeric(t, "1e+1", "10")
+	helperTestExponentialFloatFormToNumeric(t, "1e+2", "100")
+	helperTestExponentialFloatFormToNumeric(t, "10e1", "100")
+	helperTestExponentialFloatFormToNumeric(t, "123e2", "12300")
 }
 
 func TestNumericToExponentialFloatForm(t *testing.T) {

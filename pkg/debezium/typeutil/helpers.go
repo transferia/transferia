@@ -348,16 +348,22 @@ func exponentialFloatFormToNumericPositivePart(in string) (string, error) {
 			}
 		}
 	} else if sign == "+" {
-		basePart = basePart[1:]
-		if expVal >= len(basePart) {
-			result, err := fillByZeroesToAlignR(basePart, expVal)
-			if err != nil {
-				return "", xerrors.Errorf("unable to align R, err: %w", err)
+		if basePart[0] == '.' {
+			// Case: .123e3 -> 123
+			basePart = basePart[1:]
+			if expVal >= len(basePart) {
+				result, err := fillByZeroesToAlignR(basePart, expVal)
+				if err != nil {
+					return "", xerrors.Errorf("unable to align R, err: %w", err)
+				}
+				return result, nil
+			} else {
+				index := len(basePart) - expVal
+				return basePart[0:index] + "." + basePart[index:], nil
 			}
-			return result, nil
 		} else {
-			index := len(basePart) - expVal
-			return basePart[0:index] + "." + basePart[index:], nil
+			// Case: 1e1 -> 10
+			return basePart + strings.Repeat("0", expVal), nil
 		}
 	} else {
 		return "", xerrors.Errorf("unknown sign: %s, string: %s", sign, in)
