@@ -244,7 +244,7 @@ func NewFromHosts(dbName, user, password string, hosts []string, port int, ssl b
 	if len(pingErrs) > 0 && len(pingErrs) == len(hosts) {
 		logger.Log.Error("unable to ping any host", log.Any("error", pingErrs))
 		joinedErr := errors.Join(pingErrs...)
-		if pgerrors.AnyErrHasCode(pingErrs, pgerrors.ErrcInvalidPassword, pgerrors.ErrcInvalidAuthSpec) {
+		if pgerrors.AnyErrHasCode(pingErrs, pgerrors.ErrcInvalidPassword, pgerrors.ErrcInvalidAuthSpec, pgerrors.ErrcInvalidCatalogName) {
 			return nil, coded.Errorf(error_codes.InvalidCredential, "All hosts are unavailable due to authentication failure: %w", joinedErr)
 		}
 		return nil, coded.Errorf(error_codes.PostgresAllHostsUnavailable, "All hosts are unavailable: %w", joinedErr)

@@ -528,7 +528,7 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	defer cancel()
 	pgxConn, err := pgx.ConnectConfig(basicCtx, poolConfig.ConnConfig)
 	if err != nil {
-		if pgerrors.IsPgError(err, pgerrors.ErrcInvalidPassword) || pgerrors.IsPgError(err, pgerrors.ErrcInvalidAuthSpec) {
+		if pgerrors.IsPgError(err, pgerrors.ErrcInvalidPassword) || pgerrors.IsPgError(err, pgerrors.ErrcInvalidAuthSpec) || pgerrors.IsPgError(err, pgerrors.ErrcInvalidCatalogName) {
 			return nil, coded.Errorf(error_codes.InvalidCredential, "failed to connect to a PostgreSQL instance: %w", err)
 		}
 		var dnsErr *net.DNSError

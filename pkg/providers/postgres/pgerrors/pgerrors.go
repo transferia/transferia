@@ -17,6 +17,7 @@ const (
 	ErrcObjectNotInPrerequisiteState PgErrorCode = "55000"
 	ErrcInvalidPassword              PgErrorCode = "28P01"
 	ErrcInvalidAuthSpec              PgErrorCode = "28000"
+	ErrcInvalidCatalogName           PgErrorCode = "3D000"
 	ErrcDropTableWithDependencies    PgErrorCode = "2BP01"
 	ErrcGeneratedColumnWriteAttempt  PgErrorCode = "42P10"
 	ErrcTooManyConnections           PgErrorCode = "53300"
