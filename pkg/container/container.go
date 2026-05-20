@@ -5,14 +5,14 @@ import (
 	"io"
 	"os"
 
-	docker_types "github.com/docker/docker/api/types"
+	docker_image "github.com/docker/docker/api/types/image"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type ContainerImpl interface {
 	Run(context.Context, ContainerOpts) (io.Reader, io.Reader, error)
-	Pull(context.Context, string, docker_types.ImagePullOptions) error
+	Pull(context.Context, string, docker_image.PullOptions) error
 }
 
 func NewContainerImpl(l log.Logger) (ContainerImpl, error) {

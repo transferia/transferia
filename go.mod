@@ -312,6 +312,7 @@ exclude (
 	github.com/docker/docker/api v1.54.0-rc.1
 	github.com/docker/docker/api v1.54.0
 	github.com/docker/docker/api v1.54.1
+	github.com/docker/docker/api v1.54.2
 )
 
 replace github.com/insomniacslk/dhcp => github.com/insomniacslk/dhcp v0.0.0-20210120172423-cc9239ac6294
@@ -404,11 +405,11 @@ replace github.com/jackc/pgproto3/v2 => github.com/jackc/pgproto3/v2 v2.3.2
 
 replace github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.24
 
-replace github.com/docker/docker => github.com/docker/docker v26.1.5+incompatible
+replace github.com/docker/docker => github.com/docker/docker v27.5.1+incompatible
 
 replace github.com/docker/cli => github.com/docker/cli v25.0.4+incompatible
 
-replace github.com/testcontainers/testcontainers-go => github.com/testcontainers/testcontainers-go v0.31.0
+replace github.com/testcontainers/testcontainers-go => github.com/testcontainers/testcontainers-go v0.32.0
 
 replace github.com/grpc-ecosystem/go-grpc-middleware/v2 => github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.2.0
 
@@ -426,9 +427,9 @@ replace github.com/stretchr/testify => github.com/stretchr/testify v1.10.0
 
 replace go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0
 
-replace github.com/moby/buildkit => github.com/moby/buildkit v0.13.2
+replace github.com/moby/buildkit => github.com/moby/buildkit v0.18.2
 
-replace github.com/tonistiigi/fsutil => github.com/tonistiigi/fsutil v0.0.0-20240424095704-91a3fc46842c
+replace github.com/tonistiigi/fsutil => github.com/tonistiigi/fsutil v0.0.0-20241121093142-31cf1f437184
 
 replace github.com/google/go-tpm-tools => github.com/google/go-tpm-tools v0.4.2
 
