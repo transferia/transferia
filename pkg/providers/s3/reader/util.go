@@ -258,8 +258,8 @@ func DefaultContractorBackoff() backoff.BackOff {
 }
 
 // ParsePassthroughChunk is the parsequeue parse function for S3 replication: items are already parsed.
-func ParsePassthroughChunk(chunk s3_pusher.Chunk) []abstract.ChangeItem {
-	return chunk.Items
+func ParsePassthroughChunk(chunk s3_pusher.Chunk) ([]abstract.ChangeItem, error) {
+	return chunk.Items, nil
 }
 
 func DataTypes(columns abstract.TableColumns) []string {

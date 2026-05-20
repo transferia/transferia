@@ -5,6 +5,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/stats"
@@ -60,15 +61,19 @@ func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch, useFullTopic
 	)
 }
 
-type TransformFunc func([]abstract.ChangeItem) []abstract.ChangeItem
+type TransformFunc func([]abstract.ChangeItem) ([]abstract.ChangeItem, error)
 
-func Parse(batches []parsers.MessageBatch, parser parsers.Parser, metrics *stats.SourceStats, logger log.Logger, transformFunc TransformFunc, useFullTopicName bool) []abstract.ChangeItem {
+func Parse(batches []parsers.MessageBatch, parser parsers.Parser, metrics *stats.SourceStats, logger log.Logger, transformFunc TransformFunc, useFullTopicName bool) ([]abstract.ChangeItem, error) {
 	st := time.Now()
 	var data []abstract.ChangeItem
 	if transformFunc == nil && parser != nil {
 		data = parse(batches, parser, useFullTopicName)
 	} else {
-		data = parseWithTransform(batches, parser, transformFunc, useFullTopicName)
+		var err error
+		data, err = parseWithTransform(batches, parser, transformFunc, useFullTopicName)
+		if err != nil {
+			return nil, xerrors.Errorf("Failed to parse data: %w", err)
+		}
 	}
 
 	metrics.DecodeTime.RecordDuration(time.Since(st))
@@ -84,7 +89,7 @@ func Parse(batches []parsers.MessageBatch, parser parsers.Parser, metrics *stats
 			}
 		}
 	}
-	return data
+	return data, nil
 }
 
 // BuildMapPartitionToLbOffsetsRange - is used only in logging
@@ -154,15 +159,20 @@ func combineBatches(batches []parsers.MessageBatch) []parsers.MessageBatch {
 	return res
 }
 
-func parseWithTransform(batches []parsers.MessageBatch, parser parsers.Parser, transformFunc TransformFunc, useFullTopicName bool) []abstract.ChangeItem {
+func parseWithTransform(batches []parsers.MessageBatch, parser parsers.Parser, transformFunc TransformFunc, useFullTopicName bool) ([]abstract.ChangeItem, error) {
 	var data []abstract.ChangeItem
 	for _, batch := range batches {
 		for _, m := range batch.Messages {
 			data = append(data, MessageAsChangeItem(m, batch, useFullTopicName))
 		}
 	}
+
+	var err error
 	if transformFunc != nil {
-		data = transformFunc(data)
+		data, err = transformFunc(data)
+		if err != nil {
+			return nil, xerrors.Errorf("Failed to transform data: %w", err)
+		}
 	}
 	if parser != nil {
 		var res []abstract.ChangeItem
@@ -173,5 +183,5 @@ func parseWithTransform(batches []parsers.MessageBatch, parser parsers.Parser, t
 		data = res
 	}
 
-	return data
+	return data, nil
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
@@ -23,9 +24,9 @@ func TestSinkNotBlocking(t *testing.T) {
 		pushCnt.Add(1)
 		resCh := make(chan error) // push never finished
 		return resCh
-	}), func(data int) []abstract.ChangeItem {
+	}), func(data int) ([]abstract.ChangeItem, error) {
 		parseCnt.Add(1)
-		return nil // immediate parse
+		return nil, nil // immediate parse
 	}, func(data int, _ time.Time, _ error) {
 		ackCnt.Add(1)
 	})
@@ -45,6 +46,37 @@ func TestSinkNotBlocking(t *testing.T) {
 	require.Equal(t, ackCnt.Load(), int32(0))
 }
 
+func TestParseErrNotBlocking(t *testing.T) {
+	parallelism := 10
+	pushCnt := atomic.Int32{}
+	ackCnt := atomic.Int32{}
+	parseCnt := atomic.Int32{}
+	q := New(logger.Log, parallelism, mocksink.NewMockAsyncSinkWithChan(func(items []abstract.ChangeItem) chan error {
+		pushCnt.Add(1)
+		return nil
+	}), func(data int) ([]abstract.ChangeItem, error) {
+		parseCnt.Add(1)
+		return nil, xerrors.New("test error")
+	}, func(data int, _ time.Time, err error) {
+		ackCnt.Add(1)
+		require.Error(t, err)
+	})
+	for i := range 1000 {
+		require.NoError(t, q.Add(i))
+	}
+	st := time.Now()
+	for time.Since(st) < time.Second {
+		if ackCnt.Load() == int32(1000) {
+			break
+		} else {
+			time.Sleep(time.Millisecond)
+		}
+	}
+	require.Equal(t, parseCnt.Load(), int32(1000))
+	require.Equal(t, pushCnt.Load(), int32(0))
+	require.Equal(t, ackCnt.Load(), int32(1000))
+}
+
 func TestAckOrder(t *testing.T) {
 	wgMap := map[int]*sync.WaitGroup{}
 	parallelism := 10
@@ -57,11 +89,11 @@ func TestAckOrder(t *testing.T) {
 	inflight := atomic.Int32{}
 	q := New[int](logger.Log, parallelism, mocksink.NewMockAsyncSinkWithChan(func(items []abstract.ChangeItem) chan error {
 		return nil
-	}), func(data int) []abstract.ChangeItem {
+	}), func(data int) ([]abstract.ChangeItem, error) {
 		inflight.Add(1)
 		defer inflight.Add(-1)
 		wgMap[data].Wait()
-		return nil
+		return nil, nil
 	}, func(data int, _ time.Time, _ error) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -97,9 +129,9 @@ func TestGracefullyShutdown(t *testing.T) {
 	q := New[int](logger.Log, 5, mocksink.NewMockAsyncSinkWithChan(func(items []abstract.ChangeItem) chan error {
 		time.Sleep(2 * time.Millisecond)
 		return nil
-	}), func(data int) []abstract.ChangeItem {
+	}), func(data int) ([]abstract.ChangeItem, error) {
 		time.Sleep(time.Millisecond)
-		return nil
+		return nil, nil
 	}, func(data int, _ time.Time, _ error) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -136,7 +168,7 @@ func TestRandomParseDelay(t *testing.T) {
 		defer mu.Unlock()
 		pushIter++
 		return nil
-	}), func(data int) []abstract.ChangeItem {
+	}), func(data int) ([]abstract.ChangeItem, error) {
 		mu.Lock()
 		fmt.Printf("%d STARTED, counter:%d->%d\n", data, counter, counter+1)
 		counter++
@@ -150,7 +182,7 @@ func TestRandomParseDelay(t *testing.T) {
 		validateCounter(counter)
 		counter--
 		mu.Unlock()
-		return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 	}, func(data int, _ time.Time, _ error) {
 		mu.Lock()
 		defer mu.Unlock()

@@ -30,7 +30,7 @@ func TestRandomParseDelayWithEnsure(t *testing.T) {
 		defer mu.Unlock()
 		pushIter++
 		return nil
-	}), func(data int) []abstract.ChangeItem {
+	}), func(data int) ([]abstract.ChangeItem, error) {
 		mu.Lock()
 		fmt.Printf("%d STARTED, counter:%d->%d\n", data, counter, counter+1)
 		counter++
@@ -44,7 +44,7 @@ func TestRandomParseDelayWithEnsure(t *testing.T) {
 		validateCounter(counter)
 		counter--
 		mu.Unlock()
-		return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 	}, func(data int, _ time.Time, _ error) {
 		mu.Lock()
 		defer mu.Unlock()

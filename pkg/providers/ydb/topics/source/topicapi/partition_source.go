@@ -24,7 +24,7 @@ type PartitionSource struct {
 }
 
 func (s *PartitionSource) Run(sink abstract.QueueToS3Sink) error {
-	parseQ := queue_to_s3_parsequeue.NewWaitable(s.logger, s.config.ParseQueueParallelism, sink, s.parserWithCloudFunc(s.sendError), s.queueToS3Ack)
+	parseQ := queue_to_s3_parsequeue.NewWaitable(s.logger, s.config.ParseQueueParallelism, sink, s.parserWithCloudFunc(), s.queueToS3Ack)
 
 	runErr := s.run(parseQ)
 	parseQ.Close()

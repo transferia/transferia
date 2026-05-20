@@ -32,7 +32,12 @@ type QueueToS3ParseQueue[TData any] struct {
 
 type parseTask[T any] struct {
 	msg   T
-	resCh chan []abstract.ChangeItem
+	resCh chan parseRes
+}
+
+type parseRes struct {
+	data []abstract.ChangeItem
+	err  error
 }
 
 // Add will schedule new message parse
@@ -46,7 +51,7 @@ func (p *QueueToS3ParseQueue[TData]) Add(message TData) error {
 
 	select {
 	case <-p.stopCh:
-		return xerrors.New("parse queue failed on sending parse task")
+		return parsequeue.ErrorWhileParsing
 	case p.pushCh <- p.makeParseTask(message):
 		return nil
 	}
@@ -69,15 +74,15 @@ func (p *QueueToS3ParseQueue[TData]) Error() error {
 }
 
 func (p *QueueToS3ParseQueue[TData]) makeParseTask(items TData) parseTask[TData] {
-	resCh := make(chan []abstract.ChangeItem)
+	resCh := make(chan parseRes)
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
 
-		parseResult := p.parseF(items)
+		parseResult, err := p.parseF(items)
 		select {
 		case <-p.stopCh:
-		case resCh <- parseResult:
+		case resCh <- parseRes{data: parseResult, err: err}:
 		}
 	}()
 	return parseTask[TData]{msg: items, resCh: resCh}
@@ -98,14 +103,18 @@ func (p *QueueToS3ParseQueue[TData]) pushLoop() {
 		}
 
 		p.logger.Debug("wait for push")
-		var parseRes []abstract.ChangeItem
+		var parseRes parseRes
 		select {
 		case <-p.stopCh:
 			return
 		case parseRes = <-parsed.resCh:
 		}
 
-		p.sink.AsyncV2Push(ctx, p.ackCh, parseRes)
+		if parseRes.err != nil {
+			p.failWithError(xerrors.Errorf("parse error: %w", parseRes.err))
+		} else {
+			p.sink.AsyncV2Push(ctx, p.ackCh, parseRes.data)
+		}
 	}
 }
 

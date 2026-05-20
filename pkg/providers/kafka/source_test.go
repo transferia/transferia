@@ -219,7 +219,7 @@ func TestParseLSNNotSetNull(t *testing.T) {
 
 	src.parser = &mockParser{}
 
-	parsedItems := src.parse([]kgo.Record{
+	parsedItems, err := src.parse([]kgo.Record{
 		{
 			Topic:     "topic2",
 			Offset:    3,
@@ -228,6 +228,7 @@ func TestParseLSNNotSetNull(t *testing.T) {
 		},
 	})
 
+	require.NoError(t, err)
 	require.Len(t, parsedItems, 1)
 	require.Equal(t, uint64(3), parsedItems[0].LSN)
 }

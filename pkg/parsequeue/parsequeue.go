@@ -11,7 +11,7 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-type ParseFunc[TData any] func(TData) []abstract.ChangeItem
+type ParseFunc[TData any] func(TData) ([]abstract.ChangeItem, error)
 type AckFunc[TData any] func(data TData, pushSt time.Time, err error)
 
 type ParseQueue[TData any] struct {
@@ -38,8 +38,15 @@ type pushTask[T any] struct {
 
 type parseTask[T any] struct {
 	msg   T
-	resCh chan []abstract.ChangeItem
+	resCh chan parseRes
 }
+
+type parseRes struct {
+	data []abstract.ChangeItem
+	err  error
+}
+
+var ErrorWhileParsing = xerrors.New("parse queue failed on sending parse task")
 
 // Add will schedule new message parse
 //
@@ -61,12 +68,12 @@ func (p *ParseQueue[TData]) Close() {
 }
 
 func (p *ParseQueue[TData]) makeParseTask(items TData) parseTask[TData] {
-	resCh := make(chan []abstract.ChangeItem)
+	resCh := make(chan parseRes)
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
-		parseResult := p.parseF(items)
-		util.Send(p.ctx, resCh, parseResult)
+		parseResult, err := p.parseF(items)
+		util.Send(p.ctx, resCh, parseRes{data: parseResult, err: err})
 	}()
 	return parseTask[TData]{msg: items, resCh: resCh}
 }
@@ -85,10 +92,18 @@ func (p *ParseQueue[TData]) pushLoop() {
 		}
 
 		task := pushTask[TData]{
-			errCh:  p.sink.AsyncPush(items),
+			errCh:  nil,
 			msg:    parsed.msg,
 			pushSt: time.Now(),
 		}
+
+		if items.err != nil {
+			task.errCh = make(chan error, 1)
+			task.errCh <- items.err
+		} else {
+			task.errCh = p.sink.AsyncPush(items.data)
+		}
+
 		if !util.Send(p.ctx, p.ackCh, task) {
 			return
 		}

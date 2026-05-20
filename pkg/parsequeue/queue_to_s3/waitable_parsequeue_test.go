@@ -37,7 +37,7 @@ func TestRandomParseDelayWithEnsureQueueToS3(t *testing.T) {
 		return nil
 	}, nil)
 
-	q := NewWaitable[int](logger.Log, parallelism, mockSinkToS3, func(data int) []abstract.ChangeItem {
+	q := NewWaitable[int](logger.Log, parallelism, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
 		mu.Lock()
 		fmt.Printf("%d STARTED, counter:%d->%d\n", data, counter, counter+1)
 		counter++
@@ -51,7 +51,7 @@ func TestRandomParseDelayWithEnsureQueueToS3(t *testing.T) {
 		validateCounter(counter)
 		counter--
 		mu.Unlock()
-		return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 	}, func(pushResult abstract.QueueResult) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -85,8 +85,8 @@ func TestWaitWithError(t *testing.T) {
 		return nil
 	}, nil)
 
-	q := NewWaitable[int](logger.Log, 5, mockSinkToS3, func(data int) []abstract.ChangeItem {
-		return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+	q := NewWaitable[int](logger.Log, 5, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
+		return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 	}, func(pushResult abstract.QueueResult) error {
 		if ackCnt.Add(1) == 5 {
 			return xerrors.New("ack error at 5")

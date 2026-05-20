@@ -134,7 +134,7 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[[]batchWithSize]) err
 	}
 }
 
-func (s *Source) parse(buffer []batchWithSize) []abstract.ChangeItem {
+func (s *Source) parse(buffer []batchWithSize) ([]abstract.ChangeItem, error) {
 	rollbackOnError := util.Rollbacks{}
 	defer rollbackOnError.Do()
 
@@ -151,8 +151,7 @@ func (s *Source) parse(buffer []batchWithSize) []abstract.ChangeItem {
 			// The CDC format description is somewhat ambiguous, its documentation is https://ydb.tech/en/docs/concepts/cdc#record-structure.
 			// The JSON format is described at https://ydb.tech/ru/docs/yql/reference/types/json#utf; however, it is apparently not used in the CDC protocol. As a result, YQL NULL and Json `null` value are represented by the same object in the YQL CDC protocol.
 			if err := jsonx.Unmarshal(batch.messageValues[i], &event); err != nil {
-				util.Send(s.ctx, s.errCh, xerrors.Errorf("unable to deserialize json, err: %w", err))
-				return nil
+				return nil, xerrors.Errorf("unable to deserialize json, err: %w", err)
 			}
 
 			msgData := batch.ydbBatch.Messages[i]
@@ -160,13 +159,11 @@ func (s *Source) parse(buffer []batchWithSize) []abstract.ChangeItem {
 			tableName := makeTablePathFromTopicPath(topicPath, s.feedName, s.cfg.Database)
 			tableSchema, err := s.getUpToDateTableSchema(tableName, &event)
 			if err != nil {
-				util.Send(s.ctx, s.errCh, xerrors.Errorf("unable to check table schema, event: %s, err: %w", event.ToJSONString(), err))
-				return nil
+				return nil, xerrors.Errorf("unable to check table schema, event: %s, err: %w", event.ToJSONString(), err)
 			}
 			item, err := convertToChangeItem(tableName, tableSchema, &event, msgData.WrittenAt, msgData.Offset, msgData.PartitionID(), uint64(len(batch.messageValues[i])), s.fillDefaults())
 			if err != nil {
-				util.Send(s.ctx, s.errCh, xerrors.Errorf("unable to convert ydb cdc event to changeItem, event: %s, err: %w", event.ToJSONString(), err))
-				return nil
+				return nil, xerrors.Errorf("unable to convert ydb cdc event to changeItem, event: %s, err: %w", event.ToJSONString(), err)
 			}
 			items = append(items, *item)
 		}
@@ -176,7 +173,7 @@ func (s *Source) parse(buffer []batchWithSize) []abstract.ChangeItem {
 	s.metrics.DecodeTime.RecordDuration(time.Since(st))
 	s.metrics.ChangeItems.Add(int64(len(items)))
 
-	return items
+	return items, nil
 }
 
 func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {

@@ -153,7 +153,7 @@ func (p *replication) ack(data []abstract.ChangeItem, pushSt time.Time, err erro
 	p.metrics.PushTime.RecordDuration(time.Since(pushSt))
 }
 
-func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) []abstract.ChangeItem {
+func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
 	var changes []abstract.ChangeItem
 	inlcludeable := abstract.NewIntersectionIncludeable(p.objectsFilter, p.config)
 	for _, change := range items {
@@ -165,7 +165,7 @@ func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) []abstract.
 			changes = append(changes, change)
 		}
 	}
-	return changes
+	return changes, nil
 }
 
 func countPublisherMetrics(items []abstract.ChangeItem) (changeItems int64, parsedRows int64) {
@@ -412,7 +412,12 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 					}
 					// count publisher metrics for included items only. count it here to not rely
 					// on the parsequeue
-					included := p.WithIncludeFilter(res)
+					included, err := p.WithIncludeFilter(res)
+					if err != nil {
+						p.sendError(xerrors.Errorf("unable to apply include filter: %w", err))
+						return
+					}
+
 					changeItems, parsedRows := countPublisherMetrics(included)
 					if changeItems > 0 {
 						p.metrics.ChangeItems.Add(changeItems)

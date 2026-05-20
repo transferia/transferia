@@ -45,7 +45,7 @@ type Source struct {
 }
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
-	parseQ := parsequeue.NewWaitable[*event.ReadEvent](s.logger, 10, sink, s.parserWithCloudFunc(s.sendError), s.ack)
+	parseQ := parsequeue.NewWaitable[*event.ReadEvent](s.logger, 10, sink, s.parserWithCloudFunc(), s.ack)
 	defer parseQ.Close()
 
 	return s.run(parseQ)
@@ -134,14 +134,11 @@ func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 		case *event.StopEvent:
 			typedEvent.Confirm()
 		case *event.ReadEvent:
-			var parseErr error
-			parseF := s.parserWithCloudFunc(func(err error) {
-				parseErr = err
-			})
+			parseF := s.parserWithCloudFunc()
 
-			result := parseF(typedEvent)
-			if parseErr != nil {
-				return nil, xerrors.Errorf("failed to parse fetched event: %w", parseErr)
+			result, err := parseF(typedEvent)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse fetched event: %w", err)
 			}
 
 			return result, nil
@@ -178,27 +175,25 @@ func (s *Source) sendSynchronizeEventIfNeeded(parseQ parsequeue.WaitableQueue[*e
 	return nil
 }
 
-func (s *Source) parserWithCloudFunc(errorHandler func(error)) func(*event.ReadEvent) []abstract.ChangeItem {
+func (s *Source) parserWithCloudFunc() func(*event.ReadEvent) ([]abstract.ChangeItem, error) {
 	var transformFunc lbyds.TransformFunc
 	if s.cloudFunction != nil {
-		transformFunc = func(data []abstract.ChangeItem) []abstract.ChangeItem {
+		transformFunc = func(data []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
 			st := time.Now()
 			transformed, err := s.cloudFunction.Do(data)
 			if err != nil {
-				s.logger.Errorf("cloud function transformation error in %v, %v rows -> %v rows, err: %v", time.Since(st), len(data), len(transformed), err)
-				errorHandler(err)
-				return nil
+				return nil, xerrors.Errorf("cloud function transformation error in %v, %v rows -> %v rows, err: %w", time.Since(st), len(data), len(transformed), err)
 			}
 			s.logger.Infof("cloud function transformation done in %v, %v rows -> %v rows", time.Since(st), len(data), len(transformed))
 			s.metrics.TransformTime.RecordDuration(time.Since(st))
 
-			return transformed
+			return transformed, nil
 		}
 	}
 
-	return func(readEvent *event.ReadEvent) []abstract.ChangeItem {
+	return func(readEvent *event.ReadEvent) ([]abstract.ChangeItem, error) {
 		if readEvent == nil {
-			return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}
+			return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}, nil
 		}
 
 		return lbyds.Parse([]parsers.MessageBatch{readEvent.Batch}, s.parser, s.metrics, s.logger, transformFunc, s.config.UseFullTopicNameForParsing)

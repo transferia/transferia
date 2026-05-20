@@ -52,7 +52,11 @@ func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 	stapErr := xerrors.New("stap")
 	var res []abstract.ChangeItem
 	err := s.consumer.Scan(s.ctx, func(data []*consumer.Record) error {
-		parsed := s.parse(data)
+		parsed, err := s.parse(data)
+		if err != nil {
+			return xerrors.Errorf("Failed to parse data: %w", err)
+		}
+
 		if len(parsed) == 0 {
 			return nil
 		}
@@ -133,7 +137,7 @@ func (s *Source) ack(data []*consumer.Record, pushSt time.Time, err error) {
 	s.metrics.PushTime.RecordDuration(time.Since(pushSt))
 }
 
-func (s *Source) parse(record []*consumer.Record) []abstract.ChangeItem {
+func (s *Source) parse(record []*consumer.Record) ([]abstract.ChangeItem, error) {
 	var data []abstract.ChangeItem
 	totalSize := 0
 	for _, msg := range record {
@@ -162,7 +166,7 @@ func (s *Source) parse(record []*consumer.Record) []abstract.ChangeItem {
 			s.metrics.Parsed.Inc()
 		}
 	}
-	return data
+	return data, nil
 }
 
 func (s *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Partition) {

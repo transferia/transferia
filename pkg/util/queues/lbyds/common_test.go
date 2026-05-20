@@ -44,11 +44,11 @@ func TestParse(t *testing.T) {
 
 	t.Run("WithTransformOnly", func(t *testing.T) {
 		transformedData := "{\"msg\":\"transformed_value\"}"
-		res := Parse(testData, nil, sourceMetrics, logger.Log, func(items []abstract.ChangeItem) []abstract.ChangeItem {
+		res, _ := Parse(testData, nil, sourceMetrics, logger.Log, func(items []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
 			for _, item := range items {
 				item.ColumnValues[abstract.RawDataColsIDX[abstract.RawMessageData]] = transformedData
 			}
-			return items
+			return items, nil
 		}, false)
 
 		require.Len(t, res, len(testData))
@@ -60,11 +60,11 @@ func TestParse(t *testing.T) {
 
 	t.Run("WithTransformAndParser", func(t *testing.T) {
 		transformedData := "{\"msg\":\"transformed_value\"}"
-		res := Parse(testData, parser, sourceMetrics, logger.Log, func(items []abstract.ChangeItem) []abstract.ChangeItem {
+		res, _ := Parse(testData, parser, sourceMetrics, logger.Log, func(items []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
 			for _, item := range items {
 				item.ColumnValues[abstract.RawDataColsIDX[abstract.RawMessageData]] = transformedData
 			}
-			return items
+			return items, nil
 		}, false)
 
 		require.Len(t, res, len(testData))
@@ -85,7 +85,7 @@ func TestParse(t *testing.T) {
 	})
 
 	t.Run("ParserOnly", func(t *testing.T) {
-		res := Parse(testData, parser, sourceMetrics, logger.Log, nil, false)
+		res, _ := Parse(testData, parser, sourceMetrics, logger.Log, nil, false)
 
 		require.Len(t, res, len(testData))
 		for idx, item := range res {
@@ -105,7 +105,7 @@ func TestParse(t *testing.T) {
 	})
 
 	t.Run("ParserOnlyWithUseFullTopicName", func(t *testing.T) {
-		res := Parse(testData, parser, sourceMetrics, logger.Log, nil, true)
+		res, _ := Parse(testData, parser, sourceMetrics, logger.Log, nil, true)
 
 		require.Len(t, res, len(testData))
 		for idx, item := range res {

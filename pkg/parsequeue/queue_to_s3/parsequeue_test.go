@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/parsequeue"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 )
 
@@ -30,9 +31,9 @@ func TestSinkNotBlockingQueueToS3(t *testing.T) {
 		return false // push never finished
 	})
 
-	q := New[int](logger.Log, parallelism, mockSinkToS3, func(data int) []abstract.ChangeItem {
+	q := New[int](logger.Log, parallelism, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
 		parseCnt.Add(1)
-		return nil // immediate parse
+		return nil, nil // immediate parse
 	}, func(res abstract.QueueResult) error {
 		ackCnt.Add(1)
 		return nil
@@ -53,6 +54,46 @@ func TestSinkNotBlockingQueueToS3(t *testing.T) {
 	require.Equal(t, ackCnt.Load(), int32(0))
 }
 
+func TestParseErrNotBlockingQueueToS3(t *testing.T) {
+	parallelism := 10
+	pushCnt := atomic.Int32{}
+	ackCnt := atomic.Int32{}
+	parseCnt := atomic.Int32{}
+
+	mockSinkToS3 := mocksink.NewMockQueueToS3Sink(func(item abstract.ChangeItem) uint64 {
+		return 0
+	}, func(items []abstract.ChangeItem) error {
+		pushCnt.Add(1)
+		return nil
+	}, nil)
+
+	q := New(logger.Log, parallelism, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
+		parseCnt.Add(1)
+		if data == 0 {
+			return nil, xerrors.New("test error")
+		}
+		return nil, nil
+	}, func(res abstract.QueueResult) error {
+		ackCnt.Add(1)
+		return nil
+	})
+
+	i := 0
+	for {
+		if err := q.Add(i); err != nil {
+			if err == parsequeue.ErrorWhileParsing { // Received error after parsing already started
+				_ = parseCnt.Swap(int32(i))
+			}
+			break
+		}
+		i++
+	}
+
+	require.Equal(t, parseCnt.Load(), int32(i))
+	require.Equal(t, pushCnt.Load(), int32(0))
+	require.Equal(t, ackCnt.Load(), int32(0))
+}
+
 func TestAckOrderQueueToS3(t *testing.T) {
 	wgMap := map[int]*sync.WaitGroup{}
 	parallelism := 10
@@ -70,11 +111,11 @@ func TestAckOrderQueueToS3(t *testing.T) {
 		return nil
 	}, nil)
 
-	q := New[int](logger.Log, parallelism, mockSinkToS3, func(data int) []abstract.ChangeItem {
+	q := New[int](logger.Log, parallelism, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
 		inflight.Add(1)
 		defer inflight.Add(-1)
 		wgMap[data].Wait()
-		return []abstract.ChangeItem{{ColumnValues: []any{uint64(data)}}}
+		return []abstract.ChangeItem{{ColumnValues: []any{uint64(data)}}}, nil
 	}, func(pushResult abstract.QueueResult) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -114,9 +155,9 @@ func TestGracefullyShutdownQueueToS3(t *testing.T) {
 		return nil
 	}, nil)
 
-	q := New[int](logger.Log, 5, mockSinkToS3, func(data int) []abstract.ChangeItem {
+	q := New[int](logger.Log, 5, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
 		time.Sleep(time.Millisecond)
-		return nil
+		return nil, nil
 	}, func(pushResult abstract.QueueResult) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -162,7 +203,7 @@ func TestRandomParseDelayQueueToS3(t *testing.T) {
 		return nil
 	}, nil)
 
-	q := New[int](logger.Log, parallelism, mockSinkToS3, func(data int) []abstract.ChangeItem {
+	q := New[int](logger.Log, parallelism, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
 		mu.Lock()
 		fmt.Printf("%d STARTED, counter:%d->%d\n", data, counter, counter+1)
 		counter++
@@ -176,7 +217,7 @@ func TestRandomParseDelayQueueToS3(t *testing.T) {
 		validateCounter(counter)
 		counter--
 		mu.Unlock()
-		return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 	}, func(pushResult abstract.QueueResult) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -217,8 +258,8 @@ func TestErrorPropagation(t *testing.T) {
 			return nil
 		}, nil)
 
-		q := New[int](logger.Log, 5, mockSinkToS3, func(data int) []abstract.ChangeItem {
-			return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		q := New[int](logger.Log, 5, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 		}, func(pushResult abstract.QueueResult) error {
 			ackCnt.Add(1)
 			return nil
@@ -251,8 +292,8 @@ func TestErrorPropagation(t *testing.T) {
 			return nil
 		}, nil)
 
-		q := New[int](logger.Log, 5, mockSinkToS3, func(data int) []abstract.ChangeItem {
-			return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		q := New[int](logger.Log, 5, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 		}, func(pushResult abstract.QueueResult) error {
 			ackCnt.Add(1)
 			if ackCnt.Load() == 3 {
@@ -285,8 +326,8 @@ func TestErrorPropagation(t *testing.T) {
 			return nil
 		}, nil)
 
-		q := New[int](logger.Log, 10, mockSinkToS3, func(data int) []abstract.ChangeItem {
-			return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		q := New[int](logger.Log, 10, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 		}, func(pushResult abstract.QueueResult) error {
 			return xerrors.Errorf("ack error %d", pushResult.Offsets[0])
 		})
@@ -313,8 +354,8 @@ func TestClose(t *testing.T) {
 	}, nil)
 
 	t.Run("AddAfterClose", func(t *testing.T) {
-		q := New[int](logger.Log, 5, mockSinkToS3, func(data int) []abstract.ChangeItem {
-			return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		q := New[int](logger.Log, 5, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 		}, func(pushResult abstract.QueueResult) error {
 			return nil
 		})
@@ -328,8 +369,8 @@ func TestClose(t *testing.T) {
 	})
 
 	t.Run("MultipleCloseCalls", func(t *testing.T) {
-		q := New[int](logger.Log, 5, mockSinkToS3, func(data int) []abstract.ChangeItem {
-			return []abstract.ChangeItem{{ColumnValues: []any{data}}}
+		q := New[int](logger.Log, 5, mockSinkToS3, func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
 		}, func(pushResult abstract.QueueResult) error {
 			return nil
 		})

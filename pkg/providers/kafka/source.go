@@ -268,14 +268,14 @@ func (p *Source) ack(data []kgo.Record, pushSt time.Time, err error) {
 	p.metrics.PushTime.RecordDuration(time.Since(pushSt))
 }
 
-func (p *Source) parseWithSynchronizeEvent(buffer []kgo.Record) []abstract.ChangeItem {
+func (p *Source) parseWithSynchronizeEvent(buffer []kgo.Record) ([]abstract.ChangeItem, error) {
 	if len(buffer) == 0 {
-		return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}
+		return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}, nil
 	}
 	return p.parse(buffer)
 }
 
-func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
+func (p *Source) parse(buffer []kgo.Record) ([]abstract.ChangeItem, error) {
 	var data []abstract.ChangeItem
 	totalSize := 0
 	for _, msg := range buffer {
@@ -290,8 +290,7 @@ func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
 		transformed, err := p.executor.Do(data)
 		if err != nil {
 			p.logger.Errorf("Cloud function transformation error in %v, %v rows -> %v rows, err: %v", time.Since(st), len(data), len(transformed), err)
-			util.Send(p.ctx, p.errCh, xerrors.Errorf("unable to transform message: %w", err))
-			return nil
+			return nil, xerrors.Errorf("unable to transform message: %w", err)
 		}
 		p.logger.Infof("Cloud function transformation done in %v, %v rows -> %v rows", time.Since(st), len(data), len(transformed))
 		data = transformed
@@ -322,7 +321,7 @@ func (p *Source) parse(buffer []kgo.Record) []abstract.ChangeItem {
 			p.metrics.Parsed.Inc()
 		}
 	}
-	return data
+	return data, nil
 }
 
 func (p *Source) makeRawChangeItem(msg kgo.Record) abstract.ChangeItem {
