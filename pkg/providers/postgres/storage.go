@@ -80,6 +80,10 @@ func (s *Storage) SnapshotLSN() string {
 	return s.ShardedStateLSN
 }
 
+func (s *Storage) Version() string {
+	return s.version.Version
+}
+
 func (s *Storage) WorkersSnapshotState() *SnapshotState {
 	return &SnapshotState{
 		SnapshotLSN: s.ShardedStateLSN,

@@ -22,7 +22,7 @@ import (
 const tableIsShardedKey = "Offset column used as worker index"
 
 type checkConnectionFunc func(ctx context.Context, pgs *provider_postgres.Storage, expectedSP GPSegPointer) error
-type newFlavorFunc func(in *Storage) provider_postgres.DBFlavour
+type newFlavorFunc func(in *Storage, pgs *provider_postgres.Storage) provider_postgres.DBFlavour
 
 type Storage struct {
 	// config is NOT read-only and can change during execution
@@ -53,7 +53,10 @@ type pgStorageConfig struct {
 	DisableViewsExtraction bool
 }
 
-func defaultNewFlavor(in *Storage) provider_postgres.DBFlavour {
+func defaultNewFlavor(in *Storage, pgs *provider_postgres.Storage) provider_postgres.DBFlavour {
+	if isCloudberryVersion(pgs.Version()) {
+		return NewCloudberryFlavour(in.workersCount == 1)
+	}
 	return NewGreenplumFlavour(in.workersCount == 1)
 }
 

@@ -81,13 +81,14 @@ func TestSnapshot(t *testing.T) {
 		return nil
 	}
 
-	newFlavourFunc := func(in *provider_greenplum.Storage) provider_postgres.DBFlavour {
+	newFlavourFunc := func(in *provider_greenplum.Storage, _ *provider_postgres.Storage) provider_postgres.DBFlavour {
 		return provider_greenplum.NewGreenplumFlavourImpl(
 			in.WorkersCount() == 1,
-			func(bool, func() string) string {
+			false,
+			func(bool, bool, func(bool) string) string {
 				return provider_postgres.NewPostgreSQLFlavour().PgClassFilter()
 			},
-			func() string {
+			func(bool) string {
 				return provider_postgres.NewPostgreSQLFlavour().PgClassRelsOnlyFilter()
 			},
 		)

@@ -2,51 +2,72 @@ package greenplum
 
 import (
 	"fmt"
+	"strings"
 
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 )
 
 type GreenplumFlavour struct {
-	pgClassFilter         func(bool, func() string) string
-	pgClassRelsOnlyFilter func() string
+	pgClassFilter         func(coordinatorOnlyMode bool, isCloudberry bool, pgClassRelsOnlyFilter func(bool) string) string
+	pgClassRelsOnlyFilter func(isCloudberry bool) string
 
 	coordinatorOnlyMode bool
+	isCloudberry        bool
 }
 
-func NewGreenplumFlavourImpl(coordinatorOnlyMode bool, pgClassFilter func(bool, func() string) string, pgClassRelsOnlyFilter func() string) *GreenplumFlavour {
+func NewGreenplumFlavourImpl(coordinatorOnlyMode bool, isCloudberry bool, pgClassFilter func(bool, bool, func(bool) string) string, pgClassRelsOnlyFilter func(bool) string) *GreenplumFlavour {
 	return &GreenplumFlavour{
 		pgClassFilter:         pgClassFilter,
 		pgClassRelsOnlyFilter: pgClassRelsOnlyFilter,
 		coordinatorOnlyMode:   coordinatorOnlyMode,
+		isCloudberry:          isCloudberry,
 	}
 }
 
-// NewGreenplumFlavour constructs a flavour for PostgreSQL schema extractor
+// NewGreenplumFlavour constructs a flavour for Greenplum.
 func NewGreenplumFlavour(coordinatorOnlyMode bool) *GreenplumFlavour {
-	return NewGreenplumFlavourImpl(coordinatorOnlyMode, pgClassFilter, pgClassRelsOnlyFilter)
+	return NewGreenplumFlavourImpl(coordinatorOnlyMode, false, pgClassFilter, pgClassRelsOnlyFilter)
 }
 
-func pgClassFilter(coordinatorOnlyMode bool, pgClassRelsOnlyFilter func() string) string {
+// NewCloudberryFlavour constructs a flavour for Apache Cloudberry, which removed pg_class.relstorage
+// and identifies storage type via pg_am instead.
+func NewCloudberryFlavour(coordinatorOnlyMode bool) *GreenplumFlavour {
+	return NewGreenplumFlavourImpl(coordinatorOnlyMode, true, pgClassFilter, pgClassRelsOnlyFilter)
+}
+
+func isCloudberryVersion(version string) bool {
+	return strings.Contains(strings.ToLower(version), "cloudberry")
+}
+
+func pgClassFilter(coordinatorOnlyMode bool, isCloudberry bool, pgClassRelsOnlyFilter func(bool) string) string {
 	if coordinatorOnlyMode {
+		if isCloudberry {
+			// Cloudberry removed pg_class.relstorage; use pg_am to identify storage type.
+			// Views (relkind='v') and foreign tables (relkind='f') have relam=0, skip the AM check for them.
+			return "c.relkind IN ('r', 'v', 'f') AND (c.relkind != 'r' OR EXISTS (SELECT 1 FROM pg_catalog.pg_am am WHERE am.oid = c.relam AND am.amname IN ('heap', 'ao_row', 'ao_column')))"
+		}
 		// https://gpdb.docs.pivotal.io/6-19/ref_guide/system_catalogs/pg_class.html
 		// meaning: allow normal tables of all kinds, VIEWs, FOREIGN and EXTERNAL tables
 		return "c.relkind IN ('r', 'v', 'f') AND c.relstorage IN ('a', 'c', 'h', 'v', 'x')"
 	}
-	return pgClassRelsOnlyFilter()
+	return pgClassRelsOnlyFilter(isCloudberry)
 }
 
 func (f *GreenplumFlavour) PgClassFilter() string {
-	return f.pgClassFilter(f.coordinatorOnlyMode, f.pgClassRelsOnlyFilter)
+	return f.pgClassFilter(f.coordinatorOnlyMode, f.isCloudberry, f.pgClassRelsOnlyFilter)
 }
 
-func pgClassRelsOnlyFilter() string {
+func pgClassRelsOnlyFilter(isCloudberry bool) string {
+	if isCloudberry {
+		return "c.relkind = 'r' AND EXISTS (SELECT 1 FROM pg_catalog.pg_am am WHERE am.oid = c.relam AND am.amname IN ('heap', 'ao_row', 'ao_column'))"
+	}
 	// https://gpdb.docs.pivotal.io/6-19/ref_guide/system_catalogs/pg_class.html
 	// meaning: only allow normal tables of all kinds
 	return "c.relkind = 'r' AND c.relstorage IN ('a', 'c', 'h', 'v')"
 }
 
 func (f *GreenplumFlavour) PgClassRelsOnlyFilter() string {
-	return pgClassRelsOnlyFilter()
+	return pgClassRelsOnlyFilter(f.isCloudberry)
 }
 
 func (f *GreenplumFlavour) ListSchemaQuery(excludeViews bool, withSpecificTable bool, forbiddenSchemas []string, forbiddenTables []string) string {

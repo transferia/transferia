@@ -81,7 +81,10 @@ func openPGStorage(config *provider_postgres.PgStorageParams) (*provider_postgre
 
 func (s *Storage) configurePGStorageForGreenplum(storage *provider_postgres.Storage) {
 	storage.ForbiddenSchemas = append(storage.ForbiddenSchemas, "gp_toolkit", "mdb_toolkit")
-	storage.Flavour = s.newFlavor(s)
+	storage.Flavour = s.newFlavor(s, storage)
+	if isCloudberryVersion(storage.Version()) {
+		logger.Log.Info("Detected Apache Cloudberry database; using Cloudberry-compatible schema queries")
+	}
 	storage.DisableCheckReplIdentity = s.postgresesCfg.DisableCheckReplIdentity
 	storage.DisableViewsExtraction = s.postgresesCfg.DisableViewsExtraction
 }
