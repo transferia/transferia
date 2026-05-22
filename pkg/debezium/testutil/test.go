@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	shopspring "github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -330,12 +331,14 @@ func CompareYTTypesOriginalAndRecovered(t *testing.T, l, r *abstract.ChangeItem)
 		if lType == "json.Number" && rType == "json.Number" {
 			var err error
 			lVal := lValWrapped.(json.Number).String()
-			lVal, err = typeutil.ExponentialFloatFormToNumeric(lVal)
+			lDecimal, err := shopspring.NewFromString(lVal)
 			require.NoError(t, err)
+
 			rVal := rValWrapped.(json.Number).String()
-			rVal, err = typeutil.ExponentialFloatFormToNumeric(rVal)
+			rDecimal, err := shopspring.NewFromString(rVal)
 			require.NoError(t, err)
-			require.Equal(t, lVal, rVal, fmt.Sprintf("columnName: %s", currColumnName))
+
+			require.True(t, lDecimal.Equal(rDecimal), rVal, fmt.Sprintf("columnName: %s", currColumnName))
 			checked = true
 		}
 

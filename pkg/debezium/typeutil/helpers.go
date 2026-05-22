@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgtype"
+	shopspring "github.com/shopspring/decimal"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
@@ -230,22 +232,38 @@ func MysqlDecimalFloatToValue(val float64, colType string) (string, error) {
 		return "", xerrors.Errorf("unable to extract scale&precision from mysql:decimal, type: %s, err: %w", colType, err)
 	}
 
-	decimalValStr := fmt.Sprintf("%f", val)
-	arr := strings.Split(decimalValStr, ".")
-	if len(arr) != 2 {
-		return "", xerrors.Errorf("unable to parse float string: %s", decimalValStr)
+	fixedStr := shopspring.NewFromFloat(val).StringFixed(int32(scale))
+
+	var intPart, fracPart string
+	dotIdx := strings.IndexByte(fixedStr, '.')
+	if dotIdx == -1 {
+		intPart = fixedStr
+		fracPart = ""
+	} else {
+		intPart = fixedStr[:dotIdx]
+		fracPart = fixedStr[dotIdx+1:]
+	}
+
+	sign := ""
+	if strings.HasPrefix(intPart, "-") {
+		sign = "-"
+		intPart = intPart[1:]
 	}
 
 	integerLen := precision - scale
-	for i := len(arr[0]); i < integerLen; i++ {
-		arr[0] = "0" + arr[0]
+	intPart, err = fillByZeroesToAlignL(intPart, integerLen)
+	if err != nil {
+		return "", xerrors.Errorf("unable to align mysql decimal integer part: %w", err)
 	}
-	arr[0] = arr[0][len(arr[0])-integerLen:]
-	for i := len(arr[1]); i < scale; i++ {
-		arr[1] = arr[1] + "0"
+	intPart = intPart[len(intPart)-integerLen:]
+
+	fracPart, err = fillByZeroesToAlignR(fracPart, scale)
+	if err != nil {
+		return "", xerrors.Errorf("unable to align mysql decimal fractional part: %w", err)
 	}
-	arr[1] = arr[1][0:scale]
-	return arr[0] + arr[1], nil
+	fracPart = fracPart[:scale]
+
+	return sign + intPart + fracPart, nil
 }
 
 func DecimalToDebeziumHandlingModePrecise(decimal, decimalWithoutProvider string) (interface{}, error) {
@@ -253,9 +271,17 @@ func DecimalToDebeziumHandlingModePrecise(decimal, decimalWithoutProvider string
 	if err != nil {
 		return nil, xerrors.Errorf("unable to convert exponential form to numeric. dataTypeVerbose: %s, err: %w", decimalWithoutProvider, err)
 	}
-	putScaleToValue, _, _, err := DecimalGetPrecisionAndScale(decimalWithoutProvider)
+	putScaleToValue, _, schemaScale, err := DecimalGetPrecisionAndScale(decimalWithoutProvider)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to determine - should we put scale to value. dataTypeVerbose: %s, err: %w", decimalWithoutProvider, err)
+	}
+
+	if schemaScale > 0 {
+		d, errNorm := shopspring.NewFromString(normalizedDecimal)
+		if errNorm != nil {
+			return nil, xerrors.Errorf("unable to normalize decimal with schema scale, val: %s, err: %w", normalizedDecimal, errNorm)
+		}
+		normalizedDecimal = d.StringFixed(int32(schemaScale))
 	}
 
 	value, scale, err := DecimalToDebeziumPrimitivesImpl(normalizedDecimal)
@@ -312,62 +338,14 @@ func fillByZeroesToAlignR(in string, lengthMustBe int) (string, error) {
 }
 
 func exponentialFloatFormToNumericPositivePart(in string) (string, error) {
-	if strings.HasSuffix(in, "e0") {
-		return in[0 : len(in)-2], nil
-	}
-
-	eIndex := strings.Index(in, "e")
-	if eIndex == -1 {
+	if !strings.ContainsAny(in, "eE") {
 		return in, nil
 	}
-	basePart := in[0:eIndex]
-	sign := in[eIndex+1 : eIndex+2]
-	offset := 2
-	if sign != "-" && sign != "+" {
-		sign = "+"
-		offset = 1
-	}
-	expVal, err := strconv.Atoi(in[eIndex+offset:])
+	d, err := shopspring.NewFromString(in)
 	if err != nil {
-		return "", xerrors.Errorf("unknown exponential value: %s", in)
+		return "", xerrors.Errorf("unable to parse exponential decimal form: %s, err: %w", in, err)
 	}
-
-	if sign == "-" {
-		if basePart[0] == '.' {
-			return "0." + strings.Repeat("0", expVal) + basePart[1:], nil
-		} else {
-			if expVal >= len(basePart) {
-				result, err := fillByZeroesToAlignL(basePart, expVal)
-				if err != nil {
-					return "", xerrors.Errorf("unable to align L, err: %w", err)
-				}
-				return "0." + result, nil
-			} else {
-				index := len(basePart) - expVal
-				return basePart[0:index] + "." + basePart[index:], nil
-			}
-		}
-	} else if sign == "+" {
-		if basePart[0] == '.' {
-			// Case: .123e3 -> 123
-			basePart = basePart[1:]
-			if expVal >= len(basePart) {
-				result, err := fillByZeroesToAlignR(basePart, expVal)
-				if err != nil {
-					return "", xerrors.Errorf("unable to align R, err: %w", err)
-				}
-				return result, nil
-			} else {
-				index := len(basePart) - expVal
-				return basePart[0:index] + "." + basePart[index:], nil
-			}
-		} else {
-			// Case: 1e1 -> 10
-			return basePart + strings.Repeat("0", expVal), nil
-		}
-	} else {
-		return "", xerrors.Errorf("unknown sign: %s, string: %s", sign, in)
-	}
+	return d.String(), nil
 }
 
 func ExponentialFloatFormToNumeric(in string) (string, error) {
@@ -594,15 +572,18 @@ func PointToDebezium(in string) (map[string]interface{}, error) {
 }
 
 func NumRangeToDebezium(in string) (string, error) {
-	arr := strings.Split(in[1:len(in)-1], ",")
-	if len(arr) != 2 {
+	utr, err := pgtype.ParseUntypedTextRange(in)
+	if err != nil {
 		return "", xerrors.Errorf("unknown format of numeric range: %s", in)
 	}
-	left, err := ExponentialFloatFormToNumeric(arr[0])
+	if utr.LowerType == pgtype.Empty {
+		return "", xerrors.Errorf("unknown format of numeric range: %s", in)
+	}
+	left, err := ExponentialFloatFormToNumeric(utr.Lower)
 	if err != nil {
 		return "", xerrors.Errorf("unable to format numeric range left border of range: %s, err: %w", in, err)
 	}
-	right, err := ExponentialFloatFormToNumeric(arr[1])
+	right, err := ExponentialFloatFormToNumeric(utr.Upper)
 	if err != nil {
 		return "", xerrors.Errorf("unable to format numeric range right border of range: %s, err: %w", in, err)
 	}
@@ -621,48 +602,45 @@ func UnquoteIfQuoted(in string) string {
 }
 
 func TstZRangeQuote(colStr string) (string, error) {
-	leftBracket := string(colStr[0])
-	rightBracket := string(colStr[len(colStr)-1])
-	colStr = colStr[1 : len(colStr)-1]
-	parts := strings.Split(colStr, ",")
-	l, r, err := ParsePgDateTimeWithTimezone2(UnquoteIfQuoted(parts[0]), UnquoteIfQuoted(parts[1]))
-	if err != nil {
+	var tr pgtype.Tstzrange
+	if err := tr.DecodeText(nil, []byte(colStr)); err != nil {
 		return "", xerrors.Errorf("parsePgDateTimeWithTimezone returned error, err: %w", err)
 	}
-	parts[0] = "\"" + l.UTC().Format("2006-01-02 15:04:05+00") + "\""
-	parts[1] = "\"" + r.UTC().Format("2006-01-02 15:04:05+00") + "\""
-	resultStr := strings.Join(parts, ",")
-	return leftBracket + resultStr + rightBracket, nil
+	leftBracket := string(colStr[0])
+	rightBracket := string(colStr[len(colStr)-1])
+	l := "\"" + tr.Lower.Time.UTC().Format("2006-01-02 15:04:05+00") + "\""
+	r := "\"" + tr.Upper.Time.UTC().Format("2006-01-02 15:04:05+00") + "\""
+	return leftBracket + l + "," + r + rightBracket, nil
 }
 
 func TstZRangeUnquote(colStr string) (string, error) {
-	leftBracket := string(colStr[0])
-	rightBracket := string(colStr[len(colStr)-1])
-	colStr = colStr[1 : len(colStr)-1]
-	parts := strings.Split(colStr, ",")
-	l, r, err := ParsePgDateTimeWithTimezone2(UnquoteIfQuoted(parts[0]), UnquoteIfQuoted(parts[1]))
-	if err != nil {
+	var tr pgtype.Tstzrange
+	if err := tr.DecodeText(nil, []byte(colStr)); err != nil {
 		return "", xerrors.Errorf("parsePgDateTimeWithTimezone returned error, err: %w", err)
 	}
-	parts[0] = parts[0][1 : len(parts[0])-1]
-	parts[0] = l.UTC().Format("2006-01-02 15:04:05Z")
-	parts[1] = parts[1][1 : len(parts[0])-1]
-	parts[1] = r.UTC().Format("2006-01-02 15:04:05Z")
-	resultStr := strings.Join(parts, ",")
-	return leftBracket + resultStr + rightBracket, nil
+	leftBracket := string(colStr[0])
+	rightBracket := string(colStr[len(colStr)-1])
+	l := tr.Lower.Time.UTC().Format("2006-01-02 15:04:05Z")
+	r := tr.Upper.Time.UTC().Format("2006-01-02 15:04:05Z")
+	return leftBracket + l + "," + r + rightBracket, nil
 }
 
 func TSRangeUnquote(colStr string) (string, error) {
-	leftBracket := string(colStr[0])
-	rightBracket := string(colStr[len(colStr)-1])
-	parts := strings.Split(colStr[1:len(colStr)-1], ",")
-	if len(parts) != 2 {
+	var tr pgtype.Tsrange
+	if err := tr.DecodeText(nil, []byte(colStr)); err != nil {
 		return "", xerrors.Errorf("unknown format of tstrange: %s", colStr)
 	}
-	parts[0], _ = strconv.Unquote(parts[0])
-	parts[1], _ = strconv.Unquote(parts[1])
-	resultStr := strings.Join(parts, ",")
-	return leftBracket + resultStr + rightBracket, nil
+	leftBracket := string(colStr[0])
+	rightBracket := string(colStr[len(colStr)-1])
+	lBytes, err := tr.Lower.EncodeText(nil, nil)
+	if err != nil {
+		return "", xerrors.Errorf("unable to encode tsrange lower bound: %w", err)
+	}
+	rBytes, err := tr.Upper.EncodeText(nil, nil)
+	if err != nil {
+		return "", xerrors.Errorf("unable to encode tsrange upper bound: %w", err)
+	}
+	return leftBracket + string(lBytes) + "," + string(rBytes) + rightBracket, nil
 }
 
 func ParsePgDateTimeWithTimezone2(l, r string) (time.Time, time.Time, error) {
@@ -677,45 +655,62 @@ func ParsePgDateTimeWithTimezone2(l, r string) (time.Time, time.Time, error) {
 	return lTime, rTime, nil
 }
 
-var (
-	regexHour  = *regexp.MustCompile(`(\d+):(\d+):(\d+)`)
-	regexYear  = *regexp.MustCompile(`(\d+) years?`)
-	regexMonth = *regexp.MustCompile(`(\d+) (?:mon|months?)`)
-	regexDay   = *regexp.MustCompile(`(\d+) days?`)
-)
-
 func ExtractPostgresIntervalArray(interval string) ([]string, error) {
+	const (
+		usPerHour   = int64(3600 * 1000000)
+		usPerMinute = int64(60 * 1000000)
+		usPerSecond = int64(1000000)
+	)
+
 	result := make([]string, 7)
 
-	arr := regexYear.FindStringSubmatch(interval)
-	if arr != nil {
-		result[0] = arr[1]
+	// pgtype.Interval.DecodeText accepts `mon`/`mons`, but PG often emits `month`/`months`.
+	normalized := strings.ReplaceAll(interval, "months", "mons")
+	normalized = strings.ReplaceAll(normalized, "month", "mon")
+
+	var iv pgtype.Interval
+	if err := iv.DecodeText(nil, []byte(normalized)); err != nil {
+		return nil, xerrors.Errorf("unable to decode postgres interval: %w", err)
 	}
 
-	arr = regexMonth.FindStringSubmatch(interval)
-	if arr != nil {
-		result[1] = arr[1]
-	}
-
-	arr = regexDay.FindStringSubmatch(interval)
-	if arr != nil {
-		result[2] = arr[1]
-	}
-
-	arr = regexHour.FindStringSubmatch(interval)
-	if arr != nil {
-		result[3] = arr[1]
-		result[4] = arr[2]
-		result[5] = arr[3]
-	}
-
-	if index := strings.Index(interval, "."); index != -1 {
-		result[6] = interval[index+1:]
-		tmp, err := fillByZeroesToAlignR(result[6], 6)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to align R, err: %w", err)
+	if iv.Months != 0 {
+		years := iv.Months / 12
+		monthsRem := iv.Months % 12
+		if years != 0 {
+			result[0] = strconv.FormatInt(int64(years), 10)
 		}
-		result[6] = tmp
+		if monthsRem != 0 {
+			result[1] = strconv.FormatInt(int64(monthsRem), 10)
+		}
+	}
+
+	if iv.Days != 0 {
+		result[2] = strconv.FormatInt(int64(iv.Days), 10)
+	}
+
+	if iv.Microseconds != 0 {
+		usRem := iv.Microseconds
+		hours := usRem / usPerHour
+		usRem %= usPerHour
+		minutes := usRem / usPerMinute
+		usRem %= usPerMinute
+		seconds := usRem / usPerSecond
+		microsecs := usRem % usPerSecond
+
+		result[3] = strconv.FormatInt(hours, 10)
+		result[4] = strconv.FormatInt(minutes, 10)
+		result[5] = strconv.FormatInt(seconds, 10)
+
+		msAbs := microsecs
+		if msAbs < 0 {
+			msAbs = -msAbs
+		}
+		msStr := strconv.FormatInt(msAbs, 10)
+		msAligned, err := fillByZeroesToAlignL(msStr, 6)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to align interval microseconds: %w", err)
+		}
+		result[6] = msAligned
 	}
 
 	return result, nil
@@ -950,15 +945,18 @@ func NumericToExponentialFloatForm(in string) (string, error) {
 }
 
 func NumRangeFromDebezium(in string) (string, error) {
-	arr := strings.Split(in[1:len(in)-1], ",")
-	if len(arr) != 2 {
+	utr, err := pgtype.ParseUntypedTextRange(in)
+	if err != nil {
 		return "", xerrors.Errorf("unknown format of numeric range: %s", in)
 	}
-	left, err := NumericToExponentialFloatForm(arr[0])
+	if utr.LowerType == pgtype.Empty {
+		return "", xerrors.Errorf("unknown format of numeric range: %s", in)
+	}
+	left, err := NumericToExponentialFloatForm(utr.Lower)
 	if err != nil {
 		return "", xerrors.Errorf("unable to format numeric range left border of range: %s, err: %w", in, err)
 	}
-	right, err := NumericToExponentialFloatForm(arr[1])
+	right, err := NumericToExponentialFloatForm(utr.Upper)
 	if err != nil {
 		return "", xerrors.Errorf("unable to format numeric range right border of range: %s, err: %w", in, err)
 	}

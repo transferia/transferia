@@ -1,6 +1,7 @@
 package debezium
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -121,4 +122,46 @@ func TestUpdateTOAST(t *testing.T) {
 		debeziumparameters.SourceType:     "mysql",
 	})
 	require.Equal(t, 1, len(recoveredChangeItems))
+}
+
+func getDecimalChangeItem(val json.Number) abstract.ChangeItem {
+	return abstract.ChangeItem{
+		Kind:   abstract.InsertKind,
+		Schema: "my_schema_name",
+		Table:  "my_table_name",
+		ColumnNames: []string{
+			"id",
+			"val",
+		},
+		ColumnValues: []interface{}{
+			int32(1),
+			val,
+		},
+		TableSchema: abstract.NewTableSchema([]abstract.ColSchema{
+			{ColumnName: "id", DataType: ytschema.TypeInt32.String(), OriginalType: "pg:integer", PrimaryKey: true},
+			{ColumnName: "val", DataType: ytschema.TypeFloat64.String(), OriginalType: "pg:numeric"},
+		}),
+	}
+}
+
+func TestDecimal(t *testing.T) { // DTSUPPORT-7089
+	changeItem := getDecimalChangeItem("1.277559E+7")
+	recoveredChangeItems, _ := makeChainConversion(t, []abstract.ChangeItem{changeItem}, map[string]string{
+		debeziumparameters.DatabaseDBName: "public",
+		debeziumparameters.TopicPrefix:    "my_topic",
+		debeziumparameters.SourceType:     "pg",
+	})
+	require.Equal(t, 1, len(recoveredChangeItems))
+	recoveredChangeItem := recoveredChangeItems[0]
+
+	// check
+
+	require.Equal(t, abstract.InsertKind, recoveredChangeItem.Kind)
+	require.False(t, recoveredChangeItem.KeysChanged())
+	require.NotNil(t, recoveredChangeItem.OldKeys)
+	require.Equal(t, 2, len(recoveredChangeItem.ColumnNames))
+	require.Equal(t, 2, len(recoveredChangeItem.ColumnValues))
+	require.Equal(t, 2, len(recoveredChangeItem.TableSchema.Columns()))
+	require.Equal(t, changeItem.ColumnValues[0], recoveredChangeItem.ColumnValues[0])
+	require.Equal(t, json.Number("12775590"), recoveredChangeItem.ColumnValues[1])
 }
