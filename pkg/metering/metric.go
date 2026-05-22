@@ -14,7 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/config/env"
-	"github.com/transferia/transferia/pkg/instanceutil"
+	"github.com/transferia/transferia/pkg/transferparams"
 )
 
 type MetricSchema string
@@ -189,8 +189,12 @@ func NewMeteringOptsWithTags(transfer *model.Transfer, task *model.TransferOpera
 		config.OperationType = task.TaskType.String()
 	}
 
-	instanceID, _ := instanceutil.GetGoogleCEMetaData(instanceutil.GoogleID, false)
-	config.ComputeVMID = instanceID
+	instanceId := ""
+	transferParamsProvider, _ := transferparams.GetProvider()
+	if transferParamsProvider != nil {
+		instanceId, _ = transferParamsProvider.InstanceId()
+	}
+	config.ComputeVMID = instanceId
 	config.YtOperationID = os.Getenv("YT_OPERATION_ID")
 	config.YtJobID = os.Getenv("YT_JOB_ID")
 	if !env.IsTest() {

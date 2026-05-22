@@ -3,7 +3,6 @@ package logger
 import (
 	"os"
 
-	"github.com/transferia/transferia/pkg/instanceutil"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -11,21 +10,6 @@ import (
 )
 
 var FatalErrorLog log.Logger = &ya_zap.Logger{L: zap.NewNop()}
-
-type LogLevelSetter struct {
-	LogLevel string `yaml:"log_level"`
-}
-
-func LogLevel() string {
-	if os.Getenv("LOG_LEVEL") != "" {
-		return os.Getenv("LOG_LEVEL")
-	}
-	userData := new(LogLevelSetter)
-	if err := instanceutil.GetGoogleCEUserData(userData); err == nil && userData.LogLevel != "" {
-		return userData.LogLevel
-	}
-	return "INFO"
-}
 
 func NewConsoleLogger() log.Logger {
 	consoleLevel := getEnvLogLevels()
