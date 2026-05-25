@@ -49,8 +49,8 @@ var cases = []testCase{{
 }}
 
 var (
-	target   = chrecipe.MustTarget(chrecipe.WithDatabase("test"), chrecipe.WithInitFile("gotest/errors_test_init.sql"))
-	transfer = new(model.Transfer)
+	target, _ = chrecipe.Target(chrecipe.WithDatabase("test"), chrecipe.WithInitFile("gotest/errors_test_init.sql"))
+	transfer  = new(model.Transfer)
 )
 
 func TestCodedErrors(t *testing.T) {

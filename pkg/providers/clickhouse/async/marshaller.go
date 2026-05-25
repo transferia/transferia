@@ -45,67 +45,76 @@ func genericMarshallingError(err error) *marshallingError {
 	}
 }
 
-func marshalChangeItem(row abstract.ChangeItem, schema map[string]abstract.ColSchema, cols columntypes.TypeMapping) ([]any, error) {
-	var err error
+// marshalChangeItemInto fills dst (pre-allocated by caller) without allocating a new slice.
+// dst must have len == len(row.ColumnValues).
+func marshalChangeItemInto(dst []any, row abstract.ChangeItem, schema map[string]abstract.ColSchema, cols columntypes.TypeMapping) (retErr error) {
 	defer func() {
 		// Restore() may panic now
 		val := recover()
 		if val == nil {
 			return
 		}
+		var err error
 		if e, ok := val.(error); ok {
 			err = e
 		} else {
 			err = xerrors.Errorf("marshalling panic: %v", val)
 		}
-		err = genericMarshallingError(err)
+		retErr = genericMarshallingError(err)
 	}()
-	vals := make([]interface{}, len(row.ColumnValues))
 	for i, col := range row.ColumnNames {
 		rowVal := row.ColumnValues[i]
 		colType := cols[col]
 		colSch := schema[col]
 		if rowVal == nil {
-			vals[i] = rowVal
+			dst[i] = rowVal
 		} else if colType.IsArray && colSch.DataType == "any" {
-			vals[i] = rowVal
+			dst[i] = rowVal
 		} else if colType.IsString {
 			switch rowValDowncasted := rowVal.(type) {
 			case string, byte:
-				vals[i] = rowVal
+				dst[i] = rowVal
 			case []byte:
-				vals[i] = string(rowValDowncasted)
+				dst[i] = string(rowValDowncasted)
+			case []any:
+				if len(rowValDowncasted) == 0 {
+					dst[i] = "[]"
+				} else {
+					b, _ := json.Marshal(rowValDowncasted)
+					dst[i] = string(b)
+				}
 			default:
 				b, _ := json.Marshal(rowVal)
-				vals[i] = string(b)
+				dst[i] = string(b)
 			}
 		} else if colType.IsDecimal {
 			var val decimal.Decimal
+			var decErr error
 			switch v := rowVal.(type) {
 			case string:
-				val, err = decimal.NewFromString(v)
+				val, decErr = decimal.NewFromString(v)
 			case []byte:
-				val, err = decimal.NewFromString(string(v))
+				val, decErr = decimal.NewFromString(string(v))
 			case json.Number:
-				val, err = decimal.NewFromString(v.String())
+				val, decErr = decimal.NewFromString(v.String())
 			case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-				val, err = decimal.NewFromString(fmt.Sprintf("%d", v))
+				val, decErr = decimal.NewFromString(fmt.Sprintf("%d", v))
 			case float32:
 				val = decimal.NewFromFloat32(v)
 			case float64:
 				val = decimal.NewFromFloat(v)
 			default:
 				//nolint:descriptiveerrors
-				return nil, colMarshallingError(error_codes.UnsupportedConversion, col, v, "unknown type for decimal column")
+				return colMarshallingError(error_codes.UnsupportedConversion, col, v, "unknown type for decimal column")
 			}
-			if err != nil {
+			if decErr != nil {
 				//nolint:descriptiveerrors
-				return nil, colMarshallingError(error_codes.DataValueError, col, rowVal, fmt.Sprintf("error converting to decimal: %s", err))
+				return colMarshallingError(error_codes.DataValueError, col, rowVal, fmt.Sprintf("error converting to decimal: %s", decErr))
 			}
-			vals[i] = val
+			dst[i] = val
 		} else {
-			vals[i] = columntypes.Restore(colSch, rowVal)
-			if v, ok := vals[i].(string); ok && (colType.IsDateTime64 || colType.IsDateTime || colType.IsDate) {
+			dst[i] = columntypes.Restore(colSch, rowVal)
+			if v, ok := dst[i].(string); ok && (colType.IsDateTime64 || colType.IsDateTime || colType.IsDate) {
 				// FIXME: market hack/workaround, should rethink and rewrite this part before public release
 				// If date/datetime is inserted as raw string,
 				// it is interpreted in timezone specified in column settings or in server timezone
@@ -114,17 +123,34 @@ func marshalChangeItem(row abstract.ChangeItem, schema map[string]abstract.ColSc
 				// fails as this time is 3 hours before 1970-01-01T00:00:00Z
 				// Since usually dates in 1970 means default empty dates, replace such values with zero date
 				if strings.HasPrefix(v, "1970-01-01") {
-					vals[i] = time.Unix(0, 0).UTC()
+					dst[i] = time.Unix(0, 0).UTC()
 					continue
 				}
 				if colType.IsDateTime {
-					vals[i] = strings.Replace(v, "T", " ", 1)
+					dst[i] = strings.Replace(v, "T", " ", 1)
 				}
 			}
 		}
 	}
-	//nolint:descriptiveerrors
-	return vals, err
+	return nil
+}
+
+type chV2Marshaller struct {
+	schema map[string]abstract.ColSchema
+	cols   columntypes.TypeMapping
+	buf    []any
+}
+
+func (m *chV2Marshaller) marshal(row abstract.ChangeItem) ([]any, error) {
+	n := len(row.ColumnValues)
+	if cap(m.buf) < n {
+		m.buf = make([]any, n)
+	}
+	m.buf = m.buf[:n]
+	if err := marshalChangeItemInto(m.buf, row, m.schema, m.cols); err != nil {
+		return nil, err
+	}
+	return m.buf, nil
 }
 
 func NewCHV2Marshaller(schema []abstract.ColSchema, cols columntypes.TypeMapping) ch_db_model.ChangeItemMarshaller {
@@ -132,7 +158,10 @@ func NewCHV2Marshaller(schema []abstract.ColSchema, cols columntypes.TypeMapping
 	for _, col := range schema {
 		sch[col.ColumnName] = col
 	}
-	return func(item abstract.ChangeItem) ([]any, error) {
-		return marshalChangeItem(item, sch, cols)
+	m := &chV2Marshaller{
+		schema: sch,
+		cols:   cols,
+		buf:    nil,
 	}
+	return m.marshal
 }

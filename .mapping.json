@@ -1322,6 +1322,7 @@
   "pkg/providers/clickhouse/async/errors_test.go":"transfer_manager/go/pkg/providers/clickhouse/async/errors_test.go",
   "pkg/providers/clickhouse/async/gotest/errors_test_init.sql":"transfer_manager/go/pkg/providers/clickhouse/async/gotest/errors_test_init.sql",
   "pkg/providers/clickhouse/async/marshaller.go":"transfer_manager/go/pkg/providers/clickhouse/async/marshaller.go",
+  "pkg/providers/clickhouse/async/marshaller_bench_test.go":"transfer_manager/go/pkg/providers/clickhouse/async/marshaller_bench_test.go",
   "pkg/providers/clickhouse/async/middleware.go":"transfer_manager/go/pkg/providers/clickhouse/async/middleware.go",
   "pkg/providers/clickhouse/async/model/db/client.go":"transfer_manager/go/pkg/providers/clickhouse/async/model/db/client.go",
   "pkg/providers/clickhouse/async/model/db/ddl.go":"transfer_manager/go/pkg/providers/clickhouse/async/model/db/ddl.go",
