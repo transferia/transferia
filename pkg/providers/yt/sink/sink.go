@@ -38,18 +38,64 @@ type GenericTable interface {
 }
 
 type sinker struct {
-	ytClient       yt.Client
-	dir            ypath.Path
-	logger         log.Logger
-	metrics        *stats.SinkerStats
-	cp             coordinator.Coordinator
-	schemas        *util.ConcurrentMap[string, []abstract.ColSchema]
-	tables         *util.ConcurrentMap[string, GenericTable]
-	config         provider_yt.YtDestinationModel
-	chunkSize      int
-	closed         bool
-	progressInited bool
-	transferID     string
+	ytClient   yt.Client
+	dir        ypath.Path
+	logger     log.Logger
+	metrics    *stats.SinkerStats
+	schemas    *util.ConcurrentMap[string, []abstract.ColSchema]
+	tables     *util.ConcurrentMap[string, GenericTable]
+	config     provider_yt.YtDestinationModel
+	chunkSize  int
+	closed     bool
+	transferID string
+
+	tmpTablesMap map[string]string
+}
+
+func (s *sinker) Replace() error {
+	ctx := context.Background()
+
+	tmpTables, err := MakeTmpTablesList(ctx, s.config, s.transferID, s.ytClient)
+	if err != nil {
+		return xerrors.Errorf("error listing temporary tables: %w", err)
+	}
+	tmpSuffix := model.MakeTmpSuffix(s.transferID, model.TmpTableSuffix)
+
+	for _, tmpPath := range tmpTables {
+		originalPath := ypath.Path(strings.TrimSuffix(tmpPath.String(), tmpSuffix))
+
+		// Unmount tmp table
+		if err := provider_yt.MountUnmountWrapper(
+			ctx,
+			s.ytClient,
+			tmpPath,
+			migrate.UnmountAndWait,
+		); err != nil {
+			return xerrors.Errorf("unable to unmount tmp table: %w", err)
+		}
+
+		// Move table to original directory
+		moveOptions := provider_yt.ResolveMoveOptions(s.ytClient, tmpPath, false)
+		if _, err := s.ytClient.MoveNode(
+			ctx,
+			tmpPath,
+			originalPath,
+			moveOptions,
+		); err != nil {
+			return xerrors.Errorf("unable to move tmp table: %w", err)
+		}
+
+		// Mount tmp table
+		if err := provider_yt.MountUnmountWrapper(
+			ctx,
+			s.ytClient,
+			originalPath,
+			migrate.MountAndWait,
+		); err != nil {
+			return xerrors.Errorf("unable to mount tmp table: %w", err)
+		}
+	}
+	return nil
 }
 
 func (s *sinker) Move(ctx context.Context, src, dst abstract.TableID) error {
@@ -249,6 +295,9 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 		}
 		// apply rotation to name
 		rotatedName := s.config.Rotation().AnnotateWithTimeFromColumn(name, item)
+		if tmpPath, ok := s.tmpTablesMap[rotatedName]; ok {
+			rotatedName = tmpPath
+		}
 
 		switch item.Kind {
 		// Drop and truncate are essentially the same operations
@@ -278,6 +327,10 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			rotationBatches[rotatedName] = append(rotationBatches[rotatedName], item)
 		case abstract.SynchronizeKind:
 			// do nothing
+		case abstract.InitTableLoad:
+			if s.config.CleanupMode() == model.Replace {
+				s.tmpTablesMap[rotatedName] = model.MakeTmpTableName(rotatedName, s.transferID, model.TmpTableSuffix)
+			}
 		default:
 			s.logger.Infof("kind: %v not supported", item.Kind)
 		}
@@ -584,12 +637,11 @@ func NewSinker(
 	transferID string,
 	logger log.Logger,
 	registry core_metrics.Registry,
-	cp coordinator.Coordinator,
 	tmpPolicyConfig *model.TmpPolicyConfig,
 ) (abstract.Sinker, error) {
 	var result abstract.Sinker
 
-	uncasted, err := newSinker(cfg, transferID, logger, registry, cp)
+	uncasted, err := newSinker(cfg, transferID, logger, registry)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create pure YT sink: %w", err)
 	}
@@ -603,7 +655,7 @@ func NewSinker(
 	return result, nil
 }
 
-func newSinker(cfg provider_yt.YtDestinationModel, transferID string, lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator) (*sinker, error) {
+func newSinker(cfg provider_yt.YtDestinationModel, transferID string, lgr log.Logger, registry core_metrics.Registry) (*sinker, error) {
 	ytClient, err := yt_client.FromConnParams(cfg, lgr)
 	if err != nil {
 		return nil, xerrors.Errorf("error getting YT Client: %w", err)
@@ -615,18 +667,17 @@ func newSinker(cfg provider_yt.YtDestinationModel, transferID string, lgr log.Lo
 	}
 
 	s := sinker{
-		ytClient:       ytClient,
-		dir:            ypath.Path(cfg.Path()),
-		logger:         lgr,
-		metrics:        stats.NewSinkerStats(registry),
-		schemas:        util.NewConcurrentMap[string, []abstract.ColSchema](),
-		tables:         util.NewConcurrentMap[string, GenericTable](),
-		config:         cfg,
-		chunkSize:      chunkSize,
-		closed:         false,
-		progressInited: false,
-		transferID:     transferID,
-		cp:             cp,
+		ytClient:     ytClient,
+		dir:          ypath.Path(cfg.Path()),
+		logger:       lgr,
+		metrics:      stats.NewSinkerStats(registry),
+		schemas:      util.NewConcurrentMap[string, []abstract.ColSchema](),
+		tables:       util.NewConcurrentMap[string, GenericTable](),
+		config:       cfg,
+		chunkSize:    chunkSize,
+		closed:       false,
+		transferID:   transferID,
+		tmpTablesMap: make(map[string]string),
 	}
 
 	if cfg.Rotation() != nil {

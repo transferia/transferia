@@ -9,7 +9,6 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/internal/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
-	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -48,7 +47,7 @@ func TestVersionedTable_Write(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	err = table.Push(generateVersionRows(2, 1))
 	require.NoError(t, err)
@@ -66,7 +65,7 @@ func TestVersionedTable_Write_Newest_Than_Oldest(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	err = table.Push(generateVersionRows(2, 2))
 	require.NoError(t, err)
@@ -90,7 +89,7 @@ func TestVersionedTable_Write_MissedOrder(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	input := append(generateVersionRows(2, 2), generateVersionRows(2, 1)...)
 	require.NoError(t, table.Push(input))
@@ -107,7 +106,7 @@ func TestVersionedTable_CustomAttributes(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	input := append(generateVersionRows(2, 2), generateVersionRows(2, 1)...)
 	require.NoError(t, table.Push(input))
@@ -122,7 +121,7 @@ func TestVersionedTable_IncludeTimeoutAttribute(t *testing.T) {
 	defer teardown(env.YT, testVersionedTablePath)
 	cfg := yt.NewYtDestinationV1(versionTableYtConfig())
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	input := append(generateVersionRows(2, 2), generateVersionRows(2, 1)...)
 	require.NoError(t, table.Push(input))

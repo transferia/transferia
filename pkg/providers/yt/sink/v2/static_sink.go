@@ -30,6 +30,7 @@ var (
 		abstract.InsertKind,
 		abstract.DoneTableLoad,
 		abstract.DoneShardedTableLoad,
+		abstract.DropTableKind,
 	)
 )
 
@@ -102,6 +103,13 @@ func (s *sink) Push(items []abstract.ChangeItem) error {
 		if err := s.writer.Write(items); err != nil {
 			return xerrors.Errorf("unable to push Insert items to %s: %w", tablePath, err)
 		}
+	case abstract.DropTableKind:
+		if err := s.ytClient.RemoveNode(context.Background(), tablePath, &yt.RemoveNodeOptions{
+			Recursive: false,
+			Force:     true,
+		}); err != nil {
+			return xerrors.Errorf("unable to remove node: %w", err)
+		}
 	case abstract.DoneTableLoad:
 		if err := s.writer.Commit(); err != nil {
 			return xerrors.Errorf("unable to push DoneTableLoad item to %s: %w", tablePath, err)
@@ -121,6 +129,10 @@ func (s *sink) Push(items []abstract.ChangeItem) error {
 
 func (s *sink) Commit() error {
 	return s.mainTx.Commit()
+}
+
+func (s *sink) Replace() error {
+	return nil
 }
 
 func (s *sink) Close() error {

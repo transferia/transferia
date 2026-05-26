@@ -347,12 +347,22 @@ func (l *SnapshotLoader) endDestination() error {
 		}
 	}()
 
-	completableSink, ok := baseSink.(abstract.Committable)
-	if !ok {
-		return nil
+	if commitableSink, ok := baseSink.(abstract.Committable); ok {
+		if err := commitableSink.Commit(); err != nil {
+			return xerrors.Errorf("unable to commit sink to complete snapshot: %w", err)
+		}
 	}
 
-	return completableSink.Commit()
+	if l.transfer.Dst.CleanupMode() == model.Replace {
+		replacableSink, ok := baseSink.(abstract.Replacable)
+		if !ok {
+			return xerrors.Errorf("sinks that support replace cleanup policy must implement Replace interface: %w", err)
+		}
+		if err := replacableSink.Replace(); err != nil {
+			return xerrors.Errorf("unable to move temporary tables to complete snapshot: %w", err)
+		}
+	}
+	return nil
 }
 
 func (l *SnapshotLoader) UploadTables(ctx context.Context, tables []abstract.TableDescription, updateIncrementalState bool) error {

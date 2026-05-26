@@ -10,7 +10,6 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/internal/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
-	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	"github.com/transferia/transferia/pkg/stats"
@@ -214,7 +213,7 @@ func TestOnlyPKTable(t *testing.T) {
 		Cluster:       os.Getenv("YT_PROXY"),
 	})
 	cfg.WithDefaults()
-	sink, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	sink, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 
 	//do insert of only pk row
@@ -303,7 +302,7 @@ func TestNoDataLossOnPKUpdate(t *testing.T) {
 		Cluster:       os.Getenv("YT_PROXY"),
 	})
 	cfg.WithDefaults()
-	sink, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	sink, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 
 	//do insert of only pk row
@@ -381,7 +380,7 @@ func TestCustomAttributes(t *testing.T) {
 		Cluster:          os.Getenv("YT_PROXY")},
 	)
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	require.NoError(t, table.Push([]abstract.ChangeItem{
 		{
@@ -420,7 +419,7 @@ func TestIncludeTimeoutAttribute(t *testing.T) {
 		Cluster: os.Getenv("YT_PROXY")},
 	)
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	require.NoError(t, table.Push([]abstract.ChangeItem{
 		{

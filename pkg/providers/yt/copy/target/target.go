@@ -85,22 +85,30 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 		}
 	}
 
+	tmpOutYPath := outYPath
+	if t.cfg.Cleanup == model.Replace {
+		tmpOutYPath, err = ypath.Parse(model.MakeTmpTableName(outPath, t.transferID, model.TmpTableSuffix))
+		if err != nil {
+			return xerrors.Errorf("error parsing tmp ypath %s: %w", outPath, err)
+		}
+	}
+
 	copySpec := spec.Spec{
 		Title:           fmt.Sprintf("TM RemoteCopy (TransferID %s)", t.transferID),
 		ClusterName:     tbl.Cluster,
 		InputTablePaths: []ypath.YPath{tbl.OriginalYPath()},
-		OutputTablePath: outYPath,
+		OutputTablePath: tmpOutYPath,
 		CopyAttributes:  boolPtr(true),
 		Pool:            t.cfg.Pool,
 		ResourceLimits:  t.cfg.ResourceLimits,
 	}
 
-	if _, err := task.yt.CreateNode(ctx, outYPath, yt.NodeTable, &yt.CreateNodeOptions{
+	if _, err := task.yt.CreateNode(ctx, tmpOutYPath, yt.NodeTable, &yt.CreateNodeOptions{
 		Recursive:      true,
 		IgnoreExisting: t.cfg.Cleanup != model.Drop,
 		Force:          t.cfg.Cleanup == model.Drop,
 	}); err != nil {
-		return xerrors.Errorf("error creating (if not exists) node %s: %w", outYPath.YPath().String(), err)
+		return xerrors.Errorf("error creating (if not exists) node %s: %w", tmpOutYPath.YPath().String(), err)
 	}
 
 	opID, err := task.yt.StartOperation(ctx, yt.OperationRemoteCopy, &copySpec, nil)
@@ -125,6 +133,20 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			return xerrors.Errorf("RemoteCopy (id=%s) error for table %s: %w", opID, outPath, status.Result.Error)
 		}
 		break
+	}
+
+	// Move tmp table
+	if t.cfg.Cleanup == model.Replace {
+		moveOptions := provider_yt.ResolveMoveOptions(task.yt, tmpOutYPath.YPath(), false)
+
+		if _, err := task.yt.MoveNode(
+			ctx,
+			tmpOutYPath,
+			outYPath,
+			moveOptions,
+		); err != nil {
+			return xerrors.Errorf("unable to move tmp table: %w", err)
+		}
 	}
 
 	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != nil {

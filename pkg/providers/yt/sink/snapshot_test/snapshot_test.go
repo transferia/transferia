@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_recipe "github.com/transferia/transferia/pkg/providers/yt/recipe"
@@ -69,7 +68,7 @@ func TestYTSnapshotWithShuffledColumns(t *testing.T) {
 }
 
 func prepareDst(t *testing.T) {
-	currentSink, err := yt_sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
+	currentSink, err := yt_sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry(), nil)
 	require.NoError(t, err)
 
 	require.NoError(t, currentSink.Push([]abstract.ChangeItem{{
@@ -83,7 +82,7 @@ func prepareDst(t *testing.T) {
 }
 
 func fillDestination(t *testing.T) {
-	currentSink, err := yt_sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry(), coordinator.NewStatefulFakeClient(), nil)
+	currentSink, err := yt_sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry(), nil)
 	require.NoError(t, err)
 	defer require.NoError(t, currentSink.Close())
 

@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
+	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -20,7 +22,7 @@ var (
 	ytPath       = "//home/cdc/test/pg2yt_e2e"
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 	Source       = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("dump"))
-	Target       = helpers_yt.RecipeYtTarget(ytPath)
+	Target       = helpers_yt.RecipeYtTarget(ytPath).(*provider_yt.YtDestinationWrapper)
 )
 
 func init() {
@@ -65,6 +67,48 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	exec(context.Background(), conn, "INSERT INTO table_simple__replica_identity_full (id, val) VALUES (2, '222'), (3, '333')")
 	exec(context.Background(), conn, "UPDATE table_simple__replica_identity_full SET val='2222' WHERE id=2;")
+	exec(context.Background(), conn, "DELETE FROM table_simple__replica_identity_full WHERE id=3;")
+
+	//------------------------------------------------------------------------------------
+	// wait & compare
+
+	// table_simple__replica_identity_full won't match bcs of '__dummy' column - so we will compare only count
+	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "table_simple__replica_identity_full", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
+
+	// table_simple will match
+	sourceCopy := Source
+	sourceCopy.DBTables = []string{"public.table_simple"}
+	require.NoError(t, helpers.CompareStorages(t, sourceCopy, Target, helpers.NewCompareStorageParams()))
+}
+
+func TestReplaceCleanupSnapshotAndIncrement(t *testing.T) {
+	connConfig, err := provider_postgres.MakeConnConfigFromSrc(logger.Log, &Source)
+	require.NoError(t, err)
+	conn, err := provider_postgres.NewPgConnPool(connConfig, logger.Log)
+	require.NoError(t, err)
+
+	//------------------------------------------------------------------------------------
+	// start worker
+	Target.Model.Cleanup = model.Replace
+	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, TransferType)
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
+
+	//------------------------------------------------------------------------------------
+	// insert/update/delete several record
+
+	exec := func(ctx context.Context, conn *pgxpool.Pool, query string) {
+		rows, err := conn.Query(ctx, query)
+		require.NoError(t, err)
+		rows.Close()
+	}
+
+	exec(context.Background(), conn, "INSERT INTO table_simple (id, val) VALUES (4, '444'), (3, '333')")
+	exec(context.Background(), conn, "UPDATE table_simple SET val='4444' WHERE id=4;")
+	exec(context.Background(), conn, "DELETE FROM table_simple WHERE id=3;")
+
+	exec(context.Background(), conn, "INSERT INTO table_simple__replica_identity_full (id, val) VALUES (4, '444'), (3, '333')")
+	exec(context.Background(), conn, "UPDATE table_simple__replica_identity_full SET val='4444' WHERE id=4;")
 	exec(context.Background(), conn, "DELETE FROM table_simple__replica_identity_full WHERE id=3;")
 
 	//------------------------------------------------------------------------------------

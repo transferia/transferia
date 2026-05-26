@@ -13,7 +13,6 @@ import (
 	"github.com/transferia/transferia/internal/metrics"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
-	client2 "github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	yt2 "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/recipe"
@@ -34,7 +33,7 @@ func TestSnapshotToReplica(t *testing.T) {
 		PrimaryMedium: "default",
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	require.NoError(t, table.Push([]abstract.ChangeItem{
 		{
@@ -137,7 +136,7 @@ func TestRotate(t *testing.T) {
 		},
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, "some_uniq_transfer_id", logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 
 	rowBuilder := func(schema_ *abstract.TableSchema, table string) func(id int32, val interface{}, dt interface{}) abstract.ChangeItem {
@@ -225,7 +224,7 @@ func shardingTestHelper(t *testing.T, hashCol string, uid string, dirPath string
 		UseStaticTableOnSnapshot: false, // TM-4249
 	})
 	cfg.WithDefaults()
-	table, err := newSinker(cfg, uid, logger.Log, metrics.NewRegistry(), client2.NewFakeClient())
+	table, err := newSinker(cfg, uid, logger.Log, metrics.NewRegistry())
 	require.NoError(t, err)
 	tableSchema := abstract.NewTableSchema([]abstract.ColSchema{
 		{
@@ -312,7 +311,7 @@ func TestLargeRowsWorkWithSpecialSinkOption(t *testing.T) {
 		ytModel.PrimaryMedium = "default"
 		cfg.WithDefaults()
 
-		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry(), client2.NewFakeClient(), nil)
+		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry(), nil)
 		require.NoError(t, err)
 		require.NoError(t, sink.Push([]abstract.ChangeItem{makeLargeChangeItem()}))
 		require.NoError(t, sink.Close())
@@ -346,7 +345,7 @@ func TestLargeRowsDontWorkWithoutSpecialSinkOption(t *testing.T) {
 		ytModel.PrimaryMedium = "default"
 		cfg.WithDefaults()
 
-		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry(), client2.NewFakeClient(), nil)
+		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry(), nil)
 		require.NoError(t, err)
 		require.Error(t, sink.Push([]abstract.ChangeItem{makeLargeChangeItem()}))
 		require.NoError(t, sink.Close())

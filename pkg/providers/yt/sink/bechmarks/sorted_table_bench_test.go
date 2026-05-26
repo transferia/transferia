@@ -11,7 +11,6 @@ import (
 	dt_metrics "github.com/transferia/transferia/internal/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
 	"go.uber.org/zap/zapcore"
@@ -124,7 +123,7 @@ func BenchmarkSinkWrite(b *testing.B) {
 				DisableDatetimeHack: false,
 			})
 			cfg.WithDefaults()
-			table, err := yt_sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), dt_metrics.NewRegistry(), coordinator.NewFakeClient(), nil)
+			table, err := yt_sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), dt_metrics.NewRegistry(), nil)
 			require.NoError(b, err)
 			if o, ok := table.(overrideable); ok {
 				o.OverrideClient(&fakeYT{cols: []ytschema.Column{{
@@ -155,7 +154,7 @@ func BenchmarkSinkWrite(b *testing.B) {
 				DisableDatetimeHack: true,
 			})
 			cfg.WithDefaults()
-			table, err := yt_sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), dt_metrics.NewRegistry(), coordinator.NewFakeClient(), nil)
+			table, err := yt_sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), dt_metrics.NewRegistry(), nil)
 			require.NoError(b, err)
 			if o, ok := table.(overrideable); ok {
 				o.OverrideClient(&fakeYT{cols: []ytschema.Column{{

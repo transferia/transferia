@@ -64,7 +64,7 @@ func commit(client yt.Client, opts *CommitOptions) error {
 			sortedMerge := currentStageTablePath == sortedTablePath
 			if opts.IsDynamicSorted {
 				reducedTablePath := makeTablePath(opts.Path, opts.TransferID, reducedNamePostfix)
-				currentStageTablePath, err = commitCl.reduceTables(currentStageTablePath, opts.Path, reducedTablePath, opts.ReduceBinaryPath) // add actual binary path
+				currentStageTablePath, err = commitCl.reduceTables(currentStageTablePath, opts.Path, reducedTablePath, opts.ReduceBinaryPath)
 				if err != nil {
 					return xerrors.Errorf("reducing static table error: %w", err)
 				}

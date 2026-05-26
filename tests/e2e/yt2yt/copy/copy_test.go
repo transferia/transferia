@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/copy/target"
 	"github.com/transferia/transferia/tests/helpers"
@@ -280,4 +281,83 @@ func TestYTCopySkipUnchangedTables(t *testing.T) {
 	expectedAfterSecond[2].Data = afterUpdateDataC
 	expectedAfterSecond[3].Data = afterUpdateDataD
 	require.NoError(t, checkDstData(dstYTEnv, expectedAfterSecond))
+}
+
+func TestYTCopyReplaceCleanup(t *testing.T) {
+	Source.WithDefaults()
+	Target.WithDefaults()
+	Target.Cleanup = model.Replace
+	srcYT := os.Getenv("YT_PROXY_SRC")
+	dstYT := os.Getenv("YT_PROXY_DST")
+	srcYTEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: srcYT}), yttest.WithLogger(logger.Log.Structured()))
+	dstYTEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: dstYT}), yttest.WithLogger(logger.Log.Structured()))
+
+	testData := []ytTbl{
+		{
+			InPath:  "//a",
+			OutPath: "//dst_pref/a",
+			Data: []row{
+				{1, "A1"},
+				{2, "A2"},
+			},
+		},
+		{
+			InPath:  "//nested/test/b",
+			OutPath: "//dst_pref/b",
+			Data: []row{
+				{1, "B1"},
+				{2, "B2"},
+			},
+		},
+		{
+			InPath:  "//test_dir/c",
+			OutPath: "//dst_pref/c",
+			Data: []row{
+				{1, "C1"},
+				{2, "C2"},
+			},
+		},
+		{
+			InPath:  "//test_dir/nested/d",
+			OutPath: "//dst_pref/nested/d",
+			Data: []row{
+				{1, "D1"},
+				{2, "D2"},
+			},
+		},
+		{
+			InPath:  "//test_dir/nested/deep/e",
+			OutPath: "//dst_pref/nested/deep/e",
+			Data: []row{
+				{1, "E1"},
+				{2, "E2"},
+			},
+		},
+		{
+			InPath:  "//nested/test/dir/f",
+			OutPath: "//dst_pref/f",
+			Data: []row{
+				{1, "F1"},
+				{2, "F2"},
+			},
+		},
+		{
+			InPath:  "//nested/test/dir/deep/g",
+			OutPath: "//dst_pref/deep/g",
+			Data: []row{
+				{1, "G1"},
+				{2, "G2"},
+			},
+		},
+	}
+
+	err := initSrcData(srcYTEnv, testData)
+	require.NoError(t, err, "Error initializing data in source YT")
+
+	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
+
+	err = checkDstData(dstYTEnv, testData)
+	require.NoError(t, err, "Error checking destination data")
 }

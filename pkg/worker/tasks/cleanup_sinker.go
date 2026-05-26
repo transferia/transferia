@@ -30,7 +30,7 @@ func (l *SnapshotLoader) CleanupSinker(tables abstract.TableMap) error {
 		return nil
 	}
 
-	if l.transfer.Dst.CleanupMode() == model.UseTmpPolicy {
+	if l.transfer.Dst.CleanupMode() == model.Replace {
 		logger.Log.Info("Replace cleanup mode is enabled, do not remove data on start")
 		return nil
 	}
@@ -40,11 +40,6 @@ func (l *SnapshotLoader) CleanupSinker(tables abstract.TableMap) error {
 			return errors.CategorizedErrorf(categories.Target, model.ErrInvalidTmpPolicy, err)
 		}
 		logger.Log.Info("sink cleanup skipped due to tmp policy")
-		return nil
-	}
-
-	if dstTmpProvider, ok := l.transfer.Dst.(model.TmpPolicyProvider); ok && dstTmpProvider.EnsureCustomTmpPolicySupported() == nil {
-		logger.Log.Info("sink cleanup skipped due to enabled custom tmp policy")
 		return nil
 	}
 

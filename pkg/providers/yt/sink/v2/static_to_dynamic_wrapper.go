@@ -30,6 +30,7 @@ type sinker struct {
 	stateStorage         *ytStateStorage
 	staticFinishedTables []ypath.Path
 	dir                  ypath.Path
+	logger               log.Logger
 
 	indexSinks map[string]abstract.Sinker
 	indexMutex sync.Mutex
@@ -64,6 +65,7 @@ func NewStaticSinkWrapper(cfg provider_yt.YtDestinationModel, cp coordinator.Coo
 		staticFinishedTables: []ypath.Path{},
 		stateStorage:         newYtStateStorage(cp, transferID, logger),
 		dir:                  ypath.Path(cfg.Path()),
+		logger:               logger,
 		indexSinks:           staticIndexSinks,
 		indexMutex:           sync.Mutex{},
 	}, nil
@@ -76,6 +78,10 @@ func (s *sinker) Close() error {
 		}
 	}
 	return s.staticSink.Close()
+}
+
+func (s *sinker) Replace() error {
+	return nil
 }
 
 func (s *sinker) Commit() error {
@@ -165,6 +171,7 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 
 func (s *sinker) push(input []abstract.ChangeItem, insertSink abstract.Sinker) error {
 	item := input[0]
+	tableYPath := provider_yt.SafeChild(s.dir, provider_yt.MakeTableName(item.TableID(), s.config.AltNames()))
 	switch item.Kind {
 	case abstract.DoneShardedTableLoad:
 		if item.TableSchema.Columns().KeysNum() == len(item.TableSchema.Columns()) {
@@ -175,7 +182,6 @@ func (s *sinker) push(input []abstract.ChangeItem, insertSink abstract.Sinker) e
 			return xerrors.Errorf("failed to process snapshot stage: %w", err)
 		}
 
-		tableYPath := provider_yt.SafeChild(s.dir, provider_yt.MakeTableName(item.TableID(), s.config.AltNames()))
 		s.staticFinishedTables = append(s.staticFinishedTables, tableYPath)
 		if err := s.stateStorage.SetState(s.staticFinishedTables); err != nil {
 			return xerrors.Errorf("unable to set finished tables: %w", err)
@@ -183,6 +189,23 @@ func (s *sinker) push(input []abstract.ChangeItem, insertSink abstract.Sinker) e
 	case abstract.InitShardedTableLoad:
 		if err := s.staticSink.Push(input); err != nil {
 			return xerrors.Errorf("failed to process snapshot stage: %w", err)
+		}
+	case abstract.DropTableKind:
+		exists, err := s.ytClient.NodeExists(context.Background(), tableYPath, nil)
+		if err != nil {
+			return xerrors.Errorf("Unable to check path %v for existence: %w", tableYPath, err)
+		}
+		if !exists {
+			return nil
+		}
+		if err := provider_yt.MountUnmountWrapper(context.Background(), s.ytClient, tableYPath, migrate.UnmountAndWait); err != nil {
+			s.logger.Warn("unable to unmount path", log.Any("path", tableYPath), log.Error(err))
+		}
+		if err := s.ytClient.RemoveNode(context.Background(), tableYPath, &yt.RemoveNodeOptions{
+			Recursive: false,
+			Force:     true,
+		}); err != nil {
+			return xerrors.Errorf("unable to remove node: %w", err)
 		}
 	default:
 		if err := insertSink.Push(input); err != nil {

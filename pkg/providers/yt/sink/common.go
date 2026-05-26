@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/util"
@@ -33,6 +34,27 @@ const (
 
 func MakeIndexTableName(originalName, idxCol string) string {
 	return fmt.Sprintf("%s__idx_%s", originalName, idxCol)
+}
+
+func MakeTmpTablesList(ctx context.Context, cfg provider_yt.YtDestinationModel, transferID string, client yt.Client) ([]ypath.Path, error) {
+	tables := make([]ypath.Path, 0)
+	var nodes []struct {
+		Name string `yson:",value"`
+		Path string `yson:"path,attr"`
+	}
+
+	dir := ypath.Path(cfg.Path())
+	if err := client.ListNode(ctx, dir, &nodes, &yt.ListNodeOptions{Attributes: []string{"path"}}); err != nil {
+		return tables, xerrors.Errorf("unable to list nodes: %w", err)
+	}
+
+	tmpSuffix := model.MakeTmpSuffix(transferID, model.TmpTableSuffix)
+	for _, node := range nodes {
+		if strings.HasSuffix(node.Name, tmpSuffix) {
+			tables = append(tables, ypath.Path(node.Path))
+		}
+	}
+	return tables, nil
 }
 
 type IncompatibleSchemaErr struct{ error }

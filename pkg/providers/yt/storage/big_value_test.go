@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/cleanup"
 	"github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/recipe"
@@ -67,7 +66,7 @@ func TestBigValue(t *testing.T) {
 	}
 
 	t.Run("do_not_discard_big_values", func(t *testing.T) {
-		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
+		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry(), nil)
 		require.NoError(t, err)
 		defer cleanup.Close(sinker, logger.Log)
 
@@ -78,7 +77,7 @@ func TestBigValue(t *testing.T) {
 	t.Run("discard_big_values", func(t *testing.T) {
 		dstModel.LegacyModel().(*yt.YtDestination).DiscardBigValues = true
 
-		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
+		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry(), nil)
 		require.NoError(t, err)
 		defer cleanup.Close(sinker, logger.Log)
 

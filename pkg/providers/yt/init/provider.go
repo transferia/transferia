@@ -20,8 +20,11 @@ import (
 	yt_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
 	yt_sink_v2 "github.com/transferia/transferia/pkg/providers/yt/sink/v2"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/targets"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/yt/go/migrate"
+	"go.ytsaurus.tech/yt/go/yt"
 )
 
 func init() {
@@ -155,7 +158,7 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 
-	s, err := yt_sink.NewSinker(dst, p.transfer.ID, p.logger, p.registry, p.cp, p.transfer.TmpPolicy)
+	s, err := yt_sink.NewSinker(dst, p.transfer.ID, p.logger, p.registry, p.transfer.TmpPolicy)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create YT (non-static) sinker: %w", err)
 	}
@@ -183,6 +186,52 @@ func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
 }
 
 func (p *Provider) CleanupDestination(ctx context.Context) error {
+	dst, ok := p.transfer.Dst.(provider_yt.YtDestinationModel)
+	if !ok {
+		return xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
+	}
+
+	// In that case we don't need to cleanup anything, transaction will be aborted
+	if dst.Static() || dst.UseStaticTableOnSnapshot() {
+		return nil
+	}
+
+	if dst.CleanupMode() != model.Replace {
+		return nil
+	}
+
+	client, err := yt_client.FromConnParams(dst, p.logger)
+	if err != nil {
+		return xerrors.Errorf("error getting YT Client: %w", err)
+	}
+
+	tmpTables, err := yt_sink.MakeTmpTablesList(ctx, dst, p.transfer.ID, client)
+	if err != nil {
+		return xerrors.Errorf("error listing temporary tables: %w", err)
+	}
+	for _, tablePath := range tmpTables {
+		if err := provider_yt.MountUnmountWrapper(
+			ctx,
+			client,
+			tablePath,
+			migrate.UnmountAndWait,
+		); err != nil {
+			p.logger.Error("unable to unmount table", log.Any("path", tablePath), log.Error(err))
+			return xerrors.Errorf("unable to unmount table %s : %w", tablePath.String(), err)
+		}
+
+		removeOptions := &yt.RemoveNodeOptions{
+			Recursive: false,
+			Force:     true,
+		}
+		if err := client.RemoveNode(
+			ctx,
+			tablePath,
+			removeOptions,
+		); err != nil {
+			return xerrors.Errorf("unable to remove node %s : %w", tablePath.String(), err)
+		}
+	}
 	return nil
 }
 

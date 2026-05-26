@@ -128,6 +128,31 @@ WHERE id >= 101 AND id <= 200;
 		require.False(t, table.Next())
 	})
 
+	t.Run("upload_with_cleanup_replace", func(t *testing.T) {
+		connPool, err := provider_postgres.MakeConnPoolFromSrc(src, lgr)
+		require.NoError(t, err)
+		_, err = connPool.Exec(ctx, `
+DELETE FROM test_table
+WHERE id >= 51 AND id <= 100;
+`)
+		require.NoError(t, err)
+		dstModel.Cleanup = model.Replace
+		_ = helpers.Activate(t, transfer)
+		table, err := ytEnv.YT.ReadTable(ctx, tablePath, nil)
+		require.NoError(t, err)
+		defer func(table yt.TableReader) {
+			err := table.Close()
+			require.NoError(t, err)
+		}(table)
+		for id := 1; id <= 50; id++ {
+			require.Truef(t, table.Next(), "no row for id %v", id)
+			var row testTableRow
+			require.NoErrorf(t, table.Scan(&row), "unable to scan row for id %v", id)
+			require.Equal(t, id, row.ID)
+		}
+		require.False(t, table.Next())
+	})
+
 	t.Run("upload_with_old_type_system_ver", func(t *testing.T) {
 		transferWithOldVer := transfer
 		transferWithOldVer.TypeSystemVersion = 1

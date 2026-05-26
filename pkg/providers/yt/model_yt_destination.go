@@ -196,11 +196,14 @@ func (d *YtDestinationWrapper) EnsureTmpPolicySupported() error {
 	if d.UseStaticTableOnSnapshot() {
 		return xerrors.Errorf("using static tables on snapshot is not supported")
 	}
+	if d.CleanupMode() == model.Replace {
+		return xerrors.Errorf("using replace cleanup is not supported")
+	}
 	return nil
 }
 
 func (d *YtDestinationWrapper) EnsureCustomTmpPolicySupported() error {
-	if !d.UseStaticTableOnSnapshot() {
+	if !d.UseStaticTableOnSnapshot() && d.CleanupMode() != model.Replace {
 		return xerrors.New("using static tables on snapshot is not enabled")
 	}
 	return nil
@@ -413,6 +416,9 @@ func (d *YtDestinationWrapper) WithDefaults() {
 	}
 	if d.Model.Cleanup == "" {
 		d.Model.Cleanup = model.Drop
+		if d.Model.Static || d.Model.UseStaticTableOnSnapshot {
+			d.Model.Cleanup = model.Replace
+		}
 	}
 	if d.Model.WriteTimeoutSec == 0 {
 		d.Model.WriteTimeoutSec = 60
@@ -471,6 +477,12 @@ func (d *YtDestinationWrapper) Validate() error {
 		return xerrors.Errorf("Not implemented," +
 			"not working for dynamic tables with rotation when UseStaticTableOnSnapshot=true" +
 			": fix with TM-5114")
+	}
+	if d.CleanupMode() == model.Replace && d.Rotation() != nil {
+		return xerrors.Errorf("Replace cleanup policy cannot be used together with rotation")
+	}
+	if d.CleanupMode() == model.Replace && len(d.Index()) > 0 && !d.UseStaticTableOnSnapshot() {
+		return xerrors.Errorf("Replace cleanup policy cannot be used together with indexes")
 	}
 	return nil
 }

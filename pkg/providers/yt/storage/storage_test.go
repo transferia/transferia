@@ -11,7 +11,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	yt_provider "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/recipe"
 	ytsink "github.com/transferia/transferia/pkg/providers/yt/sink"
@@ -84,7 +83,7 @@ func TestYtStorage_TableList(t *testing.T) {
 
 	Target.WithDefaults()
 
-	sinker, err := ytsink.NewSinker(Target, "", logger.Log, emptyRegistry(), coordinator.NewFakeClient(), nil)
+	sinker, err := ytsink.NewSinker(Target, "", logger.Log, emptyRegistry(), nil)
 	require.NoError(t, err)
 
 	err = sinker.Push([]abstract.ChangeItem{
