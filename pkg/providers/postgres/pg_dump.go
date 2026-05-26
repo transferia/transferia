@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -41,6 +42,11 @@ type pgDumpItem struct {
 	Body   string
 	Schema string
 }
+
+var (
+	pgDumpHeaderRegex     = regexp.MustCompile(`^--.*; Type: .*; Schema: .*; Owner: `)
+	pgDumpCompleteComment = `-- PostgreSQL database dump complete`
+)
 
 var typesExistsQuery = `SELECT EXISTS (
 SELECT t.typname as type
@@ -917,43 +923,31 @@ func parsePgDumpOut(out io.Reader) []*pgDumpItem {
 	var current *pgDumpItem
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "--") {
-			// At start of section with dump item meta
-			if isPgDumpItemValid(current) {
-				res = append(res, current)
-			}
-			current = new(pgDumpItem)
-			if !scanner.Scan() {
-				return res
-			}
-			nameLine := scanner.Text()
-			nameLine = strings.ReplaceAll(nameLine, "--", "")
-			parts := strings.Split(nameLine, ";")
-			for _, p := range parts {
-				kv := strings.Split(p, ":")
-				switch strings.TrimSpace(kv[0]) {
-				case "Name":
-					current.Name = strings.TrimSpace(kv[1])
-				case "Type":
-					current.Typ = strings.ReplaceAll(strings.TrimSpace(kv[1]), " ", "_")
-				case "Schema":
-					current.Schema = strings.TrimSpace(kv[1])
-				case "Owner":
-					current.Owner = strings.TrimSpace(kv[1])
-				}
-			}
-			_ = scanner.Scan()
-		}
-		if len(line) == 0 {
+		if strings.TrimSpace(line) != "--" {
+			updatePgItemBody(current, line)
 			continue
 		}
-		if current != nil {
-			current.Body = current.Body + "\n" + line
-			if current.Typ == string(PgObjectTypeConstraint) && strings.Contains(line, "PRIMARY KEY") {
-				current.Typ = string(PgObjectTypePrimaryKey)
-			}
+		if !scanner.Scan() {
+			break
 		}
+		nameLine := scanner.Text()
+		if nameLine == pgDumpCompleteComment {
+			break
+		}
+		if !pgDumpHeaderRegex.MatchString(nameLine) {
+			updatePgItemBody(current, line)
+			updatePgItemBody(current, nameLine)
+			continue
+		}
+		// At start of section with dump item meta
+		if isPgDumpItemValid(current) {
+			res = append(res, current)
+		}
+		current = parseNameLine(nameLine)
+		_ = scanner.Scan()
+		updatePgItemBody(current, line)
 	}
+
 	if isPgDumpItemValid(current) {
 		res = append(res, current)
 	}
@@ -965,6 +959,37 @@ func parsePgDumpOut(out io.Reader) []*pgDumpItem {
 		logger.Log.Infof("Found commands with type: %v - %v", k, count)
 	}
 	return res
+}
+
+func updatePgItemBody(item *pgDumpItem, line string) {
+	if item == nil || len(line) == 0 {
+		return
+	}
+	item.Body = item.Body + "\n" + line
+	if item.Typ == string(PgObjectTypeConstraint) && strings.Contains(line, "PRIMARY KEY") {
+		item.Typ = string(PgObjectTypePrimaryKey)
+	}
+}
+
+func parseNameLine(nameLine string) *pgDumpItem {
+	current := new(pgDumpItem)
+	cleanedName := strings.ReplaceAll(nameLine, "--", "")
+	parts := strings.Split(cleanedName, ";")
+	for _, p := range parts {
+		kv := strings.Split(p, ":")
+		switch strings.TrimSpace(kv[0]) {
+		case "Name":
+			current.Name = strings.TrimSpace(kv[1])
+		case "Type":
+			current.Typ = strings.ReplaceAll(strings.TrimSpace(kv[1]), " ", "_")
+		case "Schema":
+			current.Schema = strings.TrimSpace(kv[1])
+		case "Owner":
+			current.Owner = strings.TrimSpace(kv[1])
+		}
+	}
+
+	return current
 }
 
 func logPgDumpOut(items []*pgDumpItem) {

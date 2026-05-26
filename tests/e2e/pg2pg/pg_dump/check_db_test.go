@@ -172,6 +172,9 @@ func Snapshot(t *testing.T) {
 	itemTypToCnt = extractPgDumpTypToCnt(t, []string{"public.*"}, []string{"public"})
 	require.Equal(t, 2, itemTypToCnt[string(provider_postgres.PgObjectTypeTableAttach)])
 
+	itemTypToCnt = extractPgDumpTypToCnt(t, []string{"schema_with_bad_function.*"}, []string{"schema_with_bad_function"})
+	require.Equal(t, 1, itemTypToCnt[string(provider_postgres.PgObjectTypeFunction)])
+
 	// Subtest to check that tablelist is intersection of endpoint and transfer, and endpoint exclude_tables.
 	t.Run("table-list", func(t *testing.T) {
 		t.Run("intersection", func(t *testing.T) {

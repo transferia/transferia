@@ -78,10 +78,10 @@ CREATE TABLE public.test1 (
 );`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypeTable)
+		require.Equal(t, typ, PgObjectTypeTable)
 	})
 
 	t.Run("Sequence", func(t *testing.T) {
@@ -99,10 +99,10 @@ CREATE SEQUENCE public.ids_1_seq
     CACHE 1;`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypeSequence)
+		require.Equal(t, typ, PgObjectTypeSequence)
 	})
 
 	t.Run("SequenceOwnedBy", func(t *testing.T) {
@@ -114,10 +114,10 @@ CREATE SEQUENCE public.ids_1_seq
 ALTER SEQUENCE public.ids_1_seq OWNED BY public.test1.id;`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypeSequenceOwnedBy)
+		require.Equal(t, typ, PgObjectTypeSequenceOwnedBy)
 	})
 
 	t.Run("Constraint", func(t *testing.T) {
@@ -130,10 +130,10 @@ ALTER TABLE ONLY public.__consumer_keeper
     ADD CONSTRAINT __consumer_keeper_consumer_locked_by_key UNIQUE (consumer, locked_by);`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypeConstraint)
+		require.Equal(t, typ, PgObjectTypeConstraint)
 	})
 
 	t.Run("PrimaryKey", func(t *testing.T) {
@@ -146,10 +146,10 @@ ALTER TABLE ONLY public.test1
     ADD CONSTRAINT test1_pkey PRIMARY KEY (id);`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypePrimaryKey)
+		require.Equal(t, typ, PgObjectTypePrimaryKey)
 	})
 
 	t.Run("FkContraint", func(t *testing.T) {
@@ -162,10 +162,10 @@ ALTER TABLE ONLY public.items_1
     ADD CONSTRAINT items_1_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.ids_1(id);`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypeFkConstraint)
+		require.Equal(t, typ, PgObjectTypeFkConstraint)
 	})
 
 	t.Run("Collation", func(t *testing.T) {
@@ -177,10 +177,10 @@ ALTER TABLE ONLY public.items_1
 CREATE COLLATION public.french (provider = libc, locale = 'fr_FR.utf8');`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypeCollation)
+		require.Equal(t, typ, PgObjectTypeCollation)
 	})
 
 	t.Run("Trigger", func(t *testing.T) {
@@ -192,10 +192,10 @@ CREATE COLLATION public.french (provider = libc, locale = 'fr_FR.utf8');`
 CREATE TRIGGER trigger1 BEFORE UPDATE ON public.test1 FOR EACH ROW EXECUTE FUNCTION trigger1_function();`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypeTrigger)
+		require.Equal(t, typ, PgObjectTypeTrigger)
 	})
 
 	t.Run("Policy", func(t *testing.T) {
@@ -207,10 +207,10 @@ CREATE TRIGGER trigger1 BEFORE UPDATE ON public.test1 FOR EACH ROW EXECUTE FUNCT
 CREATE POLICY test_policy ON public.test1 USING (((name)::text = 'test'::text));`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypePolicy)
+		require.Equal(t, typ, PgObjectTypePolicy)
 	})
 
 	t.Run("Cast", func(t *testing.T) {
@@ -222,10 +222,117 @@ CREATE POLICY test_policy ON public.test1 USING (((name)::text = 'test'::text));
 CREATE CAST (character varying AS integer) WITH FUNCTION public.test_to_int(character varying);`
 
 		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
-		require.True(t, len(items) == 1)
+		require.Len(t, items, 1)
 		require.NoError(t, PgObjectType(items[0].Typ).IsValid())
 		typ := PgObjectType(items[0].Typ)
-		require.True(t, typ == PgObjectTypeCast)
+		require.Equal(t, typ, PgObjectTypeCast)
+	})
+}
+
+func TestParsePgDumpOut(t *testing.T) {
+	t.Run("parses multiple items with metadata and body", func(t *testing.T) {
+		dumpOut := `
+--
+-- Name: test1; Type: TABLE; Schema: public; Owner: owner1
+--
+
+CREATE TABLE public.test1 (
+    id integer NOT NULL
+);
+--
+-- Name: ids_1_seq; Type: SEQUENCE; Schema: custom; Owner: owner2
+--
+
+CREATE SEQUENCE custom.ids_1_seq
+    AS integer
+    START WITH 1;
+`
+
+		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
+
+		require.Len(t, items, 2)
+		require.Equal(t, &pgDumpItem{
+			Name:   "test1",
+			Typ:    string(PgObjectTypeTable),
+			Schema: "public",
+			Owner:  "owner1",
+			Body: `
+--
+CREATE TABLE public.test1 (
+    id integer NOT NULL
+);`,
+		}, items[0])
+		require.Equal(t, &pgDumpItem{
+			Name:   "ids_1_seq",
+			Typ:    string(PgObjectTypeSequence),
+			Schema: "custom",
+			Owner:  "owner2",
+			Body: `
+--
+CREATE SEQUENCE custom.ids_1_seq
+    AS integer
+    START WITH 1;`,
+		}, items[1])
+	})
+
+	t.Run("stops on complete comment", func(t *testing.T) {
+		dumpOut := `
+--
+-- Name: test1; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.test1 (
+    id integer NOT NULL
+);
+--
+-- PostgreSQL database dump complete
+--
+-- Name: test2; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.test2 (
+    id integer NOT NULL
+);
+`
+
+		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
+
+		require.Len(t, items, 1)
+		require.Equal(t, "test1", items[0].Name)
+		require.NotContains(t, items[0].Body, "test2")
+	})
+
+	t.Run("keeps non-header comment blocks in current item body", func(t *testing.T) {
+		dumpOut := `
+--
+-- Name: test1; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.test1 (
+    id integer NOT NULL
+);
+--
+-- regular pg_dump comment
+--
+ALTER TABLE public.test1 OWNER TO owner1;
+`
+
+		items := parsePgDumpOut(bytes.NewReader([]byte(dumpOut)))
+
+		require.Len(t, items, 1)
+		require.Equal(t, "test1", items[0].Name)
+		require.Contains(t, items[0].Body, "-- regular pg_dump comment")
+		require.Contains(t, items[0].Body, "ALTER TABLE public.test1 OWNER TO owner1;")
+	})
+
+	t.Run("ignores input without pg_dump items", func(t *testing.T) {
+		items := parsePgDumpOut(bytes.NewReader([]byte(`
+--
+-- plain comment
+SELECT 1;
+`)))
+
+		require.Empty(t, items)
 	})
 }
 

@@ -163,3 +163,17 @@ BEGIN
     RETURN lower(regexp_replace(_name, '[\"'']', '','g'));
 END;
 $$;
+
+CREATE SCHEMA schema_with_bad_function;
+create table schema_with_bad_function.temp_table(id int);
+CREATE OR REPLACE FUNCTION schema_with_bad_function.function_with_comment()
+ RETURNS TABLE(id int)
+ LANGUAGE plpgsql
+AS $function$
+begin
+--
+--     return(select temp_table);
+--
+    return query select * from temp_table;
+END;
+$function$
