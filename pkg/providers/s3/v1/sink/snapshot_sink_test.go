@@ -133,24 +133,17 @@ func testJsonSnapshot(t *testing.T) {
 
 	tests := []struct {
 		objKey         string
-		anyAsString    bool
 		expectedResult string
 	}{
 		{
-			objKey:         "complex_to_string",
-			anyAsString:    true,
-			expectedResult: "{\"object\":\"{\\\"key\\\":\\\"value\\\"}\"}\n",
-		},
-		{
 			objKey:         "complex_as_is",
-			anyAsString:    false,
 			expectedResult: "{\"object\":{\"key\":\"value\"}}\n",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.objKey, func(t *testing.T) {
-			cfg.Serializer = s3_v1_model.SerializerUnion{Json: &s3_v1_model.JsonSerializerConfig{Encoding: s3_v1_model.NoEncoding, AnyAsString: tc.anyAsString}}
+			cfg.Serializer = s3_v1_model.SerializerUnion{Json: &s3_v1_model.JsonSerializerConfig{Encoding: s3_v1_model.NoEncoding}}
 			table := "test_table"
 
 			currSink, err := NewSnapshotSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, "TestJSONSnapshot", 0)

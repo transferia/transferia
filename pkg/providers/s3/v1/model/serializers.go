@@ -31,8 +31,7 @@ type SerializerUnion struct {
 }
 
 type JsonSerializerConfig struct {
-	AnyAsString bool
-	Encoding    Encoding
+	Encoding Encoding
 }
 
 func (s *JsonSerializerConfig) FormatName() model.ParsingFormat {
@@ -48,7 +47,7 @@ func (s *JsonSerializerConfig) AsConfig() *serializer.BatchSerializerCommonConfi
 		UnsupportedItemKinds: nil,
 		AddClosingNewLine:    true,
 		Format:               s.FormatName(),
-		AnyAsString:          s.AnyAsString,
+		AnyAsString:          false,
 		ParquetConfig:        nil,
 	}
 }

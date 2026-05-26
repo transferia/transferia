@@ -80,6 +80,12 @@ func (d *S3Destination) WithDefaults() {
 	if d.BufferSize == 0 {
 		d.BufferSize = model.BytesSize(clickhouse_model.BufferTriggingSizeDefault)
 	}
+	if d.RotatorType == "" {
+		d.RotatorConfig.Default = &DefaultRotatorConfig{Interval: 3600 * time.Second}
+	}
+	if d.PartitionerType == "" {
+		d.PartitionerConfig.Default = &DefaultPartitionerConfig{}
+	}
 }
 
 func (d *S3Destination) BuffererConfig() *bufferer.BuffererConfig {
@@ -147,14 +153,16 @@ func (d *S3Destination) GetRotator() RotatorConfig {
 	switch d.RotatorType {
 	case DefaultRotator:
 		return d.RotatorConfig.Default
+	default:
+		return d.RotatorConfig.Default
 	}
-	return nil
 }
 
 func (d *S3Destination) GetPartitioner() PartitionerConfig {
 	switch d.PartitionerType {
 	case DefaultPartitioner:
 		return d.PartitionerConfig.Default
+	default:
+		return d.PartitionerConfig.Default
 	}
-	return nil
 }

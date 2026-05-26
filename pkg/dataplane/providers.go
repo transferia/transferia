@@ -15,6 +15,7 @@ import (
 	_ "github.com/transferia/transferia/pkg/providers/opensearch"
 	_ "github.com/transferia/transferia/pkg/providers/postgres"
 	_ "github.com/transferia/transferia/pkg/providers/s3/provider"
+	_ "github.com/transferia/transferia/pkg/providers/s3/v1"
 	_ "github.com/transferia/transferia/pkg/providers/stdout"
 	_ "github.com/transferia/transferia/pkg/providers/ydb"
 	_ "github.com/transferia/transferia/pkg/providers/yt/init"

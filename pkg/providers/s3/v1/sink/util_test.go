@@ -128,13 +128,8 @@ func TestCreateSerializer(t *testing.T) {
 		expectError        bool
 	}{
 		{
-			name:               "json format with anyAsString false",
-			serializerSettings: &s3_v1_model.JsonSerializerConfig{AnyAsString: false},
-			expectError:        false,
-		},
-		{
-			name:               "json format with anyAsString true",
-			serializerSettings: &s3_v1_model.JsonSerializerConfig{AnyAsString: true},
+			name:               "json format",
+			serializerSettings: &s3_v1_model.JsonSerializerConfig{},
 			expectError:        false,
 		},
 		{
