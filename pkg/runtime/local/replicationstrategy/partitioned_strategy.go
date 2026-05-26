@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -14,14 +15,14 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/source_factory"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var nonPartitionableSourceErr = xerrors.New("source does not implement abstract.PartitionListable")
-
 type newSourceF func(partition abstract.Partition) (abstract.QueueToS3Source, error)
 type newSinkF func() (abstract.QueueToS3Sink, error)
+type newListerF func() (abstract.PartitionLister, error)
 
 type PartitionedStrategy struct {
 	errCh             chan error
@@ -34,6 +35,9 @@ type PartitionedStrategy struct {
 
 	newSource newSourceF
 	newSink   newSinkF
+	newLister newListerF
+
+	lister abstract.PartitionLister
 
 	logger log.Logger
 }
@@ -60,7 +64,7 @@ func (s *PartitionedStrategy) Run() error {
 			return nil
 
 		case <-s.errCh:
-			if err := s.stopRunners(); err != nil {
+			if err := s.stopRunnersAndLister(); err != nil {
 				return xerrors.Errorf("unable to stop runners during shutdown: %w", err)
 			}
 			if err := s.runnerErrors(); err != nil {
@@ -72,7 +76,7 @@ func (s *PartitionedStrategy) Run() error {
 }
 
 func (s *PartitionedStrategy) Stop() error {
-	if err := s.stopRunners(); err != nil {
+	if err := s.stopRunnersAndLister(); err != nil {
 		return err
 	}
 	close(s.stopCh)
@@ -80,9 +84,11 @@ func (s *PartitionedStrategy) Stop() error {
 	return nil
 }
 
-func (s *PartitionedStrategy) stopRunners() error {
+func (s *PartitionedStrategy) stopRunnersAndLister() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	s.closeLister()
 
 	var errs []error
 	for _, currRunner := range s.partitionToRunner {
@@ -92,6 +98,20 @@ func (s *PartitionedStrategy) stopRunners() error {
 	}
 	if len(errs) > 0 {
 		return xerrors.Errorf("failed to stop runners: %w", errors.Join(errs...))
+	}
+
+	return nil
+}
+
+func (s *PartitionedStrategy) runnerErrors() error {
+	var errs []error
+	for _, runner := range s.partitionToRunner {
+		if runner.err != nil {
+			errs = append(errs, runner.err)
+		}
+	}
+	if len(errs) > 0 {
+		return xerrors.Errorf("runner errors: %w", errors.Join(errs...))
 	}
 
 	return nil
@@ -150,7 +170,7 @@ func (s *PartitionedStrategy) syncRunnersWithPartitions() error {
 }
 
 func (s *PartitionedStrategy) getOrderedPartitions() ([]abstract.Partition, error) {
-	partitions, err := s.getPartitions()
+	partitions, err := s.listPartitions()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get partitions: %w", err)
 	}
@@ -169,50 +189,44 @@ func (s *PartitionedStrategy) getOrderedPartitions() ([]abstract.Partition, erro
 	return partitions, nil
 }
 
-func (s *PartitionedStrategy) getPartitions() ([]abstract.Partition, error) {
-	if existingRunner := s.getRunnerIfExists(); existingRunner != nil {
-		return existingRunner.listPartitions()
-	}
+func (s *PartitionedStrategy) listPartitions() ([]abstract.Partition, error) {
+	partitions, err := backoffutil.RetryWithData(func() ([]abstract.Partition, error) {
+		if err := s.ensureLister(); err != nil {
+			return nil, xerrors.Errorf("failed to ensure lister: %w", err)
+		}
 
-	src, err := s.newSource(abstract.NewEmptyPartition())
+		partitions, err := s.lister.ListPartitions()
+		if err != nil {
+			s.closeLister()
+			return nil, xerrors.Errorf("failed to list partitions: %w", err)
+		}
+
+		return partitions, nil
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3))
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create source for listing partitions: %w", err)
-	}
-
-	partitionable, ok := src.(abstract.PartitionListable)
-	if !ok {
-		return nil, nonPartitionableSourceErr
-	}
-
-	partitions, err := partitionable.ListPartitions()
-	if err != nil {
-		return nil, xerrors.Errorf("failed to list partitions from source: %w", err)
+		return nil, xerrors.Errorf("unable to list partitions with retries: %w", err)
 	}
 
 	return partitions, nil
 }
 
-// getRunnerIfExists returns any existing runner from partitionToRunner.
-func (s *PartitionedStrategy) getRunnerIfExists() *partitionRunner {
-	for _, runner := range s.partitionToRunner {
-		return runner
+func (s *PartitionedStrategy) ensureLister() error {
+	if s.lister == nil {
+		lister, err := s.newLister()
+		if err != nil {
+			return err
+		}
+		s.lister = lister
 	}
 
 	return nil
 }
 
-func (s *PartitionedStrategy) runnerErrors() error {
-	var errs []error
-	for _, runner := range s.partitionToRunner {
-		if runner.err != nil {
-			errs = append(errs, runner.err)
-		}
+func (s *PartitionedStrategy) closeLister() {
+	if s.lister != nil {
+		s.lister.Close()
+		s.lister = nil
 	}
-	if len(errs) > 0 {
-		return xerrors.Errorf("runner errors: %w", errors.Join(errs...))
-	}
-
-	return nil
 }
 
 // assignedPartitions returns a slice of partitions assigned to
@@ -223,8 +237,10 @@ func assignedPartitions(workerIndex, totalWorkers int, allPartitions []abstract.
 	}
 
 	result := make([]abstract.Partition, 0)
-	for i := workerIndex; i < len(allPartitions); i += totalWorkers {
-		result = append(result, allPartitions[i])
+	for _, partition := range allPartitions {
+		if int(partition.Partition)%totalWorkers == workerIndex {
+			result = append(result, partition)
+		}
 	}
 
 	return result
@@ -247,6 +263,9 @@ func NewPartitionedStrategy(transfer *model.Transfer, cp coordinator.Coordinator
 
 		newSource: nil,
 		newSink:   nil,
+		newLister: nil,
+
+		lister: nil,
 
 		logger: logger,
 	}
@@ -257,6 +276,10 @@ func NewPartitionedStrategy(transfer *model.Transfer, cp coordinator.Coordinator
 
 	partitionedStrategy.newSink = func() (abstract.QueueToS3Sink, error) {
 		return sink_factory.MakeAsyncReplicationSink(transfer, new(model.TransferOperation), logger, registry, cp, middlewares.MakeConfig(middlewares.AtReplicationStage))
+	}
+
+	partitionedStrategy.newLister = func() (abstract.PartitionLister, error) {
+		return source_factory.NewPartitionLister(transfer, logger, registry, cp)
 	}
 
 	return partitionedStrategy, nil

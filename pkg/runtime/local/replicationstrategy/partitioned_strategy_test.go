@@ -34,6 +34,7 @@ func TestPartitionedStrategy(t *testing.T) {
 		require.NotNil(t, partitionedStrategy.logger)
 		require.NotNil(t, partitionedStrategy.newSource)
 		require.NotNil(t, partitionedStrategy.newSink)
+		require.NotNil(t, partitionedStrategy.newLister)
 		require.Len(t, partitionedStrategy.partitionToRunner, 0)
 	})
 
@@ -45,7 +46,8 @@ func TestPartitionedStrategy(t *testing.T) {
 		partition := abstract.Partition{Topic: "test", Partition: 0}
 		srcData := newTestChangeItems(map[abstract.Partition][]string{partition: {"1", "2", "3"}})
 		srcItemCount := totalItemCount(srcData)
-		partitionedStrategy.newSource = newMockSourceFactory(srcData, nil)
+		partitionedStrategy.newSource = newMockSourceFactory(srcData)
+		partitionedStrategy.newLister = newMockListerFromData(srcData)
 
 		// Run
 		res, err := runPartitionedStrategyWaitItemsAndStop(partitionedStrategy, srcItemCount, 2*time.Second)
@@ -72,7 +74,8 @@ func TestPartitionedStrategy(t *testing.T) {
 			secondPartition: {"4", "5", "6"},
 		})
 		srcItemCount := totalItemCount(srcData)
-		partitionedStrategy.newSource = newMockSourceFactory(srcData, nil)
+		partitionedStrategy.newSource = newMockSourceFactory(srcData)
+		partitionedStrategy.newLister = newMockListerFromData(srcData)
 
 		// Run
 		res, err := runPartitionedStrategyWaitItemsAndStop(partitionedStrategy, srcItemCount, 2*time.Second)
@@ -101,7 +104,8 @@ func TestPartitionedStrategy(t *testing.T) {
 
 		partition := abstract.Partition{Topic: "test", Partition: 0}
 		srcData := newTestChangeItems(map[abstract.Partition][]string{partition: {"1"}})
-		partitionedStrategy.newSource = newMockSourceFactory(srcData, nil)
+		partitionedStrategy.newSource = newMockSourceFactory(srcData)
+		partitionedStrategy.newLister = newMockListerFromData(srcData)
 
 		// Run
 		partitionedStrategy.newSink = newMockQueueToS3SinkFactory(func(got []abstract.ChangeItem) error {
@@ -129,7 +133,8 @@ func TestPartitionedStrategy(t *testing.T) {
 			firstPartition:  {"1"},
 			secondPartition: {"4"},
 		})
-		partitionedStrategy.newSource = newMockSourceFactory(srcData, nil)
+		partitionedStrategy.newSource = newMockSourceFactory(srcData)
+		partitionedStrategy.newLister = newMockListerFromData(srcData)
 
 		// Run
 		partitionedStrategy.newSink = newMockQueueToS3SinkFactory(func(got []abstract.ChangeItem) error {
@@ -163,7 +168,8 @@ func TestSyncRunnersWithPartitions(t *testing.T) {
 	require.NoError(t, err)
 
 	var partitions []abstract.Partition
-	partitionedStrategy.newSource = newMockSourceFactory(nil, func() ([]abstract.Partition, error) {
+	partitionedStrategy.newSource = newMockSourceFactory(nil)
+	partitionedStrategy.newLister = newMockListerFactory(func() ([]abstract.Partition, error) {
 		return partitions, nil
 	})
 
@@ -269,7 +275,8 @@ func TestGetOrderedPartitions(t *testing.T) {
 	require.NoError(t, err)
 
 	var partitions []abstract.Partition
-	partitionedStrategy.newSource = newMockSourceFactory(nil, func() ([]abstract.Partition, error) {
+	partitionedStrategy.newSource = newMockSourceFactory(nil)
+	partitionedStrategy.newLister = newMockListerFactory(func() ([]abstract.Partition, error) {
 		return partitions, nil
 	})
 
@@ -290,7 +297,7 @@ func TestGetOrderedPartitions(t *testing.T) {
 		require.Equal(t, partitions, orderedPartitions)
 	})
 
-	t.Run("GetFromNewSource", func(t *testing.T) {
+	t.Run("GetFromLister", func(t *testing.T) {
 		partitions = []abstract.Partition{
 			{Partition: 0, Topic: "test_2"},
 			{Partition: 1, Topic: "test_2"},
@@ -301,6 +308,30 @@ func TestGetOrderedPartitions(t *testing.T) {
 		orderedPartitions, err := partitionedStrategy.getOrderedPartitions()
 		require.NoError(t, err)
 		require.Equal(t, partitions, orderedPartitions)
+	})
+
+	t.Run("RecreateListerOnError", func(t *testing.T) {
+		partitions = []abstract.Partition{
+			{Partition: 0, Topic: "test_2"},
+		}
+
+		var listCalls int
+		partitionedStrategy.partitionToRunner = make(map[abstract.Partition]*partitionRunner)
+		partitionedStrategy.lister = nil
+		partitionedStrategy.newLister = func() (abstract.PartitionLister, error) {
+			return &listerMock{listPartitionsF: func() ([]abstract.Partition, error) {
+				listCalls++
+				if listCalls == 1 {
+					return nil, xerrors.New("temporary list error")
+				}
+				return partitions, nil
+			}}, nil
+		}
+
+		orderedPartitions, err := partitionedStrategy.getOrderedPartitions()
+		require.NoError(t, err)
+		require.Equal(t, partitions, orderedPartitions)
+		require.Equal(t, 2, listCalls)
 	})
 
 	t.Run("GetOrderedPartitions", func(t *testing.T) {
@@ -371,6 +402,39 @@ func TestAssignedPartitions(t *testing.T) {
 		res := assignedPartitions(0, 1, []abstract.Partition{})
 		require.Equal(t, expectedPartitions, res)
 	})
+
+	fewTopicsAllPartitions := []abstract.Partition{
+		{Partition: 0, Topic: "test_1"},
+		{Partition: 1, Topic: "test_1"},
+		{Partition: 2, Topic: "test_1"},
+		{Partition: 3, Topic: "test_1"},
+		{Partition: 4, Topic: "test_1"},
+		{Partition: 0, Topic: "test_2"},
+		{Partition: 1, Topic: "test_2"},
+		{Partition: 2, Topic: "test_2"},
+	}
+
+	t.Run("FewTopicsZeroIndexTwoWorkers", func(t *testing.T) {
+		expectedPartitions := []abstract.Partition{
+			{Partition: 0, Topic: "test_1"},
+			{Partition: 2, Topic: "test_1"},
+			{Partition: 4, Topic: "test_1"},
+			{Partition: 0, Topic: "test_2"},
+			{Partition: 2, Topic: "test_2"},
+		}
+
+		res := assignedPartitions(0, 2, fewTopicsAllPartitions)
+		require.Equal(t, expectedPartitions, res)
+	})
+
+	t.Run("FewTopicsMoreWorkersThanPartitions", func(t *testing.T) {
+		expectedPartitions := []abstract.Partition{
+			{Partition: 4, Topic: "test_1"},
+		}
+
+		res := assignedPartitions(4, 10, fewTopicsAllPartitions)
+		require.Equal(t, expectedPartitions, res)
+	})
 }
 
 type fakeRuntime struct {
@@ -425,20 +489,6 @@ type sourceMock struct {
 
 	part abstract.Partition
 	data map[abstract.Partition][]abstract.ChangeItem
-
-	listPartitionsF func() ([]abstract.Partition, error)
-}
-
-func (m *sourceMock) ListPartitions() ([]abstract.Partition, error) {
-	if m.listPartitionsF != nil {
-		return m.listPartitionsF()
-	}
-
-	partitions := make([]abstract.Partition, 0)
-	for partition := range m.data {
-		partitions = append(partitions, partition)
-	}
-	return partitions, nil
 }
 
 func (m *sourceMock) Run(sink abstract.QueueToS3Sink) error {
@@ -461,15 +511,48 @@ func (m *sourceMock) Stop() {
 	m.cancel()
 }
 
-func newMockSourceFactory(data map[abstract.Partition][]abstract.ChangeItem, listPartitionsF func() ([]abstract.Partition, error)) newSourceF {
+type listerMock struct {
+	listPartitionsF func() ([]abstract.Partition, error)
+	closed          bool
+}
+
+func (m *listerMock) ListPartitions() ([]abstract.Partition, error) {
+	if m.listPartitionsF != nil {
+		return m.listPartitionsF()
+	}
+
+	return nil, nil
+}
+
+func (m *listerMock) Close() {
+	m.closed = true
+}
+
+func newMockListerFromData(data map[abstract.Partition][]abstract.ChangeItem) newListerF {
+	return newMockListerFactory(func() ([]abstract.Partition, error) {
+		partitions := make([]abstract.Partition, 0, len(data))
+		for partition := range data {
+			partitions = append(partitions, partition)
+		}
+
+		return partitions, nil
+	})
+}
+
+func newMockListerFactory(listPartitionsF func() ([]abstract.Partition, error)) newListerF {
+	return func() (abstract.PartitionLister, error) {
+		return &listerMock{listPartitionsF: listPartitionsF}, nil
+	}
+}
+
+func newMockSourceFactory(data map[abstract.Partition][]abstract.ChangeItem) newSourceF {
 	return func(partition abstract.Partition) (abstract.QueueToS3Source, error) {
 		ctx, cancel := context.WithCancel(context.Background())
 		return &sourceMock{
-			ctx:             ctx,
-			cancel:          cancel,
-			part:            partition,
-			data:            data,
-			listPartitionsF: listPartitionsF,
+			ctx:    ctx,
+			cancel: cancel,
+			part:   partition,
+			data:   data,
 		}, nil
 	}
 }

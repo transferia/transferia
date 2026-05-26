@@ -15,7 +15,6 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb/topics/source/topicapi/eventreader"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -36,30 +35,6 @@ func (s *PartitionSource) Run(sink abstract.QueueToS3Sink) error {
 	return runErr
 }
 
-func (s *PartitionSource) ListPartitions() ([]abstract.Partition, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	topic := s.config.Topics[0]
-	topicDescription, err := s.ydbClient.Topic().Describe(ctx, topic)
-	if err != nil {
-		return nil, xerrors.Errorf("describe topic error: %w", err)
-	}
-	if topicDescription.PartitionSettings.AutoPartitioningSettings.AutoPartitioningStrategy == topictypes.AutoPartitioningStrategyScaleUpAndDown {
-		return nil, abstract.NewFatalError(xerrors.New("up and down auto partition scaling is not supported yet"))
-	}
-
-	var result []abstract.Partition
-	for _, partition := range topicDescription.Partitions {
-		result = append(result, abstract.Partition{
-			Topic:     topic,
-			Partition: uint32(partition.PartitionID),
-		})
-	}
-
-	return result, nil
-}
-
 func (s *PartitionSource) queueToS3Ack(pushResult abstract.QueueResult) error {
 	lastOffset := slices.Max(pushResult.Offsets)
 
@@ -74,14 +49,11 @@ func (s *PartitionSource) queueToS3Ack(pushResult abstract.QueueResult) error {
 }
 
 type PartitionDescription struct {
+	Topic     string
 	Partition int64
 }
 
 func NewPartitionSource(cfg *topicsource.Config, partitionDesc PartitionDescription, parser parsers.Parser, logger log.Logger, metrics *stats.SourceStats) (*PartitionSource, error) {
-	if len(cfg.Topics) > 1 || len(cfg.Topics) == 0 {
-		return nil, abstract.NewFatalError(xerrors.New("only one topic reading is supported now"))
-	}
-
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 
@@ -93,7 +65,7 @@ func NewPartitionSource(cfg *topicsource.Config, partitionDesc PartitionDescript
 		_ = ydbClient.Close(context.Background())
 	})
 
-	reader, err := eventreader.NewPartitionEventReader(cfg.Consumer, cfg.Topics[0], partitionDesc.Partition, ydbClient, logger)
+	reader, err := eventreader.NewPartitionEventReader(cfg.Consumer, partitionDesc.Topic, partitionDesc.Partition, ydbClient, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create event reader: %w", err)
 	}

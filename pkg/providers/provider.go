@@ -37,6 +37,12 @@ type PartitionableSource interface {
 	PartitionSource(partition abstract.Partition) (abstract.QueueToS3Source, error)
 }
 
+// PartitionListerProvider add partition lister factory to provider.
+type PartitionListerProvider interface {
+	Provider
+	PartitionLister() (abstract.PartitionLister, error)
+}
+
 // Abstract2Provider add `abstract2.DataProvider` factory to provider.
 // this means that provider can do abstract2 data provider
 type Abstract2Provider interface {

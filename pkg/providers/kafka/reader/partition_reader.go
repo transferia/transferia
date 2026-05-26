@@ -18,7 +18,6 @@ type kafkaClient interface {
 type kafkaAdminClient interface {
 	FetchOffsets(ctx context.Context, group string) (kadm.OffsetResponses, error)
 	CommitOffsets(ctx context.Context, group string, os kadm.Offsets) (kadm.OffsetResponses, error)
-	ListTopics(ctx context.Context, topics ...string) (kadm.TopicDetails, error)
 }
 
 type PartitionReader struct {
@@ -52,28 +51,6 @@ func (r *PartitionReader) FetchMessage(ctx context.Context) (kgo.Record, error) 
 	}
 
 	return kgo.Record{}, err
-}
-
-func (r *PartitionReader) ListPartitions(ctx context.Context, topic string) ([]int32, error) {
-	topicDetailsResp, err := r.adminClient.ListTopics(ctx, topic)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to get topic %s details: %w", topic, err)
-	}
-
-	topicDetails, ok := topicDetailsResp[topic]
-	if !ok {
-		return nil, xerrors.Errorf("list topics response does not contain topic %s", topic)
-	}
-
-	partitions := make([]int32, 0)
-	for _, partitionDetails := range topicDetails.Partitions {
-		if partitionDetails.Err != nil {
-			return nil, xerrors.Errorf("list topic partitions response for %s contains error %w", topic, partitionDetails.Err)
-		}
-		partitions = append(partitions, partitionDetails.Partition)
-	}
-
-	return partitions, nil
 }
 
 func (r *PartitionReader) Close() error {

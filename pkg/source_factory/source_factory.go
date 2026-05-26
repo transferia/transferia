@@ -35,3 +35,16 @@ func NewPartitionableSource(transfer *model.Transfer, lgr log.Logger, registry c
 	}
 	return res, nil
 }
+
+func NewPartitionLister(transfer *model.Transfer, lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator) (abstract.PartitionLister, error) {
+	listerProvider, ok := providers.Source[providers.PartitionListerProvider](lgr, registry, cp, transfer)
+	if !ok {
+		lgr.Error("Unable to create partition lister")
+		return nil, xerrors.Errorf("source does not support partition listing: %s: %T", transfer.SrcType(), transfer.Src)
+	}
+	res, err := listerProvider.PartitionLister()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create partition lister for %T: %w", transfer.Src, err)
+	}
+	return res, nil
+}

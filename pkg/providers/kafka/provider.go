@@ -37,9 +37,11 @@ const ProviderType = abstract.ProviderType("kafka")
 
 // To verify providers contract implementation
 var (
-	_ providers.Replication = (*Provider)(nil)
-	_ providers.Sniffer     = (*Provider)(nil)
-	_ providers.Sinker      = (*Provider)(nil)
+	_ providers.Replication             = (*Provider)(nil)
+	_ providers.PartitionableSource     = (*Provider)(nil)
+	_ providers.PartitionListerProvider = (*Provider)(nil)
+	_ providers.Sniffer                 = (*Provider)(nil)
+	_ providers.Sinker                  = (*Provider)(nil)
 
 	_ providers.Activator = (*Provider)(nil)
 )
@@ -132,6 +134,15 @@ func (p *Provider) Source() (abstract.Source, error) {
 	return NewSource(p.transfer.ID, src, p.logger, p.registry)
 }
 
+func (p *Provider) PartitionLister() (abstract.PartitionLister, error) {
+	src, ok := p.transfer.Src.(*KafkaSource)
+	if !ok {
+		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
+	}
+
+	return NewPartitionLister(src)
+}
+
 func (p *Provider) PartitionSource(partition abstract.Partition) (abstract.QueueToS3Source, error) {
 	src, ok := p.transfer.Src.(*KafkaSource)
 	if !ok {
@@ -140,7 +151,13 @@ func (p *Provider) PartitionSource(partition abstract.Partition) (abstract.Queue
 	if err := src.WithConnectionID(); err != nil {
 		return nil, xerrors.Errorf("unable to resolve connection for async source: %w", err)
 	}
-	return NewPartitionSource(p.transfer.ID, src, PartitionDescription{Partition: int32(partition.Partition)}, p.logger, p.registry)
+
+	partitionDesc := PartitionDescription{
+		Topic:     partition.Topic,
+		Partition: int32(partition.Partition),
+	}
+
+	return NewPartitionSource(p.transfer.ID, src, partitionDesc, p.logger, p.registry)
 }
 
 func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {

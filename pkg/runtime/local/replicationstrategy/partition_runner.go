@@ -44,15 +44,6 @@ func (r *partitionRunner) stop() error {
 	return nil
 }
 
-func (r *partitionRunner) listPartitions() ([]abstract.Partition, error) {
-	partitionable, ok := r.source.(abstract.PartitionListable)
-	if !ok {
-		return nil, nonPartitionableSourceErr
-	}
-
-	return partitionable.ListPartitions()
-}
-
 func newPartitionRunner(source abstract.QueueToS3Source, sink abstract.QueueToS3Sink) *partitionRunner {
 	return &partitionRunner{
 		source:    source,

@@ -9,6 +9,7 @@ type Fetchable interface {
 	Fetch() ([]ChangeItem, error)
 }
 
-type PartitionListable interface {
+type PartitionLister interface {
 	ListPartitions() ([]Partition, error)
+	Close()
 }

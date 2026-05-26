@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
-	"github.com/transferia/transferia/pkg/abstract"
 	sourcehelpers "github.com/transferia/transferia/tests/helpers/source"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -27,6 +26,7 @@ func TestPartitionSource(t *testing.T) {
 		kafkaCfg := *kafkaCfgTemplate
 		kafkaCfg.Topic = topicName
 		partitionDesc := PartitionDescription{
+			Topic:     topicName,
 			Partition: topicPartition,
 		}
 
@@ -60,6 +60,7 @@ func TestPartitionSource(t *testing.T) {
 		kafkaCfg := *kafkaCfgTemplate
 		kafkaCfg.Topic = topicName
 		partitionDesc := PartitionDescription{
+			Topic:     topicName,
 			Partition: topicPartition,
 		}
 
@@ -98,40 +99,6 @@ func TestPartitionSource(t *testing.T) {
 		require.NotNil(t, committedOffsets)
 		require.Equal(t, int64(9), committedOffsets[topicName][partitionDesc.Partition].At)
 	})
-}
-
-func TestListPartitions(t *testing.T) {
-	topicName := "test_list_partitions_topic"
-	topicPartition := int32(2)
-
-	kafkaCfg, err := SourceRecipe()
-	require.NoError(t, err)
-
-	_ = createTopicAndFillWithData(t, topicName, kafkaCfg)
-
-	kafkaCfg.Topic = topicName
-	partitionDesc := PartitionDescription{
-		Partition: topicPartition,
-	}
-
-	src, err := NewPartitionSource("dtt", kafkaCfg, partitionDesc, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
-	require.NoError(t, err)
-	defer src.Stop()
-
-	partitions, err := src.ListPartitions()
-	require.NoError(t, err)
-	require.Len(t, partitions, 3)
-
-	expectedPartitions := []abstract.Partition{
-		{Topic: topicName, Partition: 0},
-		{Topic: topicName, Partition: 1},
-		{Topic: topicName, Partition: 2},
-	}
-	slices.SortFunc(partitions, func(a, b abstract.Partition) int {
-		return int(a.Partition) - int(b.Partition)
-	})
-
-	require.Equal(t, expectedPartitions, partitions)
 }
 
 func createTopicAndFillWithData(t *testing.T, topicName string, sourceCfg *KafkaSource) map[int32][][]byte {

@@ -37,6 +37,7 @@ func TestPartitionSource(t *testing.T) {
 
 		sourceCfg := newTestSourceCfg(t, []string{topicName})
 		partitionDesc := PartitionDescription{
+			Topic:     topicName,
 			Partition: topicPartition,
 		}
 
@@ -72,6 +73,7 @@ func TestPartitionSource(t *testing.T) {
 
 		sourceCfg := newTestSourceCfg(t, []string{topicName})
 		partitionDesc := PartitionDescription{
+			Topic:     topicName,
 			Partition: topicPartition,
 		}
 
@@ -120,6 +122,7 @@ func TestPartitionSource(t *testing.T) {
 
 		sourceCfg := newTestSourceCfg(t, []string{topicName})
 		partitionDesc := PartitionDescription{
+			Topic:     topicName,
 			Partition: topicPartition,
 		}
 
@@ -170,42 +173,6 @@ func TestPartitionSource(t *testing.T) {
 	})
 }
 
-func TestListPartitions(t *testing.T) {
-	ydbClient := ydbrecipe.Driver(t)
-	defer func() {
-		_ = ydbClient.Close(context.Background())
-	}()
-
-	topicName := "test_list_partitions_topic"
-	topicPartition := int64(2)
-	_ = createTopicAndFillWithData(t, ydbClient, topicName)
-
-	sourceCfg := newTestSourceCfg(t, []string{topicName})
-	partitionDesc := PartitionDescription{
-		Partition: topicPartition,
-	}
-
-	sourceMetrics := stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts()))
-	src, err := NewPartitionSource(sourceCfg, partitionDesc, nil, logger.Log, sourceMetrics)
-	require.NoError(t, err)
-	defer src.Stop()
-
-	partitions, err := src.ListPartitions()
-	require.NoError(t, err)
-	require.Len(t, partitions, 3)
-
-	expectedPartitions := []abstract.Partition{
-		{Topic: topicName, Partition: 0},
-		{Topic: topicName, Partition: 1},
-		{Topic: topicName, Partition: 2},
-	}
-	slices.SortFunc(partitions, func(a, b abstract.Partition) int {
-		return int(a.Partition) - int(b.Partition)
-	})
-
-	require.Equal(t, expectedPartitions, partitions)
-}
-
 func TestPartitionSourceFetch(t *testing.T) {
 	ydbClient := ydbrecipe.Driver(t)
 	defer func() {
@@ -218,6 +185,7 @@ func TestPartitionSourceFetch(t *testing.T) {
 
 	sourceCfg := newTestSourceCfg(t, []string{topicName})
 	partitionDesc := PartitionDescription{
+		Topic:     topicName,
 		Partition: topicPartition,
 	}
 
@@ -249,6 +217,7 @@ func TestPartitionSourceCheckTopic(t *testing.T) {
 
 	sourceCfg := newTestSourceCfg(t, []string{topicName})
 	partitionDesc := PartitionDescription{
+		Topic:     topicName,
 		Partition: 2,
 	}
 

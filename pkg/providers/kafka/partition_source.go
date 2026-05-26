@@ -1,9 +1,7 @@
 package kafka
 
 import (
-	"context"
 	"errors"
-	"time"
 
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -14,10 +12,6 @@ import (
 	"github.com/transferia/transferia/pkg/util/throttler"
 	"go.ytsaurus.tech/library/go/core/log"
 )
-
-type listableReader interface {
-	ListPartitions(ctx context.Context, topic string) ([]int32, error)
-}
 
 type PartitionSource struct {
 	*Source
@@ -37,34 +31,6 @@ func (s *PartitionSource) Run(sink abstract.QueueToS3Sink) error {
 	}
 
 	return runErr
-}
-
-func (s *PartitionSource) ListPartitions() ([]abstract.Partition, error) {
-	listable, ok := s.reader.(listableReader)
-	if !ok {
-		return nil, xerrors.New("reader is not listable")
-	}
-
-	ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
-	defer cancel()
-
-	topics := s.config.Topics()
-	partitions := make([]abstract.Partition, 0)
-	for _, topic := range topics {
-		partitionNums, err := listable.ListPartitions(ctx, topic)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to list partitions: %w", err)
-		}
-
-		for _, partition := range partitionNums {
-			partitions = append(partitions, abstract.Partition{
-				Partition: uint32(partition),
-				Topic:     topic,
-			})
-		}
-	}
-
-	return partitions, nil
 }
 
 func (s *PartitionSource) queueToS3Ack(pushResult abstract.QueueResult) error {
@@ -97,6 +63,7 @@ func offsetsToQueueMessages(topic string, partition int32, offsets []uint64) []s
 }
 
 type PartitionDescription struct {
+	Topic     string
 	Partition int32
 }
 
@@ -106,22 +73,12 @@ func NewPartitionSource(transferID string, cfg *KafkaSource, partitionDesc Parti
 		return nil, xerrors.Errorf("unable to build options for partition source: %w", err)
 	}
 
-	if err := checkTopicExistence(opts, cfg.Topics()); err != nil {
-		return nil, xerrors.Errorf("unable to check topic existence for partition source: %w", err)
-	}
-
 	baseSource, err := newBaseSource(cfg, throttler.NewStubThrottler(), logger, registry)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create Source for partition: %w", err)
 	}
 
-	if len(cfg.GroupTopics) > 0 || cfg.Topic == "" {
-		return nil, abstract.NewFatalError(xerrors.New("only one topic has to be specified for partition source"))
-	}
-
-	topic := cfg.Topic
-	partition := partitionDesc.Partition
-	r, err := kafka_reader.NewPartitionReader(transferID, partition, topic, opts)
+	r, err := kafka_reader.NewPartitionReader(transferID, partitionDesc.Partition, partitionDesc.Topic, opts)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader for partition: %w", err)
 	}
