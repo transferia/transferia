@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -73,7 +74,7 @@ func (r *retrier) Push(input []abstract.ChangeItem) error {
 			return err
 		}
 		return nil
-	}, sinkerBackoff, util.BackoffLoggerWarn(r.logger, "Push")); err != nil {
+	}, sinkerBackoff, backoffutil.BackoffLoggerWarn(r.logger, "Push")); err != nil {
 		return xerrors.Errorf("failed to push (with retries): %w", err)
 	}
 	return nil

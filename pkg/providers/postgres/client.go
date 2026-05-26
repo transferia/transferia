@@ -22,6 +22,7 @@ import (
 	"github.com/transferia/transferia/pkg/pgha"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -221,7 +222,7 @@ func findNonStaleReplica(conn *connection.ConnectionPG, lsn string, aliveReplica
 		}
 		logger.Log.Infof("Could not find replica with Lsn greater than %v between hosts %v", lsn, aliveReplicas)
 		return xerrors.Errorf("Could not find replica with Lsn greater than %v", lsn)
-	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5))
+	}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 5))
 
 	if err != nil {
 		return nil, err

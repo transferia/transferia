@@ -19,7 +19,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
-	"github.com/transferia/transferia/pkg/providers/s3/v1/recipe"
+	s3recipe "github.com/transferia/transferia/pkg/providers/s3/v1/recipe"
 )
 
 var (

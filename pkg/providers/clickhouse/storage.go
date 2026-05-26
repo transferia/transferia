@@ -28,6 +28,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/set"
 	"github.com/transferia/transferia/pkg/util/size"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -889,7 +890,7 @@ func NewStorage(config *clickhouse_model.ChStorageParams, transfer *model.Transf
 			return "", xerrors.Errorf("unable to select clickhouse %s version: %w", config.String(), err)
 		}
 		return version, nil
-	}, backoff.NewExponentialBackOff(), util.BackoffLoggerWarn(logger.Log, "version resolver"))
+	}, backoff.NewExponentialBackOff(), backoffutil.BackoffLoggerWarn(logger.Log, "version resolver"))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to extract version: %w", err)
 	}

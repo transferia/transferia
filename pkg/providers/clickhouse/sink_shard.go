@@ -14,7 +14,7 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -98,7 +98,7 @@ func (s *sinkShard) reset() {
 	if err := backoff.RetryNotify(
 		s.cluster.Reset,
 		backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second*15), 3),
-		util.BackoffLogger(s.logger, "sinkShard reset"),
+		backoffutil.BackoffLogger(s.logger, "sinkShard reset"),
 	); err != nil {
 		s.logger.Error("sinkShard reset failed", log.Error(err))
 	}

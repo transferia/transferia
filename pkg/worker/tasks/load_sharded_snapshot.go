@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider/shared_memory"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -44,7 +44,7 @@ func (l *SnapshotLoader) WaitWorkersInitiated(ctx context.Context) error {
 			return nil
 		},
 		backoff.WithContext(newMetaCheckBackoff(), ctx),
-		util.BackoffLoggerDebug(logger.Log, "waiting for creating operation workers rows"),
+		backoffutil.BackoffLoggerDebug(logger.Log, "waiting for creating operation workers rows"),
 	)
 }
 
@@ -69,7 +69,7 @@ func (l *SnapshotLoader) OperationStateExists(ctx context.Context) (bool, error)
 			return true, nil
 		},
 		backoff.WithContext(newMetaCheckBackoff(), ctx),
-		util.BackoffLoggerDebug(logger.Log, "waiting for sharded state"),
+		backoffutil.BackoffLoggerDebug(logger.Log, "waiting for sharded state"),
 	)
 	return result, err
 }

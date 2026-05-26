@@ -14,7 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/tests/helpers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -120,7 +120,7 @@ func TestReplication(t *testing.T) {
 				return xerrors.Errorf("connection exceeded limit: %v > 5", len(connections))
 			},
 			backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 20),
-			util.BackoffLogger(logger.Log, "check connection count"),
+			backoffutil.BackoffLogger(logger.Log, "check connection count"),
 		),
 	)
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/table_name_policy"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
 	"github.com/transferia/transferia/pkg/schemaregistry/warmup"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -79,7 +79,7 @@ func (p *ConfluentSrImpl) DoWithSchemaID(
 			return nil
 		}
 		return err
-	}, backoff.NewConstantBackOff(time.Second), util.BackoffLogger(p.logger, "getting schema"))
+	}, backoff.NewConstantBackOff(time.Second), backoffutil.BackoffLogger(p.logger, "getting schema"))
 
 	if p.sendSrNotFoundToUnparsed && is404 {
 		errStr := xerrors.Errorf("SchemaRegistry for schema (id: %v) returned http code 404", schemaID).Error()

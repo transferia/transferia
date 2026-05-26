@@ -28,7 +28,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/sink_factory"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 	xslices "golang.org/x/exp/slices"
@@ -900,7 +900,7 @@ func pgContainsUserDefinedTypes(ctx context.Context, src *PgSource) (bool, error
 		}
 		return nil
 	}
-	err = backoff.Retry(checkType, backoff.WithMaxRetries(util.NewExponentialBackOff(), 3))
+	err = backoff.Retry(checkType, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3))
 	if err != nil {
 		return false, err
 	}

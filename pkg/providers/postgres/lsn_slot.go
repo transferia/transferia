@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -136,7 +137,7 @@ func (l *LsnTrackedSlot) createFromLSN(lsn string) error {
 		l.logger.Infof("slot created from lsn:%v", lsn)
 		rb.Cancel()
 		return nil
-	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 10))
+	}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 10))
 }
 
 func (l *LsnTrackedSlot) Move(lsn string) error {

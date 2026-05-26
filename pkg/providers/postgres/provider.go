@@ -21,7 +21,7 @@ import (
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -301,7 +301,7 @@ func (p *Provider) Source() (abstract.Source, error) {
 	st := stats.NewSourceStats(p.registry)
 	return backoff.RetryNotifyWithData(func() (abstract.Source, error) {
 		return NewSourceWrapper(s, p.transfer.ID, p.transfer.DataObjects, p.logger, st, p.cp, false)
-	}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 3), util.BackoffLoggerWarn(p.logger, "unable to init pg source"))
+	}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3), backoffutil.BackoffLoggerWarn(p.logger, "unable to init pg source"))
 }
 
 // Build a type mapping and print elapsed time in log.
@@ -494,7 +494,7 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap, ta
 			}
 			logger.Log.Infof("Upload table %s successfully", table.String())
 			return nil
-		}, util.NewExponentialBackOff(), util.BackoffLogger(logger.Log, fmt.Sprintf("loading table: %s", table.String()))); err != nil {
+		}, backoffutil.NewExponentialBackOff(), backoffutil.BackoffLogger(logger.Log, fmt.Sprintf("loading table: %s", table.String()))); err != nil {
 			return xerrors.Errorf("failed to load table: %w", err)
 		}
 	}

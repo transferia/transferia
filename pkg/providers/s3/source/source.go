@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -77,7 +78,7 @@ func (s *S3Source) newBackoffForFetchInterval() backoff.BackOff {
 	}
 
 	s.logger.Infof("Using exponential backoff timer")
-	exponentialBackoff := util.NewExponentialBackOff()
+	exponentialBackoff := backoffutil.NewExponentialBackOff()
 	exponentialBackoff.InitialInterval = time.Second
 	exponentialBackoff.MaxInterval = time.Minute * 10 // max delay between fetch objects
 	exponentialBackoff.Multiplier = 1.5               // increase delay in 1.5 times when no files found

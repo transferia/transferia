@@ -21,6 +21,7 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -95,7 +96,7 @@ func (s *HTTPSource) Start(ctx context.Context, target abstract2.EventTarget) er
 			return s.rowsByHTTP(ctx, syncTarget)
 		},
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 12),
-		util.BackoffLogger(s.lgr, "upload"),
+		backoffutil.BackoffLogger(s.lgr, "upload"),
 	); err != nil {
 		if errST := syncTarget.Close(); errST != nil {
 			s.lgr.Warn("failed to Close destination after an error in events provider", log.Error(errST))

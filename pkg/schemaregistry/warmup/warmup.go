@@ -10,7 +10,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -59,6 +59,6 @@ func WarmUpSRCache(logger log.Logger, mutex *sync.Mutex, batch parsers.MessageBa
 				return nil
 			}
 			return err
-		}, backoff.NewConstantBackOff(time.Second), util.BackoffLogger(logger, "getting schema (warm-up cache)"))
+		}, backoff.NewConstantBackOff(time.Second), backoffutil.BackoffLogger(logger, "getting schema (warm-up cache)"))
 	}
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 )
 
 func NewMetaCheckBackoff() backoff.BackOff {
@@ -40,7 +40,7 @@ func GetShardStateNoWait(
 			return stateMsg, nil
 		},
 		backoff.WithContext(NewMetaCheckBackoff(), ctx),
-		util.BackoffLoggerDebug(logger.Log, "waiting for sharded state"),
+		backoffutil.BackoffLoggerDebug(logger.Log, "waiting for sharded state"),
 	)
 	if err != nil {
 		return "", errors.CategorizedErrorf(categories.Internal, "failed while waiting for sharded task state: %w", err)

@@ -13,7 +13,7 @@ import (
 	generic_parser "github.com/transferia/transferia/pkg/parsers/generic"
 	confluentschemaregistry_engine "github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/engine"
 	"github.com/transferia/transferia/pkg/parsers/registry/confluentschemaregistry/table_name_policy"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -138,7 +138,7 @@ func (p *CloudEventsImpl) getConfluentSRParser(hostPort string) *confluentschema
 		var err error
 		confluentSRParser, err = p.getConfluentSRParserImpl(hostPort)
 		return err
-	}, backoff.NewConstantBackOff(time.Second), util.BackoffLogger(p.logger, "making schema registry client"))
+	}, backoff.NewConstantBackOff(time.Second), backoffutil.BackoffLogger(p.logger, "making schema registry client"))
 	return confluentSRParser
 }
 

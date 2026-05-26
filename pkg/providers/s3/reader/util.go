@@ -15,7 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -250,7 +250,7 @@ func withContractorBackoff(b backoff.BackOff) ContractorOption {
 }
 
 func DefaultContractorBackoff() backoff.BackOff {
-	b := util.NewExponentialBackOff()
+	b := backoffutil.NewExponentialBackOff()
 	b.InitialInterval = 500 * time.Millisecond
 	b.MaxInterval = 2 * time.Minute
 	b.Reset()

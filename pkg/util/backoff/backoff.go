@@ -1,10 +1,11 @@
-package util
+package backoffutil
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -32,4 +33,18 @@ func NewExponentialBackOff(opts ...backoff.ExponentialBackOffOpts) *backoff.Expo
 	currOpts = append(currOpts, backoff.WithMaxElapsedTime(0)) // turn-off MaxElapsedTime
 	currOpts = append(currOpts, opts...)
 	return backoff.NewExponentialBackOff(currOpts...)
+}
+
+func RetryWithData[T any](o backoff.OperationWithData[T], b backoff.BackOff) (T, error) {
+	oWithFatalHandling := func() (T, error) {
+		res, err := o()
+		if err != nil && abstract.IsFatal(err) {
+			//nolint:descriptiveerrors
+			return res, backoff.Permanent(err)
+		}
+		//nolint:descriptiveerrors
+		return res, err
+	}
+
+	return backoff.RetryWithData(oWithFatalHandling, b)
 }

@@ -21,7 +21,7 @@ import (
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -179,7 +179,7 @@ func (p *poller) processWindow(
 				return err
 			}
 			return nil
-		}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5))
+		}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 5))
 		if err != nil {
 			p.logger.Error("Unable to commit offset", log.Error(err))
 			//nolint:descriptiveerrors
@@ -312,7 +312,7 @@ func (p *poller) Run(sink abstract.AsyncSink) error {
 					return err
 				}
 				return nil
-			}, backoff.WithMaxRetries(util.NewExponentialBackOff(), 3))
+			}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3))
 			if err != nil {
 				p.logger.Error("Unable to process window", log.Error(err))
 				//nolint:descriptiveerrors

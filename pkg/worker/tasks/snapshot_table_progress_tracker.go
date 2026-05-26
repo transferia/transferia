@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -88,7 +88,7 @@ func (t *SnapshotTableProgressTracker) Flush(isTableDone bool) error {
 	}
 	err := backoff.RetryNotify(func() error {
 		return t.sharedMemory.UpdateOperationTablesParts(t.operationID, partsCopy)
-	}, currBackOff, util.BackoffLoggerWarn(logger.Log, "UpdateOperationTablesParts"))
+	}, currBackOff, backoffutil.BackoffLoggerWarn(logger.Log, "UpdateOperationTablesParts"))
 	if err != nil {
 		if !isTableDone {
 			logger.Log.Warn(

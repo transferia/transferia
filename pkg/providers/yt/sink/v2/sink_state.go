@@ -5,6 +5,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
@@ -74,7 +75,7 @@ func (s *ytStateStorage) getState() (*ytState, error) {
 			return nil
 		},
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5),
-		util.BackoffLoggerDebug(s.logger, "waiting for sharded sink state"),
+		backoffutil.BackoffLoggerDebug(s.logger, "waiting for sharded sink state"),
 	); err != nil {
 		return nil, xerrors.Errorf("failed while waiting for sharded sink state: %w", err)
 	}

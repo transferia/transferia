@@ -13,7 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/async/dao"
 	ch_db_model "github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -56,7 +56,7 @@ func (s *shardPart) Append(row abstract.ChangeItem) error {
 			s.streamer = strm
 			return nil
 		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3),
-			util.BackoffLoggerWarn(s.lgr, "begin StreamInsert failed, retrying"))
+			backoffutil.BackoffLoggerWarn(s.lgr, "begin StreamInsert failed, retrying"))
 		if err != nil {
 			return xerrors.Errorf("error starting insert query: %w", err)
 		}

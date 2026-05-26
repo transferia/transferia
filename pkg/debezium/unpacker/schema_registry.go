@@ -8,7 +8,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/schemaregistry/confluent"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 )
 
 type SchemaRegistry struct {
@@ -26,7 +26,7 @@ func (s *SchemaRegistry) Unpack(message []byte) ([]byte, []byte, error) {
 
 	schema, _ := backoff.RetryNotifyWithData(func() (*confluent.Schema, error) {
 		return s.schemaRegistryClient.GetSchema(int(schemaID))
-	}, backoff.NewConstantBackOff(time.Second), util.BackoffLogger(logger.Log, "getting schema"))
+	}, backoff.NewConstantBackOff(time.Second), backoffutil.BackoffLogger(logger.Log, "getting schema"))
 
 	return []byte(schema.Schema), message[5:], nil
 }

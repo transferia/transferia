@@ -27,6 +27,7 @@ import (
 	postgres_sequencer "github.com/transferia/transferia/pkg/providers/postgres/sequencer"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -674,7 +675,7 @@ func startReplication(
 	return backoff.RetryNotifyWithData(
 		operation,
 		backoff.WithMaxRetries(backoff.NewConstantBackOff(15*time.Second), uint64(maxTries)),
-		util.BackoffLoggerWarn(lgr, "cannot start replication"),
+		backoffutil.BackoffLoggerWarn(lgr, "cannot start replication"),
 	)
 }
 

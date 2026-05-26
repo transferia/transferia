@@ -11,7 +11,7 @@ import (
 	conn_clickhouse "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 	xmaps "golang.org/x/exp/maps"
 )
@@ -113,7 +113,7 @@ func ResolveTopology(params clickhouse_model.ChSinkParams, lgr log.Logger) (*Top
 		}
 		//nolint:descriptiveerrors
 		return clusterName, err
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10), util.BackoffLogger(lgr, "failed to resolve cluster topology"))
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10), backoffutil.BackoffLogger(lgr, "failed to resolve cluster topology"))
 
 	if err != nil {
 		if singleNode {

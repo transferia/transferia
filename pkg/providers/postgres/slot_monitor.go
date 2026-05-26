@@ -22,6 +22,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -153,7 +154,7 @@ func (m *SlotMonitor) slotExists(ctx context.Context) (bool, error) {
 		}
 		return nil
 	}
-	err := backoff.Retry(checkSlot, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5))
+	err := backoff.Retry(checkSlot, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 5))
 	if err != nil {
 		return false, err
 	}
@@ -178,7 +179,7 @@ func (m *SlotMonitor) validateSlot(ctx context.Context) error {
 		rows.Close()
 		return nil
 	}
-	if err := backoff.Retry(validateSlot, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5)); err != nil {
+	if err := backoff.Retry(validateSlot, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 5)); err != nil {
 		return err
 	}
 	return nil
@@ -194,7 +195,7 @@ func (m *SlotMonitor) getLag(monitorQ string) (int64, error) {
 		}
 		return err
 	}
-	err := backoff.Retry(getByteLag, backoff.WithMaxRetries(util.NewExponentialBackOff(), 5))
+	err := backoff.Retry(getByteLag, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 5))
 	return slotByteLag, err
 }
 

@@ -28,6 +28,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 	xmaps "golang.org/x/exp/maps"
 )
@@ -109,7 +110,7 @@ func (c *HTTPTarget) AsyncPush(input abstract2.EventBatch) chan error {
 				return nil
 			},
 			backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10),
-			util.BackoffLogger(
+			backoffutil.BackoffLogger(
 				c.logger,
 				fmt.Sprintf("push %v data", format.SizeInt(len(batch.Data))),
 			),

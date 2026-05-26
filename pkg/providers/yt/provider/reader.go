@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -91,7 +92,7 @@ func (r *readerWrapper) Row() (*lazyYSON, error) {
 		rb.Cancel()
 		return &data, nil
 	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), ReadRetries),
-		util.BackoffLoggerWarn(r.lgr, "error reading from YT"))
+		backoffutil.BackoffLoggerWarn(r.lgr, "error reading from YT"))
 }
 
 func (s *snapshotSource) readTableRange(

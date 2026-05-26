@@ -15,7 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -254,7 +254,7 @@ func (s *Storage) LoadTableImplDistributed(ctx context.Context, table abstract.T
 			},
 			// Greenplum segments must recover in milliseconds, so 1s backoff is fine
 			backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 3),
-			util.BackoffLogger(logger.Log, fmt.Sprintf("load table %s from Greenplum %s by worker %d", table.Fqtn(), seg.String(), workerID)),
+			backoffutil.BackoffLogger(logger.Log, fmt.Sprintf("load table %s from Greenplum %s by worker %d", table.Fqtn(), seg.String(), workerID)),
 		)
 		if err != nil {
 			// If we are here, both segment and mirror are unavailable.
