@@ -724,7 +724,10 @@ func makeShardConnection(cfg *clickhouse_model.ChStorageParams, shardName string
 	if err != nil {
 		return nil, xerrors.Errorf("failed to resolve ClickHouse configuration to a list of hosts: %w", err)
 	}
-	return conn.ConnectNative(hosts[0], cfg.ToConnParams())
+	if len(hosts) == 0 {
+		return nil, xerrors.Errorf("no hosts available for shard %q", shardName)
+	}
+	return conn.ConnectNative(hosts[0], cfg.ToConnParams(), hosts[1:]...)
 }
 
 func (s *Storage) LoadSchema() (dbSchema abstract.DBSchema, err error) {

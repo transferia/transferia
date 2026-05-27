@@ -1341,6 +1341,7 @@
   "pkg/providers/clickhouse/columntypes/types.go":"transfer_manager/go/pkg/providers/clickhouse/columntypes/types.go",
   "pkg/providers/clickhouse/conn/conn_params.go":"transfer_manager/go/pkg/providers/clickhouse/conn/conn_params.go",
   "pkg/providers/clickhouse/conn/connection.go":"transfer_manager/go/pkg/providers/clickhouse/conn/connection.go",
+  "pkg/providers/clickhouse/conn/connection_test.go":"transfer_manager/go/pkg/providers/clickhouse/conn/connection_test.go",
   "pkg/providers/clickhouse/conn/tls.go":"transfer_manager/go/pkg/providers/clickhouse/conn/tls.go",
   "pkg/providers/clickhouse/errors/check_distributed.go":"transfer_manager/go/pkg/providers/clickhouse/errors/check_distributed.go",
   "pkg/providers/clickhouse/errors/ddl_error.go":"transfer_manager/go/pkg/providers/clickhouse/errors/ddl_error.go",
