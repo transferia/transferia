@@ -186,6 +186,21 @@ func WithImage(image string) testcontainers.CustomizeRequestOption {
 	}
 }
 
+type funcLogger func(format string, v ...any)
+
+var _ testcontainers.Logging = (funcLogger)(nil)
+
+func (l funcLogger) Printf(format string, v ...any) {
+	l(format, v...)
+}
+
+func WithLogger(logger func(format string, v ...any)) testcontainers.CustomizeRequestOption {
+	return func(req *testcontainers.GenericContainerRequest) error {
+		req.Logger = funcLogger(logger)
+		return nil
+	}
+}
+
 // Prepare creates an instance of the postgres container type
 func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*PostgresContainer, error) {
 	req := testcontainers.ContainerRequest{
