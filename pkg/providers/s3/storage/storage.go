@@ -132,8 +132,8 @@ func (s *Storage) ShardingContext() ([]byte, error) {
 	return result, nil
 }
 
-func (s *Storage) SetShardingContext(shardingContext []byte) error {
-	s.shardingContext = shardingContext
+func (s *Storage) SetShardingContext(shardedState []byte) error {
+	s.shardingContext = shardedState
 	return nil
 }
 
