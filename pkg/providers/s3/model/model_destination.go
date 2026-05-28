@@ -92,10 +92,6 @@ type S3Destination struct {
 }
 
 var _ model.Destination = (*S3Destination)(nil)
-var _ model.QueueToS3Destination = (*S3Destination)(nil)
-
-func (d *S3Destination) IsQueueToS3Destination() {
-}
 
 func (d *S3Destination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return logger.MarshalSanitizedObject(d, enc)
