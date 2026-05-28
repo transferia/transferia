@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	maxDelimiters = 31
+	maxDelimiters = 255
 )
 
 type ShardingFilter bson.D
