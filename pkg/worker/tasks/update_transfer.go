@@ -21,20 +21,6 @@ func UpdateTransfer(ctx context.Context, cp coordinator.Coordinator, transfer mo
 	if err != nil {
 		return xerrors.Errorf("unable to extract added tables: %w", err)
 	}
-	if transfer.IsTransitional() {
-		if len(tables) > 0 {
-			return xerrors.New("transitional transfers does not support data objects edit")
-		}
-
-		// not IncrementOnly means it is left shoulder (smth=>logbroker)
-		// we just restart replication meaning that no tables changed
-		if !transfer.IncrementOnly() {
-			if err := StartJob(ctx, cp, transfer, &task); err != nil {
-				return xerrors.Errorf("unable to start worker: %w", err)
-			}
-			return nil
-		}
-	}
 	if len(tables) > 0 {
 		logger.Log.Infof("update task with: %v added object (all: %v)", tables, objects)
 

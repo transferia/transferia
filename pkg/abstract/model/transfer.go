@@ -323,17 +323,6 @@ func (f *Transfer) TransformationFromJSON(value string) error {
 	return nil
 }
 
-// IsTransitional show transfer that used by kostya and burn our pukans
-func (f *Transfer) IsTransitional() bool {
-	if _, ok := f.Src.(TransitionalEndpoint); ok {
-		return true
-	}
-	if _, ok := f.Dst.(TransitionalEndpoint); ok {
-		return true
-	}
-	return false
-}
-
 func (f *Transfer) IsIncremental() bool {
 	if !f.SnapshotOnly() {
 		return false

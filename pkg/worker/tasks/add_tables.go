@@ -19,11 +19,6 @@ func CheckAddTablesSupported(transfer model.Transfer) error {
 	if !isAllowedSourceType(transfer.Src) {
 		return errors.CategorizedErrorf(categories.Source, "Add tables method is obsolete and supported only for pg sources")
 	}
-
-	if transfer.IsTransitional() && transfer.AsyncOperations {
-		return xerrors.New("Add tables method is obsolete and supported only for non-transitional transfers")
-	}
-
 	return nil
 }
 
@@ -32,13 +27,6 @@ func AddTables(ctx context.Context, cp coordinator.Coordinator, transfer model.T
 		return xerrors.Errorf("Unable to add tables: %v", err)
 	}
 
-	if transfer.IsTransitional() {
-		err := TransitionalAddTables(ctx, cp, transfer, task, tables, registry)
-		if err != nil {
-			return xerrors.Errorf("Unable to transitional add table: %w", err)
-		}
-		return nil
-	}
 	if err := StopJob(cp, transfer); err != nil {
 		return xerrors.Errorf("stop job: %w", err)
 	}

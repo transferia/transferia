@@ -129,15 +129,6 @@ func (d *LbDestination) Compatible(src model.Source, transferType abstract.Trans
 	return coherence_check.SourceCompatible(src, transferType, d.FormatSettings.Name)
 }
 
-func (d *LbDestination) IsTransitional() {}
-
-func (d *LbDestination) TransitionalWith(left model.TransitionalEndpoint) bool {
-	if src, ok := left.(*LbSource); ok {
-		return d.Instance == src.Instance && d.Topic == src.Topic
-	}
-	return false
-}
-
 func (d *LbDestination) Serializer() (model.SerializationFormat, bool) {
 	formatSettings := d.FormatSettings
 	formatSettings.Settings = debezium_parameters.EnrichedWithDefaults(formatSettings.Settings)

@@ -59,13 +59,6 @@ func Upload(ctx context.Context, cp coordinator.Coordinator, transfer model.Tran
 	if task == nil {
 		task = new(model.TransferOperation)
 	}
-	if transfer.IsTransitional() {
-		if transfer.AsyncOperations {
-			return xerrors.New("Transitional upload is not supported")
-		}
-		// there is no code to change, if you need to change it - think twice.
-		return TransitUpload(ctx, cp, transfer, task, spec, registry)
-	}
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 

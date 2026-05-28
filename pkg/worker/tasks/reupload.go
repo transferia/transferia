@@ -18,14 +18,6 @@ func checkReuploadAllowed(src model.Source) error {
 }
 
 func Reupload(ctx context.Context, cp coordinator.Coordinator, transfer model.Transfer, task model.TransferOperation, registry core_metrics.Registry) error {
-	if transfer.IsTransitional() {
-		if transfer.AsyncOperations {
-			return xerrors.New("Transitional reupload is not supported")
-		}
-		// there is no code to change, if you need to change it - think twice.
-		return TransitReupload(ctx, cp, transfer, task, registry)
-	}
-
 	snapshotLoader := NewSnapshotLoader(cp, &task, &transfer, registry)
 	if !transfer.IsMain() {
 		if err := snapshotLoader.UploadTables(ctx, nil, false); err != nil {

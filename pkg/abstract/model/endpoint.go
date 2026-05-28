@@ -136,11 +136,6 @@ type IncrementalSource interface {
 	SupportsStartCursorValue() bool
 }
 
-// TransitionalEndpoint Mark endpoint as type as transitional, so it could be opt-out-ed on snapshot
-type TransitionalEndpoint interface {
-	TransitionalWith(right TransitionalEndpoint) bool
-}
-
 // AppendOnlySource marks a source that can emit only InsertKind. It's queues (kafka/yds/eventhub/lb) with non-CDC parser
 // Snapshot-only sources (gp/ch/yt/ydb) isn't AppendOnlySource, bcs of non-row events
 // Queues without parser (mirror mode) are not AppendOnlySource

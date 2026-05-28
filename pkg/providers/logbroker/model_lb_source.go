@@ -56,13 +56,4 @@ func (s *LbSource) Validate() error {
 	return nil
 }
 
-func (s *LbSource) IsTransitional() {}
-
-func (s *LbSource) TransitionalWith(right model.TransitionalEndpoint) bool {
-	if dst, ok := right.(*LbDestination); ok {
-		return dst.Instance == s.Instance && dst.Topic == s.Topic
-	}
-	return false
-}
-
 func (s *LbSource) MultiYtEnabled() {}
