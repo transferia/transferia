@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -63,11 +64,10 @@ func (p ParallelizationUnitOplog) SaveClusterTime(ctx context.Context, client *M
 func (p ParallelizationUnitOplog) GetClusterTime(ctx context.Context, client *MongoClientWrapper) (*primitive.Timestamp, error) {
 	ts, err := p.getClusterTime(ctx, client)
 	if err != nil {
-		clusterTimeErr := xerrors.Errorf(
+		return nil, xerrors.Errorf(
 			"Cannot get cluster time for local.oplog.rs, try to Activate transfer again. Slot ID: %s. Reason: %w",
 			p.SlotID, err,
 		)
-		return nil, abstract.NewFatalError(clusterTimeErr)
 	}
 	return ts, nil
 }
@@ -78,11 +78,14 @@ func (p ParallelizationUnitOplog) getClusterTime(ctx context.Context, client *Mo
 	db := client.Database(p.metadataStorageDB())
 	clusterTimeColl := db.Collection(ClusterTimeCollName)
 	findOneResult := clusterTimeColl.FindOne(ctx, bson.D{{Key: "_id", Value: p.SlotID}})
-	if findOneResult.Err() != nil {
-		return nil, xerrors.Errorf("Cannot fetch cluster time: %w", findOneResult.Err())
+	if err := findOneResult.Err(); err != nil {
+		if mongo_driver.IsNetworkError(err) {
+			return nil, xerrors.Errorf("network error: %w", err)
+		}
+		return nil, abstract.NewFatalError(xerrors.Errorf("Cannot fetch cluster time: %w", err))
 	}
 	if err := findOneResult.Decode(&tr); err != nil {
-		return nil, xerrors.Errorf("Cannot decode cluster time: %w", err)
+		return nil, abstract.NewFatalError(xerrors.Errorf("Cannot decode cluster time: %w", err))
 	}
 	result := tr.Time
 	return &result, nil
