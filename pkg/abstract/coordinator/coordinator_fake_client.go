@@ -96,10 +96,6 @@ func (f *CoordinatorNoOp) UpdateTestResults(id string, request *abstract.TestRes
 	return nil
 }
 
-func (f *CoordinatorNoOp) GetTransfers(statuses []model.TransferStatus, transferID string) ([]*model.Transfer, error) {
-	return nil, nil
-}
-
 func (f *CoordinatorNoOp) SetStatus(transferID string, status model.TransferStatus) error {
 	logger.Log.Infof("fake change status: %v -> %v", transferID, status)
 	return nil
