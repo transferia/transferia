@@ -3,7 +3,6 @@ package async
 import (
 	"database/sql"
 	"fmt"
-	"math"
 	"os"
 	"testing"
 	"time"
@@ -37,12 +36,15 @@ func init() {
 	_ = os.Setenv("CH_LOCAL_PATH", os.Getenv("RECIPE_CLICKHOUSE_BIN"))
 }
 
-func TestTransformerTypeInference(t *testing.T) {
-	sch := abstract.NewTableSchema([]abstract.ColSchema{{
-		TableName:  targetTable,
-		ColumnName: "number",
-		DataType:   ytschema.TypeInt32.String(),
-	}})
+func TestAsyncSinkBatchFlush(t *testing.T) {
+	// 101 MiB padding exceeds streamer's batchSizeLimit (100 MiB),
+	// triggering restart() → batch.Send() which commits data to the tmp table immediately.
+	const paddingSize = 101 * 1024 * 1024
+
+	sch := abstract.NewTableSchema([]abstract.ColSchema{
+		{TableName: targetTable, ColumnName: "number", DataType: ytschema.TypeInt32.String()},
+		{TableName: targetTable, ColumnName: "padding", DataType: ytschema.TypeBytes.String()},
+	})
 	transfer := helpers.MakeTransfer(helpers.TransferID, &source, &target, abstract.TransferTypeSnapshotOnly)
 	transfer.Labels = `{"dt-async-ch": "on"}`
 	sink, err := sink_factory.MakeAsyncSink(transfer, &model.TransferOperation{}, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig())
@@ -58,7 +60,7 @@ func TestTransformerTypeInference(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	// Push InitShardedTableLoad to init sink and create parts and target table.
+	// Push InitTableLoad to init sink and create parts and target table.
 	initLoadItem := []abstract.ChangeItem{{
 		Kind:        abstract.InitTableLoad,
 		Table:       targetTable,
@@ -67,20 +69,16 @@ func TestTransformerTypeInference(t *testing.T) {
 	}}
 	require.NoError(t, <-sink.AsyncPush(initLoadItem))
 
-	// Push data.
+	// Push data with 101 MiB padding to trigger immediate batch send.
 	dataItem := []abstract.ChangeItem{{
 		Kind:         abstract.InsertKind,
 		Table:        targetTable,
-		ColumnNames:  []string{"number"},
-		ColumnValues: []any{100},
+		ColumnNames:  []string{"number", "padding"},
+		ColumnValues: []any{100, make([]byte, paddingSize)},
 		TableSchema:  sch,
 		PartID:       "1_1",
-		Size: abstract.EventSize{
-			// Set fake data size to reach size of batch that will be immediately pushed to tmp table.
-			Read: math.MaxInt32,
-		},
 	}}
-	dataErrCh := sink.AsyncPush(dataItem) // Error or nil will be pushed to chan after DoneShardedTableLoad.
+	dataErrCh := sink.AsyncPush(dataItem) // Error or nil will be pushed to chan after DoneTableLoad.
 
 	tmpTableName := fmt.Sprintf("%s_%s_%s_%s", clickhouse_async.TMPPrefix, "dtt", targetTable, "1_1")
 	for {
@@ -93,7 +91,7 @@ func TestTransformerTypeInference(t *testing.T) {
 		}
 	}
 
-	// Push DoneShardedTableLoad item on which sink will move data to target table and drop tmp table.
+	// Push DoneTableLoad item on which sink will move data to target table and drop tmp table.
 	doneLoadItem := []abstract.ChangeItem{{
 		Kind:        abstract.DoneTableLoad,
 		Table:       targetTable,

@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/yt/go/skiff"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -24,15 +25,20 @@ type readerWrapper struct {
 	yt         yt.TableClient
 	ctx        context.Context
 	tblPath    ypath.Path
+
+	decoder  *rowDecoder
+	skiffFmt *skiff.Format
 }
 
 func (r *readerWrapper) init() error {
 	if r.reader != nil {
 		return nil
 	}
-	rd, err := r.yt.ReadTable(r.ctx, r.batchPath(), &yt.ReadTableOptions{
+	opts := &yt.ReadTableOptions{
 		TransactionOptions: &yt.TransactionOptions{TransactionID: r.txID},
-	})
+		Format:             *r.skiffFmt,
+	}
+	rd, err := r.yt.ReadTable(r.ctx, r.batchPath(), opts)
 	if err != nil {
 		return xerrors.Errorf("error (re)creating table reader: %w", err)
 	}
@@ -57,11 +63,11 @@ func (r *readerWrapper) batchPath() *ypath.Rich {
 	return res
 }
 
-func (r *readerWrapper) Row() (*lazyYSON, error) {
-	return backoff.RetryNotifyWithData(func() (*lazyYSON, error) {
+func (r *readerWrapper) Row() (decodedRow, error) {
+	return backoff.RetryNotifyWithData(func() (decodedRow, error) {
 		if err := r.ctx.Err(); err != nil {
 			//nolint:descriptiveerrors
-			return nil, backoff.Permanent(xerrors.Errorf("reader context error: %w", err))
+			return decodedRow{}, backoff.Permanent(xerrors.Errorf("reader context error: %w", err))
 		}
 
 		var rb util.Rollbacks
@@ -70,27 +76,38 @@ func (r *readerWrapper) Row() (*lazyYSON, error) {
 		if err := r.init(); err != nil {
 			// error is self-descriptive, so no reason to wrap it
 			//nolint:descriptiveerrors
-			return nil, err
+			return decodedRow{}, err
 		}
 		rb.Add(r.Close)
 
 		if !r.reader.Next() {
 			if err := r.reader.Err(); err != nil {
-				return nil, xerrors.Errorf("reader error: %w", err)
+				return decodedRow{}, xerrors.Errorf("reader error: %w", err)
 			} else {
-				return nil, xerrors.New("reader exhausted")
+				return decodedRow{}, xerrors.New("reader exhausted")
 			}
 		}
 
-		var data lazyYSON
-		if err := r.reader.Scan(&data); err != nil {
-			return nil, xerrors.Errorf("scan error: %w", err)
+		values, err := r.decoder.decode(r.reader, r.currentIdx)
+		if err != nil {
+			return decodedRow{}, xerrors.Errorf(
+				"decode error (table=%s, row=%d, columns=%v): %w",
+				r.tblPath,
+				r.currentIdx,
+				r.columns,
+				err,
+			)
 		}
-		data.rowIDX = int64(r.currentIdx)
+
+		row := decodedRow{
+			values:  values,
+			rowIDX:  int64(r.currentIdx),
+			rawSize: r.decoder.sizeEstimator.estimate(values),
+		}
 		r.currentIdx++
 
 		rb.Cancel()
-		return &data, nil
+		return row, nil
 	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), ReadRetries),
 		backoffutil.BackoffLoggerWarn(r.lgr, "error reading from YT"))
 }
@@ -99,7 +116,8 @@ func (s *snapshotSource) readTableRange(
 	ctx context.Context,
 	lowerIdx, upperIdx uint64,
 	stopCh <-chan bool,
-	columns []string) error {
+	columns []string,
+) error {
 	rd := readerWrapper{
 		ctx:        ctx,
 		tblPath:    s.part.NodeID().YPath(),
@@ -110,6 +128,8 @@ func (s *snapshotSource) readTableRange(
 		txID:       s.txID,
 		lgr:        s.lgr,
 		yt:         s.yt,
+		decoder:    s.decoder.cloneForReader(),
+		skiffFmt:   s.skiffFmt,
 	}
 	defer rd.Close()
 

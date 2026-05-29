@@ -17,6 +17,7 @@ import (
 	yt_table "github.com/transferia/transferia/pkg/providers/yt/provider/table"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/yt/go/skiff"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
@@ -50,8 +51,12 @@ type snapshotSource struct {
 	isStarted bool
 
 	pushQ  chan pushInfo
-	readQ  chan *lazyYSON
+	readQ  chan decodedRow
 	stopFn func()
+
+	// Set in Start() after table schema is loaded; read by readTableRange() goroutines.
+	decoder  *rowDecoder
+	skiffFmt *skiff.Format
 }
 
 type pushInfo struct {
@@ -69,9 +74,13 @@ func (s *snapshotSource) Start(ctx context.Context, target abstract2.EventTarget
 	if err != nil {
 		return xerrors.Errorf("error loading table schema: %w", err)
 	}
-	if s.cfg.GetRowIdxColumn() != "" {
-		yt_provider_schema.AddRowIdxColumn(tbl, s.cfg.GetRowIdxColumn())
+	idxColName := s.cfg.GetRowIdxColumn()
+	if idxColName != "" {
+		yt_provider_schema.AddRowIdxColumn(tbl, idxColName)
 	}
+
+	s.skiffFmt = buildSkiffFormat(tbl, idxColName)
+	s.decoder = newRowDecoder(tbl, idxColName)
 
 	s.lowerIdx = s.part.LowerBound()
 	s.upperIdx = s.part.UpperBound()
@@ -94,7 +103,7 @@ func (s *snapshotSource) Start(ctx context.Context, target abstract2.EventTarget
 	}
 	s.lgr.Infof("Infer parallel read batch size as %d rows", readBatchSizeRows)
 
-	s.readQ = make(chan *lazyYSON)
+	s.readQ = make(chan decodedRow)
 	s.pushQ = make(chan pushInfo, MaxInflightCount)
 
 	var errs []error
@@ -245,7 +254,7 @@ func (s *snapshotSource) pusher(tbl yt_table.YtTable, target abstract2.EventTarg
 	for row := range s.readQ {
 		s.metrics.Size.Add(int64(row.RawSize()))
 
-		batch.Append(*row)
+		batch.Append(row)
 		batchSize += row.RawSize()
 
 		if batchSize >= PushBatchSize {
@@ -277,7 +286,8 @@ func (s *snapshotSource) Progress() (abstract2.EventSourceProgress, error) {
 }
 
 func NewSnapshotSource(cfg provider_yt.YtSourceModel, ytc yt.Client, part *dataobjects.Part,
-	lgr log.Logger, metrics *stats.SourceStats) *snapshotSource {
+	lgr log.Logger, metrics *stats.SourceStats,
+) *snapshotSource {
 	return &snapshotSource{
 		cfg:       cfg,
 		yt:        ytc,
@@ -294,5 +304,7 @@ func NewSnapshotSource(cfg provider_yt.YtSourceModel, ytc yt.Client, part *datao
 		pushQ:     nil,
 		readQ:     nil,
 		stopFn:    nil,
+		decoder:   nil,
+		skiffFmt:  nil,
 	}
 }

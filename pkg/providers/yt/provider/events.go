@@ -1,40 +1,16 @@
 package provider
 
 import (
-	"sync"
-
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract2"
-	yt_provider_types "github.com/transferia/transferia/pkg/providers/yt/provider/types"
-	"go.ytsaurus.tech/yt/go/yson"
 )
 
 type event struct {
 	parentBatch *batch
 	idx         int
 	rawSize     uint64
-	row         map[string]interface{}
-	mutex       sync.Mutex
-}
-
-func (e *event) maybeUnmarshal() error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	if e.row != nil {
-		return nil
-	}
-	data := make(map[string]any, e.parentBatch.table.ColumnsCount())
-	lazyRow := e.parentBatch.rows[e.idx]
-	if err := yson.Unmarshal(lazyRow.data, &data); err != nil {
-		return xerrors.Errorf("unable to marshal: %w", err)
-	}
-	if e.parentBatch.idxCol != "" {
-		data[e.parentBatch.idxCol] = lazyRow.rowIDX
-	}
-	e.row = data
-	return nil
 }
 
 func (e *event) ToOldChangeItem() (*abstract.ChangeItem, error) {
@@ -47,8 +23,8 @@ func (e *event) ToOldChangeItem() (*abstract.ChangeItem, error) {
 		return nil, xerrors.Errorf("error getting column names: %w", err)
 	}
 
-	cnt := e.parentBatch.table.ColumnsCount()
-	changeItem := &abstract.ChangeItem{
+	row := e.parentBatch.rows[e.idx]
+	return &abstract.ChangeItem{
 		ID:           0,
 		LSN:          0,
 		CommitTime:   0,
@@ -58,7 +34,7 @@ func (e *event) ToOldChangeItem() (*abstract.ChangeItem, error) {
 		Table:        e.parentBatch.table.Name(),
 		PartID:       e.parentBatch.part,
 		ColumnNames:  colNames,
-		ColumnValues: make([]interface{}, cnt),
+		ColumnValues: row.values,
 		TableSchema:  oldTable,
 		OldKeys: abstract.OldKeysType{
 			KeyNames:  nil,
@@ -69,58 +45,17 @@ func (e *event) ToOldChangeItem() (*abstract.ChangeItem, error) {
 		TxID:             "",
 		Query:            "",
 		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
-	}
-
-	for i := 0; i < cnt; i++ {
-		val, err := e.NewValue(i)
-		if err != nil {
-			return nil, xerrors.Errorf("error getting row value %d: %w", i, err)
-		}
-		oldVal, err := val.ToOldValue()
-		if err != nil {
-			return nil, xerrors.Errorf("error converting row value %d to old format: %w", i, err)
-		}
-		changeItem.ColumnValues[i] = oldVal
-	}
-	return changeItem, nil
+	}, nil
 }
 
 func (e *event) Table() abstract2.Table {
 	return e.parentBatch.table
 }
 
-func (e *event) NewValuesCount() int {
-	return e.parentBatch.table.ColumnsCount()
-}
-
-func (e *event) NewValue(i int) (abstract2.Value, error) {
-	if err := e.maybeUnmarshal(); err != nil {
-		return nil, xerrors.Errorf("unable to unmarshal: %w", err)
-	}
-	col := e.parentBatch.table.Column(i)
-	if col == nil {
-		return nil, xerrors.Errorf("unknown column %d", i)
-	}
-	raw, ok := e.row[col.Name()]
-	if !ok {
-		if !col.Nullable() {
-			return nil, xerrors.Errorf("expected column %s to be present in row from YT", col.Name())
-		}
-		return yt_provider_types.Cast(nil, col)
-	}
-	val, err := yt_provider_types.Cast(raw, col)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to cast column %s with raw type %T to type system: %w", col.Name(), raw, err)
-	}
-	return val, nil
-}
-
-func NewEventFromLazyYSON(parentBatch *batch, idx int) *event {
+func NewEventFromDecodedRow(parentBatch *batch, idx int) *event {
 	return &event{
 		parentBatch: parentBatch,
 		idx:         idx,
-		rawSize:     uint64(parentBatch.rows[idx].RawSize()),
-		row:         nil,
-		mutex:       sync.Mutex{},
+		rawSize:     uint64(parentBatch.rows[idx].rawSize),
 	}
 }

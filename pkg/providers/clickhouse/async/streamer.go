@@ -102,8 +102,8 @@ func (c *chV2Streamer) Append(row abstract.ChangeItem) error {
 		return xerrors.Errorf("error appending row: %w", err)
 	}
 	c.rowsInBatch++
-	c.memSize += row.Size.Read
-	c.batchSize += row.Size.Read
+	c.memSize += row.Size.Values
+	c.batchSize += row.Size.Values
 	if c.batchSize > batchSizeLimit {
 		if err = c.restart(); err != nil {
 			return xerrors.Errorf("error restarting streamer on batch size limit (%d / %d bytes): %w", c.batchSize, batchSizeLimit, err)
