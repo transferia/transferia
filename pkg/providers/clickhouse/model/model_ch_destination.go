@@ -300,6 +300,10 @@ func (d ChDestinationWrapper) RootCertPaths() []string {
 	return d.Model.RootCACertPaths
 }
 
+func (d ChDestinationWrapper) ReadTimeout() time.Duration {
+	return 5 * time.Minute
+}
+
 func (d ChDestinationWrapper) Cleanup() model.CleanupType {
 	return d.Model.Cleanup
 }

@@ -72,6 +72,7 @@ type ChSinkServerParams interface {
 	RootCertPaths() []string
 	InsertSettings() InsertParams
 	GetConnectionID() string
+	ReadTimeout() time.Duration
 }
 
 type ChSinkServerParamsWrapper struct {

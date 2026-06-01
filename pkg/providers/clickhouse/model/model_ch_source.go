@@ -194,6 +194,10 @@ func (s ChSourceWrapper) RootCertPaths() []string {
 	return s.Model.RootCACertPaths
 }
 
+func (s ChSourceWrapper) ReadTimeout() time.Duration {
+	return 5 * time.Minute
+}
+
 func (s ChSourceWrapper) ShardByRoundRobin() bool {
 	return false
 }

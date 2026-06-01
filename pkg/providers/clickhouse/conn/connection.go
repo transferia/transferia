@@ -47,6 +47,6 @@ func GetClickhouseOptions(cfg ConnParams, hosts []*conn_clickhouse.Host) (*click
 		// Use timeouts from v1 driver to preserve its behaviour.
 		// See https://github.com/ClickHouse/clickhouse-go/blob/v1.5.4/bootstrap.go#L23
 		DialTimeout: 5 * time.Second,
-		ReadTimeout: 5 * time.Minute,
+		ReadTimeout: cfg.ReadTimeout(),
 	}, nil
 }

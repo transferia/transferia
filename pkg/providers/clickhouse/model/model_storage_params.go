@@ -93,6 +93,12 @@ func (w connConfigWrapper) PemFileContent() string {
 	return w.p.ConnectionParams.PemFileContent
 }
 
+func (w connConfigWrapper) ReadTimeout() time.Duration {
+	// ReadTimeout is the per-streamer timeout (limits streamer lifetime), not per-read.
+	// Set huge timeout since huge tables may upload for many hours via one streamer.
+	return time.Duration(24 * 7 * time.Hour)
+}
+
 func (c *ChStorageParams) ToConnParams() connConfigWrapper {
 	return connConfigWrapper{p: c}
 }

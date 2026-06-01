@@ -2,6 +2,7 @@ package conn
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
@@ -18,6 +19,7 @@ func (stubParams) Database() string                 { return "db" }
 func (stubParams) SSLEnabled() bool                 { return false }
 func (stubParams) PemFileContent() string           { return "" }
 func (stubParams) RootCertPaths() []string          { return nil }
+func (stubParams) ReadTimeout() time.Duration       { return 5 * time.Minute }
 
 func TestGetClickhouseOptions_MultipleHostsPreserveOrder(t *testing.T) {
 	hosts := []*chconn.Host{

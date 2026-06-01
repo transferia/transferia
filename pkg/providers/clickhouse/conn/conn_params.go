@@ -1,5 +1,7 @@
 package conn
 
+import "time"
+
 type ConnParams interface {
 	User() string
 	Password() string
@@ -8,4 +10,5 @@ type ConnParams interface {
 	SSLEnabled() bool
 	PemFileContent() string
 	RootCertPaths() []string
+	ReadTimeout() time.Duration
 }
