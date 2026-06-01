@@ -76,11 +76,16 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 	}
 
 	for _, currFile := range fileList {
-		if err := s.reader.Read(ctx, currFile, syncPusher); err != nil {
-			if nf, ok := reader_error.AsReaderErrorNoFiles(err); ok {
-				return xerrors.Errorf("unable to read file %q: no objects match prefix %q for schema: %w", currFile, nf.Prefix(), err)
+		readErr := s.reader.Read(ctx, currFile, syncPusher)
+		if readErr != nil {
+			readErr = reader_error.ApplyNoSuchFileHandleMode(s.logger, s.cfg.NoSuchFileHandleMode, readErr)
+			if readErr == nil {
+				continue
 			}
-			return xerrors.Errorf("unable to read file: %s: %w", table.Filter, err)
+			if nf, ok := reader_error.AsReaderErrorNoFiles(readErr); ok {
+				return xerrors.Errorf("unable to read file %q: no objects match prefix %q for schema: %w", currFile, nf.Prefix(), readErr)
+			}
+			return xerrors.Errorf("unable to read file: %s: %w", currFile, readErr)
 		}
 	}
 	return nil

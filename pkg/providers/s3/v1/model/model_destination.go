@@ -63,8 +63,10 @@ type S3Destination struct {
 	PartitionerConfig PartitionerUnion `log:"true"`
 }
 
-var _ model.Destination = (*S3Destination)(nil)
-var _ model.QueueToS3Destination = (*S3Destination)(nil)
+var (
+	_ model.Destination          = (*S3Destination)(nil)
+	_ model.QueueToS3Destination = (*S3Destination)(nil)
+)
 
 func (d *S3Destination) IsQueueToS3Destination() {
 }

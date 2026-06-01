@@ -39,6 +39,13 @@ var (
 	UnparsedPolicyRetry    = UnparsedPolicy("retry")
 )
 
+type NoSuchFileHandleMode string
+
+var (
+	NoSuchFileHandleModeContinue = NoSuchFileHandleMode("continue")
+	NoSuchFileHandleModeFatal    = NoSuchFileHandleMode("fatal")
+)
+
 type S3Source struct {
 	Bucket           string           `log:"true"`
 	ConnectionConfig ConnectionConfig `log:"true"`
@@ -62,6 +69,9 @@ type S3Source struct {
 	Format         Format         `log:"true"`
 	EventSource    EventSource    `log:"true"`
 	UnparsedPolicy UnparsedPolicy `log:"true"`
+
+	// NoSuchFileHandleMode controls behavior when a listed object disappears before Read (AWS NoSuchKey/NotFound).
+	NoSuchFileHandleMode NoSuchFileHandleMode `log:"true"`
 
 	// Concurrency - amount of parallel goroutines into one worker on REPLICATION
 	Concurrency            int64
@@ -250,6 +260,10 @@ func (s *S3Source) WithDefaults() {
 		if s.Format.NginxSetting.BlockSize == 0 {
 			s.Format.NginxSetting.BlockSize = defaultBlockSize
 		}
+	}
+
+	if s.NoSuchFileHandleMode == "" {
+		s.NoSuchFileHandleMode = NoSuchFileHandleModeContinue
 	}
 
 	if s.InputFormat == model.ParsingFormatCSV {

@@ -135,7 +135,8 @@ func (s *S3Source) run(parseQ *parsequeue.ParseQueue[s3_pusher.Chunk]) error {
 
 		err = util.ParallelDoWithContextAbort(s.ctx, len(objectList), int(s.srcModel.Concurrency), func(i int, ctx context.Context) error {
 			singleObject := objectList[i].FileName
-			return s.reader.Read(ctx, singleObject, currPusher)
+			readErr := s.reader.Read(ctx, singleObject, currPusher)
+			return reader_error.ApplyNoSuchFileHandleMode(s.logger, s.srcModel.NoSuchFileHandleMode, readErr)
 		})
 		if err != nil {
 			if _, ok := reader_error.AsReaderErrorNoFiles(err); ok {

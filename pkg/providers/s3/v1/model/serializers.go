@@ -19,9 +19,11 @@ type SerializerConfig interface {
 	AsConfig() *serializer.BatchSerializerCommonConfig
 }
 
-var _ SerializerConfig = (*CSVSerializerConfig)(nil)
-var _ SerializerConfig = (*JsonSerializerConfig)(nil)
-var _ SerializerConfig = (*ParquetSerializerConfig)(nil)
+var (
+	_ SerializerConfig = (*CSVSerializerConfig)(nil)
+	_ SerializerConfig = (*JsonSerializerConfig)(nil)
+	_ SerializerConfig = (*ParquetSerializerConfig)(nil)
+)
 
 // SerializerUnion holds at most one serializer variant (same idea as s3_model.Format on S3Source).
 type SerializerUnion struct {

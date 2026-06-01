@@ -99,7 +99,7 @@ func (r *JSONLineReader) Read(ctx context.Context, schema *abstract.TableSchema,
 
 	s3RawReader, err2 := r.newS3RawReader(ctx, filePath)
 	if err2 != nil {
-		return reader_error.NewReaderErrorTransport("jsonl.Read.newS3RawReader", filePath, err2)
+		return reader_error.NewReaderErrorFromObjectOpen("jsonl.Read.newS3RawReader", filePath, err2)
 	}
 
 	offset := uint64(0)

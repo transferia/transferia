@@ -10,6 +10,7 @@ const (
 	ContractorKindSink
 	ContractorKindFatal
 	ContractorKindNoFiles
+	ContractorKindNoSuchFile
 	ContractorKindUnknown
 )
 
@@ -32,6 +33,8 @@ func ClassifyContractorError(err ReaderError) ContractorErrorKind {
 		return ContractorKindFatal
 	case ReaderErrorNoFiles:
 		return ContractorKindNoFiles
+	case ReaderErrorNoSuchFile:
+		return ContractorKindNoSuchFile
 	default:
 		return ContractorKindUnknown
 	}

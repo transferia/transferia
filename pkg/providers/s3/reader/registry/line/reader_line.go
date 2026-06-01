@@ -93,7 +93,7 @@ func (r *LineReader) Read(ctx context.Context, schema *abstract.TableSchema, fil
 
 	s3RawReader, err := r.newS3RawReader(ctx, filePath)
 	if err != nil {
-		return reader_error.NewReaderErrorTransport("line.Read.newS3RawReader", filePath, err)
+		return reader_error.NewReaderErrorFromObjectOpen("line.Read.newS3RawReader", filePath, err)
 	}
 
 	lineCounter := uint64(1)

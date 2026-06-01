@@ -89,6 +89,7 @@ func (c *BasePartitionerConfig) Partition() int { return c.partition }
 func (c *BasePartitionerConfig) Format() string {
 	return strings.ToLower(string(c.serializer.FormatName()))
 }
+
 func (c *BasePartitionerConfig) IsGzip() bool {
 	return c.serializer.FormatEncoding() == s3_v1_model.GzipEncoding
 }

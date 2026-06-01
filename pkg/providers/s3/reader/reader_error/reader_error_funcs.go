@@ -44,6 +44,23 @@ func AsReaderErrorNoFiles(err error) (ReaderErrorNoFiles, bool) {
 	return none, false
 }
 
+// AsReaderErrorNoSuchFile returns (ReaderErrorNoSuchFile, true) if err unwraps to ReaderErrorNoSuchFile.
+func AsReaderErrorNoSuchFile(err error) (ReaderErrorNoSuchFile, bool) {
+	var none ReaderErrorNoSuchFile
+	for err != nil {
+		switch e := err.(type) {
+		case ReaderErrorNoSuchFile:
+			return e, true
+		case *ReaderErrorNoSuchFile:
+			if e != nil {
+				return *e, true
+			}
+		}
+		err = xerrors.Unwrap(err)
+	}
+	return none, false
+}
+
 // ReaderErrorFromPush maps a sink Push failure to ReaderErrorSink (retriable) or ReaderErrorFatal.
 func ReaderErrorFromPush(op, filePath string, err error) ReaderError {
 	if err == nil {
@@ -91,6 +108,10 @@ func wrapReaderErrorOpExtend(stepOp string, err ReaderError) ReaderError {
 		return e
 
 	case ReaderErrorNoFiles:
+		e.op = extendOp(stepOp, e.op)
+		return e
+
+	case ReaderErrorNoSuchFile:
 		e.op = extendOp(stepOp, e.op)
 		return e
 

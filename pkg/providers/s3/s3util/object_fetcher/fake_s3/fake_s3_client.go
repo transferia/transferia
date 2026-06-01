@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
@@ -67,19 +68,23 @@ func (c *FakeS3Client) GetFile(fileName string) (*File, error) {
 		}
 	}
 
-	return nil, xerrors.Errorf("fake s3 file %q not found", fileName)
+	return nil, awserr.New(aws_s3.ErrCodeNoSuchKey, "fake s3 file "+fileName+" not found", nil)
 }
 
-// PickFileForRead returns the only file when the fake holds one object; otherwise selects by S3 key.
+// PickFileForRead selects an object by S3 key. When objectKey is empty, returns the only file (legacy tests).
 func (c *FakeS3Client) PickFileForRead(objectKey string) (*File, error) {
-	switch len(c.files) {
-	case 0:
-		return nil, xerrors.New("fake s3 has no files")
-	case 1:
-		return c.files[0], nil
-	default:
-		return c.GetFile(objectKey)
+	if objectKey != "" {
+		result, err := c.GetFile(objectKey)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to GetFile %s, err: %w", objectKey, err)
+		}
+		return result, nil
 	}
+	result, err := c.GetSingleFile()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to GetSingleFile %s, err: %w", objectKey, err)
+	}
+	return result, nil
 }
 
 func (c *FakeS3Client) GetSingleFile() (*File, error) {

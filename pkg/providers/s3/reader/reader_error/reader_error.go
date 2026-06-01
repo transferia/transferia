@@ -155,3 +155,29 @@ func (e ReaderErrorNoFiles) Op() string { return e.op }
 
 // Prefix returns the S3 path prefix used when listing.
 func (e ReaderErrorNoFiles) Prefix() string { return e.prefix }
+
+//-
+
+// ReaderErrorNoSuchFile is returned when a specific S3 object key is missing at read time (NoSuchKey/NotFound).
+type ReaderErrorNoSuchFile struct {
+	op   string
+	file string
+}
+
+var _ ReaderError = (*ReaderErrorNoSuchFile)(nil)
+
+func (e ReaderErrorNoSuchFile) Error() string {
+	return fmt.Sprintf("S3 object not found: %s", e.file)
+}
+
+func (ReaderErrorNoSuchFile) isReaderError() {}
+
+func NewReaderErrorNoSuchFile(op, file string) ReaderErrorNoSuchFile {
+	return ReaderErrorNoSuchFile{op: op, file: file}
+}
+
+// Op returns the operation label (e.g. csv.Read.newS3RawReader).
+func (e ReaderErrorNoSuchFile) Op() string { return e.op }
+
+// File returns the missing object key.
+func (e ReaderErrorNoSuchFile) File() string { return e.file }

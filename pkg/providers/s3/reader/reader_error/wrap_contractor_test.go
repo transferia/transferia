@@ -21,6 +21,7 @@ func TestWrapContractorReadStep_PreservesKind(t *testing.T) {
 		{"sink", NewReaderErrorSink("op", "f", xerrors.New("e")), ContractorKindSink},
 		{"fatal", NewReaderErrorFatal("op", xerrors.New("e")), ContractorKindFatal},
 		{"nofiles", NewReaderErrorNoFiles("op", "pfx"), ContractorKindNoFiles},
+		{"nosuchfile", NewReaderErrorNoSuchFile("op", "f"), ContractorKindNoSuchFile},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

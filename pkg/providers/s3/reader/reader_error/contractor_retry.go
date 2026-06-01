@@ -53,12 +53,15 @@ func ContractorRetryDecisionFor(_ s3_model.UnparsedPolicy, phase ContractorPhase
 		if k == ContractorKindNoFiles {
 			return ContractorDecisionUpgradeFatal
 		}
+		if k == ContractorKindNoSuchFile {
+			return ContractorDecisionReturn
+		}
 	}
 
 	switch k {
 	case ContractorKindTransport, ContractorKindSink:
 		return ContractorDecisionRetry
-	case ContractorKindFatal, ContractorKindConfig, ContractorKindNoFiles:
+	case ContractorKindFatal, ContractorKindConfig, ContractorKindNoFiles, ContractorKindNoSuchFile:
 		return ContractorDecisionReturn
 	case ContractorKindData:
 		// UnparsedPolicy is applied inside format readers; contractor boundary does not retry data errors.

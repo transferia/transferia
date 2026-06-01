@@ -121,7 +121,7 @@ func (r *JSONParserReader) Read(ctx context.Context, schema *abstract.TableSchem
 
 	s3RawReader, err := r.newS3RawReader(ctx, filePath)
 	if err != nil {
-		return reader_error.NewReaderErrorTransport("json.parser.Read.newS3RawReader", r.pathPrefix, err)
+		return reader_error.NewReaderErrorFromObjectOpen("json.parser.Read.newS3RawReader", filePath, err)
 	}
 
 	offset := uint64(0)

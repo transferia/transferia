@@ -91,7 +91,7 @@ func (r *CSVReader) Read(ctx context.Context, schema *abstract.TableSchema, file
 
 	s3RawReader, err := r.config.newS3RawReader(ctx, filePath)
 	if err != nil {
-		return reader_error.NewReaderErrorTransport("csv.parser.Read.newS3RawReader", r.config.pathPrefix, err)
+		return reader_error.NewReaderErrorFromObjectOpen("csv.parser.Read.newS3RawReader", filePath, err)
 	}
 
 	offsetInFile := int64(0) // offset from beginning of file!

@@ -74,7 +74,7 @@ func (r *NginxReader) Read(ctx context.Context, schema *abstract.TableSchema, fi
 
 	s3RawReader, err := r.newS3RawReader(ctx, filePath)
 	if err != nil {
-		return reader_error.NewReaderErrorTransport("nginx.parser.Read.newS3RawReader", r.pathPrefix, err)
+		return reader_error.NewReaderErrorFromObjectOpen("nginx.parser.Read.newS3RawReader", filePath, err)
 	}
 
 	lineCounter := uint64(1)

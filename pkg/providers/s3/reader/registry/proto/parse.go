@@ -24,7 +24,7 @@ func readFileAndParse(ctx context.Context, r *ProtoReader, schema *abstract.Tabl
 
 	s3RawReader, err2 := r.newS3RawReader(ctx, filePath)
 	if err2 != nil {
-		return reader_error.NewReaderErrorTransport("proto.readFileAndParse.newS3RawReader", filePath, err2)
+		return reader_error.NewReaderErrorFromObjectOpen("proto.readFileAndParse.newS3RawReader", filePath, err2)
 	}
 
 	if s3RawReader.Size() > int64(perPushBatchSize) {

@@ -157,7 +157,7 @@ func (r *ReaderParquet) Read(ctx context.Context, schema *abstract.TableSchema, 
 		); handled {
 			return res
 		}
-		return reader_error.NewReaderErrorTransport("parquet.parser.Read.newS3RawReader", filePath, err2)
+		return reader_error.NewReaderErrorFromObjectOpen("parquet.parser.Read.newS3RawReader", filePath, err2)
 	}
 	defer pr.Close()
 

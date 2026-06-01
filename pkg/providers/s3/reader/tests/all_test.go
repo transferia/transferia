@@ -24,6 +24,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoscanner"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
+	"github.com/transferia/transferia/pkg/providers/s3/reader/reader_error"
 	s3_reader_registry "github.com/transferia/transferia/pkg/providers/s3/reader/registry"
 	"github.com/transferia/transferia/pkg/providers/s3/reader/s3raw"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher/fake_s3"
@@ -307,6 +308,69 @@ func newBadEntityFixtures(t *testing.T) map[string]badEntityFixture {
 			},
 			need: 1,
 		},
+	}
+}
+
+// TestNoSuchFileHandleMode: for every registered format, schema resolves (buddy or preset) but the target
+// object is absent at Read time. Parsers must return ReaderErrorNoSuchFile; Continue skips, Fatal stops.
+func TestNoSuchFileHandleMode(t *testing.T) {
+	fixtures := newBadEntityFixtures(t)
+	registered := s3_reader_registry.RegisteredFormats()
+	modes := []struct {
+		name  string
+		mode  s3_model.NoSuchFileHandleMode
+		fatal bool
+	}{
+		{"continue", s3_model.NoSuchFileHandleModeContinue, false},
+		{"fatal", s3_model.NoSuchFileHandleModeFatal, true},
+	}
+	sess := fake_s3.NewSess()
+	statsR := stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts()))
+
+	for _, pol := range modes {
+		for _, f := range registered {
+			c := fixtures[f]
+			t.Run(fmt.Sprintf("%s_%s", f, pol.name), func(t *testing.T) {
+				cli := fake_s3.NewFakeS3Client(t)
+				if c.schemaBuddyKey != "" {
+					buddyBody := c.schemaBuddyBody
+					if model.ParsingFormat(f) == model.ParsingFormatPARQUET {
+						buddyBody = minimalValidParquetBytes(t)
+					}
+					cli.AddFile(fake_s3.NewFile(c.schemaBuddyKey, buddyBody, 1))
+				}
+				b := s3raw.NewFakeS3RawReaderBuilder(cli, cli)
+				src := &s3_model.S3Source{
+					TableNamespace:       "ns",
+					TableName:            "t",
+					Bucket:               "b",
+					InputFormat:          model.ParsingFormat(f),
+					NoSuchFileHandleMode: pol.mode,
+					ConnectionConfig:     s3_model.ConnectionConfig{AccessKey: "a", SecretKey: "b"},
+				}
+				c.fill(src)
+				src.WithDefaults()
+				require.Equal(t, pol.mode, src.NoSuchFileHandleMode)
+				r, err := s3_reader_registry.NewReader(src, logger.Log, sess, statsR, b)
+				require.NoError(t, err)
+				ctx := context.Background()
+				sch, rerr := r.ResolveSchema(ctx)
+				require.NoError(t, rerr)
+				require.NotNil(t, sch)
+				require.NotEmpty(t, sch.Columns())
+				p := NewMockPusher()
+				readErr := r.Read(ctx, c.key, p)
+				_, ok := reader_error.AsReaderErrorNoSuchFile(readErr)
+				require.True(t, ok, "format %s: expected ReaderErrorNoSuchFile when object is missing", f)
+				appliedErr := reader_error.ApplyNoSuchFileHandleMode(logger.Log, src.NoSuchFileHandleMode, readErr)
+				if pol.fatal {
+					require.Error(t, appliedErr)
+					require.True(t, abstract.IsFatal(appliedErr))
+				} else {
+					require.NoError(t, appliedErr)
+				}
+			})
+		}
 	}
 }
 
