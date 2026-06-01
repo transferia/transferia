@@ -21,23 +21,23 @@ import (
 )
 
 var (
-	_ abstract.Storage             = (*OracleStorage)(nil)
-	_ abstract.SnapshotableStorage = (*OracleStorage)(nil)
+	_ abstract.Storage = (*OracleStorage)(nil)
 )
 
 // OracleStorage implements abstract.Storage for Oracle snapshot reads.
 type OracleStorage struct {
-	mu              sync.Mutex
-	sqlxDB          *sqlx.DB
-	snapshotSplitTx *sqlx.Tx
-	logger          log.Logger
-	registry        core_metrics.Registry
-	sourceStats     *stats.SourceStats
-	config          provider_oracle.OracleSource
-	databaseSchema  *oracle_schema.Database
-	tracker         logtracker.LogTracker
-	initOnce        sync.Once
-	initErr         error
+	sqlxDB             *sqlx.DB
+	logger             log.Logger
+	registry           core_metrics.Registry
+	sourceStats        *stats.SourceStats
+	config             provider_oracle.OracleSource
+	databaseSchema     *oracle_schema.Database
+	tracker            logtracker.LogTracker
+	initOnce           sync.Once
+	initErr            error
+	snapshotShardsNum  int    // number of workers for sharded snapshot; 0 or 1 = no sharding
+	shardedSCN         uint64 // SCN shared from main worker; 0 = not set
+	rowIDBytesPerShard uint64 // bytes per ROWID range for ShardTable; 0 = use const default
 }
 
 func NewOracleStorage(
@@ -46,6 +46,7 @@ func NewOracleStorage(
 	cp coordinator.Coordinator,
 	config *provider_oracle.OracleSource,
 	transferID string,
+	snapshotShardsNum int,
 ) (*OracleStorage, error) {
 	sqlxDB, err := oracle_common.CreateConnection(config)
 	if err != nil {
@@ -64,13 +65,15 @@ func NewOracleStorage(
 
 	//nolint:exhaustivestruct
 	return &OracleStorage{
-		sqlxDB:         sqlxDB,
-		logger:         logger,
-		registry:       registry,
-		sourceStats:    stats.NewSourceStats(registry),
-		config:         *config,
-		databaseSchema: schemaRepo,
-		tracker:        tracker,
+		sqlxDB:             sqlxDB,
+		logger:             logger,
+		registry:           registry,
+		sourceStats:        stats.NewSourceStats(registry),
+		config:             *config,
+		databaseSchema:     schemaRepo,
+		tracker:            tracker,
+		snapshotShardsNum:  snapshotShardsNum,
+		rowIDBytesPerShard: config.RowIDBytesPerShard,
 	}, nil
 }
 
@@ -99,46 +102,7 @@ func (s *OracleStorage) Ping() error {
 }
 
 func (s *OracleStorage) Close() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.snapshotSplitTx != nil {
-		_ = s.snapshotSplitTx.Rollback()
-		s.snapshotSplitTx = nil
-	}
 	_ = s.sqlxDB.Close()
-}
-
-func (s *OracleStorage) BeginSnapshot(ctx context.Context) error {
-	if !s.config.UseParallelTableLoad {
-		return nil
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.snapshotSplitTx != nil {
-		return xerrors.New("Snapshot already started")
-	}
-	tx, err := s.sqlxDB.Beginx()
-	if err != nil {
-		return xerrors.Errorf("Can't create snapshot split transaction: %w", err)
-	}
-	s.snapshotSplitTx = tx
-	return nil
-}
-
-func (s *OracleStorage) EndSnapshot(ctx context.Context) error {
-	if !s.config.UseParallelTableLoad {
-		return nil
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.snapshotSplitTx == nil {
-		return xerrors.New("Snapshot not started")
-	}
-	if err := s.snapshotSplitTx.Rollback(); err != nil {
-		return xerrors.Errorf("Can't rollback snapshot split transaction: %w", err)
-	}
-	s.snapshotSplitTx = nil
-	return nil
 }
 
 func (s *OracleStorage) TableList(filter abstract.IncludeTableList) (abstract.TableMap, error) {
@@ -220,18 +184,7 @@ func (s *OracleStorage) ExactTableRowsCount(table abstract.TableID) (uint64, err
 }
 
 func (s *OracleStorage) EstimateTableRowsCount(table abstract.TableID) (uint64, error) {
-	if err := s.ensureInit(); err != nil {
-		return 0, xerrors.Errorf("init: %w", err)
-	}
-	ot, err := s.oracleTableByID(table)
-	if err != nil {
-		return 0, xerrors.Errorf("find table: %w", err)
-	}
-	count, err := oracle_snapshot.GetRowsCount(s.logger, &s.config, s.sqlxDB, ot)
-	if err != nil {
-		return 0, xerrors.Errorf("get rows count: %w", err)
-	}
-	return count, nil
+	return 0, nil
 }
 
 func (s *OracleStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
@@ -249,7 +202,13 @@ func (s *OracleStorage) LoadTable(ctx context.Context, table abstract.TableDescr
 
 	var position *oracle_common.LogPosition
 	var err error
-	if s.tracker != nil {
+	if s.shardedSCN > 0 {
+		// Secondary worker: use the SCN fixed by the main worker for consistency.
+		position, err = oracle_common.NewLogPosition(s.shardedSCN, nil, nil, oracle_common.PositionSnapshotStarted, time.Now())
+		if err != nil {
+			return xerrors.Errorf("cannot make sharded log position: %w", err)
+		}
+	} else if s.tracker != nil {
 		position, err = s.tracker.ReadPosition()
 		if err != nil {
 			return xerrors.Errorf("Can't read current SCN: %w", err)
@@ -261,26 +220,9 @@ func (s *OracleStorage) LoadTable(ctx context.Context, table abstract.TableDescr
 		}
 	}
 
-	if s.config.UseParallelTableLoad {
-		src, err := oracle_snapshot.NewParallelTableSource(
-			s.sqlxDB,
-			s.snapshotSplitTx,
-			&s.config,
-			position,
-			ot,
-			s.logger,
-			s.sourceStats,
-		)
-		if err != nil {
-			return xerrors.Errorf("Can't create parallel table source: %w", err)
-		}
-		if err := src.Load(ctx, pusher); err != nil {
-			return xerrors.Errorf("parallel load '%v': %w", ot.OracleSQLName(), err)
-		}
-		return nil
-	}
+	filter := table.Filter
 
-	tsrc, err := oracle_snapshot.NewTableSource(s.sqlxDB, &s.config, position, ot, s.logger, s.sourceStats)
+	tsrc, err := oracle_snapshot.NewTableSource(s.sqlxDB, &s.config, position, ot, s.logger, s.sourceStats, filter)
 	if err != nil {
 		return xerrors.Errorf("Can't create table source: %w", err)
 	}

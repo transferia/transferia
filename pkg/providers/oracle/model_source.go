@@ -49,12 +49,11 @@ type OracleSource struct {
 	ConvertNumberToInt64 bool `log:"true"`
 
 	// Hidden properties
-	TrackerType                          OracleLogTrackerType      `log:"true"`
-	CLOBReadingStrategy                  OracleCLOBReadingStrategy `log:"true"`
-	UseUniqueIndexesAsKeys               bool                      `log:"true"`
-	IsNonConsistentSnapshot              bool                      `log:"true"` // Do not use flashback
-	UseParallelTableLoad                 bool                      `log:"true"` // Split tables to parts by ROWID
-	ParallelTableLoadDegreeOfParallelism int                       `log:"true"` // Works with UseParallelTableLoad, how many readers for table
+	TrackerType             OracleLogTrackerType      `log:"true"`
+	CLOBReadingStrategy     OracleCLOBReadingStrategy `log:"true"`
+	UseUniqueIndexesAsKeys  bool                      `log:"true"`
+	IsNonConsistentSnapshot bool                      `log:"true"` // Do not use flashback
+	RowIDBytesPerShard      uint64                    `log:"true"` // 0 = default 1GB; for tests set to e.g. 64KB
 }
 
 var _ model.Source = (*OracleSource)(nil)
@@ -105,9 +104,6 @@ func (oracle *OracleSource) WithDefaults() {
 	if oracle.CLOBReadingStrategy == "" {
 		oracle.CLOBReadingStrategy = OracleReadCLOBAsBLOBIfFunctionExists
 	}
-	if oracle.ParallelTableLoadDegreeOfParallelism == 0 {
-		oracle.ParallelTableLoadDegreeOfParallelism = 4
-	}
 }
 
 func (OracleSource) IsSource() {}
@@ -123,7 +119,7 @@ func (oracle *OracleSource) Validate() error {
 }
 
 func (oracle *OracleSource) SupportMultiWorkers() bool {
-	return false
+	return true
 }
 
 func (oracle *OracleSource) SupportMultiThreads() bool {

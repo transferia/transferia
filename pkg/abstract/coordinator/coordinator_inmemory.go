@@ -150,6 +150,16 @@ func (f *CoordinatorInMemory) ClearAssignedTablesParts(ctx context.Context, oper
 	return operationTablesParts.ClearAssignedTablesPartsForWorker(workerIndex), nil
 }
 
+// AnyOperationTablesParts returns parts for the first operation found (test helper).
+func (f *CoordinatorInMemory) AnyOperationTablesParts() []*abstract.OperationTablePart {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, otp := range f.operationTablesParts {
+		return otp.ListParts()
+	}
+	return nil
+}
+
 func (f *CoordinatorInMemory) GetOperationTablesParts(operationID string) ([]*abstract.OperationTablePart, error) {
 	f.mu.Lock()
 	otp := f.operationTablesParts[operationID]

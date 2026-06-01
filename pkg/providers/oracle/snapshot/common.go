@@ -2,7 +2,6 @@ package snapshot
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -13,7 +12,7 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-// GetRowsCount returns NUM_ROWS from all_tables or falls back to COUNT(*).
+// GetRowsCount returns NUM_ROWS from all_tables.
 func GetRowsCount(logger log.Logger, config *provider_oracle.OracleSource, sqlxDB *sqlx.DB, table *oracle_schema.Table) (uint64, error) {
 	count := new(uint64)
 
@@ -30,15 +29,7 @@ func GetRowsCount(logger log.Logger, config *provider_oracle.OracleSource, sqlxD
 		} else {
 			logger.Warnf("Can't get exemplary rows count from table '%v': count is nil", table.OracleSQLName())
 		}
-
-		queryErr = oracle_common.PDBQueryGlobal(config, sqlxDB, context.Background(),
-			func(ctx context.Context, connection *sqlx.Conn) error {
-				return connection.GetContext(ctx, &count, fmt.Sprintf("select count(*) from %v", table.OracleSQLName()))
-			})
-
-		if queryErr != nil {
-			return 0, xerrors.Errorf("Can't get rows count from table '%v': %w", table.OracleSQLName(), queryErr)
-		}
+		return 0, nil
 	}
 
 	return *count, nil

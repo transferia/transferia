@@ -41,7 +41,14 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	if p.transfer.SnapshotOnly() && cfg.TrackerType == provider_oracle.OracleEmbeddedLogTracker {
 		cfg.TrackerType = provider_oracle.OracleInMemoryLogTracker
 	}
-	return NewOracleStorage(p.logger, p.registry, p.cp, &cfg, p.transfer.ID)
+	snapshotShardsNum := 0
+	if runtime, ok := p.transfer.Runtime.(abstract.ShardingTaskRuntime); ok {
+		// snapshotShardsNum acts only as a sharding on/off switch (>1 enables sharding).
+		// The actual number of parts per table is computed dynamically in ShardTable
+		// from EstimateTableRowsCount and targetRowsPerShard.
+		snapshotShardsNum = runtime.SnapshotWorkersNum()
+	}
+	return NewOracleStorage(p.logger, p.registry, p.cp, &cfg, p.transfer.ID, snapshotShardsNum)
 }
 
 func (p *Provider) Source() (abstract.Source, error) {

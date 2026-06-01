@@ -48,6 +48,14 @@ const rowsInBatch int = 512
 // only protects the segment after pusher(...), not this loader's local accumulator.
 const batchBytesLimit uint64 = 16 * 1024 * 1024
 
+// ociFetchIdleTimeout caps the wall time between two consecutive rows.Next() calls
+// during a snapshot fetch. If the driver stops returning rows within this window
+// (network hang, broken cursor, locked block), the fetch context is cancelled,
+// LoadSnapshot returns the cancellation error, and the upper retry loop in
+// load_snapshot.go retries the part up to 3 times. Hardcoded for POC; lift to
+// OracleSource as a configurable parameter once value tuning is needed.
+const ociFetchIdleTimeout = 10 * time.Minute
+
 func estimateRowSize(values []interface{}) uint64 {
 	var sum uint64
 	for _, v := range values {
@@ -80,12 +88,29 @@ func (l *loader) LoadSnapshot(ctx context.Context, pusher abstract.Pusher, sql s
 		l.sqlxDB,
 		ctx,
 		func(ctx context.Context, connection *sqlx.Conn) error {
-			rows, err := connection.QueryContext(ctx, sql)
+			// Wrap the fetch in an idle watchdog: if no row arrives within
+			// ociFetchIdleTimeout, cancel the fetch context so the upper retry
+			// loop can re-attempt the part. NOTE: the Oracle driver only
+			// unblocks rows.Next() on ctx.Done() if it honours cancellation at
+			// the CGO/OCI layer; if not, the cancel will be observed only once
+			// the underlying syscall returns (e.g. on TCP keepalive break).
+			fetchCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			watchdog := time.AfterFunc(ociFetchIdleTimeout, func() {
+				l.logger.Warn("OCI fetch idle timeout exceeded, cancelling fetch",
+					log.String("table", l.table.OracleSQLName()),
+					log.Duration("idle_timeout", ociFetchIdleTimeout))
+				cancel()
+			})
+			defer watchdog.Stop()
+
+			rows, err := connection.QueryContext(fetchCtx, sql)
 			if err != nil {
 				return xerrors.Errorf("Can't select table '%v': %w", l.table.OracleSQLName(), err)
 			}
 			defer rows.Close()
 			for rows.Next() {
+				watchdog.Reset(ociFetchIdleTimeout)
 				if err := rows.Scan(rawValues...); err != nil {
 					return xerrors.Errorf("Can't scan values for table '%v': %w", l.table.OracleSQLName(), err)
 				}

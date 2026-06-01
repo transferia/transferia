@@ -22,6 +22,7 @@ type oracleTableSource struct {
 	table    *oracle_schema.Table
 	load     *loader
 	logger   log.Logger
+	filter   abstract.WhereStatement
 }
 
 func NewTableSource(
@@ -31,6 +32,7 @@ func NewTableSource(
 	table *oracle_schema.Table,
 	logger log.Logger,
 	sourceStats *stats.SourceStats,
+	filter abstract.WhereStatement,
 ) (*oracleTableSource, error) {
 	if position != nil && !position.OnlySCN() {
 		return nil, xerrors.Errorf("position error: Can start from SCN only")
@@ -43,6 +45,7 @@ func NewTableSource(
 		table:    table,
 		load:     newLoader(sqlxDB, config, position, table, logger, sourceStats),
 		logger:   logger,
+		filter:   filter,
 	}, nil
 }
 
@@ -51,15 +54,19 @@ func (s *oracleTableSource) Load(ctx context.Context, pusher abstract.Pusher) er
 	if err != nil {
 		return xerrors.Errorf("Can't create select columns SQL for table '%v': %w", s.table.OracleSQLName(), err)
 	}
+	whereClause := ""
+	if s.filter != abstract.NoFilter {
+		whereClause = " WHERE " + string(s.filter)
+	}
 	var sqlQuery string
 	var scn uint64
 	if s.position != nil {
 		scn = s.position.SCN()
 	}
 	if s.config.IsNonConsistentSnapshot || s.position == nil {
-		sqlQuery = fmt.Sprintf("select %v from %v", columnsSQL, s.table.OracleSQLName())
+		sqlQuery = fmt.Sprintf("select %v from %v%v", columnsSQL, s.table.OracleSQLName(), whereClause)
 	} else {
-		sqlQuery = fmt.Sprintf("select %v from %v as of scn %v", columnsSQL, s.table.OracleSQLName(), s.position.SCN())
+		sqlQuery = fmt.Sprintf("select %v from %v as of scn %v%v", columnsSQL, s.table.OracleSQLName(), s.position.SCN(), whereClause)
 	}
 	s.logger.Info("Oracle: starting snapshot for table",
 		log.String("table", s.table.OracleSQLName()),

@@ -23,6 +23,16 @@ func defaultShardedActivateTask(tr *model.Transfer) *model.TransferOperation {
 	}
 }
 
+func ActivateShardedWithCP(
+	ctx context.Context,
+	cp coordinator.Coordinator,
+	task *model.TransferOperation,
+	base *model.Transfer,
+	registry core_metrics.Registry,
+) (*Worker, error) {
+	return activateShardedWithCP(ctx, cp, task, base, registry)
+}
+
 func activateShardedWithCP(
 	ctx context.Context,
 	cp coordinator.Coordinator,

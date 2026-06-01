@@ -36,9 +36,6 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	// Split the table across 4 ROWID ranges, each loaded by a separate reader goroutine.
-	Source.UseParallelTableLoad = true
-	Source.ParallelTableLoadDegreeOfParallelism = 4
 	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
@@ -58,8 +55,7 @@ func TestParallelSnapshot(t *testing.T) {
 	})
 }
 
-// ParallelSnapshot verifies that UseParallelTableLoad produces the same number of rows
-// as a sequential load — ROWID-range splits must neither duplicate nor drop rows.
+// ParallelSnapshot verifies that a basic snapshot transfer produces the correct row count.
 func ParallelSnapshot(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.BIG_TABLE"}
 
