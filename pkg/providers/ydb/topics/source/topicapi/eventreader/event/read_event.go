@@ -1,6 +1,7 @@
 package event
 
 import (
+	"bytes"
 	"context"
 	"io"
 
@@ -25,15 +26,15 @@ func (e *ReadEvent) isEvent() {}
 func NewReadEvent(event *topiclistener.ReadMessages) (*ReadEvent, error) {
 	messages := make([]parsers.Message, 0, len(event.Batch.Messages))
 	for _, msg := range event.Batch.Messages {
-		value, err := io.ReadAll(msg)
-		if err != nil {
+		var buf bytes.Buffer
+		if _, err := io.Copy(&buf, msg); err != nil {
 			return nil, err
 		}
 
 		messages = append(messages, parsers.Message{
 			Offset:     uint64(msg.Offset),
 			Key:        []byte(msg.ProducerID),
-			Value:      value,
+			Value:      buf.Bytes(),
 			CreateTime: msg.CreatedAt,
 			WriteTime:  msg.CreatedAt,
 			Headers:    combineMetadata(msg.Metadata, msg.WriteSessionMetadata),
@@ -52,7 +53,7 @@ func NewReadEvent(event *topiclistener.ReadMessages) (*ReadEvent, error) {
 }
 
 func combineMetadata(userMeta map[string][]byte, writeMeta map[string]string) map[string]string {
-	if userMeta == nil && writeMeta == nil {
+	if len(userMeta) == 0 && len(writeMeta) == 0 {
 		return nil
 	}
 

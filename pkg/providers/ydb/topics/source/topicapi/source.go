@@ -45,7 +45,7 @@ type Source struct {
 }
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
-	parseQ := parsequeue.NewWaitable[*event.ReadEvent](s.logger, 10, sink, s.parserWithCloudFunc(), s.ack)
+	parseQ := parsequeue.NewWaitable[*event.ReadEvent](s.logger, s.config.ParseQueueParallelism, sink, s.parserWithCloudFunc(), s.ack)
 	defer parseQ.Close()
 
 	return s.run(parseQ)
