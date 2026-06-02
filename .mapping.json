@@ -588,6 +588,7 @@
   "library/go/core/metrics/prometheus/stream.go":"library/go/core/metrics/prometheus/stream.go",
   "library/go/core/metrics/prometheus/timer.go":"library/go/core/metrics/prometheus/timer.go",
   "library/go/core/metrics/prometheus/vec.go":"library/go/core/metrics/prometheus/vec.go",
+  "library/go/core/metrics/solomon/base.go":"library/go/core/metrics/solomon/base.go",
   "library/go/core/metrics/solomon/converter.go":"library/go/core/metrics/solomon/converter.go",
   "library/go/core/metrics/solomon/counter.go":"library/go/core/metrics/solomon/counter.go",
   "library/go/core/metrics/solomon/func_counter.go":"library/go/core/metrics/solomon/func_counter.go",
