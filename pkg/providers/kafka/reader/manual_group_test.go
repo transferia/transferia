@@ -26,8 +26,8 @@ func (c *mockAdminClient) CommitOffsets(_ context.Context, _ string, _ kadm.Offs
 	return nil, nil
 }
 
-func (c *mockAdminClient) ListTopics(_ context.Context, _ ...string) (kadm.TopicDetails, error) {
-	return nil, nil
+func (c *mockAdminClient) ListGroups(_ context.Context, _ ...string) (kadm.ListedGroups, error) {
+	return kadm.ListedGroups{c.group: kadm.ListedGroup{Group: c.group}}, nil
 }
 
 func newMockClient(group string, offsets kadm.OffsetResponses) *mockAdminClient {
@@ -48,8 +48,8 @@ func TestFetchPartitionOffset(t *testing.T) {
 		})
 
 		resOffset, err := fetchPartitionNextOffset(testGroup, testPartition, testTopic, testAdminClient)
-		require.Error(t, err)
-		require.Equal(t, kgo.Offset{}, resOffset)
+		require.NoError(t, err)
+		require.Equal(t, kgo.NewOffset().At(-2), resOffset)
 	})
 
 	t.Run("TopicDoesNotExist", func(t *testing.T) {

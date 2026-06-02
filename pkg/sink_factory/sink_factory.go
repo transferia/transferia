@@ -59,6 +59,10 @@ func MakeAsyncSink(
 }
 
 func MakeAsyncReplicationSink(transfer *model.Transfer, task *model.TransferOperation, lgr log.Logger, mtrcs core_metrics.Registry, cp coordinator.Coordinator, config middlewares.Config, opts ...abstract.SinkOption) (abstract.QueueToS3Sink, error) {
+	if mockDst, ok := transfer.Dst.(*model.QueueToS3MockDestination); ok {
+		return mockDst.AsyncV2Factory(), nil
+	}
+
 	// Construct base async sink
 	factory, ok := providers.Destination[providers.QueueToS3Sink](lgr, mtrcs, cp, transfer, task)
 	if !ok {

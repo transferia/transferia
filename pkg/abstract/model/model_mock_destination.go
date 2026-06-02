@@ -8,9 +8,18 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type QueueToS3MockDestination struct {
+	MockDestination
+
+	AsyncV2Factory func() abstract.QueueToS3Sink
+}
+
+func (d *QueueToS3MockDestination) IsQueueToS3Destination() {}
+
 type MockDestination struct {
 	SinkerFactory func() abstract.Sinker
-	Cleanup       CleanupType
+
+	Cleanup CleanupType
 }
 
 var _ Destination = (*MockDestination)(nil)

@@ -8,14 +8,13 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-var ErrGroupNotFound = xerrors.New("group not found")
-
 type kafkaClient interface {
 	PollRecords(ctx context.Context, maxPollRecords int) kgo.Fetches
 	Close()
 }
 
 type kafkaAdminClient interface {
+	ListGroups(ctx context.Context, filterStates ...string) (kadm.ListedGroups, error)
 	FetchOffsets(ctx context.Context, group string) (kadm.OffsetResponses, error)
 	CommitOffsets(ctx context.Context, group string, os kadm.Offsets) (kadm.OffsetResponses, error)
 }
@@ -41,12 +40,12 @@ func (r *PartitionReader) CommitMessages(ctx context.Context, msgs ...kgo.Record
 
 // FetchMessage doesn't return pointer to struct, because franz-go has no guarantees about the returning values
 func (r *PartitionReader) FetchMessage(ctx context.Context) (kgo.Record, error) {
-	fetcher := r.client.PollRecords(ctx, 1)
-	err := fetcher.Err()
-	if err == nil && !fetcher.Empty() {
-		return *fetcher.Records()[0], nil
+	fetches := r.client.PollRecords(ctx, 1)
+	err := fetches.Err()
+	if err == nil && !fetches.Empty() {
+		return *fetches.Records()[0], nil
 	}
-	if xerrors.Is(err, context.DeadlineExceeded) || fetcher.Empty() {
+	if xerrors.Is(err, context.DeadlineExceeded) || fetches.Empty() {
 		return kgo.Record{}, ErrNoInput
 	}
 
@@ -87,16 +86,6 @@ func NewPartitionReader(group string, partition int32, topic string, clientOpts 
 	}
 
 	adminClient := kadm.NewClient(client)
-	if err := groupExists(adminClient, group); err != nil {
-		if xerrors.Is(err, ErrGroupNotFound) {
-			if err := createConsumerGroup(group, clientOpts); err != nil {
-				return nil, xerrors.Errorf("failed to create consumer group: %w", err)
-			}
-		} else {
-			return nil, xerrors.Errorf("failed to check if consumer group exists: %w", err)
-		}
-	}
-
 	offset, err := fetchPartitionNextOffset(group, partition, topic, adminClient)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get offsets: %w", err)

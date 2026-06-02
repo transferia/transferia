@@ -35,6 +35,15 @@ func CreateTopic(t *testing.T, topicName string, driver *ydb_go_sdk.Driver, crea
 }
 
 func WriteMessages(t *testing.T, topicName string, messages [][]byte, driver *ydb_go_sdk.Driver, wrOptions ...topicoptions.WriterOption) {
+	topicMessages := make([]ydb_topicwriter.Message, len(messages))
+	for i := range messages {
+		topicMessages[i] = ydb_topicwriter.Message{Data: bytes.NewReader(messages[i])}
+	}
+
+	WriteTopicMessages(t, topicName, topicMessages, driver, wrOptions...)
+}
+
+func WriteTopicMessages(t *testing.T, topicName string, messages []ydb_topicwriter.Message, driver *ydb_go_sdk.Driver, wrOptions ...topicoptions.WriterOption) {
 	wr, err := driver.Topic().StartWriter(topicName,
 		append(wrOptions, topicoptions.WithWriterWaitServerAck(true))...,
 	)
@@ -44,7 +53,7 @@ func WriteMessages(t *testing.T, topicName string, messages [][]byte, driver *yd
 	defer cancel()
 
 	for _, msg := range messages {
-		require.NoError(t, wr.Write(ctx, ydb_topicwriter.Message{Data: bytes.NewReader(msg)}))
+		require.NoError(t, wr.Write(ctx, msg))
 	}
 	require.NoError(t, wr.Close(ctx))
 }

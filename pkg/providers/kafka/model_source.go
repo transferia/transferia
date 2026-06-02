@@ -50,6 +50,7 @@ const (
 )
 
 var _ model.Source = (*KafkaSource)(nil)
+var _ model.QueueToS3Source = (*KafkaSource)(nil)
 var _ model.WithConnectionID = (*KafkaSource)(nil)
 
 func (s *KafkaSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -108,6 +109,8 @@ func (*KafkaSource) IsSource() {
 func (s *KafkaSource) GetProviderType() abstract.ProviderType {
 	return ProviderType
 }
+
+func (s *KafkaSource) IsQueueToS3Source() {}
 
 func (s *KafkaSource) Validate() error {
 	if s.ParserConfig != nil {

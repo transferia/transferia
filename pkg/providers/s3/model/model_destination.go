@@ -86,7 +86,7 @@ type S3Destination struct {
 
 	SerializerSettings SerializerSettings `log:"true"`
 
-	// Replication from queue spesific fields
+	// Replication from queue specific fields
 	Rotator     Rotator
 	Partitioner PartitionerType
 }

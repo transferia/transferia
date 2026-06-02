@@ -69,6 +69,7 @@ const (
 )
 
 var _ model.Source = (*YDSSource)(nil)
+var _ model.QueueToS3Source = (*YDSSource)(nil)
 
 func (s *YDSSource) MDBClusterID() string {
 	return s.Database + "/" + s.Stream
@@ -148,3 +149,5 @@ func (s *YDSSource) IsDefaultMirror() bool {
 func (s *YDSSource) Parser() map[string]interface{} {
 	return s.ParserConfig
 }
+
+func (s *YDSSource) IsQueueToS3Source() {}
