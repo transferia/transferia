@@ -13,11 +13,10 @@ import (
 const RowIdxKey = "$row_index"
 
 type Part struct {
-	name    string
-	nodeID  yt.NodeID
-	rng     ypath.Range
-	columns []string
-	txID    yt.TxID
+	name   string
+	nodeID yt.NodeID
+	rng    ypath.Range
+	txID   yt.TxID
 }
 
 func (p *Part) Name() string {
@@ -54,16 +53,11 @@ func (p *Part) UpperBound() uint64 {
 	return 0
 }
 
-func (p *Part) Columns() []string {
-	return p.columns
-}
-
 func (p *Part) PartKey() PartKey {
 	return &partKey{
-		NodeID:  p.nodeID,
-		Table:   p.name,
-		Rng:     p.rng,
-		Columns: p.columns,
+		NodeID: p.nodeID,
+		Table:  p.name,
+		Rng:    p.rng,
 	}
 }
 
@@ -91,13 +85,12 @@ func (p *Part) ToTablePart() (*abstract.TableDescription, error) {
 	}, nil
 }
 
-func NewPart(name string, nodeID yt.NodeID, rng ypath.Range, txID yt.TxID, columns []string) *Part {
+func NewPart(name string, nodeID yt.NodeID, rng ypath.Range, txID yt.TxID) *Part {
 	return &Part{
-		name:    name,
-		nodeID:  nodeID,
-		rng:     rng,
-		txID:    txID,
-		columns: columns,
+		name:   name,
+		nodeID: nodeID,
+		rng:    rng,
+		txID:   txID,
 	}
 }
 

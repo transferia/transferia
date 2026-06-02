@@ -62,7 +62,7 @@ func TestTablesDiscovery(t *testing.T) {
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
 
-		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg)
+		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg, nil)
 		require.NoError(t, err)
 
 		require.NoError(t, src.Init())
@@ -82,7 +82,7 @@ func TestTablesDiscovery(t *testing.T) {
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
 
-		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg)
+		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg, nil)
 		require.NoError(t, err)
 
 		require.NoError(t, src.Init())
@@ -107,7 +107,7 @@ func TestTablesDiscovery(t *testing.T) {
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
 
-		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg)
+		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg, nil)
 		require.NoError(t, err)
 
 		require.NoError(t, src.Init())
@@ -131,7 +131,7 @@ func TestTablesDiscovery(t *testing.T) {
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
 
-		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg)
+		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg, nil)
 		require.NoError(t, err)
 
 		require.NoError(t, src.Init())
@@ -155,7 +155,7 @@ func TestTablesDiscovery(t *testing.T) {
 			YtToken: os.Getenv("YT_TOKEN"),
 		}
 
-		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg)
+		src, err := NewSource(logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cfg, nil)
 		require.NoError(t, err)
 
 		require.NoError(t, src.Init())

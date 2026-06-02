@@ -56,7 +56,7 @@ func ListTables(ctx context.Context, y yt.CypressClient, cluster string, paths [
 				if wantContentRevision && node.ContentRevision != nil {
 					rev = node.ContentRevision
 				}
-				result = append(result, NewYtTableMetaWithRevision(cluster, prefix, nodeRelPath, node.RowCount, node.DataWeight, []string{}, rev))
+				result = append(result, NewYtTableMetaWithRevision(cluster, prefix, nodeRelPath, node.RowCount, node.DataWeight, rev))
 			case "map_node":
 				logger.Debugf("Traversing node %s from %s", nodeRelPath, prefix)
 				if err := traverse(prefix, nodeRelPath); err != nil {
@@ -96,7 +96,7 @@ func ListTables(ctx context.Context, y yt.CypressClient, cluster string, paths [
 			if wantContentRevision && attrs.ContentRevision != nil {
 				rev = attrs.ContentRevision
 			}
-			result = append(result, NewYtTableMetaWithRevision(cluster, pref.String(), name, attrs.RowCount, attrs.DataWeight, yp.Columns, rev))
+			result = append(result, NewYtTableMetaWithRevision(cluster, pref.String(), name, attrs.RowCount, attrs.DataWeight, rev))
 		case "map_node":
 			logger.Debugf("Traversing %s", p)
 			if err := traverse(attrs.Path, ""); err != nil {

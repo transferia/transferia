@@ -16,18 +16,20 @@ import (
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
 type source struct {
-	cfg     provider_yt.YtSourceModel
-	yt      yt.Client
-	tx      yt.Tx
-	txID    yt.TxID
-	logger  log.Logger
-	tables  tablemeta.YtTables
-	metrics *stats.SourceStats
+	cfg          provider_yt.YtSourceModel
+	yt           yt.Client
+	tx           yt.Tx
+	txID         yt.TxID
+	logger       log.Logger
+	tables       tablemeta.YtTables
+	metrics      *stats.SourceStats
+	columnFilter map[yt.NodeID][]string
 }
 
 // To verify providers contract implementation
@@ -37,20 +39,44 @@ var (
 	mainTxTimeout = yson.Duration(10 * time.Minute)
 )
 
-func NewSource(logger log.Logger, registry core_metrics.Registry, cfg provider_yt.YtSourceModel) (*source, error) {
+func NewSource(logger log.Logger, registry core_metrics.Registry, cfg provider_yt.YtSourceModel, include []string) (*source, error) {
 	ytc, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create yt client: %w", err)
 	}
+
+	columnFilter, err := buildColumnFilter(ytc, include)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to build column filter: %w", err)
+	}
+
 	return &source{
-		cfg:     cfg,
-		yt:      ytc,
-		tx:      nil,
-		txID:    yt.TxID(gofrs_uuid.Nil),
-		logger:  logger,
-		tables:  nil,
-		metrics: stats.NewSourceStats(registry),
+		cfg:          cfg,
+		yt:           ytc,
+		tx:           nil,
+		txID:         yt.TxID(gofrs_uuid.Nil),
+		logger:       logger,
+		tables:       nil,
+		metrics:      stats.NewSourceStats(registry),
+		columnFilter: columnFilter,
 	}, nil
+}
+
+func buildColumnFilter(client yt.Client, include []string) (map[yt.NodeID][]string, error) {
+	res := make(map[yt.NodeID][]string)
+
+	for _, object := range include {
+		yp, err := ypath.Parse(object)
+		if err != nil {
+			return nil, xerrors.Errorf("cannot parse input ypath %s: %w", object, err)
+		}
+		var nodeID yt.NodeID
+		if err := client.GetNode(context.Background(), yp.YPath().Attr("id"), &nodeID, nil); err != nil {
+			return nil, xerrors.Errorf("cannot get node id for table %s: %w", object, err)
+		}
+		res[nodeID] = yp.Columns
+	}
+	return res, nil
 }
 
 func (s *source) Init() error {
@@ -88,7 +114,7 @@ func (s *source) TableSchema(part abstract2.DataObjectPart) (*abstract.TableSche
 	if !ok {
 		return nil, xerrors.Errorf("part %T is not yt dataobject part: %s", part, part.FullName())
 	}
-	yttable, err := yt_provider_schema.Load(context.Background(), s.yt, s.tx.ID(), p.NodeID(), p.Name(), p.Columns())
+	yttable, err := yt_provider_schema.Load(context.Background(), s.yt, s.tx.ID(), p.NodeID(), p.Name(), s.columnFilter[p.NodeID()])
 	if err != nil {
 		return nil, xerrors.Errorf("unable to load yt schema: %w", err)
 	}
@@ -100,7 +126,7 @@ func (s *source) CreateSnapshotSource(part abstract2.DataObjectPart) (abstract2.
 	if !ok {
 		return nil, xerrors.Errorf("part %T is not yt dataobject part: %s", part, part.FullName())
 	}
-	return NewSnapshotSource(s.cfg, s.yt, p, s.logger, s.metrics), nil
+	return NewSnapshotSource(s.cfg, s.yt, p, s.logger, s.metrics, s.columnFilter[p.NodeID()]), nil
 }
 
 func (s *source) EndSnapshot() error {
@@ -125,20 +151,31 @@ func (s *source) TablePartToDataObjectPart(tableDescription *abstract.TableDescr
 	if err != nil {
 		return nil, xerrors.Errorf("Can't parse part key: %w", err)
 	}
-	return dataobjects.NewPart(key.Table, key.NodeID, key.Range(), s.txID, key.Columns), nil
+	return dataobjects.NewPart(key.Table, key.NodeID, key.Range(), s.txID), nil
+}
+
+type SnapshotState struct {
+	TxID         yt.TxID                `yson:"tx_id"`
+	ColumnFilter map[yt.NodeID][]string `yson:"column_filter"`
 }
 
 func (s *source) ShardingContext() ([]byte, error) {
-	txID, err := yson.MarshalFormat(s.txID, yson.FormatText)
+	ysonctx, err := yson.Marshal(&SnapshotState{
+		TxID:         s.txID,
+		ColumnFilter: s.columnFilter,
+	})
 	if err != nil {
-		return nil, xerrors.Errorf("unable to marshal TxID: %w", err)
+		return nil, xerrors.Errorf("unable to marshal yt config: %w", err)
 	}
-	return txID, nil
+	return ysonctx, nil
 }
 
 func (s *source) SetShardingContext(shardedState []byte) error {
-	if err := yson.Unmarshal(shardedState, &s.txID); err != nil {
-		return xerrors.Errorf("unable to unmarhsal TxID: %w", err)
+	res := new(SnapshotState)
+	if err := yson.Unmarshal(shardedState, res); err != nil {
+		return xerrors.Errorf("unable to unmarshal sharding state for yt: %w", err)
 	}
+	s.txID = res.TxID
+	s.columnFilter = res.ColumnFilter
 	return nil
 }

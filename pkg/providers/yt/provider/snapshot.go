@@ -57,6 +57,8 @@ type snapshotSource struct {
 	// Set in Start() after table schema is loaded; read by readTableRange() goroutines.
 	decoder  *rowDecoder
 	skiffFmt *skiff.Format
+
+	columns []string
 }
 
 type pushInfo struct {
@@ -70,7 +72,7 @@ func (s *snapshotSource) Start(ctx context.Context, target abstract2.EventTarget
 	s.isDone = false
 
 	s.lgr.Debug("Starting snapshot source")
-	tbl, err := yt_provider_schema.Load(ctx, s.yt, s.txID, s.part.NodeID(), s.part.Name(), s.part.Columns())
+	tbl, err := yt_provider_schema.Load(ctx, s.yt, s.txID, s.part.NodeID(), s.part.Name(), s.columns)
 	if err != nil {
 		return xerrors.Errorf("error loading table schema: %w", err)
 	}
@@ -201,7 +203,7 @@ func (s *snapshotSource) runReaders(ctx context.Context, batchSize uint64, stopC
 					if !ok {
 						return
 					}
-					if err = s.readTableRange(ctx, rng.lower, rng.upper, stopCh, s.part.Columns()); err != nil {
+					if err = s.readTableRange(ctx, rng.lower, rng.upper, stopCh, s.columns); err != nil {
 						return
 					}
 				case <-stopCh:
@@ -286,8 +288,7 @@ func (s *snapshotSource) Progress() (abstract2.EventSourceProgress, error) {
 }
 
 func NewSnapshotSource(cfg provider_yt.YtSourceModel, ytc yt.Client, part *dataobjects.Part,
-	lgr log.Logger, metrics *stats.SourceStats,
-) *snapshotSource {
+	lgr log.Logger, metrics *stats.SourceStats, columns []string) *snapshotSource {
 	return &snapshotSource{
 		cfg:       cfg,
 		yt:        ytc,
@@ -306,5 +307,6 @@ func NewSnapshotSource(cfg provider_yt.YtSourceModel, ytc yt.Client, part *datao
 		stopFn:    nil,
 		decoder:   nil,
 		skiffFmt:  nil,
+		columns:   columns,
 	}
 }

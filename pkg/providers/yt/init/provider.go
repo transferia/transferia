@@ -98,7 +98,11 @@ func (p *Provider) DataProvider() (provider abstract2.DataProvider, err error) {
 	if _, ok := p.transfer.Dst.(*provider_yt.YtCopyDestination); ok {
 		provider, err = yt_copy_source.NewSource(p.logger, p.registry, specificConfig, p.transfer.ID)
 	} else {
-		provider, err = abstract2_provider_yt.NewSource(p.logger, p.registry, specificConfig)
+		var include []string
+		if p.transfer.DataObjects != nil {
+			include = p.transfer.DataObjects.IncludeObjects
+		}
+		provider, err = abstract2_provider_yt.NewSource(p.logger, p.registry, specificConfig, include)
 	}
 	return provider, err
 }
