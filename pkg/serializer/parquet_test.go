@@ -10,6 +10,7 @@ import (
 	"github.com/parquet-go/parquet-go"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/util"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -38,6 +39,7 @@ func makeParquetItems(n int, valueSize int) ([]*abstract.ChangeItem, *abstract.T
 			TableSchema:  tableSchema,
 			ColumnNames:  []string{"id", "payload"},
 			ColumnValues: []interface{}{int64(i), payload},
+			Size:         abstract.EventSize{Read: uint64(valueSize), Values: util.DeepSizeof([]interface{}{int64(i), payload})},
 		}
 	}
 	return items, tableSchema
@@ -140,4 +142,41 @@ func TestParquetBatchSerializer_MemoryBounded(t *testing.T) {
 			"Possible memory regression: row groups may not be flushed incrementally.",
 		heapGrowth, 2*oneRowGroupBytes,
 	)
+}
+
+// TestParquetBatchSerializer_RowGroupMaxBytes verifies that row groups are
+// flushed based on estimated byte size when RowGroupMaxBytes is configured.
+func TestParquetBatchSerializer_RowGroupMaxBytes(t *testing.T) {
+	const (
+		rowGroupMaxRows  = 1_000
+		itemValueSize    = 1_024         // 1 KB string payload per row
+		totalItems       = 5_000         // ~5 MB uncompressed total
+		rowGroupMaxBytes = 1_024 * 1_024 // 1 MB,  expect ~5 flushes
+	)
+
+	items, _ := makeParquetItems(totalItems, itemValueSize)
+
+	s := &parquetBatchSerializer{
+		rowGroupMaxRows:  rowGroupMaxRows,
+		rowGroupMaxBytes: rowGroupMaxBytes,
+	}
+
+	serialized, err := s.Serialize(items)
+	require.NoError(t, err)
+	require.Greater(t, len(serialized), 0,
+		"no data returned by Serialize(): row groups are not being flushed incrementally")
+
+	var buf bytes.Buffer
+	buf.Write(serialized)
+
+	final, err := s.Close()
+	require.NoError(t, err)
+	require.Greater(t, len(final), 0,
+		"Close() must return the final row group and file footer")
+	buf.Write(final)
+
+	rowGroups := writtenRowGroupsCount(t, &buf)
+	require.Greater(t, rowGroups, 1,
+		"expected multiple row groups with RowGroupMaxBytes=%d, got %d",
+		rowGroupMaxBytes, rowGroups)
 }

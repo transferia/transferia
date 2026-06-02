@@ -77,6 +77,23 @@ func toParquetValue(column parquet.Field, col abstract.ColSchema, value any, idx
 	return &leafValue, nil
 }
 
+func toParquetRows(items []*abstract.ChangeItem, schema *parquet.Schema, tableSchema abstract.FastTableSchema) ([]parquet.Row, error) {
+	rows := make([]parquet.Row, len(items))
+	for i, item := range items {
+		var row []parquet.Value
+		rowMap := item.AsMap()
+		for idx, field := range schema.Fields() {
+			v, err := toParquetValue(field, tableSchema[abstract.ColumnName(field.Name())], rowMap[field.Name()], idx)
+			if err != nil {
+				return nil, xerrors.Errorf("unable to convert field %v to parquet value: %w", field.Name(), err)
+			}
+			row = append(row, *v)
+		}
+		rows[i] = row
+	}
+	return rows, nil
+}
+
 func buildParquetGroup(tableSchema abstract.FastTableSchema) (parquet.Group, error) {
 	groupNode := parquet.Group{}
 

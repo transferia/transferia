@@ -79,6 +79,7 @@ func (s *CSVSerializerConfig) AsConfig() *serializer.BatchSerializerCommonConfig
 type ParquetSerializerConfig struct {
 	CompressionCodec string
 	RowGroupMaxRows  int64
+	RowGroupMaxBytes int64
 }
 
 func (s *ParquetSerializerConfig) FormatName() model.ParsingFormat {
@@ -90,6 +91,14 @@ func (s *ParquetSerializerConfig) FormatEncoding() Encoding {
 }
 
 func (s *ParquetSerializerConfig) AsConfig() *serializer.BatchSerializerCommonConfig {
+	rowGroupMaxRows := s.RowGroupMaxRows
+	rowGroupMaxBytes := s.RowGroupMaxBytes
+	if rowGroupMaxRows < 0 {
+		rowGroupMaxRows = 0
+	}
+	if rowGroupMaxBytes < 0 {
+		rowGroupMaxBytes = 0
+	}
 	return &serializer.BatchSerializerCommonConfig{
 		UnsupportedItemKinds: nil,
 		AddClosingNewLine:    true,
@@ -97,7 +106,8 @@ func (s *ParquetSerializerConfig) AsConfig() *serializer.BatchSerializerCommonCo
 		AnyAsString:          false,
 		ParquetConfig: &serializer.ParquetBatchSerializerConfig{
 			CompressionCodec: serializer.CodecFromString(s.CompressionCodec),
-			RowGroupMaxRows:  s.RowGroupMaxRows,
+			RowGroupMaxRows:  uint64(rowGroupMaxRows),
+			RowGroupMaxBytes: uint64(rowGroupMaxBytes),
 		},
 	}
 }

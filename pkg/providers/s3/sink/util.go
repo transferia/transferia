@@ -38,9 +38,18 @@ func rowPart(row abstract.ChangeItem) string {
 func CreateSerializer(outputFormat model.ParsingFormat, anyAsString bool, parquetSetting *s3_model.ParquetSerializerSettings) (serializer.BatchSerializer, error) {
 	var parquetConfig serializer.ParquetBatchSerializerConfig
 	if parquetSetting != nil {
+		rowGroupMaxRows := parquetSetting.RowGroupMaxRows
+		rowGroupMaxBytes := parquetSetting.RowGroupMaxBytes
+		if rowGroupMaxRows < 0 {
+			rowGroupMaxRows = 0
+		}
+		if rowGroupMaxBytes < 0 {
+			rowGroupMaxBytes = 0
+		}
 		parquetConfig = serializer.ParquetBatchSerializerConfig{
 			CompressionCodec: serializer.CodecFromString(parquetSetting.CompressionCodec),
-			RowGroupMaxRows:  parquetSetting.RowGroupMaxRows,
+			RowGroupMaxRows:  uint64(rowGroupMaxRows),
+			RowGroupMaxBytes: uint64(rowGroupMaxBytes),
 		}
 	}
 	config := &serializer.BatchSerializerCommonConfig{

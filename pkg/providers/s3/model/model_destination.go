@@ -47,6 +47,7 @@ func (s *SerializerSettings) GetParquet() *ParquetSerializerSettings {
 type ParquetSerializerSettings struct {
 	CompressionCodec string `log:"true"`
 	RowGroupMaxRows  int64  `log:"true"`
+	RowGroupMaxBytes int64  `log:"true"`
 }
 
 type PartitionerType string
