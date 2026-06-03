@@ -120,7 +120,7 @@ require (
 	github.com/DataDog/zstd v1.5.6 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/Microsoft/hcsshim v0.13.0 // indirect
+	github.com/Microsoft/hcsshim v0.14.0-rc.1 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/UNO-SOFT/zlog v0.8.3 // indirect
 	github.com/alecthomas/assert/v2 v2.11.0 // indirect
@@ -144,7 +144,7 @@ require (
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/containerd/containerd v1.7.29 // indirect
 	github.com/containerd/log v0.1.0 // indirect
-	github.com/containerd/platforms v1.0.0-rc.1 // indirect
+	github.com/containerd/platforms v1.0.0-rc.2 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/creack/pty v1.1.24 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
@@ -446,9 +446,7 @@ replace github.com/stretchr/testify => github.com/stretchr/testify v1.10.0
 
 replace go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0
 
-replace github.com/moby/buildkit => github.com/moby/buildkit v0.20.2
-
-replace github.com/tonistiigi/fsutil => github.com/tonistiigi/fsutil v0.0.0-20250113203817-b14e27f4135a
+replace github.com/moby/buildkit => github.com/moby/buildkit v0.23.2
 
 replace github.com/google/go-tpm-tools => github.com/google/go-tpm-tools v0.4.2
 
