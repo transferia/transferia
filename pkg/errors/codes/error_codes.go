@@ -13,6 +13,7 @@ var (
 	UnknownCluster           = coded.Register("generic", "unknown_cluster")
 	InvalidObjectIdentifier  = coded.Register("generic", "invalid_object_identifier")
 	NoTablesFound            = coded.Register("generic", "no_tables_found")
+	FilteredObjectNotFound   = coded.Register("generic", "filtered_object_not_found")
 	ShardedTransferTmpPolicy = coded.Register("generic", "sharded_transfer_tmp_policy")
 
 	// airbyte
@@ -52,6 +53,9 @@ var (
 	PostgresReplicationConnectionNotAllowed = coded.Register("postgres", "replication_connection_not_allowed")
 	PostgresReplicationSlotInvalidated      = coded.Register("postgres", "replication_slot_invalidated")
 	PostgresReplicationSlotsInUse           = coded.Register("postgres", "replication_slots_in_use")
+	PostgresReplicationSlotNotExist         = coded.Register("postgres", "replication_slot_not_exist")
+	PostgresReplicationSlotCreateFailed     = coded.Register("postgres", "replication_slot_create_failed")
+	PostgresReplicationSlotPermissionDenied = coded.Register("postgres", "replication_slot_permission_denied")
 	PostgresSchemaDoesNotExist              = coded.Register("postgres", "schema_does_not_exist")
 	PostgresSessionDurationTimeout          = coded.Register("postgres", "session_duration_timeout")
 	PostgresSlotByteLagExceedsLimit         = coded.Register("postgres", "slot_byte_lag_exceeds_limit")
@@ -62,14 +66,16 @@ var (
 	PostgresPgDumpPermissionDenied          = coded.Register("postgres", "pg_dump_permission_denied")
 
 	// runtime
-	RuntimePodRestart = coded.Register("runtime", "pod_restart")
+	RuntimePodRestart        = coded.Register("runtime", "pod_restart")
+	RuntimeMainWorkerRestart = coded.Register("runtime", "main_worker_restart")
 
 	// transformer
 	FilterColumnsEmpty = coded.Register("transformer", "filter_columns_empty")
 
 	// ycdbaas
-	YcDBAASNoAliveHosts = coded.Register("ycdbaas", "no_alive_hosts")
-	MDBNotFound         = coded.Register("mdb", "not_found")
+	YcDBAASNoAliveHosts      = coded.Register("ycdbaas", "no_alive_hosts")
+	MDBNotFound              = coded.Register("mdb", "not_found")
+	MDBEndpointNetworkFailed = coded.Register("mdb", "endpoint_network_failed")
 
 	// ydb
 	YDBNotFound   = coded.Register("ydb", "not_found")
@@ -82,6 +88,7 @@ var (
 
 	// greenplum
 	GreenplumExternalUrlsExceedSegments = coded.Register("greenplum", "external_urls_exceed_segments")
+	GreenplumClusterUnavailable         = coded.Register("greenplum", "cluster_unavailable")
 
 	// clickhouse
 	ClickHouseToastUpdate         = coded.Register("ch", "update_toast_error")

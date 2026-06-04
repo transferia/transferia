@@ -8,6 +8,8 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/dbaas"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 )
 
@@ -45,7 +47,7 @@ func (s *Storage) PGStorage(ctx context.Context, sp GPSegPointer) (*provider_pos
 	s.postgreses.mutex.Lock()
 	defer s.postgreses.mutex.Unlock()
 	if err := s.EnsureAvailability(ctx, sp); err != nil {
-		return nil, xerrors.Errorf("the requested %s is not available in the Greenplum cluster: %w", sp.String(), err)
+		return nil, coded.Errorf(error_codes.GreenplumClusterUnavailable, "the requested %s is not available in the Greenplum cluster: %w", sp.String(), err)
 	}
 	return s.postgreses.storages[sp], nil
 }

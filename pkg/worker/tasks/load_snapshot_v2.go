@@ -18,6 +18,8 @@ import (
 	"github.com/transferia/transferia/pkg/data"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/storage_factory"
@@ -308,7 +310,7 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider abst
 		return xerrors.Errorf("failed to get operation workers: %w", err)
 	}
 	if len(workers) != 0 {
-		return xerrors.New(mainWorkerRestartedErrorText)
+		return coded.Errorf(error_codes.RuntimeMainWorkerRestart, mainWorkerRestartedErrorText)
 	}
 
 	paralleledRuntime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)

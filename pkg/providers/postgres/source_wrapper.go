@@ -9,6 +9,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -188,7 +190,7 @@ func NewSourceWrapper(
 			time.Sleep(time.Minute)
 		}
 		registry.Fatal.Inc()
-		return nil, abstract.NewFatalError(xerrors.Errorf("Replication slotID %s does not exist", worker.src.SlotID))
+		return nil, abstract.NewFatalError(coded.Errorf(error_codes.PostgresReplicationSlotNotExist, "Replication slotID %s does not exist", worker.src.SlotID))
 	}
 	worker.slot = slot
 

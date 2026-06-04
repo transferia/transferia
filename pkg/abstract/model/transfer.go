@@ -6,6 +6,8 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/transformer"
 	"go.uber.org/zap/zapcore"
 )
@@ -432,7 +434,7 @@ func (f *Transfer) FilterObjects(result abstract.TableMap) (abstract.TableMap, e
 		}
 		info, ok := result[*tid]
 		if !ok {
-			errs = append(errs, xerrors.Errorf("object: %s not found in source", obj))
+			errs = append(errs, coded.Errorf(error_codes.FilteredObjectNotFound, "object: %s not found in source", obj))
 			continue
 		}
 		res[*tid] = info

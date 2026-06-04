@@ -81,7 +81,12 @@ func (slot *Slot) Create() error {
 			if util.ContainsAnySubstrings(err.Error(), "SQLSTATE 53400", "all replication slots are in use") {
 				return coded.Errorf(error_codes.PostgresReplicationSlotsInUse, "failed to create a replication slot: %w", err)
 			}
-			return xerrors.Errorf("failed to create a replication slot: %w", err)
+			// Lack of REPLICATION privilege / role (SQLSTATE 42501): "permission denied to use replication slots",
+			// "must be superuser, replication role or mdb_replication to use replication slots", etc.
+			if util.ContainsAnySubstrings(err.Error(), "to use replication slots", "to use logical replication slots") {
+				return coded.Errorf(error_codes.PostgresReplicationSlotPermissionDenied, "failed to create a replication slot: %w", err)
+			}
+			return coded.Errorf(error_codes.PostgresReplicationSlotCreateFailed, "failed to create a replication slot: %w", err)
 		}
 		return nil
 	})

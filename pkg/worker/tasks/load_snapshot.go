@@ -524,7 +524,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return xerrors.Errorf("failed to get operation workers: %w", err)
 	}
 	if len(workers) != 0 {
-		return xerrors.New(mainWorkerRestartedErrorText)
+		return coded.Errorf(error_codes.RuntimeMainWorkerRestart, mainWorkerRestartedErrorText)
 	}
 
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
