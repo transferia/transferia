@@ -90,6 +90,9 @@ var (
 	GreenplumExternalUrlsExceedSegments = coded.Register("greenplum", "external_urls_exceed_segments")
 	GreenplumClusterUnavailable         = coded.Register("greenplum", "cluster_unavailable")
 
+	// connman
+	ConnmanPermissionDenied = coded.Register("connman", "permission_denied")
+
 	// clickhouse
 	ClickHouseToastUpdate         = coded.Register("ch", "update_toast_error")
 	ClickHouseSSLRequired         = coded.Register("ch", "ssl_required")

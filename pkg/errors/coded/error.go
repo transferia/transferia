@@ -24,6 +24,13 @@ func Errorf(code Code, format string, a ...any) CodedError {
 	}
 }
 
+func New(code Code, err error) CodedError {
+	return &codedImpl{
+		error: err,
+		code:  code,
+	}
+}
+
 func (i *codedImpl) Unwrap() error {
 	return i.error
 }

@@ -6,6 +6,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"math/big"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	clickhouse_errors "github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
@@ -28,7 +31,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/backoff"
+	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/set"
 	"github.com/transferia/transferia/pkg/util/size"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -888,7 +891,15 @@ func NewStorage(config *clickhouse_model.ChStorageParams, transfer *model.Transf
 
 		if err := db.QueryRow("select version();").Scan(&version); err != nil {
 			if clickhouse_errors.IsFatalClickhouseError(err) {
-				return "", backoff.Permanent(xerrors.Errorf("unable to select clickhouse version: %w", err))
+				err = backoff.Permanent(err)
+			}
+			var opErr *net.OpError
+			var dnsErr *net.DNSError
+			if xerrors.As(err, &opErr) || xerrors.As(err, &dnsErr) {
+				err = backoff.Permanent(coded.New(error_codes.Dial, err))
+			}
+			if util.ContainsAnySubstrings(err.Error(), "Authentication failed") {
+				err = backoff.Permanent(coded.New(error_codes.InvalidCredential, err))
 			}
 			return "", xerrors.Errorf("unable to select clickhouse %s version: %w", config.String(), err)
 		}

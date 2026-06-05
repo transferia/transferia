@@ -4,10 +4,14 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 )
 
 // go-sumtype:decl DataTypesOption
@@ -90,6 +94,10 @@ where (
 
 	nameOIDs, err := connInfoFromRows(conn.Query(ctx, namedOIDQuery))
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if xerrors.As(err, &pgErr) && pgErr.Code == string(pgerrors.ErrcTooManyConnections) {
+			return coded.Errorf(error_codes.PostgresTooManyConnections, "unable to process base types info: %w", err)
+		}
 		return xerrors.Errorf("unable to process base types info: %w", err)
 	}
 

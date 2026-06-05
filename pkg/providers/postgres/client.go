@@ -537,7 +537,7 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 			return nil, coded.Errorf(error_codes.PostgresDNSResolutionFailed, "failed to connect to a PostgreSQL instance: %w", err)
 		}
 		// SSL handshake failures often come wrapped without PgError
-		if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed") {
+		if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed", "x509:") {
 			return nil, coded.Errorf(error_codes.PostgresSSLVerifyFailed, "failed to connect to a PostgreSQL instance: %w", err)
 		}
 		var opErr *net.OpError
