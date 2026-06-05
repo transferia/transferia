@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract2"
 	"github.com/transferia/transferia/pkg/abstract2/filter"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/pkg/providers/yt/cypressmeta"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yt"
 	xslices "golang.org/x/exp/slices"
@@ -23,7 +23,7 @@ var tablesWeightOverflowErr = xerrors.NewSentinel("total tables weight overflow"
 type YTDataObjects struct {
 	idx          int
 	err          error
-	tbls         tablemeta.YtTables
+	tbls         cypressmeta.YtNodes
 	tx           yt.Tx
 	txID         yt.TxID
 	parts        map[string][]partKey
@@ -40,7 +40,7 @@ func (objs *YTDataObjects) Next() bool {
 	return objs.nextSharding()
 }
 
-func (objs *YTDataObjects) loadTableList() (tablemeta.YtTables, error) {
+func (objs *YTDataObjects) loadTableList() (cypressmeta.YtNodes, error) {
 	paths := objs.cfg.GetPaths()
 	if listable, ok := objs.filter.(filter.ListableFilter); ok {
 		tables, err := listable.ListTables()
@@ -60,7 +60,7 @@ func (objs *YTDataObjects) loadTableList() (tablemeta.YtTables, error) {
 		}
 		paths = resPaths
 	}
-	tbls, err := tablemeta.ListTables(context.Background(), objs.tx, objs.cfg.GetCluster(), paths, objs.lgr)
+	tbls, err := cypressmeta.ListNodes(context.Background(), objs.tx, objs.cfg.GetCluster(), paths, []yt.NodeType{yt.NodeTable}, objs.lgr)
 	if err != nil {
 		return nil, xerrors.Errorf("error listing tables: %w", err)
 	}

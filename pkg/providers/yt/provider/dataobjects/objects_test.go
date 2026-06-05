@@ -7,17 +7,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/pkg/providers/yt/cypressmeta"
 )
 
 func TestUniformPartTooManyTables(t *testing.T) {
 	dataObjs := &YTDataObjects{
-		tbls: []*tablemeta.YtTableMeta{},
+		tbls: []*cypressmeta.YtNodeMeta{},
 		cfg:  &yt.YtSource{DesiredPartSizeBytes: 1024},
 		lgr:  logger.Log,
 	}
 	for i := 0; i < 1025; i++ {
-		dataObjs.tbls = append(dataObjs.tbls, &tablemeta.YtTableMeta{DataWeight: 1})
+		dataObjs.tbls = append(dataObjs.tbls, &cypressmeta.YtNodeMeta{DataWeight: 1})
 	}
 	_, err := dataObjs.uniformParts()
 	require.ErrorContains(t, err, fmt.Sprint(rune(grpcShardLimit)))
@@ -25,7 +25,7 @@ func TestUniformPartTooManyTables(t *testing.T) {
 
 func TestUniformPartTableWeightLessThanDesired(t *testing.T) {
 	dataObjs := &YTDataObjects{
-		tbls: []*tablemeta.YtTableMeta{
+		tbls: []*cypressmeta.YtNodeMeta{
 			{
 				DataWeight: 1023,
 			},
@@ -43,7 +43,7 @@ func TestUniformPartTableWeightLessThanDesired(t *testing.T) {
 
 func TestUniformPartTablePartedWeightLessThnDesired(t *testing.T) {
 	dataObjs := &YTDataObjects{
-		tbls: []*tablemeta.YtTableMeta{
+		tbls: []*cypressmeta.YtNodeMeta{
 			{
 				DataWeight: 1025,
 			},
@@ -64,7 +64,7 @@ func TestUniformPartTablePartedWeightLessThnDesired(t *testing.T) {
 
 func TestFairPartUniform(t *testing.T) {
 	dataObjs := &YTDataObjects{
-		tbls: []*tablemeta.YtTableMeta{
+		tbls: []*cypressmeta.YtNodeMeta{
 			{
 				DataWeight: 1,
 			},
@@ -82,7 +82,7 @@ func TestFairPartUniform(t *testing.T) {
 
 func TestUniformParts(t *testing.T) {
 	dataObjs := &YTDataObjects{
-		tbls: []*tablemeta.YtTableMeta{
+		tbls: []*cypressmeta.YtNodeMeta{
 			{
 				DataWeight: 104,
 			},
@@ -103,7 +103,7 @@ func TestUniformParts(t *testing.T) {
 
 func TestUniformPartsWithoutDesiredSize(t *testing.T) {
 	dataObjs := &YTDataObjects{
-		tbls: []*tablemeta.YtTableMeta{
+		tbls: []*cypressmeta.YtNodeMeta{
 			{
 				DataWeight: 1024,
 			},

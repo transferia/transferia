@@ -38,12 +38,12 @@ type ytMimimalClient interface {
 	yt.OperationStartClient
 }
 
-// User attribute on the target table storing source content_revision (TM-9579).
-// If source content_revision equals this value, we skip copying the table.
+// User attribute on the target node storing source content_revision (TM-9579).
+// If source content_revision equals this value, we skip copying the node.
 const ContentRevisionAttr = "__dt_content_revision"
 
 type copyTask struct {
-	evt      yt_copy_events.TableEvent
+	evt      yt_copy_events.NodeEvent
 	yt       ytMimimalClient
 	onFinish func(error)
 }
@@ -54,7 +54,7 @@ func boolPtr(val bool) *bool {
 
 func (t *YtCopyTarget) runCopy(task copyTask) error {
 	ctx := context.Background()
-	tbl := task.evt.Table()
+	tbl := task.evt.Node()
 
 	outPath := t.cfg.Prefix + "/" + tbl.Name
 	outYPath, err := ypath.Parse(outPath)
@@ -62,11 +62,11 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 		return xerrors.Errorf("error parsing ypath %s: %w", outPath, err)
 	}
 
-	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != nil {
+	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != 0 {
 		// Skip copy if source content_revision unchanged.
 		exists, err := task.yt.NodeExists(ctx, outYPath, nil)
 		if err != nil {
-			return xerrors.Errorf("error checking target table %s: %w", outPath, err)
+			return xerrors.Errorf("error checking target node %s: %w", outPath, err)
 		}
 		if exists {
 			revAttrPath := outYPath.Copy().Child("@" + ContentRevisionAttr)
@@ -77,8 +77,8 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			if attrExists {
 				var storedRev int64
 				err := task.yt.GetNode(ctx, revAttrPath, &storedRev, nil)
-				if err == nil && storedRev == *tbl.ContentRevision {
-					t.logger.Infof("Skipping table %s (source content_revision %d unchanged)", tbl.FullName(), *tbl.ContentRevision)
+				if err == nil && storedRev == tbl.ContentRevision {
+					t.logger.Infof("Skipping node %s (source content_revision %d unchanged)", tbl.FullName(), tbl.ContentRevision)
 					return nil
 				}
 			}
@@ -94,7 +94,7 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 	}
 
 	copySpec := spec.Spec{
-		Title:           fmt.Sprintf("TM RemoteCopy (TransferID %s)", t.transferID),
+		Title:           fmt.Sprintf("DataTransfer RemoteCopy (TransferID %s)", t.transferID),
 		ClusterName:     tbl.Cluster,
 		InputTablePaths: []ypath.YPath{tbl.OriginalYPath()},
 		OutputTablePath: tmpOutYPath,
@@ -103,7 +103,7 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 		ResourceLimits:  t.cfg.ResourceLimits,
 	}
 
-	if _, err := task.yt.CreateNode(ctx, tmpOutYPath, yt.NodeTable, &yt.CreateNodeOptions{
+	if _, err := task.yt.CreateNode(ctx, tmpOutYPath, tbl.NodeType, &yt.CreateNodeOptions{
 		Recursive:      true,
 		IgnoreExisting: t.cfg.Cleanup != model.Drop,
 		Force:          t.cfg.Cleanup == model.Drop,
@@ -123,19 +123,19 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 	for {
 		status, err := t.yt.GetOperation(ctx, opID, nil)
 		if err != nil {
-			return xerrors.Errorf("failed to get RemoteCopy (id=%s) status for table %s: %w", opID, outPath, err)
+			return xerrors.Errorf("failed to get RemoteCopy (id=%s) status for node %s: %w", opID, outPath, err)
 		}
 		if !status.State.IsFinished() {
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		if status.State != yt.StateCompleted {
-			return xerrors.Errorf("RemoteCopy (id=%s) error for table %s: %w", opID, outPath, status.Result.Error)
+			return xerrors.Errorf("RemoteCopy (id=%s) error for node %s: %w", opID, outPath, status.Result.Error)
 		}
 		break
 	}
 
-	// Move tmp table
+	// Move tmp node
 	if t.cfg.Cleanup == model.Replace {
 		moveOptions := provider_yt.ResolveMoveOptions(task.yt, tmpOutYPath.YPath(), false)
 
@@ -145,15 +145,15 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			outYPath,
 			moveOptions,
 		); err != nil {
-			return xerrors.Errorf("unable to move tmp table: %w", err)
+			return xerrors.Errorf("unable to move tmp node: %w", err)
 		}
 	}
 
-	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != nil {
+	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != 0 {
 		// Store source content_revision on target so next run can skip if unchanged.
 		revAttrPath := outYPath.Copy().Child("@" + ContentRevisionAttr)
-		if err := task.yt.SetNode(ctx, revAttrPath, *tbl.ContentRevision, nil); err != nil {
-			t.logger.Warnf("Failed to set %s on target table %s (next run may re-copy): %v", ContentRevisionAttr, outPath, err)
+		if err := task.yt.SetNode(ctx, revAttrPath, tbl.ContentRevision, nil); err != nil {
+			t.logger.Warnf("Failed to set %s on target node %s (next run may re-copy): %v", ContentRevisionAttr, outPath, err)
 		}
 	}
 	return nil
@@ -197,19 +197,19 @@ func (t *YtCopyTarget) AsyncPush(in abstract2.EventBatch) chan error {
 			if err != nil {
 				return util.MakeChanWithError(xerrors.Errorf("cannot get event from batch: %w", err))
 			}
-			evt, ok := rawEvt.(yt_copy_events.TableEvent)
+			evt, ok := rawEvt.(yt_copy_events.NodeEvent)
 			if !ok {
 				return util.MakeChanWithError(xerrors.Errorf("unknown event type: %v", evt))
 			}
 
 			wg.Add(1)
-			t.logger.Debugf("Adding task to copy %s", evt.Table().FullName())
+			t.logger.Debugf("Adding task to copy %s", evt.Node().FullName())
 			if err := t.pool.Add(copyTask{evt, ytTxClient, onFinish}); err != nil {
-				return util.MakeChanWithError(xerrors.Errorf("unable to add table %s copy task to the pool: %w", evt.Table().FullName(), err))
+				return util.MakeChanWithError(xerrors.Errorf("unable to add %s copy task to the pool: %w", evt.Node().FullName(), err))
 			}
 		}
 
-		t.logger.Info("Waiting for all table copy task to be done")
+		t.logger.Info("Waiting for all copy tasks to be done")
 		wg.Wait()
 		if err := errors.Join(errs...); err != nil {
 			return util.MakeChanWithError(xerrors.Errorf("task error: %w", err))
@@ -231,7 +231,7 @@ func (t *YtCopyTarget) AsyncPush(in abstract2.EventBatch) chan error {
 			}
 			switch ev.(type) {
 			case baseevent.CleanupEvent:
-				t.logger.Infof("cleanup not yet supported for table: %v, skip", ev)
+				t.logger.Infof("cleanup not yet supported for node: %v, skip", ev)
 				continue
 			case baseevent.TableLoadEvent:
 				// not needed for now

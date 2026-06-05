@@ -1,7 +1,9 @@
 package copy
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"os"
 	"reflect"
 	"slices"
@@ -360,4 +362,158 @@ func TestYTCopyReplaceCleanup(t *testing.T) {
 
 	err = checkDstData(dstYTEnv, testData)
 	require.NoError(t, err, "Error checking destination data")
+}
+
+// createSrcFile creates a file node on the source YT cluster and writes the given content.
+func createSrcFile(ctx context.Context, cl yt.Client, path string, content []byte) error {
+	p, err := ypath.Parse(path)
+	if err != nil {
+		return xerrors.Errorf("error parsing path %s: %w", path, err)
+	}
+	pref, _, err := ypath.Split(p.YPath())
+	if err != nil {
+		return xerrors.Errorf("error splitting path %s: %w", path, err)
+	}
+	if _, err := cl.CreateNode(ctx, pref, yt.NodeMap, &yt.CreateNodeOptions{
+		Recursive:      true,
+		IgnoreExisting: true,
+	}); err != nil {
+		return xerrors.Errorf("error creating directory for %s: %w", path, err)
+	}
+	if _, err := cl.CreateNode(ctx, p, yt.NodeFile, &yt.CreateNodeOptions{
+		Recursive: true,
+		Force:     true,
+	}); err != nil {
+		return xerrors.Errorf("error creating file node %s: %w", path, err)
+	}
+	w, err := cl.WriteFile(ctx, p, nil)
+	if err != nil {
+		return xerrors.Errorf("error opening file writer for %s: %w", path, err)
+	}
+	if _, err := w.Write(content); err != nil {
+		return xerrors.Errorf("error writing file content to %s: %w", path, err)
+	}
+	if err := w.Close(); err != nil {
+		return xerrors.Errorf("error closing file writer for %s: %w", path, err)
+	}
+	return nil
+}
+
+// readDstFile reads the content of a file node from the destination YT cluster.
+func readDstFile(ctx context.Context, cl yt.Client, path string) ([]byte, error) {
+	p, err := ypath.Parse(path)
+	if err != nil {
+		return nil, xerrors.Errorf("error parsing path %s: %w", path, err)
+	}
+	r, err := cl.ReadFile(ctx, p, nil)
+	if err != nil {
+		return nil, xerrors.Errorf("error opening file reader for %s: %w", path, err)
+	}
+	defer r.Close()
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, xerrors.Errorf("error reading file %s: %w", path, err)
+	}
+	return data, nil
+}
+
+type ytFile struct {
+	InPath  string
+	OutPath string
+	Content []byte
+}
+
+// TestYTCopyWithFiles verifies that the YT copy provider copies both tables and files.
+func TestYTCopyWithFiles(t *testing.T) {
+	srcYT := os.Getenv("YT_PROXY_SRC")
+	dstYT := os.Getenv("YT_PROXY_DST")
+	require.NotEmpty(t, srcYT)
+	require.NotEmpty(t, dstYT)
+
+	src := provider_yt.YtSource{
+		Cluster: "src",
+		YtProxy: srcYT,
+		Paths: []string{
+			"//file_test_dir",
+		},
+		YtToken: "",
+	}
+	src.WithDefaults()
+
+	dst := provider_yt.YtCopyDestination{
+		Cluster:            dstYT,
+		YtToken:            "",
+		Prefix:             "//file_dst_pref",
+		Parallelism:        2,
+		UsePushTransaction: false,
+		Pool:               "default",
+	}
+	dst.WithDefaults()
+
+	srcYTEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: srcYT}), yttest.WithLogger(logger.Log.Structured()))
+	dstYTEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: dstYT}), yttest.WithLogger(logger.Log.Structured()))
+	ctx := context.Background()
+
+	// Create tables on source.
+	testTables := []ytTbl{
+		{
+			InPath:  "//file_test_dir/table_a",
+			OutPath: "//file_dst_pref/table_a",
+			Data:    []row{{1, "TA1"}, {2, "TA2"}},
+		},
+		{
+			InPath:  "//file_test_dir/sub/table_b",
+			OutPath: "//file_dst_pref/sub/table_b",
+			Data:    []row{{3, "TB1"}, {4, "TB2"}},
+		},
+	}
+	require.NoError(t, initSrcData(srcYTEnv, testTables))
+
+	// Create files on source.
+	testFiles := []ytFile{
+		{
+			InPath:  "//file_test_dir/config.txt",
+			OutPath: "//file_dst_pref/config.txt",
+			Content: []byte("hello world from config"),
+		},
+		{
+			InPath:  "//file_test_dir/sub/data.bin",
+			OutPath: "//file_dst_pref/sub/data.bin",
+			Content: bytes.Repeat([]byte{0xDE, 0xAD, 0xBE, 0xEF}, 256),
+		},
+	}
+	for _, f := range testFiles {
+		require.NoError(t, createSrcFile(ctx, srcYTEnv.YT, f.InPath, f.Content))
+	}
+
+	// Run the copy transfer.
+	transfer := helpers.MakeTransfer(helpers.TransferID+"-with-files", &src, &dst, TransferType)
+	worker := helpers.Activate(t, transfer)
+	defer worker.Close(t)
+
+	// Verify tables were copied.
+	require.NoError(t, checkDstData(dstYTEnv, testTables))
+
+	// Verify files were copied.
+	for _, f := range testFiles {
+		got, err := readDstFile(ctx, dstYTEnv.YT, f.OutPath)
+		require.NoError(t, err, "Error reading copied file %s", f.OutPath)
+		require.Equal(t, f.Content, got, "File content mismatch for %s", f.OutPath)
+	}
+
+	// Verify that destination nodes have the correct type attribute.
+	for _, f := range testFiles {
+		p, err := ypath.Parse(f.OutPath)
+		require.NoError(t, err)
+		var nodeType string
+		require.NoError(t, dstYTEnv.YT.GetNode(ctx, p.Child("@type"), &nodeType, nil))
+		require.Equal(t, "file", nodeType, "Expected file node type for %s", f.OutPath)
+	}
+	for _, tbl := range testTables {
+		p, err := ypath.Parse(tbl.OutPath)
+		require.NoError(t, err)
+		var nodeType string
+		require.NoError(t, dstYTEnv.YT.GetNode(ctx, p.Child("@type"), &nodeType, nil))
+		require.Equal(t, "table", nodeType, "Expected table node type for %s", tbl.OutPath)
+	}
 }

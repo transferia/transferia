@@ -10,9 +10,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract2"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/cypressmeta"
 	"github.com/transferia/transferia/pkg/providers/yt/provider/dataobjects"
 	yt_provider_schema "github.com/transferia/transferia/pkg/providers/yt/provider/schema"
-	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -27,7 +27,7 @@ type source struct {
 	tx           yt.Tx
 	txID         yt.TxID
 	logger       log.Logger
-	tables       tablemeta.YtTables
+	tables       cypressmeta.YtNodes
 	metrics      *stats.SourceStats
 	columnFilter map[yt.NodeID][]string
 }

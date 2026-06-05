@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract2"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_copy_events "github.com/transferia/transferia/pkg/providers/yt/copy/events"
-	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/pkg/providers/yt/cypressmeta"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -19,7 +19,7 @@ import (
 type source struct {
 	cfg               provider_yt.YtSourceModel
 	yt                yt.Client
-	tables            tablemeta.YtTables
+	nodes             cypressmeta.YtNodes
 	snapshotID        string
 	snapshotIsRunning bool
 	snapshotEvtBatch  *yt_copy_events.EventBatch
@@ -49,10 +49,10 @@ func (s *source) BeginSnapshot() error {
 	s.logger.Debug("Begining snapshot")
 	ctx := context.Background()
 	var err error
-	if s.tables, err = tablemeta.ListTables(ctx, s.yt, s.cfg.GetCluster(), s.cfg.GetPaths(), s.logger, tablemeta.ContentRevisionAttr); err != nil {
-		return xerrors.Errorf("error getting list of tables: %w", err)
+	if s.nodes, err = cypressmeta.ListNodes(ctx, s.yt, s.cfg.GetCluster(), s.cfg.GetPaths(), []yt.NodeType{yt.NodeTable, yt.NodeFile}, s.logger); err != nil {
+		return xerrors.Errorf("error getting list of nodes: %w", err)
 	}
-	s.logger.Infof("Got %d tables to copy", len(s.tables))
+	s.logger.Infof("Got %d nodes to copy", len(s.nodes))
 	s.snapshotID = strings.Join(s.cfg.GetPaths(), ";")
 	s.logger.Debugf("SnapshotID is %s", s.snapshotID)
 	return nil
@@ -116,7 +116,7 @@ func (s *source) Start(ctx context.Context, target abstract2.EventTarget) error 
 		s.snapshotIsRunning = false
 	}()
 	s.snapshotIsRunning = true
-	s.snapshotEvtBatch = yt_copy_events.NewEventBatch(s.tables)
+	s.snapshotEvtBatch = yt_copy_events.NewEventBatch(s.nodes)
 	return <-target.AsyncPush(s.snapshotEvtBatch)
 }
 
@@ -127,7 +127,7 @@ func (s *source) Stop() error {
 
 func (s *source) Progress() (abstract2.EventSourceProgress, error) {
 	if s.snapshotEvtBatch == nil {
-		return abstract2.NewDefaultEventSourceProgress(false, uint64(0), uint64(len(s.tables))), nil
+		return abstract2.NewDefaultEventSourceProgress(false, uint64(0), uint64(len(s.nodes))), nil
 	}
 	return s.snapshotEvtBatch.Progress(), nil
 }
@@ -140,7 +140,7 @@ func NewSource(logger log.Logger, metrics core_metrics.Registry, cfg provider_yt
 	return &source{
 		cfg:               cfg,
 		yt:                y,
-		tables:            nil,
+		nodes:             nil,
 		snapshotID:        "",
 		snapshotIsRunning: false,
 		snapshotEvtBatch:  nil,

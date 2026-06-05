@@ -4,7 +4,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/providers/yt/tablemeta"
+	"github.com/transferia/transferia/pkg/providers/yt/cypressmeta"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -14,7 +14,7 @@ const MinShardSize = 50000
 type shardingDataObject struct {
 	idx       int64
 	shardSize int64
-	table     *tablemeta.YtTableMeta
+	table     *cypressmeta.YtNodeMeta
 	txID      yt.TxID
 }
 
@@ -62,7 +62,7 @@ func (o *shardingDataObject) ToOldTableID() (*abstract.TableID, error) {
 	}, nil
 }
 
-func newShardingDataObject(table *tablemeta.YtTableMeta, txID yt.TxID, shardCount int) *shardingDataObject {
+func newShardingDataObject(table *cypressmeta.YtNodeMeta, txID yt.TxID, shardCount int) *shardingDataObject {
 	shardSize := table.RowCount/int64(shardCount) + 1
 	if shardSize < MinShardSize {
 		shardSize = MinShardSize
