@@ -9,6 +9,15 @@ import (
 
 // is* utils
 
+func IsReplicatedDatabaseEngine(databaseEngine string) bool {
+	switch databaseEngine {
+	case "Replicated", "Shared":
+		return true
+	default:
+		return false
+	}
+}
+
 func isMergeTreeFamily(inEngine string) bool {
 	switch engineType(inEngine) {
 	case mergeTree, replacingMergeTree, summingMergeTree, aggregatingMergeTree, collapsingMergeTree, versionedCollapsingMergeTree, graphiteMergeTree, replicatedMergeTree, replicatedReplacingMergeTree, replicatedSummingMergeTree, replicatedAggregatingMergeTree, replicatedCollapsingMergeTree, replicatedVersionedCollapsingMergeTree, replicatedGraphiteMergeTree, sharedMergeTree, sharedReplacingMergeTree, sharedSummingMergeTree, sharedAggregatingMergeTree, sharedCollapsingMergeTree, sharedVersionedCollapsingMergeTree, sharedGraphiteMergeTree:

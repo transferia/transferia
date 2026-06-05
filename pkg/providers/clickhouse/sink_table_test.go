@@ -82,6 +82,28 @@ func TestGenerateDDLNotUpdatable(t *testing.T) {
 	)
 }
 
+func TestGenerateDDLReplicatedDatabase(t *testing.T) {
+	t.Run("not updatable - no zookeeper path", func(t *testing.T) {
+		sch, table := makeSchema(defCols, false)
+		table.isReplicatedDatabase = true
+		require.Equal(
+			t,
+			"CREATE TABLE IF NOT EXISTS `test_table` ON CLUSTER `asd` (`_timestamp` Nullable(DateTime), `id` Int64, `payload` Nullable(String)) ENGINE=ReplicatedMergeTree() ORDER BY (`id`)",
+			table.generateDDL(sch.abstractCols(), true),
+		)
+	})
+
+	t.Run("updatable - no zookeeper path, base params kept", func(t *testing.T) {
+		sch, table := makeSchema(defCols, true)
+		table.isReplicatedDatabase = true
+		require.Equal(
+			t,
+			"CREATE TABLE IF NOT EXISTS `test_table` ON CLUSTER `asd` (`_timestamp` Nullable(DateTime), `id` Int64, `payload` Nullable(String), `__data_transfer_commit_time` UInt64, `__data_transfer_delete_time` UInt64) ENGINE=ReplicatedReplacingMergeTree(__data_transfer_commit_time) ORDER BY (`id`)",
+			table.generateDDL(sch.abstractCols(), true),
+		)
+	})
+}
+
 func TestGenerateDDLWithNullableKey(t *testing.T) {
 	columns := abstract.NewTableSchema([]abstract.ColSchema{
 		{

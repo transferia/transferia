@@ -30,17 +30,18 @@ import (
 )
 
 type sinkTable struct {
-	server     *SinkServer
-	tableName  string
-	config     clickhouse_model.ChSinkServerParams
-	logger     log.Logger
-	colTypes   columntypes.TypeMapping
-	cols       *abstract.TableSchema // warn: schema can be changed inflight
-	metrics    *stats.ChStats
-	avgRowSize int
-	cluster    *sinkCluster
-	timezone   *time.Location
-	version    semver.Version
+	server               *SinkServer
+	tableName            string
+	config               clickhouse_model.ChSinkServerParams
+	logger               log.Logger
+	colTypes             columntypes.TypeMapping
+	cols                 *abstract.TableSchema // warn: schema can be changed inflight
+	metrics              *stats.ChStats
+	avgRowSize           int
+	cluster              *sinkCluster
+	timezone             *time.Location
+	version              semver.Version
+	isReplicatedDatabase bool
 }
 
 // see: https://github.com/Altinity/clickhouse-sink-connector/issues/206#issuecomment-1529968850
@@ -156,7 +157,9 @@ func (t *sinkTable) generateDDL(cols []abstract.ColSchema, distributed bool) str
 	}
 	if distributed {
 		engine = fmt.Sprintf("Replicated%s", engine)
-		engineArgs = append([]string{fmt.Sprintf("'/clickhouse/tables/{shard}/%s.%s_cdc'", t.config.Database(), t.tableName), "'{replica}'"}, engineArgs...)
+		if !t.isReplicatedDatabase {
+			engineArgs = append([]string{fmt.Sprintf("'/clickhouse/tables/{shard}/%s.%s_cdc'", t.config.Database(), t.tableName), "'{replica}'"}, engineArgs...)
+		}
 	}
 	result.WriteString(fmt.Sprintf(" ENGINE=%s(%s)", engine, strings.Join(engineArgs, ", ")))
 

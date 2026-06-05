@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
@@ -21,8 +22,9 @@ type DDLClient interface {
 }
 
 type DDLDAO struct {
-	db  DDLClient
-	lgr log.Logger
+	db                   DDLClient
+	lgr                  log.Logger
+	isReplicatedDatabase bool
 }
 
 func (d *DDLDAO) DropTable(db, table string) error {
@@ -76,7 +78,11 @@ func (d *DDLDAO) CreateTable(db, table string, schema []abstract.ColSchema) erro
 
 		var engineStr = "MergeTree()"
 		if distributed {
-			engineStr = fmt.Sprintf("ReplicatedMergeTree(%s, '{replica}')", d.zkPath(db, table))
+			if d.isReplicatedDatabase {
+				engineStr = "ReplicatedMergeTree()"
+			} else {
+				engineStr = fmt.Sprintf("ReplicatedMergeTree(%s, '{replica}')", d.zkPath(db, table))
+			}
 		}
 		q.WriteString(fmt.Sprintf(" ENGINE = %s ", engineStr))
 
@@ -122,7 +128,7 @@ func (d *DDLDAO) CreateTableAs(baseDB, baseTable, targetDB, targetTable string) 
 	}
 
 	return d.db.ExecDDL(func(distributed bool, cluster string) (string, error) {
-		engineStr, err := d.inferEngine(baseEngine, distributed, targetDB, targetTable)
+		engineStr, err := d.inferEngine(baseEngine, distributed, d.isReplicatedDatabase, targetDB, targetTable)
 		if err != nil {
 			return "", xerrors.Errorf("error inferring base engine %s: %w", baseEngine, err)
 		}
@@ -147,14 +153,33 @@ func (d *DDLDAO) CreateTableAs(baseDB, baseTable, targetDB, targetTable string) 
 	})
 }
 
-func (d *DDLDAO) inferEngine(rawEngine string, needReplicated bool, db, table string) (string, error) {
-	return engines.FixEngine(rawEngine, needReplicated, db, table, d.zkPath(db, table))
+func (d *DDLDAO) inferEngine(rawEngine string, needReplicated bool, isReplicatedDatabase bool, db, table string) (string, error) {
+	return engines.FixEngine(rawEngine, needReplicated, isReplicatedDatabase, db, table, d.zkPath(db, table))
 }
 
 func (d *DDLDAO) zkPath(db, table string) string {
 	return fmt.Sprintf("'/clickhouse/tables/{shard}/%s.%s_cdc'", db, table)
 }
 
-func NewDDLDAO(client DDLClient, lgr log.Logger) *DDLDAO {
-	return &DDLDAO{db: client, lgr: lgr}
+func resolveIsReplicatedDatabase(db DDLClient, database string) (bool, error) {
+	query := "SELECT engine FROM `system`.`databases` WHERE name = ?"
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	var engine string
+	if err := db.QueryRowContext(ctx, query, database).Scan(&engine); err != nil {
+		if xerrors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, xerrors.Errorf("error getting database engine: %w", err)
+	}
+	return engines.IsReplicatedDatabaseEngine(engine), nil
+}
+
+// NewDDLDAO binds the DAO to a single database (the one CreateTable/CreateTableAs operate on).
+func NewDDLDAO(client DDLClient, lgr log.Logger, database string) (*DDLDAO, error) {
+	isReplicatedDatabase, err := resolveIsReplicatedDatabase(client, database)
+	if err != nil {
+		return nil, xerrors.Errorf("error resolving database engine for %s: %w", database, err)
+	}
+	return &DDLDAO{db: client, lgr: lgr, isReplicatedDatabase: isReplicatedDatabase}, nil
 }

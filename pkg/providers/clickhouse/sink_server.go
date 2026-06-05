@@ -20,26 +20,28 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	clickhouse_errors "github.com/transferia/transferia/pkg/providers/clickhouse/errors"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/schema/engines"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type SinkServer struct {
-	db            *sql.DB
-	logger        log.Logger
-	host          string
-	metrics       *stats.ChStats
-	config        clickhouse_model.ChSinkServerParams
-	getTableMutex sync.Mutex
-	tables        map[string]*sinkTable
-	closeCh       chan struct{}
-	onceClose     sync.Once
-	alive         bool
-	lastFail      time.Time
-	cluster       *sinkCluster
-	version       semver.Version
-	timezone      *time.Location
+	db                   *sql.DB
+	logger               log.Logger
+	host                 string
+	metrics              *stats.ChStats
+	config               clickhouse_model.ChSinkServerParams
+	getTableMutex        sync.Mutex
+	tables               map[string]*sinkTable
+	closeCh              chan struct{}
+	onceClose            sync.Once
+	alive                bool
+	lastFail             time.Time
+	cluster              *sinkCluster
+	version              semver.Version
+	timezone             *time.Location
+	isReplicatedDatabase bool
 }
 
 func (s *SinkServer) Close() error {
@@ -229,6 +231,8 @@ func (s *SinkServer) GetTable(table string, schema *abstract.TableSchema) (*sink
 		cluster:    s.cluster,
 		timezone:   s.timezone,
 		version:    s.version,
+
+		isReplicatedDatabase: s.isReplicatedDatabase,
 	}
 
 	if err := tbl.Init(schema); err != nil {
@@ -314,6 +318,14 @@ func resolveServerVersion(db *sql.DB) (*semver.Version, error) {
 	return parsedVersion, nil
 }
 
+func resolveIsReplicatedDatabase(db *sql.DB, database string) (bool, error) {
+	var engine string
+	if err := querySingleValue(db, fmt.Sprintf("SELECT engine FROM system.databases WHERE name = '%s';", database), &engine); err != nil {
+		return false, xerrors.Errorf("unable to select database engine for %q: %w", database, err)
+	}
+	return engines.IsReplicatedDatabaseEngine(engine), nil
+}
+
 func resolveServerTimezone(db *sql.DB) (*time.Location, error) {
 	var timezone string
 	if err := querySingleValue(db, "SELECT timezone();", &timezone); err != nil {
@@ -339,20 +351,21 @@ func NewSinkServerImpl(
 	hostName := cfg.Host().HostName()
 
 	return &SinkServer{
-		db:            db,
-		logger:        log.With(lgr, log.String("ch_host", hostName)),
-		host:          hostName,
-		metrics:       metrics,
-		config:        cfg,
-		getTableMutex: sync.Mutex{},
-		tables:        map[string]*sinkTable{},
-		closeCh:       make(chan struct{}),
-		onceClose:     sync.Once{},
-		alive:         true,
-		lastFail:      time.Time{},
-		cluster:       cluster,
-		version:       version,
-		timezone:      timezone,
+		db:                   db,
+		logger:               log.With(lgr, log.String("ch_host", hostName)),
+		host:                 hostName,
+		metrics:              metrics,
+		config:               cfg,
+		getTableMutex:        sync.Mutex{},
+		tables:               map[string]*sinkTable{},
+		closeCh:              make(chan struct{}),
+		onceClose:            sync.Once{},
+		alive:                true,
+		lastFail:             time.Time{},
+		cluster:              cluster,
+		version:              version,
+		timezone:             timezone,
+		isReplicatedDatabase: false,
 	}
 }
 
@@ -383,7 +396,13 @@ func NewSinkServer(cfg clickhouse_model.ChSinkServerParams, lgr log.Logger, metr
 		return nil, xerrors.Errorf("failed to resolve CH cluster timezone: %w", err)
 	}
 
+	isReplicatedDatabase, err := resolveIsReplicatedDatabase(db, cfg.Database())
+	if err != nil {
+		return nil, xerrors.Errorf("failed to resolve CH database engine: %w", err)
+	}
+
 	s := NewSinkServerImpl(cfg, db, *version, timezone, lgr, metrics, cluster)
+	s.isReplicatedDatabase = isReplicatedDatabase
 	s.RunGoroutines()
 
 	rb.Cancel()

@@ -14,20 +14,22 @@ type replicatedEngine struct {
 }
 
 func (e *replicatedEngine) String() string {
-	if e.replicatingParams == nil {
-		return fmt.Sprintf("%s()", e.replicatedEngineType)
-	} else if len(e.baseEngine.params) == 0 {
-		return fmt.Sprintf("%v(%v, %v)", e.replicatedEngineType, e.replicatingParams.ZkPath, e.replicatingParams.Replica)
-	} else {
-		return fmt.Sprintf("%v(%v, %v, %v)", e.replicatedEngineType, e.replicatingParams.ZkPath, e.replicatingParams.Replica, strings.Join(e.baseEngine.params, ", "))
+	// [zookeeper_path, replica_name] (when set explicitly) followed by base engine params (e.g. ReplacingMergeTree's ver).
+	var params []string
+	if e.replicatingParams != nil {
+		params = append(params, e.replicatingParams.ZkPath, e.replicatingParams.Replica)
 	}
+	params = append(params, e.baseEngine.params...)
+	return fmt.Sprintf("%v(%v)", e.replicatedEngineType, strings.Join(params, ", "))
 }
 
-func newReplicatedEngine(baseEngine *anyEngine, db, table string) *replicatedEngine { // makes replicated version of any engine
+// newReplicatedEngine makes a replicated version of any engine.
+// omitZkPath skips the explicit zookeeper_path/replica_name (see IsReplicatedDatabaseEngine).
+func newReplicatedEngine(baseEngine *anyEngine, db, table string, omitZkPath bool) *replicatedEngine {
 	replicatedType, _ := getReplicatedEngineType(string(baseEngine.EngineType()))
 
 	var replicatingParams *replicatedEngineParams = nil
-	if baseEngine.EngineType() != mergeTree { // TM-8875 - for 'MergeTree' we should't set zookeeper path explicitly
+	if baseEngine.EngineType() != mergeTree && !omitZkPath { // TM-8875 - for 'MergeTree' we shouldn't set zookeeper path explicitly.
 		tableName := fmt.Sprintf("%v.%v_cdc", db, table)
 		replicatingParams, _ = newReplicatedEngineParams(
 			fmt.Sprintf("'/clickhouse/tables/{shard}/%v'", tableName),

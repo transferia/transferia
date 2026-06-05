@@ -11,6 +11,7 @@ import (
 func BuildDDLForHomoSink(
 	inSqlDDL string,
 	isDstDistributed bool,
+	isReplicatedDatabase bool,
 	clusterName string,
 	targetDatabase string,
 	altNames map[string]string,
@@ -46,11 +47,19 @@ func BuildDDLForHomoSink(
 			sqlDDL = strings.Replace(sqlDDL, currEngineName, replicated, 1)
 		}
 		if isMergeTreeFamily(currEngineName) && !isReplicatedEngineType(currEngineName) && !isSharedEngineType(currEngineName) {
-			if query, err := setReplicatedEngine(sqlDDL, currEngineName, sourceTableID.Namespace, sourceTableID.Name); err != nil {
+			if query, err := setReplicatedEngine(sqlDDL, currEngineName, sourceTableID.Namespace, sourceTableID.Name, isReplicatedDatabase); err != nil {
 				return "", xerrors.Errorf("unable to set replicated table engine: %w", err)
 			} else {
 				sqlDDL = query
 			}
+		}
+		if isReplicatedEngineType(currEngineName) && isReplicatedDatabase {
+			// Remove explicit zookeeper_path and replica_name in a replicating database.
+			fixed, err := FixEngine(currEngineStr, true, true, sourceTableID.Namespace, sourceTableID.Name, "")
+			if err != nil {
+				return "", xerrors.Errorf("unable to drop replicated engine arguments: %w", err)
+			}
+			sqlDDL = strings.Replace(sqlDDL, currEngineStr, fixed, 1)
 		}
 		return sqlDDL, nil
 	} else {

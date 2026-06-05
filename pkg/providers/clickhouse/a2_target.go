@@ -25,10 +25,11 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	clickhouse_schema "github.com/transferia/transferia/pkg/providers/clickhouse/schema"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/schema/engines"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/backoff"
+	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 	xmaps "golang.org/x/exp/maps"
 )
@@ -44,6 +45,8 @@ type HTTPTarget struct {
 
 	distributedDDLMu      sync.Mutex
 	distributedDDLEnabled *bool
+
+	isReplicatedDatabase bool
 }
 
 var syntaxErrorRegexp = regexp.MustCompile(`^.*\(at row ([0-9]+)\).*$`)
@@ -186,10 +189,35 @@ func (c *HTTPTarget) adjustDDLToTarget(ddl *clickhouse_schema.TableDDL, distribu
 	return clickhouse_schema.BuildDDLForHomoSink(
 		ddl,
 		distributed,
+		c.isReplicatedDatabase,
 		c.cluster.Name(),
 		c.config.Database(),
 		MakeAltNames(c.config),
 	)
+}
+
+// resolveIsReplicatedDatabase returns false when no target database is configured (per-table source databases are kept).
+func (c *HTTPTarget) resolveIsReplicatedDatabase() (bool, error) {
+	database := c.config.Database()
+	if database == "" {
+		return false, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	query := fmt.Sprintf("SELECT engine FROM system.databases WHERE name = '%s' FORMAT JSON", database)
+	var resp struct {
+		Data []struct {
+			Engine string `json:"engine"`
+		} `json:"data"`
+	}
+	if err := c.client.Query(ctx, c.logger, c.HostByPart(nil), query, &resp); err != nil {
+		return false, xerrors.Errorf("unable to select database engine for %q: %w", database, err)
+	}
+	if len(resp.Data) == 0 {
+		return false, nil
+	}
+	return engines.IsReplicatedDatabaseEngine(resp.Data[0].Engine), nil
 }
 
 func (c *HTTPTarget) HostByPart(part *TablePartA2) *conn_clickhouse.Host {
@@ -317,11 +345,18 @@ func newHTTPTargetImpl(transfer *model.Transfer, config clickhouse_model.ChSinkP
 
 		distributedDDLEnabled: nil,
 		distributedDDLMu:      sync.Mutex{},
+		isReplicatedDatabase:  false,
 	}
 
 	if err := target.resolveCluster(); err != nil {
 		return nil, xerrors.Errorf("error resolving cluster topology: %w", err)
 	}
+
+	isReplicatedDatabase, err := target.resolveIsReplicatedDatabase()
+	if err != nil {
+		return nil, xerrors.Errorf("error resolving target database engine: %w", err)
+	}
+	target.isReplicatedDatabase = isReplicatedDatabase
 
 	return target, nil
 }

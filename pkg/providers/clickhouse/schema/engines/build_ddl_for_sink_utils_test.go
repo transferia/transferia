@@ -40,17 +40,17 @@ func TestReplaceCluster(t *testing.T) {
 func TestSetReplicatedEngine(t *testing.T) {
 	t.Run("ReplicatedMergeTree", func(t *testing.T) {
 		ddl := "CREATE TABLE logs.test7 (`id` String, `counter` Int32, `vals` Array(String) CODEC(LZ4HC(9))) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/logs.test7_cdc', '{replica}') ORDER BY id SETTINGS index_granularity = 8192"
-		_, err := setReplicatedEngine(ddl, "MergeTree", "logs", "test7")
+		_, err := setReplicatedEngine(ddl, "MergeTree", "logs", "test7", false)
 		require.Error(t, err)
 
-		changedDDL, err := setReplicatedEngine(ddl, "ReplicatedMergeTree", "logs", "test7")
+		changedDDL, err := setReplicatedEngine(ddl, "ReplicatedMergeTree", "logs", "test7", false)
 		require.NoError(t, err)
 		require.Equal(t, ddl, changedDDL)
 	})
 
 	t.Run("ReplacingMergeTree -> ReplicatedReplacingMergeTree", func(t *testing.T) {
 		ddl := "CREATE TABLE default.search_conversions ( `search_uuid` String, `search_id` Int32, `uuid` String, `client_id` UInt32, `search_date` Date, `updated_at` UInt32, `search_at` UInt32, `pageview_at` Nullable(UInt32), INDEX hp pageview_at TYPE minmax GRANULARITY 1) ENGINE = ReplacingMergeTree PARTITION BY search_date ORDER BY (uuid, search_id) SETTINGS index_granularity = 8192"
-		changedDDL, err := setReplicatedEngine(ddl, "ReplacingMergeTree", "default", "search_conversions")
+		changedDDL, err := setReplicatedEngine(ddl, "ReplacingMergeTree", "default", "search_conversions", false)
 		require.NoError(t, err)
 		require.Equal(t,
 			"CREATE TABLE default.search_conversions ( `search_uuid` String, `search_id` Int32, `uuid` String, `client_id` UInt32, `search_date` Date, `updated_at` UInt32, `search_at` UInt32, `pageview_at` Nullable(UInt32), INDEX hp pageview_at TYPE minmax GRANULARITY 1) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/default.search_conversions_cdc', '{replica}') PARTITION BY search_date ORDER BY (uuid, search_id) SETTINGS index_granularity = 8192",
@@ -60,7 +60,7 @@ func TestSetReplicatedEngine(t *testing.T) {
 
 	t.Run("MergeTree -> ReplicatedMergeTree", func(t *testing.T) {
 		ddl := "CREATE TABLE default.attributes (`id` UInt32, `event_date` Date, `orders_count` UInt32, `rating` UInt8) ENGINE = MergeTree ORDER BY event_date SETTINGS index_granularity = 8192"
-		changedDDL, err := setReplicatedEngine(ddl, "MergeTree", "default", "attributes")
+		changedDDL, err := setReplicatedEngine(ddl, "MergeTree", "default", "attributes", false)
 		require.NoError(t, err)
 		require.Equal(t,
 			"CREATE TABLE default.attributes (`id` UInt32, `event_date` Date, `orders_count` UInt32, `rating` UInt8) ENGINE = ReplicatedMergeTree() ORDER BY event_date SETTINGS index_granularity = 8192",
@@ -70,7 +70,7 @@ func TestSetReplicatedEngine(t *testing.T) {
 
 	t.Run("MergeTree -> ReplicatedMergeTree", func(t *testing.T) {
 		ddl := "CREATE TABLE default.attributes (`id` UInt32, `event_date` Date, `orders_count` UInt32, `rating` UInt8) ENGINE = MergeTree() ORDER BY event_date SETTINGS index_granularity = 8192"
-		changedDDL, err := setReplicatedEngine(ddl, "MergeTree", "default", "attributes")
+		changedDDL, err := setReplicatedEngine(ddl, "MergeTree", "default", "attributes", false)
 		require.NoError(t, err)
 		require.Equal(t,
 			"CREATE TABLE default.attributes (`id` UInt32, `event_date` Date, `orders_count` UInt32, `rating` UInt8) ENGINE = ReplicatedMergeTree() ORDER BY event_date SETTINGS index_granularity = 8192",
@@ -80,10 +80,20 @@ func TestSetReplicatedEngine(t *testing.T) {
 
 	t.Run("MergeTree -> ReplicatedMergeTree", func(t *testing.T) {
 		ddl := "CREATE TABLE db1.cyrillic\n(\n    `id` Int64,\n    `кириллица` String,\n    `value` String\n)\nENGINE = MergeTree\nORDER BY id\nSETTINGS index_granularity = 8192"
-		changedDDL, err := setReplicatedEngine(ddl, "MergeTree", "default", "search_conversions")
+		changedDDL, err := setReplicatedEngine(ddl, "MergeTree", "default", "search_conversions", false)
 		require.NoError(t, err)
 		require.Equal(t,
 			"CREATE TABLE db1.cyrillic\n(\n    `id` Int64,\n    `кириллица` String,\n    `value` String\n)\nENGINE = ReplicatedMergeTree()\nORDER BY id\nSETTINGS index_granularity = 8192",
+			changedDDL,
+		)
+	})
+
+	t.Run("ReplacingMergeTree -> ReplicatedReplacingMergeTree in Replicated database - no zk path", func(t *testing.T) {
+		ddl := "CREATE TABLE default.search_conversions ( `uuid` String, `search_id` Int32) ENGINE = ReplacingMergeTree PARTITION BY search_date ORDER BY (uuid, search_id) SETTINGS index_granularity = 8192"
+		changedDDL, err := setReplicatedEngine(ddl, "ReplacingMergeTree", "default", "search_conversions", true)
+		require.NoError(t, err)
+		require.Equal(t,
+			"CREATE TABLE default.search_conversions ( `uuid` String, `search_id` Int32) ENGINE = ReplicatedReplacingMergeTree() PARTITION BY search_date ORDER BY (uuid, search_id) SETTINGS index_granularity = 8192",
 			changedDDL,
 		)
 	})

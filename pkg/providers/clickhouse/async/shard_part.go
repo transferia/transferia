@@ -111,7 +111,10 @@ func (s *shardPart) Close() error {
 func newShardPart(
 	lgr log.Logger, baseDB, baseTable, tmpDB, tmpTable, query string, hostDB DDLStreamingClient, cols columntypes.TypeMapping,
 ) (*shardPart, error) {
-	ddldao := dao.NewDDLDAO(hostDB, lgr)
+	ddldao, err := dao.NewDDLDAO(hostDB, lgr, tmpDB)
+	if err != nil {
+		return nil, xerrors.Errorf("error creating DDL DAO: %w", err)
+	}
 	if err := ddldao.DropTable(tmpDB, tmpTable); err != nil {
 		return nil, xerrors.Errorf("error dropping tmp table for part %s.%s: %w", tmpDB, tmpTable, err)
 	}

@@ -262,7 +262,10 @@ func NewSink(
 	if err != nil {
 		return nil, xerrors.Errorf("error getting cluster client: %w", err)
 	}
-	ddlDAO := dao.NewDDLDAO(client, lgr)
+	ddlDAO, err := dao.NewDDLDAO(client, lgr, params.Database())
+	if err != nil {
+		return nil, xerrors.Errorf("error creating DDL DAO: %w", err)
+	}
 
 	return &sink{
 		cl:         client,

@@ -39,7 +39,7 @@ func parseMergeTreeFamilyEngine(sql string) (*anyEngine, string, error) {
 	return newAnyEngine(engineStr), engineStr, nil
 }
 
-func setReplicatedEngine(sql, baseEngine, db, table string) (string, error) {
+func setReplicatedEngine(sql, baseEngine, db, table string, isReplicatedDatabase bool) (string, error) {
 	if isReplicatedEngineType(baseEngine) {
 		return sql, nil
 	}
@@ -52,7 +52,7 @@ func setReplicatedEngine(sql, baseEngine, db, table string) (string, error) {
 		return "", xerrors.Errorf("parsed engine(%v) is not equal with passed engine(%v)", currEngine.engineType, baseEngine)
 	}
 
-	currReplicatedEngine := newReplicatedEngine(currEngine, db, table)
+	currReplicatedEngine := newReplicatedEngine(currEngine, db, table, isReplicatedDatabase)
 	return strings.Replace(sql, engineStr, currReplicatedEngine.String(), 1), nil
 }
 
