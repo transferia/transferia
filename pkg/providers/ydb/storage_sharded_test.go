@@ -17,11 +17,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
-const (
-	tableName = "test_table_sharded"
-)
-
-func TestYdbStorageSharded_TableLoad(t *testing.T) {
+func runShardedTableLoad(t *testing.T, tableName, copyFolder string) {
 	endpoint, ok := os.LookupEnv("YDB_ENDPOINT")
 	if !ok {
 		t.Fail()
@@ -49,7 +45,11 @@ func TestYdbStorageSharded_TableLoad(t *testing.T) {
 		Underlay:          false,
 		ServiceAccountID:  "",
 		IsSnapshotSharded: true,
-		CopyFolder:        "test-folder",
+		CopyFolder:        copyFolder,
+	}
+	expectedFolder := copyFolder
+	if expectedFolder == "" {
+		expectedFolder = defaultCopyFolder
 	}
 
 	st, err := NewStorage(src.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
@@ -87,7 +87,7 @@ func TestYdbStorageSharded_TableLoad(t *testing.T) {
 
 	err = st.BeginSnapshot(clientCtx)
 	require.NoError(t, err)
-	content, err := ydbDriver.Scheme().ListDirectory(clientCtx, path.Join(src.Database, src.CopyFolder))
+	content, err := ydbDriver.Scheme().ListDirectory(clientCtx, path.Join(src.Database, expectedFolder))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(content.Children))
 	require.Equal(t, tableName, content.Children[0].Name)
@@ -101,6 +101,14 @@ func TestYdbStorageSharded_TableLoad(t *testing.T) {
 
 	err = st.EndSnapshot(clientCtx)
 	require.NoError(t, err)
-	_, err = ydbDriver.Scheme().ListDirectory(clientCtx, path.Join(src.Database, src.CopyFolder))
+	_, err = ydbDriver.Scheme().ListDirectory(clientCtx, path.Join(src.Database, expectedFolder))
 	require.Error(t, err)
+}
+
+func TestYdbStorageSharded_TableLoad(t *testing.T) {
+	runShardedTableLoad(t, "test_table_sharded", "test-folder")
+}
+
+func TestYdbStorageSharded_TableLoad_EmptyCopyFolder(t *testing.T) {
+	runShardedTableLoad(t, "test_table_sharded_default_folder", "")
 }

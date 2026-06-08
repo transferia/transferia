@@ -104,13 +104,17 @@ func TestGroup(t *testing.T) {
 		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	dst.WithDefaults()
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := helpers.WithLocalRuntime(
+		helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly),
+		2, 1,
+	)
 
 	transformer := helpers.NewSimpleTransformer(t, applyUdf, anyTablesUdf)
 	helpers.AddTransformer(t, transfer, transformer)
 
 	t.Run("activate", func(t *testing.T) {
-		helpers.Activate(t, transfer)
+		_, err := helpers.ActivateShardedErr(transfer, nil, nil)
+		require.NoError(t, err)
 	})
 	helpers.CheckRowsCount(t, dst, "", pathOut, 4)
 	// check that transfer sent rows asynchronously

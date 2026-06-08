@@ -22,9 +22,6 @@ func (s *Storage) BeginSnapshot(ctx context.Context) error {
 	if !s.config.IsSnapshotSharded {
 		return nil
 	}
-	if s.config.CopyFolder == "" {
-		s.config.CopyFolder = defaultCopyFolder
-	}
 
 	tables, err := s.listaAllTablesToTransfer(ctx)
 	if err != nil {
@@ -119,9 +116,16 @@ func (s *Storage) makeTablePath(schema, name string) string {
 	return path.Join(tableDir, schema, s.modifyTableName(name))
 }
 
+func (s *Storage) copyFolder() string {
+	if s.config.CopyFolder == "" {
+		return defaultCopyFolder
+	}
+	return s.config.CopyFolder
+}
+
 func (s *Storage) makeTableDir() string {
 	if !s.config.IsSnapshotSharded {
 		return s.config.Database
 	}
-	return path.Join(s.config.Database, s.config.CopyFolder)
+	return path.Join(s.config.Database, s.copyFolder())
 }
