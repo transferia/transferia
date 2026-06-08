@@ -143,6 +143,8 @@ require (
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/containerd/containerd v1.7.29 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v1.0.0-rc.2 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
@@ -406,7 +408,7 @@ replace github.com/jackc/pgproto3/v2 => github.com/jackc/pgproto3/v2 v2.3.2
 
 replace github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.24
 
-replace github.com/docker/docker => github.com/docker/docker v28.1.1+incompatible
+replace github.com/docker/docker => github.com/docker/docker v28.2.2+incompatible
 
 replace go.opentelemetry.io/otel => go.opentelemetry.io/otel v1.43.0
 
