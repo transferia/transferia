@@ -114,6 +114,8 @@ func (s *sink) Push(items []abstract.ChangeItem) error {
 		if err := s.writer.Commit(); err != nil {
 			return xerrors.Errorf("unable to push DoneTableLoad item to %s: %w", tablePath, err)
 		}
+		s.writer = nil
+
 		if err := s.commitPartTx(); err != nil {
 			return xerrors.Errorf("unable to push DoneTableLoad item to %s: %w", tablePath, err)
 		}
@@ -138,6 +140,7 @@ func (s *sink) Replace() error {
 func (s *sink) Close() error {
 	if s.partTx != nil {
 		_ = s.partTx.Abort()
+		s.partTx = nil
 	}
 	s.mainTx.Close()
 	return nil
@@ -218,6 +221,8 @@ func (s *sink) commitPartTx() error {
 		return xerrors.Errorf("unable to commit part transaction: %w", err)
 	}
 	s.logger.Info("part transaction has been committed", log.Any("tx_id", s.partTx.ID()))
+
+	s.partTx = nil
 	return nil
 }
 
