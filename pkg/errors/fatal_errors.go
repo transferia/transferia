@@ -15,13 +15,14 @@ import (
 
 const (
 	KeyTransferID = "transfer_id"
+	KeyFolderID   = "labels.folder_id"
 	KeyDstType    = "labels.dst_type"
 	KeySrcType    = "labels.src_type"
 	Category      = "labels.category"
 	Code          = "labels.code"
 )
 
-func LogFatalError(err error, transferID string, dstType abstract.ProviderType, srcType abstract.ProviderType) {
+func LogFatalError(err error, transferID, folderID string, dstType, srcType abstract.ProviderType) {
 	defer func() {
 		if r := recover(); r != nil {
 			// If a panic occurs during logging, we log it as a critical error
@@ -29,6 +30,7 @@ func LogFatalError(err error, transferID string, dstType abstract.ProviderType, 
 				"panic during error logging",
 				log.String("panic", fmt.Sprintf("%v", r)),
 				log.String(KeyTransferID, transferID),
+				log.String(KeyFolderID, folderID),
 				log.String(KeyDstType, dstType.Name()),
 				log.String(KeySrcType, srcType.Name()),
 				log.String(Category, string(categories.Internal)),
@@ -39,11 +41,11 @@ func LogFatalError(err error, transferID string, dstType abstract.ProviderType, 
 
 	errs := multierr.Errors(err)
 	for _, err := range errs {
-		logFatalError(err, transferID, dstType, srcType)
+		logFatalError(err, transferID, folderID, dstType, srcType)
 	}
 }
 
-func logFatalError(err error, transferID string, dstType abstract.ProviderType, srcType abstract.ProviderType) {
+func logFatalError(err error, transferID string, folderID string, dstType abstract.ProviderType, srcType abstract.ProviderType) {
 	cat := categories.Internal
 	var categorized Categorized = nil
 	if xerrors.As(err, &categorized) {
@@ -62,6 +64,7 @@ func logFatalError(err error, transferID string, dstType abstract.ProviderType, 
 		msg,
 		log.Error(err),
 		log.String(KeyTransferID, transferID),
+		log.String(KeyFolderID, folderID),
 		log.String(KeyDstType, dstType.Name()),
 		log.String(KeySrcType, srcType.Name()),
 		log.String(Category, string(cat)),

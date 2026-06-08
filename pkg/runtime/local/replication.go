@@ -110,7 +110,7 @@ func runReplication(ctx context.Context, cp coordinator.Coordinator, transfer *m
 
 		attemptErr, attemptAgain := replicationAttempt(ctx, cp, transfer, registry, lgr, replicationStats, retryCount)
 		if !attemptAgain {
-			errors.LogFatalError(attemptErr, transfer.ID, transfer.Dst.GetProviderType(), transfer.Src.GetProviderType())
+			errors.LogFatalError(attemptErr, transfer.ID, transfer.FolderID, transfer.Dst.GetProviderType(), transfer.Src.GetProviderType())
 			return xerrors.Errorf("replication failed: %w", attemptErr)
 		}
 

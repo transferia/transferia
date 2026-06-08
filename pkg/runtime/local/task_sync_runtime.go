@@ -48,7 +48,7 @@ func (s *SyncTask) run() {
 		solomon.NewRegistry(solomon.NewRegistryOpts()),
 	)
 	if err != nil {
-		errors.LogFatalError(err, s.transfer.ID, s.transfer.DstType(), s.transfer.SrcType())
+		errors.LogFatalError(err, s.transfer.ID, s.transfer.FolderID, s.transfer.DstType(), s.transfer.SrcType())
 	}
 	if err := s.cp.FinishOperation(s.task.OperationID, s.task.TaskType.String(), "", s.transfer.CurrentJobIndex(), err); err != nil {
 		s.logger.Error("unable to call finish operation", log.Error(err))
