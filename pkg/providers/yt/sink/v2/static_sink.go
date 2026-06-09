@@ -101,7 +101,7 @@ func (s *sink) Push(items []abstract.ChangeItem) error {
 		}
 	case abstract.InsertKind:
 		if err := s.writer.Write(items); err != nil {
-			return xerrors.Errorf("unable to push Insert items to %s: %w", tablePath, err)
+			return abstract.NewTableUploadError(xerrors.Errorf("unable to push Insert items to %s: %w", tablePath, err))
 		}
 	case abstract.DropTableKind:
 		if err := s.ytClient.RemoveNode(context.Background(), tablePath, &yt.RemoveNodeOptions{
