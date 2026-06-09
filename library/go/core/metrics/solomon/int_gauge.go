@@ -2,6 +2,7 @@ package solomon
 
 import (
 	"encoding/json"
+	"io"
 
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"go.uber.org/atomic"
@@ -36,6 +37,10 @@ func (g *IntGauge) Add(value int64) {
 
 func (g *IntGauge) Value() any {
 	return g.value.Load()
+}
+
+func (g *IntGauge) writeSpackValue(w io.Writer) error {
+	return writeUint64LE(w, uint64(g.value.Load()))
 }
 
 // MarshalJSON implements json.Marshaler.

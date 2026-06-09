@@ -8,8 +8,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
-const HeaderSize = 24
-
 type StreamFormat string
 
 const (
