@@ -7,6 +7,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_scheme "github.com/ydb-platform/ydb-go-sdk/v3/scheme"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	ydb_options "github.com/ydb-platform/ydb-go-sdk/v3/table/options"
@@ -55,6 +56,9 @@ func (s *Storage) EndSnapshot(ctx context.Context) error {
 	copyDir := s.makeTableDir()
 	content, err := s.db.Scheme().ListDirectory(ctx, copyDir)
 	if err != nil {
+		if ydb_go_sdk.IsOperationErrorSchemeError(err) {
+			return nil // Copy folder can be already deleted.
+		}
 		return xerrors.Errorf("failed to list copy directory: %w", err)
 	}
 

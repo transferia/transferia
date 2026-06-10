@@ -139,7 +139,11 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 }
 
 func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
-	return transferType != abstract.TransferTypeSnapshotOnly
+	if transferType == abstract.TransferTypeSnapshotOnly {
+		src, ok := p.transfer.Src.(*YdbSource)
+		return ok && src.IsSnapshotSharded
+	}
+	return true
 }
 
 func (p *Provider) CleanupSource(ctx context.Context) error {
@@ -149,7 +153,23 @@ func (p *Provider) CleanupSource(ctx context.Context) error {
 	}
 	p.fillIncludedTables(src)
 
-	return DropChangeFeed(src, p.transfer.ID)
+	if p.transfer.SnapshotOnly() {
+		if src, ok := p.transfer.Src.(*YdbSource); !ok || !src.IsSnapshotSharded {
+			return xerrors.Errorf("unexpected call of CleanupSource to %T, snapshot is not sharded", p.transfer.Src)
+		}
+		storage, err := NewStorage(src.ToStorageParams(), p.registry)
+		if err != nil {
+			return xerrors.Errorf("unable to create storage for snapshot cleanup: %w", err)
+		}
+		if err := storage.EndSnapshot(ctx); err != nil {
+			return xerrors.Errorf("snapshot cleanup failed: %w", err)
+		}
+		return nil
+	}
+	if err := DropChangeFeed(src, p.transfer.ID); err != nil {
+		return xerrors.Errorf("drop changefeed failed: %w", err)
+	}
+	return nil
 }
 
 func (p *Provider) Type() abstract.ProviderType {

@@ -17,6 +17,11 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
+const (
+	tableNameForClose  = "test_table_close_cleanup"
+	copyFolderForClose = "test-folder-close"
+)
+
 func runShardedTableLoad(t *testing.T, tableName, copyFolder string) {
 	endpoint, ok := os.LookupEnv("YDB_ENDPOINT")
 	if !ok {
@@ -103,6 +108,87 @@ func runShardedTableLoad(t *testing.T, tableName, copyFolder string) {
 	require.NoError(t, err)
 	_, err = ydbDriver.Scheme().ListDirectory(clientCtx, path.Join(src.Database, expectedFolder))
 	require.Error(t, err)
+}
+
+func TestYdbStorageSharded_CleanupSourceDeletesCopies(t *testing.T) {
+	endpoint, ok := os.LookupEnv("YDB_ENDPOINT")
+	if !ok {
+		t.Fail()
+	}
+	prefix, ok := os.LookupEnv("YDB_DATABASE")
+	if !ok {
+		t.Fail()
+	}
+	token, ok := os.LookupEnv("YDB_TOKEN")
+	if !ok {
+		token = "anyNotEmptyString"
+	}
+
+	src := &YdbSource{
+		Token:             model.SecretString(token),
+		Database:          prefix,
+		Instance:          endpoint,
+		Tables:            []string{tableNameForClose},
+		IsSnapshotSharded: true,
+		CopyFolder:        copyFolderForClose,
+	}
+
+	registry := solomon.NewRegistry(solomon.NewRegistryOpts())
+	st, err := NewStorage(src.ToStorageParams(), registry)
+	require.NoError(t, err)
+
+	clientCtx := context.Background()
+
+	ydbCreds, err := ResolveCredentials(
+		src.UserdataAuth,
+		string(src.Token),
+		JWTAuthParams{
+			KeyContent:      src.SAKeyContent,
+			TokenServiceURL: src.TokenServiceURL,
+		},
+		src.ServiceAccountID,
+		nil,
+		logger.Log,
+	)
+	require.NoError(t, err)
+
+	ydbDriver, err := newYDBDriver(clientCtx, src.Database, src.Instance, ydbCreds, nil)
+	require.NoError(t, err)
+
+	err = ydbDriver.Table().Do(clientCtx,
+		func(ctx context.Context, s table.Session) (err error) {
+			return s.CreateTable(ctx, path.Join(ydbDriver.Name(), tableNameForClose),
+				options.WithColumn("id", types.Optional(types.TypeUint64)),
+				options.WithPrimaryKeyColumn("id"),
+			)
+		},
+	)
+	require.NoError(t, err)
+
+	err = st.BeginSnapshot(clientCtx)
+	require.NoError(t, err)
+
+	content, err := ydbDriver.Scheme().ListDirectory(clientCtx, path.Join(prefix, copyFolderForClose))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(content.Children))
+
+	// Simulate abort: CleanupSource without EndSnapshot — mirrors the CleanupResource task.
+	provider := &Provider{
+		logger:   logger.Log,
+		registry: registry,
+		transfer: &model.Transfer{
+			Type: abstract.TransferTypeSnapshotOnly,
+			Src:  src,
+			Dst:  &model.MockDestination{},
+		},
+	}
+	require.NoError(t, provider.CleanupSource(clientCtx))
+
+	_, err = ydbDriver.Scheme().ListDirectory(clientCtx, path.Join(prefix, copyFolderForClose))
+	require.Error(t, err, "copy folder must be deleted by CleanupSource()")
+
+	// Second CleanupSource must be a no-op: copy folder is already gone.
+	require.NoError(t, provider.CleanupSource(clientCtx))
 }
 
 func TestYdbStorageSharded_TableLoad(t *testing.T) {
