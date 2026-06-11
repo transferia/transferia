@@ -1283,6 +1283,9 @@ func NewSink(lgr log.Logger, transferID string, config PgSinkParams, mtrcs core_
 	poolConfig.ConnConfig = WithLogger(connConfig, log.With(lgr, log.Any("component", "pgx")))
 	poolConfig.MaxConns = 5
 	poolConfig.AfterConnect = MakeInitDataTypes()
+	if config.IgnoreTriggersAndRules() {
+		poolConfig.AfterConnect = WithReplicationRole(poolConfig.AfterConnect)
+	}
 
 	pool, err := NewPgConnPoolConfig(context.TODO(), poolConfig)
 	if err != nil {

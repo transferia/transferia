@@ -36,7 +36,9 @@ type TypeNameToOIDMap map[TypeFullName]pgtype.OID
 
 func (m TypeNameToOIDMap) isDataTypeOption() {}
 
-func MakeInitDataTypes(options ...DataTypesOption) func(ctx context.Context, conn *pgx.Conn) error {
+type AfterConnectFunction func(ctx context.Context, conn *pgx.Conn) error
+
+func MakeInitDataTypes(options ...DataTypesOption) AfterConnectFunction {
 	return func(ctx context.Context, conn *pgx.Conn) error {
 		var defaultDataType pgtype.Value = ((*pgtype.GenericText)(nil))
 		var nameToOID TypeNameToOIDMap
@@ -103,6 +105,15 @@ where (
 
 	initializeDataTypes(conn.ConnInfo(), nameOIDs, defaultDataType)
 	return nil
+}
+
+func WithReplicationRole(afterConnect AfterConnectFunction) AfterConnectFunction {
+	return func(ctx context.Context, conn *pgx.Conn) error {
+		if _, err := conn.Exec(ctx, "SET session_replication_role = replica"); err != nil {
+			return xerrors.Errorf("failed to SET session_replication_role: %w", err)
+		}
+		return afterConnect(ctx, conn)
+	}
 }
 
 func connInfoFromRows(rows pgx.Rows, err error) (map[string]uint32, error) {

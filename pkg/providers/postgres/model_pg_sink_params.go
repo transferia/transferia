@@ -24,6 +24,7 @@ type PgSinkParams interface {
 	// private option
 	MaintainTables() bool
 	GetIsSchemaMigrationDisabled() bool
+	IgnoreTriggersAndRules() bool
 	// PerTransactionPush
 	// It's 'SaveTxBoundaries' from proto-spec
 	PerTransactionPush() bool

@@ -26,6 +26,7 @@ type PgDestination struct {
 	EnableTLS                 bool              `log:"true"`
 	MaintainTables            bool              `log:"true"`
 	IsSchemaMigrationDisabled bool              `log:"true"`
+	IgnoreTriggersAndRules    bool              `log:"true"`
 	AllowDuplicates           bool              `log:"true"`
 	LoozeMode                 bool              `log:"true"`
 	IgnoreUniqueConstraint    bool              `log:"true"`
@@ -144,6 +145,10 @@ type PgDestinationWrapper struct {
 
 func (d PgDestinationWrapper) GetIsSchemaMigrationDisabled() bool {
 	return d.Model.IsSchemaMigrationDisabled
+}
+
+func (d PgDestinationWrapper) IgnoreTriggersAndRules() bool {
+	return d.Model.IgnoreTriggersAndRules
 }
 
 func (d PgDestinationWrapper) ClusterID() string {

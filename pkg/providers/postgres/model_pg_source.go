@@ -523,6 +523,10 @@ func (d PgSourceWrapper) GetIsSchemaMigrationDisabled() bool {
 	return false
 }
 
+func (d PgSourceWrapper) IgnoreTriggersAndRules() bool {
+	return false
+}
+
 func (s *PgSource) ToSinkParams() PgSourceWrapper {
 	copyPgWrapper := *s
 	return PgSourceWrapper{
