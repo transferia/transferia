@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/functions"
@@ -37,18 +38,17 @@ type Source struct {
 	onceStop sync.Once
 	stopCh   chan struct{}
 
-	onceErr sync.Once
-	errCh   chan error
-
 	logger  log.Logger
 	metrics *stats.SourceStats
 }
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.NewWaitable[*event.ReadEvent](s.logger, s.config.ParseQueueParallelism, sink, s.parserWithCloudFunc(), s.ack)
-	defer parseQ.Close()
 
-	return s.run(parseQ)
+	runErr := s.run(parseQ)
+
+	parseQ.Close()
+	return multierr.Combine(runErr, parseQ.Error())
 }
 
 func (s *Source) run(parseQ parsequeue.WaitableQueue[*event.ReadEvent]) error {
@@ -57,8 +57,8 @@ func (s *Source) run(parseQ parsequeue.WaitableQueue[*event.ReadEvent]) error {
 		select {
 		case <-s.stopCh:
 			return nil
-		case err := <-s.errCh:
-			return xerrors.Errorf("source run error: %w", err)
+		case <-parseQ.Done():
+			return nil
 		default:
 		}
 
@@ -200,19 +200,16 @@ func (s *Source) parserWithCloudFunc() func(*event.ReadEvent) ([]abstract.Change
 	}
 }
 
-func (s *Source) ack(readEvent *event.ReadEvent, st time.Time, err error) {
-	if err != nil {
-		s.sendError(xerrors.Errorf("push error: %w", err))
-		return
-	}
-
+func (s *Source) ack(readEvent *event.ReadEvent, st time.Time) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := readEvent.Commit(ctx); err != nil {
-		s.sendError(xerrors.Errorf("failed to commit event: %w", err))
+		return xerrors.Errorf("failed to commit event: %w", err)
 	}
 	s.metrics.PushTime.RecordDuration(time.Since(st))
+
+	return nil
 }
 
 func (s *Source) watchParserResource(parser parsers.Parser) {
@@ -230,12 +227,6 @@ func (s *Source) watchParserResource(parser parsers.Parser) {
 	case <-s.stopCh:
 		return
 	}
-}
-
-func (s *Source) sendError(err error) {
-	s.onceErr.Do(func() {
-		s.errCh <- err
-	})
 }
 
 func newBaseSource(cfg *topicsource.Config, parser parsers.Parser, ydbClient *ydb.Driver, reader eventreader.EventReader, logger log.Logger, metrics *stats.SourceStats) (*Source, error) {
@@ -258,8 +249,6 @@ func newBaseSource(cfg *topicsource.Config, parser parsers.Parser, ydbClient *yd
 		cloudFunction:    executor,
 		onceStop:         sync.Once{},
 		stopCh:           make(chan struct{}),
-		onceErr:          sync.Once{},
-		errCh:            make(chan error, 1),
 		logger:           logger,
 		metrics:          metrics,
 	}

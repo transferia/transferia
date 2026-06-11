@@ -12,7 +12,7 @@ import (
 )
 
 type ParseFunc[TData any] func(TData) ([]abstract.ChangeItem, error)
-type AckFunc[TData any] func(data TData, pushSt time.Time, err error)
+type AckFunc[TData any] func(data TData, pushSt time.Time) error
 
 type ParseQueue[TData any] struct {
 	ctx    context.Context
@@ -22,6 +22,9 @@ type ParseQueue[TData any] struct {
 
 	pushCh chan parseTask[TData]
 	ackCh  chan pushTask[TData]
+
+	errOnce  sync.Once
+	firstErr error
 
 	logger log.Logger
 
@@ -38,10 +41,10 @@ type pushTask[T any] struct {
 
 type parseTask[T any] struct {
 	msg   T
-	resCh chan parseRes
+	resCh chan parseResult
 }
 
-type parseRes struct {
+type parseResult struct {
 	data []abstract.ChangeItem
 	err  error
 }
@@ -53,9 +56,11 @@ var ErrorWhileParsing = xerrors.New("parse queue failed on sending parse task")
 //	Do not call concurrently with Close()!
 func (p *ParseQueue[TData]) Add(message TData) error {
 	if !util.IsOpen(p.ctx.Done()) {
-		return xerrors.New("parser q is already closed")
+		return xerrors.New("parse queue is already closed")
 	}
-	p.pushCh <- p.makeParseTask(message)
+	if !util.Send(p.ctx, p.pushCh, p.makeParseTask(message)) {
+		return xerrors.New("parse queue failed on sending parse task")
+	}
 	return nil
 }
 
@@ -67,13 +72,28 @@ func (p *ParseQueue[TData]) Close() {
 	p.wg.Wait()
 }
 
+// Error returns the first error that occurred during queue operation.
+// Error state is guaranteed to be final after Close() completes.
+//
+// Safe to call concurrently and after Close().
+func (p *ParseQueue[TData]) Error() error {
+	if p.firstErr != nil {
+		return xerrors.Errorf("parse queue: %w", p.firstErr)
+	}
+	return nil
+}
+
+func (p *ParseQueue[TData]) Done() <-chan struct{} {
+	return p.ctx.Done()
+}
+
 func (p *ParseQueue[TData]) makeParseTask(items TData) parseTask[TData] {
-	resCh := make(chan parseRes)
+	resCh := make(chan parseResult)
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
-		parseResult, err := p.parseF(items)
-		util.Send(p.ctx, resCh, parseRes{data: parseResult, err: err})
+		parsedData, err := p.parseF(items)
+		util.Send(p.ctx, resCh, parseResult{data: parsedData, err: err})
 	}()
 	return parseTask[TData]{msg: items, resCh: resCh}
 }
@@ -85,25 +105,23 @@ func (p *ParseQueue[TData]) pushLoop() {
 		if !ok {
 			return
 		}
+
 		p.logger.Debug("wait for push")
-		items, ok := util.Receive(p.ctx, parsed.resCh)
+		parseRes, ok := util.Receive(p.ctx, parsed.resCh)
 		if !ok {
 			return
 		}
 
+		if parseRes.err != nil {
+			p.failWithError(xerrors.Errorf("parsing error: %w", parseRes.err))
+			return
+		}
+
 		task := pushTask[TData]{
-			errCh:  nil,
+			errCh:  p.sink.AsyncPush(parseRes.data),
 			msg:    parsed.msg,
 			pushSt: time.Now(),
 		}
-
-		if items.err != nil {
-			task.errCh = make(chan error, 1)
-			task.errCh <- items.err
-		} else {
-			task.errCh = p.sink.AsyncPush(items.data)
-		}
-
 		if !util.Send(p.ctx, p.ackCh, task) {
 			return
 		}
@@ -117,13 +135,30 @@ func (p *ParseQueue[TData]) ackLoop() {
 		if !ok {
 			return
 		}
+
 		p.logger.Debug("wait for ack")
 		err, ok := util.Receive(p.ctx, ack.errCh)
 		if !ok {
 			return
 		}
-		p.ackF(ack.msg, ack.pushSt, err)
+		if err != nil {
+			p.failWithError(xerrors.Errorf("push error: %w", err))
+			return
+		}
+
+		if err = p.ackF(ack.msg, ack.pushSt); err != nil {
+			p.failWithError(xerrors.Errorf("ack error: %w", err))
+			return
+		}
 	}
+}
+
+func (p *ParseQueue[TData]) failWithError(err error) {
+	p.errOnce.Do(func() {
+		p.firstErr = err
+		p.logger.Warn("parse queue failed", log.Error(err))
+		p.cancel()
+	})
 }
 
 const DefaultParallelism = 10
@@ -165,6 +200,9 @@ func New[TData any](
 		// This is a bit of a messy situation, indeed.
 		pushCh: make(chan parseTask[TData], parallelism-2),
 		ackCh:  make(chan pushTask[TData], 1_000_000), // see: https://github.com/transferia/transferia/review/4480529/details#comment-6575167
+
+		errOnce:  sync.Once{},
+		firstErr: nil,
 
 		logger: lgr,
 

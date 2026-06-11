@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -58,7 +59,6 @@ type replication struct {
 	changeProcessor *changeProcessor
 	objects         *model.DataObjects
 	sequencer       *postgres_sequencer.Sequencer
-	parseQ          *parsequeue.ParseQueue[[]abstract.ChangeItem]
 	objectsFilter   abstract.Includeable
 
 	skippedTables map[abstract.TableID]bool
@@ -73,12 +73,20 @@ var pgFatalCode = map[string]bool{
 const BufferLimit = 16 * humanize.MiByte
 
 func (p *replication) Run(sink abstract.AsyncSink) error {
-	var err error
 	// level of parallelism combined with hardcoded buffer size in receiver(16mb) prevent OOM in parsequeue
-	p.parseQ = parsequeue.New(p.logger, 10, sink, p.WithIncludeFilter, p.ack)
+	parseQ := parsequeue.New(p.logger, 10, sink, p.WithIncludeFilter, p.ack)
 
+	runErr := p.run(parseQ)
+
+	parseQ.Close()
+	return multierr.Combine(runErr, parseQ.Error())
+}
+
+func (p *replication) run(parseQ *parsequeue.ParseQueue[[]abstract.ChangeItem]) error {
 	p.wg.Add(1)
 	go p.standbyStatus()
+
+	var err error
 	if err = p.reloadSchema(); err != nil {
 		return xerrors.Errorf("failed to load schema: %w", err)
 	}
@@ -92,10 +100,10 @@ func (p *replication) Run(sink abstract.AsyncSink) error {
 		return xerrors.Errorf("unable to build transfer data-objects: %w", err)
 	}
 
-	slotTroubleCh := p.slotMonitor.StartSlotMonitoring(int64(p.config.SlotByteLagLimit))
+	slotTroubleCh := p.slotMonitor.StartSlotMonitoring(p.config.SlotByteLagLimit)
 
 	p.wg.Add(1)
-	go p.receiver(slotTroubleCh)
+	go p.receiver(parseQ, slotTroubleCh)
 	select {
 	case err := <-p.error:
 		return err
@@ -115,7 +123,6 @@ func (p *replication) Stop() {
 		p.slotMonitor.Close()
 		p.wal2jsonParser.Close()
 		p.conn.Close()
-		p.parseQ.Close()
 	})
 }
 
@@ -130,28 +137,24 @@ func (p *replication) sendError(err error) {
 	}
 }
 
-func (p *replication) ack(data []abstract.ChangeItem, pushSt time.Time, err error) {
+func (p *replication) ack(data []abstract.ChangeItem, pushSt time.Time) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
 	if !util.IsOpen(p.stopCh) {
-		return
-	}
-
-	if err != nil {
-		p.sendError(err)
-		return
+		return nil
 	}
 
 	if committedLsn, err := p.sequencer.Pushed(data); err != nil {
 		logger.Log.Error("sequence of processed changeItems is incorrect", log.Error(err))
-		p.sendError(err)
-		return
+		return err
 	} else {
 		p.maxLsn = committedLsn
 	}
 
 	p.metrics.PushTime.RecordDuration(time.Since(pushSt))
+
+	return nil
 }
 
 func (p *replication) WithIncludeFilter(items []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
@@ -302,7 +305,7 @@ func (p *replication) standbyStatus() {
 	}
 }
 
-func (p *replication) receiver(slotTroubleCh <-chan error) {
+func (p *replication) receiver(parseQ *parsequeue.ParseQueue[[]abstract.ChangeItem], slotTroubleCh <-chan error) {
 	defer p.wg.Done()
 	defer logger.Log.Info("Receiver stopped")
 	var lastLsn uint64
@@ -431,7 +434,7 @@ func (p *replication) receiver(slotTroubleCh <-chan error) {
 						p.sendError(xerrors.Errorf("unable to start processing: %w", err))
 						return
 					}
-					if err = p.parseQ.Add(res); err != nil {
+					if err = parseQ.Add(res); err != nil {
 						p.sendError(xerrors.Errorf("unable to add to pusher q: %w", err))
 						return
 					}
@@ -590,7 +593,6 @@ func newReplicationPublisher(
 		sharedCtxCancel: cancel,
 		objects:         objects,
 		sequencer:       postgres_sequencer.NewSequencer(),
-		parseQ:          nil,
 		objectsFilter:   nil,
 
 		skippedTables: make(map[abstract.TableID]bool),

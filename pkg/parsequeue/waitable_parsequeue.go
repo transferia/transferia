@@ -1,7 +1,7 @@
 package parsequeue
 
 import (
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/transferia/transferia/pkg/abstract"
@@ -10,29 +10,50 @@ import (
 
 type WaitableParseQueue[TData any] struct {
 	parseQueue *ParseQueue[TData]
-	inflightWG sync.WaitGroup
 	rawAck     AckFunc[TData]
+
+	inflightProcesses atomic.Int32
 }
 
 func (p *WaitableParseQueue[TData]) Add(message TData) error {
-	p.inflightWG.Add(1)
-	return p.parseQueue.Add(message)
+	if err := p.parseQueue.Add(message); err != nil {
+		return err
+	}
+	p.inflightProcesses.Add(1)
+	return nil
 }
 
 // Wait waits when all messages, added via .Add() will be acked
 //
 // Should be called mutually exclusive with Add()/Close()
 func (p *WaitableParseQueue[TData]) Wait() {
-	p.inflightWG.Wait()
+	for {
+		select {
+		case <-p.parseQueue.ctx.Done():
+			return
+		case <-time.After(50 * time.Millisecond):
+			if p.inflightProcesses.Load() == 0 {
+				return
+			}
+		}
+	}
 }
 
-func (p *WaitableParseQueue[TData]) ackWrapped(data TData, pushSt time.Time, err error) {
-	p.rawAck(data, pushSt, err)
-	p.inflightWG.Done()
+func (p *WaitableParseQueue[TData]) ackWrapped(data TData, pushSt time.Time) error {
+	defer p.inflightProcesses.Add(-1)
+	return p.rawAck(data, pushSt)
 }
 
 func (p *WaitableParseQueue[TData]) Close() {
 	p.parseQueue.Close()
+}
+
+func (p *WaitableParseQueue[TData]) Error() error {
+	return p.parseQueue.Error()
+}
+
+func (p *WaitableParseQueue[TData]) Done() <-chan struct{} {
+	return p.parseQueue.Done()
 }
 
 func NewWaitable[TData any](
@@ -44,8 +65,9 @@ func NewWaitable[TData any](
 ) *WaitableParseQueue[TData] {
 	parseQueue := &WaitableParseQueue[TData]{
 		parseQueue: nil,
-		inflightWG: sync.WaitGroup{},
 		rawAck:     ackF,
+
+		inflightProcesses: atomic.Int32{},
 	}
 	parseQueue.parseQueue = New[TData](lgr, parallelism, sink, parseF, parseQueue.ackWrapped)
 	return parseQueue

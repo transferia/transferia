@@ -17,8 +17,11 @@ type QueueToS3WaitableParseQueue[TData any] struct {
 }
 
 func (p *QueueToS3WaitableParseQueue[TData]) Add(message TData) error {
+	if err := p.parseQueue.Add(message); err != nil {
+		return err
+	}
 	p.inflightProcesses.Add(1)
-	return p.parseQueue.Add(message)
+	return nil
 }
 
 // Wait waits when all messages, added via .Add() will be acked
@@ -48,6 +51,10 @@ func (p *QueueToS3WaitableParseQueue[TData]) Close() {
 
 func (p *QueueToS3WaitableParseQueue[TData]) Error() error {
 	return p.parseQueue.Error()
+}
+
+func (p *QueueToS3WaitableParseQueue[TData]) Done() <-chan struct{} {
+	return p.parseQueue.Done()
 }
 
 func NewWaitable[TData any](

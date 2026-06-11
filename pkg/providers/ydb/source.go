@@ -9,6 +9,7 @@ import (
 
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/parsequeue"
@@ -43,15 +44,15 @@ type Source struct {
 	schema       *schemaWrapper
 	memThrottler throttler.Throttler
 	ydbClient    *ydb_go_sdk.Driver
-
-	errCh chan error
 }
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.NewWaitable(s.logger, s.cfg.ParseQueueParallelism, sink, s.parse, s.ack)
-	defer parseQ.Close()
 
-	return s.run(parseQ)
+	runErr := s.run(parseQ)
+
+	parseQ.Close()
+	return multierr.Combine(runErr, parseQ.Error())
 }
 
 func (s *Source) Stop() {
@@ -80,8 +81,8 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[[]batchWithSize]) err
 		select {
 		case <-s.ctx.Done():
 			return nil
-		case err := <-s.errCh:
-			return err
+		case <-parseQ.Done():
+			return nil
 		default:
 		}
 
@@ -176,17 +177,8 @@ func (s *Source) parse(buffer []batchWithSize) ([]abstract.ChangeItem, error) {
 	return items, nil
 }
 
-func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {
+func (s *Source) ack(buffer []batchWithSize, pushSt time.Time) error {
 	defer s.memThrottler.ReduceInflight(batchesSize(buffer))
-
-	if err != nil {
-		s.logger.Error("failed to push change items",
-			log.Error(err),
-			log.String("offsets", sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))),
-		)
-		util.Send(s.ctx, s.errCh, xerrors.Errorf("failed to push change items: %w", err))
-		return
-	}
 
 	pushed := sequencer.BuildMapTopicPartitionToOffsetsRange(batchesToQueueMessages(buffer))
 	s.logger.Info("Got ACK from sink; commiting read messages to the source", log.Duration("delay", time.Since(pushSt)), log.String("pushed", pushed))
@@ -205,8 +197,7 @@ func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {
 			return nil
 		}()
 		if err != nil {
-			util.Send(s.ctx, s.errCh, xerrors.Errorf("failed to commit change items: %w", err))
-			return
+			return xerrors.Errorf("failed to commit change items: %w", err)
 		}
 	}
 
@@ -215,6 +206,8 @@ func (s *Source) ack(buffer []batchWithSize, pushSt time.Time, err error) {
 		fmt.Sprintf("Commit messages done in %v", time.Since(pushSt)),
 		log.String("pushed", pushed),
 	)
+
+	return nil
 }
 
 func (s *Source) updateLocalCacheTableSchema(tablePath string) error {
@@ -349,7 +342,6 @@ func NewSource(transferID string, cfg *YdbSource, logger log.Logger, registry co
 		once:         sync.Once{},
 		ctx:          clientCtx,
 		cancelFunc:   cancelFunc,
-		errCh:        make(chan error),
 		reader:       reader,
 		schema:       schema,
 		memThrottler: throttler.NewMemoryThrottler(uint64(cfg.BufferSize)),

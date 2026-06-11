@@ -6,7 +6,6 @@ import (
 	"hash/fnv"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,6 +15,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/format"
@@ -23,6 +23,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsers"
 	"github.com/transferia/transferia/pkg/providers/kinesis/consumer"
 	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util/throttler"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -39,19 +40,20 @@ type Source struct {
 	metrics  *stats.SourceStats
 	parser   parsers.Parser
 
-	inflightMutex sync.Mutex
-	inflightBytes int
+	inflightThrottler throttler.Throttler
 
-	ctx       context.Context
-	cancel    func()
-	consumer  *consumer.Consumer
-	lastError error
+	ctx      context.Context
+	cancel   func()
+	consumer *consumer.Consumer
 }
 
 func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
 	stapErr := xerrors.New("stap")
 	var res []abstract.ChangeItem
-	err := s.consumer.Scan(s.ctx, func(data []*consumer.Record) error {
+	err := s.consumer.Scan(ctx, func(data []*consumer.Record) error {
 		parsed, err := s.parse(data)
 		if err != nil {
 			return xerrors.Errorf("Failed to parse data: %w", err)
@@ -72,58 +74,48 @@ func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 	return res, err
 }
 
-func (s *Source) inLimits() bool {
-	s.inflightMutex.Lock()
-	defer s.inflightMutex.Unlock()
-	return s.config.BufferSize == 0 || int(s.config.BufferSize) > s.inflightBytes
-}
-
-func (s *Source) addInflight(size int) {
-	s.inflightMutex.Lock()
-	defer s.inflightMutex.Unlock()
-	s.inflightBytes += size
-}
-
-func (s *Source) reduceInflight(size int) {
-	s.inflightMutex.Lock()
-	defer s.inflightMutex.Unlock()
-	s.inflightBytes = s.inflightBytes - size
-}
-
 func (s *Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.NewWaitable(s.logger, s.config.ParseQueueParallelism, sink, s.parse, s.ack)
-	defer parseQ.Close()
 
-	return s.run(parseQ)
+	runErr := s.run(parseQ)
+
+	parseQ.Close()
+	return multierr.Combine(runErr, parseQ.Error())
 }
 
 func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[[]*consumer.Record]) error {
 	for {
 		s.metrics.Master.Set(1)
-		s.waitLimits()
+		s.waitLimits(parseQ.Done())
+
 		err := s.consumer.Scan(s.ctx, func(data []*consumer.Record) error {
 			if len(data) == 0 {
 				return nil
 			}
-			for _, row := range data {
-				s.addInflight(len(row.Data))
+
+			if err := parseQ.Add(data); err != nil {
+				return err
 			}
-			return parseQ.Add(data)
+
+			dataSize := 0
+			for _, row := range data {
+				dataSize += len(row.Data)
+			}
+			s.inflightThrottler.AddInflight(uint64(dataSize))
+
+			return nil
 		})
 		if err != nil {
 			return xerrors.Errorf("unable to scan: %w", err)
 		}
-		if s.lastError != nil {
-			return xerrors.Errorf("unable to push: %w", s.lastError)
-		}
 	}
 }
 
-func (s *Source) ack(data []*consumer.Record, pushSt time.Time, err error) {
-	if err != nil {
-		s.lastError = err
-		s.cancel()
-	}
+func (s *Source) Stop() {
+	s.cancel()
+}
+
+func (s *Source) ack(data []*consumer.Record, pushSt time.Time) error {
 	offsets := map[string]string{}
 	for _, r := range data {
 		offsets[r.ShardID] = *r.SequenceNumber
@@ -131,10 +123,16 @@ func (s *Source) ack(data []*consumer.Record, pushSt time.Time, err error) {
 	for shardID, seqNo := range offsets {
 		_ = s.consumer.SetCheckpoint(shardID, seqNo)
 	}
+
+	dataSize := 0
 	for _, row := range data {
-		s.reduceInflight(len(row.Data))
+		dataSize += len(row.Data)
 	}
+	s.inflightThrottler.ReduceInflight(uint64(dataSize))
+
 	s.metrics.PushTime.RecordDuration(time.Since(pushSt))
+
+	return nil
 }
 
 func (s *Source) parse(record []*consumer.Record) ([]abstract.ChangeItem, error) {
@@ -214,44 +212,41 @@ func splitShard(shardID string) int {
 	return res
 }
 
-const (
-	ExpectedBitLength = 186
-	SequenceMask      = (1 << 4) - 1
-)
-
 func hash(id string) int64 {
 	algorithm := fnv.New64a()
 	_, _ = algorithm.Write([]byte(id))
 	return int64(algorithm.Sum64())
 }
 
-func (s *Source) Stop() {
-	s.cancel()
-}
-
-func (s *Source) waitLimits() {
+func (s *Source) waitLimits(parseQDone <-chan struct{}) {
 	backoffTimer := backoff.NewExponentialBackOff()
 	backoffTimer.Reset()
 	backoffTimer.MaxElapsedTime = 0
 	nextLogDuration := backoffTimer.NextBackOff()
 	logTime := time.Now()
 
-	for !s.inLimits() {
-		time.Sleep(time.Millisecond * 10)
-		if s.ctx.Err() != nil {
-			s.logger.Warn("context aborted, stop wait for limits")
+	for s.inflightThrottler.ExceededLimits() {
+		select {
+		case <-s.ctx.Done():
+			s.logger.Warn("source stopped, stop wait for limits")
 			return
+		case <-parseQDone:
+			s.logger.Warn("parse queue stopped, stop wait for limits")
+			return
+		default:
 		}
+
 		if time.Since(logTime) > nextLogDuration {
 			logTime = time.Now()
 			nextLogDuration = backoffTimer.NextBackOff()
 			s.logger.Warnf(
 				"reader throttled for %v, limits: %v / %v",
 				backoffTimer.GetElapsedTime(),
-				format.SizeInt(s.inflightBytes),
-				format.SizeInt(int(s.config.BufferSize)),
+				format.SizeUInt64(s.inflightThrottler.InflightBytes()),
+				format.SizeInt(s.config.BufferSize),
 			)
 		}
+		time.Sleep(time.Millisecond * 20)
 	}
 }
 
@@ -296,17 +291,15 @@ func NewSource(
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Source{
-		registry:      registry,
-		cp:            cp,
-		logger:        logger,
-		config:        cfg,
-		metrics:       stats.NewSourceStats(registry),
-		parser:        parser,
-		inflightMutex: sync.Mutex{},
-		inflightBytes: 0,
-		ctx:           ctx,
-		cancel:        cancel,
-		consumer:      c,
-		lastError:     nil,
+		registry:          registry,
+		cp:                cp,
+		logger:            logger,
+		config:            cfg,
+		metrics:           stats.NewSourceStats(registry),
+		parser:            parser,
+		inflightThrottler: throttler.NewMemoryThrottler(uint64(cfg.BufferSize)),
+		ctx:               ctx,
+		cancel:            cancel,
+		consumer:          c,
 	}, nil
 }

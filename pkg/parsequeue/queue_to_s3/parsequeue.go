@@ -73,6 +73,10 @@ func (p *QueueToS3ParseQueue[TData]) Error() error {
 	return p.firstErr
 }
 
+func (p *QueueToS3ParseQueue[TData]) Done() <-chan struct{} {
+	return p.stopCh
+}
+
 func (p *QueueToS3ParseQueue[TData]) makeParseTask(items TData) parseTask[TData] {
 	resCh := make(chan parseRes)
 	p.wg.Add(1)

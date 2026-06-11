@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/kikimr/public/sdk/go/persqueue"
 	"github.com/transferia/transferia/kikimr/public/sdk/go/persqueue/log/corelogadapter"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/functions"
@@ -34,9 +35,6 @@ type Source struct {
 
 	onceStop sync.Once
 	stopCh   chan bool
-
-	onceErr sync.Once
-	errCh   chan error // buffered channel for exactly one (first) error (width=1)
 
 	metrics *stats.SourceStats
 	logger  log.Logger
@@ -76,9 +74,11 @@ func (p *Source) Run(sink abstract.AsyncSink) error {
 		return lbyds.Parse(batch.Batches, p.parser, p.metrics, p.logger, transformFunc, p.config.UseFullTopicNameForParsing)
 	}
 	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, parseWrapper, p.ack)
-	defer parseQ.Close()
 
-	return p.run(parseQ)
+	runErr := p.run(parseQ)
+
+	parseQ.Close()
+	return multierr.Combine(runErr, parseQ.Error())
 }
 
 func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) error {
@@ -91,12 +91,12 @@ func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) er
 	for {
 		select {
 		case <-p.stopCh:
-			p.logger.Warn("Reader closed")
+			p.logger.Warn("reader is closed")
 			return nil
 
-		case err := <-p.errCh:
-			p.logger.Error("consumer error", log.Error(err))
-			return err
+		case <-parseQ.Done():
+			p.logger.Warn("parse queue is closed")
+			return nil
 
 		case b, ok := <-p.consumer.C():
 			if !ok {
@@ -289,16 +289,11 @@ func (p *Source) sendSynchronizeEventIfNeeded(parseQ *parsequeue.WaitableParseQu
 	return nil
 }
 
-func (p *Source) ack(data committableBatch, st time.Time, err error) {
-	if err != nil {
-		p.onceErr.Do(func() {
-			p.errCh <- err
-		})
-		return
-	} else {
-		data.Commit()
-		p.metrics.PushTime.RecordDuration(time.Since(st))
-	}
+func (p *Source) ack(data committableBatch, st time.Time) error {
+	data.Commit()
+	p.metrics.PushTime.RecordDuration(time.Since(st))
+
+	return nil
 }
 
 func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger, metrics *stats.SourceStats) (*Source, error) {
@@ -367,8 +362,6 @@ func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger
 		parser:           parser,
 		onceStop:         sync.Once{},
 		stopCh:           stopCh,
-		onceErr:          sync.Once{},
-		errCh:            make(chan error, 1),
 		metrics:          metrics,
 		logger:           logger,
 		executor:         executor,

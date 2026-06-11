@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/parsequeue"
@@ -41,7 +42,11 @@ type S3Source struct {
 
 func (s *S3Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.New(s.logger, 10, sink, s3_reader.ParsePassthroughChunk, s.ack)
-	return s.run(parseQ)
+
+	runErr := s.run(parseQ)
+
+	parseQ.Close()
+	return multierr.Combine(runErr, parseQ.Error())
 }
 
 func (s *S3Source) waitPusherEmpty() {
@@ -156,25 +161,18 @@ func (s *S3Source) run(parseQ *parsequeue.ParseQueue[s3_pusher.Chunk]) error {
 	}
 }
 
-func (s *S3Source) ack(chunk s3_pusher.Chunk, pushSt time.Time, err error) {
-	if err != nil {
-		util.Send(s.ctx, s.errCh, err)
-		return
-	}
-
+func (s *S3Source) ack(chunk s3_pusher.Chunk, pushSt time.Time) error {
 	// ack chunk and check if reading of file is done
 	done, err := s.pusher.Ack(chunk)
 	if err != nil {
-		util.Send(s.ctx, s.errCh, err)
-		return
+		return xerrors.Errorf("chunk ack error: %w", err)
 	}
 
 	if done && chunk.FilePath != "" {
 		// commit this file
 		err = s.objectFetcher.Commit(chunk.FilePath)
 		if err != nil {
-			util.Send(s.ctx, s.errCh, err)
-			return
+			return xerrors.Errorf("file path commit error: %w", err)
 		}
 	}
 
@@ -183,6 +181,8 @@ func (s *S3Source) ack(chunk s3_pusher.Chunk, pushSt time.Time, err error) {
 		log.Int("committed", len(chunk.Items)),
 	)
 	s.metrics.PushTime.RecordDuration(time.Since(pushSt))
+
+	return nil
 }
 
 func (s *S3Source) Stop() {

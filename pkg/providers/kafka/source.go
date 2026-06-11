@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/functions"
@@ -16,7 +17,6 @@ import (
 	"github.com/transferia/transferia/pkg/parsers"
 	kafka_reader "github.com/transferia/transferia/pkg/providers/kafka/reader"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/queues/sequencer"
 	"github.com/transferia/transferia/pkg/util/throttler"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -42,7 +42,6 @@ type Source struct {
 	ctx               context.Context
 	once              sync.Once
 	executor          *functions.Executor
-	errCh             chan error
 	parser            parsers.Parser
 	inflightThrottler throttler.Throttler
 	sequencer         *sequencer.Sequencer
@@ -70,7 +69,7 @@ func (p *Source) YSRNamespaceID() string {
 // actually this is throttler by consumed memory
 // backoff is needed here to not write logs too frequently
 
-func (p *Source) waitLimits() {
+func (p *Source) waitLimits(parseQDone <-chan struct{}) {
 	backoffTimer := backoff.NewExponentialBackOff()
 	backoffTimer.Reset()
 	backoffTimer.MaxElapsedTime = 0
@@ -78,11 +77,16 @@ func (p *Source) waitLimits() {
 	logTime := time.Now()
 
 	for p.inflightThrottler.ExceededLimits() {
-		time.Sleep(time.Millisecond * 10)
-		if p.ctx.Err() != nil {
+		select {
+		case <-p.ctx.Done():
 			p.logger.Warn("context aborted, stop wait for limits")
 			return
+		case <-parseQDone:
+			p.logger.Warn("parse queue stopped, stop wait for limits")
+			return
+		default:
 		}
+
 		if time.Since(logTime) > nextLogDuration {
 			logTime = time.Now()
 			nextLogDuration = backoffTimer.NextBackOff()
@@ -93,14 +97,17 @@ func (p *Source) waitLimits() {
 				format.SizeInt(int(p.config.BufferSizeOrDefault())),
 			)
 		}
+		time.Sleep(time.Millisecond * 20)
 	}
 }
 
 func (p *Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, p.parseWithSynchronizeEvent, p.ack)
-	defer parseQ.Close()
 
-	return p.run(parseQ)
+	runErr := p.run(parseQ)
+
+	parseQ.Close()
+	return multierr.Combine(runErr, parseQ.Error())
 }
 
 func (p *Source) run(parseQ parsequeue.WaitableQueue[[]kgo.Record]) error {
@@ -119,13 +126,12 @@ func (p *Source) run(parseQ parsequeue.WaitableQueue[[]kgo.Record]) error {
 	bufferSize := 0
 	for {
 		p.metrics.Master.Set(1)
-		p.waitLimits()
+		p.waitLimits(parseQ.Done())
 		select {
 		case <-p.ctx.Done():
 			return nil
-		case err := <-p.errCh:
-			p.cancel() // after first error cancel ctx, so any other errors would be dropped, but not deadlocked
-			return err
+		case <-parseQ.Done():
+			return nil
 		default:
 		}
 
@@ -216,7 +222,7 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 				res = nil // reset result
 				transformed, err := p.executor.Do(data)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to execute a batch of changeitems: %w", err)
+					return nil, xerrors.Errorf("failed to execute a batch of change items: %w", err)
 				}
 				data = transformed
 				res = transformed
@@ -241,24 +247,19 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 	}
 }
 
-func (p *Source) ack(data []kgo.Record, pushSt time.Time, err error) {
+func (p *Source) ack(data []kgo.Record, pushSt time.Time) error {
 	totalSize := 0
 	for _, msg := range data {
 		totalSize += len(msg.Value)
 	}
 	defer p.inflightThrottler.ReduceInflight(uint64(totalSize))
-	if err != nil {
-		util.Send(p.ctx, p.errCh, err)
-		return
-	}
+
 	commitMessages, err := p.sequencer.Pushed(recordsToQueueMessages(data))
 	if err != nil {
-		util.Send(p.ctx, p.errCh, xerrors.Errorf("sequencer found an error in Pushed, err: %w", err))
-		return
+		return xerrors.Errorf("sequencer found an error in Pushed, err: %w", err)
 	}
 	if err := p.reader.CommitMessages(p.ctx, recordsFromQueueMessages(commitMessages)...); err != nil {
-		util.Send(p.ctx, p.errCh, err)
-		return
+		return err
 	}
 	p.logger.Info(
 		fmt.Sprintf("Commit messages done in %v", time.Since(pushSt)),
@@ -266,6 +267,8 @@ func (p *Source) ack(data []kgo.Record, pushSt time.Time, err error) {
 		log.String("committed", sequencer.BuildPartitionOffsetLogLine(commitMessages)),
 	)
 	p.metrics.PushTime.RecordDuration(time.Since(pushSt))
+
+	return nil
 }
 
 func (p *Source) parseWithSynchronizeEvent(buffer []kgo.Record) ([]abstract.ChangeItem, error) {
@@ -347,7 +350,7 @@ func (p *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, a
 	case string:
 		data = []byte(v)
 	default:
-		panic(fmt.Sprintf("should never happen, expect string or bytes, recieve: %T", ci.ColumnValues[4]))
+		panic(fmt.Sprintf("should never happen, expect string or bytes, receive: %T", ci.ColumnValues[4]))
 	}
 	return parsers.Message{
 			Offset:     ci.LSN,
@@ -413,7 +416,6 @@ func newBaseSource(cfg *KafkaSource, inflightThrottler throttler.Throttler, logg
 		ctx:               ctx,
 		once:              sync.Once{},
 		executor:          nil,
-		errCh:             make(chan error, 1),
 		parser:            nil,
 		inflightThrottler: inflightThrottler,
 		sequencer:         sequencer.NewSequencer(),

@@ -1074,6 +1074,7 @@
   "pkg/middlewares/table_temporator_test.go":"transfer_manager/go/pkg/middlewares/table_temporator_test.go",
   "pkg/middlewares/transformation.go":"transfer_manager/go/pkg/middlewares/transformation.go",
   "pkg/middlewares/type_strictness_tracker.go":"transfer_manager/go/pkg/middlewares/type_strictness_tracker.go",
+  "pkg/parsequeue/README.md":"transfer_manager/go/pkg/parsequeue/README.md",
   "pkg/parsequeue/abstract.go":"transfer_manager/go/pkg/parsequeue/abstract.go",
   "pkg/parsequeue/parsequeue.go":"transfer_manager/go/pkg/parsequeue/parsequeue.go",
   "pkg/parsequeue/parsequeue_test.go":"transfer_manager/go/pkg/parsequeue/parsequeue_test.go",

@@ -1,6 +1,7 @@
 package parsequeue
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -27,8 +28,9 @@ func TestSinkNotBlocking(t *testing.T) {
 	}), func(data int) ([]abstract.ChangeItem, error) {
 		parseCnt.Add(1)
 		return nil, nil // immediate parse
-	}, func(data int, _ time.Time, _ error) {
+	}, func(data int, _ time.Time) error {
 		ackCnt.Add(1)
+		return nil
 	})
 	for i := 0; i < 1000; i++ {
 		require.NoError(t, q.Add(i))
@@ -44,6 +46,10 @@ func TestSinkNotBlocking(t *testing.T) {
 	require.Equal(t, parseCnt.Load(), int32(1000))
 	require.Equal(t, pushCnt.Load(), int32(1000))
 	require.Equal(t, ackCnt.Load(), int32(0))
+	require.NoError(t, q.Error())
+
+	q.Close()
+	require.NoError(t, q.Error())
 }
 
 func TestParseErrNotBlocking(t *testing.T) {
@@ -51,18 +57,19 @@ func TestParseErrNotBlocking(t *testing.T) {
 	pushCnt := atomic.Int32{}
 	ackCnt := atomic.Int32{}
 	parseCnt := atomic.Int32{}
+	testError := xerrors.New("test error")
 	q := New(logger.Log, parallelism, mocksink.NewMockAsyncSinkWithChan(func(items []abstract.ChangeItem) chan error {
 		pushCnt.Add(1)
 		return nil
 	}), func(data int) ([]abstract.ChangeItem, error) {
 		parseCnt.Add(1)
-		return nil, xerrors.New("test error")
-	}, func(data int, _ time.Time, err error) {
+		return nil, testError
+	}, func(data int, _ time.Time) error {
 		ackCnt.Add(1)
-		require.Error(t, err)
+		return nil
 	})
 	for i := range 1000 {
-		require.NoError(t, q.Add(i))
+		_ = q.Add(i)
 	}
 	st := time.Now()
 	for time.Since(st) < time.Second {
@@ -72,9 +79,14 @@ func TestParseErrNotBlocking(t *testing.T) {
 			time.Sleep(time.Millisecond)
 		}
 	}
-	require.Equal(t, parseCnt.Load(), int32(1000))
+	require.LessOrEqual(t, parseCnt.Load(), int32(1000))
 	require.Equal(t, pushCnt.Load(), int32(0))
-	require.Equal(t, ackCnt.Load(), int32(1000))
+	require.Equal(t, ackCnt.Load(), int32(0))
+	require.Error(t, q.Error())
+
+	q.Close()
+	require.Error(t, q.Error())
+	require.ErrorIs(t, q.Error(), testError)
 }
 
 func TestAckOrder(t *testing.T) {
@@ -94,10 +106,12 @@ func TestAckOrder(t *testing.T) {
 		defer inflight.Add(-1)
 		wgMap[data].Wait()
 		return nil, nil
-	}, func(data int, _ time.Time, _ error) {
+	}, func(data int, _ time.Time) error {
 		mu.Lock()
 		defer mu.Unlock()
 		res = append(res, data)
+
+		return nil
 	})
 	// all 10 parse func must be called
 	go func() {
@@ -121,6 +135,7 @@ func TestAckOrder(t *testing.T) {
 	}
 	mu.Unlock()
 	q.Close()
+	require.NoError(t, q.Error())
 }
 
 func TestGracefullyShutdown(t *testing.T) {
@@ -132,10 +147,11 @@ func TestGracefullyShutdown(t *testing.T) {
 	}), func(data int) ([]abstract.ChangeItem, error) {
 		time.Sleep(time.Millisecond)
 		return nil, nil
-	}, func(data int, _ time.Time, _ error) {
+	}, func(data int, _ time.Time) error {
 		mu.Lock()
 		defer mu.Unlock()
 		res = append(res, data)
+		return nil
 	})
 	go func() {
 		iter := 0
@@ -149,6 +165,7 @@ func TestGracefullyShutdown(t *testing.T) {
 	}()
 	time.Sleep(time.Second)
 	q.Close()
+	require.NoError(t, q.Error())
 }
 
 func TestRandomParseDelay(t *testing.T) {
@@ -183,11 +200,12 @@ func TestRandomParseDelay(t *testing.T) {
 		counter--
 		mu.Unlock()
 		return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
-	}, func(data int, _ time.Time, _ error) {
+	}, func(data int, _ time.Time) error {
 		mu.Lock()
 		defer mu.Unlock()
 		require.Equal(t, ackIter, data)
 		ackIter++
+		return nil
 	})
 	for i := 0; i < inputEventsCount; i++ {
 		require.NoError(t, q.Add(i))
@@ -203,4 +221,198 @@ func TestRandomParseDelay(t *testing.T) {
 		mu.Unlock()
 	}
 	q.Close()
+	require.NoError(t, q.Error())
+}
+
+func TestErrorPropagation(t *testing.T) {
+	t.Run("ParseError", func(t *testing.T) {
+		parseErrMsg := "parse failed on message 5"
+		parseCnt := atomic.Int32{}
+		ackCnt := atomic.Int32{}
+
+		q := New[int](logger.Log, 5, mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
+			return nil
+		}), func(data int) ([]abstract.ChangeItem, error) {
+			parseCnt.Add(1)
+			if data == 5 {
+				return nil, xerrors.New(parseErrMsg)
+			}
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
+		}, func(data int, _ time.Time) error {
+			ackCnt.Add(1)
+			return nil
+		})
+
+		for i := 0; i < 10; i++ {
+			if err := q.Add(i); err != nil {
+				break
+			}
+		}
+
+		time.Sleep(300 * time.Millisecond)
+		q.Close()
+
+		require.Error(t, q.Error())
+		require.Contains(t, q.Error().Error(), "parsing error")
+		require.Contains(t, q.Error().Error(), parseErrMsg)
+
+		err := q.Add(999)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parse queue is already closed")
+
+		require.LessOrEqual(t, ackCnt.Load(), int32(5))
+	})
+
+	t.Run("PushError", func(t *testing.T) {
+		pushErrMsg := "async push failed"
+		pushCnt := atomic.Int32{}
+		ackCnt := atomic.Int32{}
+
+		q := New[int](logger.Log, 5, mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
+			pushCnt.Add(1)
+			if pushCnt.Load() == 3 {
+				return xerrors.New(pushErrMsg)
+			}
+			return nil
+		}), func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
+		}, func(data int, _ time.Time) error {
+			ackCnt.Add(1)
+			return nil
+		})
+
+		for i := 0; i < 10; i++ {
+			err := q.Add(i)
+			if err != nil {
+				break
+			}
+		}
+
+		time.Sleep(300 * time.Millisecond)
+		q.Close()
+
+		require.Error(t, q.Error())
+		require.Contains(t, q.Error().Error(), "push error")
+		require.Contains(t, q.Error().Error(), pushErrMsg)
+
+		require.LessOrEqual(t, ackCnt.Load(), int32(2))
+	})
+
+	t.Run("AckError", func(t *testing.T) {
+		ackErrMsg := "ack callback failed"
+		ackCnt := atomic.Int32{}
+
+		q := New[int](logger.Log, 5, mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
+			return nil
+		}), func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
+		}, func(data int, _ time.Time) error {
+			ackCnt.Add(1)
+			if ackCnt.Load() == 3 {
+				return xerrors.New(ackErrMsg)
+			}
+			return nil
+		})
+
+		for i := 0; i < 10; i++ {
+			err := q.Add(i)
+			if err != nil {
+				break
+			}
+		}
+
+		time.Sleep(200 * time.Millisecond)
+		q.Close()
+
+		require.Error(t, q.Error())
+		require.Contains(t, q.Error().Error(), "ack error")
+		require.Contains(t, q.Error().Error(), ackErrMsg)
+
+		require.Equal(t, int32(3), ackCnt.Load())
+	})
+
+	t.Run("MultipleErrorsAndFirstWins", func(t *testing.T) {
+
+		q := New[int](logger.Log, 10, mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
+			return nil
+		}), func(data int) ([]abstract.ChangeItem, error) {
+			return nil, nil
+		}, func(data int, _ time.Time) error {
+			return xerrors.Errorf("ack error %d", data)
+		})
+
+		for i := 0; i < 20; i++ {
+			if err := q.Add(i); err != nil {
+				break
+			}
+		}
+
+		time.Sleep(200 * time.Millisecond)
+		q.Close()
+
+		require.Error(t, q.Error())
+		require.Contains(t, q.Error().Error(), "ack error 0")
+	})
+}
+
+func TestClose(t *testing.T) {
+	t.Run("AddAfterClose", func(t *testing.T) {
+		q := New[int](logger.Log, 5, mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
+			return nil
+		}), func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
+		}, func(data int, _ time.Time) error {
+			return nil
+		})
+
+		q.Close()
+		require.NoError(t, q.Error())
+
+		err := q.Add(100)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parse queue is already closed")
+	})
+
+	t.Run("MultipleCloseCalls", func(t *testing.T) {
+		q := New[int](logger.Log, 5, mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
+			return nil
+		}), func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
+		}, func(data int, _ time.Time) error {
+			return nil
+		})
+
+		for i := 0; i < 20; i++ {
+			require.NoError(t, q.Add(i))
+		}
+
+		wg := sync.WaitGroup{}
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				q.Close()
+			}()
+		}
+		wg.Wait()
+
+		require.NoError(t, q.Error())
+	})
+
+	t.Run("CloseIdempotency", func(t *testing.T) {
+		q := New[int](logger.Log, 5, mocksink.NewMockAsyncSink(func(items []abstract.ChangeItem) error {
+			return nil
+		}), func(data int) ([]abstract.ChangeItem, error) {
+			return []abstract.ChangeItem{{ColumnValues: []any{data}}}, nil
+		}, func(data int, _ time.Time) error {
+			return nil
+		})
+
+		q.Close()
+		q.Close()
+		q.Close()
+
+		require.NoError(t, q.Error())
+		require.ErrorIs(t, q.ctx.Err(), context.Canceled)
+	})
 }
