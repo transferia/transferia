@@ -73,8 +73,8 @@ require (
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.139.5
 	go.mongodb.org/mongo-driver v1.17.4
 	go.opentelemetry.io/contrib/bridges/otelzap v0.13.0
-	go.opentelemetry.io/otel v1.43.0
-	go.opentelemetry.io/otel/metric v1.43.0
+	go.opentelemetry.io/otel v1.44.0
+	go.opentelemetry.io/otel/metric v1.44.0
 	go.uber.org/atomic v1.11.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.1
@@ -264,7 +264,9 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.38.0 // indirect
 	go.opentelemetry.io/otel/log v0.19.0 // indirect
 	go.opentelemetry.io/otel/log/logtest v0.15.0 // indirect
-	go.opentelemetry.io/otel/trace v1.43.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
+	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect
+	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
@@ -409,22 +411,6 @@ replace github.com/jackc/pgproto3/v2 => github.com/jackc/pgproto3/v2 v2.3.2
 replace github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.24
 
 replace github.com/docker/docker => github.com/docker/docker v28.2.2+incompatible
-
-replace go.opentelemetry.io/otel => go.opentelemetry.io/otel v1.43.0
-
-replace go.opentelemetry.io/otel/log => go.opentelemetry.io/otel/log v0.15.0
-
-replace go.opentelemetry.io/otel/metric => go.opentelemetry.io/otel/metric v1.43.0
-
-replace go.opentelemetry.io/otel/sdk => go.opentelemetry.io/otel/sdk v1.43.0
-
-replace go.opentelemetry.io/otel/sdk/log => go.opentelemetry.io/otel/sdk/log v0.14.0
-
-replace go.opentelemetry.io/otel/sdk/metric => go.opentelemetry.io/otel/sdk/metric v1.43.0
-
-replace go.opentelemetry.io/otel/trace => go.opentelemetry.io/otel/trace v1.43.0
-
-replace golang.org/x/sys => golang.org/x/sys v0.43.0
 
 replace github.com/docker/cli => github.com/docker/cli v25.0.4+incompatible
 
