@@ -101,6 +101,44 @@ func TestUpdateDocumentChangeItem(t *testing.T) {
 	require.Equal(t, patch["document.e"], nil)
 }
 
+func TestCheckDiffByKeys_FlatDottedNotation(t *testing.T) {
+	// MongoDB change stream UpdatedFields uses dotted notation like {"address.city": "NYC"}, not nested {address: {city: "NYC"}}.
+	// CheckDiffByKeys must handle both.
+	changeItem := abstract.ChangeItem{
+		Kind:        abstract.MongoUpdateDocumentKind,
+		Schema:      "db",
+		Table:       "coll",
+		ColumnNames: UpdateDocumentSchema.ColumnsNames,
+		ColumnValues: []interface{}{
+			"doc1",
+			bson.D{
+				{Key: "_id", Value: "doc1"},
+				{Key: "driver.name", Value: "new_name"},
+				{Key: "status", Value: "en_route"},
+			},
+			[]string{"old_field"},
+			[]TruncatedArray{},
+			bson.D{},
+		},
+		TableSchema: UpdateDocumentSchema.Columns,
+		OldKeys: abstract.OldKeysType{
+			KeyNames:  []string{"_id"},
+			KeyValues: []interface{}{"doc1"},
+		},
+	}
+
+	updateItem, err := NewUpdateDocumentChangeItem(&changeItem)
+	require.NoError(t, err)
+	require.True(t, updateItem.IsApplicablePatch())
+
+	patch := updateItem.CheckDiffByKeys([]string{"driver.name", "status", "nonexistent", "old_field"})
+
+	require.Equal(t, 3, len(patch), "should find driver.name, status, and old_field")
+	require.Equal(t, "new_name", patch["driver.name"])
+	require.Equal(t, "en_route", patch["status"])
+	require.Nil(t, patch["old_field"], "RemovedFields should match")
+}
+
 func TestSchemasDescriptions(t *testing.T) {
 	_, ok := DocumentSchema.Indexes[ID]
 	require.True(t, ok)

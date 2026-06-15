@@ -15,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -47,21 +48,30 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	flushCollection := func(collID Namespace, items []abstract.ChangeItem, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		bulks, err := s.splitItemsToBulkOperations(ctx, collID, items)
+		shardBulks, err := s.splitItemsToBulkOperations(ctx, collID, items)
 		if err != nil {
 			setError(collID, err)
 			return
 		}
 
 		startFlush := time.Now()
-		for _, bulk := range bulks {
-			err = s.bulkWrite(ctx, collID, bulk)
-			if err != nil {
-				setError(collID, err)
-				return
-			}
+		eg, egCtx := errgroup.WithContext(ctx)
+		for _, bulks := range shardBulks {
+			eg.Go(func() error {
+				// Bulks of one shard share document _ids, so they run sequentially to preserve per-document event order.
+				for _, bulk := range bulks {
+					if err := s.bulkWrite(egCtx, collID, bulk); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
 		}
-		s.logger.Infof("Flush collection %v: change items number = %v, bulks number = %v, elapsed = %v", collID.GetFullName(), len(items), len(bulks), time.Since(startFlush))
+		if err := eg.Wait(); err != nil {
+			setError(collID, err)
+			return
+		}
+		s.logger.Infof("Flush collection %v: change items number = %v, shards = %v, elapsed = %v", collID.GetFullName(), len(items), len(shardBulks), time.Since(startFlush))
 	}
 
 	s.metrics.Inflight.Add(int64(len(input)))

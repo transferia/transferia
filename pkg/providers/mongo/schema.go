@@ -203,7 +203,11 @@ func (u *UpdateDocumentChangeItem) CheckDiffByKeys(checkKeys []string) map[strin
 
 	updatedFields := u.UpdatedFields()
 	for _, keyPath := range checkKeys {
-		val, updated := GetValueByPath(updatedFields, keyPath)
+		// updatedFields uses flat dotted notation ("address.city"), so check the direct key first.
+		val, updated := getKeyD(updatedFields, keyPath)
+		if !updated {
+			val, updated = GetValueByPath(updatedFields, keyPath)
+		}
 		if updated {
 			changedFields[keyPath] = val
 		}

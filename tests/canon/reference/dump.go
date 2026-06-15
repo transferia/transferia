@@ -35,6 +35,7 @@ import (
 	"github.com/transferia/transferia/tests/helpers"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.mongodb.org/mongo-driver/bson"
+	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
@@ -165,6 +166,9 @@ order by
 		require.NoError(t, err)
 		dbs, err := client.ListDatabases(ctx, bson.D{})
 		require.NoError(t, err)
+		sort.Slice(dbs.Databases, func(i, j int) bool {
+			return dbs.Databases[i].Name < dbs.Databases[j].Name
+		})
 		buf := bytes.NewBuffer(nil)
 		for _, db := range dbs.Databases {
 			if excluded.Contains(db.Name) {
@@ -175,7 +179,7 @@ order by
 			sort.Strings(collections)
 			for _, collection := range collections {
 				buf.WriteString(fmt.Sprintf("\n%s\n", collection))
-				rows, err := client.Database(db.Name).Collection(collection).Find(ctx, bson.D{})
+				rows, err := client.Database(db.Name).Collection(collection).Find(ctx, bson.D{}, mongo_options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}))
 				require.NoError(t, err)
 				for rows.Next(ctx) {
 					var row interface{}

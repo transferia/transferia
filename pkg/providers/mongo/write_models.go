@@ -20,15 +20,29 @@ func makeDocumentFilter(id interface{}, documentKey bson.M, keysPath []string) b
 	return result
 }
 
+func makeUnsetBSON(paths []string) bson.D {
+	var doc bson.D
+	for _, path := range paths {
+		if len(path) > 0 {
+			doc = append(doc, bson.E{Key: path, Value: ""})
+		}
+	}
+	return doc
+}
+
 func makeUpdateModel(filter bson.D, set bson.D, unset []string) *mongo_driver.UpdateOneModel {
 	model := &mongo_driver.UpdateOneModel{}
 	model.SetUpsert(true)
 	model.SetFilter(filter)
+	var update bson.D
 	if len(set) > 0 {
-		model.SetUpdate(bson.D{{Key: "$set", Value: set}})
+		update = append(update, bson.E{Key: "$set", Value: set})
 	}
-	if len(unset) > 0 {
-		model.SetUpdate(bson.D{{Key: "$unset", Value: unset}})
+	if unsetDoc := makeUnsetBSON(unset); len(unsetDoc) > 0 {
+		update = append(update, bson.E{Key: "$unset", Value: unsetDoc})
+	}
+	if len(update) > 0 {
+		model.SetUpdate(update)
 	}
 	return model
 }

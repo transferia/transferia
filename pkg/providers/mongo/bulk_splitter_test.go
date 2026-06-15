@@ -1,6 +1,7 @@
 package mongo
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,4 +22,18 @@ func TestBulkSplitter(t *testing.T) {
 	require.Equal(t, len(bulks[0]), 2)
 	require.Equal(t, len(bulks[1]), 1)
 	require.Equal(t, len(bulks[2]), 1)
+}
+
+func TestBulkSplitter_AllUniqueIDs_SingleBulk(t *testing.T) {
+	model := &mongo.UpdateOneModel{}
+	splitter := newBulkSplitter()
+	N := 57
+	for i := 0; i < N; i++ {
+		idStr := fmt.Sprintf("id%d", i)
+		id := documentID{Raw: idStr, String: idStr}
+		splitter.Add(model, id, false)
+	}
+	bulks := splitter.Get()
+	require.Len(t, bulks, 1)
+	require.Len(t, bulks[0], N)
 }
