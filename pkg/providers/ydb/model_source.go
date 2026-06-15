@@ -15,6 +15,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const dataTransferConsumerName = "__data_transfer_consumer"
+
 type YdbColumnsFilterType string
 
 const (
@@ -221,5 +223,13 @@ func (s *YdbSource) ToStorageParams() *YdbStorageParams {
 	}
 }
 
-func (*YdbSource) IsIncremental()                 {}
+func (*YdbSource) IsIncremental() {}
+
 func (*YdbSource) SupportsStartCursorValue() bool { return true }
+
+func (s *YdbSource) customConsumerOrDefault() string {
+	if s.ChangeFeedCustomConsumerName == "" {
+		return dataTransferConsumerName
+	}
+	return s.ChangeFeedCustomConsumerName
+}

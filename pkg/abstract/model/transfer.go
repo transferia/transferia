@@ -115,6 +115,10 @@ func (f *Transfer) IncrementOnly() bool {
 	return f.Type == abstract.TransferTypeIncrementOnly
 }
 
+func (f *Transfer) SnapshotAndIncrement() bool {
+	return f.Type == abstract.TransferTypeSnapshotAndIncrement
+}
+
 // RuntimeType used by external references:
 //
 //	taxi/atlas/saas/data-transfer/transfer/internal/runtime/metering

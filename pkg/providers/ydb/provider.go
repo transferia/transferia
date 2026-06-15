@@ -81,33 +81,58 @@ func (p *Provider) Source() (abstract.Source, error) {
 	}
 	p.fillIncludedTables(src)
 
-	err := CreateChangeFeedIfNotExists(src, p.transfer.ID)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ydbClient, err := newYDBSourceDriver(ctx, src)
 	if err != nil {
+		return nil, xerrors.Errorf("unable to create ydb client: %w", err)
+	}
+	defer func() {
+		_ = ydbClient.Close(context.Background())
+	}()
+
+	if err := CreateChangeFeedIfNotExists(ctx, src, p.transfer.ID, ydbClient); err != nil {
 		return nil, xerrors.Errorf("unable to upsert changeFeed, err: %w", err)
 	}
 	return NewSource(p.transfer.ID, src, p.logger, p.registry)
 }
 
-func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, tables abstract.TableMap, callbacks providers.ActivateCallbacks) error {
+func (p *Provider) Activate(ctx context.Context, _ *model.TransferOperation, tables abstract.TableMap, callbacks providers.ActivateCallbacks) error {
 	src, ok := p.transfer.Src.(*YdbSource)
 	if !ok {
 		return xerrors.Errorf("unexpected src type: %T", p.transfer.Src)
 	}
 	p.fillIncludedTables(src)
 
+	ydbClient, err := newYDBSourceDriver(ctx, src)
+	if err != nil {
+		return xerrors.Errorf("unable to create ydb client: %w", err)
+	}
+	defer func() {
+		_ = ydbClient.Close(context.Background())
+	}()
+
 	if !p.transfer.SnapshotOnly() {
 		if len(src.Tables) == 0 {
 			return xerrors.Errorf("unable to replicate all tables in the database")
 		}
-		err := DropChangeFeed(src, p.transfer.ID)
-		if err != nil {
+
+		if err := DropChangeFeed(ctx, src, p.transfer.ID, ydbClient); err != nil {
 			return xerrors.Errorf("unable to drop changeFeed, err: %w", err)
 		}
-		err = CreateChangeFeed(src, p.transfer.ID)
-		if err != nil {
+
+		if err := CreateChangeFeed(ctx, src, p.transfer.ID, ydbClient); err != nil {
 			return xerrors.Errorf("unable to create changeFeed, err: %w", err)
 		}
 	}
+
+	if p.transfer.SnapshotAndIncrement() {
+		if err := CommittedEndOffsetsForCustomFeed(ctx, src, ydbClient); err != nil {
+			return xerrors.Errorf("unable to commit end offsets, err: %w", err)
+		}
+	}
+
 	if !p.transfer.IncrementOnly() {
 		if err := callbacks.Cleanup(ConvertTableMapToYDBRelPath(src.ToStorageParams(), tables)); err != nil {
 			return xerrors.Errorf("Sinker cleanup failed: %w", err)
@@ -122,7 +147,7 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 	return nil
 }
 
-func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation) error {
+func (p *Provider) Deactivate(ctx context.Context, _ *model.TransferOperation) error {
 	src, ok := p.transfer.Src.(*YdbSource)
 	if !ok {
 		return xerrors.Errorf("unexpected src type: %T", p.transfer.Src)
@@ -130,8 +155,15 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 	p.fillIncludedTables(src)
 
 	if !p.transfer.SnapshotOnly() {
-		err := DropChangeFeed(src, p.transfer.ID)
+		ydbClient, err := newYDBSourceDriver(ctx, src)
 		if err != nil {
+			return xerrors.Errorf("unable to create ydb client: %w", err)
+		}
+		defer func() {
+			_ = ydbClient.Close(context.Background())
+		}()
+
+		if err := DropChangeFeed(ctx, src, p.transfer.ID, ydbClient); err != nil {
 			return xerrors.Errorf("drop changefeed error occurred: %w", err)
 		}
 	}
@@ -166,7 +198,16 @@ func (p *Provider) CleanupSource(ctx context.Context) error {
 		}
 		return nil
 	}
-	if err := DropChangeFeed(src, p.transfer.ID); err != nil {
+
+	ydbClient, err := newYDBSourceDriver(ctx, src)
+	if err != nil {
+		return xerrors.Errorf("unable to create ydb client: %w", err)
+	}
+	defer func() {
+		_ = ydbClient.Close(context.Background())
+	}()
+
+	if err := DropChangeFeed(ctx, src, p.transfer.ID, ydbClient); err != nil {
 		return xerrors.Errorf("drop changefeed failed: %w", err)
 	}
 	return nil

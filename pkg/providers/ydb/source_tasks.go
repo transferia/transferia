@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	dataTransferConsumerName = "__data_transfer_consumer"
 	// see: https://st.yandex-team.ru/DTSUPPORT-2428
 	// 	some old DBs can have v0 query syntax enabled by default, so we must enforce v1 syntax
 	// 	more details here: https://clubs.at.yandex-team.ru/ydb/336
@@ -38,6 +37,7 @@ func execQuery(ctx context.Context, ydbClient *ydb_go_sdk.Driver, query string) 
 	}
 	return nil
 }
+
 func dropChangeFeedIfExistsOneTable(ctx context.Context, ydbClient *ydb_go_sdk.Driver, tablePath, transferID string) (deleted bool, err error) {
 	query := fmt.Sprintf(ydbV1+"ALTER TABLE `%s` DROP CHANGEFEED %s", tablePath, transferID)
 	err = execQuery(ctx, ydbClient, query)
@@ -50,6 +50,7 @@ func dropChangeFeedIfExistsOneTable(ctx context.Context, ydbClient *ydb_go_sdk.D
 	}
 	return true, nil
 }
+
 func createChangeFeedOneTable(ctx context.Context, ydbClient *ydb_go_sdk.Driver, tablePath, transferID string, cfg *YdbSource) error {
 	autoPartitioningStr := ", TOPIC_AUTO_PARTITIONING = 'ENABLED'"
 	if err := createChangeFeedWithAutoPartitioning(ctx, ydbClient, autoPartitioningStr, tablePath, transferID, cfg); err == nil {
@@ -61,6 +62,7 @@ func createChangeFeedOneTable(ctx context.Context, ydbClient *ydb_go_sdk.Driver,
 	logger.Log.Infof("trying to create changefeed without auto partitioning for table %s", tablePath)
 	return createChangeFeedWithAutoPartitioning(ctx, ydbClient, "", tablePath, transferID, cfg)
 }
+
 func createChangeFeedWithAutoPartitioning(ctx context.Context, ydbClient *ydb_go_sdk.Driver, autoPartitioningStr string, tablePath, transferID string, cfg *YdbSource) error {
 	queryParams := fmt.Sprintf("FORMAT = 'JSON', MODE = '%s'%s", string(cfg.ChangeFeedMode), autoPartitioningStr)
 	if period := cfg.ChangeFeedRetentionPeriod; period != nil {
@@ -102,9 +104,11 @@ func checkChangeFeedConsumerOnline(ctx context.Context, ydbClient *ydb_go_sdk.Dr
 	}
 	return false, nil
 }
+
 func makeChangeFeedPath(tablePath, feedName string) string {
 	return path.Join(tablePath, feedName)
 }
+
 func makeTablePathFromTopicPath(topicPath, feedName, database string) string {
 	result := strings.TrimSuffix(topicPath, "/"+feedName)
 	if database[0] != '/' {
@@ -114,65 +118,85 @@ func makeTablePathFromTopicPath(topicPath, feedName, database string) string {
 	result = strings.TrimPrefix(result, "/")
 	return result
 }
-func CreateChangeFeed(cfg *YdbSource, transferID string) error {
+
+func CreateChangeFeed(ctx context.Context, cfg *YdbSource, transferID string, ydbClient *ydb_go_sdk.Driver) error {
 	if cfg.ChangeFeedCustomName != "" {
 		return nil // User already created changefeed and specified its name.
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+
+	createCtx, cancel := context.WithTimeout(ctx, time.Minute*3)
 	defer cancel()
-	ydbClient, err := newYDBSourceDriver(ctx, cfg)
-	if err != nil {
-		return xerrors.Errorf("unable to create ydb, err: %w", err)
-	}
 	for _, tablePath := range cfg.Tables {
-		err = createChangeFeedOneTable(ctx, ydbClient, tablePath, transferID, cfg)
-		if err != nil {
+		if err := createChangeFeedOneTable(createCtx, ydbClient, tablePath, transferID, cfg); err != nil {
 			return xerrors.Errorf("unable to create changeFeed for table %s, err: %w", tablePath, err)
 		}
 	}
 	return nil
 }
-func CreateChangeFeedIfNotExists(cfg *YdbSource, transferID string) error {
+
+func CreateChangeFeedIfNotExists(ctx context.Context, cfg *YdbSource, transferID string, ydbClient *ydb_go_sdk.Driver) error {
 	if cfg.ChangeFeedCustomName != "" {
 		return nil // User already created changefeed and specified its name.
 	}
-	clientCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+
+	createCtx, cancel := context.WithTimeout(ctx, time.Minute*3)
 	defer cancel()
-	ydbClient, err := newYDBSourceDriver(clientCtx, cfg)
-	if err != nil {
-		return xerrors.Errorf("unable to create ydb, err: %w", err)
-	}
 	for _, tablePath := range cfg.Tables {
-		isOnline, err := checkChangeFeedConsumerOnline(clientCtx, ydbClient, tablePath, transferID)
+		isOnline, err := checkChangeFeedConsumerOnline(createCtx, ydbClient, tablePath, transferID)
 		if err != nil {
 			return xerrors.Errorf("cannot check feed consumer online: %w", err)
 		}
 		if isOnline {
 			continue
 		}
-		err = createChangeFeedOneTable(clientCtx, ydbClient, tablePath, transferID, cfg)
+		err = createChangeFeedOneTable(createCtx, ydbClient, tablePath, transferID, cfg)
 		if err != nil {
 			return xerrors.Errorf("unable to create changeFeed for table %s, err: %w", tablePath, err)
 		}
 	}
 	return nil
 }
-func DropChangeFeed(cfg *YdbSource, transferID string) error {
+
+func DropChangeFeed(ctx context.Context, cfg *YdbSource, transferID string, ydbClient *ydb_go_sdk.Driver) error {
 	if cfg.ChangeFeedCustomName != "" {
 		return nil // Don't drop changefeed that was manually created by user.
 	}
-	clientCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+
+	dropCtx, cancel := context.WithTimeout(ctx, time.Minute*3)
 	defer cancel()
-	ydbClient, err := newYDBSourceDriver(clientCtx, cfg)
-	if err != nil {
-		return xerrors.Errorf("unable to create ydb, err: %w", err)
-	}
 	var mErr []error
 	for _, tablePath := range cfg.Tables {
-		_, err := dropChangeFeedIfExistsOneTable(clientCtx, ydbClient, tablePath, transferID)
+		_, err := dropChangeFeedIfExistsOneTable(dropCtx, ydbClient, tablePath, transferID)
 		if err != nil {
 			mErr = append(mErr, xerrors.Errorf("unable to drop changeFeed for table %s, err: %w", tablePath, err))
 		}
 	}
 	return errors.Join(mErr...)
+}
+
+func CommittedEndOffsetsForCustomFeed(ctx context.Context, cfg *YdbSource, ydbClient *ydb_go_sdk.Driver) error {
+	if cfg.ChangeFeedCustomName == "" {
+		return nil
+	}
+
+	commitCtx, cancel := context.WithTimeout(ctx, time.Minute*3)
+	defer cancel()
+
+	consumer := cfg.customConsumerOrDefault()
+	for _, table := range cfg.Tables {
+		feedFullPath := makeChangeFeedPath(table, cfg.ChangeFeedCustomName)
+		consumerDescription, err := ydbClient.Topic().DescribeTopicConsumer(commitCtx, feedFullPath, consumer)
+		if err != nil {
+			return xerrors.Errorf("unable to describe topic consumer, err: %w", err)
+		}
+
+		for _, partition := range consumerDescription.Partitions {
+			endOffset := partition.PartitionStats.PartitionsOffset.End
+			if err = ydbClient.Topic().CommitOffset(commitCtx, feedFullPath, partition.PartitionID, consumer, endOffset); err != nil {
+				return xerrors.Errorf("unable to commit offset for partition %d, err: %w", partition.PartitionID, err)
+			}
+		}
+	}
+
+	return nil
 }

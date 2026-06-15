@@ -311,10 +311,6 @@ func NewSource(transferID string, cfg *YdbSource, logger log.Logger, registry co
 	if cfg.ChangeFeedCustomName != "" {
 		feedName = cfg.ChangeFeedCustomName
 	}
-	consumerName := dataTransferConsumerName
-	if cfg.ChangeFeedCustomConsumerName != "" {
-		consumerName = cfg.ChangeFeedCustomConsumerName
-	}
 
 	commitMode := topicoptions.CommitModeSync
 	switch cfg.CommitMode {
@@ -326,7 +322,7 @@ func NewSource(transferID string, cfg *YdbSource, logger log.Logger, registry co
 		commitMode = topicoptions.CommitModeSync
 	}
 
-	reader, err := newReader(feedName, consumerName, cfg.Database, cfg.Tables, ydbClient, commitMode, logger)
+	reader, err := newReader(feedName, cfg.customConsumerOrDefault(), cfg.Database, cfg.Tables, ydbClient, commitMode, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create stream reader: %w", err)
 	}
