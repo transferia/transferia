@@ -601,6 +601,7 @@
   "library/go/core/metrics/solomon/metrics_opts.go":"library/go/core/metrics/solomon/metrics_opts.go",
   "library/go/core/metrics/solomon/registry.go":"library/go/core/metrics/solomon/registry.go",
   "library/go/core/metrics/solomon/registry_opts.go":"library/go/core/metrics/solomon/registry_opts.go",
+  "library/go/core/metrics/solomon/series.go":"library/go/core/metrics/solomon/series.go",
   "library/go/core/metrics/solomon/spack.go":"library/go/core/metrics/solomon/spack.go",
   "library/go/core/metrics/solomon/spack_compression.go":"library/go/core/metrics/solomon/spack_compression.go",
   "library/go/core/metrics/solomon/stream.go":"library/go/core/metrics/solomon/stream.go",
