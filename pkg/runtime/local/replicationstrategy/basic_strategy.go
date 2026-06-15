@@ -44,7 +44,7 @@ func (s *BasicStrategy) Run() error {
 		return nil
 	}
 
-	if err := eventsource.NewSource(s.logger, s.replicationSource, s.transfer.Dst.CleanupMode(), s.transfer.TmpPolicy).Run(s.sink); err != nil {
+	if err := eventsource.NewSource(s.logger, s.replicationSource, s.transfer.Dst.CleanupMode()).Run(s.sink); err != nil {
 		return errors.CategorizedErrorf(categories.Source, "failed to run (abstract2 source): %w", err)
 	}
 

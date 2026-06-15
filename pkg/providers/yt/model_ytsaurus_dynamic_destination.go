@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/synchronizer/bufferer"
@@ -74,14 +73,6 @@ func (d *YTSaurusDynamicDestination) MDBClusterID() string {
 func (d *YTSaurusDynamicDestination) PreSnapshotHacks() {}
 
 func (d *YTSaurusDynamicDestination) PostSnapshotHacks() {}
-
-func (d *YTSaurusDynamicDestination) EnsureTmpPolicySupported() error {
-	return xerrors.New("tmp policy is not supported")
-}
-
-func (d *YTSaurusDynamicDestination) EnsureCustomTmpPolicySupported() error {
-	return xerrors.New("tmp policy is not supported")
-}
 
 func (d *YTSaurusDynamicDestination) ToStorageParams() *YtStorageParams {
 	return &YtStorageParams{

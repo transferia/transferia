@@ -17,7 +17,6 @@ func SplitTables(
 	source abstract.Storage,
 	dstModel model.Destination,
 	tables []abstract.TableDescription,
-	tmpPolicyConfig *model.TmpPolicyConfig,
 	operationID string,
 ) ([]*abstract.OperationTablePart, error) {
 	var tablesParts []*abstract.OperationTablePart
@@ -32,7 +31,6 @@ func SplitTables(
 
 	shardingStorage, isShardingStorage := source.(abstract.ShardingStorage)
 	isShardeableDestination := model.IsShardeableDestination(dstModel)
-	isTmpPolicyEnabled := tmpPolicyConfig != nil
 
 	reasonWhyNotSharded := ""
 	if !isShardingStorage && !isShardeableDestination {
@@ -41,8 +39,6 @@ func SplitTables(
 		reasonWhyNotSharded = "Source storage is not supported sharding table - that's why tables won't be sharded here"
 	} else if !isShardeableDestination {
 		reasonWhyNotSharded = "Destination is not supported shardable snapshots - that's why tables won't be sharded here"
-	} else if isTmpPolicyEnabled {
-		reasonWhyNotSharded = "Sharding is not supported by tmp policy, disabling it"
 	}
 
 	for _, table := range tables {

@@ -35,14 +35,6 @@ func (l *SnapshotLoader) CleanupSinker(tables abstract.TableMap) error {
 		return nil
 	}
 
-	if l.transfer.TmpPolicy != nil {
-		if err := model.EnsureTmpPolicySupported(l.transfer.Dst, l.transfer); err != nil {
-			return errors.CategorizedErrorf(categories.Target, model.ErrInvalidTmpPolicy, err)
-		}
-		logger.Log.Info("sink cleanup skipped due to tmp policy")
-		return nil
-	}
-
 	mode := l.transfer.Dst.CleanupMode()
 
 	logger.Log.Infof("need to cleanup (%v) tables", string(mode))

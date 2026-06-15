@@ -83,7 +83,7 @@ func TestYtStorage_TableList(t *testing.T) {
 
 	Target.WithDefaults()
 
-	sinker, err := ytsink.NewSinker(Target, "", logger.Log, emptyRegistry(), nil)
+	sinker, err := ytsink.NewSinker(Target, "", logger.Log, emptyRegistry())
 	require.NoError(t, err)
 
 	err = sinker.Push([]abstract.ChangeItem{

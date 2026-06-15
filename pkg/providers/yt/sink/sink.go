@@ -16,7 +16,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/middlewares"
 	generic_parser "github.com/transferia/transferia/pkg/parsers/generic"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
@@ -637,19 +636,10 @@ func NewSinker(
 	transferID string,
 	logger log.Logger,
 	registry core_metrics.Registry,
-	tmpPolicyConfig *model.TmpPolicyConfig,
 ) (abstract.Sinker, error) {
-	var result abstract.Sinker
-
-	uncasted, err := newSinker(cfg, transferID, logger, registry)
+	result, err := newSinker(cfg, transferID, logger, registry)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create pure YT sink: %w", err)
-	}
-
-	if tmpPolicyConfig != nil {
-		result = middlewares.TableTemporator(logger, transferID, *tmpPolicyConfig)(uncasted)
-	} else {
-		result = uncasted
 	}
 
 	return result, nil

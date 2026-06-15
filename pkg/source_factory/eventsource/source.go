@@ -14,17 +14,15 @@ import (
 type eventSourceSource struct {
 	source        abstract2.EventSource
 	cleanupPolicy model.CleanupType
-	tmpPolicy     *model.TmpPolicyConfig
 
 	logger log.Logger
 }
 
 // NewSource constructs a wrapper over the given abstract2.EventSource with the abstract.Source interface
-func NewSource(logger log.Logger, source abstract2.EventSource, cleanupPolicy model.CleanupType, tmpPolicy *model.TmpPolicyConfig) abstract.Source {
+func NewSource(logger log.Logger, source abstract2.EventSource, cleanupPolicy model.CleanupType) abstract.Source {
 	return &eventSourceSource{
 		source:        source,
 		cleanupPolicy: cleanupPolicy,
-		tmpPolicy:     tmpPolicy,
 
 		logger: logger,
 	}
@@ -35,7 +33,7 @@ func (s *eventSourceSource) Run(sink abstract.AsyncSink) error {
 		return xerrors.New("Source is already in running state")
 	}
 
-	target := legacy.NewEventTarget(s.logger, sink, s.cleanupPolicy, s.tmpPolicy)
+	target := legacy.NewEventTarget(s.logger, sink, s.cleanupPolicy)
 	if err := s.source.Start(context.Background(), target); err != nil {
 		return err
 	}

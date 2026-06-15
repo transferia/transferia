@@ -25,7 +25,6 @@ const (
 )
 
 type YtDestinationModel interface {
-	model.TmpPolicyProvider
 	yt_client.ConnParams
 	bufferer.Bufferable
 
@@ -187,26 +186,6 @@ func (d *YtDestinationWrapper) SetParams(jsonStr string) error {
 // TODO: Remove in march
 func (d *YtDestinationWrapper) DisableDatetimeHack() bool {
 	return d.Model.DisableDatetimeHack
-}
-
-func (d *YtDestinationWrapper) EnsureTmpPolicySupported() error {
-	if d.Static() {
-		return xerrors.Errorf("static destination is not supported")
-	}
-	if d.UseStaticTableOnSnapshot() {
-		return xerrors.Errorf("using static tables on snapshot is not supported")
-	}
-	if d.CleanupMode() == model.Replace {
-		return xerrors.Errorf("using replace cleanup is not supported")
-	}
-	return nil
-}
-
-func (d *YtDestinationWrapper) EnsureCustomTmpPolicySupported() error {
-	if !d.UseStaticTableOnSnapshot() && d.CleanupMode() != model.Replace {
-		return xerrors.New("using static tables on snapshot is not enabled")
-	}
-	return nil
 }
 
 func (d *YtDestinationWrapper) CompressionCodec() yt.ClientCompressionCodec {

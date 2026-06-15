@@ -5,7 +5,6 @@ import (
 
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	"github.com/transferia/transferia/pkg/cleanup"
 	"github.com/transferia/transferia/pkg/util"
 )
 
@@ -73,15 +72,4 @@ type Verifier interface {
 type Updater interface {
 	Provider
 	Update(ctx context.Context, addedTables []abstract.TableDescription) error
-}
-
-type Cleaner interface {
-	cleanup.Closeable
-	CleanupTmp(ctx context.Context, transferID string, tmpPolicy *model.TmpPolicyConfig) error
-}
-
-// TMPCleaner enable custom functionality on transfer `TMP Policy` inside `Cleanup` stage of `Activate` task.
-type TMPCleaner interface {
-	Provider
-	TMPCleaner(ctx context.Context, task *model.TransferOperation) (Cleaner, error)
 }

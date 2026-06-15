@@ -311,7 +311,7 @@ func TestLargeRowsWorkWithSpecialSinkOption(t *testing.T) {
 		ytModel.PrimaryMedium = "default"
 		cfg.WithDefaults()
 
-		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry(), nil)
+		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry())
 		require.NoError(t, err)
 		require.NoError(t, sink.Push([]abstract.ChangeItem{makeLargeChangeItem()}))
 		require.NoError(t, sink.Close())
@@ -345,7 +345,7 @@ func TestLargeRowsDontWorkWithoutSpecialSinkOption(t *testing.T) {
 		ytModel.PrimaryMedium = "default"
 		cfg.WithDefaults()
 
-		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry(), nil)
+		sink, err := NewSinker(cfg, "dtttm5880", logger.Log, metrics.NewRegistry())
 		require.NoError(t, err)
 		require.Error(t, sink.Push([]abstract.ChangeItem{makeLargeChangeItem()}))
 		require.NoError(t, sink.Close())

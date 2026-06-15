@@ -44,7 +44,6 @@ var (
 	_ providers.Abstract2Sinker   = (*Provider)(nil)
 
 	_ providers.DstCleanuper = (*Provider)(nil)
-	_ providers.TMPCleaner   = (*Provider)(nil)
 	_ providers.Verifier     = (*Provider)(nil)
 )
 
@@ -162,7 +161,7 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 
-	s, err := yt_sink.NewSinker(dst, p.transfer.ID, p.logger, p.registry, p.transfer.TmpPolicy)
+	s, err := yt_sink.NewSinker(dst, p.transfer.ID, p.logger, p.registry)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create YT (non-static) sinker: %w", err)
 	}
@@ -175,14 +174,6 @@ func getJobIndex(transfer *model.Transfer) int {
 	} else {
 		return 0
 	}
-}
-
-func (p *Provider) TMPCleaner(ctx context.Context, task *model.TransferOperation) (providers.Cleaner, error) {
-	dst, ok := p.transfer.Dst.(provider_yt.YtDestinationModel)
-	if !ok {
-		return nil, xerrors.Errorf("unexpected destincation type: %T", p.transfer.Dst)
-	}
-	return provider_yt.NewTmpCleaner(dst, p.logger)
 }
 
 func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {

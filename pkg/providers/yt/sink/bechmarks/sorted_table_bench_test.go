@@ -123,7 +123,7 @@ func BenchmarkSinkWrite(b *testing.B) {
 				DisableDatetimeHack: false,
 			})
 			cfg.WithDefaults()
-			table, err := yt_sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), dt_metrics.NewRegistry(), nil)
+			table, err := yt_sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), dt_metrics.NewRegistry())
 			require.NoError(b, err)
 			if o, ok := table.(overrideable); ok {
 				o.OverrideClient(&fakeYT{cols: []ytschema.Column{{
@@ -154,7 +154,7 @@ func BenchmarkSinkWrite(b *testing.B) {
 				DisableDatetimeHack: true,
 			})
 			cfg.WithDefaults()
-			table, err := yt_sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), dt_metrics.NewRegistry(), nil)
+			table, err := yt_sink.NewSinker(cfg, "some_uniq_transfer_id", logger.LoggerWithLevel(zapcore.WarnLevel), dt_metrics.NewRegistry())
 			require.NoError(b, err)
 			if o, ok := table.(overrideable); ok {
 				o.OverrideClient(&fakeYT{cols: []ytschema.Column{{

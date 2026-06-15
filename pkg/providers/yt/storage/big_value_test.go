@@ -66,7 +66,7 @@ func TestBigValue(t *testing.T) {
 	}
 
 	t.Run("do_not_discard_big_values", func(t *testing.T) {
-		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry(), nil)
+		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry())
 		require.NoError(t, err)
 		defer cleanup.Close(sinker, logger.Log)
 
@@ -77,7 +77,7 @@ func TestBigValue(t *testing.T) {
 	t.Run("discard_big_values", func(t *testing.T) {
 		dstModel.LegacyModel().(*yt.YtDestination).DiscardBigValues = true
 
-		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry(), nil)
+		sinker, err := sink.NewSinker(dstModel, "big_value", logger.Log, emptyRegistry())
 		require.NoError(t, err)
 		defer cleanup.Close(sinker, logger.Log)
 

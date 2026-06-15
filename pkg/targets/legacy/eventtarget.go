@@ -17,7 +17,6 @@ type legacyEventTarget struct {
 	logger      log.Logger
 	asyncSink   abstract.AsyncSink
 	cleanupType model.CleanupType
-	tmpPolicy   *model.TmpPolicyConfig
 	pushQ       chan pushItem
 	convertPool worker_pool.WorkerPool
 }
@@ -41,14 +40,12 @@ type pushItem struct {
 func NewEventTarget(
 	logger log.Logger,
 	asyncSink abstract.AsyncSink,
-	cleanupType model.CleanupType,
-	tmpPolicy *model.TmpPolicyConfig) abstract2.EventTarget {
+	cleanupType model.CleanupType) abstract2.EventTarget {
 	parallelism := runtime.GOMAXPROCS(0)
 	t := &legacyEventTarget{
 		logger:      logger,
 		asyncSink:   asyncSink,
 		cleanupType: cleanupType,
-		tmpPolicy:   tmpPolicy,
 		pushQ:       make(chan pushItem, parallelism),
 		convertPool: nil,
 	}
@@ -110,10 +107,6 @@ func (t *legacyEventTarget) convert(in interface{}) {
 		// TODO: Replace with TableLoad events handling
 		if cleanupEvt, ok := evt.(events.CleanupEvent); ok {
 			tableID := abstract.TableID(cleanupEvt)
-			if t.tmpPolicy != nil && t.tmpPolicy.Include(tableID) {
-				t.logger.Infof("skip cleanup for table '%v' included in tmp policy", tableID.Fqtn())
-				continue
-			}
 			res.cleanupTables[tableID] = abstract.TableInfo{
 				EtaRow: 0,
 				IsView: false,

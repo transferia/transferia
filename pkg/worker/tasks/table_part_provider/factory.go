@@ -35,7 +35,6 @@ func NewTPPSetter(
 	sourceStorage abstract.Storage,
 	dstModel model.Destination,
 	tables []abstract.TableDescription,
-	tmpPolicyConfig *model.TmpPolicyConfig,
 	operationID string,
 	sharedMemory abstract.SharedMemory,
 ) (AbstractTablePartProviderSetter, error) {
@@ -45,7 +44,7 @@ func NewTPPSetter(
 		return result, nil
 	} else {
 		lgr.Infof("NewTPPSetter - factory calls NewTPPSetterSync")
-		parts, err := table_splitter.SplitTables(ctx, logger.Log, sourceStorage, dstModel, tables, tmpPolicyConfig, operationID)
+		parts, err := table_splitter.SplitTables(ctx, logger.Log, sourceStorage, dstModel, tables, operationID)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to shard tables for operation '%v': %w", operationID, err)
 		}

@@ -95,7 +95,7 @@ func (l *SnapshotLoader) makeTargetV2(lgr log.Logger) (dataTarget abstract2.Even
 		if err != nil {
 			return nil, nil, xerrors.Errorf("error creating legacy sink: %w", err)
 		}
-		dataTarget = legacy.NewEventTarget(lgr, legacySink, l.transfer.Dst.CleanupMode(), l.transfer.TmpPolicy)
+		dataTarget = legacy.NewEventTarget(lgr, legacySink, l.transfer.Dst.CleanupMode())
 	} else if err != nil {
 		return nil, nil, xerrors.Errorf("unable to create target: %w", err)
 	}
@@ -106,24 +106,6 @@ func (l *SnapshotLoader) makeTargetV2(lgr log.Logger) (dataTarget abstract2.Even
 		}
 	}
 	return dataTarget, closer, nil
-}
-
-func (l *SnapshotLoader) applyTransferTmpPolicyV2(inputFilter abstract2.DataObjectFilter) error {
-	if l.transfer.TmpPolicy == nil {
-		return nil
-	}
-
-	if err := model.EnsureTmpPolicySupported(l.transfer.Dst, l.transfer); err != nil {
-		return xerrors.Errorf(model.ErrInvalidTmpPolicy, err)
-	}
-	l.transfer.TmpPolicy = l.transfer.TmpPolicy.WithInclude(func(tableID abstract.TableID) bool {
-		if inputFilter == nil {
-			return true
-		}
-		ok, _ := inputFilter.IncludesID(tableID)
-		return ok
-	})
-	return nil
 }
 
 func (l *SnapshotLoader) createSnapshotProviderV2() (abstract2.SnapshotProvider, error) {
@@ -178,10 +160,6 @@ func (l *SnapshotLoader) uploadV2Single(ctx context.Context, snapshotProvider ab
 	var inputFilter abstract2.DataObjectFilter
 	if inTables != nil {
 		inputFilter = filter.NewFromDescription(inTables)
-	}
-
-	if err := l.applyTransferTmpPolicyV2(inputFilter); err != nil {
-		return xerrors.Errorf("failed apply transfer tmp policy: %w", err)
 	}
 
 	if hackable, ok := l.transfer.Dst.(model.HackableTarget); ok {
@@ -322,11 +300,6 @@ func (l *SnapshotLoader) uploadV2Main(ctx context.Context, snapshotProvider abst
 		return abstract.NewFatalError(xerrors.New("no tables in snapshot"))
 	}
 
-	if l.transfer.TmpPolicy != nil {
-		return abstract.NewFatalError(
-			xerrors.Errorf("sharded transfer do not support temporary tables policy, please, turn it off or make transfer not sharded"))
-	}
-
 	var inputFilter abstract2.DataObjectFilter
 	if inTables != nil {
 		inputFilter = filter.NewFromDescription(inTables)
@@ -456,11 +429,6 @@ func (l *SnapshotLoader) uploadV2Secondary(ctx context.Context, snapshotProvider
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 	if !ok || runtime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operation.OperationID)
-	}
-
-	if l.transfer.TmpPolicy != nil {
-		return abstract.NewFatalError(
-			xerrors.Errorf("sharded transfer do not support temporary tables policy, please, turn it off or make transfer not sharded"))
 	}
 
 	logger.Log.Infof("Sharding upload on worker '%v' started", l.workerIndex)

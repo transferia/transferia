@@ -193,28 +193,6 @@ func (l *SnapshotLoader) endpointsPostSnapshotActions() {
 	}
 }
 
-func (l *SnapshotLoader) applyTransferTmpPolicy(tables []abstract.TableDescription) error {
-	if l.transfer.TmpPolicy != nil && l.transfer.TmpPolicy.Suffix != "" {
-		if err := model.EnsureTmpPolicySupported(l.transfer.Dst, l.transfer); err != nil {
-			return errors.CategorizedErrorf(categories.Target, model.ErrInvalidTmpPolicy, err)
-		}
-		include := make(map[abstract.TableID]struct{})
-		for _, table := range tables {
-			tableID := table.ID()
-			if table.Filter == "" && table.Offset == 0 {
-				include[tableID] = struct{}{}
-			} else {
-				logger.Log.Infof("table %v excluded from tmp policy due to filter or offset", tableID.Fqtn())
-			}
-		}
-		l.transfer.TmpPolicy = l.transfer.TmpPolicy.WithInclude(func(tableID abstract.TableID) bool {
-			_, ok := include[tableID]
-			return ok
-		})
-	}
-	return nil
-}
-
 func (l *SnapshotLoader) buildNextIncrementalStateEntities(
 	ctx context.Context,
 	sourceStorage abstract.Storage, // it's 'abstract1' storage!
@@ -420,10 +398,6 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		return xerrors.Errorf("failed to set extra runtime transformations: %w", err)
 	}
 
-	if err := l.applyTransferTmpPolicy(tables); err != nil {
-		return xerrors.Errorf("failed apply transfer tmp policy: %w", err)
-	}
-
 	l.endpointsPreSnapshotActions(sourceStorage)
 
 	tables, nextIncrementalState, err := l.startSnapshotIncremental(ctx, tables, updateIncrementalState, sourceStorage)
@@ -536,10 +510,6 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return abstract.NewFatalError(xerrors.New("no tables in snapshot"))
 	}
 
-	if l.transfer.TmpPolicy != nil {
-		return coded.Errorf(error_codes.ShardedTransferTmpPolicy, "sharded transfer do not support temporary tables policy, please, turn it off or make transfer not sharded")
-	}
-
 	ctx, l.cancelUpload = context.WithCancel(ctx)
 	defer l.cancelUpload()
 
@@ -638,10 +608,6 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 	runtime, ok := l.transfer.Runtime.(abstract.ShardingTaskRuntime)
 	if !ok || runtime.SnapshotWorkersNum() <= 1 {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operation.OperationID)
-	}
-
-	if l.transfer.TmpPolicy != nil {
-		return coded.Errorf(error_codes.ShardedTransferTmpPolicy, "sharded transfer do not support temporary tables policy, please, turn it off or make transfer not sharded")
 	}
 
 	ctx, l.cancelUpload = context.WithCancel(ctx)
@@ -1173,7 +1139,6 @@ func (l *SnapshotLoader) BuildTPP(
 			inStorage,
 			l.transfer.Dst,
 			tables,
-			l.transfer.TmpPolicy,
 			l.operation.OperationID,
 			sharedMemory,
 		)
