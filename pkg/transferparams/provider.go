@@ -43,3 +43,7 @@ func (p *Provider) RuntimeFlavor() (string, error) {
 func (p *Provider) JobCount() (int, error) {
 	return util.GetIntValue(p.transferParams, jobCount)
 }
+
+func (p *Provider) TransferId() (string, error) {
+	return util.GetStringValue(p.transferParams, transferId)
+}

@@ -729,6 +729,7 @@
   "pkg/abstract/gotest/canondata/result.json":"transfer_manager/go/pkg/abstract/gotest/canondata/result.json",
   "pkg/abstract/homo_valuer.go":"transfer_manager/go/pkg/abstract/homo_valuer.go",
   "pkg/abstract/includeable.go":"transfer_manager/go/pkg/abstract/includeable.go",
+  "pkg/abstract/k8s_runtime.go":"transfer_manager/go/pkg/abstract/k8s_runtime.go",
   "pkg/abstract/local_runtime.go":"transfer_manager/go/pkg/abstract/local_runtime.go",
   "pkg/abstract/metrics.go":"transfer_manager/go/pkg/abstract/metrics.go",
   "pkg/abstract/middleware.go":"transfer_manager/go/pkg/abstract/middleware.go",
