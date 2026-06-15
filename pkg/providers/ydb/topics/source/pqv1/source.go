@@ -42,25 +42,25 @@ type Source struct {
 	executor *functions.Executor
 }
 
-func (p *Source) YSRNamespaceID() string {
-	if srParser, ok := p.parser.(*parsers.YSRableParser); ok {
+func (s *Source) YSRNamespaceID() string {
+	if srParser, ok := s.parser.(*parsers.YSRableParser); ok {
 		return srParser.YSRNamespaceID()
 	}
 	return ""
 }
 
-func (p *Source) Run(sink abstract.AsyncSink) error {
+func (s *Source) Run(sink abstract.AsyncSink) error {
 	var transformFunc lbyds.TransformFunc
-	if p.executor != nil {
+	if s.executor != nil {
 		transformFunc = func(data []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
 			st := time.Now()
-			p.logger.Infof("begin transform for batches %v rows", len(data))
-			transformed, err := p.executor.Do(data)
+			s.logger.Infof("begin transform for batches %v rows", len(data))
+			transformed, err := s.executor.Do(data)
 			if err != nil {
 				return nil, xerrors.Errorf("Cloud function transformation error in %v, %v rows -> %v rows, err: %w", time.Since(st), len(data), len(transformed), err)
 			}
-			p.logger.Infof("Cloud function transformation done in %v, %v rows -> %v rows", time.Since(st), len(data), len(transformed))
-			p.metrics.TransformTime.RecordDuration(time.Since(st))
+			s.logger.Infof("Cloud function transformation done in %v, %v rows -> %v rows", time.Since(st), len(data), len(transformed))
+			s.metrics.TransformTime.RecordDuration(time.Since(st))
 
 			return transformed, nil
 		}
@@ -71,86 +71,86 @@ func (p *Source) Run(sink abstract.AsyncSink) error {
 			return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}, nil
 		}
 
-		return lbyds.Parse(batch.Batches, p.parser, p.metrics, p.logger, transformFunc, p.config.UseFullTopicNameForParsing)
+		return lbyds.Parse(batch.Batches, s.parser, s.metrics, s.logger, transformFunc, s.config.UseFullTopicNameForParsing)
 	}
-	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, parseWrapper, p.ack)
+	parseQ := parsequeue.NewWaitable(s.logger, s.config.ParseQueueParallelism, sink, parseWrapper, s.ack)
 
-	runErr := p.run(parseQ)
+	runErr := s.run(parseQ)
 
 	parseQ.Close()
 	return multierr.Combine(runErr, parseQ.Error())
 }
 
-func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) error {
+func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) error {
 	defer func() {
-		p.consumer.Shutdown()
-		lbyds.WaitSkippedMsgs(p.logger, p.consumer, "yds")
+		s.consumer.Shutdown()
+		lbyds.WaitSkippedMsgs(s.logger, s.consumer, "yds")
 	}()
 
 	lastPush := time.Now()
 	for {
 		select {
-		case <-p.stopCh:
-			p.logger.Warn("reader is closed")
+		case <-s.stopCh:
+			s.logger.Warn("reader is closed")
 			return nil
 
 		case <-parseQ.Done():
-			p.logger.Warn("parse queue is closed")
+			s.logger.Warn("parse queue is closed")
 			return nil
 
-		case b, ok := <-p.consumer.C():
+		case b, ok := <-s.consumer.C():
 			if !ok {
-				p.logger.Warn("Reader closed")
+				s.logger.Warn("Reader closed")
 				return xerrors.New("consumer closed, close subscription")
 			}
 
-			stat := p.consumer.Stat()
-			p.metrics.Usage.Set(float64(stat.MemUsage))
-			p.metrics.Read.Set(float64(stat.BytesRead))
-			p.metrics.Extract.Set(float64(stat.BytesExtracted))
+			stat := s.consumer.Stat()
+			s.metrics.Usage.Set(float64(stat.MemUsage))
+			s.metrics.Read.Set(float64(stat.BytesRead))
+			s.metrics.Extract.Set(float64(stat.BytesExtracted))
 
 			switch v := b.(type) {
 			case *persqueue.CommitAck:
-				p.logger.Infof("Ack: %v", v.Cookies)
+				s.logger.Infof("Ack: %v", v.Cookies)
 			case *persqueue.LockV1:
-				p.lockPartition(v)
+				s.lockPartition(v)
 			case *persqueue.ReleaseV1:
-				p.logger.Infof("Received 'Release' event, partition:%s@%d", v.Topic, v.Partition)
-				err := p.sendSynchronizeEventIfNeeded(parseQ)
+				s.logger.Infof("Received 'Release' event, partition:%s@%d", v.Topic, v.Partition)
+				err := s.sendSynchronizeEventIfNeeded(parseQ)
 				if err != nil {
 					return xerrors.Errorf("unable to send synchronize event, err: %w", err)
 				}
 				v.Release()
 			case *persqueue.Disconnect:
 				if v.Err != nil {
-					p.logger.Errorf("Disconnected: %s", v.Err.Error())
+					s.logger.Errorf("Disconnected: %s", v.Err.Error())
 				} else {
-					p.logger.Error("Disconnected")
+					s.logger.Error("Disconnected")
 				}
-				err := p.sendSynchronizeEventIfNeeded(parseQ)
+				err := s.sendSynchronizeEventIfNeeded(parseQ)
 				if err != nil {
 					return xerrors.Errorf("unable to send synchronize event, err: %w", err)
 				}
 			case *persqueue.Data:
 				batches := lbyds.ConvertBatches(v.Batches())
-				err := p.offsetsValidator.CheckLbOffsets(batches)
+				err := s.offsetsValidator.CheckLbOffsets(batches)
 				if err != nil {
-					if p.config.AllowTTLRewind {
-						p.logger.Warn("ttl rewind", log.Error(err))
+					if s.config.AllowTTLRewind {
+						s.logger.Warn("ttl rewind", log.Error(err))
 					} else {
-						p.metrics.Fatal.Inc()
+						s.metrics.Fatal.Inc()
 						return abstract.NewFatalError(err)
 					}
 				}
 				ranges := lbyds.BuildMapPartitionToLbOffsetsRange(batches)
-				p.logger.Debug("got lb_offsets", log.Any("range", ranges))
+				s.logger.Debug("got lb_offsets", log.Any("range", ranges))
 
-				p.metrics.Master.Set(1)
+				s.metrics.Master.Set(1)
 				messagesSize, messagesCount := queues.BatchStatistics(batches)
-				p.metrics.Size.Add(messagesSize)
-				p.metrics.Count.Add(messagesCount)
+				s.metrics.Size.Add(messagesSize)
+				s.metrics.Count.Add(messagesCount)
 
-				p.logger.Debugf("begin to process batch: %v items with %v, time from last batch: %v", len(batches), format.SizeUInt64(uint64(messagesSize)), time.Since(lastPush))
+				s.logger.Debugf("begin to process batch: %v items with %v, time from last batch: %v", len(batches), format.SizeUInt64(uint64(messagesSize)), time.Since(lastPush))
 				if err := parseQ.Add(newBatch(v.Commit, batches)); err != nil {
 					return xerrors.Errorf("unable to add message to parser process: %w", err)
 				}
@@ -160,30 +160,30 @@ func (p *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) er
 	}
 }
 
-func (p *Source) Stop() {
-	p.onceStop.Do(func() {
-		close(p.stopCh)
-		p.cancel()
+func (s *Source) Stop() {
+	s.onceStop.Do(func() {
+		close(s.stopCh)
+		s.cancel()
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	for {
 		select {
 		case <-ctx.Done():
-			p.logger.Warn("timeout in lb reader abort")
+			s.logger.Warn("timeout in lb reader abort")
 			return
-		case <-p.consumer.Closed():
-			p.logger.Info("abort lb reader")
+		case <-s.consumer.Closed():
+			s.logger.Info("abort lb reader")
 			return
 		}
 	}
 }
 
-func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
+func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	for {
-		b, ok := <-p.consumer.C()
+		b, ok := <-s.consumer.C()
 		if !ok {
 			return nil, xerrors.New("consumer closed, close subscription")
 		}
@@ -194,11 +194,11 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 		}
 		switch v := b.(type) {
 		case *persqueue.CommitAck:
-			p.logger.Infof("Ack: %v", v.Cookies)
+			s.logger.Infof("Ack: %v", v.Cookies)
 		case *persqueue.LockV1:
-			p.lockPartition(v)
+			s.lockPartition(v)
 		case *persqueue.ReleaseV1:
-			_ = p.sendSynchronizeEventIfNeeded(nil)
+			_ = s.sendSynchronizeEventIfNeeded(nil)
 		case *persqueue.Data:
 			var dataBatches [][]abstract.ChangeItem
 			batchSize := 0
@@ -216,10 +216,10 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 				res = append(res, data...)
 				dataBatches = append(dataBatches, data)
 			}
-			if p.executor != nil {
+			if s.executor != nil {
 				res = nil
 				for i := range dataBatches {
-					transformed, err := p.executor.Do(dataBatches[i])
+					transformed, err := s.executor.Do(dataBatches[i])
 					if err != nil {
 						return nil, err
 					}
@@ -227,14 +227,14 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 					res = append(res, transformed...)
 				}
 			}
-			if p.parser != nil {
+			if s.parser != nil {
 				res = nil
 				// DO CONVERT
 				for i := range dataBatches {
 					var rows []abstract.ChangeItem
 					for _, row := range dataBatches[i] {
 						ci, part := lbyds.ChangeItemAsMessage(row)
-						rows = append(rows, p.parser.Do(ci, part)...)
+						rows = append(rows, s.parser.Do(ci, part)...)
 					}
 					res = append(res, rows...)
 				}
@@ -242,9 +242,9 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 			return res, nil
 		case *persqueue.Disconnect:
 			if v.Err != nil {
-				p.logger.Errorf("Disconnected: %s", v.Err.Error())
+				s.logger.Errorf("Disconnected: %s", v.Err.Error())
 			} else {
-				p.logger.Error("Disconnected")
+				s.logger.Error("Disconnected")
 			}
 			continue
 		default:
@@ -253,7 +253,7 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 	}
 }
 
-func (p *Source) watchParserResource(parser parsers.Parser) {
+func (s *Source) watchParserResource(parser parsers.Parser) {
 	var resource resources.AbstractResources
 	if resourceable, ok := parser.(resources.Resourceable); ok {
 		resource = resourceable.ResourcesObj()
@@ -263,35 +263,35 @@ func (p *Source) watchParserResource(parser parsers.Parser) {
 
 	select {
 	case <-resource.OutdatedCh():
-		p.logger.Warn("Parser resource is outdated, stop source")
-		p.Stop()
-	case <-p.stopCh:
+		s.logger.Warn("Parser resource is outdated, stop source")
+		s.Stop()
+	case <-s.stopCh:
 		return
 	}
 }
 
-func (p *Source) lockPartition(lock *persqueue.LockV1) {
+func (s *Source) lockPartition(lock *persqueue.LockV1) {
 	partName := fmt.Sprintf("%v@%v", lock.Topic, lock.Partition)
-	p.logger.Infof("Lock partition:%v ReadOffset:%v, EndOffset:%v", partName, lock.ReadOffset, lock.EndOffset)
-	p.offsetsValidator.InitOffsetForPartition(lock.Topic, uint32(lock.Partition), lock.ReadOffset)
+	s.logger.Infof("Lock partition:%v ReadOffset:%v, EndOffset:%v", partName, lock.ReadOffset, lock.EndOffset)
+	s.offsetsValidator.InitOffsetForPartition(lock.Topic, uint32(lock.Partition), lock.ReadOffset)
 	lock.StartRead(true, lock.ReadOffset, lock.ReadOffset)
 }
 
-func (p *Source) sendSynchronizeEventIfNeeded(parseQ *parsequeue.WaitableParseQueue[committableBatch]) error {
-	if p.config.IsYDBTopicSink && parseQ != nil {
-		p.logger.Info("Sending synchronize event")
+func (s *Source) sendSynchronizeEventIfNeeded(parseQ *parsequeue.WaitableParseQueue[committableBatch]) error {
+	if s.config.IsYDBTopicSink && parseQ != nil {
+		s.logger.Info("Sending synchronize event")
 		if err := parseQ.Add(newEmtpyBatch()); err != nil {
 			return xerrors.Errorf("unable to add message to parser process: %w", err)
 		}
 		parseQ.Wait()
-		p.logger.Info("Sent synchronize event")
+		s.logger.Info("Sent synchronize event")
 	}
 	return nil
 }
 
-func (p *Source) ack(data committableBatch, st time.Time) error {
+func (s *Source) ack(data committableBatch, st time.Time) error {
 	data.Commit()
-	p.metrics.PushTime.RecordDuration(time.Since(st))
+	s.metrics.PushTime.RecordDuration(time.Since(st))
 
 	return nil
 }

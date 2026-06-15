@@ -14,10 +14,20 @@ import (
 	"github.com/twmb/franz-go/pkg/kmsg"
 )
 
-func ensureTopicsExistWithRetries(client *kgo.Client, topics ...string) error {
-	return backoff.Retry(func() error {
-		return ensureTopicExists(client, 15*time.Second, topics)
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5))
+func checkTopicsExistence(clientOpts []kgo.Opt, topics []string) error {
+	kfClient, err := kgo.NewClient(clientOpts...)
+	if err != nil {
+		return xerrors.Errorf("unable to create kafka client to ensure topics: %w", err)
+	}
+	defer kfClient.Close()
+
+	if err := backoff.Retry(func() error {
+		return ensureTopicExists(kfClient, 15*time.Second, topics)
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5)); err != nil {
+		return xerrors.Errorf("unable to ensure topic existence: %w", err)
+	}
+
+	return nil
 }
 
 func ensureTopicExists(requestor kmsg.Requestor, timeout time.Duration, topics []string) error {

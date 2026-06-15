@@ -50,8 +50,8 @@ type Source struct {
 	partitionReleased bool // becomes true, when consumer loses partitions
 }
 
-func (p *Source) YSRNamespaceID() string {
-	if srParser, ok := p.parser.(*parsers.YSRableParser); ok {
+func (s *Source) YSRNamespaceID() string {
+	if srParser, ok := s.parser.(*parsers.YSRableParser); ok {
 		return srParser.YSRNamespaceID()
 	}
 	return ""
@@ -69,20 +69,20 @@ func (p *Source) YSRNamespaceID() string {
 // actually this is throttler by consumed memory
 // backoff is needed here to not write logs too frequently
 
-func (p *Source) waitLimits(parseQDone <-chan struct{}) {
+func (s *Source) waitLimits(parseQDone <-chan struct{}) {
 	backoffTimer := backoff.NewExponentialBackOff()
 	backoffTimer.Reset()
 	backoffTimer.MaxElapsedTime = 0
 	nextLogDuration := backoffTimer.NextBackOff()
 	logTime := time.Now()
 
-	for p.inflightThrottler.ExceededLimits() {
+	for s.inflightThrottler.ExceededLimits() {
 		select {
-		case <-p.ctx.Done():
-			p.logger.Warn("context aborted, stop wait for limits")
+		case <-s.ctx.Done():
+			s.logger.Warn("context aborted, stop wait for limits")
 			return
 		case <-parseQDone:
-			p.logger.Warn("parse queue stopped, stop wait for limits")
+			s.logger.Warn("parse queue stopped, stop wait for limits")
 			return
 		default:
 		}
@@ -90,30 +90,30 @@ func (p *Source) waitLimits(parseQDone <-chan struct{}) {
 		if time.Since(logTime) > nextLogDuration {
 			logTime = time.Now()
 			nextLogDuration = backoffTimer.NextBackOff()
-			p.logger.Warnf(
+			s.logger.Warnf(
 				"reader throttled for %v, limits: %v / %v",
 				backoffTimer.GetElapsedTime(),
-				format.SizeUInt64(p.inflightThrottler.InflightBytes()),
-				format.SizeInt(int(p.config.BufferSizeOrDefault())),
+				format.SizeUInt64(s.inflightThrottler.InflightBytes()),
+				format.SizeInt(int(s.config.BufferSizeOrDefault())),
 			)
 		}
 		time.Sleep(time.Millisecond * 20)
 	}
 }
 
-func (p *Source) Run(sink abstract.AsyncSink) error {
-	parseQ := parsequeue.NewWaitable(p.logger, p.config.ParseQueueParallelism, sink, p.parseWithSynchronizeEvent, p.ack)
+func (s *Source) Run(sink abstract.AsyncSink) error {
+	parseQ := parsequeue.NewWaitable(s.logger, s.config.ParseQueueParallelism, sink, s.parseWithSynchronizeEvent, s.ack)
 
-	runErr := p.run(parseQ)
+	runErr := s.run(parseQ)
 
 	parseQ.Close()
 	return multierr.Combine(runErr, parseQ.Error())
 }
 
-func (p *Source) run(parseQ parsequeue.WaitableQueue[[]kgo.Record]) error {
+func (s *Source) run(parseQ parsequeue.WaitableQueue[[]kgo.Record]) error {
 	defer func() {
-		p.metrics.Master.Set(0)
-		p.Stop()
+		s.metrics.Master.Set(0)
+		s.Stop()
 	}()
 
 	var buffer []kgo.Record
@@ -125,114 +125,115 @@ func (p *Source) run(parseQ parsequeue.WaitableQueue[[]kgo.Record]) error {
 	nextFetchDuration := backoffTimer.NextBackOff()
 	bufferSize := 0
 	for {
-		p.metrics.Master.Set(1)
-		p.waitLimits(parseQ.Done())
+		s.metrics.Master.Set(1)
+		s.waitLimits(parseQ.Done())
 		select {
-		case <-p.ctx.Done():
+		case <-s.ctx.Done():
 			return nil
 		case <-parseQ.Done():
 			return nil
 		default:
 		}
 
-		fetchCtx, cancel := context.WithTimeout(p.ctx, nextFetchDuration)
-		m, err := p.reader.FetchMessage(fetchCtx)
+		fetchCtx, cancel := context.WithTimeout(s.ctx, nextFetchDuration)
+		m, err := s.reader.FetchMessage(fetchCtx)
 		cancel()
 		if err != nil {
 			if !xerrors.Is(err, kafka_reader.ErrNoInput) {
 				return xerrors.Errorf("unable to fetch message: %w", err)
 			} else if len(buffer) == 0 && len(m.Value) == 0 {
 				nextFetchDuration = backoffTimer.NextBackOff()
-				p.logger.Info("no input from kafka")
+				s.logger.Info("no input from kafka")
 				continue
 			}
 		}
 
 		backoffTimer.Reset()
 		if len(m.Value) != 0 {
-			p.inflightThrottler.AddInflight(uint64(len(m.Value)))
-			p.logger.Debugf("read message: %v:%v:%v", m.Topic, m.Partition, m.Offset)
+			s.inflightThrottler.AddInflight(uint64(len(m.Value)))
+			s.logger.Debugf("read message: %v:%v:%v", m.Topic, m.Partition, m.Offset)
 			buffer = append(buffer, m)
 			bufferSizeDelta := len(m.Value)
 			bufferSize += bufferSizeDelta
-			p.metrics.Size.Add(int64(bufferSizeDelta))
-			p.metrics.Count.Inc()
+			s.metrics.Size.Add(int64(bufferSizeDelta))
+			s.metrics.Count.Inc()
 		}
-		if p.config.Transformer != nil {
-			if time.Since(lastPush).Nanoseconds() < p.config.Transformer.BufferFlushInterval.Nanoseconds() &&
-				bufferSize < int(p.config.Transformer.BufferSize) {
+		if s.config.Transformer != nil {
+			if time.Since(lastPush).Nanoseconds() < s.config.Transformer.BufferFlushInterval.Nanoseconds() &&
+				bufferSize < int(s.config.Transformer.BufferSize) {
 				continue
 			}
 		} else {
-			if time.Since(lastPush) < time.Second && !p.inflightThrottler.ExceededLimits() {
+			if time.Since(lastPush) < time.Second && !s.inflightThrottler.ExceededLimits() {
 				continue
 			}
 		}
-		p.logger.Info(
+
+		s.logger.Info(
 			fmt.Sprintf("begin to process batch: %v items with %v, time from last batch: %v", len(buffer), format.SizeInt(bufferSize), time.Since(lastPush)),
 			log.String("offsets", sequencer.BuildMapPartitionToOffsetsRange(recordsToQueueMessages(buffer))),
 		)
-		err = p.sequencer.StartProcessing(recordsToQueueMessages(buffer))
-		if err != nil {
+		if err = s.sequencer.StartProcessing(recordsToQueueMessages(buffer)); err != nil {
 			return xerrors.Errorf("sequencer found an error in StartProcessing, err: %w", err)
 		}
 		if err := parseQ.Add(buffer); err != nil {
 			return xerrors.Errorf("unable to add to pusher q: %w", err)
 		}
+
 		lastPush = time.Now()
 		buffer = make([]kgo.Record, 0)
 		bufferSize = 0
 
-		if p.partitionReleased {
-			if err := p.sendSynchronizeEventIfNeeded(parseQ); err != nil {
+		if s.partitionReleased {
+			if err := s.sendSynchronizeEventIfNeeded(parseQ); err != nil {
 				return xerrors.Errorf("unable to process partitions loss: %w", err)
 			}
 		}
 	}
 }
 
-func (p *Source) Stop() {
-	p.once.Do(func() {
-		p.cancel()
-		if err := p.reader.Close(); err != nil {
-			p.logger.Warn("unable to close reader", log.Error(err))
+func (s *Source) Stop() {
+	s.once.Do(func() {
+		s.cancel()
+		if err := s.reader.Close(); err != nil {
+			s.logger.Warn("unable to close reader", log.Error(err))
 		}
 	})
 }
 
-func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
+func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 	waitTimeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 	var res []abstract.ChangeItem
 	var buffer []kgo.Record
-	defer func() { _ = p.reader.Close() }()
+	defer func() { _ = s.reader.Close() }()
 	for {
-		m, err := p.reader.FetchMessage(ctx)
+		m, err := s.reader.FetchMessage(ctx)
 		if err == nil {
 			buffer = append(buffer, m)
 		}
 		if xerrors.Is(err, kafka_reader.ErrNoInput) || len(buffer) > 2 {
 			var data []abstract.ChangeItem
 			for _, item := range buffer {
-				data = append(data, p.makeRawChangeItem(item))
+				data = append(data, makeRawChangeItem(item))
 				res = data
 			}
-			if p.executor != nil {
+			if s.executor != nil {
 				res = nil // reset result
-				transformed, err := p.executor.Do(data)
+				transformed, err := s.executor.Do(data)
 				if err != nil {
 					return nil, xerrors.Errorf("failed to execute a batch of change items: %w", err)
 				}
 				data = transformed
 				res = transformed
 			}
-			if p.parser != nil {
+			if s.parser != nil {
 				// DO CONVERT
 				var parsed []abstract.ChangeItem
 				for _, row := range data {
-					ci, part := p.changeItemAsMessage(row)
-					parsed = append(parsed, p.parser.Do(ci, part)...)
+					ci, part := changeItemAsMessage(row)
+					parsed = append(parsed, s.parser.Do(ci, part)...)
 				}
 				res = parsed
 			}
@@ -247,65 +248,65 @@ func (p *Source) Fetch() ([]abstract.ChangeItem, error) {
 	}
 }
 
-func (p *Source) ack(data []kgo.Record, pushSt time.Time) error {
+func (s *Source) ack(data []kgo.Record, pushSt time.Time) error {
 	totalSize := 0
 	for _, msg := range data {
 		totalSize += len(msg.Value)
 	}
-	defer p.inflightThrottler.ReduceInflight(uint64(totalSize))
+	defer s.inflightThrottler.ReduceInflight(uint64(totalSize))
 
-	commitMessages, err := p.sequencer.Pushed(recordsToQueueMessages(data))
+	commitMessages, err := s.sequencer.Pushed(recordsToQueueMessages(data))
 	if err != nil {
 		return xerrors.Errorf("sequencer found an error in Pushed, err: %w", err)
 	}
-	if err := p.reader.CommitMessages(p.ctx, recordsFromQueueMessages(commitMessages)...); err != nil {
+	if err := s.reader.CommitMessages(s.ctx, recordsFromQueueMessages(commitMessages)...); err != nil {
 		return err
 	}
-	p.logger.Info(
+	s.logger.Info(
 		fmt.Sprintf("Commit messages done in %v", time.Since(pushSt)),
 		log.String("pushed", sequencer.BuildMapPartitionToOffsetsRange(recordsToQueueMessages(data))),
 		log.String("committed", sequencer.BuildPartitionOffsetLogLine(commitMessages)),
 	)
-	p.metrics.PushTime.RecordDuration(time.Since(pushSt))
+	s.metrics.PushTime.RecordDuration(time.Since(pushSt))
 
 	return nil
 }
 
-func (p *Source) parseWithSynchronizeEvent(buffer []kgo.Record) ([]abstract.ChangeItem, error) {
+func (s *Source) parseWithSynchronizeEvent(buffer []kgo.Record) ([]abstract.ChangeItem, error) {
 	if len(buffer) == 0 {
 		return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}, nil
 	}
-	return p.parse(buffer)
+	return s.parse(buffer)
 }
 
-func (p *Source) parse(buffer []kgo.Record) ([]abstract.ChangeItem, error) {
+func (s *Source) parse(buffer []kgo.Record) ([]abstract.ChangeItem, error) {
 	var data []abstract.ChangeItem
 	totalSize := 0
 	for _, msg := range buffer {
 		totalSize += len(msg.Value)
-		data = append(data, p.makeRawChangeItem(msg))
+		data = append(data, makeRawChangeItem(msg))
 		msg.Value = nil
 	}
-	p.logger.Infof("begin transform for batches %v, total size: %v", len(data), format.SizeInt(totalSize))
-	if p.executor != nil {
+	s.logger.Infof("begin transform for batches %v, total size: %v", len(data), format.SizeInt(totalSize))
+	if s.executor != nil {
 		// DO TRANSFORM
 		st := time.Now()
-		transformed, err := p.executor.Do(data)
+		transformed, err := s.executor.Do(data)
 		if err != nil {
-			p.logger.Errorf("Cloud function transformation error in %v, %v rows -> %v rows, err: %v", time.Since(st), len(data), len(transformed), err)
+			s.logger.Errorf("Cloud function transformation error in %v, %v rows -> %v rows, err: %v", time.Since(st), len(data), len(transformed), err)
 			return nil, xerrors.Errorf("unable to transform message: %w", err)
 		}
-		p.logger.Infof("Cloud function transformation done in %v, %v rows -> %v rows", time.Since(st), len(data), len(transformed))
+		s.logger.Infof("Cloud function transformation done in %v, %v rows -> %v rows", time.Since(st), len(data), len(transformed))
 		data = transformed
-		p.metrics.TransformTime.RecordDuration(time.Since(st))
+		s.metrics.TransformTime.RecordDuration(time.Since(st))
 	}
-	if p.parser != nil {
+	if s.parser != nil {
 		// DO CONVERT
 		st := time.Now()
 		var converted []abstract.ChangeItem
 		for _, row := range data {
-			ci, part := p.changeItemAsMessage(row)
-			parsedMessages := p.parser.Do(ci, part)
+			ci, part := changeItemAsMessage(row)
+			parsedMessages := s.parser.Do(ci, part)
 			// it's a workaround for the case when parser doesn't set LSN
 			for i := range parsedMessages {
 				if parsedMessages[i].LSN == 0 {
@@ -314,20 +315,33 @@ func (p *Source) parse(buffer []kgo.Record) ([]abstract.ChangeItem, error) {
 			}
 			converted = append(converted, parsedMessages...)
 		}
-		p.logger.Infof("convert done in %v, %v rows -> %v rows", time.Since(st), len(data), len(converted))
+		s.logger.Infof("convert done in %v, %v rows -> %v rows", time.Since(st), len(data), len(converted))
 		data = converted
-		p.metrics.DecodeTime.RecordDuration(time.Since(st))
+		s.metrics.DecodeTime.RecordDuration(time.Since(st))
 	}
-	p.metrics.ChangeItems.Add(int64(len(data)))
+	s.metrics.ChangeItems.Add(int64(len(data)))
 	for _, ci := range data {
 		if ci.IsRowEvent() {
-			p.metrics.Parsed.Inc()
+			s.metrics.Parsed.Inc()
 		}
 	}
 	return data, nil
 }
 
-func (p *Source) makeRawChangeItem(msg kgo.Record) abstract.ChangeItem {
+func (s *Source) sendSynchronizeEventIfNeeded(parseQ parsequeue.WaitableQueue[[]kgo.Record]) error {
+	if s.config.SynchronizeIsNeeded {
+		s.logger.Info("Sending synchronize event")
+		if err := parseQ.Add([]kgo.Record{}); err != nil {
+			return xerrors.Errorf("unable to add message to parser process: %w", err)
+		}
+		parseQ.Wait()
+		s.logger.Info("Sent synchronize event")
+	}
+	s.partitionReleased = false
+	return nil
+}
+
+func makeRawChangeItem(msg kgo.Record) abstract.ChangeItem {
 	return abstract.MakeRawMessage(
 		msg.Key,
 		msg.Topic,
@@ -339,7 +353,7 @@ func (p *Source) makeRawChangeItem(msg kgo.Record) abstract.ChangeItem {
 	)
 }
 
-func (p *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Partition) {
+func changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Partition) {
 	partition := uint32(ci.ColumnValues[1].(int))
 	seqNo := ci.ColumnValues[2].(uint64)
 	wTime := ci.ColumnValues[3].(time.Time)
@@ -364,19 +378,6 @@ func (p *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, a
 			Partition: partition,
 			Topic:     ci.Table,
 		}
-}
-
-func (p *Source) sendSynchronizeEventIfNeeded(parseQ parsequeue.WaitableQueue[[]kgo.Record]) error {
-	if p.config.SynchronizeIsNeeded {
-		p.logger.Info("Sending synchronize event")
-		if err := parseQ.Add([]kgo.Record{}); err != nil {
-			return xerrors.Errorf("unable to add message to parser process: %w", err)
-		}
-		parseQ.Wait()
-		p.logger.Info("Sent synchronize event")
-	}
-	p.partitionReleased = false
-	return nil
 }
 
 func recordsToQueueMessages(records []kgo.Record) []sequencer.QueueMessage {
@@ -451,7 +452,7 @@ func NewSource(transferID string, cfg *KafkaSource, logger log.Logger, registry 
 		return nil, xerrors.Errorf("unable to build options: %w", err)
 	}
 
-	if err := checkTopicExistence(opts, cfg.Topics()); err != nil {
+	if err := checkTopicsExistence(opts, cfg.Topics()); err != nil {
 		return nil, xerrors.Errorf("unable to check topic existence: %w", err)
 	}
 

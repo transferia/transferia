@@ -60,7 +60,7 @@ func NewPartitionLister(cfg *KafkaSource) (*PartitionLister, error) {
 		return nil, xerrors.Errorf("unable to build options for partition lister: %w", err)
 	}
 
-	if err := checkTopicExistence(opts, cfg.Topics()); err != nil {
+	if err := checkTopicsExistence(opts, cfg.Topics()); err != nil {
 		return nil, xerrors.Errorf("unable to check topic existence for partition lister: %w", err)
 	}
 

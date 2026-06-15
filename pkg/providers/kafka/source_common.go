@@ -78,17 +78,3 @@ func kafkaClientCommonOptions(cfg *KafkaSource) ([]kgo.Opt, error) {
 
 	return opts, nil
 }
-
-func checkTopicExistence(clientOpts []kgo.Opt, topics []string) error {
-	kfClient, err := kgo.NewClient(clientOpts...)
-	if err != nil {
-		return xerrors.Errorf("unable to create kafka client to ensure topics: %w", err)
-	}
-	defer kfClient.Close()
-
-	if err := ensureTopicsExistWithRetries(kfClient, topics...); err != nil {
-		return xerrors.Errorf("unable to ensure topic existence: %w", err)
-	}
-
-	return nil
-}
