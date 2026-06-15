@@ -1081,8 +1081,6 @@
   "pkg/parsequeue/queue_to_s3/README.md":"transfer_manager/go/pkg/parsequeue/queue_to_s3/README.md",
   "pkg/parsequeue/queue_to_s3/parsequeue.go":"transfer_manager/go/pkg/parsequeue/queue_to_s3/parsequeue.go",
   "pkg/parsequeue/queue_to_s3/parsequeue_test.go":"transfer_manager/go/pkg/parsequeue/queue_to_s3/parsequeue_test.go",
-  "pkg/parsequeue/queue_to_s3/waitable_parsequeue.go":"transfer_manager/go/pkg/parsequeue/queue_to_s3/waitable_parsequeue.go",
-  "pkg/parsequeue/queue_to_s3/waitable_parsequeue_test.go":"transfer_manager/go/pkg/parsequeue/queue_to_s3/waitable_parsequeue_test.go",
   "pkg/parsequeue/waitable_parsequeue.go":"transfer_manager/go/pkg/parsequeue/waitable_parsequeue.go",
   "pkg/parsequeue/waitable_parsequeue_test.go":"transfer_manager/go/pkg/parsequeue/waitable_parsequeue_test.go",
   "pkg/parsers/abstract.go":"transfer_manager/go/pkg/parsers/abstract.go",

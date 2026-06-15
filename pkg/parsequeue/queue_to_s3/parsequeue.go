@@ -57,6 +57,9 @@ func (p *QueueToS3ParseQueue[TData]) Add(message TData) error {
 	}
 }
 
+// Wait is not needed in the Q->S3 scenario, so it does not lead to a real wait.
+func (p *QueueToS3ParseQueue[TData]) Wait() {}
+
 // Close shutdown all goroutines
 // Do not call concurrently with Add()
 func (p *QueueToS3ParseQueue[TData]) Close() {
@@ -116,9 +119,10 @@ func (p *QueueToS3ParseQueue[TData]) pushLoop() {
 
 		if parseRes.err != nil {
 			p.failWithError(xerrors.Errorf("parse error: %w", parseRes.err))
-		} else {
-			p.sink.AsyncV2Push(ctx, p.ackCh, parseRes.data)
+			return
 		}
+
+		p.sink.AsyncV2Push(ctx, p.ackCh, parseRes.data)
 	}
 }
 
