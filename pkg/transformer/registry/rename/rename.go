@@ -44,8 +44,7 @@ func (r *RenameTableTransformer) Type() abstract.TransformerType {
 }
 
 func (r *RenameTableTransformer) Apply(input []abstract.ChangeItem) abstract.TransformerResult {
-	transformed := make([]abstract.ChangeItem, 0)
-	errors := make([]abstract.TransformerError, 0)
+	transformed := make([]abstract.ChangeItem, 0, len(input))
 	for _, chI := range input {
 		if r.Suitable(chI.TableID(), chI.TableSchema) {
 			altName := r.AltNames[chI.TableID()]
@@ -57,7 +56,7 @@ func (r *RenameTableTransformer) Apply(input []abstract.ChangeItem) abstract.Tra
 
 	return abstract.TransformerResult{
 		Transformed: transformed,
-		Errors:      errors,
+		Errors:      nil,
 	}
 }
 

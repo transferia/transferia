@@ -28,6 +28,10 @@ type readerWrapper struct {
 
 	decoder  *rowDecoder
 	skiffFmt *skiff.Format
+
+	// retryBackoff is reused across Row() calls instead of building a fresh
+	// ExponentialBackOff per row, which dominates the allocation profile.
+	retryBackoff backoff.BackOff
 }
 
 func (r *readerWrapper) init() error {
@@ -64,6 +68,7 @@ func (r *readerWrapper) batchPath() *ypath.Rich {
 }
 
 func (r *readerWrapper) Row() (decodedRow, error) {
+	r.retryBackoff.Reset()
 	return backoff.RetryNotifyWithData(func() (decodedRow, error) {
 		if err := r.ctx.Err(); err != nil {
 			//nolint:descriptiveerrors
@@ -108,7 +113,7 @@ func (r *readerWrapper) Row() (decodedRow, error) {
 
 		rb.Cancel()
 		return row, nil
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), ReadRetries),
+	}, r.retryBackoff,
 		backoffutil.BackoffLoggerWarn(r.lgr, "error reading from YT"))
 }
 
@@ -130,6 +135,8 @@ func (s *snapshotSource) readTableRange(
 		yt:         s.yt,
 		decoder:    s.decoder.cloneForReader(),
 		skiffFmt:   s.skiffFmt,
+
+		retryBackoff: backoff.WithMaxRetries(backoff.NewExponentialBackOff(), ReadRetries),
 	}
 	defer rd.Close()
 

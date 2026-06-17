@@ -92,7 +92,7 @@ func (t *legacyEventTarget) convert(in interface{}) {
 	task := in.(convertItem)
 
 	res := convertResult{
-		items:         nil,
+		items:         make([]abstract.ChangeItem, 0, task.batch.Count()),
 		cleanupTables: make(abstract.TableMap),
 		err:           nil,
 	}
