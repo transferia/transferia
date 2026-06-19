@@ -64,7 +64,7 @@ type Sinker interface {
 
 type QueueToS3Sink interface {
 	Provider
-	AsyncV2Sink(config middlewares.Config) (abstract.QueueToS3Sink, error)
+	AsyncV2Sink(config middlewares.Config, partition abstract.Partition) (abstract.QueueToS3Sink, error)
 }
 
 // SnapshotSinker optional separate writer for snapshots. Will always called for snapshots with all control events

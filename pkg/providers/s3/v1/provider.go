@@ -57,7 +57,7 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 	}
 }
 
-func (p *Provider) AsyncV2Sink(middlewares.Config) (abstract.QueueToS3Sink, error) {
+func (p *Provider) AsyncV2Sink(middlewares.Config, abstract.Partition) (abstract.QueueToS3Sink, error) {
 	dst, ok := p.transfer.Dst.(*s3_v1_model.S3Destination)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)

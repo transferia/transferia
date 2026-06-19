@@ -15,13 +15,13 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/source_factory"
-	"github.com/transferia/transferia/pkg/util/backoff"
+	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type newSourceF func(partition abstract.Partition) (abstract.QueueToS3Source, error)
-type newSinkF func() (abstract.QueueToS3Sink, error)
+type newSinkF func(partition abstract.Partition) (abstract.QueueToS3Sink, error)
 type newListerF func() (abstract.PartitionLister, error)
 
 type PartitionedStrategy struct {
@@ -142,7 +142,7 @@ func (s *PartitionedStrategy) syncRunnersWithPartitions() error {
 			return xerrors.Errorf("failed to create source: %w", err)
 		}
 
-		partitionSink, err := s.newSink()
+		partitionSink, err := s.newSink(partition)
 		if err != nil {
 			return xerrors.Errorf("failed to create sink: %w", err)
 		}
@@ -274,8 +274,16 @@ func NewPartitionedStrategy(transfer *model.Transfer, cp coordinator.Coordinator
 		return source_factory.NewPartitionableSource(transfer, logger, registry, cp, partition)
 	}
 
-	partitionedStrategy.newSink = func() (abstract.QueueToS3Sink, error) {
-		return sink_factory.MakeAsyncReplicationSink(transfer, new(model.TransferOperation), logger, registry, cp, middlewares.MakeConfig(middlewares.AtReplicationStage))
+	partitionedStrategy.newSink = func(partition abstract.Partition) (abstract.QueueToS3Sink, error) {
+		return sink_factory.MakeAsyncReplicationSink(
+			transfer,
+			new(model.TransferOperation),
+			logger,
+			registry,
+			cp,
+			middlewares.MakeConfig(middlewares.AtReplicationStage),
+			partition,
+		)
 	}
 
 	partitionedStrategy.newLister = func() (abstract.PartitionLister, error) {

@@ -558,7 +558,7 @@ func newMockSourceFactory(data map[abstract.Partition][]abstract.ChangeItem) new
 }
 
 func newMockQueueToS3SinkFactory(callback func([]abstract.ChangeItem) error) newSinkF {
-	return func() (abstract.QueueToS3Sink, error) {
+	return func(_ abstract.Partition) (abstract.QueueToS3Sink, error) {
 		return mocksink.NewMockQueueToS3Sink(
 			func(item abstract.ChangeItem) uint64 {
 				return 0

@@ -1,6 +1,7 @@
 package backoffutil
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -40,11 +41,27 @@ func RetryWithData[T any](o backoff.OperationWithData[T], b backoff.BackOff) (T,
 		res, err := o()
 		if err != nil && abstract.IsFatal(err) {
 			//nolint:descriptiveerrors
-			return res, backoff.Permanent(err)
+			return res, Permanent(err)
 		}
 		//nolint:descriptiveerrors
 		return res, err
 	}
 
 	return backoff.RetryWithData(oWithFatalHandling, b)
+}
+
+func Permanent(err error) error {
+	return backoff.Permanent(err)
+}
+
+func RetryNotify(operation backoff.Operation, b backoff.BackOff, notify backoff.Notify) error {
+	return backoff.RetryNotify(operation, b, notify)
+}
+
+func WithContext(b backoff.BackOff, ctx context.Context) backoff.BackOff {
+	return backoff.WithContext(b, ctx)
+}
+
+func WithMaxRetries(b backoff.BackOff, maxRetries uint64) backoff.BackOff {
+	return backoff.WithMaxRetries(b, maxRetries)
 }

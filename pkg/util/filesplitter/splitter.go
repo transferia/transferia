@@ -63,9 +63,9 @@ func (f *Splitter) AddItems(streamKey string, items []*abstract.ChangeItem) int 
 	})
 }
 
-// AddItemsValues is like AddItems but for value slices (avoids allocating a
+// AddChangeItemsValues is like AddItems but for value slices (avoids allocating a
 // pointer slice when the caller already has []abstract.ChangeItem).
-func (f *Splitter) AddItemsValues(streamKey string, items []abstract.ChangeItem) int {
+func (f *Splitter) AddChangeItemsValues(streamKey string, items []abstract.ChangeItem) int {
 	return f.addItemsBounded(streamKey, len(items), func(i int) int {
 		return int(items[i].Size.Read)
 	})

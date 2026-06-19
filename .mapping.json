@@ -2585,7 +2585,7 @@
   "pkg/util/encode_json.go":"transfer_manager/go/pkg/util/encode_json.go",
   "pkg/util/errors.go":"transfer_manager/go/pkg/util/errors.go",
   "pkg/util/file.go":"transfer_manager/go/pkg/util/file.go",
-  "pkg/util/filesplitter/file_splitter.go":"transfer_manager/go/pkg/util/filesplitter/file_splitter.go",
+  "pkg/util/filesplitter/splitter.go":"transfer_manager/go/pkg/util/filesplitter/splitter.go",
   "pkg/util/generics.go":"transfer_manager/go/pkg/util/generics.go",
   "pkg/util/generics/constraints.go":"transfer_manager/go/pkg/util/generics/constraints.go",
   "pkg/util/generics_test.go":"transfer_manager/go/pkg/util/generics_test.go",
