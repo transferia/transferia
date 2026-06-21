@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -36,7 +37,8 @@ func newWal2jsonArguments(config *PgSource, objects *model.DataObjects, dbLogSna
 
 	result = append(result, commonWal2jsonArguments...)
 
-	addList, err := addTablesList(config, objects, dbLogSnapshot)
+	requiredSystemTables := buildRequiredSystemTables(config.KeeperSchema, dbLogSnapshot)
+	addList, err := addTablesList(config, objects, requiredSystemTables)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to compose a list of included tables: %w", err)
 	}
@@ -44,7 +46,7 @@ func newWal2jsonArguments(config *PgSource, objects *model.DataObjects, dbLogSna
 		result = append(result, argument{name: "add-tables", value: wal2jsonTableList(addList)})
 	}
 
-	filterList, err := filterTablesList(config)
+	filterList, err := filterTablesList(config, requiredSystemTables)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to compose a list of included tables: %w", err)
 	}
@@ -74,7 +76,20 @@ func (a wal2jsonArguments) toSQLFormat() string {
 	return result
 }
 
-func addTablesList(config *PgSource, objects *model.DataObjects, dbLogSnapshot bool) ([]abstract.TableID, error) {
+func buildRequiredSystemTables(keeperSchema string, dbLogSnapshot bool) []abstract.TableID {
+	// Consumer keeper is always added to the list of added tables
+	mustAddTables := []abstract.TableID{
+		*abstract.NewTableID(keeperSchema, TableConsumerKeeper),
+	}
+	// the only case when we need to add signalTable into replication - snapshot stage when dblog turned-on
+	if dbLogSnapshot {
+		mustAddTables = append(mustAddTables, *postgres_dblog.SignalTableTableID(keeperSchema))
+	}
+
+	return mustAddTables
+}
+
+func addTablesList(config *PgSource, objects *model.DataObjects, requiredSystemTables []abstract.TableID) ([]abstract.TableID, error) {
 	sourceIncludeTableIDs := make([]abstract.TableID, 0, len(config.DBTables))
 	for _, directive := range config.DBTables {
 		parsedDirective, err := abstract.NewTableIDFromStringPg(directive, false)
@@ -99,24 +114,11 @@ func addTablesList(config *PgSource, objects *model.DataObjects, dbLogSnapshot b
 		return nil, xerrors.Errorf("no tables are included in transfer according to specifications of the source endpoint and the transfer")
 	}
 
-	consumerKeeperID := *abstract.NewTableID(config.KeeperSchema, TableConsumerKeeper)
-	mustAddConsumerKeeper := true
-	signalTableID := *postgres_dblog.SignalTableTableID(config.KeeperSchema)
-	mustAddsignalTable := dbLogSnapshot // the only case when we need to add signalTable into replication - snapshot stage when dblog turned-on
-
-	for _, t := range result {
-		if mustAddConsumerKeeper && t.Equals(consumerKeeperID) {
-			mustAddConsumerKeeper = false
+	// include system tables that must be added to the list of added tables, but not already present in the result list
+	for _, table := range requiredSystemTables {
+		if !slices.Contains(result, table) {
+			result = append(result, table)
 		}
-		if mustAddsignalTable && t.Equals(signalTableID) { // signalTable already added by user - strage, but ok - then we dont need to add it one more time
-			mustAddsignalTable = false
-		}
-	}
-	if mustAddConsumerKeeper {
-		result = append(result, consumerKeeperID)
-	}
-	if mustAddsignalTable {
-		result = append(result, signalTableID)
 	}
 
 	// When working with partitioned tables (CollapseInheritTables=true) new partitions may appear after the transfer starts.
@@ -127,13 +129,17 @@ func addTablesList(config *PgSource, objects *model.DataObjects, dbLogSnapshot b
 	return result, nil
 }
 
-func filterTablesList(config *PgSource) ([]abstract.TableID, error) {
+func filterTablesList(config *PgSource, requiredSystemTables []abstract.TableID) ([]abstract.TableID, error) {
 	excludeDirectives := config.ExcludeWithGlobals()
 	result := make([]abstract.TableID, 0, len(excludeDirectives))
 	for _, directive := range excludeDirectives {
 		parsedDirective, err := abstract.NewTableIDFromStringPg(directive, false)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to parse table exclusion directive '%s' defined in source endpoint: %w", directive, err)
+		}
+		// if the table is a required system table, we don't need to exclude it
+		if slices.Contains(requiredSystemTables, *parsedDirective) {
+			continue
 		}
 		result = append(result, *parsedDirective)
 	}

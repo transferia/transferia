@@ -124,6 +124,73 @@ func TestNewWal2jsonArgumentsDBLog(t *testing.T) {
 	})
 }
 
+func TestWal2jsonArgumentsFiltersServiceTables(t *testing.T) {
+	arg := func(name string, args []argument) string {
+		for _, a := range args {
+			if a.name == name {
+				return a.value
+			}
+		}
+		return ""
+	}
+
+	for _, testCase := range []struct {
+		name                 string
+		DBTables             []string
+		ExcludedTables       []string
+		dbLogSnapshot        bool
+		expectedAddTables    []string
+		expectedFilterTables []string
+	}{
+		{
+			name:                 "ignore excluded system tables",
+			DBTables:             []string{"public.my_table"},
+			ExcludedTables:       []string{"public.__consumer_keeper"},
+			dbLogSnapshot:        false,
+			expectedAddTables:    []string{"public.my_table", "public.__consumer_keeper"},
+			expectedFilterTables: []string{},
+		},
+		{
+			name:                 "ignore excluded signal table for dblog snapshot and not included tables",
+			DBTables:             []string{},
+			ExcludedTables:       []string{"public.__consumer_keeper", "public.__data_transfer_signal_table"},
+			dbLogSnapshot:        true,
+			expectedAddTables:    []string{},
+			expectedFilterTables: []string{},
+		},
+		{
+			name:                 "ignore excluded signal table for dblog snapshot and included tables",
+			DBTables:             []string{"public.my_table"},
+			ExcludedTables:       []string{"public.__consumer_keeper", "public.__data_transfer_signal_table"},
+			dbLogSnapshot:        true,
+			expectedAddTables:    []string{"public.my_table", "public.__consumer_keeper", "public.__data_transfer_signal_table"},
+			expectedFilterTables: []string{},
+		},
+		{
+			name:                 "exclude signal table for not dblog snapshot",
+			DBTables:             []string{"public.my_table"},
+			ExcludedTables:       []string{"public.__data_transfer_signal_table"},
+			dbLogSnapshot:        false,
+			expectedAddTables:    []string{"public.my_table", "public.__consumer_keeper"},
+			expectedFilterTables: []string{"public.__data_transfer_signal_table"},
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := &PgSource{
+				KeeperSchema:   "public",
+				DBTables:       testCase.DBTables,
+				ExcludedTables: testCase.ExcludedTables,
+			}
+			wal2jsonArguments, err := newWal2jsonArguments(cfg, nil, testCase.dbLogSnapshot)
+			require.NoError(t, err)
+			require.Equal(t, strings.Join(testCase.expectedAddTables, ","), arg("add-tables", wal2jsonArguments))
+			alwaysExclude := []string{"public.repl_mon"}
+			withGlobalExclude := append(testCase.expectedFilterTables, alwaysExclude...)
+			require.Equal(t, strings.Join(withGlobalExclude, ","), arg("filter-tables", wal2jsonArguments))
+		})
+	}
+}
+
 func TestIsTableOrParentIncludedCollapseInherit(t *testing.T) {
 	parent := abstract.TableID{Namespace: "public", Name: "parent"}
 	child := abstract.TableID{Namespace: "public", Name: "child"}
