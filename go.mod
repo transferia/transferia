@@ -1,6 +1,6 @@
 module github.com/transferia/transferia
 
-go 1.25.8
+go 1.26.3
 
 require (
 	cloud.google.com/go v0.123.0
@@ -447,7 +447,5 @@ replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250626183228-af0a60a
 replace k8s.io/kubectl => k8s.io/kubectl v0.26.0
 
 replace github.com/go-resty/resty/v2 => github.com/go-resty/resty/v2 v2.16.3
-
-replace github.com/getsentry/sentry-go => github.com/getsentry/sentry-go v0.13.0
 
 replace github.com/segmentio/kafka-go => ./vendor_patched/github.com/segmentio/kafka-go
