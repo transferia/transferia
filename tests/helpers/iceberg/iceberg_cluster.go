@@ -58,6 +58,8 @@ func RunCluster(ctx context.Context) (_ *IcebergCluster, err error) {
 				"MINIO_ROOT_USER":     DefaultAccessKey,
 				"MINIO_ROOT_PASSWORD": DefaultSecretKey,
 				"MINIO_DOMAIN":        "minio",
+				"MINIO_CI_CD":         "on",
+				"MINIO_BROWSER":       "off",
 			},
 			Cmd:        []string{"server", "/data", "--console-address", ":9001"},
 			WaitingFor: wait.ForListeningPort(minioPort).WithStartupTimeout(2 * time.Minute),
