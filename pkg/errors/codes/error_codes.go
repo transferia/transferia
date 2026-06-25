@@ -76,6 +76,8 @@ var (
 	YcDBAASNoAliveHosts      = coded.Register("ycdbaas", "no_alive_hosts")
 	MDBNotFound              = coded.Register("mdb", "not_found")
 	MDBEndpointNetworkFailed = coded.Register("mdb", "endpoint_network_failed")
+	// onprem
+	OnPremEndpointNetworkFailed = coded.Register("onprem", "endpoint_network_failed")
 
 	// ydb
 	YDBNotFound   = coded.Register("ydb", "not_found")
