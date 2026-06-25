@@ -10,10 +10,12 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares/synchronizer/bufferer"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
+	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.uber.org/zap/zapcore"
 )
 
 func init() {
+	gobwrapper.RegisterName("*server.S3V1Destination", new(S3Destination))
 	model.RegisterDestination(ProviderType, func() model.LoggableDestination {
 		return new(S3Destination)
 	})
