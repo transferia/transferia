@@ -10,6 +10,36 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 )
 
+func deriveDataType(col abstract.ColSchema) (string, error) {
+	var queryType string
+	if col.OriginalType != "" {
+		queryType = strings.TrimPrefix(col.OriginalType, "pg:")
+		if IsUserDefinedType(&col) {
+			var err error
+			queryType, err = deriveUserDefinedPgDataType(&col)
+			if err != nil {
+				return "", xerrors.Errorf("deriveUserDefinedPgDataType failed, err: %w", err)
+			}
+		}
+	} else {
+		var err error
+		queryType, err = DataToOriginal(col.DataType)
+		if err != nil {
+			return "", xerrors.Errorf("failed to convert column %q to original type: %w", col.ColumnName, err)
+		}
+	}
+	if strings.HasPrefix(col.Expression, "pg:") {
+		queryType += " " + strings.TrimPrefix(col.Expression, "pg:")
+	}
+	if col.Required {
+		queryType += " NOT NULL"
+	}
+	if d, ok := col.Properties[changeitem.DefaultPropertyKey]; ok {
+		queryType += fmt.Sprintf(" DEFAULT %s", d)
+	}
+	return queryType, nil
+}
+
 func CreateTableQuery(fullTableName string, schema []abstract.ColSchema) (string, error) {
 	preparedSchema, err := prepareOriginalTypes(schema)
 	if err != nil {
@@ -20,26 +50,11 @@ func CreateTableQuery(fullTableName string, schema []abstract.ColSchema) (string
 	b := strings.Builder{}
 	b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (`, fullTableName))
 	for idx, col := range preparedSchema {
-		var queryType string
-		if col.OriginalType != "" {
-			queryType = strings.TrimPrefix(col.OriginalType, "pg:")
-			queryType = strings.ReplaceAll(queryType, "USER-DEFINED", "TEXT")
-		} else {
-			var err error
-			queryType, err = DataToOriginal(col.DataType)
-			if err != nil {
-				return "", xerrors.Errorf("failed to convert column %q to original type: %w", col.ColumnName, err)
-			}
+		queryType, err := deriveDataType(col)
+		if err != nil {
+			return "", xerrors.Errorf("failed to derive data type for column %q: %w", col.ColumnName, err)
 		}
-		if strings.HasPrefix(col.Expression, "pg:") {
-			queryType += " " + strings.TrimPrefix(col.Expression, "pg:")
-		}
-		if col.Required {
-			queryType += " NOT NULL"
-		}
-		if d, ok := col.Properties[changeitem.DefaultPropertyKey]; ok {
-			queryType += fmt.Sprintf(" DEFAULT %s", d)
-		}
+
 		b.WriteString(fmt.Sprintf(`"%v" %v`, col.ColumnName, queryType))
 		if col.IsKey() {
 			primaryKeys = append(primaryKeys, fmt.Sprintf(`"%s"`, col.ColumnName))
@@ -61,7 +76,8 @@ func createEnumQuery(col abstract.ColSchema) (string, error) {
 	if err != nil {
 		return "", xerrors.Errorf("createEnumQuery:failed to prepare original types for parsing: %w", err)
 	}
-	typeName, err := strconv.Unquote(strings.TrimPrefix(col.OriginalType, "pg:"))
+	typeNameQuoted, _ := IsPgUserDefinedEnum(col.OriginalType)
+	typeName, err := strconv.Unquote(typeNameQuoted)
 	if err != nil {
 		return "", xerrors.Errorf("createEnumQuery:failed to unquote %s: %w", col.OriginalType, err)
 	}
@@ -137,7 +153,7 @@ func addEnumValsQuery(currentCol, col abstract.ColSchema) ([]string, error) {
 		return nil, nil
 	}
 
-	typeName := strings.TrimPrefix(col.OriginalType, "pg:")
+	typeName, _ := IsPgUserDefinedEnum(col.OriginalType)
 
 	for _, add := range toAdd {
 		if add.before != "" {
@@ -165,25 +181,9 @@ func addColsQuery(ftn string, added []abstract.ColSchema) (string, error) {
 	b := strings.Builder{}
 	b.WriteString(fmt.Sprintf(`ALTER TABLE %s `, ftn))
 	for idx, col := range preparedAdded {
-		var queryType string
-		if col.OriginalType != "" {
-			queryType = strings.TrimPrefix(col.OriginalType, "pg:")
-			queryType = strings.ReplaceAll(queryType, "USER-DEFINED", "TEXT")
-		} else {
-			var err error
-			queryType, err = DataToOriginal(col.DataType)
-			if err != nil {
-				return "", xerrors.Errorf("addColsQuery:failed to convert column %q to original type: %w", col.ColumnName, err)
-			}
-		}
-		if strings.HasPrefix(col.Expression, "pg:") {
-			queryType += " " + strings.TrimPrefix(col.Expression, "pg:")
-		}
-		if col.Required {
-			queryType += " NOT NULL"
-		}
-		if d, ok := col.Properties[changeitem.DefaultPropertyKey]; ok {
-			queryType += fmt.Sprintf(" DEFAULT %s", d)
+		queryType, err := deriveDataType(col)
+		if err != nil {
+			return "", xerrors.Errorf("failed to derive data type for column %q: %w", col.ColumnName, err)
 		}
 		b.WriteString(fmt.Sprintf(`ADD COLUMN IF NOT EXISTS "%v" %v`, col.ColumnName, queryType))
 		if idx < len(preparedAdded)-1 {

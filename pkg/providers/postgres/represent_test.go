@@ -154,15 +154,9 @@ func TestRepresent_AdditionalCoverage(t *testing.T) {
 			outValue: `'{"k":"v"}'`,
 		},
 		{
-			name:     "enum from bytes",
-			inValue:  []byte("it's"),
-			inSchema: abstract.ColSchema{DataType: schema.TypeAny.String(), OriginalType: "pg:my_enum", Properties: map[abstract.PropertyKey]interface{}{EnumAllValues: []string{"a", "b"}}},
-			outValue: "'it''s'",
-		},
-		{
 			name:     "hstore from map",
 			inValue:  map[string]interface{}{"k": "v"},
-			inSchema: abstract.ColSchema{DataType: schema.TypeAny.String(), OriginalType: "pg:hstore"},
+			inSchema: abstract.ColSchema{DataType: schema.TypeAny.String(), OriginalType: "pg:USER-DEFINED:hstore"},
 			outValue: "'k=>v'",
 		},
 		{
@@ -227,7 +221,7 @@ func TestRepresentWithCast(t *testing.T) {
 	t.Run("no cast for user defined type", func(t *testing.T) {
 		got, err := RepresentWithCast("admin", abstract.ColSchema{
 			DataType:     schema.TypeAny.String(),
-			OriginalType: "pg:USER-DEFINED",
+			OriginalType: "pg:USER-DEFINED:ENUM:admin",
 		})
 		require.NoError(t, err)
 		require.Equal(t, "'admin'", got)
@@ -261,7 +255,7 @@ func TestRepresentWithCastToWriter_EquivalentToRepresentWithCast(t *testing.T) {
 			value: "admin",
 			colSchema: abstract.ColSchema{
 				DataType:     schema.TypeAny.String(),
-				OriginalType: "pg:USER-DEFINED",
+				OriginalType: "pg:USER-DEFINED:ENUM:admin",
 			},
 		},
 	}

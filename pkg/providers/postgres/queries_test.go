@@ -19,13 +19,13 @@ func TestAddEnumValsQuery(t *testing.T) {
 		{
 			name: "append only",
 			currentCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2"},
 				},
 			},
 			newCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2", "val3"},
 				},
@@ -35,13 +35,13 @@ func TestAddEnumValsQuery(t *testing.T) {
 		{
 			name: "insert into the middle",
 			currentCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val3"},
 				},
 			},
 			newCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2", "val3"},
 				},
@@ -51,13 +51,13 @@ func TestAddEnumValsQuery(t *testing.T) {
 		{
 			name: "prepend",
 			currentCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val2", "val3"},
 				},
 			},
 			newCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2", "val3"},
 				},
@@ -67,13 +67,13 @@ func TestAddEnumValsQuery(t *testing.T) {
 		{
 			name: "drop",
 			currentCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2", "val3"},
 				},
 			},
 			newCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val3"},
 				},
@@ -83,13 +83,13 @@ func TestAddEnumValsQuery(t *testing.T) {
 		{
 			name: "drop and insert",
 			currentCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val3", "val4"},
 				},
 			},
 			newCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2", "val3"},
 				},
@@ -99,13 +99,13 @@ func TestAddEnumValsQuery(t *testing.T) {
 		{
 			name: "no changes",
 			currentCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2", "val3"},
 				},
 			},
 			newCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2", "val3"},
 				},
@@ -115,13 +115,13 @@ func TestAddEnumValsQuery(t *testing.T) {
 		{
 			name: "no initial state",
 			currentCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{},
 				},
 			},
 			newCol: abstract.ColSchema{
-				OriginalType: "pg:my_enum",
+				OriginalType: "pg:USER-DEFINED:ENUM:my_enum",
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"val1", "val2", "val3"},
 				},
@@ -484,7 +484,7 @@ func TestCreateEnumQuery(t *testing.T) {
 		{
 			name: "simple enum with single value",
 			col: abstract.ColSchema{
-				OriginalType: `pg:"status"`,
+				OriginalType: `pg:USER-DEFINED:ENUM:"status"`,
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"active"},
 				},
@@ -507,7 +507,7 @@ $$;`,
 		{
 			name: "enum with multiple values",
 			col: abstract.ColSchema{
-				OriginalType: `pg:"user_role"`,
+				OriginalType: `pg:USER-DEFINED:ENUM:"user_role"`,
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{"admin", "user", "guest"},
 				},
@@ -540,7 +540,7 @@ $$;`,
 		{
 			name: "empty enum values",
 			col: abstract.ColSchema{
-				OriginalType: `pg:"empty_enum"`,
+				OriginalType: `pg:USER-DEFINED:ENUM:"empty_enum"`,
 				Properties: map[abstract.PropertyKey]any{
 					EnumAllValues: []string{},
 				},

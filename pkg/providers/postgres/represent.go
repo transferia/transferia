@@ -3,6 +3,7 @@ package postgres
 import (
 	"bytes"
 	sql_driver "database/sql/driver"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -133,10 +134,143 @@ func appendRepresentTimeToWriter(w *bytes.Buffer, v time.Time, colSchema abstrac
 	_ = w.WriteByte('\'')
 }
 
+// timetzBinaryToTime converts a 12-byte binary timetz value into time.Time.
+func timetzBinaryToTime(data []byte) (time.Time, error) {
+	if len(data) != 12 {
+		return time.Time{}, fmt.Errorf("timetz: expected 12 bytes, got %d", len(data))
+	}
+
+	// First 8 bytes — int64 big-endian: microseconds since midnight
+	usec := int64(binary.BigEndian.Uint64(data[0:8]))
+
+	// Next 4 bytes — int32 big-endian: timezone offset in seconds
+	zoneSec := int32(binary.BigEndian.Uint32(data[8:12]))
+
+	// Build time.Time: base date 2000-01-01 + time-of-day in UTC+offset zone
+	hours := usec / 3_600_000_000
+	usec -= hours * 3_600_000_000
+
+	minutes := usec / 60_000_000
+	usec -= minutes * 60_000_000
+
+	seconds := usec / 1_000_000
+	usec -= seconds * 1_000_000
+
+	ns := usec * 1000
+
+	loc := time.FixedZone("timetz", int(zoneSec))
+	t := time.Date(2000, 1, 1, int(hours), int(minutes), int(seconds), int(ns), loc)
+	return t, nil
+}
+
+func moneyFromBinary(src []byte) string {
+	if src == nil {
+		return "NULL"
+	}
+	cents := int64(binary.BigEndian.Uint64(src))
+	return fmt.Sprintf("%.2f", float64(cents)/100.0)
+}
+
 func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abstract.ColSchema) error {
 	if val == nil {
 		_, _ = w.WriteString("null")
 		return nil
+	}
+
+	if IsPgTypeTimeWithTimeZone(colSchema.OriginalType) {
+		var timeBytes []byte = nil
+		switch v := val.(type) {
+		case *pgtype.GenericBinary:
+			timeBytes = v.Bytes
+		case []byte:
+			timeBytes = v
+		case string:
+			_ = w.WriteByte('\'')
+			appendEscapedSingleQuotesToWriter(w, v)
+			_ = w.WriteByte('\'')
+			return nil
+		default:
+			return xerrors.Errorf("unknown type for IsPgTypeTimeWithTimeZone: %T", v)
+		}
+
+		timeTime, err := timetzBinaryToTime(timeBytes)
+		if err != nil {
+			return xerrors.Errorf("timetzBinaryToTime: %w", err)
+		}
+		appendRepresentTimeToWriter(w, timeTime, colSchema)
+		return nil
+	}
+
+	if colSchema.OriginalType == "pg:money" {
+		if v, ok := val.(*pgtype.GenericBinary); ok {
+			if v.Bytes == nil {
+				_, _ = w.WriteString("null")
+				return nil
+			} else {
+				pgMoneyVal := moneyFromBinary(v.Bytes)
+				_ = w.WriteByte('\'')
+				appendEscapedBackslashesAndSingleQuotesToWriter(w, pgMoneyVal)
+				_ = w.WriteByte('\'')
+			}
+			return nil
+		}
+	}
+
+	if IsUserDefinedType(&colSchema) {
+		if _, ok := IsPgUserDefinedEnum(colSchema.OriginalType); ok {
+			if v, ok := val.(*pgtype.GenericBinary); ok {
+				_, _ = w.WriteString(fmt.Sprintf("'%v'", string(v.Bytes)))
+				return nil
+			} else {
+				_, _ = w.WriteString(fmt.Sprintf("'%v'", val))
+				return nil
+			}
+		} else if colSchema.OriginalType == PgUserDefinedHStore {
+			if hstoreObj, ok := val.(*pgtype.Hstore); ok {
+				hstoreStr, err := hstoreObj.EncodeText(nil, make([]byte, 0))
+				if err != nil {
+					return xerrors.Errorf("unable to encode hstore: %w", err)
+				}
+				_ = w.WriteByte('\'')
+				appendEscapedSingleQuotesToWriter(w, string(hstoreStr))
+				_ = w.WriteByte('\'')
+				return nil
+			} else if hstoreStrObj, ok := val.(string); ok {
+				_ = w.WriteByte('\'')
+				appendEscapedSingleQuotesToWriter(w, hstoreStrObj)
+				_ = w.WriteByte('\'')
+				return nil
+			} else {
+				s, _ := json.Marshal(val)
+				h, _ := JSONToHstore(string(s))
+				_ = w.WriteByte('\'')
+				appendEscapedSingleQuotesToWriter(w, h)
+				_ = w.WriteByte('\'')
+				return nil
+			}
+		} else if colSchema.OriginalType == PgUserDefinedCIText {
+			_, _ = w.WriteString(fmt.Sprintf("'%v'", val))
+			return nil
+		} else if IsUserDefinedType(&colSchema) {
+			if currCompositeType, ok := val.(*pgtype.CompositeType); ok {
+				buf, err := currCompositeType.EncodeText(nil, nil)
+				if err != nil {
+					panic(err)
+				}
+				_, _ = w.WriteString(fmt.Sprintf("'%v'", string(buf)))
+				return nil
+			} else if compositeTypeString, ok := val.(string); ok {
+				_ = w.WriteByte('\'')
+				appendEscapedBackslashesAndSingleQuotesToWriter(w, compositeTypeString)
+				_ = w.WriteByte('\'')
+				return nil
+			} else {
+				_, _ = w.WriteString(fmt.Sprintf("'%v'", val))
+				return nil
+			}
+		} else {
+			return xerrors.Errorf("unsupported USER-DEFINED type: '%s'", colSchema.OriginalType)
+		}
 	}
 
 	if v, ok := val.(*pgtype.CIDR); ok {
@@ -199,16 +333,6 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 		appendEscapedSingleQuotesBytesToWriter(w, s)
 		_ = w.WriteByte('\'')
 		return nil
-	}
-
-	// handle pg:enum in homo cases, when it was fallback from COPY (if CopyUpload() allowed)
-	if strings.HasPrefix(colSchema.OriginalType, "pg:") && colSchema.DataType == ytschema.TypeAny.String() && GetPropertyEnumAllValues(&colSchema) != nil {
-		if bytes, ok := val.([]byte); ok {
-			_ = w.WriteByte('\'')
-			appendEscapedSingleQuotesBytesToWriter(w, bytes)
-			_ = w.WriteByte('\'')
-			return nil
-		}
 	}
 
 	switch v := val.(type) {
@@ -296,14 +420,6 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 		_ = w.WriteByte('\'')
 		return nil
 	default:
-		if colSchema.OriginalType == "pg:hstore" {
-			s, _ := json.Marshal(val)
-			h, _ := JSONToHstore(string(s))
-			_ = w.WriteByte('\'')
-			appendEscapedSingleQuotesToWriter(w, h)
-			_ = w.WriteByte('\'')
-			return nil
-		}
 		_, _ = w.WriteString(fmt.Sprintf("'%v'", v))
 		return nil
 	}
@@ -331,14 +447,6 @@ func representWithCastToWriter(w *bytes.Buffer, v interface{}, colSchema abstrac
 	return nil
 }
 
-func escapeSingleQuotes(s string) string {
-	return strings.ReplaceAll(s, "'", "''")
-}
-
-func escapeBackslashes(s string) string {
-	return strings.ReplaceAll(s, "\\", "\\\\")
-}
-
 func workaroundChooseBrackets(colSchema abstract.ColSchema) (string, string) {
 	if colSchema.OriginalType == "pg:json" || colSchema.OriginalType == "pg:jsonb" {
 		return "[", "]"
@@ -351,26 +459,6 @@ const (
 	PgDatetimeFormat  = "2006-01-02 15:04:05Z07:00:00"
 	PgTimestampFormat = "2006-01-02 15:04:05.999999Z07:00:00"
 )
-
-func representTime(v time.Time, colSchema abstract.ColSchema) string {
-	var result string
-
-	switch colSchema.DataType {
-	case ytschema.TypeDate.String():
-		result = v.UTC().Format(PgDateFormat)
-	case ytschema.TypeDatetime.String():
-		result = v.UTC().Format(PgDatetimeFormat)
-	case ytschema.TypeTimestamp.String():
-		// note `v` is not converted to UTC. As a result, when the target field is TIMESTAMP WITHOUT TIME ZONE, the incoming value of the timestamp will be preserved, but its timezone will be (automatically) set to the local time zone of the target database
-		result = v.Format(PgTimestampFormat)
-	default:
-		result = v.UTC().Format(PgTimestampFormat)
-	}
-
-	result = MinusToBC(result)
-
-	return "'" + result + "'"
-}
 
 func RepresentWithCast(v interface{}, colSchema abstract.ColSchema) (string, error) {
 	var sb bytes.Buffer

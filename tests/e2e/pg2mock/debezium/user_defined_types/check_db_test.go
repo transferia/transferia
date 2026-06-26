@@ -89,7 +89,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	require.NoError(t, err)
 	defer srcConn.Close()
 
-	_, err = srcConn.Exec(context.Background(), `INSERT INTO history.events (park_id, profile_id, event_list) VALUES ('park4', 'profile4', '{"(\"2023-02-02 11:43:32.335573+03\",online,{driving})"}');`)
+	_, err = srcConn.Exec(context.Background(), `INSERT INTO history.events (park_id, profile_id, event_list, contractor_id_tuple_val) VALUES ('park4', 'profile4', '{"(\"2023-02-02 11:43:32.335573+03\",online,{driving})"}', '(e,f)');`)
 	require.NoError(t, err)
 	_, err = srcConn.Exec(context.Background(), `INSERT INTO table_with_enum (id, val) VALUES (2, 'bar');`)
 	require.NoError(t, err)

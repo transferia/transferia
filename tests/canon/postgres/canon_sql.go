@@ -13,6 +13,8 @@ var (
 	numeric []byte
 	//go:embed dump/text_types.sql
 	text []byte
+	//go:embed dump/user_types.sql
+	user []byte
 	//go:embed dump/wtf_types.sql
 	wtf []byte
 )
@@ -23,5 +25,6 @@ var TableSQLs = map[string]string{
 	"public.geom_types":    string(geom),
 	"public.numeric_types": string(numeric),
 	"public.text_types":    string(text),
+	"public.user_types":    string(user),
 	"public.wtf_types":     string(wtf),
 }

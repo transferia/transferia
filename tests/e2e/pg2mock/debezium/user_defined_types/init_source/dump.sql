@@ -22,9 +22,15 @@ CREATE TYPE history.status_event_tuple AS (
     event_list history.event_tuple[]
     );
 
-CREATE TABLE history.events(park_id VARCHAR(48) NOT NULL, profile_id VARCHAR(48) NOT NULL, event_list history.event_tuple[], CONSTRAINT event_pkey PRIMARY KEY (profile_id,park_id));
+CREATE TABLE history.events(
+    park_id VARCHAR(48) NOT NULL,
+    profile_id VARCHAR(48) NOT NULL,
+    event_list history.event_tuple[],
+    contractor_id_tuple_val history.contractor_id_tuple,
+    CONSTRAINT event_pkey PRIMARY KEY (profile_id,park_id)
+);
 
-INSERT INTO history.events (park_id, profile_id, event_list) VALUES ('park3', 'profile3', '{"(\"2023-02-02 11:43:32.335573+03\",online,{driving})"}');
+INSERT INTO history.events (park_id, profile_id, event_list, contractor_id_tuple_val) VALUES ('park3', 'profile3', '{"(\"2023-02-02 11:43:32.335573+03\",online,{driving})"}', '(a,b)');
 
 -- ---
 

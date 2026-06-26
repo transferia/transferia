@@ -412,7 +412,7 @@ func expectedAnyCastReplication(value any, oid pgtype.OID, colSchema *abstract.C
 			result, err = unmarshalLSeg(v)
 		case "JSON", "JSONB":
 			result, err = unmarshalAnyJSON(v)
-		case "HSTORE":
+		case UserDefinedHStoreUppercase:
 			result, err = HstoreToMap(v)
 		default:
 			result, err = v, nil

@@ -276,10 +276,6 @@ func PgTypeToYTType(pgType string) ytschema.Type {
 	}
 }
 
-func IsUserDefinedType(col *abstract.ColSchema) bool {
-	return strings.HasPrefix(col.OriginalType, "pg:USER-DEFINED")
-}
-
 func DaterangeToString(t []time.Time) string {
 	return "[" + t[0].UTC().Format("2006-01-02") + "," + t[1].UTC().Format("2006-01-02") + ")"
 }
@@ -293,15 +289,4 @@ func BuildColSchemaArrayElement(colSchema abstract.ColSchema) abstract.ColSchema
 
 func GetArrElemTypeDescr(originalType string) string {
 	return strings.TrimSuffix(originalType, "[]")
-}
-
-func UnwrapArrayElement(in string) string {
-	if len(in) < 2 {
-		return in
-	}
-	if in[0] == '\'' && in[len(in)-1] == '\'' {
-		return in[1 : len(in)-1]
-	} else {
-		return in
-	}
 }

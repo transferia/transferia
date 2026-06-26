@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -214,19 +213,6 @@ func specificTableLogField(specificTable *abstract.TableID) log.Field {
 	}
 }
 
-func unpackEnumValues(in interface{}) []string {
-	if in != nil {
-		pgGenericArray := in.(*GenericArray)
-		arr, _ := pgGenericArray.ExtractValue(pgtype.NewConnInfo())
-		var result []string
-		for _, el := range arr.([]interface{}) {
-			result = append(result, el.(string))
-		}
-		return result
-	}
-	return nil
-}
-
 func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.Conn, specificTable *abstract.TableID) (map[abstract.TableID]abstract.TableColumns, error) {
 	query := e.listSchemaQuery(specificTable)
 	e.logger.Debug("Retrieving schema from source using PostgreSQL schema extractor", specificTableLogField(specificTable), log.String("query", query))
@@ -257,7 +243,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 			&cDefault,
 			&dataType,
 			&dtSchema,
-			&domainName,
+			&domainName, // DOMAIN in postgres - it's user-defined type with contraints (for example: text matched to regex)
 			&dataTypeUnderlyingUnderDomain,
 			&allEnumValues,
 			&expr,
@@ -267,10 +253,29 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 		if err != nil {
 			return nil, xerrors.Errorf("failed to scan from schema retrieval query: %w", err)
 		}
+		e.logger.Debug("rows.Scan result",
+			log.Any("tSchema", tSchema),
+			log.Any("tName", tName),
+			log.Any("cName", cName),
+			log.Any("cDefault", cDefault),
+			log.Any("dataType", dataType),
+			log.Any("dtSchema", dtSchema),
+			log.Any("domainName", domainName),
+			log.Any("dataTypeUnderlyingUnderDomain", dataTypeUnderlyingUnderDomain),
+			log.Any("allEnumValues", allEnumValues),
+			log.Any("expr", expr),
+			log.Any("dummy", dummy),
+			log.Any("isNullable", isNullable),
+		)
 		if dataTypeUnderlyingUnderDomain == "USER-DEFINED" && !strings.Contains(dataType, dtSchema) && dtSchema != "public" {
 			dataType = fmt.Sprintf("%s.%s", dtSchema, dataType)
 		}
 		originalType := dataType
+		if dataTypeUnderlyingUnderDomain == "USER-DEFINED" {
+			originalType = buildOriginalTypeForUserDefined(dataType, domainName, func() []string {
+				return unpackEnumValues(allEnumValues)
+			})
+		}
 		if domainName != nil {
 			dataType = dataTypeUnderlyingUnderDomain
 		}
@@ -284,7 +289,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 			FakeKey:      false,
 			Required:     !isNullable,
 			Expression:   expr,
-			OriginalType: fmt.Sprintf("pg:%v", originalType),
+			OriginalType: fmt.Sprintf("pg:%s", originalType),
 			Properties:   nil,
 		}
 		allEnumValuesArr := unpackEnumValues(allEnumValues)
@@ -299,6 +304,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 			col.AddProperty(changeitem.DefaultPropertyKey, cDefault)
 		}
 		result[col.TableID()] = append(result[col.TableID()], col)
+		e.logger.Debug("column schema retrieved successfully", log.Any("col.TableID()", col.TableID()), log.Any("col", col))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, xerrors.Errorf("failed to get next row from schema retrieval query: %w", err)

@@ -98,10 +98,10 @@ var mapPgNotParametrizedTypeToKafkaType = map[string]debezium_common.KafkaTypeDe
 	"pg:character varying": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "string", "", nil
 	}},
-	"pg:hstore": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
+	"pg:USER-DEFINED:hstore": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "string", "io.debezium.data.Json", nil
 	}},
-	"pg:citext": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
+	"pg:USER-DEFINED:citext": {KafkaTypeAndDebeziumNameAndExtra: func(*abstract.ColSchema, bool, bool, map[string]string) (string, string, map[string]interface{}) {
 		return "string", "", nil
 	}},
 	//
@@ -483,9 +483,9 @@ func AddPg(v *debezium_common.Values, colSchema *abstract.ColSchema, colName str
 		v.AddVal(colName, colVal.(string))
 	case "pg:macaddr":
 		v.AddVal(colName, colVal.(string))
-	case `pg:citext`:
+	case `pg:USER-DEFINED:citext`:
 		v.AddVal(colName, colVal.(string))
-	case `pg:hstore`:
+	case `pg:USER-DEFINED:hstore`:
 		result := ""
 		var err error
 		switch t := colVal.(type) {
@@ -501,7 +501,7 @@ func AddPg(v *debezium_common.Values, colSchema *abstract.ColSchema, colName str
 				return xerrors.Errorf("pg - hstore - hstoreToJSON returned error, hstore val: %s, err: %w", t, err)
 			}
 		default:
-			return xerrors.Errorf("unknown type of value for pg:hstore: %T", colVal)
+			return xerrors.Errorf("unknown type of value for pg:USER-DEFINED:hstore: %T", colVal)
 		}
 		v.AddVal(colName, result)
 		return nil

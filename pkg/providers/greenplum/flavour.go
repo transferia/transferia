@@ -80,9 +80,27 @@ func (f *GreenplumFlavour) ListSchemaQuery(excludeViews bool, withSpecificTable 
         format_type(a.atttypid, a.atttypmod) as data_type,
 		(SELECT n.nspname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid
 				 WHERE t.oid = a.atttypid) AS data_type_schema_name,
+
+        -- type_data_type mirrors the "data_type" column of the system view information_schema.columns:
+        -- the SQL type category of the column is a built-in type name ('integer', 'text'), 'ARRAY' for arrays, or 'USER-DEFINED' for user types.
+        -- pg_type.typtype is the kind of the type: 'd' = DOMAIN, 'b' = base, 'e' = enum, 'c' = composite etc.
+        -- An array is a varlena type that has an element type: typelem <> 0 (element type oid is set) AND typlen = -1 (variable-length);
+        -- this excludes fixed-size types like point/int2vector.
         CASE
-            WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(bt.oid, NULL::integer)
-            ELSE 'USER-DEFINED'::text
+            WHEN t.typtype = 'd'::"char" THEN
+                -- Column's type is a DOMAIN: report the category of its underlying base type (bt = t.typbasetype)
+                CASE
+                    WHEN bt.typelem <> 0::oid AND bt.typlen = -1 THEN 'ARRAY'::text
+                    WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer) -- built-in (lives in pg_catalog)
+                    ELSE 'USER-DEFINED'::text -- domain over a user-defined type
+                END
+            ELSE
+                -- Ordinary (non-domain) column: look at its own type t / a.atttypid
+                CASE
+                    WHEN t.typelem <> 0::oid AND t.typlen = -1 THEN 'ARRAY'::text
+                    WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer) -- built-in (lives in pg_catalog)
+                    ELSE 'USER-DEFINED'::text -- type in a user schema: hstore, citext, enum, composite, ...
+                END
         END::information_schema.character_data AS type_data_type,
         information_schema._pg_char_max_length(
             information_schema._pg_truetypid(a.*, t.*),
@@ -154,7 +172,7 @@ SELECT
     data_type::text,
 	data_type_schema_name::text,
     null as domain_name,
-    data_type_verbose::text as data_type_underlying_under_domain,
+    type_data_type::text as data_type_underlying_under_domain,
     null as all_enum_values,
     CASE
         WHEN is_identity = 'YES'

@@ -269,7 +269,7 @@ func (s *Storage) OrderedRead(
 		if col.PrimaryKey && col.ColumnName != "" {
 			keyCols = append(keyCols, fmt.Sprintf("\"%v\"", col.ColumnName))
 		}
-		if col.OriginalType == "pg:hstore" && !s.IsHomo {
+		if col.OriginalType == PgUserDefinedHStore && !s.IsHomo {
 			cols = append(cols, fmt.Sprintf("\"%v\"::json", col.ColumnName))
 		} else {
 			cols = append(cols, fmt.Sprintf("\"%v\"", col.ColumnName))
@@ -1289,7 +1289,7 @@ func (s *Storage) queryFromQueryTable(
 		if col.PrimaryKey && col.ColumnName != "" {
 			keyCols = append(keyCols, fmt.Sprintf("\"%v\"", col.ColumnName))
 		}
-		if col.OriginalType == "pg:hstore" && !s.IsHomo {
+		if col.OriginalType == PgUserDefinedHStore && !s.IsHomo {
 			cols = append(cols, fmt.Sprintf("\"%v\"::json", col.ColumnName))
 		} else {
 			cols = append(cols, fmt.Sprintf("\"%v\"", col.ColumnName))

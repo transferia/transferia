@@ -32,6 +32,16 @@ create extension if not exists citext;
 
 	helpers.InitSrcDst(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement)
 
+	cases := []string{
+		"public.array_types",
+		"public.date_types",
+		"public.geom_types",
+		"public.numeric_types",
+		"public.text_types",
+		"public.user_types",
+		"public.wtf_types",
+	}
+
 	tableCase := func(tableName string) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Run("initial data", func(t *testing.T) {
@@ -79,10 +89,39 @@ SELECT md5(array_agg(md5((t.*)::varchar))::varchar)
 			require.Equal(t, srcHash, dstHash)
 		}
 	}
-	t.Run("array_types", tableCase("public.array_types"))
-	t.Run("date_types", tableCase("public.date_types"))
-	t.Run("geom_types", tableCase("public.geom_types"))
-	t.Run("numeric_types", tableCase("public.numeric_types"))
-	t.Run("text_types", tableCase("public.text_types"))
-	t.Run("wtf_types", tableCase("public.wtf_types"))
+
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			t.Run("table", tableCase(c))
+		})
+	}
+
+	// test fallbacks
+
+	tableCaseAfterFallbackFromCopyFrom := func(tableName string) func(t *testing.T) {
+		return func(t *testing.T) {
+			t.Run("initial data", func(t *testing.T) {
+				conn, err := provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
+				require.NoError(t, err)
+				_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
+				require.NoError(t, err)
+			})
+
+			Source.DBTables = []string{tableName}
+			Target.Cleanup = model.DisabledCleanup
+			transfer := helpers.MakeTransfer(
+				t.Name(),
+				Source,
+				Target,
+				abstract.TransferTypeSnapshotOnly,
+			)
+			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableName}}
+			_ = helpers.Activate(t, transfer)
+		}
+	}
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			t.Run("table", tableCaseAfterFallbackFromCopyFrom(c))
+		})
+	}
 }

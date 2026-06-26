@@ -156,7 +156,7 @@
                     "fake_key": false,
                     "required": false,
                     "expression": "",
-                    "original_type": "pg:hstore"
+                    "original_type": "pg:USER-DEFINED:hstore"
                 },
                 {
                     "table_schema": "public",
@@ -204,7 +204,7 @@
                     "fake_key": false,
                     "required": false,
                     "expression": "",
-                    "original_type": "pg:citext"
+                    "original_type": "pg:USER-DEFINED:citext"
                 },
                 {
                     "table_schema": "public",
@@ -364,7 +364,7 @@
                     "fake_key": false,
                     "required": false,
                     "expression": "",
-                    "original_type": "pg:hstore"
+                    "original_type": "pg:USER-DEFINED:hstore"
                 },
                 {
                     "table_schema": "public",
@@ -412,7 +412,7 @@
                     "fake_key": false,
                     "required": false,
                     "expression": "",
-                    "original_type": "pg:citext"
+                    "original_type": "pg:USER-DEFINED:citext"
                 },
                 {
                     "table_schema": "public",

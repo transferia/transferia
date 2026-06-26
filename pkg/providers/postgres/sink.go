@@ -927,8 +927,16 @@ func (s *sink) buildBulkInsertQuery(
 	castSuffixes := make([]string, len(schemaIdxs))
 	for i, schemaIdx := range schemaIdxs {
 		colSchema := schema[schemaIdx]
-		if strings.HasPrefix(colSchema.OriginalType, "pg:") && !IsUserDefinedType(&colSchema) {
-			castSuffixes[i] = "::" + strings.TrimPrefix(colSchema.OriginalType, "pg:")
+		if strings.HasPrefix(colSchema.OriginalType, "pg:") {
+			if IsUserDefinedType(&colSchema) {
+				dataType, err := deriveUserDefinedPgDataType(&colSchema)
+				if err != nil {
+					return nil, xerrors.Errorf("failed to derive user defined type for column %q: %w", colSchema.ColumnName, err)
+				}
+				castSuffixes[i] = "::" + dataType
+			} else {
+				castSuffixes[i] = "::" + strings.TrimPrefix(colSchema.OriginalType, "pg:")
+			}
 		}
 	}
 

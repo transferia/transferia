@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.uber.org/zap"
 	corezap "go.ytsaurus.tech/library/go/core/log/zap"
@@ -71,6 +72,7 @@ func TestBuildMultiRowInsertStatements_BasicWithOnConflict(t *testing.T) {
 		keys: map[string][]string{
 			table: {`"id"`},
 		},
+		logger: logger.Log,
 	}
 	schema := []abstract.ColSchema{
 		{ColumnName: "id", DataType: "int64", OriginalType: "pg:bigint"},

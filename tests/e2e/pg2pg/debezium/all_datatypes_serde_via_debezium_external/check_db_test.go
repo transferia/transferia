@@ -213,11 +213,11 @@ func TestSnapshotAndIncrement(t *testing.T) {
 			"decimal_5":            {OriginalType: "pg:numeric"},
 			"decimal_5_2":          {OriginalType: "pg:numeric"},
 			"money_":               {OriginalType: "pg:money"},
-			"hstore_":              {OriginalType: "pg:hstore"},
+			"hstore_":              {OriginalType: "pg:USER-DEFINED:hstore"},
 			"inet_":                {OriginalType: "pg:inet"},
 			"cidr_":                {OriginalType: "pg:cidr"},
 			"macaddr_":             {OriginalType: "pg:macaddr"},
-			"citext_":              {OriginalType: "pg:citext"},
+			"citext_":              {OriginalType: "pg:USER-DEFINED:citext"},
 		},
 	}
 	receiver := debezium.NewReceiver(originalTypes, nil)
