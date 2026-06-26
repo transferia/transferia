@@ -244,16 +244,16 @@ func wireSizeForPrimitive(t ytschema.Type) int {
 // rowSizeEstimator pre-computes Skiff wire-size baseline from the table schema
 // at table-open time. The hot-path Estimate() only adds variable-length data.
 type rowSizeEstimator struct {
-	baseline  int
-	varColIdx []int // indices in values[] for string/bytes columns
+	baseline      int
+	varColIdx     []int // indices in values[] for primitive string/bytes columns
+	complexColIdx []int // indices in values[] for complex + TypeAny columns
 }
 
 func makeRowSizeEstimator(tbl yt_table.YtTable, idxColName string) *rowSizeEstimator {
-	const complexColumnEstimate = 256 // fixed estimate for YSON/complex columns
-
 	var (
-		baseline  int
-		varColIdx []int
+		baseline      int
+		varColIdx     []int
+		complexColIdx []int
 	)
 
 	for i := 0; i < tbl.ColumnsCount(); i++ {
@@ -270,10 +270,10 @@ func makeRowSizeEstimator(tbl yt_table.YtTable, idxColName string) *rowSizeEstim
 		ytType, isPrimitive := col.YtType().(ytschema.Type)
 		if !isPrimitive {
 			// Complex type → YSON32: 4-byte length prefix + variable data.
-			// Actual wire size is unknown without re-encoding; use a fixed
-			// estimate to avoid the memory-doubling underestimation bug.
-			colBase += 4 + complexColumnEstimate
+			// Data content measured at estimate time via walkValueSize.
+			colBase += 4
 			baseline += colBase
+			complexColIdx = append(complexColIdx, i)
 			continue
 		}
 
@@ -283,7 +283,8 @@ func makeRowSizeEstimator(tbl yt_table.YtTable, idxColName string) *rowSizeEstim
 			baseline += colBase
 			varColIdx = append(varColIdx, i)
 		case ytschema.TypeAny:
-			colBase += 4 + complexColumnEstimate // YSON32 prefix + data estimate
+			colBase += 4 // YSON32 prefix; data measured at estimate time via walkValueSize
+			complexColIdx = append(complexColIdx, i)
 			baseline += colBase
 		default:
 			colBase += wireSizeForPrimitive(ytType)
@@ -291,7 +292,7 @@ func makeRowSizeEstimator(tbl yt_table.YtTable, idxColName string) *rowSizeEstim
 		}
 	}
 
-	return &rowSizeEstimator{baseline: baseline, varColIdx: varColIdx}
+	return &rowSizeEstimator{baseline: baseline, varColIdx: varColIdx, complexColIdx: complexColIdx}
 }
 
 func (e *rowSizeEstimator) estimate(values []interface{}) int {
@@ -304,7 +305,47 @@ func (e *rowSizeEstimator) estimate(values []interface{}) int {
 			n += len(v)
 		}
 	}
+	for _, idx := range e.complexColIdx {
+		if idx < len(values) {
+			n += walkValueSize(values[idx], maxComplexWalkDepth)
+		}
+	}
 	return n
+}
+
+const maxComplexWalkDepth = 64
+
+// walkValueSize estimates the data content size of complex YSON-decoded values
+// by summing string/byte content lengths and key name lengths.
+func walkValueSize(v interface{}, depth int) int {
+	if depth <= 0 {
+		return 0
+	}
+	switch val := v.(type) {
+	case nil:
+		return 0
+	case string:
+		return len(val)
+	case []byte:
+		return len(val)
+	case []any:
+		n := 0
+		for _, elem := range val {
+			n += walkValueSize(elem, depth-1)
+		}
+		return n
+	case map[string]any:
+		n := 0
+		for k, elem := range val {
+			n += len(k)
+			n += walkValueSize(elem, depth-1)
+		}
+		return n
+	case bool:
+		return 1
+	default:
+		return 8
+	}
 }
 
 // mapRowToValues converts a YSON-decoded map row into a flat []interface{}

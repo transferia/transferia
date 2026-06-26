@@ -241,7 +241,7 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 2185,
+                "Read": 264,
                 "Values": 1219
             }
         },
@@ -958,7 +958,7 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 2221,
+                "Read": 350,
                 "Values": 1491
             }
         },
@@ -1696,7 +1696,7 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 2221,
+                "Read": 355,
                 "Values": 1671
             }
         },
