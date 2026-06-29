@@ -3256,6 +3256,8 @@
   "tests/e2e/oracle2pg/all_types/dump/init.sql":"transfer_manager/go/tests/e2e/oracle2pg/all_types/dump/init.sql",
   "tests/e2e/oracle2pg/clob/clob_test.go":"transfer_manager/go/tests/e2e/oracle2pg/clob/clob_test.go",
   "tests/e2e/oracle2pg/clob/dump/init.sql":"transfer_manager/go/tests/e2e/oracle2pg/clob/dump/init.sql",
+  "tests/e2e/oracle2pg/date_timestamp_tz/date_timestamp_tz_test.go":"transfer_manager/go/tests/e2e/oracle2pg/date_timestamp_tz/date_timestamp_tz_test.go",
+  "tests/e2e/oracle2pg/date_timestamp_tz/dump/init.sql":"transfer_manager/go/tests/e2e/oracle2pg/date_timestamp_tz/dump/init.sql",
   "tests/e2e/oracle2pg/multiple_schemas/dump/init.sql":"transfer_manager/go/tests/e2e/oracle2pg/multiple_schemas/dump/init.sql",
   "tests/e2e/oracle2pg/multiple_schemas/multiple_schemas_test.go":"transfer_manager/go/tests/e2e/oracle2pg/multiple_schemas/multiple_schemas_test.go",
   "tests/e2e/oracle2pg/number_to_int64/dump/init.sql":"transfer_manager/go/tests/e2e/oracle2pg/number_to_int64/dump/init.sql",

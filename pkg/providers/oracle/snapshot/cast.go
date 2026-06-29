@@ -278,7 +278,14 @@ func castDateValue(rawValue interface{}) (interface{}, error) {
 	if valueTime == nil {
 		return nil, nil
 	}
-	return *valueTime, nil
+	// Oracle DATE has no timezone — it is just wall-clock digits.
+	// godror attaches a Location (from DSN or time.Local) when constructing
+	// time.Time, but that Location is a Go artifact. Reinterpret the wall-clock
+	// fields in time.UTC so that represent.go's .UTC() call (applied to datetime
+	// in the INSERT path) does not shift the value.
+	t := time.Date(valueTime.Year(), valueTime.Month(), valueTime.Day(),
+		valueTime.Hour(), valueTime.Minute(), valueTime.Second(), valueTime.Nanosecond(), time.UTC)
+	return t, nil
 }
 
 func castTimestampValue(rawValue interface{}) (interface{}, error) {
