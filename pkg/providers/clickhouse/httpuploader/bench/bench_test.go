@@ -13,9 +13,7 @@ import (
 	canon_test "github.com/transferia/transferia/tests/canon"
 )
 
-var (
-	tables = map[changeitem.TableID][]changeitem.ChangeItem{}
-)
+var tables = map[changeitem.TableID][]changeitem.ChangeItem{}
 
 func init() {
 	for _, tc := range canon_test.All(provider_postgres.ProviderType) {

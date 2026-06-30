@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"testing"
 	"time"
 
@@ -207,4 +208,34 @@ func TestNullValueMarshal(t *testing.T) {
 		require.NoError(t, err, "Result should be valid JSON")
 		require.Equal(t, "value2", parsed["col2"])
 	})
+}
+
+func TestJSON(t *testing.T) {
+	tableSchema := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "data", DataType: ytschema.TypeString.String(), OriginalType: "pg:text"},
+	})
+	row := abstract.ChangeItem{
+		TableSchema:  tableSchema,
+		ColumnNames:  []string{"data"},
+		ColumnValues: []any{"a\nb"},
+	}
+
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	err := MarshalCItoJSON(
+		row,
+		NewRules(
+			row.TableSchema.ColumnNames(),
+			row.TableSchema.Columns(),
+			abstract.MakeMapColNameToIndex(row.TableSchema.Columns()),
+			map[string]*columntypes.TypeDescription{
+				"data": new(columntypes.TypeDescription),
+			},
+			false,
+		),
+		buf,
+	)
+	require.NoError(t, err)
+	data, err := io.ReadAll(buf)
+	require.NoError(t, err)
+	require.True(t, json.Valid(data))
 }

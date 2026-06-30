@@ -54,9 +54,3 @@ func NewTypeDescription(chTypeName string) *TypeDescription {
 func (t *TypeDescription) DateTime64Precision() int {
 	return t.dateTime64Precision
 }
-
-func LegacyIsDecimal(originalType string) bool {
-	// Old behavior for homo transfers
-	return strings.HasPrefix(originalType, "ch:Decimal(") ||
-		strings.HasPrefix(originalType, "ch:Nullable(Decimal(")
-}
