@@ -26,7 +26,6 @@ var pathOut = "dectest/timmyb32r-test-out"
 var sourceChangeItem abstract.ChangeItem
 
 func TestSnapshotSerDeViaDebeziumEmbeddedOLAP(t *testing.T) {
-	t.SkipNow() // TM-10226
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
 		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),

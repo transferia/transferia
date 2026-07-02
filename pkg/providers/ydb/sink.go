@@ -45,6 +45,8 @@ type TemplateModel struct {
 const (
 	writeBatchMaxLen  = 10000
 	writeBatchMaxSize = 48 * humanize.MiByte // NOTE: RPC message limit for YDB upsert is 64 MB.
+
+	NoCompression = "off"
 )
 
 var rowTooLargeRegexp = regexp.MustCompile(`Row cell size of [0-9]+ bytes is larger than the allowed threshold [0-9]+`)
@@ -91,10 +93,10 @@ var createTableQueryTemplate, _ = text_template.New(
 CREATE TABLE ` + "`{{ .Path }}`" + ` (
 	{{- range .Columns }}
 	` + "`{{ .Name }}`" + ` {{ .Type }} {{ if .NotNull }} NOT NULL {{ end }}, {{ end }}
-		PRIMARY KEY (` + "`{{ join .Keys \"`, `\" }}`" + `),
+		PRIMARY KEY (` + "`{{ join .Keys \"`, `\" }}`" + `){{ if not .IsTableColumnOriented }},
 	FAMILY default (
 		COMPRESSION = ` + `"{{ .DefaultCompression }}"` + `
-	)
+	){{ end }}
 )
 
 {{- if .IsTableColumnOriented }}
@@ -178,6 +180,21 @@ type CreateTableTemplate struct {
 	ShardCount            int64
 	IsTableColumnOriented bool
 	DefaultCompression    string
+}
+
+var alterColumnCompressionQueryTemplate, _ = text_template.New(
+	"alterColumnCompressionQuery",
+).Parse(`
+{{- /* gotype: AlterColumnCompressionTemplate */ -}}
+--!syntax_v1
+ALTER TABLE ` + "`{{ .Path }}`" + `
+	ALTER COLUMN ` + "`{{ .ColumnName }}`" + ` SET COMPRESSION(algorithm={{ .Compression }});
+`)
+
+type AlterColumnCompressionTemplate struct {
+	Path        string
+	ColumnName  string
+	Compression string
 }
 
 var alterTableQueryTemplate, _ = text_template.New(
@@ -268,6 +285,35 @@ func (s *sinker) isClosed() bool {
 	}
 }
 
+func (s *sinker) tryApplyOlapColumnCompression(ctx context.Context, session ydb_table.Session, tablePath string, columns []ColumnTemplate) error {
+	if !s.config.IsTableColumnOriented || s.config.DefaultCompression == "" {
+		return nil
+	}
+
+	for _, column := range columns {
+		alterCompression := AlterColumnCompressionTemplate{
+			Path:        tablePath,
+			ColumnName:  column.Name,
+			Compression: s.config.DefaultCompression,
+		}
+		var query strings.Builder
+		if err := alterColumnCompressionQueryTemplate.Execute(&query, alterCompression); err != nil {
+			return xerrors.Errorf("unable to execute alter column compression template for column %s: %w", column.Name, err)
+		}
+
+		s.logger.Info(
+			"Try to alter column compression",
+			log.String("table", tablePath),
+			log.String("column", column.Name),
+			log.String("query", query.String()),
+		)
+		if err := session.ExecuteSchemeQuery(ctx, query.String()); err != nil {
+			return xerrors.Errorf("unable to alter column compression for column %s: %w", column.Name, err)
+		}
+	}
+	return nil
+}
+
 func (s *sinker) checkTable(tablePath ydbPath, schema *abstract.TableSchema) error {
 	if s.config.IsSchemaMigrationDisabled {
 		return nil
@@ -355,7 +401,13 @@ func (s *sinker) checkTable(tablePath ydbPath, schema *abstract.TableSchema) err
 			}
 
 			s.logger.Info("Try to create table", log.String("table", s.getFullPath(tablePath)), log.String("query", query.String()))
-			return session.ExecuteSchemeQuery(ctx, query.String())
+			if err := session.ExecuteSchemeQuery(ctx, query.String()); err != nil {
+				return err
+			}
+			if err := s.tryApplyOlapColumnCompression(ctx, session, s.getFullPath(tablePath), columns); err != nil {
+				return xerrors.Errorf("unable to apply column compression: %w", err)
+			}
+			return nil
 		}); err != nil {
 			return xerrors.Errorf("unable to create table: %s: %w", s.getFullPath(tablePath), err)
 		}
@@ -423,7 +475,13 @@ func (s *sinker) checkTable(tablePath ydbPath, schema *abstract.TableSchema) err
 			alterTableCtx, cancelAlterTableCtx := context.WithTimeout(context.Background(), time.Minute)
 			defer cancelAlterTableCtx()
 			s.logger.Infof("alter table query:\n %v", query.String())
-			return session.ExecuteSchemeQuery(alterTableCtx, query.String())
+			if err := session.ExecuteSchemeQuery(alterTableCtx, query.String()); err != nil {
+				return err
+			}
+			if err := s.tryApplyOlapColumnCompression(alterTableCtx, session, s.getFullPath(tablePath), addColumns); err != nil {
+				return xerrors.Errorf("unable to apply column compression: %w", err)
+			}
+			return nil
 		}); err != nil {
 			s.logger.Warn("unable to apply migration", log.Error(err))
 			return xerrors.Errorf("unable to apply migration: %w", err)

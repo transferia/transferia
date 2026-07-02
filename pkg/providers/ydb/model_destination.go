@@ -77,7 +77,7 @@ func (d *YdbDestination) WithDefaults() {
 		d.Cleanup = model.Drop
 	}
 	if d.DefaultCompression == "" {
-		d.DefaultCompression = "off"
+		d.DefaultCompression = NoCompression
 	}
 }
 

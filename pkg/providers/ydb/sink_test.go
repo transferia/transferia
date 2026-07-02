@@ -672,6 +672,59 @@ func TestCreateTableQuery(t *testing.T) {
 	require.Equal(t, expected, query.String())
 }
 
+func TestCreateTableQueryColumnOriented(t *testing.T) {
+	columns := []ColumnTemplate{
+		{Name: "col1", Type: "int", NotNull: true},
+		{Name: "col2", Type: "bool", NotNull: false},
+	}
+	table := CreateTableTemplate{
+		Path:                  "table_path",
+		Columns:               columns,
+		Keys:                  []string{"col1"},
+		ShardCount:            1,
+		IsTableColumnOriented: true,
+		DefaultCompression:    "lz4",
+	}
+
+	var query strings.Builder
+	require.NoError(t, createTableQueryTemplate.Execute(&query, table))
+
+	expected := "--!syntax_v1\n" +
+		"CREATE TABLE `table_path` (\n\t" +
+		"`col1` int  NOT NULL , \n\t" +
+		"`col2` bool , \n\t\t" +
+		"PRIMARY KEY (`col1`)" +
+		"\n)" +
+		"\nPARTITION BY HASH(`col1`)" +
+		"\n\nWITH (\n\t" +
+		"\tSTORE = COLUMN\n\t\t" +
+		", AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 1\n);\n"
+
+	require.Equal(t, expected, query.String())
+	require.NotContains(t, query.String(), "FAMILY")
+}
+
+func TestAlterColumnCompressionQuery(t *testing.T) {
+	for _, compression := range []string{"lz4", NoCompression} {
+		t.Run(compression, func(t *testing.T) {
+			alterCompression := AlterColumnCompressionTemplate{
+				Path:        "table_path",
+				ColumnName:  "col1",
+				Compression: compression,
+			}
+
+			var query strings.Builder
+			require.NoError(t, alterColumnCompressionQueryTemplate.Execute(&query, alterCompression))
+
+			expected := "--!syntax_v1\n" +
+				"ALTER TABLE `table_path`\n\t" +
+				"ALTER COLUMN `col1` SET COMPRESSION(algorithm=" + compression + ");\n"
+
+			require.Equal(t, expected, query.String())
+		})
+	}
+}
+
 func selectQuery(t *testing.T, ydbConn *ydb.Driver, query string, expected types.Value) {
 	var val types.Value
 	err := ydbConn.Table().Do(context.Background(), func(ctx context.Context, session table.Session) (err error) {
