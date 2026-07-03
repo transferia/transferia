@@ -39,6 +39,8 @@ type Writer struct {
 
 func (w *Writer) Write(items []changeitem.ChangeItem) error {
 	fastTableSchema := items[0].TableSchema.FastColumns()
+
+	var skippedCount int
 	for _, item := range items {
 		if item.Kind != abstract.InsertKind {
 			return xerrors.New("wrong change item kind for static table")
@@ -56,13 +58,21 @@ func (w *Writer) Write(items []changeitem.ChangeItem) error {
 				return xerrors.Errorf("cannot restore value for column '%s': %w", col, err)
 			}
 		}
-		if err := w.writer.Write(row); err != nil {
+
+		filteredRows := yt_sink.DiscardBigRowsIfNeeded([]any{row}, w.discardBigValues)
+		if len(filteredRows) == 0 {
+			w.logger.Warn("row size is greater than restriction", log.Any("table", item.Table))
+			skippedCount += 1
+			continue
+		}
+
+		if err := w.writer.Write(filteredRows[0]); err != nil {
 			w.logger.Error("cannot write changeItem to static table", log.Any("table", item.Table),
 				log.String("sub_tx_id", w.tx.ID().String()), log.Error(err))
 			return err
 		}
 	}
-	w.rowsMetric(len(items))
+	w.rowsMetric(len(items) - skippedCount)
 
 	return nil
 }

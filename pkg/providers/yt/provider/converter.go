@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_table "github.com/transferia/transferia/pkg/providers/yt/provider/table"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/skiff"
@@ -307,45 +308,10 @@ func (e *rowSizeEstimator) estimate(values []interface{}) int {
 	}
 	for _, idx := range e.complexColIdx {
 		if idx < len(values) {
-			n += walkValueSize(values[idx], maxComplexWalkDepth)
+			n += provider_yt.WalkValueSize(values[idx], provider_yt.MaxComplexWalkDepth)
 		}
 	}
 	return n
-}
-
-const maxComplexWalkDepth = 64
-
-// walkValueSize estimates the data content size of complex YSON-decoded values
-// by summing string/byte content lengths and key name lengths.
-func walkValueSize(v interface{}, depth int) int {
-	if depth <= 0 {
-		return 0
-	}
-	switch val := v.(type) {
-	case nil:
-		return 0
-	case string:
-		return len(val)
-	case []byte:
-		return len(val)
-	case []any:
-		n := 0
-		for _, elem := range val {
-			n += walkValueSize(elem, depth-1)
-		}
-		return n
-	case map[string]any:
-		n := 0
-		for k, elem := range val {
-			n += len(k)
-			n += walkValueSize(elem, depth-1)
-		}
-		return n
-	case bool:
-		return 1
-	default:
-		return 8
-	}
 }
 
 // mapRowToValues converts a YSON-decoded map row into a flat []interface{}

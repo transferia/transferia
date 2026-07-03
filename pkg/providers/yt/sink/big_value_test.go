@@ -1,0 +1,148 @@
+package sink
+
+import (
+	"fmt"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/internal/metrics"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/cleanup"
+	"github.com/transferia/transferia/pkg/providers/yt"
+	"github.com/transferia/transferia/pkg/providers/yt/recipe"
+)
+
+type TestObject struct {
+	Data string `yson:"data"`
+}
+
+func TestBigValue(t *testing.T) {
+	_, cancel := recipe.NewEnv(t)
+	defer cancel()
+
+	maxRetriesCount := MaxRetriesCount
+	MaxRetriesCount = 1
+	defer func() {
+		MaxRetriesCount = maxRetriesCount
+	}()
+
+	dstModel := yt.NewYtDestinationV1(yt.YtDestination{
+		Path:          "//home/cdc/test/big_value",
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+		Cluster:       os.Getenv("YT_PROXY"),
+	})
+	dstModel.WithDefaults()
+
+	changeItems := []abstract.ChangeItem{
+		{
+			Kind:  abstract.InsertKind,
+			Table: "test_table",
+			TableSchema: abstract.NewTableSchema([]abstract.ColSchema{
+				{
+					ColumnName: "key",
+					DataType:   "utf8",
+					PrimaryKey: true,
+				},
+				{
+					ColumnName: "value",
+					DataType:   "any",
+					PrimaryKey: false,
+				},
+			}),
+			ColumnNames: []string{
+				"key",
+				"value",
+			},
+			ColumnValues: []interface{}{
+				"1",
+				&TestObject{
+					Data: strings.Repeat("1", 16*1024*1024+1),
+				},
+			},
+		},
+	}
+
+	t.Run("do_not_discard_big_values", func(t *testing.T) {
+		sinker, err := NewSinker(dstModel, "big_value", logger.Log, metrics.NewRegistry())
+		require.NoError(t, err)
+		defer cleanup.Close(sinker, logger.Log)
+
+		err = sinker.Push(changeItems)
+		require.Error(t, err)
+	})
+
+	t.Run("discard_big_values", func(t *testing.T) {
+		dstModel.LegacyModel().(*yt.YtDestination).DiscardBigValues = true
+
+		sinker, err := NewSinker(dstModel, "big_value", logger.Log, metrics.NewRegistry())
+		require.NoError(t, err)
+		defer cleanup.Close(sinker, logger.Log)
+
+		err = sinker.Push(changeItems)
+		require.NoError(t, err)
+	})
+
+	columnCount := 128/15 + 1 // 128MB is the restriction for row size
+	schema := []abstract.ColSchema{
+		{
+			ColumnName: "key",
+			DataType:   "utf8",
+			PrimaryKey: true,
+		},
+	}
+	colNames := []string{
+		"key",
+	}
+	colVals := []interface{}{
+		"1",
+	}
+
+	for i := range columnCount {
+		name := fmt.Sprintf("value_%d", i)
+
+		colNames = append(colNames, name)
+		colVals = append(colVals, &TestObject{
+			Data: strings.Repeat("1", 15*1024*1024),
+		})
+		schema = append(schema, abstract.ColSchema{
+			ColumnName: name,
+			DataType:   "any",
+			PrimaryKey: false,
+		})
+	}
+
+	changeItems = []abstract.ChangeItem{
+		{
+			Kind:         abstract.InsertKind,
+			Table:        "test_table_1",
+			TableSchema:  abstract.NewTableSchema(schema),
+			ColumnNames:  colNames,
+			ColumnValues: colVals,
+		},
+	}
+
+	t.Run("do_not_discard_big_row", func(t *testing.T) {
+		dstModel.LegacyModel().(*yt.YtDestination).DiscardBigValues = false
+		sinker, err := NewSinker(dstModel, "big_value", logger.Log, metrics.NewRegistry())
+		require.NoError(t, err)
+		defer cleanup.Close(sinker, logger.Log)
+
+		err = sinker.Push(changeItems)
+		require.Error(t, err)
+	})
+
+	t.Run("discard_big_row", func(t *testing.T) {
+		dstModel.LegacyModel().(*yt.YtDestination).DiscardBigValues = true
+
+		sinker, err := NewSinker(dstModel, "big_value", logger.Log, metrics.NewRegistry())
+		require.NoError(t, err)
+		defer cleanup.Close(sinker, logger.Log)
+
+		err = sinker.Push(changeItems)
+		require.NoError(t, err)
+	})
+}

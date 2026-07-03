@@ -3,6 +3,7 @@ package sink
 import (
 	"context"
 
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -12,12 +13,13 @@ type deleteRowsFn = func(ctx context.Context, tx yt.TabletTx, tablePath ypath.Pa
 type ytRow = map[columnName]interface{}
 
 type ytDataBatch struct {
-	toUpdateKeys  []interface{}
-	toUpdateRows  []ytRow
-	toInsert      []interface{}
-	toDelete      []interface{}
-	insertOptions yt.InsertRowsOptions
-	deleteRows    deleteRowsFn
+	toUpdateKeys     []any
+	toUpdateRows     []ytRow
+	toInsert         []any
+	toDelete         []any
+	insertOptions    yt.InsertRowsOptions
+	deleteRows       deleteRowsFn
+	discardBigValues bool
 }
 
 func (b *ytDataBatch) addUpdate(item changeItemView) error {
@@ -100,7 +102,12 @@ func (b *ytDataBatch) process(ctx context.Context, tx yt.TabletTx, tablePath ypa
 		}
 	}
 	if len(b.toInsert) > 0 {
-		if err := tx.InsertRows(ctx, tablePath, b.toInsert, &b.insertOptions); err != nil {
+		filteredRows := DiscardBigRowsIfNeeded(b.toInsert, b.discardBigValues)
+		if len(filteredRows) < len(b.toInsert) {
+			logger.Log.Warn("Some rows are skipped due to yt length restricitions")
+		}
+
+		if err := tx.InsertRows(ctx, tablePath, filteredRows, &b.insertOptions); err != nil {
 			return xerrors.Errorf("Cannot insert %d rows: %w", len(b.toInsert), err)
 		}
 	}

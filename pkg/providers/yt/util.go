@@ -13,6 +13,7 @@ import (
 	"go.ytsaurus.tech/yt/go/migrate"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
+	"go.ytsaurus.tech/yt/go/yson"
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/sync/semaphore"
 )
@@ -267,4 +268,42 @@ func MountUnmountWrapper(
 	customCtx, cancel := context.WithTimeout(ctx, time.Minute*5)
 	defer cancel()
 	return f(customCtx, ytClient, path)
+}
+
+const MaxComplexWalkDepth = 64
+
+// WalkValueSize estimates the data content size of complex YSON-decoded values
+// by summing string/byte content lengths and key name lengths.
+func WalkValueSize(v interface{}, depth int) int {
+	if depth <= 0 {
+		return 0
+	}
+	switch val := v.(type) {
+	case nil:
+		return 0
+	case string:
+		return len(val)
+	case []byte:
+		return len(val)
+	case yson.Marshaler:
+		marshaled, _ := val.MarshalYSON() // Only added for rpcAnyWrapper, no marshalling is happening underneath
+		return len(marshaled)
+	case []any:
+		n := 0
+		for _, elem := range val {
+			n += WalkValueSize(elem, depth-1)
+		}
+		return n
+	case map[string]any:
+		n := 0
+		for k, elem := range val {
+			n += len(k)
+			n += WalkValueSize(elem, depth-1)
+		}
+		return n
+	case bool:
+		return 1
+	default:
+		return 8 //https://yt.yandex-team.ru/docs/user-guide/storage/static-tables#limitations
+	}
 }

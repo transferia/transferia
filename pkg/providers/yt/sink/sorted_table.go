@@ -95,6 +95,7 @@ func (t *SortedTable) dispatchItem(dataBatch *ytDataBatch, kind abstract.Kind, i
 func (t *SortedTable) prepareDataRows(input []abstract.ChangeItem, commitTime uint64) (ytDataBatch, error) {
 	var upd bool
 	var dataBatch ytDataBatch
+	dataBatch.discardBigValues = t.config.DiscardBigValues()
 	dataBatch.insertOptions.Update = &upd
 	dataBatch.deleteRows = t.makeDataRowDeleter(commitTime)
 	if changeitem.InsertsOnly(input) {
@@ -149,6 +150,7 @@ func (t *SortedTable) prepareIndexRows(ctx context.Context, input []abstract.Cha
 			if !ok {
 				batch = new(ytDataBatch)
 				batch.deleteRows = indexRowDeleter
+				batch.discardBigValues = t.config.DiscardBigValues()
 				index[indexTablePath] = batch
 			}
 

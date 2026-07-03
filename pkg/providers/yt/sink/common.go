@@ -379,6 +379,24 @@ func newAnyWrapper(val any) (*rpcAnyWrapper, error) {
 	return &rpcAnyWrapper{ysonVal: res}, nil
 }
 
+// If DiscardBigValue option is enabled we will skip rows that are bigger that yt constraint
+// This function is exported, bcs it's needed in yt static sink
+func DiscardBigRowsIfNeeded(rows []any, discardBigValues bool) []any {
+	if !discardBigValues {
+		return rows
+	}
+
+	wrappers := make([]any, 0)
+	for _, row := range rows {
+		rowLength := 1 + provider_yt.WalkValueSize(row, provider_yt.MaxComplexWalkDepth) // YTADMINREQ-58420
+		if rowLength > YtStatMaxStringLength {
+			continue
+		}
+		wrappers = append(wrappers, row)
+	}
+	return wrappers
+}
+
 func RestoreWithLengthLimitCheck(colSchema abstract.ColSchema, val any, ignoreBigVals bool, lengthLimit int) (any, error) {
 	res, err := restore(colSchema, val, lengthLimit == YtStatMaxStringLength)
 	if err != nil {

@@ -142,6 +142,7 @@ func (t *VersionedTable) Write(input []abstract.ChangeItem) error {
 			if t.hasOnlyPKey() {
 				row[DummyMainTable] = nil
 			}
+
 			lookupKeys = append(lookupKeys, keys)
 			insertRows = append(insertRows, row)
 		case "delete":
@@ -197,6 +198,11 @@ func (t *VersionedTable) Write(input []abstract.ChangeItem) error {
 	t.logger.Infof("Skipped %v from %v rows (%v will be inserted)", len(skipped), len(insertRows), len(newestRows))
 
 	if len(newestRows) > 0 {
+		filteredRows := DiscardBigRowsIfNeeded(newestRows, t.config.DiscardBigValues())
+		if len(filteredRows) < len(newestRows) {
+			t.logger.Warn("Some rows are skipped due to yt length restricitions")
+		}
+
 		if err := tx.InsertRows(ctx, t.path, newestRows, &yt.InsertRowsOptions{Update: &upd}); err != nil {
 			t.logger.Warn("Unable to InsertRows", log.Error(err))
 			return xerrors.Errorf("insert error: %w", err)
@@ -207,6 +213,11 @@ func (t *VersionedTable) Write(input []abstract.ChangeItem) error {
 	}
 
 	if len(skipped) > 0 {
+		filteredRows := DiscardBigRowsIfNeeded(skipped, t.config.DiscardBigValues())
+		if len(filteredRows) < len(skipped) {
+			t.logger.Warn("Some rows are skipped due to yt length restricitions")
+		}
+
 		t.logger.Infof("Inserting %d skipped rows to aux table", len(skipped))
 		if err := tx.InsertRows(ctx, t.path+"_skipped", skipped, nil); err != nil {
 			t.logger.Warn("Unable to insert skipped rows", log.Error(err))
