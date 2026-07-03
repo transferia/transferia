@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
@@ -18,7 +19,7 @@ import (
 
 const defaultUser = "postgres"
 const defaultPassword = "postgres"
-const defaultPostgresImage = "docker.io/postgres:16-alpine"
+const defaultPostgresImage = "docker.io/library/postgres:16-alpine" // Sandbox resource: 12662771393
 const defaultPort = nat.Port("5432/tcp")
 
 // PostgresContainer represents the postgres container type used in the module
@@ -40,7 +41,7 @@ func (c *PostgresContainer) ConnectionString(ctx context.Context, args ...string
 		return "", err
 	}
 
-	host, err := c.Host(ctx)
+	host, err := c.Container.Host(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -50,9 +51,26 @@ func (c *PostgresContainer) ConnectionString(ctx context.Context, args ...string
 	return connStr, nil
 }
 
+func (c *PostgresContainer) Host() string {
+	host, _ := c.Container.Host(context.Background())
+	return host
+}
+
 func (c *PostgresContainer) Port() int {
 	p, _ := strconv.Atoi(c.exposedPort.Port())
 	return p
+}
+
+func (c *PostgresContainer) Database() string {
+	return c.dbName
+}
+
+func (c *PostgresContainer) User() string {
+	return c.user
+}
+
+func (c *PostgresContainer) Password() string {
+	return c.password
 }
 
 func WithConfigFile(cfg string) testcontainers.CustomizeRequestOption {
@@ -212,7 +230,7 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 		},
 		ExposedPorts: []string{defaultPort.Port()},
 		Cmd:          []string{"postgres", "-c", "fsync=off"},
-		WaitingFor:   wait.ForAll(wait.NewHostPortStrategy(defaultPort)),
+		WaitingFor:   wait.ForLog("database system is ready to accept connections").WithOccurrence(2).WithStartupTimeout(60 * time.Second),
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.PortBindings = nat.PortMap{
 				defaultPort: []nat.PortBinding{
