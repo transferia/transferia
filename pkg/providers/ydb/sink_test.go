@@ -705,7 +705,7 @@ func TestCreateTableQueryColumnOriented(t *testing.T) {
 }
 
 func TestAlterColumnCompressionQuery(t *testing.T) {
-	for _, compression := range []string{"lz4", NoCompression} {
+	for _, compression := range []string{"lz4", defaultCompressionOff} {
 		t.Run(compression, func(t *testing.T) {
 			alterCompression := AlterColumnCompressionTemplate{
 				Path:        "table_path",

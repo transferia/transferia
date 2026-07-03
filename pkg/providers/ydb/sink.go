@@ -46,7 +46,7 @@ const (
 	writeBatchMaxLen  = 10000
 	writeBatchMaxSize = 48 * humanize.MiByte // NOTE: RPC message limit for YDB upsert is 64 MB.
 
-	NoCompression = "off"
+	defaultCompressionOff = "off"
 )
 
 var rowTooLargeRegexp = regexp.MustCompile(`Row cell size of [0-9]+ bytes is larger than the allowed threshold [0-9]+`)
