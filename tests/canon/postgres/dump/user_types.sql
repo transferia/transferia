@@ -95,3 +95,5 @@ values (
 --     1,
 --     'john@example.com'
 );
+
+insert into user_types (__primary_key) values (default);

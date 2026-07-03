@@ -203,7 +203,7 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 
 	if colSchema.OriginalType == "pg:money" {
 		if v, ok := val.(*pgtype.GenericBinary); ok {
-			if v.Bytes == nil {
+			if len(v.Bytes) == 0 {
 				_, _ = w.WriteString("null")
 				return nil
 			} else {
@@ -219,8 +219,13 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 	if IsUserDefinedType(&colSchema) {
 		if _, ok := IsPgUserDefinedEnum(colSchema.OriginalType); ok {
 			if v, ok := val.(*pgtype.GenericBinary); ok {
-				_, _ = w.WriteString(fmt.Sprintf("'%v'", string(v.Bytes)))
-				return nil
+				if len(v.Bytes) == 0 {
+					_, _ = w.WriteString("null")
+					return nil
+				} else {
+					_, _ = w.WriteString(fmt.Sprintf("'%v'", string(v.Bytes)))
+					return nil
+				}
 			} else {
 				_, _ = w.WriteString(fmt.Sprintf("'%v'", val))
 				return nil
@@ -231,15 +236,25 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 				if err != nil {
 					return xerrors.Errorf("unable to encode hstore: %w", err)
 				}
-				_ = w.WriteByte('\'')
-				appendEscapedSingleQuotesToWriter(w, string(hstoreStr))
-				_ = w.WriteByte('\'')
-				return nil
+				if len(hstoreStr) == 0 {
+					_, _ = w.WriteString("null")
+					return nil
+				} else {
+					_ = w.WriteByte('\'')
+					appendEscapedSingleQuotesToWriter(w, string(hstoreStr))
+					_ = w.WriteByte('\'')
+					return nil
+				}
 			} else if hstoreStrObj, ok := val.(string); ok {
-				_ = w.WriteByte('\'')
-				appendEscapedSingleQuotesToWriter(w, hstoreStrObj)
-				_ = w.WriteByte('\'')
-				return nil
+				if len(hstoreStrObj) == 0 {
+					_, _ = w.WriteString("null")
+					return nil
+				} else {
+					_ = w.WriteByte('\'')
+					appendEscapedSingleQuotesToWriter(w, hstoreStrObj)
+					_ = w.WriteByte('\'')
+					return nil
+				}
 			} else {
 				s, _ := json.Marshal(val)
 				h, _ := JSONToHstore(string(s))
@@ -249,21 +264,38 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 				return nil
 			}
 		} else if colSchema.OriginalType == PgUserDefinedCIText {
-			_, _ = w.WriteString(fmt.Sprintf("'%v'", val))
-			return nil
+			valStr := fmt.Sprintf("'%v'", val)
+			if len(valStr) == 0 {
+				_, _ = w.WriteString("null")
+				return nil
+			} else {
+				_, _ = w.WriteString(valStr)
+				return nil
+			}
 		} else if IsUserDefinedType(&colSchema) {
 			if currCompositeType, ok := val.(*pgtype.CompositeType); ok {
 				buf, err := currCompositeType.EncodeText(nil, nil)
 				if err != nil {
-					panic(err)
+					return xerrors.Errorf("unable to encode composite type: %w", err)
 				}
-				_, _ = w.WriteString(fmt.Sprintf("'%v'", string(buf)))
-				return nil
+				bufStr := string(buf)
+				if len(bufStr) == 0 {
+					_, _ = w.WriteString("null")
+					return nil
+				} else {
+					_, _ = w.WriteString(fmt.Sprintf("'%s'", bufStr))
+					return nil
+				}
 			} else if compositeTypeString, ok := val.(string); ok {
-				_ = w.WriteByte('\'')
-				appendEscapedBackslashesAndSingleQuotesToWriter(w, compositeTypeString)
-				_ = w.WriteByte('\'')
-				return nil
+				if len(compositeTypeString) == 0 {
+					_, _ = w.WriteString("null")
+					return nil
+				} else {
+					_ = w.WriteByte('\'')
+					appendEscapedBackslashesAndSingleQuotesToWriter(w, compositeTypeString)
+					_ = w.WriteByte('\'')
+					return nil
+				}
 			} else {
 				_, _ = w.WriteString(fmt.Sprintf("'%v'", val))
 				return nil
