@@ -13,7 +13,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"
 	ya_zap "go.ytsaurus.tech/library/go/core/log/zap"
-	"go.ytsaurus.tech/yt/go/mapreduce"
 )
 
 // Дефолтный логгер.
@@ -152,7 +151,7 @@ func init() {
 			},
 		}
 	}
-	if mapreduce.InsideJob() {
+	if os.Getenv("YT_JOB_ID") != "" {
 		cfg = zap.Config{
 			Level:            cfg.Level,
 			Encoding:         "console",

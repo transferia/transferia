@@ -2454,7 +2454,6 @@
   "pkg/serializer/reference/reference_test.go":"transfer_manager/go/pkg/serializer/reference/reference_test.go",
   "pkg/serializer/strictify.go":"transfer_manager/go/pkg/serializer/strictify.go",
   "pkg/serverutil/endpoint.go":"transfer_manager/go/pkg/serverutil/endpoint.go",
-  "pkg/serverutil/server.go":"transfer_manager/go/pkg/serverutil/server.go",
   "pkg/sink_factory/sink_factory.go":"transfer_manager/go/pkg/sink_factory/sink_factory.go",
   "pkg/source_factory/eventsource/source.go":"transfer_manager/go/pkg/source_factory/eventsource/source.go",
   "pkg/source_factory/source_factory.go":"transfer_manager/go/pkg/source_factory/source_factory.go",

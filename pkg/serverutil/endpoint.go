@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/transferia/transferia/cloud/dataplatform/lib/debugtools"
 	"github.com/transferia/transferia/internal/logger"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -35,10 +36,10 @@ func RunHealthCheckOnPort(port int) {
 
 func RunPprof(port int) {
 	logger.Log.Infof("init pprof on port %d", port)
-	server, err := NewServer("tcp", fmt.Sprintf(":%d", port), logger.Log)
+	server, err := debugtools.NewServer("tcp", fmt.Sprintf(":%d", port), logger.Log)
 	if err != nil {
 		logger.Log.Info(fmt.Sprintf("failed to serve pprof on %d, try random port", port), log.Error(err))
-		server, err = NewServer("tcp", ":0", logger.Log)
+		server, err = debugtools.NewServer("tcp", ":0", logger.Log)
 		if err != nil {
 			logger.Log.Error("failed to add listener for pprof", log.Error(err))
 			return
