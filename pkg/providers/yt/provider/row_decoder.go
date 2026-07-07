@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	arena "github.com/transferia/transferia/pkg/providers/yt/provider/arena"
 	yt_table "github.com/transferia/transferia/pkg/providers/yt/provider/table"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -16,7 +17,7 @@ type rowDecoder struct {
 
 	rowType   reflect.Type
 	rowPtr    reflect.Value
-	converter rowConverter
+	arenaConv *arena.Converter
 
 	sizeEstimator *rowSizeEstimator
 
@@ -34,7 +35,7 @@ func newRowDecoder(tbl yt_table.YtTable, idxColName string) *rowDecoder {
 			useMapDecode:  true,
 			rowType:       nil,
 			rowPtr:        reflect.Value{},
-			converter:     nil,
+			arenaConv:     nil,
 			sizeEstimator: makeRowSizeEstimator(tbl, idxColName),
 			idxColName:    idxColName,
 			cols:          cols,
@@ -44,7 +45,7 @@ func newRowDecoder(tbl yt_table.YtTable, idxColName string) *rowDecoder {
 		useMapDecode:  false,
 		rowType:       buildSkiffRowType(tbl, idxColName),
 		rowPtr:        reflect.Value{},
-		converter:     makeRowConverter(tbl, idxColName),
+		arenaConv:     arena.NewConverter(tbl, idxColName),
 		sizeEstimator: makeRowSizeEstimator(tbl, idxColName),
 		idxColName:    "",
 		cols:          nil,
@@ -58,6 +59,7 @@ func (d *rowDecoder) cloneForReader() *rowDecoder {
 	cloned := *d
 	if !cloned.useMapDecode && cloned.rowType != nil {
 		cloned.rowPtr = reflect.New(cloned.rowType)
+		cloned.arenaConv = cloned.arenaConv.Clone()
 	}
 	return &cloned
 }
@@ -78,7 +80,7 @@ func (d *rowDecoder) decode(reader yt.TableReader, rowIdx uint64) ([]interface{}
 	if err := reader.Scan(d.rowPtr.Interface()); err != nil {
 		return nil, xerrors.Errorf("scan error: %w", err)
 	}
-	values, err := d.converter(d.rowPtr.Elem(), int64(rowIdx))
+	values, err := d.arenaConv.Convert(d.rowPtr.Elem(), int64(rowIdx))
 	if err != nil {
 		return nil, xerrors.Errorf("convert row %d error: %w", rowIdx, err)
 	}

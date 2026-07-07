@@ -14,11 +14,6 @@ import (
 	"go.ytsaurus.tech/yt/go/skiff"
 )
 
-// rowConverter converts a Skiff-decoded struct row and the row's index into a flat []interface{}
-// suitable for direct assignment to ChangeItem.ColumnValues.
-// rowIDX is the physical row offset used to populate synthetic index columns.
-type rowConverter func(row reflect.Value, rowIDX int64) ([]interface{}, error)
-
 func skiffGoType(col yt_table.YtColumn) reflect.Type {
 	ytType, ok := col.YtType().(ytschema.Type)
 	if !ok {
@@ -110,104 +105,6 @@ func buildSkiffRowType(tbl yt_table.YtTable, idxColName string) reflect.Type {
 		})
 	}
 	return reflect.StructOf(fields)
-}
-
-// nativeCastField converts a decoded struct field value to a native Go type
-// that can be placed directly in ChangeItem.ColumnValues.
-// Returns the same types that abstract2.Value.ToOldValue() would return for primitive types.
-func nativeCastField(fv reflect.Value, col yt_table.YtColumn) (interface{}, error) {
-	if col.Nullable() {
-		if fv.IsNil() {
-			return nil, nil
-		}
-		fv = fv.Elem()
-	}
-
-	ytType, ok := col.YtType().(ytschema.Type)
-	if !ok {
-		return fv.Interface(), nil
-	}
-
-	switch ytType {
-	case ytschema.TypeInt8:
-		return int8(fv.Int()), nil
-	case ytschema.TypeInt16:
-		return int16(fv.Int()), nil
-	case ytschema.TypeInt32:
-		return int32(fv.Int()), nil
-	case ytschema.TypeInt64:
-		return fv.Int(), nil
-	case ytschema.TypeUint8:
-		return uint8(fv.Uint()), nil
-	case ytschema.TypeUint16:
-		return uint16(fv.Uint()), nil
-	case ytschema.TypeUint32:
-		return uint32(fv.Uint()), nil
-	case ytschema.TypeUint64:
-		return fv.Uint(), nil
-	case ytschema.TypeFloat32:
-		return float32(fv.Float()), nil
-	case ytschema.TypeFloat64:
-		return fv.Float(), nil
-	case ytschema.TypeBoolean:
-		return fv.Bool(), nil
-	case ytschema.TypeString:
-		return fv.String(), nil
-	case ytschema.TypeBytes:
-		return []byte(fv.String()), nil
-	case ytschema.TypeDate:
-		return time.Unix(int64(fv.Uint())*86400, 0).UTC(), nil
-	case ytschema.TypeDatetime:
-		return time.Unix(int64(fv.Uint()), 0).UTC(), nil
-	case ytschema.TypeTimestamp:
-		return time.UnixMicro(int64(fv.Uint())).UTC(), nil
-	case ytschema.TypeInterval:
-		return time.Duration(fv.Int()) * time.Microsecond, nil
-	default:
-		// TypeAny / TypeNull: field is interface{}, decoder already called yson.Unmarshal.
-		return fv.Interface(), nil
-	}
-}
-
-// makeRowConverter builds a rowConverter closure pre-computed for tbl.
-// Call once at table open; the returned function is the per-row hot path.
-// idxColName is the synthetic row-index column added by AddRowIdxColumn (empty if unused).
-func makeRowConverter(tbl yt_table.YtTable, idxColName string) rowConverter {
-	cnt := tbl.ColumnsCount()
-
-	type colMeta struct {
-		col       yt_table.YtColumn
-		isSynth   bool
-		structIdx int // position in the Skiff struct (excludes the synthetic column)
-	}
-	metas := make([]colMeta, cnt)
-	structIdx := 0
-	for i := 0; i < cnt; i++ {
-		col := tbl.Column(i).(yt_table.YtColumn)
-		if idxColName != "" && col.Name() == idxColName {
-			metas[i] = colMeta{col: col, isSynth: true, structIdx: 0}
-		} else {
-			metas[i] = colMeta{col: col, isSynth: false, structIdx: structIdx}
-			structIdx++
-		}
-	}
-
-	return func(row reflect.Value, rowIDX int64) ([]interface{}, error) {
-		values := make([]interface{}, cnt)
-		for i, m := range metas {
-			if m.isSynth {
-				// AddRowIdxColumn always adds TypeInt64.
-				values[i] = rowIDX
-				continue
-			}
-			v, err := nativeCastField(row.Field(m.structIdx), m.col)
-			if err != nil {
-				return nil, xerrors.Errorf("column %s: %w", m.col.Name(), err)
-			}
-			values[i] = v
-		}
-		return values, nil
-	}
 }
 
 func tableHasComplexColumns(tbl yt_table.YtTable, idxColName string) bool {

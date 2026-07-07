@@ -33,7 +33,9 @@ func Restore(column ColSchema, value interface{}) interface{} {
 	case time.Time:
 		switch column.DataType {
 		case string(ytschema.TypeDate), string(ytschema.TypeDatetime), string(ytschema.TypeTimestamp):
-			return v
+			// Fast-path: return the original iface header instead of `v`, so the
+			// compiler doesn't insert runtime.convT (24-byte time.Time re-box).
+			return value
 		case "int64":
 			return -v.UnixNano()
 		case "uint64":
@@ -85,7 +87,8 @@ func Restore(column ColSchema, value interface{}) interface{} {
 			}
 			return t
 		case time.Time:
-			return v
+			// Fast-path: skip re-boxing of the 24-byte time.Time value.
+			return value
 		case int64:
 			// this is for backward compatibility, some of our transfer copy data from mysql to LB, see: TM-4015
 			// remove in march
@@ -107,21 +110,49 @@ func Restore(column ColSchema, value interface{}) interface{} {
 			// for now it works
 			panic(fmt.Sprintf("impossible value: %T %v", v, v))
 		}
+	// Numeric fast-paths: when value is already the target Go type, return the
+	// original iface header. Otherwise `return cast.ToIntXX(...)` forces the
+	// compiler to insert runtime.convTXX for the returned int, allocating a new
+	// heap slot on every call (~1 alloc per non-cached primitive cell).
 	case "int64":
+		if _, ok := value.(int64); ok {
+			return value
+		}
 		return cast.ToInt64(maybeStringToNumeric(value))
 	case "int32":
+		if _, ok := value.(int32); ok {
+			return value
+		}
 		return cast.ToInt32(maybeStringToNumeric(value))
 	case "int16":
+		if _, ok := value.(int16); ok {
+			return value
+		}
 		return cast.ToInt16(maybeStringToNumeric(value))
 	case "int8":
+		if _, ok := value.(int8); ok {
+			return value
+		}
 		return cast.ToInt8(maybeStringToNumeric(value))
 	case "uint64":
+		if _, ok := value.(uint64); ok {
+			return value
+		}
 		return cast.ToUint64(maybeStringToNumeric(value))
 	case "uint32":
+		if _, ok := value.(uint32); ok {
+			return value
+		}
 		return cast.ToUint32(maybeStringToNumeric(value))
 	case "uint16":
+		if _, ok := value.(uint16); ok {
+			return value
+		}
 		return cast.ToUint16(maybeStringToNumeric(value))
 	case "uint8":
+		if _, ok := value.(uint8); ok {
+			return value
+		}
 		return cast.ToUint8(maybeStringToNumeric(value))
 	case "double":
 		switch v := value.(type) {
@@ -138,7 +169,8 @@ func Restore(column ColSchema, value interface{}) interface{} {
 			}
 			return nil
 		case json.Number:
-			return v
+			// Fast-path: skip re-boxing of the string-header inside json.Number.
+			return value
 		default:
 			return nil
 		}
@@ -175,7 +207,8 @@ func Restore(column ColSchema, value interface{}) interface{} {
 		case *string:
 			return *v
 		case string:
-			return v
+			// Fast-path: skip re-boxing of the string header.
+			return value
 		case []uint8:
 			return string(v)
 		}

@@ -13,6 +13,7 @@ import (
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	ch_db_model "github.com/transferia/transferia/pkg/providers/clickhouse/async/model/db"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/pkg/util"
 )
 
 type marshallingError struct {
@@ -45,9 +46,20 @@ func genericMarshallingError(err error) *marshallingError {
 	}
 }
 
+// colPlan captures per-column state used by marshalChangeItemInto. Built once
+// from ColumnNames (see chV2Marshaller.marshal) so the hot loop does not do
+// two map lookups per cell — runtime.mapaccess1_faststr was ~2% of CPU in the
+// snapshot-read profile.
+type colPlan struct {
+	name    string
+	schema  abstract.ColSchema
+	colType *columntypes.TypeDescription
+}
+
 // marshalChangeItemInto fills dst (pre-allocated by caller) without allocating a new slice.
-// dst must have len == len(row.ColumnValues).
-func marshalChangeItemInto(dst []any, row abstract.ChangeItem, schema map[string]abstract.ColSchema, cols columntypes.TypeMapping) (retErr error) {
+// dst must have len == len(row.ColumnValues); plans must have the same length and same
+// column ordering as row.ColumnNames.
+func marshalChangeItemInto(dst []any, row abstract.ChangeItem, plans []colPlan) (retErr error) {
 	defer func() {
 		// Restore() may panic now
 		val := recover()
@@ -62,10 +74,11 @@ func marshalChangeItemInto(dst []any, row abstract.ChangeItem, schema map[string
 		}
 		retErr = genericMarshallingError(err)
 	}()
-	for i, col := range row.ColumnNames {
+	for i := range plans {
+		plan := &plans[i]
 		rowVal := row.ColumnValues[i]
-		colType := cols[col]
-		colSch := schema[col]
+		colType := plan.colType
+		colSch := plan.schema
 		if rowVal == nil {
 			dst[i] = rowVal
 		} else if colType.IsArray && colSch.DataType == "any" {
@@ -75,7 +88,7 @@ func marshalChangeItemInto(dst []any, row abstract.ChangeItem, schema map[string
 			case string, byte:
 				dst[i] = rowVal
 			case []byte:
-				dst[i] = string(rowValDowncasted)
+				dst[i] = util.UnsafeBytesToString(rowValDowncasted)
 			case []any:
 				if len(rowValDowncasted) == 0 {
 					dst[i] = "[]"
@@ -105,11 +118,11 @@ func marshalChangeItemInto(dst []any, row abstract.ChangeItem, schema map[string
 				val = decimal.NewFromFloat(v)
 			default:
 				//nolint:descriptiveerrors
-				return colMarshallingError(error_codes.UnsupportedConversion, col, v, "unknown type for decimal column")
+				return colMarshallingError(error_codes.UnsupportedConversion, plan.name, v, "unknown type for decimal column")
 			}
 			if decErr != nil {
 				//nolint:descriptiveerrors
-				return colMarshallingError(error_codes.DataValueError, col, rowVal, fmt.Sprintf("error converting to decimal: %s", decErr))
+				return colMarshallingError(error_codes.DataValueError, plan.name, rowVal, fmt.Sprintf("error converting to decimal: %s", decErr))
 			}
 			dst[i] = val
 		} else {
@@ -139,6 +152,24 @@ type chV2Marshaller struct {
 	schema map[string]abstract.ColSchema
 	cols   columntypes.TypeMapping
 	buf    []any
+	plans  []colPlan // built lazily from the first row's ColumnNames; rebuilt if length changes
+}
+
+func (m *chV2Marshaller) buildPlans(names []string) {
+	plans := m.plans
+	if cap(plans) < len(names) {
+		plans = make([]colPlan, len(names))
+	} else {
+		plans = plans[:len(names)]
+	}
+	for i, name := range names {
+		plans[i] = colPlan{
+			name:    name,
+			schema:  m.schema[name],
+			colType: m.cols[name],
+		}
+	}
+	m.plans = plans
 }
 
 func (m *chV2Marshaller) marshal(row abstract.ChangeItem) ([]any, error) {
@@ -147,7 +178,10 @@ func (m *chV2Marshaller) marshal(row abstract.ChangeItem) ([]any, error) {
 		m.buf = make([]any, n)
 	}
 	m.buf = m.buf[:n]
-	if err := marshalChangeItemInto(m.buf, row, m.schema, m.cols); err != nil {
+	if len(m.plans) != len(row.ColumnNames) {
+		m.buildPlans(row.ColumnNames)
+	}
+	if err := marshalChangeItemInto(m.buf, row, m.plans); err != nil {
 		return nil, err
 	}
 	return m.buf, nil
@@ -162,6 +196,7 @@ func NewCHV2Marshaller(schema []abstract.ColSchema, cols columntypes.TypeMapping
 		schema: sch,
 		cols:   cols,
 		buf:    nil,
+		plans:  nil,
 	}
 	return m.marshal
 }
