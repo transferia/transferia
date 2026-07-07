@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/library/go/core/log/nop"
 )
 
 const defaultLogbrokerDatabase = "/Root"
@@ -148,7 +149,7 @@ func (d *LbDestination) FillDependentFields(transfer *model.Transfer) {
 	if d.FormatSettings.BatchingSettings != nil && d.FormatSettings.BatchingSettings.Enabled {
 		return
 	}
-	infered, err := coherence_check.InferFormatSettings(logger.Log, transfer.Src, d.FormatSettings)
+	infered, err := coherence_check.InferFormatSettings(&nop.Logger{}, transfer.Src, d.FormatSettings)
 	if err != nil {
 		logger.Log.Warn("Unable to infer format settings to fill dependent fields", log.Error(err))
 	}
