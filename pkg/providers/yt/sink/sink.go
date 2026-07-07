@@ -53,61 +53,67 @@ type sinker struct {
 
 func (s *sinker) Replace() error {
 	ctx := context.Background()
-
-	tmpTables, err := MakeTmpTablesList(ctx, s.config, s.transferID, s.ytClient)
-	if err != nil {
-		return xerrors.Errorf("error listing temporary tables: %w", err)
-	}
 	tmpSuffix := model.MakeTmpSuffix(s.transferID, model.TmpTableSuffix)
 
-	for _, tmpPath := range tmpTables {
-		originalPath := ypath.Path(strings.TrimSuffix(tmpPath.String(), tmpSuffix))
+	if err := provider_yt.HandleNodes(ctx, s.ytClient, ypath.Path(s.config.Path()), nil,
+		func(ctx context.Context, client yt.Client, tmpPath ypath.Path, attrs *provider_yt.NodeAttrs) error {
+			if attrs.Type != yt.NodeTable {
+				return nil
+			}
 
-		// Unmount tmp table
-		if err := provider_yt.MountUnmountWrapper(
-			ctx,
-			s.ytClient,
-			tmpPath,
-			migrate.UnmountAndWait,
-		); err != nil {
-			return xerrors.Errorf("unable to unmount tmp table: %w", err)
-		}
+			if !strings.HasSuffix(tmpPath.String(), tmpSuffix) {
+				return nil
+			}
+			originalPath := ypath.Path(strings.TrimSuffix(tmpPath.String(), tmpSuffix))
 
-		dstExists, err := s.ytClient.NodeExists(ctx, originalPath, nil)
-		if err != nil {
-			return xerrors.Errorf("unable to check if destination exists: %w", err)
-		}
-		if dstExists {
+			// Unmount tmp table
 			if err := provider_yt.MountUnmountWrapper(
 				ctx,
-				s.ytClient,
-				originalPath,
+				client,
+				tmpPath,
 				migrate.UnmountAndWait,
 			); err != nil {
-				return xerrors.Errorf("unable to unmount original table: %w", err)
+				return xerrors.Errorf("unable to unmount tmp table: %w", err)
 			}
-		}
 
-		// Move table to original directory
-		moveOptions := provider_yt.ResolveMoveOptions(s.ytClient, tmpPath, false)
-		if _, err := s.ytClient.MoveNode(
-			ctx,
-			tmpPath,
-			originalPath,
-			moveOptions,
-		); err != nil {
-			return xerrors.Errorf("unable to move tmp table: %w", err)
-		}
+			dstExists, err := client.NodeExists(ctx, originalPath, nil)
+			if err != nil {
+				return xerrors.Errorf("unable to check if destination exists: %w", err)
+			}
+			if dstExists {
+				if err := provider_yt.MountUnmountWrapper(
+					ctx,
+					client,
+					originalPath,
+					migrate.UnmountAndWait,
+				); err != nil {
+					return xerrors.Errorf("unable to unmount original table: %w", err)
+				}
+			}
 
-		// Mount tmp table
-		if err := provider_yt.MountUnmountWrapper(
-			ctx,
-			s.ytClient,
-			originalPath,
-			migrate.MountAndWait,
-		); err != nil {
-			return xerrors.Errorf("unable to mount tmp table: %w", err)
-		}
+			// Move table to original directory
+			moveOptions := provider_yt.ResolveMoveOptions(client, tmpPath, false)
+			if _, err := client.MoveNode(
+				ctx,
+				tmpPath,
+				originalPath,
+				moveOptions,
+			); err != nil {
+				return xerrors.Errorf("unable to move tmp table: %w", err)
+			}
+
+			// Mount tmp table
+			if err := provider_yt.MountUnmountWrapper(
+				ctx,
+				client,
+				originalPath,
+				migrate.MountAndWait,
+			); err != nil {
+				return xerrors.Errorf("unable to mount tmp table: %w", err)
+			}
+			return nil
+		}); err != nil {
+		return xerrors.Errorf("unable to cleanup yt path: %w", err)
 	}
 	return nil
 }

@@ -30,13 +30,17 @@ type ColumnSchema struct {
 
 type nodeHandler func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error
 
-func handleNodes(
+func HandleNodes(
 	ctx context.Context,
 	client yt.Client,
 	path ypath.Path,
 	params *HandleParams,
 	handler nodeHandler,
 ) error {
+	if params == nil {
+		params = defaultHandleParams
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -114,7 +118,7 @@ func UnmountAndWaitRecursive(ctx context.Context, logger log.Logger, client yt.C
 	if params == nil {
 		params = defaultHandleParams
 	}
-	return handleNodes(ctx, client, path, params,
+	return HandleNodes(ctx, client, path, params,
 		func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error {
 			if attrs.Type == yt.NodeTable && attrs.Dynamic {
 				if attrs.TabletState != yt.TabletUnmounted {
@@ -134,7 +138,7 @@ func MountAndWaitRecursive(ctx context.Context, logger log.Logger, client yt.Cli
 	if params == nil {
 		params = defaultHandleParams
 	}
-	return handleNodes(ctx, client, path, params,
+	return HandleNodes(ctx, client, path, params,
 		func(ctx context.Context, client yt.Client, path ypath.Path, attrs *NodeAttrs) error {
 			if attrs.Type == yt.NodeTable && attrs.Dynamic {
 				if attrs.TabletState != yt.TabletMounted {

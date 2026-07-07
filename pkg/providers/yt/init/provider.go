@@ -2,6 +2,7 @@ package init
 
 import (
 	"context"
+	"strings"
 
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -24,6 +25,7 @@ import (
 	"github.com/transferia/transferia/pkg/targets"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/migrate"
+	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
@@ -195,37 +197,46 @@ func (p *Provider) CleanupDestination(ctx context.Context) error {
 		return nil
 	}
 
+	tmpSuffix := model.MakeTmpSuffix(p.transfer.ID, model.TmpTableSuffix)
 	client, err := yt_client.FromConnParams(dst, p.logger)
 	if err != nil {
 		return xerrors.Errorf("error getting YT Client: %w", err)
 	}
 
-	tmpTables, err := yt_sink.MakeTmpTablesList(ctx, dst, p.transfer.ID, client)
-	if err != nil {
-		return xerrors.Errorf("error listing temporary tables: %w", err)
-	}
-	for _, tablePath := range tmpTables {
-		if err := provider_yt.MountUnmountWrapper(
-			ctx,
-			client,
-			tablePath,
-			migrate.UnmountAndWait,
-		); err != nil {
-			p.logger.Error("unable to unmount table", log.Any("path", tablePath), log.Error(err))
-			return xerrors.Errorf("unable to unmount table %s : %w", tablePath.String(), err)
-		}
+	if err := provider_yt.HandleNodes(ctx, client, ypath.Path(dst.Path()), nil,
+		func(ctx context.Context, client yt.Client, tablePath ypath.Path, attrs *provider_yt.NodeAttrs) error {
+			if attrs.Type != yt.NodeTable {
+				return nil
+			}
 
-		removeOptions := &yt.RemoveNodeOptions{
-			Recursive: false,
-			Force:     true,
-		}
-		if err := client.RemoveNode(
-			ctx,
-			tablePath,
-			removeOptions,
-		); err != nil {
-			return xerrors.Errorf("unable to remove node %s : %w", tablePath.String(), err)
-		}
+			if !strings.HasSuffix(tablePath.String(), tmpSuffix) {
+				return nil
+			}
+
+			if err := provider_yt.MountUnmountWrapper(
+				ctx,
+				client,
+				tablePath,
+				migrate.UnmountAndWait,
+			); err != nil {
+				p.logger.Error("unable to unmount table", log.Any("path", tablePath), log.Error(err))
+				return xerrors.Errorf("unable to unmount table %s : %w", tablePath.String(), err)
+			}
+
+			removeOptions := &yt.RemoveNodeOptions{
+				Recursive: false,
+				Force:     true,
+			}
+			if err := client.RemoveNode(
+				ctx,
+				tablePath,
+				removeOptions,
+			); err != nil {
+				return xerrors.Errorf("unable to remove node %s : %w", tablePath.String(), err)
+			}
+			return nil
+		}); err != nil {
+		return xerrors.Errorf("unable to cleanup yt path: %w", err)
 	}
 	return nil
 }

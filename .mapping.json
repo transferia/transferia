@@ -3605,6 +3605,8 @@
   "tests/e2e/pg2yt/canon_replication/dump/init.sql":"transfer_manager/go/tests/e2e/pg2yt/canon_replication/dump/init.sql",
   "tests/e2e/pg2yt/cdc_partial_activate/check_db_test.go":"transfer_manager/go/tests/e2e/pg2yt/cdc_partial_activate/check_db_test.go",
   "tests/e2e/pg2yt/cdc_partial_activate/dump/type_check.sql":"transfer_manager/go/tests/e2e/pg2yt/cdc_partial_activate/dump/type_check.sql",
+  "tests/e2e/pg2yt/cleanup_replace/check_db_test.go":"transfer_manager/go/tests/e2e/pg2yt/cleanup_replace/check_db_test.go",
+  "tests/e2e/pg2yt/cleanup_replace/dump/dump.sql":"transfer_manager/go/tests/e2e/pg2yt/cleanup_replace/dump/dump.sql",
   "tests/e2e/pg2yt/data_objects/check_db_test.go":"transfer_manager/go/tests/e2e/pg2yt/data_objects/check_db_test.go",
   "tests/e2e/pg2yt/data_objects/dump/type_check.sql":"transfer_manager/go/tests/e2e/pg2yt/data_objects/dump/type_check.sql",
   "tests/e2e/pg2yt/dblog_resume/check_db_test.go":"transfer_manager/go/tests/e2e/pg2yt/dblog_resume/check_db_test.go",
