@@ -45,10 +45,12 @@ type SinkServer struct {
 }
 
 func (s *SinkServer) Close() error {
-	close(s.closeCh)
-	if err := s.db.Close(); err != nil {
-		s.logger.Warn("failed to close db", log.Error(err))
-	}
+	s.onceClose.Do(func() {
+		close(s.closeCh)
+		if err := s.db.Close(); err != nil {
+			s.logger.Warn("failed to close db", log.Error(err))
+		}
+	})
 	return nil
 }
 

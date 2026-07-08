@@ -1415,6 +1415,8 @@
   "pkg/providers/clickhouse/schema/engines/replicated_engine.go":"transfer_manager/go/pkg/providers/clickhouse/schema/engines/replicated_engine.go",
   "pkg/providers/clickhouse/schema/engines/replicated_engine_params.go":"transfer_manager/go/pkg/providers/clickhouse/schema/engines/replicated_engine_params.go",
   "pkg/providers/clickhouse/schema/engines/util.go":"transfer_manager/go/pkg/providers/clickhouse/schema/engines/util.go",
+  "pkg/providers/clickhouse/server_pool.go":"transfer_manager/go/pkg/providers/clickhouse/server_pool.go",
+  "pkg/providers/clickhouse/server_pool_test.go":"transfer_manager/go/pkg/providers/clickhouse/server_pool_test.go",
   "pkg/providers/clickhouse/sharding/sharder.go":"transfer_manager/go/pkg/providers/clickhouse/sharding/sharder.go",
   "pkg/providers/clickhouse/sharding/sharding_model.go":"transfer_manager/go/pkg/providers/clickhouse/sharding/sharding_model.go",
   "pkg/providers/clickhouse/sink.go":"transfer_manager/go/pkg/providers/clickhouse/sink.go",
