@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -160,6 +161,8 @@ func (s *Storage) listaAllTablesToTransfer(ctx context.Context) ([]string, error
 				allTables = append(allTables, subTraverse...)
 			} else if entry.Type == ydb_scheme.EntryTable {
 				allTables = append(allTables, currPath)
+			} else if entry.Type == ydb_scheme.EntryTypeUnknown && s.isSystemTable(currPath) {
+				allTables = append(allTables, currPath)
 			} else {
 				return nil, xerrors.Errorf("unknown node type, path:%s, type:%s", currPath, entry.Type.String())
 			}
@@ -214,6 +217,15 @@ func (s *Storage) TableSchema(ctx context.Context, tableID abstract.TableID) (*a
 }
 
 func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescription, pusher abstract.Pusher) error {
+	_, testQuery := os.LookupEnv("USE_QUERY_SERVICE")
+
+	if s.isSystemTable(tableDescr.Name) || testQuery {
+		if err := s.LoadTableViaQueryService(ctx, tableDescr, pusher); err != nil {
+			return xerrors.Errorf("failed to load table via query service: %w", err)
+		}
+		return nil
+	}
+
 	st := util.GetTimestampFromContextOrNow(ctx)
 
 	tablePath := s.makeTablePath(tableDescr.Schema, tableDescr.Name)
