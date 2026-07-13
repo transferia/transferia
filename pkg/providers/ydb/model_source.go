@@ -8,6 +8,7 @@ import (
 
 	"github.com/transferia/transferia/internal/logger"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	ydb_credentials "github.com/ydb-platform/ydb-go-sdk/v3/credentials"
@@ -48,6 +49,8 @@ type YdbColumnsFilter struct {
 }
 
 type YdbSource struct {
+	DatabaseID         string             `log:"true"`
+	IsOnPremise        bool               `log:"true"`
 	Database           string             `log:"true"`
 	Instance           string             `log:"true"`
 	Tables             []string           `log:"true"` // actually it's 'paths', but migrating...
@@ -57,8 +60,9 @@ type YdbSource struct {
 	Underlay           bool               `log:"true"`
 	UseFullPaths       bool               `log:"true"` // can be useful to deal with names collision
 
-	TLSEnabled  bool `log:"true"`
-	RootCAFiles []string
+	TLSEnabled       bool `log:"true"`
+	RootCAFiles      []string
+	TLSCACertificate string
 
 	// replication stuff:
 	ChangeFeedMode               ChangeFeedModeType `log:"true"`
@@ -89,8 +93,13 @@ func (s *YdbSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 }
 
 func (s *YdbSource) MDBClusterID() string {
+	if s.IsOnPremise {
+		return ""
+	}
 	return s.Instance + s.Database
 }
+
+func (s *YdbSource) IsUnderlayOnlyEndpoint() {}
 
 func (s *YdbSource) ServiceAccountIDs() []string {
 	if s.ServiceAccountID != "" {
@@ -190,6 +199,9 @@ func (s *YdbSource) GetProviderType() abstract.ProviderType {
 }
 
 func (s *YdbSource) Validate() error {
+	if s.IsOnPremise && s.Instance == "" {
+		return xerrors.New("instance parameter must be specified")
+	}
 	return nil
 }
 
@@ -218,6 +230,7 @@ func (s *YdbSource) ToStorageParams() *YdbStorageParams {
 		OAuth2Config:       s.OAuth2Config,
 		RootCAFiles:        s.RootCAFiles,
 		TLSEnabled:         s.TLSEnabled,
+		TLSCACertificate:   s.TLSCACertificate,
 		IsSnapshotSharded:  s.IsSnapshotSharded,
 		CopyFolder:         s.CopyFolder,
 	}

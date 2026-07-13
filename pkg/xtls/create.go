@@ -34,3 +34,14 @@ func FromPath(rootCACertPaths []string) (*tls.Config, error) {
 		RootCAs: cp,
 	}, nil
 }
+
+func FromContent(caCertPEM string) (*tls.Config, error) {
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, xerrors.Errorf("credentials: failed to get system sert pool")
+	}
+	if caCertPEM != "" && !pool.AppendCertsFromPEM([]byte(caCertPEM)) {
+		return nil, xerrors.Errorf("credentials: failed to append CA certificate from PEM content")
+	}
+	return &tls.Config{RootCAs: pool}, nil
+}

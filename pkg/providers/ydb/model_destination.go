@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/synchronizer/bufferer"
@@ -13,6 +14,8 @@ import (
 
 type YdbDestination struct {
 	Token                     model.SecretString
+	DatabaseID                string               `log:"true"`
+	IsOnPremise               bool                 `log:"true"`
 	Database                  string               `log:"true"`
 	Path                      string               `log:"true"`
 	Instance                  string               `log:"true"`
@@ -40,11 +43,12 @@ type YdbDestination struct {
 
 	Primary bool `log:"true"` // if worker is first, i.e. primary, will run background jobs
 
-	TLSEnabled      bool `log:"true"`
-	RootCAFiles     []string
-	TokenServiceURL string `log:"true"`
-	UserdataAuth    bool   `log:"true"` // allow fallback to Instance metadata Auth
-	OAuth2Config    *ydb_credentials.OAuth2Config
+	TLSEnabled       bool `log:"true"`
+	RootCAFiles      []string
+	TLSCACertificate string
+	TokenServiceURL  string `log:"true"`
+	UserdataAuth     bool   `log:"true"` // allow fallback to Instance metadata Auth
+	OAuth2Config     *ydb_credentials.OAuth2Config
 }
 
 var (
@@ -65,7 +69,12 @@ func (d *YdbDestination) ServiceAccountIDs() []string {
 	return nil
 }
 
+func (d *YdbDestination) IsUnderlayOnlyEndpoint() {}
+
 func (d *YdbDestination) MDBClusterID() string {
+	if d.IsOnPremise {
+		return ""
+	}
 	return d.Instance + d.Database
 }
 
@@ -94,6 +103,10 @@ func (d *YdbDestination) GetProviderType() abstract.ProviderType {
 }
 
 func (d *YdbDestination) Validate() error {
+	if d.IsOnPremise && d.Instance == "" {
+		return xerrors.New("instance parameter must be specified")
+	}
+
 	d.Rotation = d.Rotation.NilWorkaround()
 	if err := d.Rotation.Validate(); err != nil {
 		return err
@@ -125,7 +138,8 @@ func (d *YdbDestination) ToStorageParams() *YdbStorageParams {
 		TokenServiceURL:    d.TokenServiceURL,
 		OAuth2Config:       d.OAuth2Config,
 		RootCAFiles:        d.RootCAFiles,
-		TLSEnabled:         false,
+		TLSEnabled:         d.TLSEnabled,
+		TLSCACertificate:   d.TLSCACertificate,
 		IsSnapshotSharded:  false,
 		CopyFolder:         "",
 	}

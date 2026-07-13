@@ -1546,7 +1546,12 @@ func (s *sinker) delete(tablePath ydbPath, item abstract.ChangeItem) error {
 func NewSinker(lgr log.Logger, cfg *YdbDestination, mtrcs core_metrics.Registry) (abstract.Sinker, error) {
 	var err error
 	var tlsConfig *tls.Config
-	if cfg.TLSEnabled {
+	if cfg.TLSCACertificate != "" {
+		tlsConfig, err = xtls.FromContent(cfg.TLSCACertificate)
+		if err != nil {
+			return nil, xerrors.Errorf("could not create TLS config from certificate content: %w", err)
+		}
+	} else if cfg.TLSEnabled {
 		tlsConfig, err = xtls.FromPath(cfg.RootCAFiles)
 		if err != nil {
 			return nil, xerrors.Errorf("could not create TLS config: %w", err)

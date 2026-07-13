@@ -61,7 +61,12 @@ func newYDBSourceDriver(ctx context.Context, cfg *YdbSource) (*ydb_go_sdk.Driver
 	}
 
 	var tlsConfig *tls.Config
-	if cfg.TLSEnabled {
+	if cfg.TLSCACertificate != "" {
+		tlsConfig, err = xtls.FromContent(cfg.TLSCACertificate)
+		if err != nil {
+			return nil, xerrors.Errorf("cannot create TLS config from certificate content: %w", err)
+		}
+	} else if cfg.TLSEnabled {
 		tlsConfig, err = xtls.FromPath(cfg.RootCAFiles)
 		if err != nil {
 			return nil, xerrors.Errorf("cannot create TLS config: %w", err)

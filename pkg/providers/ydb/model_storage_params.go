@@ -29,8 +29,9 @@ type YdbStorageParams struct {
 	TokenServiceURL  string `log:"true"`
 	OAuth2Config     *ydb_credentials.OAuth2Config
 
-	RootCAFiles []string
-	TLSEnabled  bool `log:"true"`
+	RootCAFiles      []string
+	TLSEnabled       bool `log:"true"`
+	TLSCACertificate string
 
 	IsSnapshotSharded bool   `log:"true"`
 	CopyFolder        string `log:"true"`

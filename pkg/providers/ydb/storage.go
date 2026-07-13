@@ -43,7 +43,12 @@ type Storage struct {
 func NewStorage(cfg *YdbStorageParams, mtrcs core_metrics.Registry) (*Storage, error) {
 	var err error
 	var tlsConfig *tls.Config
-	if cfg.TLSEnabled {
+	if cfg.TLSCACertificate != "" {
+		tlsConfig, err = xtls.FromContent(cfg.TLSCACertificate)
+		if err != nil {
+			return nil, xerrors.Errorf("Cannot create TLS config from certificate content: %w", err)
+		}
+	} else if cfg.TLSEnabled {
 		tlsConfig, err = xtls.FromPath(cfg.RootCAFiles)
 		if err != nil {
 			return nil, xerrors.Errorf("Cannot create TLS config: %w", err)
