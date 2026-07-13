@@ -83,27 +83,31 @@ func (w *Worker) Restart(t *testing.T, transfer *model.Transfer) {
 // functions
 
 func Activate(t *testing.T, transfer *model.Transfer, onErrorCallback ...func(err error)) *Worker {
-	return activate(t, transfer, true, onErrorCallback...)
+	return activate(t, transfer, true, nil, onErrorCallback...)
+}
+
+func ActivateWithCustomTask(t *testing.T, transfer *model.Transfer, task *model.TransferOperation, onErrorCallback ...func(err error)) *Worker {
+	return activate(t, transfer, true, task, onErrorCallback...)
 }
 
 func ActivateWithoutStart(t *testing.T, transfer *model.Transfer, onErrorCallback ...func(err error)) *Worker {
-	return activate(t, transfer, false, onErrorCallback...)
+	return activate(t, transfer, false, nil, onErrorCallback...)
 }
 
-func activate(t *testing.T, transfer *model.Transfer, isStart bool, onErrorCallback ...func(err error)) *Worker {
+func activate(t *testing.T, transfer *model.Transfer, isStart bool, task *model.TransferOperation, onErrorCallback ...func(err error)) *Worker {
 	if len(onErrorCallback) == 0 {
 		// append default callback checker: no error!
 		onErrorCallback = append(onErrorCallback, func(err error) {
 			require.NoError(t, err)
 		})
 	}
-	result, err := activateErr(transfer, isStart, onErrorCallback...)
+	result, err := activateErr(transfer, isStart, task, onErrorCallback...)
 	require.NoError(t, err)
 	return result
 }
 
 func ActivateErr(transfer *model.Transfer, onErrorCallback ...func(err error)) (*Worker, error) {
-	return activateErr(transfer, true, onErrorCallback...)
+	return activateErr(transfer, true, nil, onErrorCallback...)
 }
 
 func ActivateSharded(t *testing.T, transfer *model.Transfer, task *model.TransferOperation, onErrorCallback ...func(err error)) *Worker {
@@ -117,18 +121,22 @@ func ActivateShardedErr(transfer *model.Transfer, task *model.TransferOperation,
 	return activateShardedWithCP(context.Background(), cp, task, transfer, EmptyRegistry())
 }
 
-func activateErr(transfer *model.Transfer, isStart bool, onErrorCallback ...func(err error)) (*Worker, error) {
+func activateErr(transfer *model.Transfer, isStart bool, task *model.TransferOperation, onErrorCallback ...func(err error)) (*Worker, error) {
 	cp := NewFakeCPErrRepl(onErrorCallback...)
-	return ActivateWithCP(transfer, cp, isStart)
+	return activateWithCP(transfer, cp, isStart, task)
 }
 
 func ActivateWithCP(transfer *model.Transfer, cp coordinator.Coordinator, isStart bool) (*Worker, error) {
+	return activateWithCP(transfer, cp, isStart, nil)
+}
+
+func activateWithCP(transfer *model.Transfer, cp coordinator.Coordinator, isStart bool, task *model.TransferOperation) (*Worker, error) {
 	result := &Worker{
 		worker: nil,
 		cp:     cp,
 	}
 
-	if err := tasks.ActivateDelivery(context.Background(), nil, result.cp, *transfer, EmptyRegistry()); err != nil {
+	if err := tasks.ActivateDelivery(context.Background(), task, result.cp, *transfer, EmptyRegistry()); err != nil {
 		return nil, err
 	}
 

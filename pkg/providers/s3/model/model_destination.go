@@ -84,6 +84,7 @@ type S3Destination struct {
 	MaxItemsPerFile  int    `log:"true"`
 	MaxBytesPerFile  int    `log:"true"`
 	SerializerSet    bool
+	Cleanup          model.CleanupType `log:"true"`
 
 	SerializerSettings SerializerSettings `log:"true"`
 
@@ -110,6 +111,9 @@ func (d *S3Destination) WithDefaults() {
 	}
 	if d.Concurrency == 0 {
 		d.Concurrency = 4
+	}
+	if d.Cleanup == "" {
+		d.Cleanup = model.DisabledCleanup
 	}
 }
 
@@ -146,7 +150,7 @@ func (d *S3Destination) Transformer() map[string]string {
 }
 
 func (d *S3Destination) CleanupMode() model.CleanupType {
-	return model.DisabledCleanup
+	return d.Cleanup
 }
 
 func (d *S3Destination) IsDestination() {

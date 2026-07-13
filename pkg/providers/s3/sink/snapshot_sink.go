@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
+	s3_delete "github.com/transferia/transferia/pkg/providers/s3/s3util/delete"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
 	s3_sink_writer "github.com/transferia/transferia/pkg/providers/s3/sink/writer"
 	"github.com/transferia/transferia/pkg/stats"
@@ -120,21 +121,11 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 		switch row.Kind {
 		case abstract.InsertKind:
 			insertItems = append(insertItems, &row)
-		case abstract.TruncateTableKind:
-			s.logger.Info("truncate table", log.String("table", fullTableName))
-			fallthrough
 		case abstract.DropTableKind:
-			ref := s.makeS3ObjectRef(row)
-			key := s.fileSplitter.key(ref)
 			s.logger.Info("drop table", log.String("table", fullTableName))
-			res, err := s.s3Client.DeleteObject(&aws_s3.DeleteObjectInput{
-				Bucket: aws.String(s.cfg.Bucket),
-				Key:    aws.String(key),
-			})
-			if err != nil {
-				return nil, xerrors.Errorf("unable to delete:%v:%w", key, err)
+			if err := s.dropTable(s.makeS3ObjectRef(row)); err != nil {
+				return nil, xerrors.Errorf("unable to drop table %q: %w", fullTableName, err)
 			}
-			s.logger.Info("delete object res", log.Any("res", res))
 		case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad:
 			s.logger.Infof("init/done sharded table load: %s", fullTableName)
 		case abstract.InitTableLoad:
@@ -150,6 +141,7 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 			abstract.MongoCreateKind,
 			abstract.MongoRenameKind,
 			abstract.MongoDropKind,
+			abstract.TruncateTableKind,
 			abstract.ChCreateTableKind:
 			s.logger.Warnf("kind: %s not supported, skip", row.Kind)
 		default:
@@ -161,6 +153,27 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 
 func (s *SnapshotSink) doneTableLoad() error {
 	return s.closeAllSnapshotWriters()
+}
+
+// dropTable removes every S3 object that this sink could have produced for the
+// given table across all layout prefixes. For dynamic layouts, match by suffix.
+func (s *SnapshotSink) dropTable(ref S3ObjectRef) error {
+	totalDeleted, err := s3_delete.DeleteMatchingObjects(
+		s.s3Client,
+		s.cfg.Bucket,
+		makeListPrefix(s.cfg.Layout, ref.basePath()),
+		ref.partKeyRegex().MatchString)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Info(
+		"drop complete",
+		log.String("namespace", ref.namespace),
+		log.String("table", ref.tableName),
+		log.Int("deleted", totalDeleted),
+	)
+	return nil
 }
 
 func (s *SnapshotSink) closeAllSnapshotWriters() error {

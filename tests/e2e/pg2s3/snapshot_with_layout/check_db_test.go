@@ -50,6 +50,7 @@ var (
 		Layout:         "e2e_test-2006-01-02",
 		AnyAsString:    true,
 		LayoutColumn:   "ts",
+		Cleanup:        model.Drop,
 	}
 )
 
@@ -123,7 +124,8 @@ func TestGroup(t *testing.T) {
 	t.Run("Group after port check", func(t *testing.T) {
 		t.Run("Existence", Existence)
 		t.Run("Verify", Verify)
-		t.Run("Snapshot", Snapshot)
+		t.Run("Snapshot", func(t *testing.T) { Snapshot(t, 1) })
+		t.Run("Snapshot after drop", func(t *testing.T) { Snapshot(t, 2) })
 	})
 }
 
@@ -139,8 +141,11 @@ func Verify(t *testing.T) {
 	checkBucket(t, Target, 1)
 }
 
-func Snapshot(t *testing.T) {
+func Snapshot(t *testing.T, snapshotActivateCount int) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
+	helpers.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
+		// it`s unique timestamp, to make unique s3 object names, to avoid same keys for different activations
+		CreatedAt: time.Now().Add(time.Second * time.Duration(snapshotActivateCount)),
+	})
 	checkBucket(t, Target, 3)
 }

@@ -55,6 +55,29 @@ func TestS3Sink(t *testing.T) {
 	t.Run("testRotationParquet", testRotationParquet)
 }
 
+func newTestDropSink(t *testing.T, prefix string, seed map[string][]byte) (*SnapshotSink, *testutil.MockS3Client) {
+	t.Helper()
+	mock := testutil.NewMockS3Client()
+	bucket := "test-bucket"
+	mock.BucketFiles[bucket] = seed
+	cfg := &s3_v1_model.S3Destination{
+		Bucket:         bucket,
+		SerializerType: model.ParsingFormatJSON,
+		Serializer:     s3_v1_model.SerializerUnion{Json: &s3_v1_model.JsonSerializerConfig{Encoding: s3_v1_model.NoEncoding}},
+		Prefix:         prefix,
+	}
+	return &SnapshotSink{
+		cfg:                cfg,
+		s3Client:           mock,
+		logger:             logger.Log,
+		metrics:            stats.NewSinkerStats(solomon.NewRegistry(nil)),
+		snapshotWriter:     nil,
+		fileSplitter:       newFileSplitter(cfg.MaxItemsPerFile, cfg.MaxBytesPerFile),
+		serializer:         cfg.GetSerializer(),
+		operationTimestamp: "1700000000",
+	}, mock
+}
+
 func testS3SinkUploadTable(t *testing.T) {
 	serializer := &s3_v1_model.CSVSerializerConfig{Encoding: s3_v1_model.GzipEncoding}
 	cfg := s3recipe.PrepareS3(t, "TestS3SinkUploadTable", serializer)
@@ -238,4 +261,83 @@ func testRotationParquet(t *testing.T) {
 		require.True(t, ok, "expected key %s not found", key)
 		require.Equal(t, expectedData, data)
 	}
+}
+
+func TestSnapshotSink_DropTable_DeletesOnlyTablePrefix(t *testing.T) {
+	seed := map[string][]byte{
+		"prefix/ns/tbl/part-1-abcd1234.00001.json":       []byte("x"),
+		"prefix/ns/tbl/part-2-deadbeef.00002.json":       []byte("x"),
+		"prefix/ns/tbl2/part-1-abcd1234.00001.json":      []byte("keep"),
+		"prefix/ns/other/part-1-abcd1234.00001.json":     []byte("keep"),
+		"other-prefix/ns/tbl/part-1-abcd1234.00001.json": []byte("keep"),
+	}
+	sink, mock := newTestDropSink(t, "prefix", seed)
+
+	err := sink.dropTable(sink.makeS3ObjectRef(abstract.ChangeItem{
+		Schema: "ns",
+		Table:  "tbl",
+	}))
+	require.NoError(t, err)
+
+	require.Len(t, mock.BucketFiles["test-bucket"], 3)
+	require.Contains(t, mock.BucketFiles["test-bucket"], "prefix/ns/tbl2/part-1-abcd1234.00001.json")
+	require.Contains(t, mock.BucketFiles["test-bucket"], "prefix/ns/other/part-1-abcd1234.00001.json")
+	require.Contains(t, mock.BucketFiles["test-bucket"], "other-prefix/ns/tbl/part-1-abcd1234.00001.json")
+}
+
+func TestSnapshotSink_DropTable_Pagination(t *testing.T) {
+	seed := map[string][]byte{}
+	const total = 2500
+	for i := 0; i < total; i++ {
+		key := fmt.Sprintf("ns/tbl/part-%d-abcd1234.%05d.json", i, i)
+		seed[key] = []byte("x")
+	}
+	sink, mock := newTestDropSink(t, "", seed)
+	mock.ListPageSize = 1000
+
+	err := sink.dropTable(sink.makeS3ObjectRef(abstract.ChangeItem{
+		Schema: "ns",
+		Table:  "tbl",
+	}))
+	require.NoError(t, err)
+
+	require.Len(t, mock.BucketFiles["test-bucket"], 0)
+	require.Len(t, mock.DeleteObjectsCalls, 3, "expected 3 batched DeleteObjects calls (1000+1000+500)")
+	require.Len(t, mock.DeleteObjectsCalls[0].Delete.Objects, 1000)
+	require.Len(t, mock.DeleteObjectsCalls[1].Delete.Objects, 1000)
+	require.Len(t, mock.DeleteObjectsCalls[2].Delete.Objects, 500)
+}
+
+func TestSnapshotSink_DropTable_NothingToDrop(t *testing.T) {
+	sink, mock := newTestDropSink(t, "", map[string][]byte{})
+
+	err := sink.dropTable(sink.makeS3ObjectRef(abstract.ChangeItem{
+		Schema: "ns",
+		Table:  "tbl",
+	}))
+	require.NoError(t, err)
+	require.Len(t, mock.DeleteObjectsCalls, 0)
+}
+
+func TestSnapshotSink_Push_DropKindInvokesDropTable(t *testing.T) {
+	seed := map[string][]byte{
+		"prefix/ns/tbl/part-1-abcd1234.00001.json":   []byte("x"),
+		"prefix/ns/tbl/part-2-deadbeef.00002.json":   []byte("x"),
+		"prefix/ns/other/part-1-abcd1234.00001.json": []byte("keep"),
+	}
+	sink, mock := newTestDropSink(t, "prefix", seed)
+
+	err := sink.Push([]abstract.ChangeItem{
+		{
+			Kind:   abstract.DropTableKind,
+			Schema: "ns",
+			Table:  "tbl",
+		},
+	})
+	require.NoError(t, err)
+
+	require.Len(t, mock.BucketFiles["test-bucket"], 1)
+	require.Contains(t, mock.BucketFiles["test-bucket"], "prefix/ns/other/part-1-abcd1234.00001.json")
+	require.Len(t, mock.DeleteObjectsCalls, 1)
+	require.Len(t, mock.DeleteObjectsCalls[0].Delete.Objects, 2)
 }

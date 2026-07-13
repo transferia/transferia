@@ -85,6 +85,29 @@ func countInsertItems(input []abstract.ChangeItem) int {
 	return count
 }
 
+// isDynamicLayout reports whether layout is a Go time-format template containing
+// at least one format directive.
+// An empty layout is treated as static.
+func isDynamicLayout(layout string) bool {
+	if layout == "" {
+		return false
+	}
+	t1 := time.Unix(0, 0).UTC()
+	t2 := time.Unix(1<<32, 0).UTC()
+	return t1.Format(layout) != t2.Format(layout)
+}
+
+func makeListPrefix(layout string, basePath string) string {
+	switch {
+	case isDynamicLayout(layout):
+		return ""
+	case layout == "":
+		return basePath
+	default:
+		return layout + "/" + basePath
+	}
+}
+
 func extractRowBucket(row abstract.ChangeItem, layoutColumn string, layout string) string {
 	rowBucketTime := time.Unix(0, int64(row.CommitTime))
 	if layoutColumn != "" {

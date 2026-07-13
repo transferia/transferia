@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -47,6 +48,7 @@ func (b S3ObjectRef) FileStreamKey() string {
 }
 
 // NewS3ObjectRef builds an S3ObjectRef. layout is an optional path prefix (e.g. worker shard).
+// layout, namespace, tableName, partID are trimmed of leading and trailing slashes to duplicate slashes in the key.
 func NewS3ObjectRef(
 	layout string,
 	namespace string,
@@ -57,10 +59,10 @@ func NewS3ObjectRef(
 	encoding s3_model.Encoding,
 ) S3ObjectRef {
 	return S3ObjectRef{
-		layout:       layout,
-		namespace:    namespace,
-		tableName:    tableName,
-		partID:       partID,
+		layout:       strings.Trim(layout, "/"),
+		namespace:    strings.Trim(namespace, "/"),
+		tableName:    strings.Trim(tableName, "/"),
+		partID:       strings.Trim(partID, "/"),
 		partIDHash:   hashPartID(partID),
 		timestamp:    timestamp,
 		outputFormat: outputFormat,
@@ -128,6 +130,22 @@ func (b *S3ObjectRef) FullKey(counter int) string {
 	builder.WriteByte('/')
 	builder.WriteString(tail)
 	return builder.String()
+}
+
+// partKeyRegex matches every part-file key this sink may write for the table (any layout prefix,
+// timestamp, partID hash, or file counter). Used to filter list-by-prefix results during cleanup.
+func (b *S3ObjectRef) partKeyRegex() *regexp.Regexp {
+	tbl := regexp.QuoteMeta(b.tableName)
+	fmtExt := regexp.QuoteMeta(strings.ToLower(string(b.outputFormat)))
+
+	var pattern string
+	if b.namespace != "" {
+		ns := regexp.QuoteMeta(b.namespace)
+		pattern = `^(?:.*/)?` + ns + `/` + tbl + `/part-\d+-[a-fA-F0-9]{8}\.\d{5}\.` + fmtExt + `(?:\.gz)?$`
+	} else {
+		pattern = `^(?:.*/)?` + tbl + `/part-\d+-[a-fA-F0-9]{8}\.\d{5}\.` + fmtExt + `(?:\.gz)?$`
+	}
+	return regexp.MustCompile(pattern)
 }
 
 // hashPartID produces a short MD5 hash of the partID, trimmed to partIDHashLen characters.

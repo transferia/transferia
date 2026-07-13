@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	s3_delete "github.com/transferia/transferia/pkg/providers/s3/s3util/delete"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	s3_v1_sink_writer "github.com/transferia/transferia/pkg/providers/s3/v1/sink/writer"
@@ -120,21 +121,12 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 		switch row.Kind {
 		case abstract.InsertKind:
 			insertItems = append(insertItems, &row)
-		case abstract.TruncateTableKind:
-			s.logger.Info("truncate table", log.String("table", fullTableName))
-			fallthrough
 		case abstract.DropTableKind:
 			ref := s.makeS3ObjectRef(row)
-			key := s.fileSplitter.key(ref)
-			s.logger.Info("drop table", log.String("table", fullTableName))
-			res, err := s.s3Client.DeleteObject(&aws_s3.DeleteObjectInput{
-				Bucket: aws.String(s.cfg.Bucket),
-				Key:    aws.String(key),
-			})
-			if err != nil {
-				return nil, xerrors.Errorf("unable to delete:%v:%w", key, err)
+			if err := s.dropTable(ref); err != nil {
+				return nil, xerrors.Errorf("unable to drop table %q: %w", fullTableName, err)
 			}
-			s.logger.Info("delete object res", log.Any("res", res))
+			s.logger.Info("dropped table", log.String("table", fullTableName))
 		case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad:
 			s.logger.Infof("init/done sharded table load: %s", fullTableName)
 		case abstract.InitTableLoad:
@@ -150,6 +142,7 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 			abstract.MongoCreateKind,
 			abstract.MongoRenameKind,
 			abstract.MongoDropKind,
+			abstract.TruncateTableKind,
 			abstract.ChCreateTableKind:
 			s.logger.Warnf("kind: %s not supported, skip", row.Kind)
 		default:
@@ -164,6 +157,20 @@ func (s *SnapshotSink) doneTableLoad() error {
 		return xerrors.Errorf("unable to close snapshot holder: %w", err)
 	}
 	s.snapshotWriter = nil
+	return nil
+}
+
+func (s *SnapshotSink) dropTable(ref S3ObjectRef) error {
+	droppedPrefix := ref.basePathWithPrefix() + "/"
+	totalDeleted, err := s3_delete.DeleteMatchingObjects(
+		s.s3Client,
+		s.cfg.Bucket,
+		droppedPrefix,
+		s3_delete.MatchAllKeys)
+	if err != nil {
+		return xerrors.Errorf("unable to delete objects: %w", err)
+	}
+	s.logger.Info("dropped objects", log.Int("count", totalDeleted), log.String("prefix", droppedPrefix))
 	return nil
 }
 

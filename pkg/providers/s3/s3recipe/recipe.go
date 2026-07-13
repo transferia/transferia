@@ -82,6 +82,7 @@ func PrepareS3(t *testing.T, bucket string, format model.ParsingFormat, encoding
 		SerializerSettings: s3_model.SerializerSettings{
 			Parquet: nil,
 		},
+		Cleanup: model.Drop,
 	}
 
 	cfg.WithDefaults()

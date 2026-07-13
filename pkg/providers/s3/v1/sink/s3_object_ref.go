@@ -47,6 +47,7 @@ func (b S3ObjectRef) FileStreamKey() string {
 }
 
 // NewS3ObjectRef builds an S3ObjectRef. layout is an optional path prefix (e.g. worker shard).
+// layout, namespace, tableName, partID are trimmed of leading and trailing slashes to duplicate slashes in the key.
 func NewS3ObjectRef(
 	prefix string,
 	namespace string,
@@ -57,15 +58,22 @@ func NewS3ObjectRef(
 	encoding s3_v1_model.Encoding,
 ) S3ObjectRef {
 	return S3ObjectRef{
-		prefix:       prefix,
-		namespace:    namespace,
-		tableName:    tableName,
-		partID:       partID,
+		prefix:       strings.Trim(prefix, "/"),
+		namespace:    strings.Trim(namespace, "/"),
+		tableName:    strings.Trim(tableName, "/"),
+		partID:       strings.Trim(partID, "/"),
 		partIDHash:   hashPartID(partID),
 		timestamp:    timestamp,
 		outputFormat: outputFormat,
 		encoding:     encoding,
 	}
+}
+
+func (b *S3ObjectRef) basePathWithPrefix() string {
+	if b.prefix != "" {
+		return b.prefix + "/" + b.basePath()
+	}
+	return b.basePath()
 }
 
 // basePath returns the directory prefix: <namespace>/<table_name> or just <table_name>

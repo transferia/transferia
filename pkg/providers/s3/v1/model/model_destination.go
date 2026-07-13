@@ -28,8 +28,9 @@ const (
 
 type S3Destination struct {
 	// Common
-	PartSize int64  `log:"true"` // Currently is hardcoded
-	Bucket   string `log:"true"`
+	PartSize int64             `log:"true"` // Currently is hardcoded
+	Bucket   string            `log:"true"`
+	Cleanup  model.CleanupType `log:"true"`
 
 	SerializerSet bool // for api consistency
 
@@ -89,6 +90,9 @@ func (d *S3Destination) WithDefaults() {
 	}
 	if d.PartitionerType == "" {
 		d.PartitionerConfig.Default = &DefaultPartitionerConfig{}
+	}
+	if d.Cleanup == "" {
+		d.Cleanup = model.DisabledCleanup
 	}
 }
 

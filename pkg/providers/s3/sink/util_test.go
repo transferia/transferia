@@ -181,6 +181,26 @@ func TestCreateSerializer(t *testing.T) {
 	}
 }
 
+func TestIsDynamicLayout(t *testing.T) {
+	tests := []struct {
+		name     string
+		layout   string
+		expected bool
+	}{
+		{name: "empty", layout: "", expected: false},
+		{name: "date template", layout: "2006/01/02", expected: true},
+		{name: "static path", layout: "static/prefix", expected: false},
+		{name: "mixed template", layout: "data-2006", expected: true},
+		{name: "year only", layout: "2006", expected: true},
+		{name: "hour minute", layout: "15:04", expected: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, isDynamicLayout(tc.layout))
+		})
+	}
+}
+
 func TestHashLongPart(t *testing.T) {
 	tests := []struct {
 		name       string
