@@ -11,15 +11,17 @@ import (
 )
 
 type YtCopyDestination struct {
-	Cluster             string `log:"true"`
-	YtToken             string
-	Prefix              string               `log:"true"`
-	Parallelism         uint64               `log:"true"`
-	Pool                string               `log:"true"`
-	UsePushTransaction  bool                 `log:"true"`
-	SkipUnchangedTables bool                 `log:"true"`
-	ResourceLimits      *spec.ResourceLimits `log:"true"`
-	Cleanup             model.CleanupType    `log:"true"`
+	Cluster                  string `log:"true"`
+	YtToken                  string
+	Prefix                   string               `log:"true"`
+	Parallelism              uint64               `log:"true"`
+	Pool                     string               `log:"true"`
+	UsePushTransaction       bool                 `log:"true"`
+	SkipUnchangedTables      bool                 `log:"true"`
+	SkipNodeErrors           bool                 `log:"true"`
+	AllowUnfrozenInputTables bool                 `log:"true"`
+	ResourceLimits           *spec.ResourceLimits `log:"true"`
+	Cleanup                  model.CleanupType    `log:"true"`
 }
 
 var _ model.Destination = (*YtCopyDestination)(nil)

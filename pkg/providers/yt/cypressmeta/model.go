@@ -16,6 +16,9 @@ type YtNodeMeta struct {
 	DataWeight      int64
 	ContentRevision int64 // source table content_revision, used by YT Copy to skip unchanged tables
 	NodeType        yt.NodeType
+	Dynamic         bool
+	Schema          interface{}
+	PivotKeys       interface{}
 }
 
 func (t *YtNodeMeta) FullName() string {
@@ -30,7 +33,7 @@ func (t *YtNodeMeta) OriginalYPath() ypath.YPath {
 	return ypath.NewRich(t.OriginalPath())
 }
 
-func NewYtNodeMeta(cluster, prefix, name string, rows, weight int64, contentRev int64, nodeType yt.NodeType) *YtNodeMeta {
+func NewYtNodeMeta(cluster, prefix, name string, rows, weight int64, contentRev int64, nodeType yt.NodeType, dynamic bool, schema, pivotKeys interface{}) *YtNodeMeta {
 	return &YtNodeMeta{
 		Cluster:         cluster,
 		Prefix:          prefix,
@@ -40,6 +43,9 @@ func NewYtNodeMeta(cluster, prefix, name string, rows, weight int64, contentRev 
 		NodeID:          nil,
 		ContentRevision: contentRev,
 		NodeType:        nodeType,
+		Dynamic:         dynamic,
+		Schema:          schema,
+		PivotKeys:       pivotKeys,
 	}
 }
 

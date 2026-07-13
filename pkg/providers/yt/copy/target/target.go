@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
+	"go.ytsaurus.tech/yt/go/yterrors"
 )
 
 type YtCopyTarget struct {
@@ -56,7 +58,7 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 	ctx := context.Background()
 	tbl := task.evt.Node()
 
-	outPath := t.cfg.Prefix + "/" + tbl.Name
+	outPath := strings.TrimRight(t.cfg.Prefix, "/") + "/" + tbl.Name
 	outYPath, err := ypath.Parse(outPath)
 	if err != nil {
 		return xerrors.Errorf("error parsing ypath %s: %w", outPath, err)
@@ -94,25 +96,43 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 	}
 
 	copySpec := spec.Spec{
-		Title:           fmt.Sprintf("DataTransfer RemoteCopy (TransferID %s)", t.transferID),
-		ClusterName:     tbl.Cluster,
-		InputTablePaths: []ypath.YPath{tbl.OriginalYPath()},
-		OutputTablePath: tmpOutYPath,
-		CopyAttributes:  boolPtr(true),
-		Pool:            t.cfg.Pool,
-		ResourceLimits:  t.cfg.ResourceLimits,
+		Title:                    fmt.Sprintf("DataTransfer RemoteCopy (TransferID %s)", t.transferID),
+		ClusterName:              tbl.Cluster,
+		InputTablePaths:          []ypath.YPath{tbl.OriginalYPath()},
+		OutputTablePath:          tmpOutYPath,
+		CopyAttributes:           boolPtr(true),
+		Pool:                     t.cfg.Pool,
+		ResourceLimits:           t.cfg.ResourceLimits,
+		AllowUnfrozenInputTables: t.cfg.AllowUnfrozenInputTables,
 	}
 
-	if _, err := task.yt.CreateNode(ctx, tmpOutYPath, tbl.NodeType, &yt.CreateNodeOptions{
+	createOpts := &yt.CreateNodeOptions{
 		Recursive:      true,
 		IgnoreExisting: t.cfg.Cleanup != model.Drop,
 		Force:          t.cfg.Cleanup == model.Drop,
-	}); err != nil {
+	}
+	if tbl.Dynamic {
+		createOpts.Attributes = map[string]any{
+			"dynamic": true,
+			"schema":  tbl.Schema,
+		}
+	}
+	if _, err := task.yt.CreateNode(ctx, tmpOutYPath, tbl.NodeType, createOpts); err != nil {
 		return xerrors.Errorf("error creating (if not exists) node %s: %w", tmpOutYPath.YPath().String(), err)
 	}
 
-	opID, err := task.yt.StartOperation(ctx, yt.OperationRemoteCopy, &copySpec, nil)
-	if err != nil {
+	var opID yt.OperationID
+	for attempt := 0; ; attempt++ {
+		opID, err = task.yt.StartOperation(ctx, yt.OperationRemoteCopy, &copySpec, nil)
+		if err == nil {
+			break
+		}
+		if yterrors.ContainsErrorCode(err, yterrors.CodeTooManyOperations) && attempt < 5 {
+			backoff := time.Duration(1<<attempt) * time.Second
+			t.logger.Warnf("YT pool limit reached, retrying RemoteCopy for %s in %v (attempt %d)", outPath, backoff, attempt+1)
+			time.Sleep(backoff)
+			continue
+		}
 		return xerrors.Errorf("error starting RemoteCopy from %s.%s to %s.%s: %w",
 			copySpec.ClusterName,
 			copySpec.InputTablePaths[0].YPath().String(),
@@ -147,6 +167,14 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 		); err != nil {
 			return xerrors.Errorf("unable to move tmp node: %w", err)
 		}
+	}
+
+	if tbl.Dynamic && tbl.PivotKeys != nil {
+		t.logger.Infof("Resharding dynamic table %s with pivot_keys %v", outPath, tbl.PivotKeys)
+		if err := t.yt.ReshardTable(ctx, outYPath.YPath(), &yt.ReshardTableOptions{PivotKeys: tbl.PivotKeys}); err != nil {
+			return xerrors.Errorf("error resharding dynamic table %s: %w", outPath, err)
+		}
+		t.logger.Infof("Successfully resharded dynamic table %s", outPath)
 	}
 
 	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != 0 {
@@ -187,6 +215,8 @@ func (t *YtCopyTarget) AsyncPush(in abstract2.EventBatch) chan error {
 			wg.Done()
 			if err == nil {
 				input.TableProcessed()
+			} else if t.cfg.SkipNodeErrors {
+				t.logger.Error("[ytcopy-best-effort] copy task failed", log.Error(err))
 			} else {
 				errs = append(errs, err)
 			}
@@ -211,8 +241,10 @@ func (t *YtCopyTarget) AsyncPush(in abstract2.EventBatch) chan error {
 
 		t.logger.Info("Waiting for all copy tasks to be done")
 		wg.Wait()
-		if err := errors.Join(errs...); err != nil {
-			return util.MakeChanWithError(xerrors.Errorf("task error: %w", err))
+		if !t.cfg.SkipNodeErrors {
+			if err := errors.Join(errs...); err != nil {
+				return util.MakeChanWithError(xerrors.Errorf("task error: %w", err))
+			}
 		}
 
 		rollbacks.Cancel()
