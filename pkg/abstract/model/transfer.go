@@ -27,7 +27,6 @@ type Transfer struct {
 	Transformation     *Transformation
 	DataObjects        *DataObjects
 	TypeSystemVersion  int
-	TmpPolicy          *TmpPolicyConfig
 
 	AsyncOperations bool // real async operation flag
 
@@ -96,13 +95,6 @@ func (f *Transfer) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 		}
 	} else {
 		enc.AddString("Transformation", "nil")
-	}
-	if f.TmpPolicy != nil {
-		if err := enc.AddReflected("TmpPolicy", *f.TmpPolicy); err != nil {
-			return xerrors.Errorf("tmp policy serialization failed: %w", err)
-		}
-	} else {
-		enc.AddString("TmpPolicy", "nil")
 	}
 	return nil
 }
@@ -511,7 +503,6 @@ func (f *Transfer) Copy(name string) Transfer {
 		Transformation:     f.Transformation,
 		DataObjects:        f.DataObjects,
 		TypeSystemVersion:  f.TypeSystemVersion,
-		TmpPolicy:          f.TmpPolicy,
 		FolderID:           f.FolderID,
 		CloudID:            f.CloudID,
 		Author:             f.Author,
