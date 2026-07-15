@@ -23,6 +23,7 @@ type source struct {
 	snapshotID        string
 	snapshotIsRunning bool
 	snapshotEvtBatch  *yt_copy_events.EventBatch
+	skipLinkFollowing bool
 	logger            log.Logger
 	metrics           core_metrics.Registry
 }
@@ -49,7 +50,7 @@ func (s *source) BeginSnapshot() error {
 	s.logger.Debug("Begining snapshot")
 	ctx := context.Background()
 	var err error
-	if s.nodes, err = cypressmeta.ListNodes(ctx, s.yt, s.cfg.GetCluster(), s.cfg.GetPaths(), []yt.NodeType{yt.NodeTable, yt.NodeFile}, s.logger); err != nil {
+	if s.nodes, err = cypressmeta.ListNodes(ctx, s.yt, s.cfg.GetCluster(), s.cfg.GetPaths(), []yt.NodeType{yt.NodeTable, yt.NodeFile}, s.skipLinkFollowing, s.logger); err != nil {
 		return xerrors.Errorf("error getting list of nodes: %w", err)
 	}
 	s.logger.Infof("Got %d nodes to copy", len(s.nodes))
@@ -132,7 +133,7 @@ func (s *source) Progress() (abstract2.EventSourceProgress, error) {
 	return s.snapshotEvtBatch.Progress(), nil
 }
 
-func NewSource(logger log.Logger, metrics core_metrics.Registry, cfg provider_yt.YtSourceModel, transferID string) (*source, error) {
+func NewSource(logger log.Logger, metrics core_metrics.Registry, cfg provider_yt.YtSourceModel, skipLinkFollowing bool, transferID string) (*source, error) {
 	y, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error creating ytrpc client: %w", err)
@@ -144,6 +145,7 @@ func NewSource(logger log.Logger, metrics core_metrics.Registry, cfg provider_yt
 		snapshotID:        "",
 		snapshotIsRunning: false,
 		snapshotEvtBatch:  nil,
+		skipLinkFollowing: skipLinkFollowing,
 		logger:            logger,
 		metrics:           metrics,
 	}, nil

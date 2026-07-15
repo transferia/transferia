@@ -60,7 +60,7 @@ func (objs *YTDataObjects) loadTableList() (cypressmeta.YtNodes, error) {
 		}
 		paths = resPaths
 	}
-	tbls, err := cypressmeta.ListNodes(context.Background(), objs.tx, objs.cfg.GetCluster(), paths, []yt.NodeType{yt.NodeTable}, objs.lgr)
+	tbls, err := cypressmeta.ListNodes(context.Background(), objs.tx, objs.cfg.GetCluster(), paths, []yt.NodeType{yt.NodeTable}, false /* skipLinkFollowing */, objs.lgr)
 	if err != nil {
 		return nil, xerrors.Errorf("error listing tables: %w", err)
 	}

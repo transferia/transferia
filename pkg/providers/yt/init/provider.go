@@ -96,8 +96,8 @@ func (p *Provider) DataProvider() (provider abstract2.DataProvider, err error) {
 	if !ok {
 		return nil, xerrors.Errorf("Unexpected source type: %T", p.transfer.Src)
 	}
-	if _, ok := p.transfer.Dst.(*provider_yt.YtCopyDestination); ok {
-		provider, err = yt_copy_source.NewSource(p.logger, p.registry, specificConfig, p.transfer.ID)
+	if dst, ok := p.transfer.Dst.(*provider_yt.YtCopyDestination); ok {
+		provider, err = yt_copy_source.NewSource(p.logger, p.registry, specificConfig, dst.SkipLinkFollowing, p.transfer.ID)
 	} else {
 		var include []string
 		if p.transfer.DataObjects != nil {

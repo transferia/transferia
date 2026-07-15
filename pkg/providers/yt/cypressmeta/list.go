@@ -17,7 +17,7 @@ var getAttrList = []string{"type", "path", "row_count", "data_weight", "content_
 var linkResolveAttrList = []string{"type", "path", "row_count", "data_weight", "content_revision", "dynamic", "schema", "pivot_keys", "target_path"}
 
 // ListNodes recursively lists nodes of given types under the given paths
-func ListNodes(ctx context.Context, y yt.CypressClient, cluster string, paths []string, types []yt.NodeType, logger log.Logger) (YtNodes, error) {
+func ListNodes(ctx context.Context, y yt.CypressClient, cluster string, paths []string, types []yt.NodeType, skipLinkFollowing bool, logger log.Logger) (YtNodes, error) {
 	logger.Debug("Getting list of nodes")
 	var result YtNodes
 
@@ -52,6 +52,10 @@ func ListNodes(ctx context.Context, y yt.CypressClient, cluster string, paths []
 					return xerrors.Errorf("error traversing %s: %w", nodeRelPath, err)
 				}
 			} else if node.Type == yt.NodeLink {
+				if skipLinkFollowing {
+					logger.Warnf("Skipping link %s (skip_link_following enabled)", prefix+nodeRelPath)
+					continue
+				}
 				linkPath := prefix + nodeRelPath
 				var resolved struct {
 					Type            yt.NodeType `yson:"type,attr"`
