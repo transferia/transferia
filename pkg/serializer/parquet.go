@@ -147,6 +147,10 @@ func (s *parquetStreamSerializer) Serialize(items []*abstract.ChangeItem) (err e
 }
 
 func (s *parquetStreamSerializer) Close() (err error) {
+	if s == nil {
+		return nil
+	}
+
 	if s.writer != nil {
 		defer func() {
 			if r := recover(); r != nil {

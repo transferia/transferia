@@ -57,3 +57,36 @@ func TestDefaultRotator(t *testing.T) {
 	require.NoError(t, rotator.UpdateState(&lastItem))
 	require.Equal(t, startTime.Add(rotationInterval*2), rotator.nextRotate)
 }
+
+func TestDefaultRotatorLongIntervals(t *testing.T) {
+	firstItem := abstract.MakeRawMessage(
+		[]byte("stub"),
+		topic,
+		startTime,
+		topic,
+		partition,
+		int64(0),
+		[]byte("stub"),
+	)
+
+	cfg := &s3_v1_model.DefaultRotatorConfig{Interval: rotationInterval}
+	rotator, ok := NewRotator(cfg).(*DefaultRotator)
+	require.True(t, ok)
+
+	require.True(t, rotator.ShouldRotate(&firstItem))
+	require.NoError(t, rotator.UpdateState(&firstItem))
+	require.Equal(t, startTime.Add(rotationInterval), rotator.nextRotate)
+
+	secondItem := abstract.MakeRawMessage(
+		[]byte("stub"),
+		topic,
+		startTime.Add(rotationInterval*2),
+		topic,
+		partition,
+		int64(0),
+		[]byte("stub"),
+	)
+	require.True(t, rotator.ShouldRotate(&secondItem))
+	require.NoError(t, rotator.UpdateState(&secondItem))
+	require.Equal(t, startTime.Add(rotationInterval*3), rotator.nextRotate)
+}

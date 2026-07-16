@@ -22,11 +22,12 @@ var _ Rotator = (*DefaultRotator)(nil)
 func (r *DefaultRotator) UpdateState(item *abstract.ChangeItem) error {
 	newTime := r.getRawMessageWriteTime(item)
 
-	if r.nextRotate.IsZero() {
+	// If time frames between messages is huge we can spend a lot of time just reapdating rotator wich is useless
+	if newTime.Sub(r.nextRotate) >= r.cfg.Interval {
 		r.nextRotate = newTime.Add(r.cfg.Interval)
-		return nil
+	} else {
+		r.nextRotate = r.nextRotate.Add(r.cfg.Interval)
 	}
-	r.nextRotate = r.nextRotate.Add(r.cfg.Interval)
 	return nil
 }
 
