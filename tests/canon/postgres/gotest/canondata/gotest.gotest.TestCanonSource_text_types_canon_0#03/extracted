@@ -20,7 +20,7 @@
             "value": [
                 {
                     "type": "int32",
-                    "value": 3
+                    "value": 4
                 },
                 {
                     "type": "string",
@@ -262,7 +262,249 @@
             "value": [
                 {
                     "type": "int32",
-                    "value": 4
+                    "value": 5
+                },
+                {
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "type": "string",
+                    "value": " "
+                },
+                {
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "type": "string",
+                    "value": "    "
+                },
+                {
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "type": "string",
+                    "value": "0"
+                },
+                {
+                    "type": "string",
+                    "value": "00000000"
+                },
+                {
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "type": "[]uint8",
+                    "value": ""
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "public"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 481,
+                "Values": 354
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "text_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "__primary_key",
+                    "type": "int32",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_text",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:text"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_char",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character(1)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_varchar_256",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character varying(256)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_character_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character(4)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_character_varying_",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character varying(5)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_bit_1",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:bit(1)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_bit_8",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:bit(8)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_varbit_8",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:bit varying(8)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_bytea",
+                    "type": "string",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:bytea"
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    },
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "__primary_key",
+                "t_text",
+                "t_char",
+                "t_varchar_256",
+                "t_character_",
+                "t_character_varying_",
+                "t_bit_1",
+                "t_bit_8",
+                "t_varbit_8",
+                "t_bytea"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "int32",
+                    "value": 6
                 },
                 {
                     "type": "nil",

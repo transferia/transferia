@@ -91,9 +91,15 @@ values (
     '(0.99,9.99)'::user_type_composite_type,
     'VALUE_ONE'::user_type_enum,
     'a=>1,b=>2',
-    'Tom'
+    'It''s a wonderful life'
 --     1,
 --     'john@example.com'
 );
 
-insert into user_types (__primary_key) values (default);
+-- empty case
+
+INSERT INTO user_types (__primary_key, citext_col, hstore_col) VALUES (default, '', ''::hstore); -- let's differ 'null' from empty string
+
+-- null case
+
+INSERT INTO user_types (__primary_key) VALUES (default);

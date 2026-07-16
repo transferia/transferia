@@ -259,6 +259,214 @@
                     "value": 2
                 },
                 {
+                    "type": "map[string]interface {}",
+                    "value": {}
+                },
+                {
+                    "type": "string",
+                    "value": "0.0.0.0/32"
+                },
+                {
+                    "type": "string",
+                    "value": "0.0.0.0/0"
+                },
+                {
+                    "type": "string",
+                    "value": "00:00:00:00:00:00"
+                },
+                {
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "type": "map[string]interface {}",
+                    "value": {}
+                },
+                {
+                    "type": "map[string]interface {}",
+                    "value": {}
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "public"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 40,
+                "Values": 280
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "wtf_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "__primary_key",
+                    "type": "int32",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_hstore",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:USER-DEFINED:hstore"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_iner",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:inet"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_cidr",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:cidr"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_macaddr",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:macaddr"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_citext",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:USER-DEFINED:citext"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "j",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:json"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "jb",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:jsonb"
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    },
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "__primary_key",
+                "t_hstore",
+                "t_iner",
+                "t_cidr",
+                "t_macaddr",
+                "t_citext",
+                "j",
+                "jb"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "int32",
+                    "value": 3
+                },
+                {
                     "type": "nil",
                     "value": null
                 },

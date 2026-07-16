@@ -8,6 +8,14 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 )
 
+// explicitDefaultsForTimestamp enables standard SQL behavior for TIMESTAMP columns,
+// allowing DEFAULT NULL on any TIMESTAMP column regardless of position in the table.
+// Without this, MySQL 5.6/5.7 and MariaDB ≤10.5 apply non-standard legacy rules:
+// the first TIMESTAMP column implicitly becomes NOT NULL DEFAULT CURRENT_TIMESTAMP,
+// causing Error 1067 when DEFAULT NULL is explicitly specified.
+// This setting is a no-op on MySQL 8.0+ / MariaDB 10.10+ where it's already the default.
+const explicitDefaultsForTimestamp = "SET SESSION explicit_defaults_for_timestamp = ON;\n"
+
 func prepareCreateTableQuery(tableID abstract.TableID, tableSchema *abstract.TableSchema) string {
 	tModel := TemplateModel{
 		Cols:  []TemplateCol{},
@@ -15,16 +23,20 @@ func prepareCreateTableQuery(tableID abstract.TableID, tableSchema *abstract.Tab
 		Table: fmt.Sprintf("`%v`.`%v`", tableID.Namespace, tableID.Name),
 	}
 	for _, col := range tableSchema.Columns() {
+		// Primary key columns are always NOT NULL — MySQL rejects DEFAULT NULL on them (Error 1171).
+		required := col.Required || col.PrimaryKey
 		tModel.Cols = append(tModel.Cols, TemplateCol{
-			Name:  fmt.Sprintf("`%s`", col.ColumnName),
-			Typ:   TypeToMySQL(col),
-			Comma: ",",
+			Name:     fmt.Sprintf("`%s`", col.ColumnName),
+			Typ:      TypeToMySQL(col),
+			Comma:    ",",
+			Required: required,
 		})
 		if col.PrimaryKey {
 			tModel.Keys = append(tModel.Keys, TemplateCol{
-				Name:  fmt.Sprintf("`%s`", col.ColumnName),
-				Typ:   TypeToMySQL(col),
-				Comma: ",",
+				Name:     fmt.Sprintf("`%s`", col.ColumnName),
+				Typ:      TypeToMySQL(col),
+				Comma:    ",",
+				Required: false,
 			})
 		}
 	}
@@ -36,7 +48,7 @@ func prepareCreateTableQuery(tableID abstract.TableID, tableSchema *abstract.Tab
 
 	buf := new(bytes.Buffer)
 	_ = createTableTemplate.Execute(buf, tModel)
-	return buf.String()
+	return explicitDefaultsForTimestamp + buf.String()
 }
 
 func prepareAlterTableQuery(tableID abstract.TableID, currentSchema, newSchema *abstract.TableSchema) string {

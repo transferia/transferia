@@ -1,0 +1,25 @@
+{
+    "all_types.all_types.TestAllDataTypes": [
+        {
+            "uri": "file://all_types.all_types.TestAllDataTypes/extracted"
+        },
+        {
+            "uri": "file://all_types.all_types.TestAllDataTypes/extracted.0"
+        },
+        {
+            "uri": "file://all_types.all_types.TestAllDataTypes/extracted.1"
+        },
+        {
+            "uri": "file://all_types.all_types.TestAllDataTypes/extracted.2"
+        },
+        {
+            "uri": "file://all_types.all_types.TestAllDataTypes/extracted.3"
+        },
+        {
+            "uri": "file://all_types.all_types.TestAllDataTypes/extracted.4"
+        },
+        {
+            "uri": "file://all_types.all_types.TestAllDataTypes/extracted.5"
+        }
+    ]
+}

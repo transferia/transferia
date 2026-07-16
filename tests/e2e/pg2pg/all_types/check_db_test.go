@@ -3,17 +3,23 @@ package alltypes
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	postgres_canon "github.com/transferia/transferia/tests/canon/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/serde"
+	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
 func TestAllDataTypes(t *testing.T) {
@@ -98,6 +104,7 @@ SELECT md5(array_agg(md5((t.*)::varchar))::varchar)
 
 	// test fallbacks
 
+	queriesStr := make([]string, 0)
 	tableCaseAfterFallbackFromCopyFrom := func(tableName string) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Run("initial data", func(t *testing.T) {
@@ -116,7 +123,36 @@ SELECT md5(array_agg(md5((t.*)::varchar))::varchar)
 				abstract.TransferTypeSnapshotOnly,
 			)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableName}}
+
+			changeItems := make([]abstract.ChangeItem, 0)
+			handler := func(t *testing.T, in []abstract.ChangeItem) abstract.TransformerResult {
+				changeItems = append(changeItems, in...)
+				return abstract.TransformerResult{
+					Transformed: in,
+					Errors:      nil,
+				}
+			}
+			debeziumSerDeTransformer := helpers_transformer.NewSimpleTransformer(t, handler, serde.AnyTablesUdf)
+			require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
+
 			_ = helpers.Activate(t, transfer)
+
+			// check
+			queryFilter := make([]abstract.ChangeItem, 0)
+			for _, currChangeItem := range changeItems {
+				fmt.Printf("QQQ::CHANGE_ITEM::%s\n", currChangeItem.ToJSONString())
+				if currChangeItem.IsRowEvent() {
+					queryFilter = append(queryFilter, currChangeItem)
+				}
+			}
+			queries, err := provider_postgres.BuildBulkInsertQuery("my_table", queryFilter[0].TableSchema.Columns(), nil, 1024*1024, queryFilter)
+			require.NoError(t, err)
+
+			for _, currQuery := range queries {
+				currQueryStr := normalize(fmt.Sprintf("%v", currQuery))
+				fmt.Printf("QQQ::query::%v\n", currQuery)
+				queriesStr = append(queriesStr, currQueryStr)
+			}
 		}
 	}
 	for _, c := range cases {
@@ -124,4 +160,29 @@ SELECT md5(array_agg(md5((t.*)::varchar))::varchar)
 			t.Run("table", tableCaseAfterFallbackFromCopyFrom(c))
 		})
 	}
+	canon.SaveJSON(t, queriesStr)
+}
+
+//------------------------------------------------------------------------------------------------
+
+// hstore can be:
+// - a=>1,b=>2
+// - b=>2,a=>1
+
+var pairsRe = regexp.MustCompile(`[a-zA-Z0-9_]+=>[a-zA-Z0-9_]+(?:,[a-zA-Z0-9_]+=>[a-zA-Z0-9_]+)+`)
+
+func sortPairs(s string) string {
+	parts := strings.Split(s, ",")
+
+	sort.Slice(parts, func(i, j int) bool {
+		ki := strings.SplitN(parts[i], "=>", 2)[0]
+		kj := strings.SplitN(parts[j], "=>", 2)[0]
+		return ki < kj
+	})
+
+	return strings.Join(parts, ",")
+}
+
+func normalize(text string) string {
+	return pairsRe.ReplaceAllStringFunc(text, sortPairs)
 }

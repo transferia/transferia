@@ -51,7 +51,7 @@
             "value": [
                 {
                     "type": "int32",
-                    "value": 2
+                    "value": 4
                 },
                 {
                     "type": "[]interface {}",
@@ -620,6 +620,1558 @@
             "value": {
                 "Read": 2937,
                 "Values": 4734
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "array_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "__primary_key",
+                    "type": "int32",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_bl",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:boolean[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_si",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:smallint[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_int",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:integer[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_id",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:bigint[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_oid_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:oid[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_real_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:real[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_d",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:double precision[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_c",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character(1)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_str",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character varying(256)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_character_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character(4)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_character_varying_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character varying(5)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamptz_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_tst",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time_with_time_zone_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_uid",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:uuid[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_it",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:inet[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_f",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:double precision[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_i",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:integer[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_t",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:text[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_date_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:date[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time1",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(1) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time3",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(3) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time6",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(6) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz__",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz1",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(1) with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz3",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(3) with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz6",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(6) with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamp1",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp(1) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamp3",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp(3) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamp6",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp(6) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamp",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_numeric_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_numeric_5",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,0)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_numeric_5_2",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,2)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_decimal_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_decimal_5",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,0)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_decimal_5_2",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,2)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_enum",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:my_enum_type[]",
+                    "properties": {
+                        "pg:enum_all_values": [
+                            "VALUE_ONE",
+                            "VALUE_TWO",
+                            "VALUE_THREE"
+                        ]
+                    }
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    },
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "__primary_key",
+                "arr_bl",
+                "arr_si",
+                "arr_int",
+                "arr_id",
+                "arr_oid_",
+                "arr_real_",
+                "arr_d",
+                "arr_c",
+                "arr_str",
+                "arr_character_",
+                "arr_character_varying_",
+                "arr_timestamptz_",
+                "arr_tst",
+                "arr_timetz_",
+                "arr_time_with_time_zone_",
+                "arr_uid",
+                "arr_it",
+                "arr_f",
+                "arr_i",
+                "arr_t",
+                "arr_date_",
+                "arr_time_",
+                "arr_time1",
+                "arr_time3",
+                "arr_time6",
+                "arr_timetz__",
+                "arr_timetz1",
+                "arr_timetz3",
+                "arr_timetz6",
+                "arr_timestamp1",
+                "arr_timestamp3",
+                "arr_timestamp6",
+                "arr_timestamp",
+                "arr_numeric_",
+                "arr_numeric_5",
+                "arr_numeric_5_2",
+                "arr_decimal_",
+                "arr_decimal_5",
+                "arr_decimal_5_2",
+                "arr_enum"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "int32",
+                    "value": 5
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                },
+                {
+                    "type": "[]interface {}",
+                    "value": null
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "public"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 1907,
+                "Values": 1644
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "array_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "__primary_key",
+                    "type": "int32",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_bl",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:boolean[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_si",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:smallint[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_int",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:integer[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_id",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:bigint[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_oid_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:oid[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_real_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:real[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_d",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:double precision[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_c",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character(1)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_str",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character varying(256)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_character_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character(4)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_character_varying_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:character varying(5)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamptz_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_tst",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time_with_time_zone_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_uid",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:uuid[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_it",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:inet[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_f",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:double precision[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_i",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:integer[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_t",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:text[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_date_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:date[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time1",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(1) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time3",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(3) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_time6",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(6) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz__",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz1",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(1) with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz3",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(3) with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timetz6",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:time(6) with time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamp1",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp(1) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamp3",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp(3) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamp6",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp(6) without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_timestamp",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:timestamp without time zone[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_numeric_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_numeric_5",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,0)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_numeric_5_2",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,2)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_decimal_",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_decimal_5",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,0)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_decimal_5_2",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,2)[]"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "array_types",
+                    "path": "",
+                    "name": "arr_enum",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:my_enum_type[]",
+                    "properties": {
+                        "pg:enum_all_values": [
+                            "VALUE_ONE",
+                            "VALUE_TWO",
+                            "VALUE_THREE"
+                        ]
+                    }
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    },
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "__primary_key",
+                "arr_bl",
+                "arr_si",
+                "arr_int",
+                "arr_id",
+                "arr_oid_",
+                "arr_real_",
+                "arr_d",
+                "arr_c",
+                "arr_str",
+                "arr_character_",
+                "arr_character_varying_",
+                "arr_timestamptz_",
+                "arr_tst",
+                "arr_timetz_",
+                "arr_time_with_time_zone_",
+                "arr_uid",
+                "arr_it",
+                "arr_f",
+                "arr_i",
+                "arr_t",
+                "arr_date_",
+                "arr_time_",
+                "arr_time1",
+                "arr_time3",
+                "arr_time6",
+                "arr_timetz__",
+                "arr_timetz1",
+                "arr_timetz3",
+                "arr_timetz6",
+                "arr_timestamp1",
+                "arr_timestamp3",
+                "arr_timestamp6",
+                "arr_timestamp",
+                "arr_numeric_",
+                "arr_numeric_5",
+                "arr_numeric_5_2",
+                "arr_decimal_",
+                "arr_decimal_5",
+                "arr_decimal_5_2",
+                "arr_enum"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "int32",
+                    "value": 6
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "public"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 1907,
+                "Values": 684
             }
         },
         "Table": {

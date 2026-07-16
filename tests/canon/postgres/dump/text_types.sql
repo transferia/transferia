@@ -32,5 +32,33 @@ INSERT INTO public.text_types VALUES
     decode('CAFEBABE', 'hex') -- bytea
 );
 
+-- empty case
+
+INSERT INTO public.text_types
+(
+    t_text,
+    t_char,
+    t_varchar_256,
+    t_character_,
+    t_character_varying_,
+    t_bit_1,
+    t_bit_8,
+    t_varbit_8,
+    t_bytea
+)
+VALUES
+(
+    '',
+    '',
+    '',
+    '',
+    '',
+    B'0',
+    B'00000000',
+    B'',
+    ''
+);
+
 -- null case
+
 INSERT INTO public.text_types (__primary_key) VALUES (default);

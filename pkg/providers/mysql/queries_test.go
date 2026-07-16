@@ -34,7 +34,7 @@ func TestPrepareDDL(t *testing.T) {
 				},
 			}),
 
-			expectedSQL: "CREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint ,\n`name` varchar ,\n  PRIMARY KEY (`id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
+			expectedSQL: "SET SESSION explicit_defaults_for_timestamp = ON;\nCREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint   ,\n`name` varchar  DEFAULT NULL  ,\n  PRIMARY KEY (`id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
 		},
 		{
 			name: "table with composite primary key",
@@ -60,7 +60,7 @@ func TestPrepareDDL(t *testing.T) {
 				},
 			}),
 
-			expectedSQL: "CREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id1` bigint ,\n`id2` bigint ,\n`name` varchar ,\n  PRIMARY KEY (`id1`,`id2`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
+			expectedSQL: "SET SESSION explicit_defaults_for_timestamp = ON;\nCREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id1` bigint   ,\n`id2` bigint   ,\n`name` varchar  DEFAULT NULL  ,\n  PRIMARY KEY (`id1`,`id2`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
 		},
 		{
 			name: "table with no primary key",
@@ -81,7 +81,7 @@ func TestPrepareDDL(t *testing.T) {
 				},
 			}),
 
-			expectedSQL: "CREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint ,\n`name` varchar \n \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
+			expectedSQL: "SET SESSION explicit_defaults_for_timestamp = ON;\nCREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint  DEFAULT NULL  ,\n`name` varchar  DEFAULT NULL  \n \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
 		},
 		{
 			name: "table with different column types",
@@ -117,7 +117,7 @@ func TestPrepareDDL(t *testing.T) {
 				},
 			}),
 
-			expectedSQL: "CREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint ,\n`name` varchar ,\n`age` integer ,\n`salary` numeric ,\n`is_active` boolean ,\n  PRIMARY KEY (`id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
+			expectedSQL: "SET SESSION explicit_defaults_for_timestamp = ON;\nCREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint   ,\n`name` varchar  DEFAULT NULL  ,\n`age` integer  DEFAULT NULL  ,\n`salary` numeric  DEFAULT NULL  ,\n`is_active` boolean  DEFAULT NULL  ,\n  PRIMARY KEY (`id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
 		},
 		{
 			name: "table with special characters in names",
@@ -138,7 +138,7 @@ func TestPrepareDDL(t *testing.T) {
 				},
 			}),
 
-			expectedSQL: "CREATE TABLE IF NOT EXISTS `test-schema`.`test-table` (\n`user-id` bigint ,\n`full-name` varchar ,\n  PRIMARY KEY (`user-id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
+			expectedSQL: "SET SESSION explicit_defaults_for_timestamp = ON;\nCREATE TABLE IF NOT EXISTS `test-schema`.`test-table` (\n`user-id` bigint   ,\n`full-name` varchar  DEFAULT NULL  ,\n  PRIMARY KEY (`user-id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
 		},
 		{
 			name: "table with json type",
@@ -159,7 +159,7 @@ func TestPrepareDDL(t *testing.T) {
 				},
 			}),
 
-			expectedSQL: "CREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint ,\n`data` json ,\n  PRIMARY KEY (`id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
+			expectedSQL: "SET SESSION explicit_defaults_for_timestamp = ON;\nCREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint   ,\n`data` json  DEFAULT NULL  ,\n  PRIMARY KEY (`id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
 		},
 		{
 			name: "table with array type",
@@ -180,7 +180,7 @@ func TestPrepareDDL(t *testing.T) {
 				},
 			}),
 
-			expectedSQL: "CREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint ,\n`tags` varchar[] ,\n  PRIMARY KEY (`id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
+			expectedSQL: "SET SESSION explicit_defaults_for_timestamp = ON;\nCREATE TABLE IF NOT EXISTS `test_schema`.`test_table` (\n`id` bigint   ,\n`tags` varchar[]  DEFAULT NULL  ,\n  PRIMARY KEY (`id`) \n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n",
 		},
 	}
 

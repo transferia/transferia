@@ -50,3 +50,47 @@ insert into public.date_types values
     '2004-10-19 10:23:54.987654', -- timestamp(6)
     '2004-10-19 10:23:54' -- timestamp
 );
+
+-- INSERT INTO public.date_types (
+--     t_timestamptz,
+--     t_tst,
+--     t_date,
+--     t_timestamp_1,
+--     t_timestamp_3,
+--     t_timestamp_6,
+--     t_timestamp
+-- )
+-- VALUES (
+--    'infinity'::timestamptz,
+--    'infinity'::timestamp with time zone,
+--    'infinity'::date,
+--    'infinity'::timestamp(1),
+--    'infinity'::timestamp(3),
+--    'infinity'::timestamp(6),
+--    'infinity'::timestamp
+-- );
+--
+-- INSERT INTO public.date_types (
+--     t_timestamptz,
+--     t_tst,
+--     t_date,
+--     t_timestamp_1,
+--     t_timestamp_3,
+--     t_timestamp_6,
+--     t_timestamp
+-- )
+-- VALUES (
+--    '-infinity'::timestamptz,
+--    '-infinity'::timestamp with time zone,
+--    '-infinity'::date,
+--    '-infinity'::timestamp(1),
+--    '-infinity'::timestamp(3),
+--    '-infinity'::timestamp(6),
+--    '-infinity'::timestamp
+-- );
+
+-- there are no empty case
+
+-- null case
+
+INSERT INTO public.date_types (__primary_key) VALUES (default);

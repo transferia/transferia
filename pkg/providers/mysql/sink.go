@@ -26,7 +26,7 @@ import (
 var createTableTemplate, _ = text_template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 CREATE TABLE IF NOT EXISTS {{ .Table }} (
-{{ range .Cols }}{{ .Name }} {{ .Typ }} {{ .Comma }}
+{{ range .Cols }}{{ .Name }} {{ .Typ }} {{ if not .Required }} DEFAULT NULL{{ end }}  {{ .Comma }}
 {{ end }} {{ if .Keys }} PRIMARY KEY ({{ range .Keys }}{{ .Name }}{{ .Comma }}{{ end }}) {{ end }}
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 `)
@@ -57,8 +57,12 @@ type txBatch struct {
 }
 
 type TemplateCol struct {
-	Name, Typ, Comma string
+	Name     string
+	Typ      string
+	Comma    string
+	Required bool
 }
+
 type TemplateModel struct {
 	Cols  []TemplateCol
 	Keys  []TemplateCol

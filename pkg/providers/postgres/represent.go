@@ -193,6 +193,11 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 			return xerrors.Errorf("unknown type for IsPgTypeTimeWithTimeZone: %T", v)
 		}
 
+		if len(timeBytes) == 0 {
+			_, _ = w.WriteString("null")
+			return nil
+		}
+
 		timeTime, err := timetzBinaryToTime(timeBytes)
 		if err != nil {
 			return xerrors.Errorf("timetzBinaryToTime: %w", err)
@@ -232,19 +237,24 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 			}
 		} else if colSchema.OriginalType == PgUserDefinedHStore {
 			if hstoreObj, ok := val.(*pgtype.Hstore); ok {
-				hstoreStr, err := hstoreObj.EncodeText(nil, make([]byte, 0))
+				if hstoreObj.Status == pgtype.Null {
+					_, _ = w.WriteString("null")
+					return nil
+				}
+				hstoreStrBytes, err := hstoreObj.EncodeText(nil, make([]byte, 0))
 				if err != nil {
 					return xerrors.Errorf("unable to encode hstore: %w", err)
 				}
-				if len(hstoreStr) == 0 {
-					_, _ = w.WriteString("null")
-					return nil
-				} else {
+				hstoreStr := string(hstoreStrBytes)
+				if hstoreStr == "" {
 					_ = w.WriteByte('\'')
-					appendEscapedSingleQuotesToWriter(w, string(hstoreStr))
 					_ = w.WriteByte('\'')
 					return nil
 				}
+				_ = w.WriteByte('\'')
+				appendEscapedSingleQuotesToWriter(w, hstoreStr)
+				_ = w.WriteByte('\'')
+				return nil
 			} else if hstoreStrObj, ok := val.(string); ok {
 				if len(hstoreStrObj) == 0 {
 					_, _ = w.WriteString("null")
@@ -264,14 +274,23 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 				return nil
 			}
 		} else if colSchema.OriginalType == PgUserDefinedCIText {
-			valStr := fmt.Sprintf("'%v'", val)
-			if len(valStr) == 0 {
-				_, _ = w.WriteString("null")
-				return nil
-			} else {
-				_, _ = w.WriteString(valStr)
-				return nil
+			valStr := ""
+			switch v := val.(type) {
+			case string:
+				valStr = v
+			case *pgtype.GenericBinary:
+				if v.Bytes == nil { // for 'null' there are nil. for empty string - there are array with length==0
+					_, _ = w.WriteString("null")
+					return nil
+				}
+				valStr = string(v.Bytes)
+			default:
+				return xerrors.Errorf("unknown type for IsPgUserDefinedCIText: %T", v)
 			}
+			_ = w.WriteByte('\'')
+			appendEscapedBackslashesAndSingleQuotesToWriter(w, valStr)
+			_ = w.WriteByte('\'')
+			return nil
 		} else if IsUserDefinedType(&colSchema) {
 			if currCompositeType, ok := val.(*pgtype.CompositeType); ok {
 				buf, err := currCompositeType.EncodeText(nil, nil)

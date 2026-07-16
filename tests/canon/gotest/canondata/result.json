@@ -7908,6 +7908,342 @@
                         ]
                     }
                 }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 2
+                    },
+                    "arr_bl": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_c": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_character_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_character_varying_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_d": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_date_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_decimal_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_decimal_5": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_decimal_5_2": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_enum": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_f": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_i": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_id": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_int": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_it": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_numeric_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_numeric_5": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_numeric_5_2": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_oid_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_real_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_si": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_str": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_t": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time1": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time3": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time6": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time_with_time_zone_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamp": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamp1": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamp3": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamp6": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamptz_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz1": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz3": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz6": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz__": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_tst": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_uid": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 3
+                    },
+                    "arr_bl": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_c": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_character_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_character_varying_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_d": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_date_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_decimal_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_decimal_5": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_decimal_5_2": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_enum": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_f": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_i": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_id": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_int": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_it": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_numeric_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_numeric_5": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_numeric_5_2": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_oid_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_real_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_si": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_str": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_t": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time_with_time_zone_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamp": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamp1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamp3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamp6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamptz_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz__": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_tst": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_uid": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    }
+                }
             }
         ],
         "TableID": {
@@ -8422,7 +8758,7 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 2
+                        "Val": 4
                     },
                     "arr_bl": {
                         "GoType": "[]interface {}",
@@ -8703,6 +9039,342 @@
                             "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
                             "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
                         ]
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 5
+                    },
+                    "arr_bl": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_c": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_character_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_character_varying_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_d": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_date_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_decimal_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_decimal_5": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_decimal_5_2": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_enum": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_f": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_i": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_id": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_int": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_it": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_numeric_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_numeric_5": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_numeric_5_2": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_oid_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_real_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_si": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_str": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_t": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time1": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time3": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time6": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_time_with_time_zone_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamp": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamp1": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamp3": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamp6": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timestamptz_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz1": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz3": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz6": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz_": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_timetz__": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_tst": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    },
+                    "arr_uid": {
+                        "GoType": "[]interface {}",
+                        "Val": null
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 6
+                    },
+                    "arr_bl": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_c": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_character_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_character_varying_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_d": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_date_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_decimal_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_decimal_5": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_decimal_5_2": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_enum": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_f": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_i": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_id": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_int": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_it": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_numeric_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_numeric_5": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_numeric_5_2": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_oid_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_real_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_si": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_str": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_t": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_time_with_time_zone_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamp": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamp1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamp3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamp6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timestamptz_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_timetz__": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_tst": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "arr_uid": {
+                        "GoType": "<nil>",
+                        "Val": null
                     }
                 }
             }
@@ -9290,6 +9962,82 @@
                         "Val": "2004-10-19T11:23:54+02:00"
                     }
                 }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 2
+                    },
+                    "t_date": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_interval": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time_1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time_3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time_6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time_with_time_zone_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamp": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamp_1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamp_3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamp_6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamptz": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timetz": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timetz_1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timetz_3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timetz_6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_tst": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    }
+                }
             }
         ],
         "TableID": {
@@ -9533,7 +10281,7 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 2
+                        "Val": 3
                     },
                     "t_date": {
                         "GoType": "time.Time",
@@ -9602,6 +10350,82 @@
                     "t_tst": {
                         "GoType": "time.Time",
                         "Val": "2004-10-19T11:23:54+02:00"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 4
+                    },
+                    "t_date": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_interval": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time_1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time_3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time_6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_time_with_time_zone_": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamp": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamp_1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamp_3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamp_6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timestamptz": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timetz": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timetz_1": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timetz_3": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_timetz_6": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_tst": {
+                        "GoType": "<nil>",
+                        "Val": null
                     }
                 }
             }
@@ -11590,6 +12414,50 @@
                         "Val": 2
                     },
                     "t_bit_1": {
+                        "GoType": "string",
+                        "Val": "0"
+                    },
+                    "t_bit_8": {
+                        "GoType": "string",
+                        "Val": "00000000"
+                    },
+                    "t_bytea": {
+                        "GoType": "[]uint8",
+                        "Val": ""
+                    },
+                    "t_char": {
+                        "GoType": "string",
+                        "Val": " "
+                    },
+                    "t_character_": {
+                        "GoType": "string",
+                        "Val": "    "
+                    },
+                    "t_character_varying_": {
+                        "GoType": "string",
+                        "Val": ""
+                    },
+                    "t_text": {
+                        "GoType": "string",
+                        "Val": ""
+                    },
+                    "t_varbit_8": {
+                        "GoType": "string",
+                        "Val": ""
+                    },
+                    "t_varchar_256": {
+                        "GoType": "string",
+                        "Val": ""
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 3
+                    },
+                    "t_bit_1": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -11761,7 +12629,7 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 3
+                        "Val": 4
                     },
                     "t_bit_1": {
                         "GoType": "string",
@@ -11805,7 +12673,51 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 4
+                        "Val": 5
+                    },
+                    "t_bit_1": {
+                        "GoType": "string",
+                        "Val": "0"
+                    },
+                    "t_bit_8": {
+                        "GoType": "string",
+                        "Val": "00000000"
+                    },
+                    "t_bytea": {
+                        "GoType": "[]uint8",
+                        "Val": ""
+                    },
+                    "t_char": {
+                        "GoType": "string",
+                        "Val": " "
+                    },
+                    "t_character_": {
+                        "GoType": "string",
+                        "Val": "    "
+                    },
+                    "t_character_varying_": {
+                        "GoType": "string",
+                        "Val": ""
+                    },
+                    "t_text": {
+                        "GoType": "string",
+                        "Val": ""
+                    },
+                    "t_varbit_8": {
+                        "GoType": "string",
+                        "Val": ""
+                    },
+                    "t_varchar_256": {
+                        "GoType": "string",
+                        "Val": ""
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 6
                     },
                     "t_bit_1": {
                         "GoType": "<nil>",
@@ -12027,6 +12939,42 @@
                         "Val": 2
                     },
                     "j": {
+                        "GoType": "map[string]interface {}",
+                        "Val": {}
+                    },
+                    "jb": {
+                        "GoType": "map[string]interface {}",
+                        "Val": {}
+                    },
+                    "t_cidr": {
+                        "GoType": "string",
+                        "Val": "0.0.0.0/0"
+                    },
+                    "t_citext": {
+                        "GoType": "string",
+                        "Val": ""
+                    },
+                    "t_hstore": {
+                        "GoType": "map[string]interface {}",
+                        "Val": {}
+                    },
+                    "t_iner": {
+                        "GoType": "string",
+                        "Val": "0.0.0.0/32"
+                    },
+                    "t_macaddr": {
+                        "GoType": "string",
+                        "Val": "00:00:00:00:00:00"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 3
+                    },
+                    "j": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -12166,7 +13114,7 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 3
+                        "Val": 4
                     },
                     "j": {
                         "GoType": "map[string]interface {}",
@@ -12211,7 +13159,43 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 4
+                        "Val": 5
+                    },
+                    "j": {
+                        "GoType": "map[string]interface {}",
+                        "Val": {}
+                    },
+                    "jb": {
+                        "GoType": "map[string]interface {}",
+                        "Val": {}
+                    },
+                    "t_cidr": {
+                        "GoType": "string",
+                        "Val": "0.0.0.0/0"
+                    },
+                    "t_citext": {
+                        "GoType": "string",
+                        "Val": ""
+                    },
+                    "t_hstore": {
+                        "GoType": "map[string]interface {}",
+                        "Val": {}
+                    },
+                    "t_iner": {
+                        "GoType": "string",
+                        "Val": "0.0.0.0"
+                    },
+                    "t_macaddr": {
+                        "GoType": "string",
+                        "Val": "00:00:00:00:00:00"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 6
                     },
                     "j": {
                         "GoType": "<nil>",

@@ -181,3 +181,81 @@ insert into array_types values
 
     ARRAY ['VALUE_ONE', 'VALUE_THREE']::my_enum_type[]                  --ENUM
 );
+
+-- empty value case
+
+insert into array_types values
+(
+    default,
+
+    '{}', -- ARR_bl  boolean[],
+    -- '{1,1}'    -- ARR_b   bit(1)[],
+    -- [io.debezium.relational.TableSchemaBuilder]
+    -- org.apache.kafka.connect.errors.DataException: Invalid Java object for schema with type BOOLEAN: class java.util.ArrayList for field: "arr_b"
+
+    -- ARR_b8  bit(8)[],
+    -- ARR_vb  varbit(8)[],
+
+    '{}', -- ARR_si   smallint[],
+    '{}', -- ARR_int  integer[],
+    '{}', -- ARR_id   bigint[],
+    '{}', -- ARR_oid_ oid[],
+
+    '{}',   -- ARR_real_ real[],
+    '{}', -- ARR_d   double precision[],
+
+    '{}', -- ARR_c   char[],
+    '{}', -- ARR_str varchar(256)[],
+
+    '{}', -- ARR_CHARACTER_ CHARACTER(4)[],
+    '{}', -- ARR_CHARACTER_VARYING_ CHARACTER VARYING(5)[],
+    '{}', -- ARR_TIMESTAMPTZ_ TIMESTAMPTZ[], -- timestamptz is accepted as an abbreviation for timestamp with time zone; this is a PostgreSQL extension
+    '{}', -- ARR_tst TIMESTAMP WITH TIME ZONE[],
+    '{}',         -- ARR_TIMETZ_ TIMETZ[],
+    '{}',         -- ARR_TIME_WITH_TIME_ZONE_ TIME WITH TIME ZONE[],
+
+    '{}', -- ARR_uid uuid[],
+    '{}', -- ARR_it  inet[],
+
+
+    '{}',         -- ARR_f   float[],
+    '{}',                           -- ARR_i   int[],
+    '{}', -- ARR_t   text[],
+
+    '{}', -- DATE_ DATE,
+
+    '{}',               -- TIME_ TIME,
+    '{}',           -- TIME1 TIME(1),
+    '{}',       -- TIME3 TIME(3),
+    '{}', -- TIME6 TIME(6),
+
+    '{}',               -- TIMETZ__ TIME WITH TIME ZONE,
+    '{}',           -- TIMETZ1 TIME(1) WITH TIME ZONE,
+    '{}',       -- TIMETZ3 TIME(3) WITH TIME ZONE,
+    '{}', -- TIMETZ6 TIME(6) WITH TIME ZONE,
+
+    '{}',           -- TIMESTAMP1 TIMESTAMP(1),
+    '{}',       -- TIMESTAMP6 TIMESTAMP(3),
+    '{}', -- TIMESTAMP6 TIMESTAMP(6),
+    '{}',               -- TIMESTAMP TIMESTAMP,
+
+    '{}', -- NUMERIC_ NUMERIC,
+    '{}',                                                      -- NUMERIC_5 NUMERIC(5),
+    '{}',                                                    -- NUMERIC_5_2 NUMERIC(5,2),
+
+    '{}',                                                   -- DECIMAL_ DECIMAL,
+    '{}',                                                     -- DECIMAL_5 DECIMAL(5),
+    '{}',                                                   -- DECIMAL_5_2 DECIMAL(5,2),
+
+    --     '{"a=>1,b=>2","a=>1,b=>2"}',                 -- HSTORE_ HSTORE,
+    --     '{"192.168.1.5", "192.168.1.5"}',            -- INET_ INET,
+    --     '{"10.1/16","10.1/16"}',                     -- CIDR_ CIDR,
+    --     '{"08:00:2b:01:02:03","08:00:2b:01:02:03"}', -- MACADDR_ MACADDR,
+    --     '{"Tom","Tom"}'                              -- CITEXT_ CITEXT
+
+    '{}'                  --ENUM
+);
+
+-- null case
+
+INSERT INTO public.array_types (__primary_key) VALUES (default);

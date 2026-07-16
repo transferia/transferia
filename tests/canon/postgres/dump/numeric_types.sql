@@ -146,5 +146,63 @@ VALUES
 --     'NaN' -- double precision
 -- );
 
+-- empty case
+
+-- INSERT INTO public.numeric_types
+-- (
+--     t_boolean,
+--
+--     t_smallint,
+--     t_integer,
+--     t_bigint,
+--     t_oid,
+--
+--     t_decimal,
+--     t_decimal_5,
+--     t_decimal_5_2,
+--
+--     t_numeric,
+--     t_numeric_5,
+--     t_numeric_5_2,
+--
+--     t_real,
+--     t_float_4,
+--     t_float_8,
+--     t_float_11,
+--
+--     t_double_precision,
+--     t_serial,
+--     t_bigserial,
+--     t_money
+-- )
+-- VALUES
+-- (
+--     false,
+--
+--     0,
+--     0,
+--     0,
+--     0,
+--
+--     'NaN',
+--     'NaN',
+--     'NaN',
+--
+--     'NaN',
+--     'NaN',
+--     'NaN',
+--
+--     'Infinity',
+--     '-Infinity',
+--     'NaN',
+--     'Infinity',
+--
+--     'NaN',
+--     0,
+--     0,
+--     0::money
+-- );
+
 -- null case
+
 INSERT INTO public.numeric_types (__primary_key) VALUES (default);

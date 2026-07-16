@@ -24,5 +24,8 @@ INSERT INTO public.geom_types VALUES
     '( ( 1 , 1 ) , 10 )'
 );
 
+-- there are no empty case
+
 -- null case
+
 INSERT INTO public.geom_types (__primary_key) VALUES (default);
