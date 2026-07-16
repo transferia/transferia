@@ -16,7 +16,7 @@ import (
 type PartitionSource struct {
 	*Source
 
-	partition int32
+	partitionDesc PartitionDescription
 }
 
 func (s *PartitionSource) Run(sink abstract.QueueToS3Sink) error {
@@ -34,7 +34,7 @@ func (s *PartitionSource) Run(sink abstract.QueueToS3Sink) error {
 }
 
 func (s *PartitionSource) queueToS3Ack(pushResult abstract.QueueResult) error {
-	sequencerMessages := offsetsToQueueMessages(s.config.Topic, s.partition, pushResult.Offsets)
+	sequencerMessages := offsetsToQueueMessages(s.partitionDesc.Topic, s.partitionDesc.Partition, pushResult.Offsets)
 	commitMessages, err := s.sequencer.Pushed(sequencerMessages)
 	if err != nil {
 		return xerrors.Errorf("sequencer found an error in pushed messages, err: %w", err)
@@ -85,7 +85,7 @@ func NewPartitionSource(transferID string, cfg *KafkaSource, partitionDesc Parti
 	baseSource.reader = r
 
 	return &PartitionSource{
-		Source:    baseSource,
-		partition: partitionDesc.Partition,
+		Source:        baseSource,
+		partitionDesc: partitionDesc,
 	}, nil
 }
