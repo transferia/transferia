@@ -35,9 +35,34 @@ func deriveDataType(col abstract.ColSchema) (string, error) {
 		queryType += " NOT NULL"
 	}
 	if d, ok := col.Properties[changeitem.DefaultPropertyKey]; ok {
-		queryType += fmt.Sprintf(" DEFAULT %s", d)
+		queryType += fmt.Sprintf(" DEFAULT %s", translateOracleDefault(d))
 	}
 	return queryType, nil
+}
+
+// translateOracleDefault converts Oracle built-in default expressions to PostgreSQL equivalents.
+// SYSDATE/SYSTIMESTAMP map to now(), CURRENT_TIMESTAMP and CURRENT_DATE pass through unchanged.
+// All other expressions (literals, function calls) pass through as-is.
+//
+// This is a workaround: source-specific default translation should not live in the
+// postgres sink. A proper solution will come with TM-10347.
+func translateOracleDefault(defaultVal interface{}) interface{} {
+	s, ok := defaultVal.(string)
+	if !ok {
+		return defaultVal
+	}
+
+	trimmed := strings.TrimSpace(s)
+	switch strings.ToUpper(trimmed) {
+	case "SYSDATE", "SYSTIMESTAMP":
+		return "now()"
+	case "CURRENT_TIMESTAMP":
+		return "CURRENT_TIMESTAMP"
+	case "CURRENT_DATE":
+		return "CURRENT_DATE"
+	default:
+		return trimmed
+	}
 }
 
 func CreateTableQuery(fullTableName string, schema []abstract.ColSchema) (string, error) {

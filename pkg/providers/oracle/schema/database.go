@@ -269,12 +269,12 @@ func (db *Database) loadTableIDsFromConfig() ([]*oracle_common.TableID, error) {
 	}
 
 	sql := fmt.Sprintf(`
-select
-	OWNER, TABLE_NAME
-from ALL_TABLES
-where
-	%v
-	and TEMPORARY = 'N' and SECONDARY = 'N' and STATUS = 'VALID' and DROPPED = 'NO'`,
+	select
+		OWNER, TABLE_NAME
+	from ALL_TABLES
+	where
+		%v
+		and TEMPORARY = 'N' and SECONDARY = 'N' and STATUS = 'VALID' and DROPPED = 'NO'`,
 		defaultCondition)
 
 	tableIDs := []*oracle_common.TableID{}
@@ -390,6 +390,13 @@ type ColumnRow struct {
 	Virtual       *string `db:"VIRTUAL_COLUMN"`
 }
 
+type columnDefaultRow struct {
+	SchemaName  string  `db:"OWNER"`
+	TableName   string  `db:"TABLE_NAME"`
+	ColumnName  string  `db:"COLUMN_NAME"`
+	DataDefault *string `db:"DATA_DEFAULT"`
+}
+
 func (db *Database) loadColumns(includeTables []*oracle_common.TableID, excludeTables []*oracle_common.TableID) error {
 	defaultCondition, err := db.getDefaultTablesCondition("cols.OWNER", "cols.TABLE_NAME", includeTables, excludeTables)
 	if err != nil {
@@ -398,18 +405,18 @@ func (db *Database) loadColumns(includeTables []*oracle_common.TableID, excludeT
 	}
 
 	sql := fmt.Sprintf(`
-select
-	cols.OWNER, cols.TABLE_NAME, cols.COLUMN_NAME,
-	cols.DATA_TYPE, cols.DATA_LENGTH, cols.DATA_PRECISION, cols.DATA_SCALE,
-	cols.NULLABLE, cols.VIRTUAL_COLUMN
-from ALL_TAB_COLS cols
-where
-	%v
-	and cols.HIDDEN_COLUMN != 'YES'`,
+	select
+		cols.OWNER, cols.TABLE_NAME, cols.COLUMN_NAME,
+		cols.DATA_TYPE, cols.DATA_LENGTH, cols.DATA_PRECISION, cols.DATA_SCALE,
+		cols.NULLABLE, cols.VIRTUAL_COLUMN
+	from ALL_TAB_COLS cols
+	where
+		%v
+		and cols.HIDDEN_COLUMN != 'YES'`,
 		defaultCondition)
 
 	//nolint:descriptiveerrors
-	return oracle_common.PDBQueryGlobal(db.config, db.sqlxDB, context.Background(),
+	if err := oracle_common.PDBQueryGlobal(db.config, db.sqlxDB, context.Background(),
 		func(ctx context.Context, connection *sqlx.Conn) error {
 			rows, err := connection.QueryxContext(ctx, sql)
 			if err != nil {
@@ -430,6 +437,68 @@ where
 
 			if rows.Err() != nil {
 				return xerrors.Errorf("Can't read row from DB: %w", rows.Err())
+			}
+
+			return nil
+		}); err != nil {
+		return err
+	}
+
+	// Load column defaults in a separate query to avoid LONG column issues.
+	//nolint:descriptiveerrors
+	return db.loadColumnDefaults(includeTables, excludeTables)
+}
+
+// loadColumnDefaults queries ALL_TAB_COLS.DATA_DEFAULT (a LONG column) separately
+// and merges the defaults into already-loaded columns.
+func (db *Database) loadColumnDefaults(includeTables []*oracle_common.TableID, excludeTables []*oracle_common.TableID) error {
+	defaultCondition, err := db.getDefaultTablesCondition("cols.OWNER", "cols.TABLE_NAME", includeTables, excludeTables)
+	if err != nil {
+		//nolint:descriptiveerrors
+		return err
+	}
+
+	sql := fmt.Sprintf(`
+	select
+		cols.OWNER, cols.TABLE_NAME, cols.COLUMN_NAME,
+		cols.DATA_DEFAULT
+	from ALL_TAB_COLS cols
+	where
+		%v
+		and cols.HIDDEN_COLUMN != 'YES'`,
+		defaultCondition)
+
+	//nolint:descriptiveerrors
+	return oracle_common.PDBQueryGlobal(db.config, db.sqlxDB, context.Background(),
+		func(ctx context.Context, connection *sqlx.Conn) error {
+			rows, err := connection.QueryxContext(ctx, sql)
+			if err != nil {
+				return xerrors.Errorf("Can't get column defaults from DB: %w", err)
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var row columnDefaultRow
+				if err := rows.StructScan(&row); err != nil {
+					return xerrors.Errorf("Can't parse column default row from DB: %w", err)
+				}
+				if row.DataDefault == nil {
+					continue
+				}
+				tableID := oracle_common.NewTableID(row.SchemaName, row.TableName)
+				table := db.OracleTableByID(tableID)
+				if table == nil {
+					continue
+				}
+				column := table.OracleColumnByName(row.ColumnName)
+				if column == nil {
+					continue
+				}
+				column.SetDataDefault(*row.DataDefault)
+			}
+
+			if rows.Err() != nil {
+				return xerrors.Errorf("Can't read column default row from DB: %w", rows.Err())
 			}
 
 			return nil
@@ -467,17 +536,17 @@ func (db *Database) loadPrimaryKeys(includeTables []*oracle_common.TableID, excl
 	}
 
 	sql := fmt.Sprintf(`
-select cols.CONSTRAINT_NAME as INDEX_NAME, cols.OWNER, cols.TABLE_NAME, cols.COLUMN_NAME
-from ALL_CONS_COLUMNS cols
-inner join ALL_CONSTRAINTS cons
-	on cons.OWNER = cols.OWNER and cons.TABLE_NAME = cols.TABLE_NAME and cons.CONSTRAINT_NAME = cols.CONSTRAINT_NAME
-where
-	%v
-	and cons.BAD is NULL
-	and cons.INVALID is NULL
-	and cons.CONSTRAINT_TYPE = 'P'
-	and cons.STATUS = 'ENABLED'
-	and EXISTS(select * from ALL_TABLES tabs where tabs.OWNER = cols.OWNER and tabs.TABLE_NAME = cols.TABLE_NAME)`,
+	select cols.CONSTRAINT_NAME as INDEX_NAME, cols.OWNER, cols.TABLE_NAME, cols.COLUMN_NAME
+	from ALL_CONS_COLUMNS cols
+	inner join ALL_CONSTRAINTS cons
+		on cons.OWNER = cols.OWNER and cons.TABLE_NAME = cols.TABLE_NAME and cons.CONSTRAINT_NAME = cols.CONSTRAINT_NAME
+	where
+		%v
+		and cons.BAD is NULL
+		and cons.INVALID is NULL
+		and cons.CONSTRAINT_TYPE = 'P'
+		and cons.STATUS = 'ENABLED'
+		and EXISTS(select * from ALL_TABLES tabs where tabs.OWNER = cols.OWNER and tabs.TABLE_NAME = cols.TABLE_NAME)`,
 		defaultCondition)
 
 	//nolint:descriptiveerrors
@@ -492,16 +561,16 @@ func (db *Database) loadUniqueIndexes(includeTables []*oracle_common.TableID, ex
 	}
 
 	sql := fmt.Sprintf(`
-select cols.INDEX_NAME, cols.TABLE_OWNER as OWNER, cols.TABLE_NAME, cols.COLUMN_NAME
-from ALL_IND_COLUMNS cols
-inner join all_indexes inds
-	on inds.TABLE_OWNER = cols.TABLE_OWNER and inds.TABLE_NAME = cols.TABLE_NAME and inds.INDEX_NAME = cols.INDEX_NAME
-where
-	%v
-    and inds.DROPPED = 'NO'
-    and inds.STATUS = 'VALID'
-    and inds.UNIQUENESS = 'UNIQUE'
-	and EXISTS(select * from ALL_TABLES tabs where tabs.OWNER = cols.TABLE_OWNER and tabs.TABLE_NAME = cols.TABLE_NAME)`,
+	select cols.INDEX_NAME, cols.TABLE_OWNER as OWNER, cols.TABLE_NAME, cols.COLUMN_NAME
+	from ALL_IND_COLUMNS cols
+	inner join all_indexes inds
+		on inds.TABLE_OWNER = cols.TABLE_OWNER and inds.TABLE_NAME = cols.TABLE_NAME and inds.INDEX_NAME = cols.INDEX_NAME
+	where
+		%v
+	    and inds.DROPPED = 'NO'
+	    and inds.STATUS = 'VALID'
+	    and inds.UNIQUENESS = 'UNIQUE'
+		and EXISTS(select * from ALL_TABLES tabs where tabs.OWNER = cols.TABLE_OWNER and tabs.TABLE_NAME = cols.TABLE_NAME)`,
 		defaultCondition)
 	//nolint:descriptiveerrors
 	return db.loadIndexes(sql, IndexTypeUnique)

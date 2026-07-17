@@ -6,6 +6,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	oracle_common "github.com/transferia/transferia/pkg/providers/oracle/common"
 )
 
@@ -29,6 +30,7 @@ type Column struct {
 	dataType             string // YT schema type string, e.g. "int64", "utf8"
 	oldColumn            *abstract.ColSchema
 	convertNumberToInt64 bool
+	dataDefault          string
 }
 
 func NewColumn(table *Table, row *ColumnRow, convertNumberToInt64 bool) (*Column, error) {
@@ -45,6 +47,7 @@ func NewColumn(table *Table, row *ColumnRow, convertNumberToInt64 bool) (*Column
 		dataType:             "",
 		oldColumn:            nil,
 		convertNumberToInt64: convertNumberToInt64,
+		dataDefault:          "",
 	}
 
 	if row.DataType == nil {
@@ -328,6 +331,10 @@ func (column *Column) IsVirtual() bool {
 	return column.virtual
 }
 
+func (column *Column) SetDataDefault(val string) {
+	column.dataDefault = val
+}
+
 func (column *Column) Name() string {
 	return oracle_common.ConvertOracleName(column.OracleName())
 }
@@ -362,6 +369,9 @@ func (column *Column) ToOldColumn() (*abstract.ColSchema, error) {
 			Required:     !column.Nullable(),
 			Expression:   "",
 			OriginalType: "oracle:" + column.OracleType(),
+		}
+		if trimmed := strings.TrimSpace(column.dataDefault); trimmed != "" && !strings.EqualFold(trimmed, "NULL") {
+			column.oldColumn.AddProperty(changeitem.DefaultPropertyKey, trimmed)
 		}
 	}
 	return column.oldColumn, nil
