@@ -177,7 +177,7 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 		t.logger.Infof("Successfully resharded dynamic table %s", outPath)
 	}
 
-	if t.cfg.SkipUnchangedTables && tbl.ContentRevision != 0 {
+	if tbl.ContentRevision != 0 {
 		// Store source content_revision on target so next run can skip if unchanged.
 		revAttrPath := outYPath.Copy().Child("@" + ContentRevisionAttr)
 		if err := task.yt.SetNode(ctx, revAttrPath, tbl.ContentRevision, nil); err != nil {

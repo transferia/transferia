@@ -9,6 +9,7 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
+	"go.ytsaurus.tech/yt/go/yterrors"
 )
 
 // TODO: look at go.ytsaurus.tech/yt/go/ytwalk, maybe replace/use
@@ -69,6 +70,10 @@ func ListNodes(ctx context.Context, y yt.CypressClient, cluster string, paths []
 				}
 				resolveOpts := yt.GetNodeOptions{Attributes: linkResolveAttrList}
 				if err := y.GetNode(ctx, ypath.NewRich(linkPath), &resolved, &resolveOpts); err != nil {
+					if yterrors.ContainsResolveError(err) {
+						logger.Warnf("Skipping broken link %s: %v", linkPath, err)
+						continue
+					}
 					return xerrors.Errorf("cannot resolve link %s: %w", linkPath, err)
 				}
 				logger.Infof("Resolved link %s -> %s (type %s)", linkPath, resolved.Path, resolved.Type)
