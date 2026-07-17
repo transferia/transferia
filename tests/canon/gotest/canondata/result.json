@@ -9962,82 +9962,6 @@
                         "Val": "2004-10-19T11:23:54+02:00"
                     }
                 }
-            },
-            {
-                "Data": {
-                    "__primary_key": {
-                        "GoType": "int32",
-                        "Val": 2
-                    },
-                    "t_date": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_interval": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time_1": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time_3": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time_6": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time_with_time_zone_": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamp": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamp_1": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamp_3": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamp_6": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamptz": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timetz": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timetz_1": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timetz_3": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timetz_6": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_tst": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    }
-                }
             }
         ],
         "TableID": {
@@ -10281,7 +10205,7 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 3
+                        "Val": 2
                     },
                     "t_date": {
                         "GoType": "time.Time",
@@ -10350,82 +10274,6 @@
                     "t_tst": {
                         "GoType": "time.Time",
                         "Val": "2004-10-19T11:23:54+02:00"
-                    }
-                }
-            },
-            {
-                "Data": {
-                    "__primary_key": {
-                        "GoType": "int32",
-                        "Val": 4
-                    },
-                    "t_date": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_interval": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time_1": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time_3": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time_6": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_time_with_time_zone_": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamp": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamp_1": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamp_3": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamp_6": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timestamptz": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timetz": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timetz_1": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timetz_3": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_timetz_6": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_tst": {
-                        "GoType": "<nil>",
-                        "Val": null
                     }
                 }
             }

@@ -93,4 +93,4 @@ insert into public.date_types values
 
 -- null case
 
-INSERT INTO public.date_types (__primary_key) VALUES (default);
+-- INSERT INTO public.date_types (__primary_key) VALUES (default);

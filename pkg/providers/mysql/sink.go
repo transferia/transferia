@@ -26,7 +26,7 @@ import (
 var createTableTemplate, _ = text_template.New("query").Parse(`
 {{- /*gotype: TemplateModel*/ -}}
 CREATE TABLE IF NOT EXISTS {{ .Table }} (
-{{ range .Cols }}{{ .Name }} {{ .Typ }} {{ if not .Required }} DEFAULT NULL{{ end }}  {{ .Comma }}
+{{ range .Cols }}{{ .Name }} {{ .Typ }} {{ .Comma }}
 {{ end }} {{ if .Keys }} PRIMARY KEY ({{ range .Keys }}{{ .Name }}{{ .Comma }}{{ end }}) {{ end }}
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 `)
@@ -57,10 +57,9 @@ type txBatch struct {
 }
 
 type TemplateCol struct {
-	Name     string
-	Typ      string
-	Comma    string
-	Required bool
+	Name  string
+	Typ   string
+	Comma string
 }
 
 type TemplateModel struct {
@@ -787,6 +786,7 @@ func (s *sinker) createTable(tableID abstract.TableID, ts *abstract.TableSchema)
 	if len(query) == 0 {
 		return nil
 	}
+	s.logger.Infof("built 'create table' query: %s", query)
 	if _, err := s.db.Exec(query); err != nil {
 		s.logger.Warnf("Unable to push DDL (%v):\n%v\n", err, util.Sample(query, maxSampleLen))
 		return abstract.NewFatalError(xerrors.Errorf("unable to execute ddl: %w", err))
