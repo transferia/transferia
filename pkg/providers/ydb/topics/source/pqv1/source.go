@@ -39,7 +39,8 @@ type Source struct {
 	metrics *stats.SourceStats
 	logger  log.Logger
 
-	executor *functions.Executor
+	executor            *functions.Executor
+	commitLatencyLogger *commitLatencyLogger
 }
 
 func (s *Source) YSRNamespaceID() string {
@@ -111,7 +112,7 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) er
 
 			switch v := b.(type) {
 			case *persqueue.CommitAck:
-				s.logger.Infof("Ack: %v", v.Cookies)
+				s.commitLatencyLogger.handleAck(v)
 			case *persqueue.LockV1:
 				s.lockPartition(v)
 			case *persqueue.ReleaseV1:
@@ -122,6 +123,7 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) er
 				}
 				v.Release()
 			case *persqueue.Disconnect:
+				s.commitLatencyLogger.reset()
 				if v.Err != nil {
 					s.logger.Errorf("Disconnected: %s", v.Err.Error())
 				} else {
@@ -151,7 +153,7 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[committableBatch]) er
 				s.metrics.Count.Add(messagesCount)
 
 				s.logger.Debugf("begin to process batch: %v items with %v, time from last batch: %v", len(batches), format.SizeUInt64(uint64(messagesSize)), time.Since(lastPush))
-				if err := parseQ.Add(newBatch(v.Commit, batches)); err != nil {
+				if err := parseQ.Add(newBatch(s.commitLatencyLogger.wrap(v), batches)); err != nil {
 					return xerrors.Errorf("unable to add message to parser process: %w", err)
 				}
 				lastPush = time.Now()
@@ -194,7 +196,7 @@ func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 		}
 		switch v := b.(type) {
 		case *persqueue.CommitAck:
-			s.logger.Infof("Ack: %v", v.Cookies)
+			s.commitLatencyLogger.handleAck(v)
 		case *persqueue.LockV1:
 			s.lockPartition(v)
 		case *persqueue.ReleaseV1:
@@ -241,6 +243,7 @@ func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 			}
 			return res, nil
 		case *persqueue.Disconnect:
+			s.commitLatencyLogger.reset()
 			if v.Err != nil {
 				s.logger.Errorf("Disconnected: %s", v.Err.Error())
 			} else {
@@ -355,16 +358,17 @@ func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger
 	stopCh := make(chan bool)
 
 	src := &Source{
-		config:           cfg,
-		offsetsValidator: lbyds.NewLbOffsetsSourceValidator(logger),
-		consumer:         c,
-		cancel:           cancel,
-		parser:           parser,
-		onceStop:         sync.Once{},
-		stopCh:           stopCh,
-		metrics:          metrics,
-		logger:           logger,
-		executor:         executor,
+		config:              cfg,
+		offsetsValidator:    lbyds.NewLbOffsetsSourceValidator(logger),
+		consumer:            c,
+		cancel:              cancel,
+		parser:              parser,
+		onceStop:            sync.Once{},
+		stopCh:              stopCh,
+		metrics:             metrics,
+		logger:              logger,
+		executor:            executor,
+		commitLatencyLogger: newCommitLatencyLogger(logger),
 	}
 
 	go src.watchParserResource(parser)

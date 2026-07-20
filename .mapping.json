@@ -2213,6 +2213,7 @@
   "pkg/providers/ydb/topics/sink/sink.go":"transfer_manager/go/pkg/providers/ydb/topics/sink/sink.go",
   "pkg/providers/ydb/topics/sink/sink_test.go":"transfer_manager/go/pkg/providers/ydb/topics/sink/sink_test.go",
   "pkg/providers/ydb/topics/source/config.go":"transfer_manager/go/pkg/providers/ydb/topics/source/config.go",
+  "pkg/providers/ydb/topics/source/pqv1/commit_latency_logger.go":"transfer_manager/go/pkg/providers/ydb/topics/source/pqv1/commit_latency_logger.go",
   "pkg/providers/ydb/topics/source/pqv1/committable_batch.go":"transfer_manager/go/pkg/providers/ydb/topics/source/pqv1/committable_batch.go",
   "pkg/providers/ydb/topics/source/pqv1/source.go":"transfer_manager/go/pkg/providers/ydb/topics/source/pqv1/source.go",
   "pkg/providers/ydb/topics/source/topicapi/eventreader/README.md":"transfer_manager/go/pkg/providers/ydb/topics/source/topicapi/eventreader/README.md",
