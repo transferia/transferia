@@ -16,6 +16,7 @@ import (
 
 var getAttrList = []string{"type", "path", "row_count", "data_weight", "content_revision", "dynamic", "schema", "pivot_keys"}
 var linkResolveAttrList = []string{"type", "path", "row_count", "data_weight", "content_revision", "dynamic", "schema", "pivot_keys", "target_path"}
+var dirLikeNodeTypes = set.New(yt.NodeMap, yt.NodePortalEntrance, yt.NodePortalExit)
 
 // ListNodes recursively lists nodes of given types under the given paths
 func ListNodes(ctx context.Context, y yt.CypressClient, cluster string, paths []string, types []yt.NodeType, skipLinkFollowing bool, logger log.Logger) (YtNodes, error) {
@@ -47,7 +48,7 @@ func ListNodes(ctx context.Context, y yt.CypressClient, cluster string, paths []
 		}
 		for _, node := range outNodes {
 			nodeRelPath := path + "/" + node.Name
-			if node.Type == yt.NodeMap {
+			if dirLikeNodeTypes.Contains(node.Type) {
 				logger.Debugf("Traversing node %s from %s", nodeRelPath, prefix)
 				if err := traverse(prefix, nodeRelPath, depth); err != nil {
 					return xerrors.Errorf("error traversing %s: %w", nodeRelPath, err)
@@ -77,7 +78,7 @@ func ListNodes(ctx context.Context, y yt.CypressClient, cluster string, paths []
 					return xerrors.Errorf("cannot resolve link %s: %w", linkPath, err)
 				}
 				logger.Infof("Resolved link %s -> %s (type %s)", linkPath, resolved.Path, resolved.Type)
-				if resolved.Type == yt.NodeMap {
+				if dirLikeNodeTypes.Contains(resolved.Type) {
 					if err := traverse(prefix, nodeRelPath, depth+1); err != nil {
 						return xerrors.Errorf("error traversing link target %s: %w", nodeRelPath, err)
 					}
@@ -116,7 +117,7 @@ func ListNodes(ctx context.Context, y yt.CypressClient, cluster string, paths []
 		if err := y.GetNode(ctx, yp, &attrs, &opts); err != nil {
 			return nil, xerrors.Errorf("cannot get yt node %s: %w", p, err)
 		}
-		if attrs.Type == yt.NodeMap {
+		if dirLikeNodeTypes.Contains(attrs.Type) {
 			logger.Debugf("Traversing %s", p)
 			if err := traverse(attrs.Path, "", 0); err != nil {
 				return nil, xerrors.Errorf("unable to traverse path %s: %w", p, err)
