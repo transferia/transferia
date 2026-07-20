@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/httpuploader"
@@ -53,7 +54,7 @@ func marshalBench(b *testing.B, data []changeitem.ChangeItem) {
 	for n := 0; n < b.N; n++ {
 		buf := bytes.NewBuffer(make([]byte, 0, 1024))
 		for _, r := range data {
-			require.NoError(b, httpuploader.MarshalCItoJSON(r, rules, buf))
+			require.NoError(b, httpuploader.MarshalCItoJSON(logger.Log, r, rules, buf))
 		}
 		b.SetBytes(int64(buf.Len()))
 	}

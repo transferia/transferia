@@ -20,11 +20,12 @@ func fieldsToString(fields ...log.Field) string {
 }
 
 func LogLine(throttler Throttler, inLoggingFunc loggingFunc, msg string, fields ...log.Field) {
-	if !throttler.IsAllowed() {
-		inLoggingFunc("[batching-logger] skipped 'LogLine' by throttler")
+	if !throttler.TryLog() {
+		if !throttler.IsSilent() {
+			inLoggingFunc("[batching-logger] skipped 'LogLine' by throttler")
+		}
 		return
 	}
-	throttler.WillLog()
 
 	currLogger := NewBatchingLogger(NewAbsentThrottler(), inLoggingFunc, "", "", false)
 	defer currLogger.Close()

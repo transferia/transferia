@@ -11,10 +11,12 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/logging/batching_logger"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/util/castx"
 	"github.com/valyala/fastjson/fastfloat"
+	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -77,7 +79,7 @@ func marshalTime(colType *columntypes.TypeDescription, v time.Time, buf *bytes.B
 	}
 }
 
-func MarshalCItoJSON(row abstract.ChangeItem, rules *MarshallingRules, buf *bytes.Buffer) error {
+func MarshalCItoJSON(inLogger log.Logger, row abstract.ChangeItem, rules *MarshallingRules, buf *bytes.Buffer) error {
 	buf.WriteByte('{')
 	colNames := row.ColumnNames
 	colValues := row.ColumnValues
@@ -102,7 +104,7 @@ func MarshalCItoJSON(row abstract.ChangeItem, rules *MarshallingRules, buf *byte
 			return abstract.NewFatalError(xerrors.Errorf("unknown type for column '%s' in target table", columnName))
 		}
 
-		isSkip, err := marshalValue(buf, colSchema, colType, rules.AnyAsString, columnName, colValues[idx], hLen)
+		isSkip, err := marshalValue(inLogger, buf, colSchema, colType, rules.AnyAsString, columnName, colValues[idx], hLen)
 		if err != nil {
 			return err
 		}
@@ -122,6 +124,13 @@ func MarshalCItoJSON(row abstract.ChangeItem, rules *MarshallingRules, buf *byte
 	return nil
 }
 
+// TODO - remove this logger & throttler - after TM-10327
+var logThrottlerMarshalValue batching_logger.Throttler
+
+func init() {
+	logThrottlerMarshalValue = batching_logger.NewSilentThrottler(batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Hour)))
+}
+
 // marshalValue serializes a single column value into buf as a JSON value.
 //
 // The dispatch is driven by the schema data type (colSchema.DataType) — see the analogous
@@ -133,6 +142,7 @@ func MarshalCItoJSON(row abstract.ChangeItem, rules *MarshallingRules, buf *byte
 // Every control-flow path writes a well-formed JSON value (or skips the column name and
 // returns true), so the resulting row is always valid JSON.
 func marshalValue(
+	inLogger log.Logger,
 	buf *bytes.Buffer,
 	colSchema *abstract.ColSchema,
 	colType *columntypes.TypeDescription,
@@ -186,6 +196,8 @@ func marshalValue(
 		}
 		// not a numeric Go value: fall back to the generic encoder below
 
+		batching_logger.LogLine(logThrottlerMarshalValue, func(in string) { inLogger.Info(in) }, fmt.Sprintf("marshalValue - int fall into generic fallback, val_type: %T", val))
+
 	case ytschema.TypeBytes.String(), ytschema.TypeString.String():
 		// textual types render as quoted JSON strings, preserving raw (possibly non-utf8) bytes
 		switch v := val.(type) {
@@ -197,6 +209,8 @@ func marshalValue(
 			return false, nil
 		}
 
+		batching_logger.LogLine(logThrottlerMarshalValue, func(in string) { inLogger.Info(in) }, fmt.Sprintf("marshalValue - bytes/string fall into generic fallback, val_type: %T", val))
+
 	case ytschema.TypeBoolean.String():
 		// strictify maps ytschema.TypeBoolean -> bool (cast.ToBoolE)
 		if v, ok := val.(bool); ok {
@@ -207,6 +221,8 @@ func marshalValue(
 			}
 			return false, nil
 		}
+
+		batching_logger.LogLine(logThrottlerMarshalValue, func(in string) { inLogger.Info(in) }, fmt.Sprintf("marshalValue - boolean fall into generic fallback, val_type: %T", val))
 
 	case ytschema.TypeDate.String(), ytschema.TypeDatetime.String(), ytschema.TypeTimestamp.String():
 		// strictify maps ytschema.TypeDate / TypeDatetime / TypeTimestamp -> time.Time (cast.ToTimeE);
@@ -220,14 +236,20 @@ func marshalValue(
 			return false, nil
 		}
 
+		batching_logger.LogLine(logThrottlerMarshalValue, func(in string) { inLogger.Info(in) }, fmt.Sprintf("marshalValue - date fall into generic fallback, val_type: %T", val))
+
 	default:
 		// ytschema.TypeAny (strictify -> JSON-marshallable value) and any unknown data type fall
 		// back to the generic JSON encoder below, which always produces a valid JSON value.
+
+		batching_logger.LogLine(logThrottlerMarshalValue, func(in string) { inLogger.Info(in) }, fmt.Sprintf("marshalValue - 'switch colSchema.DataType' fall into default, colSchema.DataType: %s", colSchema.DataType))
 	}
+
+	batching_logger.LogLine(logThrottlerMarshalValue, func(in string) { inLogger.Info(in) }, fmt.Sprintf("marshalValue - marshalGeneric, colSchema.DataType: %s, valType:%T", colSchema.DataType, val))
 
 	// Reached when the value's Go type did not match the column's data type above, or the type is
 	// Any/unknown: the generic JSON encoder always produces a valid JSON value (or rolls back to null).
-	isSkip, err := marshalGeneric(buf, colSchema, colType, anyAsString, columnName, val, hLen)
+	isSkip, err := marshalGeneric(inLogger, buf, colSchema, colType, anyAsString, columnName, val, hLen)
 	if err != nil {
 		return isSkip, xerrors.Errorf("unable to marshal column %q (data type %s) with generic encoder: %w", columnName, colSchema.DataType, err)
 	}
@@ -294,9 +316,17 @@ func writeBytesValue(buf *bytes.Buffer, colType *columntypes.TypeDescription, v 
 	writeQuoted(buf, v)
 }
 
+// TODO - remove this logger & throttler - after TM-10327
+var logThrottlerMarshalGeneric batching_logger.Throttler
+
+func init() {
+	logThrottlerMarshalGeneric = batching_logger.NewSilentThrottler(batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Hour)))
+}
+
 // marshalGeneric is the universal fallback encoder. It always produces a valid JSON value, or skips
 // the already-written column name (returning true) when the value marshals to null.
 func marshalGeneric(
+	inLogger log.Logger,
 	buf *bytes.Buffer,
 	colSchema *abstract.ColSchema,
 	colType *columntypes.TypeDescription,
@@ -323,6 +353,7 @@ func marshalGeneric(
 			return true, nil
 		}
 		if colSchema.DataType != ytschema.TypeAny.String() || anyAsString || colType.IsString {
+			batching_logger.LogLine(logThrottlerMarshalGeneric, func(in string) { inLogger.Info(in) }, fmt.Sprintf("marshalGeneric - DOUBLE_MARSHAL, colSchema.DataType: %s, valType:%T, anyAsString:%t, colType.IsString:%t", colSchema.DataType, val, anyAsString, colType.IsString))
 			rr, err := json.Marshal(string(r))
 			if err != nil {
 				return false, xerrors.Errorf(marshalErrTpl, columnName, v, err)

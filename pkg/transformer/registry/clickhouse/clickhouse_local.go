@@ -161,7 +161,7 @@ func (s *ClickhouseTransformer) prepareInput(input []abstract.ChangeItem, marsha
 		if row.IsToasted() {
 			return nil, xerrors.New("toasted rows not supported")
 		}
-		if err := httpuploader.MarshalCItoJSON(row, marshallingRules, &buffer); err != nil {
+		if err := httpuploader.MarshalCItoJSON(s.logger, row, marshallingRules, &buffer); err != nil {
 			return nil, xerrors.Errorf("unalbe to marshal: %w", err)
 		}
 		if buffer.Len() > 1024*1024*5 {

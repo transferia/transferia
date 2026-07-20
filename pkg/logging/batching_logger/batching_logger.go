@@ -41,11 +41,12 @@ func (l *BatchingLogger) flush(isFromClose bool) {
 	l.flushLine(sumString)
 }
 func (l *BatchingLogger) flushLine(in string) {
-	if !l.throttler.IsAllowed() {
-		l.loggingFunc("[batching-logger] skipped 'flushLine' by throttler")
+	if !l.throttler.TryLog() {
+		if !l.throttler.IsSilent() {
+			l.loggingFunc("[batching-logger] skipped 'flushLine' by throttler")
+		}
 		return
 	}
-	l.throttler.WillLog()
 
 	l.loggingFunc(in)
 	l.state = make([]string, 0)

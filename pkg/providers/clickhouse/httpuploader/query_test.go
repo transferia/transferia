@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
@@ -54,13 +55,19 @@ func testQueryStableMarshalling(t *testing.T, input []abstract.ChangeItem) {
 		"id":    columntypes.NewTypeDescription("Int32"),
 		"value": columntypes.NewTypeDescription("String"),
 	}
-	require.NoError(t, marshalQuery(input, NewRules(
-		input[0].ColumnNames,
-		input[0].TableSchema.Columns(),
-		abstract.MakeMapColNameToIndex(input[0].TableSchema.Columns()),
-		colTypes,
-		false,
-	), q, 30, 10))
+	require.NoError(t, marshalQuery(
+		logger.Log,
+		input, NewRules(
+			input[0].ColumnNames,
+			input[0].TableSchema.Columns(),
+			abstract.MakeMapColNameToIndex(input[0].TableSchema.Columns()),
+			colTypes,
+			false,
+		),
+		q,
+		30,
+		10,
+	))
 	data, err := io.ReadAll(q)
 	require.NoError(t, err)
 
@@ -128,13 +135,17 @@ func TestQueryBool(t *testing.T) {
 	colTypes["toplevel"] = &typeDescription
 
 	var buf bytes.Buffer
-	err := MarshalCItoJSON(*changeItem, NewRules(
-		changeItem.ColumnNames,
-		changeItem.TableSchema.Columns(),
-		abstract.MakeMapColNameToIndex(changeItem.TableSchema.Columns()),
-		colTypes,
-		true,
-	), &buf)
+	err := MarshalCItoJSON(
+		logger.Log,
+		*changeItem, NewRules(
+			changeItem.ColumnNames,
+			changeItem.TableSchema.Columns(),
+			abstract.MakeMapColNameToIndex(changeItem.TableSchema.Columns()),
+			colTypes,
+			true,
+		),
+		&buf,
+	)
 	require.NoError(t, err)
 
 	var q map[string]interface{}
@@ -186,13 +197,17 @@ func TestOrder(t *testing.T) {
 	colTypes["toplevel"] = &typeDescription
 
 	var buf bytes.Buffer
-	err := MarshalCItoJSON(*changeItem, NewRules(
-		changeItem.ColumnNames,
-		changeItem.TableSchema.Columns(),
-		abstract.MakeMapColNameToIndex(changeItem.TableSchema.Columns()),
-		colTypes,
-		true,
-	), &buf)
+	err := MarshalCItoJSON(
+		logger.Log,
+		*changeItem, NewRules(
+			changeItem.ColumnNames,
+			changeItem.TableSchema.Columns(),
+			abstract.MakeMapColNameToIndex(changeItem.TableSchema.Columns()),
+			colTypes,
+			true,
+		),
+		&buf,
+	)
 	require.NoError(t, err)
 
 	var q map[string]interface{}

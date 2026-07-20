@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -51,19 +52,24 @@ func TestValidJSON(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("tc_%v", i), func(t *testing.T) {
 			buf := &bytes.Buffer{}
-			require.NoError(t, MarshalCItoJSON(abstract.ChangeItem{
-				ColumnNames:  []string{"bytes_with_jsons"},
-				ColumnValues: []any{[]byte(tc.value)},
-				TableSchema:  tschema,
-			}, NewRules(
-				tschema.ColumnNames(),
-				tschema.Columns(),
-				abstract.MakeMapColNameToIndex(tschema.Columns()),
-				map[string]*columntypes.TypeDescription{
-					"bytes_with_jsons": new(columntypes.TypeDescription),
+			require.NoError(t, MarshalCItoJSON(
+				logger.Log,
+				abstract.ChangeItem{
+					ColumnNames:  []string{"bytes_with_jsons"},
+					ColumnValues: []any{[]byte(tc.value)},
+					TableSchema:  tschema,
 				},
-				false,
-			), buf))
+				NewRules(
+					tschema.ColumnNames(),
+					tschema.Columns(),
+					abstract.MakeMapColNameToIndex(tschema.Columns()),
+					map[string]*columntypes.TypeDescription{
+						"bytes_with_jsons": new(columntypes.TypeDescription),
+					},
+					false,
+				),
+				buf,
+			))
 			fmt.Printf("\n%v", buf.String())
 			var r map[string]string
 
@@ -80,19 +86,23 @@ func TestEscapNotCurraptNonUTF8(t *testing.T) {
 
 	value := append(append([]byte(`"Hello`), byte(254)), []byte("世")...)
 	buf := &bytes.Buffer{}
-	require.NoError(t, MarshalCItoJSON(abstract.ChangeItem{
-		ColumnNames:  []string{"bytes_with_jsons"},
-		ColumnValues: []any{value},
-		TableSchema:  tschema,
-	}, NewRules(
-		tschema.ColumnNames(),
-		tschema.Columns(),
-		abstract.MakeMapColNameToIndex(tschema.Columns()),
-		map[string]*columntypes.TypeDescription{
-			"bytes_with_jsons": new(columntypes.TypeDescription),
-		},
-		false,
-	), buf))
+	require.NoError(t, MarshalCItoJSON(
+		logger.Log,
+		abstract.ChangeItem{
+			ColumnNames:  []string{"bytes_with_jsons"},
+			ColumnValues: []any{value},
+			TableSchema:  tschema,
+		}, NewRules(
+			tschema.ColumnNames(),
+			tschema.Columns(),
+			abstract.MakeMapColNameToIndex(tschema.Columns()),
+			map[string]*columntypes.TypeDescription{
+				"bytes_with_jsons": new(columntypes.TypeDescription),
+			},
+			false,
+		),
+		buf,
+	))
 	fmt.Printf("\n%v", buf.String())
 	hackyByteInPlace := false
 	for _, b := range buf.Bytes() {
@@ -110,19 +120,23 @@ func TestNullValueMarshal(t *testing.T) {
 
 	t.Run("single_null_column", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		err := MarshalCItoJSON(abstract.ChangeItem{
-			ColumnNames:  []string{"recipient"},
-			ColumnValues: []any{nil},
-			TableSchema:  tschema,
-		}, NewRules(
-			tschema.ColumnNames(),
-			tschema.Columns(),
-			abstract.MakeMapColNameToIndex(tschema.Columns()),
-			map[string]*columntypes.TypeDescription{
-				"recipient": new(columntypes.TypeDescription),
-			},
-			false,
-		), buf)
+		err := MarshalCItoJSON(
+			logger.Log,
+			abstract.ChangeItem{
+				ColumnNames:  []string{"recipient"},
+				ColumnValues: []any{nil},
+				TableSchema:  tschema,
+			}, NewRules(
+				tschema.ColumnNames(),
+				tschema.Columns(),
+				abstract.MakeMapColNameToIndex(tschema.Columns()),
+				map[string]*columntypes.TypeDescription{
+					"recipient": new(columntypes.TypeDescription),
+				},
+				false,
+			),
+			buf,
+		)
 
 		require.NoError(t, err)
 		result := buf.String()
@@ -144,20 +158,24 @@ func TestNullValueMarshal(t *testing.T) {
 		})
 
 		buf := &bytes.Buffer{}
-		err := MarshalCItoJSON(abstract.ChangeItem{
-			ColumnNames:  []string{"col1", "col2"},
-			ColumnValues: []any{nil, nil},
-			TableSchema:  tschema,
-		}, NewRules(
-			tschema.ColumnNames(),
-			tschema.Columns(),
-			abstract.MakeMapColNameToIndex(tschema.Columns()),
-			map[string]*columntypes.TypeDescription{
-				"col1": new(columntypes.TypeDescription),
-				"col2": new(columntypes.TypeDescription),
-			},
-			false,
-		), buf)
+		err := MarshalCItoJSON(
+			logger.Log,
+			abstract.ChangeItem{
+				ColumnNames:  []string{"col1", "col2"},
+				ColumnValues: []any{nil, nil},
+				TableSchema:  tschema,
+			}, NewRules(
+				tschema.ColumnNames(),
+				tschema.Columns(),
+				abstract.MakeMapColNameToIndex(tschema.Columns()),
+				map[string]*columntypes.TypeDescription{
+					"col1": new(columntypes.TypeDescription),
+					"col2": new(columntypes.TypeDescription),
+				},
+				false,
+			),
+			buf,
+		)
 
 		require.NoError(t, err)
 		result := buf.String()
@@ -180,21 +198,25 @@ func TestNullValueMarshal(t *testing.T) {
 		})
 
 		buf := &bytes.Buffer{}
-		err := MarshalCItoJSON(abstract.ChangeItem{
-			ColumnNames:  []string{"col1", "col2", "col3"},
-			ColumnValues: []any{nil, "value2", nil},
-			TableSchema:  tschema,
-		}, NewRules(
-			tschema.ColumnNames(),
-			tschema.Columns(),
-			abstract.MakeMapColNameToIndex(tschema.Columns()),
-			map[string]*columntypes.TypeDescription{
-				"col1": new(columntypes.TypeDescription),
-				"col2": new(columntypes.TypeDescription),
-				"col3": new(columntypes.TypeDescription),
-			},
-			false,
-		), buf)
+		err := MarshalCItoJSON(
+			logger.Log,
+			abstract.ChangeItem{
+				ColumnNames:  []string{"col1", "col2", "col3"},
+				ColumnValues: []any{nil, "value2", nil},
+				TableSchema:  tschema,
+			}, NewRules(
+				tschema.ColumnNames(),
+				tschema.Columns(),
+				abstract.MakeMapColNameToIndex(tschema.Columns()),
+				map[string]*columntypes.TypeDescription{
+					"col1": new(columntypes.TypeDescription),
+					"col2": new(columntypes.TypeDescription),
+					"col3": new(columntypes.TypeDescription),
+				},
+				false,
+			),
+			buf,
+		)
 
 		require.NoError(t, err)
 		result := buf.String()
@@ -222,6 +244,7 @@ func TestJSON(t *testing.T) {
 
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	err := MarshalCItoJSON(
+		logger.Log,
 		row,
 		NewRules(
 			row.TableSchema.ColumnNames(),

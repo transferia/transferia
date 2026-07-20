@@ -80,7 +80,7 @@ func UploadCIBatch(
 
 	q := newInsertQuery(config.InsertSettings(), config.Database(), table, len(batch), getPoolForTable(table))
 	defer q.Close()
-	if err := marshalQuery(batch, rules, q, avgRowSize, uint64(runtime.GOMAXPROCS(0)*2)); err != nil {
+	if err := marshalQuery(lgr, batch, rules, q, avgRowSize, uint64(runtime.GOMAXPROCS(0)*2)); err != nil {
 		return nil, xerrors.Errorf("error marshalling rows to JSON: %w", err)
 	}
 

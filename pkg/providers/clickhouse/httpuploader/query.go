@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/util/multibuf"
+	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -21,7 +22,7 @@ func newInsertQuery(insertParams clickhouse_model.InsertParams, db string, table
 	return q
 }
 
-func marshalQuery(batch []abstract.ChangeItem, rules *MarshallingRules, q query, avgRowSize int, parallelism uint64) error {
+func marshalQuery(inLogger log.Logger, batch []abstract.ChangeItem, rules *MarshallingRules, q query, avgRowSize int, parallelism uint64) error {
 	eg, ctx := errgroup.WithContext(context.Background())
 	eg.SetLimit(int(parallelism))
 	for i := range batch {
@@ -29,7 +30,7 @@ func marshalQuery(batch []abstract.ChangeItem, rules *MarshallingRules, q query,
 			break
 		}
 		buf := q.AcquireBuffer(int(float64(avgRowSize) * MemReserveFactor))
-		eg.Go(func() error { return MarshalCItoJSON(batch[i], rules, buf) })
+		eg.Go(func() error { return MarshalCItoJSON(inLogger, batch[i], rules, buf) })
 	}
 
 	return eg.Wait()

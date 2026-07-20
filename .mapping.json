@@ -2108,6 +2108,7 @@
   "pkg/providers/s3/sink/util_test.go":"transfer_manager/go/pkg/providers/s3/sink/util_test.go",
   "pkg/providers/s3/sink/writer/README.md":"transfer_manager/go/pkg/providers/s3/sink/writer/README.md",
   "pkg/providers/s3/sink/writer/writer.go":"transfer_manager/go/pkg/providers/s3/sink/writer/writer.go",
+  "pkg/providers/s3/source/sharded_replication_test/README.md":"transfer_manager/go/pkg/providers/s3/source/sharded_replication_test/README.md",
   "pkg/providers/s3/source/sharded_replication_test/sharded_replication_test.go":"transfer_manager/go/pkg/providers/s3/source/sharded_replication_test/sharded_replication_test.go",
   "pkg/providers/s3/source/source.go":"transfer_manager/go/pkg/providers/s3/source/source.go",
   "pkg/providers/s3/source/source_test.go":"transfer_manager/go/pkg/providers/s3/source/source_test.go",
