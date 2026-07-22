@@ -1018,6 +1018,7 @@
   "pkg/debezium/ydb/receiver.go":"transfer_manager/go/pkg/debezium/ydb/receiver.go",
   "pkg/debezium/ydb/tests/chain_special_values_test.go":"transfer_manager/go/pkg/debezium/ydb/tests/chain_special_values_test.go",
   "pkg/debezium/ydb/tests/emitter_chain_test.go":"transfer_manager/go/pkg/debezium/ydb/tests/emitter_chain_test.go",
+  "pkg/debezium/ydb/tests/emitter_meta_test.go":"transfer_manager/go/pkg/debezium/ydb/tests/emitter_meta_test.go",
   "pkg/debezium/ydb/tests/emitter_vals_test.go":"transfer_manager/go/pkg/debezium/ydb/tests/emitter_vals_test.go",
   "pkg/debezium/ydb/tests/stub.go":"transfer_manager/go/pkg/debezium/ydb/tests/stub.go",
   "pkg/debezium/ydb/tests/testdata/emitter_vals_test__canon_change_item.txt":"transfer_manager/go/pkg/debezium/ydb/tests/testdata/emitter_vals_test__canon_change_item.txt",

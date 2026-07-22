@@ -69,8 +69,10 @@ type ChangeItem struct {
 	//------------------------------------------------------------------------------------------------------------------
 	// provider-specific things
 
-	// mysql-specific
-	TxID  string // this only valid for mysql so far, for now we will not store it in YT
+	// Valid for:
+	// - Mysql, for now we will not store it in YT
+	// - YDB if VIRTUAL_TIMESTAMP is set on changefeed
+	TxID  string
 	Query string // optional, can be filled only for items from mysql binlogs with binlog_rows_query_log_events enabled
 
 	// queue-specific (filled only in queue-source)

@@ -155,5 +155,5 @@ func TestAutoFormatFillsSourceType(t *testing.T) {
 	format3, err := coherence_check.InferFormatSettings(logger.Log, &provider_ydb.YdbSource{}, model.SerializationFormat{Name: model.SerializationFormatAuto})
 	require.NoError(t, err)
 	require.Equal(t, model.SerializationFormatDebezium, format3.Name)
-	require.Equal(t, "", format3.Settings[debezium_parameters.SourceType]) // YDB don't have special fields in debezium - so, we don't fill it here
+	require.Equal(t, "ydb", format3.Settings[debezium_parameters.SourceType])
 }

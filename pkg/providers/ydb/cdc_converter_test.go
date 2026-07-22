@@ -240,3 +240,51 @@ func TestWithNoUpdatesAndErase(t *testing.T) {
 	require.Equal(t, []string{"id", "test", "test_1"}, item.ColumnNames)
 	require.Equal(t, []any{uint64(1), int64(123), "some_text"}, item.ColumnValues)
 }
+
+func TestVirtualTimestamps(t *testing.T) {
+	schema := abstract.NewTableSchema(abstract.TableColumns{
+		{ColumnName: "id", DataType: "uint64", PrimaryKey: true, OriginalType: "ydb:Uint64"},
+		{ColumnName: "test", DataType: "int32", PrimaryKey: false, OriginalType: "ydb:Int32"},
+	})
+
+	makeUpdateEvent := func(ts []uint64) *cdcEvent {
+		return &cdcEvent{
+			Key:       []interface{}{json.Number("1")},
+			Update:    map[string]interface{}{"test": json.Number("123")},
+			Timestamp: ts,
+		}
+	}
+	makeEraseEvent := func(ts []uint64) *cdcEvent {
+		return &cdcEvent{
+			Key:       []interface{}{json.Number("1")},
+			Erase:     map[string]interface{}{},
+			Timestamp: ts,
+		}
+	}
+
+	// [step (commit time in ns), txId]
+	ts := []uint64{uint64(time.Date(2020, 2, 2, 10, 2, 22, 0, time.UTC).UnixNano()), 42}
+
+	t.Run("UpdateWithVirtualTimestamps", func(t *testing.T) {
+		item, err := convertToChangeItem("test_table", schema, makeUpdateEvent(ts), time.Now(), 0, 0, 0, false)
+		require.NoError(t, err)
+		require.Equal(t, "42", item.TxID)
+		require.Equal(t, ts[0], item.CommitTime)
+		checkChangeItemValidForDebeziumEmitter(t, item)
+	})
+
+	t.Run("EraseWithVirtualTimestamps", func(t *testing.T) {
+		item, err := convertToChangeItem("test_table", schema, makeEraseEvent(ts), time.Now(), 0, 0, 0, false)
+		require.NoError(t, err)
+		require.Equal(t, "42", item.TxID)
+		require.Equal(t, ts[0], item.CommitTime)
+	})
+
+	t.Run("WithoutVirtualTimestamps", func(t *testing.T) {
+		writeTime := time.Date(2021, 3, 3, 0, 0, 0, 0, time.UTC)
+		item, err := convertToChangeItem("test_table", schema, makeUpdateEvent(nil), writeTime, 0, 0, 0, false)
+		require.NoError(t, err)
+		require.Equal(t, "", item.TxID)
+		require.Equal(t, uint64(writeTime.UTC().UnixNano()), item.CommitTime)
+	})
+}

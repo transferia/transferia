@@ -12,6 +12,7 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
+	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -66,6 +67,8 @@ func inferFormatSettings(src model.Source, formatSettings model.SerializationFor
 			result.Settings[debezium_parameters.SourceType] = "pg"
 		case *provider_mysql.MysqlSource:
 			result.Settings[debezium_parameters.SourceType] = "mysql"
+		case *provider_ydb.YdbSource:
+			result.Settings[debezium_parameters.SourceType] = "ydb"
 		}
 	}
 

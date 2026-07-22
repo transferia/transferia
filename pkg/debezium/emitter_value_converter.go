@@ -366,6 +366,14 @@ func (m *Emitter) buildSource(changeItem *abstract.ChangeItem, snapshot bool) ma
 		result["row"] = 0
 		result["server_id"] = 0
 		result["thread"] = nil
+	case debezium_parameters.SourceTypeYDB:
+		//https://ydb.tech/docs/en/concepts/cdc?version=v26.1#debezium-json-record-structure
+		var txId *string
+		if changeItem.TxID != "" {
+			txId = &changeItem.TxID
+		}
+		result["txId"] = txId
+		result["step"] = changeItem.CommitTime
 	default:
 	}
 	return result

@@ -203,6 +203,13 @@ func makeUpdateChangeItem(
 		Query:            "",
 		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
+
+	// If VIRTUAL_TIMESTAMP is enabled on pre created CHANGEFEED this field will have data
+	if len(event.Timestamp) >= 2 {
+		result.TxID = strconv.FormatUint(event.Timestamp[1], 10)
+		result.CommitTime = event.Timestamp[0]
+	}
+
 	index := 0
 	for _, keyVal := range event.Key {
 		if index >= len(keyColumnNames) {
@@ -308,6 +315,13 @@ func makeDeleteChangeItem(
 		Query:            "",
 		QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 	}
+
+	// If VIRTUAL_TIMESTAMP is enabled on pre created CHANGEFEED this field will have data
+	if len(event.Timestamp) >= 2 {
+		result.TxID = strconv.FormatUint(event.Timestamp[1], 10)
+		result.CommitTime = event.Timestamp[0]
+	}
+
 	index := 0
 	for _, keyVal := range event.Key {
 		if index >= len(keyColumnNames) {
