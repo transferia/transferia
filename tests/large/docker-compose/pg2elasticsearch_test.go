@@ -27,7 +27,7 @@ var (
 	}
 	pg2ElasticTarget = elastic.ElasticSearchDestination{
 		ClusterID:        "",
-		DataNodes:        []elastic.ElasticSearchHostPort{{Host: "localhost", Port: pg2ElasticElasticPort}},
+		DataNodes:        []elastic.ElasticSearchHostPort{{Host: "127.0.0.1", Port: pg2ElasticElasticPort}},
 		User:             "user",
 		Password:         "",
 		SSLEnabled:       false,
@@ -44,6 +44,8 @@ func init() {
 
 func TestPgToElasticSnapshot(t *testing.T) {
 	t.Parallel()
+
+	WaitForElastic(t, "127.0.0.1", pg2ElasticElasticPort)
 
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(

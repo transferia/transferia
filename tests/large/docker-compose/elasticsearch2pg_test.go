@@ -27,7 +27,7 @@ var (
 
 	elasticSource = elastic.ElasticSearchSource{
 		ClusterID:        "",
-		DataNodes:        []elastic.ElasticSearchHostPort{{Host: "localhost", Port: elasticPort}},
+		DataNodes:        []elastic.ElasticSearchHostPort{{Host: "127.0.0.1", Port: elasticPort}},
 		User:             "user",
 		Password:         "",
 		SSLEnabled:       false,
@@ -50,6 +50,7 @@ func init() {
 }
 
 func TestAllElasticSearchToPg(t *testing.T) {
+	WaitForElastic(t, "127.0.0.1", elasticPort)
 	testElasticToPgSnapshot(t) // creates index 'test_doc'
 	testExactTableRowsCount(t) // creates index 'test_table_rows_count'
 	testTableExists(t)         // creates index 'new_index'
@@ -159,7 +160,7 @@ func createElasticTestDocs(t *testing.T, tableName string, from, to int) {
 }
 
 func deleteAllElasticIndexes(t *testing.T) {
-	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("http://localhost:%d/_all", elasticPort), nil)
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("http://127.0.0.1:%d/_all", elasticPort), nil)
 	require.NoError(t, err)
 
 	res, err := http.DefaultClient.Do(req)

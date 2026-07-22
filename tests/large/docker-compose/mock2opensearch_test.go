@@ -23,7 +23,7 @@ func TestMockOpenSearchDataStreamSinkPush(t *testing.T) {
 
 	opensearchDst := opensearch.OpenSearchDestination{
 		ClusterID:        "",
-		DataNodes:        []opensearch.OpenSearchHostPort{{Host: "localhost", Port: dstPort}},
+		DataNodes:        []opensearch.OpenSearchHostPort{{Host: "127.0.0.1", Port: dstPort}},
 		User:             "user",
 		Password:         "",
 		SSLEnabled:       false,
@@ -36,6 +36,8 @@ func TestMockOpenSearchDataStreamSinkPush(t *testing.T) {
 	opensearchDst.WithDefaults()
 
 	t.Parallel()
+
+	WaitForElastic(t, "127.0.0.1", dstPort)
 
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(

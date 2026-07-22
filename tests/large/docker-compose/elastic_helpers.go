@@ -2,12 +2,15 @@ package dockercompose
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
@@ -15,6 +18,34 @@ import (
 	provider_elastic "github.com/transferia/transferia/pkg/providers/elastic"
 	"github.com/transferia/transferia/pkg/util/jsonx"
 )
+
+// WaitForElastic waits for an Elasticsearch-compatible HTTP endpoint to become
+// available. It retries with exponential backoff for up to 2 minutes. This is
+// necessary because ES containers can take 30-60+ seconds to pass their health
+// checks in CI, and the docker_compose_healthcheck recipe may return before
+// all services are ready.
+func WaitForElastic(t *testing.T, host string, port int) {
+	t.Helper()
+	url := fmt.Sprintf("http://%s:%d/", host, port)
+	err := backoff.Retry(func() error {
+		resp, err := http.Get(url) //nolint:gosec // test helper, fixed URL
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= 500 {
+			return xerrors.Errorf("elasticsearch returned status %d", resp.StatusCode)
+		}
+		return nil
+	}, backoff.WithMaxRetries(
+		backoff.NewExponentialBackOff(
+			backoff.WithInitialInterval(2*time.Second),
+			backoff.WithMaxInterval(15*time.Second),
+		),
+		12, // ~2 minutes total
+	))
+	require.NoError(t, err, "elasticsearch at %s:%d did not become ready", host, port)
+}
 
 func createElasticIndex(t *testing.T, esClient *elasticsearch.Client, indexName string, indexParamsRawJSON string) {
 	res, err := esClient.Indices.Create(indexName,

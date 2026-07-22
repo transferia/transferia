@@ -30,7 +30,7 @@ func TestElasticToElasticSnapshot(t *testing.T) {
 	const dstPort = 9206
 	elasticSrc := elastic.ElasticSearchSource{
 		ClusterID:            "",
-		DataNodes:            []elastic.ElasticSearchHostPort{{Host: "localhost", Port: srcPort}},
+		DataNodes:            []elastic.ElasticSearchHostPort{{Host: "127.0.0.1", Port: srcPort}},
 		User:                 "user",
 		Password:             "",
 		SSLEnabled:           false,
@@ -41,7 +41,7 @@ func TestElasticToElasticSnapshot(t *testing.T) {
 	}
 	elasticDst := elastic.ElasticSearchDestination{
 		ClusterID:        "",
-		DataNodes:        []elastic.ElasticSearchHostPort{{Host: "localhost", Port: dstPort}},
+		DataNodes:        []elastic.ElasticSearchHostPort{{Host: "127.0.0.1", Port: dstPort}},
 		User:             "user",
 		Password:         "",
 		SSLEnabled:       false,
@@ -54,6 +54,9 @@ func TestElasticToElasticSnapshot(t *testing.T) {
 	helpers.InitSrcDst(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
 
 	t.Parallel()
+
+	WaitForElastic(t, "127.0.0.1", srcPort)
+	WaitForElastic(t, "127.0.0.1", dstPort)
 
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
