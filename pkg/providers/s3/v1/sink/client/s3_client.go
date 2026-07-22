@@ -1,16 +1,9 @@
-package sink
+package client
 
 import (
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
-
-type S3Client interface {
-	Upload(input *s3manager.UploadInput) (*s3manager.UploadOutput, error)
-	DeleteObject(input *aws_s3.DeleteObjectInput) (*aws_s3.DeleteObjectOutput, error)
-	DeleteObjects(input *aws_s3.DeleteObjectsInput) (*aws_s3.DeleteObjectsOutput, error)
-	ListObjectsV2(input *aws_s3.ListObjectsV2Input) (*aws_s3.ListObjectsV2Output, error)
-}
 
 type s3ClientImpl struct {
 	client   *aws_s3.S3
@@ -33,7 +26,23 @@ func (s *s3ClientImpl) ListObjectsV2(input *aws_s3.ListObjectsV2Input) (*aws_s3.
 	return s.client.ListObjectsV2(input)
 }
 
-func NewS3ClientImpl(client *aws_s3.S3, uploader *s3manager.Uploader) S3Client {
+func (s *s3ClientImpl) ListMultipartUploads(input *aws_s3.ListMultipartUploadsInput) (*aws_s3.ListMultipartUploadsOutput, error) {
+	return s.client.ListMultipartUploads(input)
+}
+
+func (s *s3ClientImpl) ListParts(input *aws_s3.ListPartsInput) (*aws_s3.ListPartsOutput, error) {
+	return s.client.ListParts(input)
+}
+
+func (s *s3ClientImpl) CompleteMultipartUpload(input *aws_s3.CompleteMultipartUploadInput) (*aws_s3.CompleteMultipartUploadOutput, error) {
+	return s.client.CompleteMultipartUpload(input)
+}
+
+func (s *s3ClientImpl) AbortMultipartUpload(input *aws_s3.AbortMultipartUploadInput) (*aws_s3.AbortMultipartUploadOutput, error) {
+	return s.client.AbortMultipartUpload(input)
+}
+
+func newS3ClientImpl(client *aws_s3.S3, uploader *s3manager.Uploader) S3Client {
 	return &s3ClientImpl{
 		client:   client,
 		uploader: uploader,

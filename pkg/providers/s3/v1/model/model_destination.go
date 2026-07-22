@@ -116,7 +116,7 @@ func (d *S3Destination) Transformer() map[string]string {
 }
 
 func (d *S3Destination) CleanupMode() model.CleanupType {
-	return model.DisabledCleanup
+	return d.Cleanup
 }
 
 func (d *S3Destination) IsDestination() {

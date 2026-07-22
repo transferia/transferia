@@ -6,24 +6,26 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
-	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	s3_delete "github.com/transferia/transferia/pkg/providers/s3/s3util/delete"
-	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
+	s3_v1_sink_client "github.com/transferia/transferia/pkg/providers/s3/v1/sink/client"
 	s3_v1_sink_writer "github.com/transferia/transferia/pkg/providers/s3/v1/sink/writer"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+var _ abstract.Replacable = (*SnapshotSink)(nil)
+
 type SnapshotSink struct {
 	transferID         string
 	operationTimestamp string
-	s3Client           S3Client
+	s3Client           s3_v1_sink_client.S3Client
 	cfg                *s3_v1_model.S3Destination
 	snapshotWriter     *SnapshotWriter
 	logger             log.Logger
@@ -275,6 +277,16 @@ func (s *SnapshotSink) UpdateOutputSerializer(f s3_v1_model.SerializerConfig) {
 	s.serializer = f
 }
 
+func (s *SnapshotSink) Replace() error {
+	return replaceUploads(
+		s.logger,
+		s.s3Client,
+		s.cfg.Bucket,
+		s.cfg.Prefix,
+		s.operationTimestamp,
+	)
+}
+
 func NewSnapshotSink(
 	lgr log.Logger,
 	cfg *s3_v1_model.S3Destination,
@@ -283,19 +295,16 @@ func NewSnapshotSink(
 	transferID string,
 	operationTimestamp int64,
 ) (*SnapshotSink, error) {
-	sess, err := s3sess.NewAWSSession(lgr, cfg.Bucket, cfg.Connection)
+	useReplace := cfg.Cleanup == model.Replace
+	s3Client, err := s3_v1_sink_client.New(lgr, cfg.Bucket, cfg.Connection, cfg.PartSize, useReplace)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to create session to s3 bucket: %w", err)
+		return nil, xerrors.Errorf("unable to make s3 client: %w", err)
 	}
-
-	s3Client := aws_s3.New(sess)
-	uploader := s3manager.NewUploader(sess)
-	uploader.PartSize = cfg.PartSize
 
 	return &SnapshotSink{
 		transferID:         transferID,
 		operationTimestamp: strconv.FormatInt(operationTimestamp, 10),
-		s3Client:           NewS3ClientImpl(s3Client, uploader),
+		s3Client:           s3Client,
 		cfg:                cfg,
 		logger:             lgr,
 		metrics:            stats.NewSinkerStats(mtrcs),

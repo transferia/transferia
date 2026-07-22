@@ -5,14 +5,13 @@ import (
 	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
-	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	s3_v1_sink "github.com/transferia/transferia/pkg/providers/s3/v1/sink"
+	s3_v1_sink_client "github.com/transferia/transferia/pkg/providers/s3/v1/sink/client"
 	s3_v1_sink_writer "github.com/transferia/transferia/pkg/providers/s3/v1/sink/writer"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -27,7 +26,7 @@ type AsyncSink struct {
 	metrics     *stats.SinkerStats
 
 	snapshotWriter *s3_v1_sink.SnapshotWriter
-	s3Client       s3_v1_sink.S3Client
+	s3Client       s3_v1_sink_client.S3Client
 
 	offsetsToCommit []uint64
 }
@@ -205,22 +204,18 @@ func (s *AsyncSink) AsyncV2Push(ctx context.Context, errCh chan<- abstract.Async
 }
 
 func NewReplicationAsyncSink(lgr log.Logger, cfg *s3_v1_model.S3Destination, mtrcs core_metrics.Registry) (*AsyncSink, error) {
-	sess, err := s3sess.NewAWSSession(lgr, cfg.Bucket, cfg.Connection)
+	useReplace := false // for now cleanup is not supported for replication sink
+	s3Client, err := s3_v1_sink_client.New(lgr, cfg.Bucket, cfg.Connection, cfg.PartSize, useReplace)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to create session to s3 bucket: %w", err)
+		return nil, xerrors.Errorf("unable to create s3 client: %w", err)
 	}
-
-	s3Client := aws_s3.New(sess)
-	uploader := s3manager.NewUploader(sess)
-	uploader.PartSize = cfg.PartSize
-
 	return &AsyncSink{
 		logger:          lgr,
 		metrics:         stats.NewSinkerStats(mtrcs),
 		cfg:             cfg,
 		rotator:         NewRotator(cfg.GetRotator()),
 		partitioner:     NewPartitioner(cfg),
-		s3Client:        s3_v1_sink.NewS3ClientImpl(s3Client, uploader),
+		s3Client:        s3Client,
 		snapshotWriter:  nil, // We can not init writer in constructor, data from first received message is needed
 		offsetsToCommit: make([]uint64, 0),
 		serializer:      cfg.GetSerializer(),
