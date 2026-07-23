@@ -260,6 +260,7 @@ func fetchToastedRows(table *sinkTable, changeItems []abstract.ChangeItem) ([]ab
 		changeItem.Counter = changeItems[i].Counter
 		changeItem.TxID = changeItems[i].TxID
 		changeItem.Query = changeItems[i].Query
+		restoreKeyValuesFromSource(&changeItem, changeItems[i], keyCols)
 
 		result = append(result, changeItem)
 	}
@@ -278,6 +279,29 @@ func fetchToastedRows(table *sinkTable, changeItems []abstract.ChangeItem) ([]ab
 	}
 
 	return result, nil
+}
+
+func restoreKeyValuesFromSource(fetched *abstract.ChangeItem, source abstract.ChangeItem, keyCols map[string]bool) {
+	sourceKeyValues := make(map[string]interface{}, len(keyCols))
+	if (source.Kind == abstract.UpdateKind || source.Kind == abstract.DeleteKind) && len(source.OldKeys.KeyValues) > 0 {
+		for i, name := range source.OldKeys.KeyNames {
+			if keyCols[name] {
+				sourceKeyValues[name] = source.OldKeys.KeyValues[i]
+			}
+		}
+	}
+	for i, name := range source.ColumnNames {
+		if keyCols[name] {
+			if _, ok := sourceKeyValues[name]; !ok {
+				sourceKeyValues[name] = source.ColumnValues[i]
+			}
+		}
+	}
+	for i, name := range fetched.ColumnNames {
+		if value, ok := sourceKeyValues[name]; ok {
+			fetched.ColumnValues[i] = value
+		}
+	}
 }
 
 func removePKTimezoneInfo(t *sinkTable, pkValues []interface{}) []interface{} {
