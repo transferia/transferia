@@ -38,14 +38,18 @@ const errDocDBTypeUnsupported = "Field 'type' is currently not supported"
 const DefaultAuthSource = "admin"
 
 func (w *MongoClientWrapper) Close(ctx context.Context) error {
+	closeStart := time.Now()
 	miniCallstack := util.GetMiniCallstack(12)
 	w.lgr.Info("Closing mongo client wrapper",
 		log.Int64("mongo_client_wrapper_id", w.id),
 		log.Strings("mini_callstack", miniCallstack))
+	w.lgr.Debugf("MongoClientWrapper.Close: Disconnect START id=%d", w.id)
 	if err := w.Disconnect(ctx); err != nil {
 		w.lgr.Errorf("cannot disconnect from MongoDB: %v", err)
+		w.lgr.Debugf("MongoClientWrapper.Close FAILED id=%d err=%v elapsed=%v", w.id, err, time.Since(closeStart))
 		return err
 	}
+	w.lgr.Debugf("MongoClientWrapper.Close DONE id=%d elapsed=%v", w.id, time.Since(closeStart))
 	return nil
 }
 
@@ -54,6 +58,12 @@ var tmMongoConnectID atomic.Int64
 // Connect function should be one and only one valid method of creation mongo client
 // this method logs into 'lgr' about connection options
 func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (*MongoClientWrapper, error) {
+	connectStart := time.Now()
+	if len(opts.HostsWithPort) > 0 {
+		logger.Log.Debugf("Connect START host=%s:%d user=%s", opts.HostsWithPort[0].Host, opts.HostsWithPort[0].Port, opts.User)
+	} else {
+		logger.Log.Debugf("Connect START hosts=<empty> user=%s", opts.User)
+	}
 	if lgr == nil {
 		lgr = logger.Log
 	}
@@ -142,6 +152,7 @@ func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (
 		client = clientWithTLS
 	}
 
+	logger.Log.Debugf("Connect DONE id=%d elapsed=%v", id, time.Since(connectStart))
 	return &MongoClientWrapper{
 		Client:  client,
 		lgr:     lgr,
@@ -151,7 +162,10 @@ func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (
 }
 
 func newClient(ctx context.Context, connOpts *mongo_options.ClientOptions) (*mongo_driver.Client, error) {
+	newClientStart := time.Now()
+	logger.Log.Debugf("newClient: mongo_driver.Connect START")
 	client, err := mongo_driver.Connect(ctx, connOpts)
+	logger.Log.Debugf("newClient: mongo_driver.Connect DONE err=%v elapsed=%v", err, time.Since(newClientStart))
 
 	isWithPassword := bool(connOpts != nil && connOpts.Auth != nil && len(connOpts.Auth.Password) > 0)
 	if err != nil && isWithPassword && strings.Contains(err.Error(), connOpts.Auth.Password) {
@@ -160,7 +174,9 @@ func newClient(ctx context.Context, connOpts *mongo_options.ClientOptions) (*mon
 		return nil, xerrors.Errorf("unable to connect mongo client: %w", err)
 	}
 
+	logger.Log.Debugf("newClient: Ping START elapsed=%v", time.Since(newClientStart))
 	if err := client.Ping(ctx, nil); err != nil {
+		logger.Log.Debugf("newClient: Ping FAILED err=%v elapsed=%v", err, time.Since(newClientStart))
 		// Network-level classification: prefer structural checks over string matching.
 		// We treat it as DNS failure when error chain contains net.DNSError and driver classifies it as network error.
 		var dnsErr *net.DNSError
@@ -169,6 +185,7 @@ func newClient(ctx context.Context, connOpts *mongo_options.ClientOptions) (*mon
 		}
 		return nil, xerrors.Errorf("unable to ping mongo db: %w", err)
 	}
+	logger.Log.Debugf("newClient: Ping DONE elapsed=%v", time.Since(newClientStart))
 	return client, nil
 }
 

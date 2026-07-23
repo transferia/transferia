@@ -37,24 +37,34 @@ func MakeAsyncSink(
 	config middlewares.Config,
 	opts ...abstract.SinkOption,
 ) (abstract.AsyncSink, error) {
+	makeStart := time.Now()
+	lgr.Debugf("MakeAsyncSink START src=%s dst=%s", transfer.SrcType(), transfer.DstType())
 	var pipelineAsync abstract.AsyncSink = nil
 	middleware, err := syncMiddleware(transfer, lgr, mtrcs, cp, opts...)
 	if err != nil {
+		lgr.Debugf("MakeAsyncSink FAILED (syncMiddleware) err=%v elapsed=%v", err, time.Since(makeStart))
 		return nil, xerrors.Errorf("error building sync middleware pipeline: %w", err)
 	}
 
 	pipelineAsync, err = constructBaseAsyncSink(transfer, task, lgr, mtrcs, cp, middleware)
 	if err != nil {
 		if !xerrors.Is(err, NoAsyncSinkErr) {
+			lgr.Debugf("MakeAsyncSink FAILED (constructBaseAsyncSink) err=%v elapsed=%v", err, time.Since(makeStart))
 			return nil, errors.CategorizedErrorf(categories.Target, "failed to construct async sink: %w", err)
 		}
+		lgr.Debugf("MakeAsyncSink: no native async sink, constructing sync sink... elapsed=%v", time.Since(makeStart))
 		sink, err := ConstructBaseSink(transfer, task, lgr, mtrcs, cp, config)
 		if err != nil {
+			lgr.Debugf("MakeAsyncSink FAILED (ConstructBaseSink) err=%v elapsed=%v", err, time.Since(makeStart))
 			return nil, errors.CategorizedErrorf(categories.Target, "failed to construct sink: %w", err)
 		}
+		lgr.Debugf("MakeAsyncSink: wrapping sink into async pipeline... elapsed=%v", time.Since(makeStart))
 		pipelineAsync = wrapSinkIntoAsyncPipeline(sink, transfer, lgr, mtrcs, middleware, config)
+	} else {
+		lgr.Debugf("MakeAsyncSink: native async sink created elapsed=%v", time.Since(makeStart))
 	}
 	pipelineAsync = synchronizer.Measurer(lgr)(pipelineAsync)
+	lgr.Debugf("MakeAsyncSink DONE elapsed=%v", time.Since(makeStart))
 	return pipelineAsync, nil
 }
 
@@ -123,28 +133,38 @@ func syncMiddleware(transfer *model.Transfer, lgr log.Logger, mtrcs core_metrics
 
 // ConstructBaseSink creates a sink of proper type
 func ConstructBaseSink(transfer *model.Transfer, task *model.TransferOperation, lgr log.Logger, mtrcs core_metrics.Registry, cp coordinator.Coordinator, config middlewares.Config) (abstract.Sinker, error) {
+	constructStart := time.Now()
+	lgr.Debugf("ConstructBaseSink START dst=%s", transfer.DstType())
 	switch dst := transfer.Dst.(type) {
 	case *model.MockDestination:
+		lgr.Debugf("ConstructBaseSink: MockDestination DONE elapsed=%v", time.Since(constructStart))
 		return dst.SinkerFactory(), nil
 	default:
 		if !config.ReplicationStage {
 			factory, ok := providers.Destination[providers.SnapshotSinker](lgr, mtrcs, cp, transfer, task)
 			if ok {
+				lgr.Debugf("ConstructBaseSink: SnapshotSink START elapsed=%v", time.Since(constructStart))
 				res, err := factory.SnapshotSink(config)
 				if err != nil {
+					lgr.Debugf("ConstructBaseSink: SnapshotSink FAILED err=%v elapsed=%v", err, time.Since(constructStart))
 					return nil, xerrors.Errorf("unable to create %T: %w", transfer.Src, err)
 				}
+				lgr.Debugf("ConstructBaseSink: SnapshotSink DONE elapsed=%v", time.Since(constructStart))
 				return res, nil
 			}
 		}
 		factory, ok := providers.Destination[providers.Sinker](lgr, mtrcs, cp, transfer, task)
 		if !ok {
+			lgr.Debugf("ConstructBaseSink FAILED: no factory for %s elapsed=%v", transfer.DstType(), time.Since(constructStart))
 			return nil, xerrors.Errorf("sink: %s: %T not supported", transfer.DstType(), transfer.Dst)
 		}
+		lgr.Debugf("ConstructBaseSink: factory.Sink START elapsed=%v", time.Since(constructStart))
 		res, err := factory.Sink(config)
 		if err != nil {
+			lgr.Debugf("ConstructBaseSink: factory.Sink FAILED err=%v elapsed=%v", err, time.Since(constructStart))
 			return nil, xerrors.Errorf("unable to create %T: %w", transfer.Dst, err)
 		}
+		lgr.Debugf("ConstructBaseSink DONE elapsed=%v", time.Since(constructStart))
 		return res, nil
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/transferia/transferia/internal/logger"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -34,6 +35,8 @@ type sinker struct {
 }
 
 func (s *sinker) Push(input []abstract.ChangeItem) error {
+	pushStart := time.Now()
+	s.logger.Debugf("sinker.Push START items=%d", len(input))
 	ctx := context.Background()
 
 	var errMu sync.Mutex
@@ -46,15 +49,23 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	}
 
 	flushCollection := func(collID Namespace, items []abstract.ChangeItem, wg *sync.WaitGroup) {
-		defer wg.Done()
+		flushStart := time.Now()
+		s.logger.Debugf("flushCollection START coll=%s items=%d", collID.GetFullName(), len(items))
+		defer func() {
+			s.logger.Debugf("flushCollection DONE coll=%s elapsed=%v", collID.GetFullName(), time.Since(flushStart))
+			wg.Done()
+		}()
 
+		s.logger.Debugf("flushCollection: splitItemsToBulkOperations START coll=%s", collID.GetFullName())
 		shardBulks, err := s.splitItemsToBulkOperations(ctx, collID, items)
 		if err != nil {
 			setError(collID, err)
 			return
 		}
+		s.logger.Debugf("flushCollection: splitItemsToBulkOperations DONE coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
 
 		startFlush := time.Now()
+		s.logger.Debugf("flushCollection: bulk writes START coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
 		eg, egCtx := errgroup.WithContext(ctx)
 		for _, bulks := range shardBulks {
 			eg.Go(func() error {
@@ -71,6 +82,7 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			setError(collID, err)
 			return
 		}
+		s.logger.Debugf("flushCollection: bulk writes DONE coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
 		s.logger.Infof("Flush collection %v: change items number = %v, shards = %v, elapsed = %v", collID.GetFullName(), len(items), len(shardBulks), time.Since(startFlush))
 	}
 
@@ -98,12 +110,14 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			}
 		}
 		if collections != nil {
+			s.logger.Debugf("sinker.Push: waiting for %d flush goroutines elapsed=%v", len(collections), time.Since(pushStart))
 			var wg sync.WaitGroup
 			for collID, items := range collections {
 				wg.Add(1)
 				go flushCollection(collID, items, &wg)
 			}
 			wg.Wait()
+			s.logger.Debugf("sinker.Push: all flush goroutines done elapsed=%v", time.Since(pushStart))
 			if len(collectionErrors) > 0 {
 				return joinErrors(collectionErrors)
 			}
@@ -114,6 +128,7 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	s.metrics.Elapsed.RecordDuration(elapsed)
 	s.metrics.Wal.Add(int64(len(input)))
 	s.logger.Infof("Push %d documents in %v", len(input), elapsed)
+	s.logger.Debugf("sinker.Push DONE items=%d elapsed=%v", len(input), time.Since(pushStart))
 	return nil
 }
 
@@ -338,16 +353,23 @@ func (s *sinker) dropDatabase(item *abstract.ChangeItem) error {
 }
 
 func (s *sinker) Close() error {
-	return s.client.Close(context.Background())
+	s.logger.Debugf("sinker.Close START")
+	err := s.client.Close(context.Background())
+	s.logger.Debugf("sinker.Close DONE err=%v", err)
+	return err
 }
 
 func NewSinker(lgr log.Logger, dst *MongoDestination, mtrcs core_metrics.Registry) (abstract.Sinker, error) {
+	newSinkerStart := time.Now()
+	logger.Log.Debugf("NewSinker START hosts=%v port=%d", dst.Hosts, dst.Port)
 	opts := dst.ConnectionOptions(dst.RootCAFiles)
 	ctx := context.Background()
 	client, err := Connect(ctx, opts, lgr)
 	if err != nil {
+		logger.Log.Debugf("NewSinker FAILED err=%v elapsed=%v", err, time.Since(newSinkerStart))
 		return nil, err
 	}
+	logger.Log.Debugf("NewSinker DONE elapsed=%v", time.Since(newSinkerStart))
 	return &sinker{
 		client:  client,
 		logger:  lgr,

@@ -159,28 +159,44 @@ order by
 		dump := helpers.MySQLDump(t, src.ToStorageParams())
 		return dump
 	case *provider_mongo.MongoSource:
+		dumpStart := time.Now()
+		logger.Log.Debugf("dumpToString MongoSource START")
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		excluded := set.New("admin", "config", "local")
+		logger.Log.Debugf("dumpToString MongoSource: Connect START hosts=%v port=%d elapsed=%v", src.Hosts, src.Port, time.Since(dumpStart))
 		client, err := provider_mongo.Connect(ctx, src.ConnectionOptions([]string{}), logger.Log)
 		require.NoError(t, err)
+		defer func() {
+			if err := client.Close(ctx); err != nil {
+				logger.Log.Errorf("dumpToString MongoSource: client.Close FAILED: %v", err)
+			}
+		}()
+		logger.Log.Debugf("dumpToString MongoSource: Connect DONE elapsed=%v", time.Since(dumpStart))
+		logger.Log.Debugf("dumpToString MongoSource: ListDatabases START elapsed=%v", time.Since(dumpStart))
 		dbs, err := client.ListDatabases(ctx, bson.D{})
 		require.NoError(t, err)
+		logger.Log.Debugf("dumpToString MongoSource: ListDatabases DONE count=%d elapsed=%v", len(dbs.Databases), time.Since(dumpStart))
 		sort.Slice(dbs.Databases, func(i, j int) bool {
 			return dbs.Databases[i].Name < dbs.Databases[j].Name
 		})
 		buf := bytes.NewBuffer(nil)
 		for _, db := range dbs.Databases {
 			if excluded.Contains(db.Name) {
+				logger.Log.Debugf("dumpToString MongoSource: skip excluded db=%s", db.Name)
 				continue
 			}
+			logger.Log.Debugf("dumpToString MongoSource: ListCollectionNames START db=%s elapsed=%v", db.Name, time.Since(dumpStart))
 			collections, err := client.Database(db.Name).ListCollectionNames(ctx, bson.D{})
 			require.NoError(t, err)
+			logger.Log.Debugf("dumpToString MongoSource: ListCollectionNames DONE db=%s count=%d elapsed=%v", db.Name, len(collections), time.Since(dumpStart))
 			sort.Strings(collections)
 			for _, collection := range collections {
 				buf.WriteString(fmt.Sprintf("\n%s\n", collection))
+				logger.Log.Debugf("dumpToString MongoSource: Find START db=%s coll=%s elapsed=%v", db.Name, collection, time.Since(dumpStart))
 				rows, err := client.Database(db.Name).Collection(collection).Find(ctx, bson.D{}, mongo_options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}))
 				require.NoError(t, err)
+				rowCount := 0
 				for rows.Next(ctx) {
 					var row interface{}
 					require.NoError(t, rows.Decode(&row))
@@ -194,11 +210,14 @@ order by
 					require.NoError(t, err)
 					_, err = buf.WriteString("\n")
 					require.NoError(t, err)
+					rowCount++
 				}
 				require.NoError(t, rows.Close(ctx))
 				require.NoError(t, rows.Err())
+				logger.Log.Debugf("dumpToString MongoSource: Find DONE db=%s coll=%s rows=%d elapsed=%v", db.Name, collection, rowCount, time.Since(dumpStart))
 			}
 		}
+		logger.Log.Debugf("dumpToString MongoSource ALL DONE elapsed=%v", time.Since(dumpStart))
 		logger.Log.Infof("readed data: \n%s", buf.String())
 		return buf.String()
 	default:

@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -23,26 +24,38 @@ import (
 // only after the checks on source (that ensure a transfer is possible) are
 // completed.
 func (l *SnapshotLoader) CleanupSinker(tables abstract.TableMap) error {
+	cleanupStart := time.Now()
+	logger.Log.Debugf("CleanupSinker START tables=%d", len(tables))
 	if l.transfer.IncrementOnly() {
+		logger.Log.Debugf("CleanupSinker: IncrementOnly, skipping")
 		return nil
 	}
 	if l.transfer.Dst.CleanupMode() == model.DisabledCleanup {
+		logger.Log.Debugf("CleanupSinker: DisabledCleanup, skipping")
 		return nil
 	}
 
 	if l.transfer.Dst.CleanupMode() == model.Replace {
 		logger.Log.Info("Replace cleanup mode is enabled, do not remove data on start")
+		logger.Log.Debugf("CleanupSinker: Replace mode, skipping elapsed=%v", time.Since(cleanupStart))
 		return nil
 	}
 
 	mode := l.transfer.Dst.CleanupMode()
 
 	logger.Log.Infof("need to cleanup (%v) tables", string(mode))
+	logger.Log.Debugf("CleanupSinker: MakeAsyncSink for cleanup START elapsed=%v", time.Since(cleanupStart))
 	sink, err := sink_factory.MakeAsyncSink(l.transfer, l.operation, logger.Log, l.registry, l.cp, middlewares.MakeConfig(middlewares.WithNoData))
 	if err != nil {
+		logger.Log.Debugf("CleanupSinker: MakeAsyncSink FAILED err=%v elapsed=%v", err, time.Since(cleanupStart))
 		return errors.CategorizedErrorf(categories.Target, "failed to connect to the target database: %w", err)
 	}
-	defer sink.Close()
+	logger.Log.Debugf("CleanupSinker: MakeAsyncSink DONE elapsed=%v", time.Since(cleanupStart))
+	defer func() {
+		logger.Log.Debugf("CleanupSinker: sink.Close START elapsed=%v", time.Since(cleanupStart))
+		_ = sink.Close()
+		logger.Log.Debugf("CleanupSinker: sink.Close DONE elapsed=%v", time.Since(cleanupStart))
+	}()
 
 	toCleanupTables := tables.Copy()
 	if isPostgresHomoTransfer(l.transfer) && l.transfer.Dst.CleanupMode() == model.Drop {
@@ -76,9 +89,13 @@ func (l *SnapshotLoader) CleanupSinker(tables abstract.TableMap) error {
 		}
 	}
 
+	logger.Log.Debugf("CleanupSinker: CleanupTables START mode=%s tables=%d elapsed=%v", string(mode), len(toCleanupTables), time.Since(cleanupStart))
 	if err := cleanup_task.CleanupTables(sink, toCleanupTables, mode); err != nil {
+		logger.Log.Debugf("CleanupSinker: CleanupTables FAILED err=%v elapsed=%v", err, time.Since(cleanupStart))
 		return errors.CategorizedErrorf(categories.Target, "cleanup (%s) in the target database failed: %w", mode, err)
 	}
+	logger.Log.Debugf("CleanupSinker: CleanupTables DONE elapsed=%v", time.Since(cleanupStart))
+	logger.Log.Debugf("CleanupSinker ALL DONE elapsed=%v", time.Since(cleanupStart))
 	return nil
 }
 
