@@ -19,6 +19,11 @@ func Middle() error {
 	return xerrors.Errorf("bbb: %w", Original())
 }
 
+//go:noinline
+func GenericOriginal[T any]() error {
+	return xerrors.New("generic error")
+}
+
 type MethodTester struct{}
 
 func (m MethodTester) Original() error {
@@ -45,6 +50,11 @@ func TestExtractCodePath(t *testing.T) {
 			err:      xerrors.Errorf("rooot: %w", MethodTester{}.Middle()),
 			expected: "MethodTester.Original.MethodTester.Original.MethodTester.Middle.TestExtractCodePath",
 		},
+		{
+			name:     "error in generic function",
+			err:      xerrors.Errorf("root: %w", GenericOriginal[int]()),
+			expected: "GenericOriginal.TestExtractCodePath",
+		},
 	}
 
 	for _, tt := range tests {
@@ -53,6 +63,16 @@ func TestExtractCodePath(t *testing.T) {
 			assert.Equal(t, tt.expected, string(result))
 		})
 	}
+}
+
+func TestParseQualifiedNameGenericFunction(t *testing.T) {
+	pkg, typ, method := parseQualifiedName(
+		"github.com/transferia/transferia/pkg/abstract/changeitem/strictify.toSignedInt[...]",
+	)
+
+	require.Equal(t, "strictify", pkg)
+	require.Empty(t, typ)
+	require.Equal(t, "toSignedInt", method)
 }
 
 func TestLogFatalErrorEmptyMessage(t *testing.T) {

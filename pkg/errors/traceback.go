@@ -8,6 +8,9 @@ import (
 )
 
 func parseQualifiedName(qualifiedName string) (pkg, typ, method string) {
+	// runtime.Frame.Function replaces generic shape names with "[...]" and those dots will disappoint
+	// parseQualifiedName, so remove them.
+	qualifiedName = strings.ReplaceAll(qualifiedName, "[...]", "")
 	parts := strings.Split(qualifiedName, "/")
 	if len(parts) == 0 {
 		return "", "", ""
