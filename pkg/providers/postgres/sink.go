@@ -23,7 +23,9 @@ import (
 )
 
 var (
-	listUniqueIndexKeys = `
+	// Legacy query for PostgreSQL < 11 where indnkeyatts column doesn't exist.
+	// Before PG 11, INCLUDE columns were not supported, so indnatts equals the key column count.
+	listUniqueIndexKeysLegacy = `
 WITH sample_unique_indexes AS (
     SELECT DISTINCT ON(indrelid)
         *
@@ -39,6 +41,36 @@ key_column_numbers AS (
         UNNEST(sample_unique_indexes.indkey) AS colnum
     FROM pg_class
     JOIN sample_unique_indexes ON pg_class.oid = sample_unique_indexes.indrelid
+)
+SELECT
+    nsp.nspname as schema_name,
+    num.relname as table_name,
+    att.attname as column_name
+FROM key_column_numbers num
+JOIN pg_attribute att ON num.relid = att.attrelid AND num.colnum = att.attnum
+JOIN pg_namespace nsp ON num.namespace = nsp.oid
+WHERE nsp.nspname NOT IN ('system', 'information_schema', 'pg_catalog', 'pg_toast')
+ORDER BY num.relname ASC, att.attnum ASC
+;`
+
+	listUniqueIndexKeys = `
+WITH sample_unique_indexes AS (
+    SELECT DISTINCT ON(indrelid)
+        *
+    FROM pg_index
+    WHERE indisunique AND indpred IS NULL
+    ORDER BY indrelid, indisprimary DESC, indnatts ASC
+),
+key_column_numbers AS (
+    SELECT
+        sample_unique_indexes.indrelid AS relid,
+        pg_class.relname AS relname,
+        pg_class.relnamespace AS namespace,
+        keycol.colnum
+    FROM pg_class
+    JOIN sample_unique_indexes ON pg_class.oid = sample_unique_indexes.indrelid
+    CROSS JOIN LATERAL UNNEST(sample_unique_indexes.indkey) WITH ORDINALITY AS keycol(colnum, pos)
+    WHERE keycol.pos <= sample_unique_indexes.indnkeyatts
 )
 SELECT
     nsp.nspname as schema_name,
@@ -104,8 +136,13 @@ func (s *sink) Close() error {
 func getUniqueIndexKeys(ctx context.Context, conn *pgxpool.Pool) (map[string][]string, error) {
 	rows, err := conn.Query(ctx, listUniqueIndexKeys)
 	if err != nil {
-		//nolint:descriptiveerrors
-		return nil, err
+		if pgerrors.IsPgError(err, pgerrors.ErrcUndefinedColumn) {
+			rows, err = conn.Query(ctx, listUniqueIndexKeysLegacy)
+		}
+		if err != nil {
+			//nolint:descriptiveerrors
+			return nil, err
+		}
 	}
 	defer rows.Close()
 
