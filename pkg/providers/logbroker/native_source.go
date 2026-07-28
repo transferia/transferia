@@ -21,11 +21,12 @@ func newNativeSource(cfg *LbSource, logger log.Logger, registry core_metrics.Reg
 
 	topicSourceCfg := &topicsource.Config{
 		Connection: topiccommon.ConnectionConfig{
-			Endpoint:    topiccommon.FormatEndpoint(cfg.Instance, cfg.Port),
-			Database:    cfg.Database,
-			Credentials: cfg.Credentials,
-			TLSEnabled:  cfg.TLS == EnabledTLS,
-			RootCAFiles: cfg.RootCAFiles,
+			Endpoint:         topiccommon.FormatEndpoint(cfg.Instance, cfg.Port),
+			Database:         cfg.Database,
+			Credentials:      cfg.Credentials,
+			TLSEnabled:       cfg.TLS == EnabledTLS,
+			RootCAFiles:      cfg.RootCAFiles,
+			TLSCACertificate: "",
 		},
 
 		Topics:   []string{cfg.Topic},

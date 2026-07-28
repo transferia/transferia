@@ -19,11 +19,12 @@ func buildTopicSourceConfig(transferID string, cfg *YDSSource) *topicsource.Conf
 
 	topicSourceCfg := &topicsource.Config{
 		Connection: topiccommon.ConnectionConfig{
-			Endpoint:    topiccommon.FormatEndpoint(cfg.Endpoint, cfg.Port),
-			Database:    cfg.Database,
-			Credentials: cfg.Credentials,
-			TLSEnabled:  cfg.TLSEnalbed,
-			RootCAFiles: cfg.RootCAFiles,
+			Endpoint:         topiccommon.FormatEndpoint(cfg.Endpoint, cfg.Port),
+			Database:         cfg.Database,
+			Credentials:      cfg.Credentials,
+			TLSEnabled:       cfg.TLSEnalbed,
+			RootCAFiles:      cfg.RootCAFiles,
+			TLSCACertificate: cfg.TLSCACertificate,
 		},
 
 		Topics:   []string{cfg.Stream},

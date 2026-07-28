@@ -43,7 +43,8 @@ type LbDestination struct {
 	// for now, 'FormatSettings' is private option - it's WithDefaults(): SerializationFormatAuto - 'Mirror' for queues, 'Debezium' for the rest
 	FormatSettings model.SerializationFormat `log:"true"`
 
-	RootCAFiles []string
+	RootCAFiles      []string
+	TLSCACertificate string
 }
 
 var _ model.Destination = (*LbDestination)(nil)
@@ -176,11 +177,12 @@ func (d *LbDestination) db() string {
 func (d *LbDestination) TopicSinkConfig() *ydb_topics_sink.Config {
 	return &ydb_topics_sink.Config{
 		Connection: topiccommon.ConnectionConfig{
-			Endpoint:    topiccommon.FormatEndpoint(d.Instance, d.Port),
-			Database:    d.db(),
-			Credentials: d.Credentials,
-			TLSEnabled:  d.TLS == EnabledTLS,
-			RootCAFiles: d.RootCAFiles,
+			Endpoint:         topiccommon.FormatEndpoint(d.Instance, d.Port),
+			Database:         d.db(),
+			Credentials:      d.Credentials,
+			TLSEnabled:       d.TLS == EnabledTLS,
+			RootCAFiles:      d.RootCAFiles,
+			TLSCACertificate: d.TLSCACertificate,
 		},
 
 		Topic:            d.Topic,

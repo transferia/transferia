@@ -325,7 +325,13 @@ func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger
 		MinReadInterval:           cfg.ReaderOpts.MinReadInterval,
 	}
 
-	if cfg.Connection.TLSEnabled {
+	if cfg.Connection.TLSCACertificate != "" {
+		tls, err := xtls.FromContent(cfg.Connection.TLSCACertificate)
+		if err != nil {
+			return nil, xerrors.Errorf("could not create TLS config from certificate content: %w", err)
+		}
+		readerOpts.TLSConfig = tls
+	} else if cfg.Connection.TLSEnabled {
 		tls, err := xtls.FromPath(cfg.Connection.RootCAFiles)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to obtain TLS configuration: %w", err)

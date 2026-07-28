@@ -41,11 +41,12 @@ func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Regi
 
 	topicSourceCfg := &topicsource.Config{
 		Connection: topiccommon.ConnectionConfig{
-			Endpoint:    topiccommon.FormatEndpoint(string(cfg.Instance), cfg.Port),
-			Database:    cfg.db(),
-			Credentials: cfg.Credentials,
-			TLSEnabled:  cfg.TLS == EnabledTLS,
-			RootCAFiles: cfg.RootCAFiles,
+			Endpoint:         topiccommon.FormatEndpoint(string(cfg.Instance), cfg.Port),
+			Database:         cfg.db(),
+			Credentials:      cfg.Credentials,
+			TLSEnabled:       cfg.TLS == EnabledTLS,
+			RootCAFiles:      cfg.RootCAFiles,
+			TLSCACertificate: "",
 		},
 
 		Topics:   cfg.Topics,

@@ -23,8 +23,9 @@ type ConnectionConfig struct {
 	Database    string
 	Credentials ydbprovider.TokenCredentials
 
-	TLSEnabled  bool
-	RootCAFiles []string
+	TLSEnabled       bool
+	RootCAFiles      []string
+	TLSCACertificate string
 }
 
 // FormatEndpoint returns an instance if it has a port, or joins the instance with a port.
@@ -64,7 +65,14 @@ func NewYDBDriver(cfg ConnectionConfig, lgr log.Logger) (*ydb.Driver, error) {
 		opts = append(opts, ydb.WithCredentials(cfg.Credentials))
 	}
 
-	if cfg.TLSEnabled {
+	if cfg.TLSCACertificate != "" {
+		isSecure = true
+		tlsConfig, err := xtls.FromContent(cfg.TLSCACertificate)
+		if err != nil {
+			return nil, xerrors.Errorf("could not create TLS config from certificate content: %w", err)
+		}
+		opts = append(opts, ydb.WithTLSConfig(tlsConfig))
+	} else if cfg.TLSEnabled {
 		isSecure = true
 		tlsConfig, err := xtls.FromPath(cfg.RootCAFiles)
 		if err != nil {

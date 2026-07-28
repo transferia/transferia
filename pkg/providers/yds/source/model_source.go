@@ -12,35 +12,38 @@ import (
 )
 
 type YDSSource struct {
-	Endpoint         string                      `log:"true"`
-	Database         string                      `log:"true"`
-	Stream           string                      `log:"true"`
+	DatabaseID       string                      `log:"true"`
+	IsOnPremise      bool                        `log:"true"`
+	Endpoint         string                      `log:"true"` // Connection (if empty set in adapter)
+	Database         string                      `log:"true"` // Connection
+	Stream           string                      `log:"true"` // Connection
 	Consumer         string                      `log:"true"`
-	S3BackupBucket   string                      `model:"ObjectStorageBackupBucket" log:"true"`
-	Port             int                         `log:"true"`
-	BackupMode       model.BackupMode            `log:"true"`
+	S3BackupBucket   string                      `model:"ObjectStorageBackupBucket" log:"true"` // Is never used
+	Port             int                         `log:"true"`                                   // Connection but is never set
+	BackupMode       model.BackupMode            `log:"true"`                                   // Is never used
 	Transformer      *model.DataTransformOptions `log:"true"`
-	SubNetworkID     string                      `log:"true"`
-	SecurityGroupIDs []string                    `log:"true"`
+	SubNetworkID     string                      `log:"true"` // Connection
+	SecurityGroupIDs []string                    `log:"true"` // Connection
 	SupportedCodecs  []YdsCompressionCodec       `log:"true"` // TODO: Replace with pq codecs?
 	AllowTTLRewind   bool                        `log:"true"`
 
 	IsLbSink bool `log:"true"` // it's like IsHomo
 
-	TLSEnalbed  bool `log:"true"`
-	RootCAFiles []string
+	TLSEnalbed       bool     `log:"true"` // Connection (is always true for external dp in adapter)
+	RootCAFiles      []string // Connection (is always set in adapter)
+	TLSCACertificate string
 
 	ParserConfig map[string]interface{} `log:"true"`
-	Underlay     bool                   `log:"true"`
+	Underlay     bool                   `log:"true"` // Connection
 
 	// Auth properties
-	Credentials           provider_ydb.TokenCredentials
-	ServiceAccountID      string `model:"ServiceAccountId" log:"true"`
-	SAKeyContent          string
-	TokenServiceURL       string `log:"true"`
-	Token                 model.SecretString
-	UserdataAuth          bool `log:"true"`
-	ParseQueueParallelism int  `log:"true"`
+	Credentials           provider_ydb.TokenCredentials // Connection (set in runtime only)
+	ServiceAccountID      string                        `model:"ServiceAccountId" log:"true"` // Connection
+	SAKeyContent          string                        // Connection but is never set
+	TokenServiceURL       string                        `log:"true"` // Connection but is never set
+	Token                 model.SecretString            // Connection (is only set when dataplane is internal in adapter)
+	UserdataAuth          bool                          `log:"true"` // Connection (is always true for external dp in adapter)
+	ParseQueueParallelism int                           `log:"true"`
 }
 
 func (s *YDSSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -72,6 +75,9 @@ var _ model.Source = (*YDSSource)(nil)
 var _ model.QueueToS3Source = (*YDSSource)(nil)
 
 func (s *YDSSource) MDBClusterID() string {
+	if s.IsOnPremise {
+		return ""
+	}
 	return s.Database + "/" + s.Stream
 }
 
@@ -105,6 +111,9 @@ func (s *YDSSource) GetProviderType() abstract.ProviderType {
 }
 
 func (s *YDSSource) Validate() error {
+	if s.IsOnPremise && s.Endpoint == "" {
+		return xerrors.New("instance parameter must be specified")
+	}
 	if s.ParserConfig != nil {
 		parserConfigStruct, err := parsers.ParserConfigMapToStruct(s.ParserConfig)
 		if err != nil {
