@@ -309,7 +309,7 @@ func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger
 	}
 
 	readerOpts := persqueue.ReaderOptions{
-		Logger:                    corelogadapter.New(logger),
+		Logger:                    corelogadapter.NewWithField(logger, "log_source", "ydb_sdk"),
 		Endpoint:                  cfg.Connection.Endpoint,
 		Database:                  cfg.Connection.Database,
 		Credentials:               cfg.Connection.Credentials,
