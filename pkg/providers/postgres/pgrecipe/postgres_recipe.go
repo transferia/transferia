@@ -147,6 +147,33 @@ func WithoutPgDump() RecipeOption {
 
 type RecipeOption func(pg *RecipeParams)
 
+// getRecipeEnv reads an env var that can be in old format ({prefix}PG_LOCAL_*)
+// or new format ({prefix}POSTGRES_RECIPE_*). If both are set and non-empty,
+// it returns an error — only one format should be present for a given prefix.
+func getRecipeEnv(prefix, oldKey, newKey string) (string, error) {
+	oldVal := strings.TrimSpace(os.Getenv(prefix + oldKey))
+	newVal := strings.TrimSpace(os.Getenv(prefix + newKey))
+
+	if oldVal != "" && newVal != "" {
+		return "", fmt.Errorf("both %s%s and %s%s env vars are set for prefix %q; only one format should be present",
+			prefix, oldKey, prefix, newKey, prefix)
+	}
+
+	if newVal != "" {
+		return newVal, nil
+	}
+	return oldVal, nil
+}
+
+// mustGetRecipeEnv is like getRecipeEnv but panics on error.
+func mustGetRecipeEnv(prefix, oldKey, newKey string) string {
+	val, err := getRecipeEnv(prefix, oldKey, newKey)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
 // no need to recreate same postgres recipe prefix over and over again
 var postgresContainers = map[string]bool{}
 
@@ -190,17 +217,23 @@ func RecipeSource(opts ...RecipeOption) *provider_postgres.PgSource {
 	v := new(provider_postgres.PgSource)
 
 	if params.connectionID == "" {
-		srcPort, _ := strconv.Atoi(os.Getenv(params.prefix + "PG_LOCAL_PORT"))
+		portStr, err := getRecipeEnv(params.prefix, "PG_LOCAL_PORT", "POSTGRES_RECIPE_PORT")
+		if err != nil {
+			panic(err)
+		}
+		srcPort, _ := strconv.Atoi(portStr)
 		v.Hosts = []string{"localhost"}
-		v.User = os.Getenv(params.prefix + "PG_LOCAL_USER")
+		v.User = mustGetRecipeEnv(params.prefix, "PG_LOCAL_USER", "POSTGRES_RECIPE_USER")
 		v.Password = model.SecretString(os.Getenv(params.prefix + "PG_LOCAL_PASSWORD"))
 		v.Port = srcPort
 	} else {
 		v.ConnectionID = params.connectionID
 	}
 
-	v.Database = os.Getenv(params.prefix + "PG_LOCAL_DATABASE")
-	v.PgDumpCommand = []string{os.Getenv(params.prefix+"PG_LOCAL_BIN_PATH") + "/pg_dump"}
+	v.Database = mustGetRecipeEnv(params.prefix, "PG_LOCAL_DATABASE", "POSTGRES_RECIPE_DBNAME")
+	binPath := mustGetRecipeEnv(params.prefix, "PG_LOCAL_BIN_PATH", "POSTGRES_RECIPE_BIN_DIR")
+	libPath := filepath.Join(filepath.Dir(binPath), "lib")
+	v.PgDumpCommand = []string{"/usr/bin/env", "LD_LIBRARY_PATH=" + libPath, binPath + "/pg_dump"}
 	v.SlotID = ""
 	v.BatchSize = 10
 	v.WithDefaults()
@@ -226,16 +259,20 @@ func RecipeTarget(opts ...RecipeOption) *provider_postgres.PgDestination {
 
 	v := new(provider_postgres.PgDestination)
 	if params.connectionID == "" {
-		dstPort, _ := strconv.Atoi(os.Getenv(params.prefix + "PG_LOCAL_PORT"))
+		portStr, err := getRecipeEnv(params.prefix, "PG_LOCAL_PORT", "POSTGRES_RECIPE_PORT")
+		if err != nil {
+			panic(err)
+		}
+		dstPort, _ := strconv.Atoi(portStr)
 		v.Hosts = []string{"localhost"}
-		v.User = os.Getenv(params.prefix + "PG_LOCAL_USER")
+		v.User = mustGetRecipeEnv(params.prefix, "PG_LOCAL_USER", "POSTGRES_RECIPE_USER")
 		v.Password = model.SecretString(os.Getenv(params.prefix + "PG_LOCAL_PASSWORD"))
 		v.Port = dstPort
 	} else {
 		v.ConnectionID = params.connectionID
 	}
 
-	v.Database = os.Getenv(params.prefix + "PG_LOCAL_DATABASE")
+	v.Database = mustGetRecipeEnv(params.prefix, "PG_LOCAL_DATABASE", "POSTGRES_RECIPE_DBNAME")
 	v.WithDefaults()
 	return v
 }

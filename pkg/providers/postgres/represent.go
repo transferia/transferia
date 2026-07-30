@@ -181,7 +181,20 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 		var timeBytes []byte = nil
 		switch v := val.(type) {
 		case *pgtype.GenericBinary:
+			if v.Status == pgtype.Null {
+				_, _ = w.WriteString("null")
+				return nil
+			}
 			timeBytes = v.Bytes
+		case *pgtype.GenericText:
+			if v.Status == pgtype.Null {
+				_, _ = w.WriteString("null")
+				return nil
+			}
+			_ = w.WriteByte('\'')
+			appendEscapedSingleQuotesToWriter(w, v.String)
+			_ = w.WriteByte('\'')
+			return nil
 		case []byte:
 			timeBytes = v
 		case string:
@@ -208,7 +221,7 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 
 	if colSchema.OriginalType == "pg:money" {
 		if v, ok := val.(*pgtype.GenericBinary); ok {
-			if len(v.Bytes) == 0 {
+			if v.Status == pgtype.Null {
 				_, _ = w.WriteString("null")
 				return nil
 			} else {
@@ -224,13 +237,22 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 	if IsUserDefinedType(&colSchema) {
 		if _, ok := IsPgUserDefinedEnum(colSchema.OriginalType); ok {
 			if v, ok := val.(*pgtype.GenericBinary); ok {
-				if len(v.Bytes) == 0 {
+				if v.Status == pgtype.Null {
 					_, _ = w.WriteString("null")
 					return nil
 				} else {
 					_, _ = w.WriteString(fmt.Sprintf("'%v'", string(v.Bytes)))
 					return nil
 				}
+			} else if v, ok := val.(*pgtype.GenericText); ok {
+				if v.Status == pgtype.Null {
+					_, _ = w.WriteString("null")
+					return nil
+				}
+				_ = w.WriteByte('\'')
+				appendEscapedSingleQuotesToWriter(w, v.String)
+				_ = w.WriteByte('\'')
+				return nil
 			} else {
 				_, _ = w.WriteString(fmt.Sprintf("'%v'", val))
 				return nil
@@ -279,11 +301,17 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 			case string:
 				valStr = v
 			case *pgtype.GenericBinary:
-				if v.Bytes == nil { // for 'null' there are nil. for empty string - there are array with length==0
+				if v.Status == pgtype.Null {
 					_, _ = w.WriteString("null")
 					return nil
 				}
 				valStr = string(v.Bytes)
+			case *pgtype.GenericText:
+				if v.Status == pgtype.Null {
+					_, _ = w.WriteString("null")
+					return nil
+				}
+				valStr = v.String
 			default:
 				return xerrors.Errorf("unknown type for IsPgUserDefinedCIText: %T", v)
 			}
@@ -291,7 +319,7 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 			appendEscapedBackslashesAndSingleQuotesToWriter(w, valStr)
 			_ = w.WriteByte('\'')
 			return nil
-		} else if IsUserDefinedType(&colSchema) {
+		} else if _, ok := IsPgUserDefinedComposite(colSchema.OriginalType); ok {
 			if currCompositeType, ok := val.(*pgtype.CompositeType); ok {
 				buf, err := currCompositeType.EncodeText(nil, nil)
 				if err != nil {
@@ -319,8 +347,40 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 				_, _ = w.WriteString(fmt.Sprintf("'%v'", val))
 				return nil
 			}
+		} else if IsPgUserDefinedLTree(colSchema.OriginalType) {
+			valStr := ""
+			switch v := val.(type) {
+			case string:
+				valStr = v
+			case *pgtype.GenericBinary:
+				if v.Status == pgtype.Null {
+					_, _ = w.WriteString("null")
+					return nil
+				}
+				if len(v.Bytes) == 0 {
+					return xerrors.New("ltree binary representation can't be empty")
+				}
+				version := v.Bytes[0]
+				if version != 1 {
+					return xerrors.Errorf("ltree version must be 1, got %d", version)
+				}
+
+				valStr = string(v.Bytes[1:])
+			case *pgtype.GenericText:
+				if v.Status == pgtype.Null {
+					_, _ = w.WriteString("null")
+					return nil
+				}
+				valStr = v.String
+			default:
+				return xerrors.Errorf("unknown type for ltree: %T", v)
+			}
+			_ = w.WriteByte('\'')
+			appendEscapedBackslashesAndSingleQuotesToWriter(w, valStr)
+			_ = w.WriteByte('\'')
+			return nil
 		} else {
-			return xerrors.Errorf("unsupported USER-DEFINED type: '%s'", colSchema.OriginalType)
+			return xerrors.Errorf("unknown type: %s", colSchema.OriginalType)
 		}
 	}
 

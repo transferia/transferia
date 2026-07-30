@@ -26,6 +26,12 @@ func NewPgVersion(version string) PgVersion {
 	}
 }
 
+// SupportsLtreeBinary returns true if this PostgreSQL version supports binary I/O for ltree type.
+// Binary ltree send/receive functions were added in PostgreSQL 13.
+func (v PgVersion) SupportsLtreeBinary() bool {
+	return !(v.Is9x || v.Is10x || v.Is11x || v.Is12x)
+}
+
 func ResolveVersion(pool pgxtype.Querier) PgVersion {
 	version := "unknown"
 	if err := pool.QueryRow(context.TODO(), "SELECT version()").Scan(&version); err != nil {

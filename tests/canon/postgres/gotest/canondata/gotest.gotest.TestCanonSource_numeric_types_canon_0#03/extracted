@@ -30,7 +30,7 @@
             "value": [
                 {
                     "type": "int32",
-                    "value": 6
+                    "value": 7
                 },
                 {
                     "type": "bool",
@@ -442,7 +442,7 @@
             "value": [
                 {
                     "type": "int32",
-                    "value": 7
+                    "value": 8
                 },
                 {
                     "type": "bool",
@@ -854,418 +854,6 @@
             "value": [
                 {
                     "type": "int32",
-                    "value": 8
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "json.Number",
-                    "value": 0.0
-                },
-                {
-                    "type": "json.Number",
-                    "value": 0
-                },
-                {
-                    "type": "json.Number",
-                    "value": 0.00
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                },
-                {
-                    "type": "int32",
-                    "value": 4
-                },
-                {
-                    "type": "int64",
-                    "value": 4
-                },
-                {
-                    "type": "nil",
-                    "value": null
-                }
-            ]
-        },
-        "CommitTime": {
-            "type": "uint64",
-            "value": 0
-        },
-        "Counter": {
-            "type": "int",
-            "value": 0
-        },
-        "ID": {
-            "type": "uint32",
-            "value": 0
-        },
-        "Kind": {
-            "type": "changeitem.Kind",
-            "value": "insert"
-        },
-        "LSN": {
-            "type": "uint64",
-            "value": 0
-        },
-        "OldKeys": {
-            "type": "changeitem.OldKeysType",
-            "value": {}
-        },
-        "PartID": {
-            "type": "string",
-            "value": ""
-        },
-        "Query": {
-            "type": "string",
-            "value": ""
-        },
-        "QueueMessageMeta": {
-            "type": "changeitem.QueueMessageMeta",
-            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
-        },
-        "Schema": {
-            "type": "string",
-            "value": "public"
-        },
-        "Size": {
-            "type": "changeitem.EventSize",
-            "value": {
-                "Read": 773,
-                "Values": 416
-            }
-        },
-        "Table": {
-            "type": "string",
-            "value": "numeric_types"
-        },
-        "TableSchema": {
-            "type": "[]changeitem.ColSchema",
-            "value": [
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "__primary_key",
-                    "type": "int32",
-                    "key": true,
-                    "fake_key": false,
-                    "required": true,
-                    "expression": "",
-                    "original_type": "pg:integer"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_boolean",
-                    "type": "boolean",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:boolean"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_smallint",
-                    "type": "int16",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:smallint"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_integer",
-                    "type": "int32",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:integer"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_bigint",
-                    "type": "int64",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:bigint"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_oid",
-                    "type": "any",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:oid"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_decimal",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:numeric"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_decimal_5",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:numeric(5,0)"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_decimal_5_2",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:numeric(5,2)"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_numeric",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:numeric"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_numeric_5",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:numeric(5,0)"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_numeric_5_2",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:numeric(5,2)"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_real",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:real"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_float_4",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:real"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_float_8",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:double precision"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_float_11",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:real"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_double_precision",
-                    "type": "double",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:double precision"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_serial",
-                    "type": "int32",
-                    "key": false,
-                    "fake_key": false,
-                    "required": true,
-                    "expression": "",
-                    "original_type": "pg:integer"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_bigserial",
-                    "type": "int64",
-                    "key": false,
-                    "fake_key": false,
-                    "required": true,
-                    "expression": "",
-                    "original_type": "pg:bigint"
-                },
-                {
-                    "table_schema": "public",
-                    "table_name": "numeric_types",
-                    "path": "",
-                    "name": "t_money",
-                    "type": "utf8",
-                    "key": false,
-                    "fake_key": false,
-                    "required": false,
-                    "expression": "",
-                    "original_type": "pg:money"
-                }
-            ]
-        },
-        "TxID": {
-            "type": "string",
-            "value": ""
-        }
-    },
-    {
-        "ColumnNames": {
-            "type": "[]string",
-            "value": [
-                "__primary_key",
-                "t_boolean",
-                "t_smallint",
-                "t_integer",
-                "t_bigint",
-                "t_oid",
-                "t_decimal",
-                "t_decimal_5",
-                "t_decimal_5_2",
-                "t_numeric",
-                "t_numeric_5",
-                "t_numeric_5_2",
-                "t_real",
-                "t_float_4",
-                "t_float_8",
-                "t_float_11",
-                "t_double_precision",
-                "t_serial",
-                "t_bigserial",
-                "t_money"
-            ]
-        },
-        "ColumnValues": {
-            "type": "[]interface {}",
-            "value": [
-                {
-                    "type": "int32",
                     "value": 9
                 },
                 {
@@ -1302,15 +890,15 @@
                 },
                 {
                     "type": "json.Number",
-                    "value": -123456.123456789012345678901234567890123456789012345678901234567890
+                    "value": 0
                 },
                 {
                     "type": "json.Number",
-                    "value": -12345
+                    "value": 0
                 },
                 {
                     "type": "json.Number",
-                    "value": -123.67
+                    "value": 0.00
                 },
                 {
                     "type": "nil",
@@ -1389,8 +977,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 846,
-                "Values": 489
+                "Read": 771,
+                "Values": 414
             }
         },
         "Table": {
@@ -1713,6 +1301,830 @@
                     "value": null
                 },
                 {
+                    "type": "json.Number",
+                    "value": 0.0
+                },
+                {
+                    "type": "json.Number",
+                    "value": 0
+                },
+                {
+                    "type": "json.Number",
+                    "value": 0.00
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "int32",
+                    "value": 6
+                },
+                {
+                    "type": "int64",
+                    "value": 6
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "public"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 774,
+                "Values": 416
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "numeric_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "__primary_key",
+                    "type": "int32",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_boolean",
+                    "type": "boolean",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:boolean"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_smallint",
+                    "type": "int16",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:smallint"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_integer",
+                    "type": "int32",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_bigint",
+                    "type": "int64",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:bigint"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_oid",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:oid"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_decimal",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_decimal_5",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,0)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_decimal_5_2",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,2)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_numeric",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_numeric_5",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,0)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_numeric_5_2",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,2)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_real",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:real"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_float_4",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:real"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_float_8",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:double precision"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_float_11",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:real"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_double_precision",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:double precision"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_serial",
+                    "type": "int32",
+                    "key": false,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_bigserial",
+                    "type": "int64",
+                    "key": false,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:bigint"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_money",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:money"
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    },
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "__primary_key",
+                "t_boolean",
+                "t_smallint",
+                "t_integer",
+                "t_bigint",
+                "t_oid",
+                "t_decimal",
+                "t_decimal_5",
+                "t_decimal_5_2",
+                "t_numeric",
+                "t_numeric_5",
+                "t_numeric_5_2",
+                "t_real",
+                "t_float_4",
+                "t_float_8",
+                "t_float_11",
+                "t_double_precision",
+                "t_serial",
+                "t_bigserial",
+                "t_money"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "int32",
+                    "value": 11
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "json.Number",
+                    "value": -123456.123456789012345678901234567890123456789012345678901234567890
+                },
+                {
+                    "type": "json.Number",
+                    "value": -12345
+                },
+                {
+                    "type": "json.Number",
+                    "value": -123.67
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "int32",
+                    "value": 7
+                },
+                {
+                    "type": "int64",
+                    "value": 7
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "public"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 847,
+                "Values": 489
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "numeric_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "__primary_key",
+                    "type": "int32",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_boolean",
+                    "type": "boolean",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:boolean"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_smallint",
+                    "type": "int16",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:smallint"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_integer",
+                    "type": "int32",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_bigint",
+                    "type": "int64",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:bigint"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_oid",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:oid"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_decimal",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_decimal_5",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,0)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_decimal_5_2",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,2)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_numeric",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_numeric_5",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,0)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_numeric_5_2",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numeric(5,2)"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_real",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:real"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_float_4",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:real"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_float_8",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:double precision"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_float_11",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:real"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_double_precision",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:double precision"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_serial",
+                    "type": "int32",
+                    "key": false,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:integer"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_bigserial",
+                    "type": "int64",
+                    "key": false,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "pg:bigint"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "numeric_types",
+                    "path": "",
+                    "name": "t_money",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:money"
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    },
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "__primary_key",
+                "t_boolean",
+                "t_smallint",
+                "t_integer",
+                "t_bigint",
+                "t_oid",
+                "t_decimal",
+                "t_decimal_5",
+                "t_decimal_5_2",
+                "t_numeric",
+                "t_numeric_5",
+                "t_numeric_5_2",
+                "t_real",
+                "t_float_4",
+                "t_float_8",
+                "t_float_11",
+                "t_double_precision",
+                "t_serial",
+                "t_bigserial",
+                "t_money"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "int32",
+                    "value": 12
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
                     "type": "nil",
                     "value": null
                 },
@@ -1746,11 +2158,11 @@
                 },
                 {
                     "type": "int32",
-                    "value": 6
+                    "value": 8
                 },
                 {
                     "type": "int64",
-                    "value": 6
+                    "value": 8
                 },
                 {
                     "type": "nil",

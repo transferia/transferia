@@ -8,6 +8,7 @@
                 "t_iner",
                 "t_cidr",
                 "t_macaddr",
+                "t_ltree",
                 "t_citext",
                 "j",
                 "jb"
@@ -44,6 +45,10 @@
                 {
                     "type": "string",
                     "value": "08:00:2b:01:02:03"
+                },
+                {
+                    "type": "string",
+                    "value": "Electronics.Phones"
                 },
                 {
                     "type": "string",
@@ -123,8 +128,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 527,
-                "Values": 683
+                "Read": 572,
+                "Values": 733
             }
         },
         "Table": {
@@ -198,6 +203,18 @@
                     "table_schema": "public",
                     "table_name": "wtf_types",
                     "path": "",
+                    "name": "t_ltree",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:USER-DEFINED:ltree"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
                     "name": "t_citext",
                     "type": "any",
                     "key": false,
@@ -246,6 +263,7 @@
                 "t_iner",
                 "t_cidr",
                 "t_macaddr",
+                "t_ltree",
                 "t_citext",
                 "j",
                 "jb"
@@ -273,6 +291,10 @@
                 {
                     "type": "string",
                     "value": "00:00:00:00:00:00"
+                },
+                {
+                    "type": "string",
+                    "value": "Electronics"
                 },
                 {
                     "type": "string",
@@ -331,8 +353,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 364,
-                "Values": 277
+                "Read": 402,
+                "Values": 320
             }
         },
         "Table": {
@@ -406,6 +428,18 @@
                     "table_schema": "public",
                     "table_name": "wtf_types",
                     "path": "",
+                    "name": "t_ltree",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:USER-DEFINED:ltree"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
                     "name": "t_citext",
                     "type": "any",
                     "key": false,
@@ -454,6 +488,7 @@
                 "t_iner",
                 "t_cidr",
                 "t_macaddr",
+                "t_ltree",
                 "t_citext",
                 "j",
                 "jb"
@@ -465,6 +500,10 @@
                 {
                     "type": "int32",
                     "value": 6
+                },
+                {
+                    "type": "nil",
+                    "value": null
                 },
                 {
                     "type": "nil",
@@ -539,8 +578,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 341,
-                "Values": 156
+                "Read": 370,
+                "Values": 172
             }
         },
         "Table": {
@@ -609,6 +648,18 @@
                     "required": false,
                     "expression": "",
                     "original_type": "pg:macaddr"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_ltree",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:USER-DEFINED:ltree"
                 },
                 {
                     "table_schema": "public",

@@ -50,6 +50,10 @@ func IsPgUserDefinedComposite(originalType string) (string, bool) {
 	return typeName, true
 }
 
+func IsPgUserDefinedLTree(originalType string) bool {
+	return originalType == PgUserDefinedLTree
+}
+
 func IsUserDefinedType(col *abstract.ColSchema) bool {
 	return strings.HasPrefix(col.OriginalType, "pg:USER-DEFINED") // for example, hstore: 'pg:USER-DEFINED:hstore'
 }
@@ -67,7 +71,7 @@ func deriveUserDefinedPgDataType(col *abstract.ColSchema) (string, error) {
 	case PgUserDefinedHStore:
 		return col.OriginalType[len(PgUserDefined):], nil
 	case PgUserDefinedLTree:
-		return "", xerrors.New("'ltree' is not supported")
+		return col.OriginalType[len(PgUserDefined):], nil
 	case PgUserDefinedCIText:
 		return col.OriginalType[len(PgUserDefined):], nil
 	default:

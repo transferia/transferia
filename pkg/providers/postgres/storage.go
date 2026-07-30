@@ -649,6 +649,26 @@ func (s *Storage) discoverTableLoadMode(ctx context.Context, conn pgxtype.Querie
 	}, nil
 }
 
+func hasLtreeColumn(schema *abstract.TableSchema) bool {
+	for _, col := range schema.Columns() {
+		if IsPgUserDefinedLTree(col.OriginalType) {
+			return true
+		}
+	}
+	return false
+}
+
+// isUseBinaryForTable returns whether binary serialization should be used for the given table.
+// Falls back to text serialization when the source PostgreSQL is older than 13 and the table
+// has ltree columns, which lack binary I/O support before PG13.
+func (s *Storage) isUseBinaryForTable(schema *abstract.TableSchema, tableFqtn string) bool {
+	if s.Config.UseBinarySerialization && !s.version.SupportsLtreeBinary() && hasLtreeColumn(schema) {
+		logger.Log.Infof("Falling back to text serialization for table %s: ltree columns require PostgreSQL 13+, source is %s", tableFqtn, s.version.Version)
+		return false
+	}
+	return s.Config.UseBinarySerialization
+}
+
 func readQueryParams(useBinarySerialization bool, nCols int) (params []interface{}) {
 	if !useBinarySerialization {
 		return nil
@@ -816,7 +836,8 @@ func (s *Storage) loadSample(
 ) error {
 	ctx := context.Background()
 
-	queryParams := readQueryParams(s.Config.UseBinarySerialization, len(tableSchema.Columns()))
+	useBinary := s.isUseBinaryForTable(tableSchema, table.Fqtn())
+	queryParams := readQueryParams(useBinary, len(tableSchema.Columns()))
 	rows, err := tx.Query(ctx, query, queryParams...)
 	if err != nil {
 		return xerrors.Errorf("failed to execute SELECT: %w", err)
@@ -1347,7 +1368,8 @@ func (s *Storage) loadTable(
 		return xerrors.Errorf("failed to SET statement_timeout: %w", err)
 	}
 
-	params := readQueryParams(s.Config.UseBinarySerialization, len(schema.Columns()))
+	useBinary := s.isUseBinaryForTable(schema, table.Fqtn())
+	params := readQueryParams(useBinary, len(schema.Columns()))
 	rows, err := conn.Query(ctx, readQuery, params...)
 	if err != nil {
 		return xerrors.Errorf("failed to execute SELECT: %w", err)

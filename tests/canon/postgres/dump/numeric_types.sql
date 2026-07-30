@@ -94,8 +94,21 @@ INSERT INTO public.numeric_types
 )
 VALUES
 (
-    0.0, -- numeric
+    0, -- numeric
     0, -- numeric(5)
+    0 -- numeric(5,2)
+);
+
+INSERT INTO public.numeric_types
+(
+    t_numeric,
+    t_numeric_5,
+    t_numeric_5_2
+)
+VALUES
+(
+    0.0, -- numeric
+    0.0, -- numeric(5)
     0.0 -- numeric(5,2)
 );
 

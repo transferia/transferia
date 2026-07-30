@@ -1,0 +1,25 @@
+{
+    "pg10.pg10.TestAllDataTypes": [
+        {
+            "uri": "file://pg10.pg10.TestAllDataTypes/extracted"
+        },
+        {
+            "uri": "file://pg10.pg10.TestAllDataTypes/extracted.0"
+        },
+        {
+            "uri": "file://pg10.pg10.TestAllDataTypes/extracted.1"
+        },
+        {
+            "uri": "file://pg10.pg10.TestAllDataTypes/extracted.2"
+        },
+        {
+            "uri": "file://pg10.pg10.TestAllDataTypes/extracted.3"
+        },
+        {
+            "uri": "file://pg10.pg10.TestAllDataTypes/extracted.4"
+        },
+        {
+            "uri": "file://pg10.pg10.TestAllDataTypes/extracted.5"
+        }
+    ]
+}

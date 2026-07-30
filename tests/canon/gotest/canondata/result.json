@@ -11179,15 +11179,15 @@
                     },
                     "t_numeric": {
                         "GoType": "json.Number",
-                        "Val": -123456.123456789
+                        "Val": 0.0
                     },
                     "t_numeric_5": {
                         "GoType": "json.Number",
-                        "Val": -12345.0
+                        "Val": 0.0
                     },
                     "t_numeric_5_2": {
                         "GoType": "json.Number",
-                        "Val": -123.67
+                        "Val": 0.0
                     },
                     "t_oid": {
                         "GoType": "<nil>",
@@ -11262,6 +11262,90 @@
                         "Val": null
                     },
                     "t_numeric": {
+                        "GoType": "json.Number",
+                        "Val": -123456.123456789
+                    },
+                    "t_numeric_5": {
+                        "GoType": "json.Number",
+                        "Val": -12345.0
+                    },
+                    "t_numeric_5_2": {
+                        "GoType": "json.Number",
+                        "Val": -123.67
+                    },
+                    "t_oid": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_real": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_serial": {
+                        "GoType": "int32",
+                        "Val": 3
+                    },
+                    "t_smallint": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 6
+                    },
+                    "t_bigint": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_bigserial": {
+                        "GoType": "int64",
+                        "Val": 4
+                    },
+                    "t_boolean": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal_5": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal_5_2": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_double_precision": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_11": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_4": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_8": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_integer": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_money": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_numeric": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -11283,7 +11367,7 @@
                     },
                     "t_serial": {
                         "GoType": "int32",
-                        "Val": 3
+                        "Val": 4
                     },
                     "t_smallint": {
                         "GoType": "<nil>",
@@ -11545,7 +11629,7 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 6
+                        "Val": 7
                     },
                     "t_bigint": {
                         "GoType": "int64",
@@ -11629,7 +11713,7 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 7
+                        "Val": 8
                     },
                     "t_bigint": {
                         "GoType": "int64",
@@ -11713,90 +11797,6 @@
                 "Data": {
                     "__primary_key": {
                         "GoType": "int32",
-                        "Val": 8
-                    },
-                    "t_bigint": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_bigserial": {
-                        "GoType": "int64",
-                        "Val": 4
-                    },
-                    "t_boolean": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_decimal": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_decimal_5": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_decimal_5_2": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_double_precision": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_float_11": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_float_4": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_float_8": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_integer": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_money": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_numeric": {
-                        "GoType": "json.Number",
-                        "Val": 0.0
-                    },
-                    "t_numeric_5": {
-                        "GoType": "json.Number",
-                        "Val": 0
-                    },
-                    "t_numeric_5_2": {
-                        "GoType": "json.Number",
-                        "Val": 0.0
-                    },
-                    "t_oid": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_real": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    },
-                    "t_serial": {
-                        "GoType": "int32",
-                        "Val": 4
-                    },
-                    "t_smallint": {
-                        "GoType": "<nil>",
-                        "Val": null
-                    }
-                }
-            },
-            {
-                "Data": {
-                    "__primary_key": {
-                        "GoType": "int32",
                         "Val": 9
                     },
                     "t_bigint": {
@@ -11849,15 +11849,15 @@
                     },
                     "t_numeric": {
                         "GoType": "json.Number",
-                        "Val": -123456.123456789
+                        "Val": 0
                     },
                     "t_numeric_5": {
                         "GoType": "json.Number",
-                        "Val": -12345
+                        "Val": 0
                     },
                     "t_numeric_5_2": {
                         "GoType": "json.Number",
-                        "Val": -123.67
+                        "Val": 0.0
                     },
                     "t_oid": {
                         "GoType": "<nil>",
@@ -11932,6 +11932,174 @@
                         "Val": null
                     },
                     "t_numeric": {
+                        "GoType": "json.Number",
+                        "Val": 0.0
+                    },
+                    "t_numeric_5": {
+                        "GoType": "json.Number",
+                        "Val": 0
+                    },
+                    "t_numeric_5_2": {
+                        "GoType": "json.Number",
+                        "Val": 0.0
+                    },
+                    "t_oid": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_real": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_serial": {
+                        "GoType": "int32",
+                        "Val": 6
+                    },
+                    "t_smallint": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 11
+                    },
+                    "t_bigint": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_bigserial": {
+                        "GoType": "int64",
+                        "Val": 7
+                    },
+                    "t_boolean": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal_5": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal_5_2": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_double_precision": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_11": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_4": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_8": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_integer": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_money": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_numeric": {
+                        "GoType": "json.Number",
+                        "Val": -123456.123456789
+                    },
+                    "t_numeric_5": {
+                        "GoType": "json.Number",
+                        "Val": -12345
+                    },
+                    "t_numeric_5_2": {
+                        "GoType": "json.Number",
+                        "Val": -123.67
+                    },
+                    "t_oid": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_real": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_serial": {
+                        "GoType": "int32",
+                        "Val": 7
+                    },
+                    "t_smallint": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "__primary_key": {
+                        "GoType": "int32",
+                        "Val": 12
+                    },
+                    "t_bigint": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_bigserial": {
+                        "GoType": "int64",
+                        "Val": 8
+                    },
+                    "t_boolean": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal_5": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_decimal_5_2": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_double_precision": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_11": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_4": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_float_8": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_integer": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_money": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_numeric": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -11953,7 +12121,7 @@
                     },
                     "t_serial": {
                         "GoType": "int32",
-                        "Val": 6
+                        "Val": 8
                     },
                     "t_smallint": {
                         "GoType": "<nil>",
@@ -12774,6 +12942,10 @@
                         "GoType": "string",
                         "Val": "192.168.1.5/32"
                     },
+                    "t_ltree": {
+                        "GoType": "string",
+                        "Val": "Electronics.Phones"
+                    },
                     "t_macaddr": {
                         "GoType": "string",
                         "Val": "08:00:2b:01:02:03"
@@ -12810,6 +12982,10 @@
                         "GoType": "string",
                         "Val": "0.0.0.0/32"
                     },
+                    "t_ltree": {
+                        "GoType": "string",
+                        "Val": "Electronics"
+                    },
                     "t_macaddr": {
                         "GoType": "string",
                         "Val": "00:00:00:00:00:00"
@@ -12843,6 +13019,10 @@
                         "Val": null
                     },
                     "t_iner": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_ltree": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -12912,6 +13092,18 @@
                 "key": false,
                 "name": "t_macaddr",
                 "original_type": "pg:macaddr",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_ltree",
+                "original_type": "pg:USER-DEFINED:ltree",
                 "path": "",
                 "required": false,
                 "table_name": "wtf_types",
@@ -12997,6 +13189,10 @@
                         "GoType": "string",
                         "Val": "192.168.1.5"
                     },
+                    "t_ltree": {
+                        "GoType": "string",
+                        "Val": "Electronics.Phones"
+                    },
                     "t_macaddr": {
                         "GoType": "string",
                         "Val": "08:00:2b:01:02:03"
@@ -13033,6 +13229,10 @@
                         "GoType": "string",
                         "Val": "0.0.0.0"
                     },
+                    "t_ltree": {
+                        "GoType": "string",
+                        "Val": "Electronics"
+                    },
                     "t_macaddr": {
                         "GoType": "string",
                         "Val": "00:00:00:00:00:00"
@@ -13066,6 +13266,10 @@
                         "Val": null
                     },
                     "t_iner": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_ltree": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -13135,6 +13339,18 @@
                 "key": false,
                 "name": "t_macaddr",
                 "original_type": "pg:macaddr",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_ltree",
+                "original_type": "pg:USER-DEFINED:ltree",
                 "path": "",
                 "required": false,
                 "table_name": "wtf_types",

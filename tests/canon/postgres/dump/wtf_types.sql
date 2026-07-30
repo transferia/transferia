@@ -11,7 +11,7 @@ create table if not exists  public.wtf_types
     t_cidr cidr,
     t_macaddr macaddr,
     -- macaddr8 not supported by postgresql 9.6 (which is in our recipes)
-    -- ltree - should be in special table, i suppose
+    t_ltree ltree,
     t_citext citext,
 
     j json,
@@ -26,6 +26,7 @@ INSERT INTO public.wtf_types VALUES
     '192.168.1.5', -- t_iner
     '10.1/16', -- t_cidr
     '08:00:2b:01:02:03', -- t_macaddr
+    'Electronics.Phones', -- t_ltree
     'Tom', -- t_citext
 
     '{"k": "v", "ki": 42, "kf": 1.2, "kn": null, "ks": "Ho Ho Ho my name''s \"SANTA CLAWS\""}', -- j json
@@ -183,6 +184,7 @@ INSERT INTO public.wtf_types
     t_iner,
     t_cidr,
     t_macaddr,
+    t_ltree,
     t_citext,
     j,
     jb
@@ -193,6 +195,7 @@ VALUES
     '0.0.0.0'::inet,
     '0.0.0.0/0'::cidr,
     '00:00:00:00:00:00'::macaddr,
+    'Electronics'::ltree, -- ltree not allowed empty values - only NULLs
     ''::citext,
     '{}'::json,
     '{}'::jsonb

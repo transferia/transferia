@@ -1,4 +1,4 @@
-package alltypes
+package common
 
 import (
 	"context"
@@ -9,25 +9,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	postgres_canon "github.com/transferia/transferia/tests/canon/postgres"
 	"github.com/transferia/transferia/tests/helpers"
 	"github.com/transferia/transferia/tests/helpers/serde"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func TestAllDataTypes(t *testing.T) {
-	Source := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
-	Source.WithDefaults()
-	Target := pgrecipe.RecipeTarget(pgrecipe.WithPrefix("DB0_"))
-	conn, err := provider_postgres.MakeConnPoolFromDst(Target, logger.Log)
+func TestAllDataTypes(t *testing.T, source *provider_postgres.PgSource, target *provider_postgres.PgDestination) {
+	conn, err := provider_postgres.MakeConnPoolFromDst(target, logger.Log)
 	require.NoError(t, err)
+	defer conn.Close()
 	// TODO: Allow to optionally transit extensions as part of transfer
 	_, err = conn.Exec(context.Background(), `
 create extension if not exists hstore;
@@ -36,7 +35,7 @@ create extension if not exists citext;
 `)
 	require.NoError(t, err)
 
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement)
+	helpers.InitSrcDst(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 
 	cases := []string{
 		"public.array_types",
@@ -51,48 +50,88 @@ create extension if not exists citext;
 	tableCase := func(tableName string) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Run("initial data", func(t *testing.T) {
-				conn, err := provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
+				conn, err := provider_postgres.MakeConnPoolFromSrc(source, logger.Log)
 				require.NoError(t, err)
+				defer conn.Close()
 				_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
 				require.NoError(t, err)
 			})
 
-			Source.DBTables = []string{tableName}
+			source.DBTables = []string{tableName}
 			transfer := helpers.MakeTransfer(
 				t.Name(),
-				Source,
-				Target,
+				source,
+				target,
 				abstract.TransferTypeSnapshotAndIncrement,
 			)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableName}}
 			worker := helpers.Activate(t, transfer)
 
-			conn, err := provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
+			conn, err := provider_postgres.MakeConnPoolFromSrc(source, logger.Log)
 			require.NoError(t, err)
+			defer conn.Close()
 			_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
 			require.NoError(t, err)
-			srcStorage, err := provider_postgres.NewStorage(Source.ToStorageParams(nil))
+			srcStorage, err := provider_postgres.NewStorage(source.ToStorageParams(nil))
 			require.NoError(t, err)
-			dstStorage, err := provider_postgres.NewStorage(Target.ToStorageParams())
+			defer srcStorage.Close()
+			dstStorage, err := provider_postgres.NewStorage(target.ToStorageParams())
 			require.NoError(t, err)
+			defer dstStorage.Close()
 			tid, err := abstract.ParseTableIDForProvider(tableName, abstract.ProviderType("pg"))
 			require.NoError(t, err)
 			require.NoError(t, helpers.WaitEqualRowsCount(t, tid.Namespace, tid.Name, srcStorage, dstStorage, time.Second*30))
 			worker.Close(t)
+
+			// Log per-row JSON representation to spot differences
+			logTableDataJSON := func(label string, conn *pgxpool.Pool) string {
+				rows, err := conn.Query(context.Background(),
+					fmt.Sprintf("SELECT __primary_key, to_jsonb(t)::text AS row_text FROM %s AS t ORDER BY __primary_key", tableName))
+				require.NoError(t, err)
+				defer rows.Close()
+				var data []string
+				for rows.Next() {
+					var pk int
+					var rowText string
+					require.NoError(t, rows.Scan(&pk, &rowText))
+					data = append(data, fmt.Sprintf("pk=%d: %s", pk, rowText))
+				}
+				logger.Log.Info(label+" table rows as JSON", log.String("table", tableName), log.Any("rows", data))
+				return strings.Join(data, ",")
+			}
+			src := logTableDataJSON(fmt.Sprintf("source_under_md5 for table:%s", tableName), srcStorage.Conn)
+			dst := logTableDataJSON(fmt.Sprintf("destination_under_md5 for table:%s", tableName), dstStorage.Conn)
+
+			if tableName == "public.numeric_types" { // bcs we can save '0.0' (src) as '0' (dst)
+				src = strings.ReplaceAll(src, `"t_numeric": 0.0,`, `"t_numeric": 0,`)
+				dst = strings.ReplaceAll(dst, `"t_numeric": 0.0,`, `"t_numeric": 0,`)
+			}
+			require.Equal(t, src, dst)
+
+			if tableName == "public.numeric_types" { // bcs we can save '0.0' (src) as '0' (dst) -- then their hash is differs
+				return
+			}
+
 			hashQuery := fmt.Sprintf(`
-SELECT md5(array_agg(md5((t.*)::varchar))::varchar)
-  FROM (
-        SELECT *
-          FROM %s
-         ORDER BY 1
-       ) AS t
+SELECT md5(
+    string_agg(
+        md5(to_jsonb(t)::text),
+        '' ORDER BY __primary_key
+    )
+)
+FROM (
+	SELECT *
+	FROM %s
+	ORDER BY 1
+) AS t
 ;
 `, tableName)
 			var srcHash string
 			require.NoError(t, srcStorage.Conn.QueryRow(context.Background(), hashQuery).Scan(&srcHash))
 			var dstHash string
-			require.NoError(t, srcStorage.Conn.QueryRow(context.Background(), hashQuery).Scan(&dstHash))
+			require.NoError(t, dstStorage.Conn.QueryRow(context.Background(), hashQuery).Scan(&dstHash))
 			require.Equal(t, srcHash, dstHash)
+
 		}
 	}
 
@@ -108,18 +147,19 @@ SELECT md5(array_agg(md5((t.*)::varchar))::varchar)
 	tableCaseAfterFallbackFromCopyFrom := func(tableName string) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Run("initial data", func(t *testing.T) {
-				conn, err := provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
+				conn, err := provider_postgres.MakeConnPoolFromSrc(source, logger.Log)
 				require.NoError(t, err)
+				defer conn.Close()
 				_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
 				require.NoError(t, err)
 			})
 
-			Source.DBTables = []string{tableName}
-			Target.Cleanup = model.DisabledCleanup
+			source.DBTables = []string{tableName}
+			target.Cleanup = model.DisabledCleanup
 			transfer := helpers.MakeTransfer(
 				t.Name(),
-				Source,
-				Target,
+				source,
+				target,
 				abstract.TransferTypeSnapshotOnly,
 			)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableName}}
@@ -134,7 +174,6 @@ SELECT md5(array_agg(md5((t.*)::varchar))::varchar)
 			}
 			debeziumSerDeTransformer := helpers_transformer.NewSimpleTransformer(t, handler, serde.AnyTablesUdf)
 			require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
-
 			_ = helpers.Activate(t, transfer)
 
 			// check
@@ -161,6 +200,18 @@ SELECT md5(array_agg(md5((t.*)::varchar))::varchar)
 		})
 	}
 	canon.SaveJSON(t, queriesStr)
+
+	// Also test with text serialization format to catch regressions
+	// in the text representation path (e.g. *pgtype.GenericText handling
+	// for extension types like ltree, citext).
+	t.Run("text_format", func(t *testing.T) {
+		source.SnapshotSerializationFormat = provider_postgres.PgSerializationFormatText
+		for _, c := range cases {
+			t.Run(c, func(t *testing.T) {
+				t.Run("table", tableCase(c))
+			})
+		}
+	})
 }
 
 //------------------------------------------------------------------------------------------------
