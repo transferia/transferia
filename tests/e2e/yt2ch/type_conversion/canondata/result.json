@@ -87,6 +87,12 @@
             },
             {
                 "DataType": "string",
+                "GoType": "<nil>",
+                "Name": "null_value",
+                "Value": "<nil>"
+            },
+            {
+                "DataType": "string",
                 "GoType": "string",
                 "Name": "num_to_str",
                 "Value": "100"

@@ -45,7 +45,7 @@ func resolvePrimitive(t ytschema.Type) (abstract2.Type, error) {
 		return types.NewIntervalType(), nil
 	case ytschema.TypeTimestamp:
 		return types.NewTimestampType(6), nil
-	case ytschema.TypeAny:
+	case ytschema.TypeAny, ytschema.TypeNull:
 		return types.NewJSONType(), nil
 	default:
 		return nil, xerrors.Errorf("unknown yt primitive type %s", t)

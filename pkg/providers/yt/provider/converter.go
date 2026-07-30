@@ -58,12 +58,16 @@ func skiffGoType(col yt_table.YtColumn) reflect.Type {
 }
 
 // ytSchemaForSkiff builds a ytschema.Schema for use with skiff.FromTableSchema,
-// skipping the synthetic row-index column (skipColName) that has no wire representation.
+// skipping the synthetic row-index column (skipColName) and null-typed columns,
+// neither of which has a wire representation.
 func ytSchemaForSkiff(tbl yt_table.YtTable, skipColName string) ytschema.Schema {
 	var cols []ytschema.Column
 	for i := 0; i < tbl.ColumnsCount(); i++ {
 		col := tbl.Column(i).(yt_table.YtColumn)
 		if skipColName != "" && col.Name() == skipColName {
+			continue
+		}
+		if yt_table.IsNullTyped(col) {
 			continue
 		}
 		ct := col.YtType()
@@ -90,12 +94,16 @@ func buildSkiffFormat(tbl yt_table.YtTable, idxColName string) *skiff.Format {
 }
 
 // buildSkiffRowType builds a reflect.StructOf type that the Skiff decoder will populate.
-// Fields are named F0..FN-1 with yson:"colname" tags; the synthetic idx column is excluded.
+// Fields are named F0..FN-1 with yson:"colname" tags; the synthetic idx column and
+// null-typed columns are excluded, matching ytSchemaForSkiff.
 func buildSkiffRowType(tbl yt_table.YtTable, idxColName string) reflect.Type {
 	var fields []reflect.StructField
 	for i := 0; i < tbl.ColumnsCount(); i++ {
 		col := tbl.Column(i).(yt_table.YtColumn)
 		if idxColName != "" && col.Name() == idxColName {
+			continue
+		}
+		if yt_table.IsNullTyped(col) {
 			continue
 		}
 		fields = append(fields, reflect.StructField{
@@ -159,6 +167,9 @@ func makeRowSizeEstimator(tbl yt_table.YtTable, idxColName string) *rowSizeEstim
 		if idxColName != "" && col.Name() == idxColName {
 			baseline += 8 // synthetic row-index: int64 on wire
 			continue
+		}
+		if yt_table.IsNullTyped(col) {
+			continue // not present on the wire
 		}
 		colBase := 0
 		if col.Nullable() {

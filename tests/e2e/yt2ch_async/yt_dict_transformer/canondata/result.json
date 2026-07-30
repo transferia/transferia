@@ -87,6 +87,12 @@
                     "Value": "{\"dict\":[[10,[[\"k1\",1],[\"k2\",2],[\"k3\",3]]],[11,[[\"k1\",1],[\"k2\",2],[\"k3\",3]]]],\"unnamed\":[1,[[\"k1\",1],[\"k2\",2],[\"k3\",3]]]}"
                 },
                 {
+                    "DataType": "string",
+                    "GoType": "string",
+                    "Name": "null_value",
+                    "Value": ""
+                },
+                {
                     "DataType": "int32",
                     "GoType": "int32",
                     "Name": "num_to_str",
@@ -209,6 +215,12 @@
                     "GoType": "string",
                     "Name": "nested2",
                     "Value": "{\"dict\":{\"10\":{\"k1\":1,\"k2\":2,\"k3\":3},\"11\":{\"k1\":1,\"k2\":2,\"k3\":3}},\"unnamed\":[1,{\"k1\":1,\"k2\":2,\"k3\":3}]}"
+                },
+                {
+                    "DataType": "string",
+                    "GoType": "string",
+                    "Name": "null_value",
+                    "Value": ""
                 },
                 {
                     "DataType": "int32",

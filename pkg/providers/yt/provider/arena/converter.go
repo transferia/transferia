@@ -59,6 +59,10 @@ func NewConverter(tbl yt_table.YtTable, idxColName string) *Converter {
 			ac.converters[i] = synthConverter
 			continue
 		}
+		if yt_table.IsNullTyped(c) {
+			ac.converters[i] = nilConverter
+			continue
+		}
 		ac.converters[i] = makeCellConverter(c, structIdx)
 		structIdx++
 	}
@@ -91,6 +95,12 @@ func freshConverter(chunkCap int) *Converter {
 // row. It's schema-independent, so a single package-level value is reused.
 var synthConverter cellConverter = func(ac *Converter, _ reflect.Value, rowIDX int64) any {
 	return makeIface(typInt64, ac.ai64.put(rowIDX))
+}
+
+// nilConverter serves null-typed columns: they are absent from the Skiff row
+// struct, and every value they can hold is null.
+var nilConverter cellConverter = func(*Converter, reflect.Value, int64) any {
+	return nil
 }
 
 // makeCellConverter returns a closure specialized to (ytType, isNullable,

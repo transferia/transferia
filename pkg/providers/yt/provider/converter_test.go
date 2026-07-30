@@ -68,6 +68,50 @@ func TestMakeMapRowConverter_ConvertsComplexVariantList(t *testing.T) {
 	require.Equal(t, expectedComplex, values[1])
 }
 
+func TestNullTypedColumn_ExcludedFromWireAndDecodedAsNil(t *testing.T) {
+	tbl := yt_table.NewTable("types_test")
+	tbl.AddColumn(testYtColumn(t, "id", ytschema.TypeUint8, false))
+	tbl.AddColumn(testYtColumn(t, "n", ytschema.TypeNull, false))
+	tbl.AddColumn(testYtColumn(t, "name", ytschema.TypeString, false))
+
+	f := buildSkiffFormat(tbl, "")
+	s, err := skiff.SingleSchema(f)
+	require.NoError(t, err)
+	require.Len(t, s.Children, 2)
+	require.Equal(t, "id", s.Children[0].Name)
+	require.Equal(t, "name", s.Children[1].Name)
+
+	decoder := newRowDecoder(tbl, "")
+	require.False(t, decoder.useMapDecode)
+	require.Equal(t, 2, decoder.rowType.NumField())
+
+	rd := decoder.cloneForReader()
+	row := rd.rowPtr.Elem()
+	row.Field(0).SetUint(5)
+	row.Field(1).SetString("abc")
+	values, err := rd.arenaConv.Convert(row, 0)
+	require.NoError(t, err)
+	require.Equal(t, []any{uint8(5), nil, "abc"}, values)
+}
+
+func TestNullTypedColumn_MapDecodePathYieldsNil(t *testing.T) {
+	tbl := yt_table.NewTable("types_test")
+	tbl.AddColumn(testYtColumn(t, "id", ytschema.TypeUint8, false))
+	tbl.AddColumn(testYtColumn(t, "n", ytschema.TypeNull, false))
+	tbl.AddColumn(testYtColumn(t, "complex_list", ytschema.List{Item: ytschema.TypeInt64}, false))
+
+	decoder := newRowDecoder(tbl, "")
+	require.True(t, decoder.useMapDecode)
+
+	// The null-typed column is absent from the Skiff format, so the decoded map has no key for it.
+	values, err := mapRowToValues(map[string]any{
+		"id":           uint64(1),
+		"complex_list": []any{int64(9)},
+	}, 0, decoder.cols, decoder.idxColName)
+	require.NoError(t, err)
+	require.Equal(t, []any{uint8(1), nil, []any{int64(9)}}, values)
+}
+
 func TestBuildSkiffFormat_PreservesPrimitiveAndNullableSemantics(t *testing.T) {
 	tbl := yt_table.NewTable("types_test")
 	tbl.AddColumn(testYtColumn(t, "id", ytschema.TypeUint8, false))

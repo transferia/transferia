@@ -45,6 +45,10 @@ func Load(ctx context.Context, ytc yt.Client, txID yt.TxID, nodeID yt.NodeID, or
 		if err != nil {
 			return nil, xerrors.Errorf("unable to resolve yt type to base type: %w", err)
 		}
+		if ytType == ytschema.TypeNull {
+			// A null-typed column can only ever contain nulls, even when YT marks it required.
+			isOptional = true
+		}
 		t.AddColumn(yt_table.NewColumn(cl.Name, typ, ytType, cl, isOptional))
 	}
 

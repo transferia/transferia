@@ -217,6 +217,7 @@ func YtTypesTestData() ([]ytschema.Column, []map[string]any) {
 		{Name: "decimal_as_float", ComplexType: ytschema.TypeFloat64},
 		{Name: "decimal_as_string", ComplexType: ytschema.TypeString},
 		{Name: "decimal_as_bytes", ComplexType: ytschema.TypeBytes},
+		{Name: "null_value", ComplexType: ytschema.TypeNull},
 
 		// Composite types below.
 		{Name: "list", ComplexType: listSchema},
@@ -266,6 +267,7 @@ func YtTypesTestData() ([]ytschema.Column, []map[string]any) {
 		"decimal_as_float":  2.3456,
 		"decimal_as_string": "23.45",
 		"decimal_as_bytes":  []byte("67.89"),
+		"null_value":        nil,
 
 		"list":            listData,
 		"struct":          structData,
@@ -302,6 +304,7 @@ func ChSchemaForYtTypesTestData() string {
 		decimal_as_float Decimal(10, 7),
 		decimal_as_string Decimal(10, 7),
 		decimal_as_bytes Decimal(10, 7),
+		null_value Nullable(String),
 
 		struct String,
 		list String,

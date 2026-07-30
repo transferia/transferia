@@ -81,6 +81,14 @@ func (c *column) setTable(t abstract2.Table) {
 	c.tbl = t
 }
 
+// IsNullTyped reports whether the column has YT type "null". Such a column holds
+// only null values and maps to the Skiff "nothing" wire type, which carries no
+// payload, so it is excluded from the Skiff format and filled with nil instead.
+func IsNullTyped(col YtColumn) bool {
+	ytType, isPrimitive := col.YtType().(ytschema.Type)
+	return isPrimitive && ytType == ytschema.TypeNull
+}
+
 func NewColumn(name string, typ abstract2.Type, ytType ytschema.ComplexType, ytCol ytschema.Column, isOptional bool) YtColumn {
 	return &column{
 		name:       name,
