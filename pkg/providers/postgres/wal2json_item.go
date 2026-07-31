@@ -32,6 +32,11 @@ type Wal2JSONItem struct {
 	Query          string               `json:"query" yson:"-"`
 	Size           abstract.EventSize   `json:"-" yson:"-"`
 	ColumnTypeOIDs []pgtype.OID         `json:"columntypeoids"`
+
+	// Logical message fields for future debezium support
+	Transactional bool   `json:"transactional" yson:"transactional"`
+	Prefix        string `json:"prefix" yson:"prefix"`
+	Content       string `json:"content" yson:"content"`
 }
 
 type OldKeysType struct {

@@ -21,7 +21,7 @@ import (
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/pkg/util/backoff"
+	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -514,6 +514,10 @@ func (p *poller) parseChange(raw []byte) ([]*Wal2JSONItem, error) {
 	}
 
 	for _, change := range changes {
+		if change.Kind == abstract.PgLogicalMessageKind {
+			p.logger.Info("skipping message emmited with pg_logical_emit_message", log.Any("message", change))
+			continue
+		}
 		changeItem := change.toChangeItem()
 		if changeItem.Kind != abstract.DeleteKind && len(p.schema[changeItem.TableID()].Columns()) == 0 {
 			p.logger.Info(

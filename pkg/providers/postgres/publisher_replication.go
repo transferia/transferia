@@ -28,7 +28,7 @@ import (
 	postgres_sequencer "github.com/transferia/transferia/pkg/providers/postgres/sequencer"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/backoff"
+	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -474,6 +474,11 @@ func (p *replication) parseWal2JsonChanges(xld *pglogrepl.XLogData) ([]abstract.
 	}
 	changes := make([]abstract.ChangeItem, 0, 1)
 	for i, item := range items {
+		if item.Kind == abstract.PgLogicalMessageKind {
+			p.logger.Info("skipping message emmited with pg_logical_emit_message", log.Any("message", item))
+			continue
+		}
+
 		changeItem := item.toChangeItem()
 		tableID := changeItem.TableID()
 		if err := abstract.ValidateChangeItem(&changeItem); err != nil {

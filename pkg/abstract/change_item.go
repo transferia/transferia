@@ -50,6 +50,7 @@ var ChCreateTableKind = changeitem.ChCreateTableKind
 var ClickhouseDDLBuilderKind = changeitem.ClickhouseDDLBuilderKind
 var ElasticsearchDumpIndexKind = changeitem.ElasticsearchDumpIndexKind
 var SynchronizeKind = changeitem.SynchronizeKind
+var PgLogicalMessageKind = changeitem.PgLogicalMessageKind
 
 var RawDataColsIDX = changeitem.RawDataColsIDX
 var RawMessageTopic = changeitem.RawMessageTopic

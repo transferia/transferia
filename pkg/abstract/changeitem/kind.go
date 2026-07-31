@@ -41,4 +41,5 @@ const (
 	ClickhouseDDLBuilderKind   = Kind("ch:DDLBuilder")
 	ElasticsearchDumpIndexKind = Kind("es:dumpIndex")
 	SynchronizeKind            = Kind("")
+	PgLogicalMessageKind       = Kind("message")
 )
