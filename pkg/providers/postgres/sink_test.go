@@ -1,15 +1,77 @@
 package postgres
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.uber.org/zap"
 	corezap "go.ytsaurus.tech/library/go/core/log/zap"
 )
+
+type perTransactionPushTestTX struct {
+	pgx.Tx
+	calls     []string
+	commitErr error
+}
+
+func (tx *perTransactionPushTestTX) Commit(context.Context) error {
+	tx.calls = append(tx.calls, "commit")
+	return tx.commitErr
+}
+
+func (tx *perTransactionPushTestTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	tx.calls = append(tx.calls, "exec")
+	return pgconn.CommandTag{}, nil
+}
+
+func TestPerTransactionPushExecutesOpenTransactionContinuationBeforeSquash(t *testing.T) {
+	commitErr := errors.New("stop after first transaction")
+	currentTX := &perTransactionPushTestTX{commitErr: commitErr}
+	schema := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "id", DataType: "int64", OriginalType: "pg:bigint", PrimaryKey: true},
+	})
+	input := make([]abstract.ChangeItem, 0, 3)
+	for _, txID := range []uint32{10, 11, 12} {
+		input = append(input, abstract.ChangeItem{
+			ID:           txID,
+			LSN:          uint64(txID),
+			Kind:         abstract.InsertKind,
+			Schema:       "public",
+			Table:        "test",
+			ColumnNames:  []string{"id"},
+			ColumnValues: []any{int64(txID)},
+			TableSchema:  schema,
+		})
+	}
+
+	s := &sink{
+		currentConn:        new(pgxpool.Conn),
+		config:             (&PgDestination{PerTransactionPush: true}).ToSinkParams(),
+		logger:             &corezap.Logger{L: zap.NewNop()},
+		metrics:            stats.NewSinkerStats(solomon.NewRegistry(solomon.NewRegistryOpts())),
+		keys:               map[string][]string{},
+		currentTX:          currentTX,
+		currentTXID:        10,
+		transferID:         "test-transfer",
+		lsnTrack:           map[abstract.TableID]uint64{},
+		pendingTableCounts: map[abstract.TableID]int{},
+	}
+
+	err := s.perTransactionPush(input)
+
+	require.ErrorIs(t, err, commitErr)
+	require.Equal(t, []string{"exec", "commit"}, currentTX.calls)
+}
 
 func TestPartialUpdate(t *testing.T) {
 	schema := []abstract.ColSchema{

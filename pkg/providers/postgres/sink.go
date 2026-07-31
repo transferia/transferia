@@ -509,6 +509,17 @@ func (s *sink) perTransactionPush(input []abstract.ChangeItem) error {
 	if len(txs) == 0 {
 		return nil
 	}
+	// If we have many txs (len>1) and previous tx is not closed (s.currentTX != nil) then commit txs[0]
+	// if it is part of previous uncommited transaction (equals to s.currentTXID).
+	// Otherwise, this part of tx will be squashed with other txs.
+	if len(txs) > 1 && s.currentTX != nil && txs[0].txID == s.currentTXID {
+		// The first batch continues the transaction left open by the previous Push.
+		if err := s.runTX(txs[0]); err != nil {
+			//nolint:descriptiveerrors
+			return err
+		}
+		txs = txs[1:] // Remove txs[0] since we just commited it.
+	}
 	if len(txs) < 3 {
 		// we have 1 or 2 transaction, no need to squash in between transactions
 		for _, tx := range txs {
