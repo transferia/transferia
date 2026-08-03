@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/require"
@@ -132,6 +133,100 @@ func TestRestoreType(t *testing.T) {
 			require.Exactly(t, restored, results[i], "Restore failed")
 		})
 	}
+}
+
+func TestRestoreTimestampDomain(t *testing.T) {
+	const (
+		timestamptzDomainOID pgtype.OID = 60001
+		timestampDomainOID   pgtype.OID = 60002
+	)
+
+	tests := []struct {
+		name         string
+		oid          pgtype.OID
+		registered   pgtype.Value
+		homoResult   any
+		value        string
+		originalType string
+	}{
+		{
+			name:         "timestamp with time zone domain",
+			oid:          timestamptzDomainOID,
+			registered:   new(pgtype.Timestamptz),
+			homoResult:   pgtype.Timestamptz{},
+			value:        "2026-07-06 03:00:00+03",
+			originalType: "pg:classifier.date_t",
+		},
+		{
+			name:         "timestamp without time zone domain",
+			oid:          timestampDomainOID,
+			registered:   new(pgtype.Timestamp),
+			homoResult:   pgtype.Timestamp{},
+			value:        "2026-07-06 03:00:00",
+			originalType: "pg:classifier.local_date_t",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cp := defaultChangeProcessor()
+			cp.connInfo.RegisterDataType(pgtype.DataType{
+				Value: test.registered,
+				Name:  test.originalType,
+				OID:   uint32(test.oid),
+			})
+
+			colSchema := abstract.ColSchema{
+				DataType:     "timestamp",
+				OriginalType: test.originalType,
+			}
+
+			restored, err := cp.restoreType(test.value, test.oid, &colSchema)
+			require.NoError(t, err)
+			require.IsType(t, time.Time{}, restored)
+
+			restoredNull, err := cp.restoreType(nil, test.oid, &colSchema)
+			require.NoError(t, err)
+			require.Nil(t, restoredNull)
+
+			cp.config.IsHomo = true
+			restoredHomo, err := cp.restoreType(test.value, test.oid, &colSchema)
+			require.NoError(t, err)
+			require.IsType(t, test.homoResult, restoredHomo)
+
+			restoredHomoNull, err := cp.restoreType(nil, test.oid, &colSchema)
+			require.NoError(t, err)
+			require.Nil(t, restoredHomoNull)
+		})
+	}
+}
+
+func TestFixupChangePreservesOriginalValueInCastError(t *testing.T) {
+	tableID := *abstract.NewTableID("classifier", "rules")
+	tableSchema := abstract.NewTableSchema([]abstract.ColSchema{
+		{
+			TableSchema:  tableID.Namespace,
+			TableName:    tableID.Name,
+			ColumnName:   "started_at",
+			DataType:     "timestamp",
+			OriginalType: "pg:classifier.date_t",
+		},
+	})
+
+	cp := defaultChangeProcessor()
+	cp.schemasToEmit[tableID] = tableSchema
+	cp.fastSchemas = fastSchemasFromDBSchema(cp.schemasToEmit)
+
+	change := abstract.ChangeItem{
+		Schema:       tableID.Namespace,
+		Table:        tableID.Name,
+		ColumnNames:  []string{"started_at"},
+		ColumnValues: []any{"not-a-postgres-timestamp"},
+	}
+
+	err := cp.fixupChange(&change, []pgtype.OID{0}, nil, 0, 0)
+	require.ErrorContains(t, err, "Can't cast value 'not-a-postgres-timestamp'")
+	require.Equal(t, []any{"not-a-postgres-timestamp"}, change.ColumnValues)
 }
 
 func newColSchemaForType(originalType string) *abstract.ColSchema {

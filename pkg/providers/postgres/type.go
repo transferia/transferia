@@ -10,6 +10,11 @@ import (
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
+const (
+	timestampWithTimeZoneType    = "TIMESTAMP WITH TIME ZONE"
+	timestampWithoutTimeZoneType = "TIMESTAMP WITHOUT TIME ZONE"
+)
+
 // This is a copy of the pgx driver internal global map `nameValues`:
 // https://github.com/transferia/transferia/arcadia/vendor/github.com/jackc/pgtype/pgtype.go?rev=10676203#L924-924
 // We want to override the fallback type for unknown types, and use
@@ -122,9 +127,9 @@ func ClearOriginalType(pgType string) string {
 	pgType = strings.TrimPrefix(pgType, "pg:")
 	switch {
 	case IsPgTypeTimestampWithTimeZoneUnprefixed(pgType):
-		return "TIMESTAMP WITH TIME ZONE"
+		return timestampWithTimeZoneType
 	case IsPgTypeTimestampWithoutTimeZoneUnprefixed(pgType):
-		return "TIMESTAMP WITHOUT TIME ZONE"
+		return timestampWithoutTimeZoneType
 	case IsPgTypeTimeWithTimeZoneUnprefixed(pgType):
 		return "TIME WITH TIME ZONE"
 	case IsPgTypeTimeWithoutTimeZoneUnprefixed(pgType):

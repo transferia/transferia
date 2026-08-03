@@ -28,7 +28,7 @@ func init() {
 		ytschema.TypeBoolean:   {"BOOLEAN"},
 		ytschema.TypeDate:      {"DATE"},
 		ytschema.TypeDatetime:  {},
-		ytschema.TypeTimestamp: {"TIMESTAMP WITHOUT TIME ZONE", "TIMESTAMP WITH TIME ZONE"},
+		ytschema.TypeTimestamp: {timestampWithoutTimeZoneType, timestampWithTimeZoneType},
 		ytschema.TypeInterval:  {},
 		ytschema.TypeAny: {
 			"ARRAY", "CHARACTER(N)", "CITEXT", "HSTORE", "JSON", "JSONB", "DATERANGE", "INT4RANGE", "INT8RANGE", "NUMRANGE", "POINT",
@@ -51,8 +51,8 @@ func init() {
 		ytschema.TypeString:    "TEXT",
 		ytschema.TypeBoolean:   "BOOLEAN",
 		ytschema.TypeDate:      "DATE",
-		ytschema.TypeDatetime:  "TIMESTAMP WITHOUT TIME ZONE",
-		ytschema.TypeTimestamp: "TIMESTAMP WITHOUT TIME ZONE",
+		ytschema.TypeDatetime:  timestampWithoutTimeZoneType,
+		ytschema.TypeTimestamp: timestampWithoutTimeZoneType,
 		ytschema.TypeAny:       "JSONB",
 	})
 }

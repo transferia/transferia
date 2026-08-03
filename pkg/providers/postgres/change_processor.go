@@ -159,11 +159,13 @@ func (c *changeProcessor) fixupChange(
 
 			errs = append(errs, xerrors.Errorf(`Unknown column "%s"; table schema has probably changed`, name))
 		}
-		var err error
-		change.ColumnValues[i], err = c.restoreType(change.ColumnValues[i], columnTypeOIDs[i], &colSchema)
+		originalValue := change.ColumnValues[i]
+		restoredValue, err := c.restoreType(originalValue, columnTypeOIDs[i], &colSchema)
 		if err != nil {
-			errs = append(errs, xerrors.Errorf("Can't cast value '%v' for column '%v': %w", change.ColumnValues[i], name, err))
+			errs = append(errs, xerrors.Errorf("Can't cast value '%v' for column '%v': %w", originalValue, name, err))
+			continue
 		}
+		change.ColumnValues[i] = restoredValue
 	}
 	if !skipCols.Empty() {
 		logger.Log.Info("skip change item columns", log.Any("skipCols", skipCols.Slice()), log.Any("table", change.TableID()))
@@ -176,11 +178,13 @@ func (c *changeProcessor) fixupChange(
 			errs = append(errs, xerrors.Errorf(`Unknown old key column "%s"; table schema has probably changed`, name))
 			continue
 		}
-		var err error
-		change.OldKeys.KeyValues[i], err = c.restoreType(change.OldKeys.KeyValues[i], oldKeyTypeOIDs[i], &colSchema)
+		originalValue := change.OldKeys.KeyValues[i]
+		restoredValue, err := c.restoreType(originalValue, oldKeyTypeOIDs[i], &colSchema)
 		if err != nil {
-			errs = append(errs, xerrors.Errorf("Can't cast value '%v' for column '%v': %w", change.ColumnValues[i], name, err))
+			errs = append(errs, xerrors.Errorf("Can't cast value '%v' for old key column '%v': %w", originalValue, name, err))
+			continue
 		}
+		change.OldKeys.KeyValues[i] = restoredValue
 	}
 
 	if err := errors.Join(errs...); err != nil {
@@ -246,19 +250,19 @@ func (c *changeProcessor) restoreType(value any, oid pgtype.OID, colSchema *abst
 	case ytschema.TypeDate:
 		result, err = strict.ExpectedSQL[string](value, temporalsUnmarshallerFromDecoder(NewDate(), &c.connInfo, c.config.IsHomo))
 	case ytschema.TypeDatetime:
-		switch ClearOriginalType(colSchema.OriginalType) {
-		case "TIMESTAMP WITH TIME ZONE":
+		switch c.resolveTimestampType(colSchema.OriginalType, oid) {
+		case timestampWithTimeZoneType:
 			result, err = strict.ExpectedSQL[string](value, temporalsUnmarshallerFromDecoder(NewTimestamptz(), &c.connInfo, c.config.IsHomo))
-		case "TIMESTAMP WITHOUT TIME ZONE":
+		case timestampWithoutTimeZoneType:
 			result, err = strict.ExpectedSQL[string](value, temporalsUnmarshallerFromDecoder(NewTimestamp(c.location), &c.connInfo, c.config.IsHomo))
 		default:
 			result, err = strict.UnexpectedSQL(value, cast.ToTimeE)
 		}
 	case ytschema.TypeTimestamp:
-		switch ClearOriginalType(colSchema.OriginalType) {
-		case "TIMESTAMP WITH TIME ZONE":
+		switch c.resolveTimestampType(colSchema.OriginalType, oid) {
+		case timestampWithTimeZoneType:
 			result, err = strict.UnexpectedSQL(value, temporalsUnmarshallerFromDecoder(NewTimestamptz(), &c.connInfo, c.config.IsHomo))
-		case "TIMESTAMP WITHOUT TIME ZONE":
+		case timestampWithoutTimeZoneType:
 			result, err = strict.UnexpectedSQL(value, temporalsUnmarshallerFromDecoder(NewTimestamp(c.location), &c.connInfo, c.config.IsHomo))
 		default:
 			result, err = strict.UnexpectedSQL(value, cast.ToTimeE)
@@ -288,6 +292,28 @@ func (c *changeProcessor) restoreType(value any, oid pgtype.OID, colSchema *abst
 		return nil, abstract.NewStrictifyError(colSchema, ytschema.Type(colSchema.DataType), err)
 	}
 	return result, nil
+}
+
+func (c *changeProcessor) resolveTimestampType(originalType string, oid pgtype.OID) string {
+	result := ClearOriginalType(originalType)
+	switch result {
+	case timestampWithTimeZoneType, timestampWithoutTimeZoneType:
+		return result
+	}
+
+	// Resolve a user-defined timestamp domain to its base type by OID.
+	dataType, ok := c.connInfo.DataTypeForOID(uint32(oid))
+	if !ok {
+		return result
+	}
+	switch dataType.Value.(type) {
+	case *pgtype.Timestamptz:
+		return timestampWithTimeZoneType
+	case *pgtype.Timestamp:
+		return timestampWithoutTimeZoneType
+	default:
+		return result
+	}
 }
 
 func (c *changeProcessor) resolveParentTable(ctx context.Context, connPool *pgxpool.Pool, id abstract.TableID) (res abstract.TableID, err error) {
