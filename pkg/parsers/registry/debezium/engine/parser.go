@@ -2,7 +2,6 @@ package engine
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"strings"
 	"sync"
@@ -51,15 +50,8 @@ func (p *DebeziumImpl) DoOne(partition abstract.Partition, buf []byte, offset ui
 
 	changeItem, err := p.debeziumReceiver.Receive(string(buf[0:msgLen]))
 	if err != nil {
-		var rawData string
-		if len(buf) > 5 && buf[0] == 0 {
-			// the case when using the schema registry
-			rawData = fmt.Sprintf("%d%s", binary.BigEndian.Uint32(buf[1:5]), buf[5:])
-		} else {
-			rawData = string(buf)
-		}
 		p.logger.Warn("Unable to receive changeItems", log.Error(err), log.Any("body", util.Sample(string(buf), 1*1024)))
-		return nil, generic_parser.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), []byte(rawData), fmt.Sprintf("debezium receiver returned error, err: %s", err), 0, offset, writeTime)
+		return nil, generic_parser.NewUnparsed(partition, strings.ReplaceAll(partition.Topic, "/", "_"), buf, fmt.Sprintf("debezium receiver returned error, err: %s", err), 0, offset, writeTime)
 	}
 	return buf[msgLen:], *changeItem
 }
