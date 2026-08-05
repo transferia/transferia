@@ -42,7 +42,6 @@ func TestAlter(t *testing.T) {
 
 	//------------------------------------------------------------------------------------
 	// start worker
-	Target.MaintainTables = true
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
 	var terminateErr error
 	localWorker := helpers.Activate(t, transfer, func(err error) {

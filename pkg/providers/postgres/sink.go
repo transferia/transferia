@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -114,6 +115,7 @@ type sink struct {
 	transferID          string
 	lsnTrack            map[abstract.TableID]uint64
 	pendingTableCounts  map[abstract.TableID]int
+	createdSchemas      *set.Set[string]
 }
 
 // defaultMaxPostgresQueryBytes limits the size of generated SQL statements.
@@ -202,40 +204,56 @@ func createSchemaQuery(schemaName string) string {
 	return fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS "%v"; `, schemaName)
 }
 
-// CreateSchemaQueryOptional returns a query to create schema if it is absent. May return empty string, in which case schema must not be created.
-// Full table name may contain quotes in schema name, which are removed.
-func CreateSchemaQueryOptional(fullTableName string) string {
+func UnquotedSchemaFromFQTN(fullTableName string) string {
 	parts := strings.Split(fullTableName, ".")
 	if len(parts) == 1 {
 		return ""
 	}
-	clearSchemaName := strings.ReplaceAll(parts[0], "\"", "")
-	if clearSchemaName != "" && clearSchemaName != "public" {
-		return createSchemaQuery(clearSchemaName)
+	return strings.ReplaceAll(parts[0], "\"", "")
+}
+
+// CreateSchemaQueryOptional returns a query to create schema if it is absent. May return empty string, in which case schema must not be created.
+// Full table name may contain quotes in schema name, which are removed.
+func CreateSchemaQueryOptional(unquotedSchema string) string {
+	if unquotedSchema != "" && unquotedSchema != "public" {
+		return createSchemaQuery(unquotedSchema)
 	}
 	return ""
 }
 
 func (s *sink) checkTable(ctx context.Context, in abstract.TableSchema) error {
-	if s.config.GetIsSchemaMigrationDisabled() || !s.config.MaintainTables() {
+	if s.config.GetIsSchemaMigrationDisabled() {
 		return nil
 	}
+	// MaintainTables only enables creation of absent tables. Schema evolution of a table which
+	// already exists in the destination is driven by GetIsSchemaMigrationDisabled alone: for
+	// homogeneous PostgreSQL transfers tables are created by pg_dump, which silently skips
+	// already existing ones and therefore never propagates columns added after the first activation.
+	maintainTables := s.config.MaintainTables()
 	fqtn := in.TableID().Fqtn()
-	if csq := CreateSchemaQueryOptional(fqtn); len(csq) > 0 {
-		if _, err := s.conn.Exec(ctx, csq); err != nil {
-			s.logger.Warn("Failed to execute CREATE SCHEMA.", log.Error(err))
-		}
-	}
 	if err := s.ensureTableSchema(ctx, in); err != nil {
-		return xerrors.Errorf("failed to ensure table schema %s exists or not: %w", in.TableID().Fqtn(), err)
+		return xerrors.Errorf("failed to ensure table schema %s exists or not: %w", fqtn, err)
 	}
-	existingSchema := s.existingTableSchema[in.TableID()]
-	if existingSchema.Equal(&in) {
+	existingSchema, tableExists := s.existingTableSchema[in.TableID()]
+	if tableExists && existingSchema.Equal(&in) {
 		return nil
 	}
 
-	if err := s.CreateTable(ctx, in); err != nil {
-		return xerrors.Errorf("create table failed with: %w", err)
+	if !tableExists {
+		if !maintainTables {
+			return nil
+		}
+		unquotedSchema := UnquotedSchemaFromFQTN(fqtn)
+		csq := CreateSchemaQueryOptional(unquotedSchema)
+		if !s.createdSchemas.Contains(unquotedSchema) && len(csq) > 0 {
+			if _, err := s.conn.Exec(ctx, csq); err != nil {
+				s.logger.Warn("Failed to execute CREATE SCHEMA.", log.Error(err))
+			}
+		}
+		s.createdSchemas.Add(unquotedSchema)
+		if err := s.CreateTable(ctx, in); err != nil {
+			return xerrors.Errorf("create table failed with: %w", err)
+		}
 	}
 	if err := s.CreateEnums(ctx, in); err != nil {
 		return xerrors.Errorf("create enums failed with: %w", err)
@@ -352,7 +370,10 @@ func (s *sink) AlterTable(ctx context.Context, in abstract.TableSchema) error {
 		return xerrors.Errorf("failed to create a SQL query to ensure columns existence: %w", err)
 	}
 	if _, err = s.conn.Exec(ctx, query); err != nil {
+		// the cache is left untouched so that the next batch retries the migration instead of
+		// inserting into a table which is known to miss columns
 		s.logger.Warn("Failed to execute ALTER TABLE.", log.Error(err))
+		return nil
 	}
 	s.logger.Info(fmt.Sprintf("%s table altered", in.TableID().Fqtn()), log.Any("ddl", query))
 	s.existingTableSchema[in.TableID()] = in
@@ -1183,6 +1204,7 @@ func NewSinkWithPool(ctx context.Context, lgr log.Logger, transferID string, con
 		transferID:          transferID,
 		lsnTrack:            map[abstract.TableID]uint64{},
 		pendingTableCounts:  map[abstract.TableID]int{},
+		createdSchemas:      set.New([]string{}...),
 	}
 
 	if config.PerTransactionPush() {

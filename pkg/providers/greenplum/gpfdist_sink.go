@@ -159,7 +159,8 @@ func (s *GpfdistSink) createTargetTable(ctx context.Context, ci *abstract.Change
 	}
 	rollbacks.Add(loggingRollbackTxFunc(ctx, tx))
 
-	if csq := provider_postgres.CreateSchemaQueryOptional(ci.PgName()); len(csq) > 0 {
+	unquotedSchema := provider_postgres.UnquotedSchemaFromFQTN(ci.PgName())
+	if csq := provider_postgres.CreateSchemaQueryOptional(unquotedSchema); len(csq) > 0 {
 		if _, err := tx.Exec(ctx, csq); err != nil {
 			logger.Log.Warn("Failed to execute CREATE SCHEMA IF NOT EXISTS query at table load initialization.", log.Error(err))
 		}

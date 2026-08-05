@@ -18,7 +18,9 @@ type PgSinkParams interface {
 
 	// MaintainTables
 	// If true - on every batchInsert calls 'create schema...' + 'create table ...'
-	// For now, it's not true on every running-transfer
+	// for tables which are still missing in the destination.
+	// For homogeneous PostgreSQL transfers tables are created by pg_dump instead, so this
+	// flag stays false and schema evolution is controlled by GetIsSchemaMigrationDisabled alone.
 	// It's for lb->pg delivery. Can be auto-derived
 	// It's like legacy
 	// private option
