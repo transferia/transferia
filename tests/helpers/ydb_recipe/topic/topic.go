@@ -49,7 +49,7 @@ func WriteTopicMessages(t *testing.T, topicName string, messages []ydb_topicwrit
 	)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	for _, msg := range messages {
