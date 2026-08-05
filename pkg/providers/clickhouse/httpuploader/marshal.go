@@ -125,11 +125,7 @@ func MarshalCItoJSON(inLogger log.Logger, row abstract.ChangeItem, rules *Marsha
 }
 
 // TODO - remove this logger & throttler - after TM-10327
-var logThrottlerMarshalValue batching_logger.Throttler
-
-func init() {
-	logThrottlerMarshalValue = batching_logger.NewSilentThrottler(batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Hour)))
-}
+var logThrottlerMarshalValue = batching_logger.NewSilentThrottler(batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Hour)))
 
 // marshalValue serializes a single column value into buf as a JSON value.
 //
@@ -317,11 +313,7 @@ func writeBytesValue(buf *bytes.Buffer, colType *columntypes.TypeDescription, v 
 }
 
 // TODO - remove this logger & throttler - after TM-10327
-var logThrottlerMarshalGeneric batching_logger.Throttler
-
-func init() {
-	logThrottlerMarshalGeneric = batching_logger.NewSilentThrottler(batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Hour)))
-}
+var logThrottlerMarshalGeneric = batching_logger.NewSilentThrottler(batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Hour)))
 
 // marshalGeneric is the universal fallback encoder. It always produces a valid JSON value, or skips
 // the already-written column name (returning true) when the value marshals to null.

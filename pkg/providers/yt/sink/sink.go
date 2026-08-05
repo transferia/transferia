@@ -669,8 +669,12 @@ func (s *sinker) newGenericTable(path ypath.Path, schema []abstract.ColSchema) (
 	s.logger.Info("create generic table", log.Any("name", path), log.Any("schema", schema))
 	originalSchema := schema
 	if !s.config.DisableDatetimeHack() {
+		oldSchema, _ := json.Marshal(schema)
 		schema = hackTimestamps(schema)
-		s.logger.Warn("nasty hack that replace datetime -> int64", log.Any("name", path), log.Any("schema", schema))
+		newSchema, _ := json.Marshal(schema)
+		if string(oldSchema) != string(newSchema) {
+			s.logger.Warn("nasty hack that replace datetime -> int64", log.Any("name", path), log.Any("schema", schema))
+		}
 	}
 	if s.config.Ordered() {
 		orderedTable, err := NewOrderedTable(s.ytClient, path, schema, s.config, s.metrics, s.logger)

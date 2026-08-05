@@ -2,6 +2,7 @@ package object_fetcher
 
 import (
 	"context"
+	"time"
 
 	aws_session "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
@@ -159,6 +160,8 @@ func NewObjectFetcherPollerWrapped(
 	return NewObjectFetcherContractor(logger, result), nil
 }
 
+var logThrottlerFetchAndCommitSetStateSuccessfully = batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Minute))
+
 // used in:
 //   - 'activate' on REPLICATION_ONLY - to commit all known files
 func FetchAndCommit(
@@ -179,13 +182,14 @@ func FetchAndCommit(
 	}
 	currState := dispatcher.SerializeState()
 	batching_logger.LogLine(batching_logger.NewAbsentThrottler(), func(in string) { logger.Info(in) }, "state serialized (bcs commit_all)", log.Any("state", currState))
-	logger.Info("will set state")
+	batching_logger.LogLine(logThrottlerFetchAndCommitSetStateSuccessfully, func(in string) { logger.Info(in) }, "will set state")
 
 	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(cp, srcModel.ThrottleCPDuration, transferID)
 	err = coordinatorStateAdapter.SetTransferState(currState) // TODO - wrap into retries?
 	if err != nil {
 		return xerrors.Errorf("unable to set transfer state, err: %w", err)
 	}
-	logger.Info("set state successfully")
+	batching_logger.LogLine(logThrottlerFetchAndCommitSetStateSuccessfully, func(in string) { logger.Info(in) }, "FetchAndCommit - set state successfully")
+
 	return nil
 }

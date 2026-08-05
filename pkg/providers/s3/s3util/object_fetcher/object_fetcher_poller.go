@@ -61,6 +61,8 @@ func (s *ObjectFetcherPoller) FetchObjects(inReader s3_reader.Reader) ([]file.Fi
 	return s.dispatcher.ExtractSortedFileEntries(), nil
 }
 
+var logThrottlerCommitSetStateSuccessfully = batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Minute))
+
 func (s *ObjectFetcherPoller) Commit(fileName string) error {
 	err := s.dispatcher.Commit(fileName)
 	if err != nil {
@@ -72,7 +74,7 @@ func (s *ObjectFetcherPoller) Commit(fileName string) error {
 	if err != nil {
 		return xerrors.Errorf("unable to set transfer state, err: %w", err)
 	}
-	s.logger.Info("set state successfully")
+	batching_logger.LogLine(logThrottlerCommitSetStateSuccessfully, func(in string) { s.logger.Info(in) }, "Commit - set state successfully")
 
 	return nil
 }

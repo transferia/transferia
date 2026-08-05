@@ -11,9 +11,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/logging/batching_logger"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -156,6 +158,8 @@ func getOpenFilesCount(pid int, platform string) (float64, error) {
 	return float64(bytes.Count(stdout, []byte(eol)) - 1), nil
 }
 
+var logThrottlerOpenFilesCountErrors = batching_logger.NewIntervalThrottler(time.Hour)
+
 // GetStat may return incomplete result (with some fields unfilled)
 func GetStat(pid int) (*SysInfo, error) {
 	platform = runtime.GOOS
@@ -176,7 +180,14 @@ func GetStat(pid int) (*SysInfo, error) {
 	}
 	sysInfo.Descriptors, err = getOpenFilesCount(pid, platform)
 	if err != nil {
-		logger.Log.Debug(fmt.Sprintf("Failed to get open files count on platform %q", platform), log.Error(err))
+		batching_logger.LogLine(
+			logThrottlerOpenFilesCountErrors,
+			func(in string) {
+				logger.Log.Debug(in)
+			},
+			fmt.Sprintf("Failed to get open files count on platform %q", platform),
+			log.Error(err),
+		)
 	}
 	return sysInfo, nil
 }

@@ -81,7 +81,20 @@ func TestTransferSystemTables(t *testing.T) {
 		chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard1.sql")),
 	)
 	src.IncludeTables = append(src.IncludeTables, tableID.Name)
-	storage, err := provider_clickhouse.NewStorage(storageParams(t, src), nil, provider_clickhouse.WithTableFilter(src))
+
+	params := storageParams(t, src)
+	// Warm up query_log: system log tables like query_log are created lazily
+	// on the first log flush. Without this, query_log may not appear in system.tables
+	// and the filtered table list will be empty.
+	warmupConn, err := provider_clickhouse.MakeConnection(params)
+	require.NoError(t, err)
+	_, err = warmupConn.Exec("SELECT 1")
+	require.NoError(t, err)
+	_, err = warmupConn.Exec("SYSTEM FLUSH LOGS")
+	require.NoError(t, err)
+	require.NoError(t, warmupConn.Close())
+
+	storage, err := provider_clickhouse.NewStorage(params, nil, provider_clickhouse.WithTableFilter(src))
 	require.NoError(t, err)
 	tables, err := storage.TableList(nil)
 	require.NoError(t, err)
