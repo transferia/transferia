@@ -21,7 +21,7 @@ import (
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/pkg/util/backoff"
+	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -473,7 +473,7 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap, ta
 			return xerrors.Errorf("failed to make async sink: %w", err)
 		}
 
-		if err = backoff.RetryNotify(func() error {
+		loadTable := func() error {
 			logger.Log.Infof("Starting upload table: %s", table.String())
 
 			sourceWrapper, err := NewSourceWrapper(src, src.SlotID, p.transfer.DataObjects, p.logger, stats.NewSourceStats(p.registry), p.cp, true)
@@ -486,14 +486,18 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap, ta
 				return xerrors.Errorf("failed to create DBLog storage: %w", err)
 			}
 
-			err = dblogStorage.LoadTable(ctx, table, pusher)
-			if abstract.IsFatal(err) {
-				return backoff.Permanent(xerrors.Errorf("fatal error ocurred in dblogStorage.LoadTable, err: %w", err))
-			} else if err != nil {
+			if err := dblogStorage.LoadTable(ctx, table, pusher); err != nil {
 				return xerrors.Errorf("unable to dblogStorage.LoadTable, err: %w", err)
 			}
 			logger.Log.Infof("Upload table %s successfully", table.String())
 			return nil
+		}
+		if err = backoff.RetryNotify(func() error {
+			loadTableErr := loadTable()
+			if abstract.IsFatal(loadTableErr) {
+				loadTableErr = backoff.Permanent(loadTableErr)
+			}
+			return loadTableErr
 		}, backoffutil.NewExponentialBackOff(), backoffutil.BackoffLogger(logger.Log, fmt.Sprintf("loading table: %s", table.String()))); err != nil {
 			return xerrors.Errorf("failed to load table: %w", err)
 		}
