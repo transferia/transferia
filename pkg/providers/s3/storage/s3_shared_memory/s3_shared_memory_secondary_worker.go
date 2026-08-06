@@ -140,7 +140,7 @@ func NewS3SharedMemorySecondaryWorker(
 		return nil, xerrors.Errorf("unable to create rWindow, err: %w", err)
 	}
 
-	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(cp, cfg.ThrottleCPDuration, transferID)
+	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(logger, cp, cfg.ThrottleCPDuration, transferID)
 
 	poller, err := object_fetcher.NewObjectFetcherPollerWrapped(
 		ctx,

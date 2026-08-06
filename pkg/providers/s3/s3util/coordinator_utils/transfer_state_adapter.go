@@ -6,9 +6,12 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type TransferStateAdapter struct {
+	logger log.Logger
+
 	// config
 	cp                 coordinator.Coordinator
 	throttleCPDuration time.Duration
@@ -23,7 +26,7 @@ type TransferStateAdapter struct {
 	lastState    map[string]*coordinator.TransferStateData
 }
 
-// used in:
+// GetTransferState used in:
 //   - snapshot - on secondary worker - to handle restarts
 //   - replication - to handle restarts
 func (a *TransferStateAdapter) GetTransferState() (map[string]*coordinator.TransferStateData, error) {
@@ -77,11 +80,17 @@ func (a *TransferStateAdapter) Flush(now time.Time) error {
 	if currLastState == nil {
 		return nil
 	}
+	err := logTransferStateSizeOrFail(a.logger, currLastState)
+	if err != nil {
+		return xerrors.Errorf("unable to flush transfer state: %w", err)
+	}
 	return a.cp.SetTransferState(a.transferID, currLastState)
 }
 
-func NewTransferStateAdapter(cp coordinator.Coordinator, throttleCPDuration time.Duration, transferID string) *TransferStateAdapter {
+func NewTransferStateAdapter(logger log.Logger, cp coordinator.Coordinator, throttleCPDuration time.Duration, transferID string) *TransferStateAdapter {
 	return &TransferStateAdapter{
+		logger: logger,
+
 		cp:                 cp,
 		throttleCPDuration: throttleCPDuration,
 		transferID:         transferID,

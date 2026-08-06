@@ -2047,6 +2047,7 @@
   "pkg/providers/s3/s3util/coordinator_utils/main_secondary_synchronization_test.go":"transfer_manager/go/pkg/providers/s3/s3util/coordinator_utils/main_secondary_synchronization_test.go",
   "pkg/providers/s3/s3util/coordinator_utils/transfer_state_adapter.go":"transfer_manager/go/pkg/providers/s3/s3util/coordinator_utils/transfer_state_adapter.go",
   "pkg/providers/s3/s3util/coordinator_utils/transfer_state_adapter_test.go":"transfer_manager/go/pkg/providers/s3/s3util/coordinator_utils/transfer_state_adapter_test.go",
+  "pkg/providers/s3/s3util/coordinator_utils/trasfer_state_adapter_funcs.go":"transfer_manager/go/pkg/providers/s3/s3util/coordinator_utils/trasfer_state_adapter_funcs.go",
   "pkg/providers/s3/s3util/delete/batch.go":"transfer_manager/go/pkg/providers/s3/s3util/delete/batch.go",
   "pkg/providers/s3/s3util/delete/delete.go":"transfer_manager/go/pkg/providers/s3/s3util/delete/delete.go",
   "pkg/providers/s3/s3util/dispatcher/dispatcher.go":"transfer_manager/go/pkg/providers/s3/s3util/dispatcher/dispatcher.go",

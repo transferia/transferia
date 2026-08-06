@@ -111,7 +111,7 @@ func newObjectFetcherWrapped(
 	return NewObjectFetcherContractor(logger, objectFetcher), nil
 }
 
-// main factory function
+// NewWrapped - main factory function
 // used in:
 //   - s3 source
 func NewWrapped(
@@ -130,7 +130,7 @@ func NewWrapped(
 
 	outCtx, cancel := context.WithCancel(ctx)
 
-	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(cp, srcModel.ThrottleCPDuration, transferID)
+	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(logger, cp, srcModel.ThrottleCPDuration, transferID)
 
 	objectFetcher, err := newObjectFetcherWrapped(ctx, logger, srcModel, s3client, coordinatorStateAdapter, sess, runtimeParallelism, r_window.NewRWindowEmpty(srcModel.OverlapDuration))
 	if err != nil {
@@ -141,7 +141,7 @@ func NewWrapped(
 	return objectFetcher, outCtx, cancel, currReader, currMetrics, nil
 }
 
-// snapshot
+// NewObjectFetcherPollerWrapped snapshot
 // used in:
 //   - s3_shared_memory_secondary_worker
 func NewObjectFetcherPollerWrapped(
@@ -162,8 +162,7 @@ func NewObjectFetcherPollerWrapped(
 
 var logThrottlerFetchAndCommitSetStateSuccessfully = batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Minute))
 
-// used in:
-//   - 'activate' on REPLICATION_ONLY - to commit all known files
+// - 'activate' on REPLICATION_ONLY - to commit all known files
 func FetchAndCommit(
 	ctx context.Context,
 	srcModel *s3_model.S3Source,
@@ -184,7 +183,7 @@ func FetchAndCommit(
 	batching_logger.LogLine(batching_logger.NewAbsentThrottler(), func(in string) { logger.Info(in) }, "state serialized (bcs commit_all)", log.Any("state", currState))
 	batching_logger.LogLine(logThrottlerFetchAndCommitSetStateSuccessfully, func(in string) { logger.Info(in) }, "will set state")
 
-	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(cp, srcModel.ThrottleCPDuration, transferID)
+	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(logger, cp, srcModel.ThrottleCPDuration, transferID)
 	err = coordinatorStateAdapter.SetTransferState(currState) // TODO - wrap into retries?
 	if err != nil {
 		return xerrors.Errorf("unable to set transfer state, err: %w", err)

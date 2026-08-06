@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/providers/s3/sink/testutil"
 )
@@ -12,7 +13,7 @@ import (
 func TestThrottling(t *testing.T) {
 	transferID := "dtt"
 	dpClient := testutil.NewFakeClientWithTransferState()
-	coordinatorStateAdapter := NewTransferStateAdapter(dpClient, 10, transferID)
+	coordinatorStateAdapter := NewTransferStateAdapter(logger.Log, dpClient, 10, transferID)
 
 	var err error
 

@@ -39,7 +39,7 @@ func TestObjectFetcherPoller(t *testing.T) {
 
 	transferID := "dtt"
 	dpClient := testutil.NewFakeClientWithTransferState()
-	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(dpClient, 0, transferID)
+	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(logger.Log, dpClient, 0, transferID)
 
 	runtime := abstract.NewFakeShardingTaskRuntime(0, 777, 888, 2)
 	effectiveWorkerNum, err := effective_worker_num.NewEffectiveWorkerNum(logger.Log, runtime, false)
@@ -137,7 +137,7 @@ func TestObjectFetcherPoller(t *testing.T) {
 func TestFlush(t *testing.T) {
 	transferID := "dtt"
 	dpClient := testutil.NewFakeClientWithTransferState()
-	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(dpClient, 10, transferID)
+	coordinatorStateAdapter := coordinator_utils.NewTransferStateAdapter(logger.Log, dpClient, 10, transferID)
 
 	var err error
 
