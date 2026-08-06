@@ -162,7 +162,8 @@ func NewObjectFetcherPollerWrapped(
 
 var logThrottlerFetchAndCommitSetStateSuccessfully = batching_logger.NewConcurrentThrottler(batching_logger.NewIntervalThrottler(time.Minute))
 
-// - 'activate' on REPLICATION_ONLY - to commit all known files
+// used in:
+//   - 'activate' on REPLICATION_ONLY - to commit all known files
 func FetchAndCommit(
 	ctx context.Context,
 	srcModel *s3_model.S3Source,

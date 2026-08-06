@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/tests/helpers/testsflag"
 )
 
 const (
@@ -35,13 +36,21 @@ func TailSample(s string, maxSampleLen int) string {
 func Sample(s string, maxSampleLen int) string {
 	if len(s) > maxSampleLen {
 		return s[:maxSampleLen] + fmt.Sprintf(" (%d characters more)", len(s)-maxSampleLen)
-	} else {
-		return s
 	}
+	return s
 }
 
-func DefaultSample(s string) string {
-	return Sample(s, DefaultSampleLen)
+func SampleForLogging(s string, maxSampleLen int) string {
+	if !testsflag.IsTest() {
+		if len(s) > maxSampleLen {
+			return s[:maxSampleLen] + fmt.Sprintf(" (%d characters more)", len(s)-maxSampleLen)
+		}
+	}
+	return s
+}
+
+func DefaultSampleForLogging(s string) string {
+	return SampleForLogging(s, DefaultSampleLen)
 }
 
 func SampleBytes(data []byte, maxSampleLen int) []byte {

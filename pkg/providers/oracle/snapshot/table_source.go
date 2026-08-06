@@ -72,7 +72,7 @@ func (s *oracleTableSource) Load(ctx context.Context, pusher abstract.Pusher) er
 		log.String("table", s.table.OracleSQLName()),
 		log.UInt64("scn", scn),
 		log.Bool("consistent", !s.config.IsNonConsistentSnapshot && s.position != nil),
-		log.String("query", util.Sample(sqlQuery, 4*1024)))
+		log.String("query", util.SampleForLogging(sqlQuery, 4*1024)))
 	if err := s.load.LoadSnapshot(ctx, pusher, sqlQuery); err != nil {
 		return xerrors.Errorf("failed while loading snapshot: %w", err)
 	}

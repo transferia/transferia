@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/kikimr/public/sdk/go/persqueue"
+	"github.com/transferia/transferia/pkg/util/queues/sequencer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -72,7 +73,11 @@ func (l *commitLatencyLogger) handleAck(ack *persqueue.CommitAck) {
 			log.Int64("duration_ms", duration.Milliseconds()),
 		)
 	}
-	l.logger.Infof("Ack: %v, durations: %v", ack.Cookies, durations)
+	cookieOffsets := make([]int64, len(ack.Cookies))
+	for i, c := range ack.Cookies {
+		cookieOffsets[i] = int64(c)
+	}
+	l.logger.Infof("Ack: [%v], durations: %v", sequencer.OffsetsToRanges(cookieOffsets), durations)
 }
 
 func (l *commitLatencyLogger) reset() {

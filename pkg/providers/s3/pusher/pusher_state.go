@@ -131,7 +131,7 @@ func (s *pusherState) waitLimits(ctx context.Context) {
 		if time.Since(logTime) > nextLogDuration {
 			logTime = time.Now()
 			nextLogDuration = backoffTimer.NextBackOff()
-			s.logger.Warnf(
+			s.logger.Infof(
 				"reader throttled for %v, limits: %v bytes / %v bytes",
 				backoffTimer.GetElapsedTime(),
 				s.inflightBytes,

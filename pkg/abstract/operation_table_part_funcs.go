@@ -20,7 +20,7 @@ func DumpTablePartsToLogs(parts []*OperationTablePart) {
 		partsToDump := yslices.Map(parts[i:end], func(part *OperationTablePart) string {
 			return part.String()
 		})
-		logger.Log.Info(fmt.Sprintf("Tables leastParts (shards) to copy [%v, %v]", i+1, end), log.Strings("leastParts", partsToDump))
+		logger.Log.Info(fmt.Sprintf("After sharding, tables leastParts (shards) to copy [%v, %v]", i+1, end), log.Strings("leastParts", partsToDump))
 	}
 }
 

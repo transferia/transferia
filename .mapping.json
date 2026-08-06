@@ -2650,6 +2650,7 @@
   "pkg/util/queues/sequencer/sequencer.go":"transfer_manager/go/pkg/util/queues/sequencer/sequencer.go",
   "pkg/util/queues/sequencer/sequencer_test.go":"transfer_manager/go/pkg/util/queues/sequencer/sequencer_test.go",
   "pkg/util/queues/sequencer/util_kafka.go":"transfer_manager/go/pkg/util/queues/sequencer/util_kafka.go",
+  "pkg/util/queues/sequencer/util_kafka_test.go":"transfer_manager/go/pkg/util/queues/sequencer/util_kafka_test.go",
   "pkg/util/queues/size_stat.go":"transfer_manager/go/pkg/util/queues/size_stat.go",
   "pkg/util/queues/timings_stat_collector.go":"transfer_manager/go/pkg/util/queues/timings_stat_collector.go",
   "pkg/util/queues/timings_stat_collector_test.go":"transfer_manager/go/pkg/util/queues/timings_stat_collector_test.go",

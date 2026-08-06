@@ -35,7 +35,7 @@ func (p pgxLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data
 			// https://github.com/transferia/transferia/arcadia/vendor/github.com/jackc/pgx/v4/conn.go?rev=r9171541#L413
 			query, ok := v.(string)
 			if ok {
-				v = util.DefaultSample(query)
+				v = util.DefaultSampleForLogging(query)
 			}
 		}
 		params = append(params, log.Any(k, v))

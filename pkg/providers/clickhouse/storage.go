@@ -246,7 +246,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 
 	rows, err := conn.QueryContext(ctx, readQ)
 	if err != nil {
-		s.logger.Error("rows select error", log.Error(err), log.Any("query", util.Sample(readQ, 1024)))
+		s.logger.Error("rows select error", log.Error(err), log.Any("query", util.SampleForLogging(readQ, 1024)))
 		return xerrors.Errorf("unable to select rows from table %v: %w", table.Fqtn(), err)
 	}
 	defer rows.Close()

@@ -93,12 +93,13 @@ func runReplication(ctx context.Context, cp coordinator.Coordinator, transfer *m
 		return xerrors.Errorf("unable to adapt transfer: %w", err)
 	}
 
-	logger.Log.Info("Transfer replication",
+	logger.Log.Info("Transfer replication (with transfer config)",
 		log.Any("transfer_id", transfer.ID),
 		log.Any("src_type", transfer.SrcType()),
 		log.Any("dst_type", transfer.DstType()),
 		log.Object("transfer", transfer),
 	)
+	transfer.LogTrasformersChain(logger.Log)
 
 	var previousAttemptErr error = nil
 	retryCount := int64(1)

@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -10,6 +11,7 @@ import (
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/transformer"
 	"go.uber.org/zap/zapcore"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type Transfer struct {
@@ -97,6 +99,59 @@ func (f *Transfer) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 		enc.AddString("Transformation", "nil")
 	}
 	return nil
+}
+
+func (f *Transfer) LogTrasformersChain(lgr log.Logger) {
+	if !f.HasTransformation() {
+		lgr.Info("public (user-defined) transformers chain: none")
+		lgr.Info("extra (system) transformers is absent")
+		return
+	}
+
+	if f.HasPublicTransformation() {
+		publicChain := buildTransformersChainNames(f.Transformation.Transformers.Transformers)
+		lgr.Infof("public (user-defined) transformers chain: %s", publicChain)
+	} else {
+		lgr.Info("public (user-defined) transformers chain: none")
+	}
+
+	if f.HasExtraTransformation() {
+		fullChain := make([]abstract.Transformer, 0)
+		for _, cfg := range f.TransformationConfigs() {
+			tr, err := transformer.New(cfg.Type(), cfg.Config(), lgr, abstract.TransformationRuntimeOpts{JobIndex: f.CurrentJobIndex()})
+			if err != nil {
+				lgr.Warnf("unable to init transformer %s for logging: %v", cfg.Type(), err)
+				continue
+			}
+			fullChain = append(fullChain, tr)
+		}
+		fullChain = append(fullChain, f.Transformation.ExtraTransformers...)
+		lgr.Infof("full (user-defined + system) transformers chain: %s", buildTransformersChainNamesFromRuntime(fullChain))
+	} else {
+		lgr.Info("extra (system) transformers is absent")
+	}
+}
+
+func buildTransformersChainNames(transformers []transformer.Transformer) string {
+	if len(transformers) == 0 {
+		return "none"
+	}
+	names := make([]string, len(transformers))
+	for i, tr := range transformers {
+		names[i] = string(tr.Type())
+	}
+	return strings.Join(names, "->")
+}
+
+func buildTransformersChainNamesFromRuntime(transformers []abstract.Transformer) string {
+	if len(transformers) == 0 {
+		return "none"
+	}
+	names := make([]string, len(transformers))
+	for i, tr := range transformers {
+		names[i] = string(tr.Type())
+	}
+	return strings.Join(names, "->")
 }
 
 func (f *Transfer) SnapshotOnly() bool {

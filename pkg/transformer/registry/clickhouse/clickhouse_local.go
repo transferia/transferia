@@ -201,9 +201,9 @@ func (s *ClickhouseTransformer) clickhouseExec(buffer bytes.Buffer, marshallingR
 	s.logger.Infof("done exec in %s stdout: %d, stderr: %d", time.Since(st), stdout.Len(), stderr.Len())
 	if stderr.Len() > 0 {
 		if err != nil {
-			s.logger.Errorf("clickhouse stderr: %s", util.DefaultSample(stderr.String()))
+			s.logger.Errorf("clickhouse stderr: %s", util.DefaultSampleForLogging(stderr.String()))
 		} else {
-			s.logger.Warnf("clickhouse stderr (non-fatal): %s", util.DefaultSample(stderr.String()))
+			s.logger.Warnf("clickhouse stderr (non-fatal): %s", util.DefaultSampleForLogging(stderr.String()))
 		}
 	}
 	return stdout.Bytes(), err
@@ -369,7 +369,7 @@ func (s *ClickhouseTransformer) ResultSchema(schema *abstract.TableSchema) (*abs
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	output := stdout.Bytes()
-	errText := util.DefaultSample(stderr.String())
+	errText := util.DefaultSampleForLogging(stderr.String())
 	s.logger.Infof("exec: \n%s", strings.Join(cmd.Args, " "))
 	if stderr.Len() > 0 {
 		if err != nil {
@@ -379,8 +379,8 @@ func (s *ClickhouseTransformer) ResultSchema(schema *abstract.TableSchema) (*abs
 		}
 	}
 	if err != nil {
-		s.logger.Errorf("exec: \n%s\nstdout: %s\nstderr: %s", strings.Join(cmd.Args, " "), util.DefaultSample(string(output)), errText)
-		return nil, xerrors.Errorf("unable to exec query: %w\nstdout: %s\nstderr: %s", err, util.DefaultSample(string(output)), errText)
+		s.logger.Errorf("exec: \n%s\nstdout: %s\nstderr: %s", strings.Join(cmd.Args, " "), util.DefaultSampleForLogging(string(output)), errText)
+		return nil, xerrors.Errorf("unable to exec query: %w\nstdout: %s\nstderr: %s", err, util.Sample(string(output), util.DefaultSampleLen), errText)
 	}
 	s.logger.Infof("input schema:\n%s\noutput:\n%s", inputStructure, string(output))
 	var res jsonCompactResult

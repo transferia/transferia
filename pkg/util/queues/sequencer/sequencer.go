@@ -59,38 +59,7 @@ func (p *partitionToOffsets) committedTo() int64 {
 }
 
 func (p *partitionToOffsets) toStringRanges() string {
-	result := ""
-	if len(p.offsets) == 0 {
-		return ""
-	}
-	prevRangeBegin := p.offsets[0]
-	prevRangeEl := p.offsets[0]
-	rangeLen := 0
-	for offsetIndex, currOffset := range p.offsets[1:] {
-		if prevRangeEl+1 == currOffset {
-			prevRangeEl = currOffset
-			rangeLen++
-			continue
-		}
-		if rangeLen == 0 {
-			result += fmt.Sprintf("%d,", prevRangeBegin)
-			prevRangeBegin = currOffset
-			prevRangeEl = currOffset
-			continue
-		} else {
-			result += fmt.Sprintf("%d-%d,", prevRangeBegin, p.offsets[offsetIndex])
-			prevRangeBegin = currOffset
-			prevRangeEl = currOffset
-			rangeLen = 0
-			continue
-		}
-	}
-	if rangeLen == 0 {
-		result += fmt.Sprintf("%d", prevRangeBegin)
-	} else {
-		result += fmt.Sprintf("%d-%d", prevRangeBegin, p.offsets[len(p.offsets)-1])
-	}
-	return result
+	return OffsetsToRanges(p.offsets)
 }
 
 func makePartitionName(topic string, partition int) string {

@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -75,7 +76,11 @@ func (l *SnapshotLoader) getIncrementalStateAndMergeWithTables(tables []abstract
 	if err != nil {
 		return includedTables, errors.CategorizedErrorf(categories.Internal, "unable to get transfer state: %w", err)
 	}
-	logger.Log.Infof("Got transfer %s state: %v", l.transfer.ID, state)
+	stateBytes, err := json.Marshal(state)
+	if err != nil {
+		return includedTables, errors.CategorizedErrorf(categories.Internal, "unable to marshal state: %w", err)
+	}
+	logger.Log.Infof("Got transfer %s state: %s", l.transfer.ID, string(stateBytes))
 	tablesFromState := state[TablesFilterStateKey].GetIncrementalTables()
 	if tablesFromState == nil {
 		logger.Log.Infof("Setting initial state %v", l.transfer.RegularSnapshot.Incremental)

@@ -1,9 +1,11 @@
 package util
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/tests/helpers/testsflag"
 )
 
 func TestSampleB(t *testing.T) {
@@ -40,4 +42,19 @@ func TestEnsureNoStringValsOnTheEdges(t *testing.T) {
 
 	err = EnsureNoStringValsOnTheEdges(`{"a":{"c" = " bcd "}}`)
 	require.NoError(t, err)
+}
+
+func TestSampleForLogging(t *testing.T) {
+	resultDefaultTest := SampleForLogging(strings.Repeat("A", 128), 16)
+	require.Equal(t, 128, len(resultDefaultTest))
+
+	testsflag.TurnOff()
+
+	resultAfterTurnOff := SampleForLogging(strings.Repeat("A", 128), 16)
+	require.Equal(t, 16, strings.Count(resultAfterTurnOff, "A"))
+
+	testsflag.TurnOn()
+
+	resultAfterTurnOn := SampleForLogging(strings.Repeat("A", 128), 16)
+	require.Equal(t, 128, len(resultAfterTurnOn))
 }

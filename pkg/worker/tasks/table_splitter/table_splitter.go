@@ -32,6 +32,9 @@ func SplitTables(
 	shardingStorage, isShardingStorage := source.(abstract.ShardingStorage)
 	isShardeableDestination := model.IsShardeableDestination(dstModel)
 
+	logger.Infof("is src shardeable: %t", isShardingStorage)
+	logger.Infof("is dst shardeable: %t", isShardeableDestination)
+
 	reasonWhyNotSharded := ""
 	if !isShardingStorage && !isShardeableDestination {
 		reasonWhyNotSharded = "Source storage is not supported sharding table, and destination is not supported shardable snapshots - that's why tables won't be sharded here"

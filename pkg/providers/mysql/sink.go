@@ -190,13 +190,13 @@ func (s *sinker) prepareInputPerTables(input []abstract.ChangeItem) (map[abstrac
 				ddlQ += statement
 			}
 			if _, err := s.db.Exec(ddlQ); err != nil {
-				s.logger.Warn("Unable to exec DDL:\n"+util.Sample(ddlQ, maxSampleLen), log.Error(err))
+				s.logger.Warn("Unable to exec DDL:\n"+util.SampleForLogging(ddlQ, maxSampleLen), log.Error(err))
 				if IsErrorCode(err, ErrCodeSyntax) {
 					return nil, abstract.NewFatalError(coded.Errorf(error_codes.MySQLIncorrectSyntax, "%w", err))
 				}
 				return nil, xerrors.Errorf("unable to execute ddl: %w", err)
 			} else {
-				s.logger.Infof("Done DDL:\n%v", util.Sample(ddlQ, maxSampleLen))
+				s.logger.Infof("Done DDL:\n%v", util.SampleForLogging(ddlQ, maxSampleLen))
 			}
 			err := s.fillUniqueConstraints()
 			if err != nil {
@@ -213,10 +213,10 @@ func (s *sinker) prepareInputPerTables(input []abstract.ChangeItem) (map[abstrac
 			}
 			ddlQ += fmt.Sprintf("DROP TABLE IF EXISTS `%v`.`%v`", db, row.Table)
 			if _, err := s.db.Exec(ddlQ); err != nil {
-				s.logger.Warn("Unable to exec DDL:\n"+util.Sample(ddlQ, maxSampleLen), log.Error(err))
+				s.logger.Warn("Unable to exec DDL:\n"+util.SampleForLogging(ddlQ, maxSampleLen), log.Error(err))
 				return nil, xerrors.Errorf("unable to drop table: %w", err)
 			} else {
-				s.logger.Infof("Done DDL:\n%v", util.Sample(ddlQ, maxSampleLen))
+				s.logger.Infof("Done DDL:\n%v", util.SampleForLogging(ddlQ, maxSampleLen))
 			}
 		case abstract.TruncateTableKind:
 			if s.config.Cleanup != model.Truncate {
@@ -235,10 +235,10 @@ func (s *sinker) prepareInputPerTables(input []abstract.ChangeItem) (map[abstrac
 			ddlQ := DisableFKQuery
 			ddlQ += fmt.Sprintf("TRUNCATE TABLE `%v`.`%v`", db, row.Table)
 			if _, err := s.db.Exec(ddlQ); err != nil {
-				s.logger.Warn("Unable to exec DDL:\n"+util.Sample(ddlQ, maxSampleLen), log.Error(err))
+				s.logger.Warn("Unable to exec DDL:\n"+util.SampleForLogging(ddlQ, maxSampleLen), log.Error(err))
 				return nil, xerrors.Errorf("unable to truncate table: %w", err)
 			} else {
-				s.logger.Infof("Done DDL:\n%v", util.Sample(ddlQ, maxSampleLen))
+				s.logger.Infof("Done DDL:\n%v", util.SampleForLogging(ddlQ, maxSampleLen))
 			}
 		case abstract.InitShardedTableLoad, abstract.SynchronizeKind:
 			// not needed for now
@@ -344,10 +344,10 @@ func (s *sinker) perTransactionPush(input []abstract.ChangeItem) error {
 				ddlQ := DisableFKQuery
 				ddlQ += fmt.Sprintf("DROP TABLE IF EXISTS `%v`.`%v`", db, row.Table)
 				if _, err := s.db.Exec(ddlQ); err != nil {
-					s.logger.Warn("Unable to exec DDL:\n"+util.Sample(ddlQ, maxSampleLen), log.Error(err))
+					s.logger.Warn("Unable to exec DDL:\n"+util.SampleForLogging(ddlQ, maxSampleLen), log.Error(err))
 					return xerrors.Errorf("unable to drop table: %w", err)
 				} else {
-					s.logger.Infof("Done DDL:\n%v", util.Sample(ddlQ, maxSampleLen))
+					s.logger.Infof("Done DDL:\n%v", util.SampleForLogging(ddlQ, maxSampleLen))
 				}
 			case abstract.TruncateTableKind:
 				if s.config.Cleanup != model.Truncate {
@@ -477,7 +477,7 @@ func (s *sinker) runTX(batch txBatch) error {
 		}
 	}
 	for _, txQuery := range batch.txQueries() {
-		s.logger.Debugf("execute tx%v query: \n%v", batch.gtid, util.Sample(txQuery, 100))
+		s.logger.Debugf("execute tx%v query: \n%v", batch.gtid, util.SampleForLogging(txQuery, 100))
 		_, err = s.currentTX.Exec(txQuery)
 		if err != nil {
 			return xerrors.Errorf("unable exec query for tx: %v: %w", batch.gtid, err)
@@ -720,7 +720,7 @@ func (s *sinker) pushQuires(tx *sql.Tx, queries []sinkQuery) error {
 			if IsErrorCode(err, ErrCodeDeadlock) {
 				return coded.Errorf(error_codes.MySQLDeadlock, "a deadlock occurred while executing query: %w", err)
 			}
-			s.logger.Error(fmt.Sprintf("exec error, query:\n%v", util.Sample(q.query, maxSampleLen)), log.Duration("elapsed", time.Since(start)), log.Error(err))
+			s.logger.Error(fmt.Sprintf("exec error, query:\n%v", util.SampleForLogging(q.query, maxSampleLen)), log.Duration("elapsed", time.Since(start)), log.Error(err))
 			if tErr := tx.Rollback(); tErr != nil {
 				return xerrors.Errorf("err: %w\nrollback err: %v", err, tErr)
 			}
@@ -788,7 +788,7 @@ func (s *sinker) createTable(tableID abstract.TableID, ts *abstract.TableSchema)
 	}
 	s.logger.Infof("built 'create table' query: %s", query)
 	if _, err := s.db.Exec(query); err != nil {
-		s.logger.Warnf("Unable to push DDL (%v):\n%v\n", err, util.Sample(query, maxSampleLen))
+		s.logger.Warnf("Unable to push DDL (%v):\n%v\n", err, util.SampleForLogging(query, maxSampleLen))
 		return abstract.NewFatalError(xerrors.Errorf("unable to execute ddl: %w", err))
 	}
 	s.cache[tableID] = ts
@@ -805,7 +805,7 @@ func (s *sinker) alterTable(tableID abstract.TableID, in *abstract.TableSchema) 
 		return nil
 	}
 	if _, err := s.db.Exec(query); err != nil {
-		s.logger.Warnf("Unable to alter %s (%s): %s", tableID.Fqtn(), util.Sample(query, maxSampleLen), err)
+		s.logger.Warnf("Unable to alter %s (%s): %s", tableID.Fqtn(), util.SampleForLogging(query, maxSampleLen), err)
 		return abstract.NewFatalError(xerrors.Errorf("unable to alter table %s: %w", tableID.Fqtn(), err))
 	}
 	return nil

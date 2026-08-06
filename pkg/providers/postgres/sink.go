@@ -455,7 +455,7 @@ func (s *sink) runTX(batch txBatch) error {
 		s.currentTXID = batch.txID
 	}
 	txQuery := batch.txQuery(s.transferID)
-	s.logger.Infof("execute tx%v query: \n%v", batch.txID, util.Sample(txQuery, 1000))
+	s.logger.Infof("execute tx%v query: \n%v", batch.txID, util.SampleForLogging(txQuery, 1000))
 	_, err = s.currentTX.Exec(context.TODO(), txQuery)
 	if err != nil {
 		return xerrors.Errorf("unable exec query for tx: %v: %w", batch.txID, err)
@@ -945,7 +945,7 @@ func (s *sink) executeQueries(ctx context.Context, conn *pgx.Conn, queries []str
 		return nil
 	}
 
-	s.logger.Warn("failed to execute queries at sink", log.String("query", util.DefaultSample(combinedQuery)), log.Error(err), log.Int("len", len(queries)))
+	s.logger.Warn("failed to execute queries at sink", log.String("query", util.DefaultSampleForLogging(combinedQuery)), log.Error(err), log.Int("len", len(queries)))
 	if pgerrors.IsPgError(err, pgerrors.ErrcGeneratedColumnWriteAttempt) {
 		return coded.Errorf(error_codes.PostgresGeneratedColumnWriteAttempt, "failed to execute %d queries at sink: %w", len(queries), err)
 	}
@@ -1078,13 +1078,13 @@ func (s *sink) insert(ctx context.Context, table string, schema []abstract.ColSc
 				}
 				if pgerrors.IsPgError(err, pgerrors.ErrcUniqueViolation) {
 					if !items[i].KeysChanged() {
-						s.logger.Warn("ignoring UNIQUE constraint violation and skipping an item", log.String("table", table), log.String("query", util.DefaultSample(queries[i])), log.Error(err))
+						s.logger.Warn("ignoring UNIQUE constraint violation and skipping an item", log.String("table", table), log.String("query", util.DefaultSampleForLogging(queries[i])), log.Error(err))
 						s.metrics.Table(table, "ignored_error", 1)
 						continue
 					}
-					s.logger.Error("cannot ignore UNIQUE constraint violation because PRIMARY KEY columns are changed by an item", log.Any("query", util.DefaultSample(queries[i])), log.Error(err))
+					s.logger.Error("cannot ignore UNIQUE constraint violation because PRIMARY KEY columns are changed by an item", log.Any("query", util.DefaultSampleForLogging(queries[i])), log.Error(err))
 				}
-				s.logger.Warn("single item query failed at sink", log.Any("query", util.DefaultSample(queries[i])), log.Error(err))
+				s.logger.Warn("single item query failed at sink", log.Any("query", util.DefaultSampleForLogging(queries[i])), log.Error(err))
 				return xerrors.Errorf("failed to process a single item at sink: %w", err)
 			}
 			err = nil

@@ -15,7 +15,7 @@ type ParserNative struct {
 func (p *ParserNative) Do(msg parsers.Message, partition abstract.Partition) []abstract.ChangeItem {
 	changeItems, err := abstract.UnmarshalChangeItems(msg.Value)
 	if err != nil {
-		p.logger.Debug("Unable to convert body to changeItems", log.Error(err), log.Any("body", util.Sample(string(msg.Value), 1*1024)))
+		p.logger.Debug("Unable to convert body to changeItems", log.Error(err), log.Any("body", util.SampleForLogging(string(msg.Value), 1*1024)))
 	}
 	return changeItems
 }
@@ -25,7 +25,7 @@ func (p *ParserNative) DoBatch(batch parsers.MessageBatch) []abstract.ChangeItem
 	for _, msg := range batch.Messages {
 		changeItems, err := abstract.UnmarshalChangeItems(msg.Value)
 		if err != nil {
-			p.logger.Debug("Unable to convert body to changeItems", log.Error(err), log.Any("body", util.Sample(string(msg.Value), 1*1024)))
+			p.logger.Debug("Unable to convert body to changeItems", log.Error(err), log.Any("body", util.SampleForLogging(string(msg.Value), 1*1024)))
 		}
 		result = append(result, changeItems...)
 	}

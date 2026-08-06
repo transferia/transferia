@@ -10,6 +10,7 @@ import (
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
+// Dump - logs 'ChangeItem' into stdout for tests
 func Dump(input []ChangeItem) {
 	tablets := map[string][]ChangeItem{}
 	for _, c := range input {
@@ -42,12 +43,12 @@ func Dump(input []ChangeItem) {
 				for i, v := range row.ColumnValues {
 					switch vv := v.(type) {
 					case []byte:
-						data[colIdx[row.ColumnNames[i]]] = util.Sample(string(vv), 100)
+						data[colIdx[row.ColumnNames[i]]] = util.SampleForLogging(string(vv), 100)
 					case ytschema.Datetime:
 						data[colIdx[row.ColumnNames[i]]] = vv.Time().String()
 					default:
 						d, _ := json.MarshalIndent(v, "", "	")
-						data[colIdx[row.ColumnNames[i]]] = util.Sample(string(d), 100)
+						data[colIdx[row.ColumnNames[i]]] = util.SampleForLogging(string(d), 100)
 					}
 				}
 				table.Append(data)

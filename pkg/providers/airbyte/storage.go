@@ -292,7 +292,7 @@ func (a *Storage) parse(data []byte) (*Message, []string) {
 	for scanner.Scan() {
 		row := scanner.Bytes()
 		if len(row) > 1024*1024 {
-			a.logger.Warnf("large row: %s, snippet: \n%s", format.SizeInt(len(row)), util.Sample(string(row), 256))
+			a.logger.Warnf("large row: %s, snippet: \n%s", format.SizeInt(len(row)), util.SampleForLogging(string(row), 256))
 		}
 		var r Message
 		err := json.Unmarshal(row, &r)

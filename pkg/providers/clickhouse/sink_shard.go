@@ -225,7 +225,7 @@ func (s *sinkShard) pushBatch(input []abstract.ChangeItem) error {
 				return xerrors.Errorf("error creating target table for metrika transfer: %w", err)
 			}
 		default:
-			s.logger.Infof("ClickHouse does not support %v", row.Kind)
+			s.logger.Infof("ClickHouse does not support kind %q - but usually it's ok", row.Kind)
 			continue
 		}
 	}

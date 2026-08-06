@@ -239,7 +239,7 @@ func (s *Source) waitLimits(parseQDone <-chan struct{}) {
 		if time.Since(logTime) > nextLogDuration {
 			logTime = time.Now()
 			nextLogDuration = backoffTimer.NextBackOff()
-			s.logger.Warnf(
+			s.logger.Infof(
 				"reader throttled for %v, limits: %v / %v",
 				backoffTimer.GetElapsedTime(),
 				format.SizeUInt64(s.inflightThrottler.InflightBytes()),

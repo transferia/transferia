@@ -555,6 +555,9 @@ func (s *PgSource) ToStorageParams(transfer *model.Transfer) *PgStorageParams {
 		useBinarySerialization = s.SnapshotSerializationFormat == PgSerializationFormatBinary
 	}
 
+	isPreferReplica := s.isPreferReplica(transfer)
+	logger.Log.Infof("isPreferReplica: %t", isPreferReplica)
+
 	return &PgStorageParams{
 		AllHosts:                    s.AllHosts(),
 		Port:                        s.Port,
@@ -568,7 +571,7 @@ func (s *PgSource) ToStorageParams(transfer *model.Transfer) *PgStorageParams {
 		UseFakePrimaryKey:           s.UseFakePrimaryKey,
 		DBFilter:                    nil,
 		IgnoreUserTypes:             s.IgnoreUserTypes,
-		PreferReplica:               s.isPreferReplica(transfer),
+		PreferReplica:               isPreferReplica,
 		ExcludeDescendants:          s.ExcludeDescendants,
 		DesiredTableSize:            s.DesiredTableSize,
 		SnapshotDegreeOfParallelism: s.SnapshotDegreeOfParallelism,
