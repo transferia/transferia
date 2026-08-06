@@ -29,6 +29,11 @@ const (
 	// has been forcibly stopped due to prolonged inactivity
 	LabelErrRegularSnapshotStopped SystemLabel = SystemLabel(systemLabelPrefix + "err.regular-snapshot-stopped")
 
+	// LabelLegacyYCSubnetSelection controls YC same-VPC subnet selection.
+	// The only known value is "on", any other value means disabled.
+	// TM-8569. Can be removed when there is no transfers using this label.
+	LabelLegacyYCSubnetSelection SystemLabel = SystemLabel(systemLabelPrefix + "legacy-yc-subnet-selection")
+
 	// FeatureLabelAsyncCH is used to enable experimental asynchronous clickhouse snapshot sink
 	//
 	// The only known value is "on", any other value means disabled.
