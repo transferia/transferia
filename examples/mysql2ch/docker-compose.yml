@@ -31,6 +31,7 @@ services:
     build: ../mysql2kafka/loadgen
     depends_on:
       - mysql
+    restart: on-failure 
     environment:
       MYSQL_HOST: mysql
       MYSQL_USER: myuser
@@ -48,5 +49,6 @@ services:
     depends_on:
       - mysql
       - clickhouse
+    restart: on-failure 
     volumes:
       - ./transfer.yaml:/usr/local/bin/transfer.yaml
