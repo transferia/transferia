@@ -173,6 +173,7 @@ func WithUsername(user string) testcontainers.CustomizeRequestOption {
 func WithZookeeper(container *ZookeeperContainer) testcontainers.CustomizeRequestOption {
 	return WithConfigData(fmt.Sprintf(`<?xml version="1.0"?>
 	<clickhouse>
+		<max_server_memory_usage>2147483648</max_server_memory_usage
 		<logger>
 			<level>debug</level>
 			<console>true</console>
