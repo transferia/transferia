@@ -27,7 +27,8 @@ func (s *Storage) resolvePartitions(ctx context.Context, table abstract.TableDes
 		`
 SELECT PARTITION_NAME, TABLE_ROWS
 FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?;
+WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+AND PARTITION_NAME IS NOT NULL;
 `,
 		table.Schema,
 		table.Name,
