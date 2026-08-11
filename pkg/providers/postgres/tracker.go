@@ -42,7 +42,7 @@ func (n *Tracker) RemoveLsn() error {
 }
 
 func (n *Tracker) GetLsn() (*LsnState, error) {
-	res, err := n.cp.GetTransferState(n.transferID)
+	res, err := n.cp.GetTransferStateByKeys(n.transferID, []string{pgLsn})
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get transfer state: %w", err)
 	}

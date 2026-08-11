@@ -29,11 +29,12 @@ func (c *CoordinatorStore) SetCheckpoint(streamName, shardID, sequenceNumber str
 }
 
 func (c *CoordinatorStore) GetCheckpoint(streamName, shardID string) (string, error) {
-	state, err := c.cp.GetTransferState(c.transferID)
+	key := streamName + ":" + shardID
+	state, err := c.cp.GetTransferStateByKeys(c.transferID, []string{key})
 	if err != nil {
 		return "", xerrors.Errorf("unabe to load state: %w", err)
 	}
-	val, ok := state[streamName+":"+shardID]
+	val, ok := state[key]
 	if !ok {
 		return "", nil
 	}

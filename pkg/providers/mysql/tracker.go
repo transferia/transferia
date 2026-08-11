@@ -44,7 +44,7 @@ func getFlavor(gtidset mysql_driver.GTIDSet) MysqlFlavorType {
 }
 
 func (n *Tracker) GetGtidset() (mysql_driver.GTIDSet, error) {
-	res, err := n.cp.GetTransferState(n.transferID)
+	res, err := n.cp.GetTransferStateByKeys(n.transferID, []string{gtidsetKey})
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get transfer state: %w", err)
 	}
@@ -84,7 +84,7 @@ func (n *Tracker) Remove() error {
 }
 
 func (n *Tracker) Get() (file string, pos uint32, err error) {
-	res, err := n.cp.GetTransferState(n.transferID)
+	res, err := n.cp.GetTransferStateByKeys(n.transferID, []string{binlogPosKey})
 	if err != nil {
 		return "", 0, xerrors.Errorf("unable to get transfer state: %w", err)
 	}

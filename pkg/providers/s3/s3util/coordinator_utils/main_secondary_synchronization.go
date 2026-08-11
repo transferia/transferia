@@ -73,13 +73,16 @@ func SetWorkerDone(lgr log.Logger, cp coordinator.Coordinator, transferID string
 }
 
 func WorkersDoneCount(startTime time.Time, cp coordinator.Coordinator, transferID string, maxWorkerNum int) (int, error) {
-	state, err := cp.GetTransferState(transferID)
+	keys := make([]string, 0, maxWorkerNum)
+	for i := 0; i < maxWorkerNum; i++ {
+		keys = append(keys, buildStringWorkerDoneKey(i))
+	}
+	state, err := cp.GetTransferStateByKeys(transferID, keys)
 	if err != nil {
 		return 0, xerrors.Errorf("unable to get transfer state, err: %w", err)
 	}
 	counter := 0
-	for i := 0; i < maxWorkerNum; i++ {
-		currKey := buildStringWorkerDoneKey(i)
+	for _, currKey := range keys {
 		v := state[currKey]
 		if v == nil {
 			continue

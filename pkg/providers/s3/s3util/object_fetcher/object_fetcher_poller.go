@@ -89,7 +89,12 @@ func initDispatcherFromState(
 	srcModel *s3_model.S3Source,
 	inDispatcher *dispatcher.Dispatcher,
 ) error {
-	stateMap, err := coordinatorStateAdapter.GetTransferState()
+	myPartitionNums := inDispatcher.MySyntheticPartitionNums()
+	myStateKeys := make([]string, 0, len(myPartitionNums))
+	for _, partitionNum := range myPartitionNums {
+		myStateKeys = append(myStateKeys, strconv.Itoa(partitionNum))
+	}
+	stateMap, err := coordinatorStateAdapter.GetTransferStateByKeys(myStateKeys)
 	if err != nil {
 		return xerrors.Errorf("unable to get transfer state: %w", err)
 	}

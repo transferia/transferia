@@ -83,7 +83,7 @@ func (s *ytStateStorage) getState() (string, error) {
 
 	if err := backoff.RetryNotify(
 		func() error {
-			stateMsg, err := s.cp.GetTransferState(s.transferID)
+			stateMsg, err := s.cp.GetTransferStateByKeys(s.transferID, []string{SinkYtState})
 			if err != nil {
 				return xerrors.Errorf("failed to get operation sink state: %w", err)
 			}

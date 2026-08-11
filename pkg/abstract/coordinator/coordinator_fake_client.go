@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"golang.org/x/exp/maps"
 )
 
 type CoordinatorNoOp struct {
@@ -42,6 +43,22 @@ func (f *CoordinatorNoOp) GetTransferState(id string) (map[string]*TransferState
 		return f.getTransferState(id)
 	}
 	return nil, nil
+}
+
+func (f *CoordinatorNoOp) GetTransferStateByKeys(id string, keys []string) (map[string]*TransferStateData, error) {
+	state, err := f.GetTransferState(id)
+	if err != nil {
+		return nil, err
+	}
+	return FilterTransferStateByKey(state, keys), nil
+}
+
+func (f *CoordinatorNoOp) GetTransferStateKeys(id string) ([]string, error) {
+	state, err := f.GetTransferState(id)
+	if err != nil {
+		return nil, err
+	}
+	return maps.Keys(state), nil
 }
 
 func (f *CoordinatorNoOp) SetTransferState(transferID string, state map[string]*TransferStateData) error {

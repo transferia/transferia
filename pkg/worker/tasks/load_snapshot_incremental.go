@@ -72,7 +72,7 @@ func (l *SnapshotLoader) getIncrementalStateAndMergeWithTables(tables []abstract
 	}
 
 	logger.Log.Info("Transfer can load snapshot from state, calculating incremental state.")
-	state, err := l.cp.GetTransferState(l.transfer.ID)
+	state, err := l.cp.GetTransferStateByKeys(l.transfer.ID, []string{TablesFilterStateKey})
 	if err != nil {
 		return includedTables, errors.CategorizedErrorf(categories.Internal, "unable to get transfer state: %w", err)
 	}

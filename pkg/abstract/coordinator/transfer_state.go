@@ -49,6 +49,19 @@ type TransferStateData struct {
 	YtStaticPart        *YtStaticPartState
 }
 
+// FilterTransferStateByKey - in-memory implementation of GetTransferStateByKeys, for the coordinators
+// which store the whole state at once and can not filter it at the storage level.
+// Keys which are absent in 'state' are simply absent from the result.
+func FilterTransferStateByKey(state map[string]*TransferStateData, keys []string) map[string]*TransferStateData {
+	result := make(map[string]*TransferStateData, len(keys))
+	for _, key := range keys {
+		if value, ok := state[key]; ok {
+			result[key] = value
+		}
+	}
+	return result
+}
+
 func (s *TransferStateData) GetMysqlBinlogPosition() *MysqlBinlogPositionState {
 	if s == nil {
 		return nil

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	aws_session "github.com/aws/aws-sdk-go/aws/session"
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/transferia/transferia/internal/logger"
@@ -78,6 +79,70 @@ func (c *CoordinatorS3) GetTransferState(transferID string) (map[string]*coordin
 	c.lgr.Info("load transfer state", log.Any("transfer_id", transferID), log.Any("state", state))
 
 	return state, nil
+}
+
+// GetTransferStateByKeys fetches only the requested state objects.
+// Every state key maps to an exact S3 key, so there is no listing and keys without an object is just skipped.
+func (c *CoordinatorS3) GetTransferStateByKeys(transferID string, keys []string) (map[string]*coordinator.TransferStateData, error) {
+	state := make(map[string]*coordinator.TransferStateData, len(keys))
+
+	for _, key := range keys {
+		objectKey := transferID + "/" + key + ".json"
+		resp, err := c.s3Client.GetObject(&aws_s3.GetObjectInput{
+			Bucket: aws.String(c.bucket),
+			Key:    aws.String(objectKey),
+		})
+		if err != nil {
+			if isNoSuchKey(err) {
+				continue // There is no state for this key.
+			}
+			return nil, xerrors.Errorf("failed to get object '%s': %w", objectKey, err)
+		}
+
+		var transferData coordinator.TransferStateData
+		decodeErr := json.NewDecoder(resp.Body).Decode(&transferData)
+		_ = resp.Body.Close()
+		if decodeErr != nil {
+			return nil, xerrors.Errorf("failed to decode object data '%s': %w", objectKey, decodeErr)
+		}
+		state[key] = &transferData
+	}
+	c.lgr.Info("load transfer state by key", log.Any("transfer_id", transferID), log.Any("state_keys", keys), log.Any("state", state))
+
+	return state, nil
+}
+
+// GetTransferStateKeys returns only the state keys of the transfer. It lists the transferID/ prefix
+// without downloading the objects themselves.
+func (c *CoordinatorS3) GetTransferStateKeys(transferID string) ([]string, error) {
+	prefix := transferID + "/"
+	listResp, err := c.s3Client.ListObjectsV2(&aws_s3.ListObjectsV2Input{
+		Bucket: aws.String(c.bucket),
+		Prefix: aws.String(prefix),
+	})
+	if err != nil {
+		return nil, xerrors.Errorf("failed to list objects: %w", err)
+	}
+
+	keys := make([]string, 0, len(listResp.Contents))
+	for _, obj := range listResp.Contents {
+		if obj.Size == nil || *obj.Size == 0 {
+			continue
+		}
+		key := strings.TrimPrefix(*obj.Key, prefix)
+		keys = append(keys, strings.TrimSuffix(key, ".json"))
+	}
+	c.lgr.Info("load transfer state keys", log.Any("transfer_id", transferID), log.Any("state_keys", keys))
+
+	return keys, nil
+}
+
+func isNoSuchKey(err error) bool {
+	var awsErr awserr.Error
+	if xerrors.As(err, &awsErr) {
+		return awsErr.Code() == aws_s3.ErrCodeNoSuchKey || awsErr.Code() == "NotFound"
+	}
+	return false
 }
 
 // SetTransferState stores the given transfer state into S3 as JSON objects.

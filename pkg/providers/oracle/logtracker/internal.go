@@ -45,7 +45,7 @@ func (tracker *InternalLogTracker) ClearPosition() error {
 }
 
 func (tracker *InternalLogTracker) ReadPosition() (*oracle_common.LogPosition, error) {
-	state, err := tracker.controlPlaneClient.GetTransferState(tracker.transferID)
+	state, err := tracker.controlPlaneClient.GetTransferStateByKeys(tracker.transferID, []string{OracleStateKey})
 	if err != nil {
 		return nil, xerrors.Errorf("Unable to get transfer '%v' state: %w", tracker.transferID, err)
 	}

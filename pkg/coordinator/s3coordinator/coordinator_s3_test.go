@@ -64,6 +64,38 @@ func TestCoordinatorS3TransferState(t *testing.T) {
 		}
 		require.Equal(t, expectedData, state)
 	})
+
+	t.Run("GetTransferStateByKeys", func(t *testing.T) {
+		state, err := cp.GetTransferStateByKeys(transferID, []string{"file3"})
+		require.NoError(t, err)
+		require.Equal(t, map[string]*coordinator.TransferStateData{"file3": {Generic: "3"}}, state)
+	})
+
+	t.Run("GetTransferStateByKeys - removed and never existed keys are just missing", func(t *testing.T) {
+		// 'file2' was removed above, 'file404' never existed
+		state, err := cp.GetTransferStateByKeys(transferID, []string{"file1", "file2", "file404"})
+		require.NoError(t, err)
+		require.Equal(t, map[string]*coordinator.TransferStateData{"file1": {Generic: "11"}}, state)
+	})
+
+	t.Run("GetTransferStateByKeys - no keys", func(t *testing.T) {
+		state, err := cp.GetTransferStateByKeys(transferID, nil)
+		require.NoError(t, err)
+		require.Empty(t, state)
+	})
+
+	t.Run("GetTransferStateKeys", func(t *testing.T) {
+		// 'file2' was removed above, so only 'file1' and 'file3' are left
+		keys, err := cp.GetTransferStateKeys(transferID)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"file1", "file3"}, keys)
+	})
+
+	t.Run("GetTransferStateKeys - unknown transfer", func(t *testing.T) {
+		keys, err := cp.GetTransferStateKeys("no-such-transfer")
+		require.NoError(t, err)
+		require.Empty(t, keys)
+	})
 }
 
 func TestDataplaneServiceShardedTasks(t *testing.T) {

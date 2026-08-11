@@ -25,6 +25,14 @@ func (c *FakeClientWithTransferState) GetTransferState(transferID string) (map[s
 	return c.state, nil
 }
 
+func (c *FakeClientWithTransferState) GetTransferStateByKeys(transferID string, keys []string) (map[string]*coordinator.TransferStateData, error) {
+	return coordinator.FilterTransferStateByKey(c.state, keys), nil
+}
+
+func (c *FakeClientWithTransferState) GetTransferStateKeys(transferID string) ([]string, error) {
+	return c.StateKeys(), nil
+}
+
 func (c *FakeClientWithTransferState) StateKeys() []string {
 	stateKeys := xmaps.Keys(c.state)
 	sort.Strings(stateKeys)

@@ -36,8 +36,15 @@ type TransferStatus interface {
 
 // TransferState is to manage transfer state, simple K-V structure
 type TransferState interface {
-	// GetTransferState return known transfer state
+	// GetTransferState return known transfer state.
+	// Deprecated: Returns whole state and for specific transfers response may exceed 4MB gRPC limit. Use GetTransferStateByKeys instead.
 	GetTransferState(id string) (map[string]*TransferStateData, error)
+	// GetTransferStateByKeys returns only the requested keys of the transfer state.
+	// Keys which have no state yet are simply absent from the result.
+	GetTransferStateByKeys(id string, keys []string) (map[string]*TransferStateData, error)
+	// GetTransferStateKeys returns only the keys of the transfer state, without the values.
+	// Unlike GetTransferState it stays small no matter how big the state values are.
+	GetTransferStateKeys(id string) ([]string, error)
 	// SetTransferState set certain keys to transfer state.
 	// it will add keys to exists state
 	SetTransferState(transferID string, state map[string]*TransferStateData) error

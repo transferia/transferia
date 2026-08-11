@@ -42,7 +42,11 @@ func (p *Provider) Source() (abstract.Source, error) {
 func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, tables abstract.TableMap, callbacks providers.ActivateCallbacks) error {
 	if !p.transfer.IncrementOnly() {
 		toCleanup := abstract.TableMap{}
-		state, err := p.cp.GetTransferState(p.transfer.ID)
+		stateKeys := make([]string, 0, len(tables))
+		for tid := range tables {
+			stateKeys = append(stateKeys, StateKey(tid))
+		}
+		state, err := p.cp.GetTransferStateByKeys(p.transfer.ID, stateKeys)
 		if err != nil {
 			return xerrors.Errorf("unable to extract transfer state: %w", err)
 		}

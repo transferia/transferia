@@ -26,11 +26,11 @@ type TransferStateAdapter struct {
 	lastState    map[string]*coordinator.TransferStateData
 }
 
-// GetTransferState used in:
+// GetTransferStateByKeys used in:
 //   - snapshot - on secondary worker - to handle restarts
 //   - replication - to handle restarts
-func (a *TransferStateAdapter) GetTransferState() (map[string]*coordinator.TransferStateData, error) {
-	stateMap, err := a.cp.GetTransferState(a.transferID)
+func (a *TransferStateAdapter) GetTransferStateByKeys(keys []string) (map[string]*coordinator.TransferStateData, error) {
+	stateMap, err := a.cp.GetTransferStateByKeys(a.transferID, keys)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get transfer state: %w", err)
 	}

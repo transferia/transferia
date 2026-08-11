@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/exp/maps"
 )
 
 type CoordinatorInMemory struct {
@@ -50,6 +51,28 @@ func (f *CoordinatorInMemory) GetTransferState(transferID string) (map[string]*T
 	result := f.state[transferID]
 
 	logger.Log.Info("CoordinatorInMemory.GetTransferState", log.Any("transfer_id", transferID), log.Any("state", result))
+
+	return result, nil
+}
+
+func (f *CoordinatorInMemory) GetTransferStateKeys(transferID string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	result := maps.Keys(f.state[transferID])
+
+	logger.Log.Info("CoordinatorInMemory.GetTransferStateKeys", log.Any("transfer_id", transferID), log.Any("state_keys", result))
+
+	return result, nil
+}
+
+func (f *CoordinatorInMemory) GetTransferStateByKeys(transferID string, keys []string) (map[string]*TransferStateData, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	result := FilterTransferStateByKey(f.state[transferID], keys)
+
+	logger.Log.Info("CoordinatorInMemory.GetTransferStateByKeys", log.Any("transfer_id", transferID), log.Any("state_keys", keys), log.Any("state", result))
 
 	return result, nil
 }

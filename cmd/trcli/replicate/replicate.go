@@ -16,6 +16,8 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 )
 
+const statusStateKey = "status" // statusStateKey is transfer state key which marks the transfer as already activated.
+
 func ReplicateCommand(cp *coordinator.Coordinator, rt abstract.Runtime, registry core_metrics.Registry) *cobra.Command {
 	var transferParams string
 	var metricsPrefix string
@@ -50,16 +52,16 @@ func RunReplication(cp coordinator.Coordinator, transfer *model.Transfer, regist
 	if err := provideradapter.ApplyForTransfer(transfer); err != nil {
 		return xerrors.Errorf("unable to adapt transfer: %w", err)
 	}
-	st, err := cp.GetTransferState(transfer.ID)
+	st, err := cp.GetTransferStateByKeys(transfer.ID, []string{statusStateKey})
 	if err != nil {
 		return xerrors.Errorf("unable to get transfer state: %w", err)
 	}
-	if stt, ok := st["status"]; !ok || stt.Generic == nil {
+	if stt, ok := st[statusStateKey]; !ok || stt.Generic == nil {
 		if err := activate.RunActivate(cp, transfer, registry, 0); err != nil {
 			return xerrors.Errorf("unable to activate transfer: %w", err)
 		}
 		if err := cp.SetTransferState(transfer.ID, map[string]*coordinator.TransferStateData{
-			"status": {
+			statusStateKey: {
 				Generic:             "activated",
 				IncrementalTables:   nil,
 				OraclePosition:      nil,
