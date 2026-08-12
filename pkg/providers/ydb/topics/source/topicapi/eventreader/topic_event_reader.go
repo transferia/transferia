@@ -2,9 +2,11 @@ package eventreader
 
 import (
 	"context"
+	"io"
 	"sync"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/coded"
@@ -13,6 +15,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topiclistener"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -71,6 +74,9 @@ func newTopicEventReader(consumer string, selectors []topicoptions.ReadSelector,
 		consumer,
 		handler,
 		selectors,
+		topicoptions.WithListenerAddDecoder(topictypes.CodecZstd, func(input io.Reader) (io.Reader, error) {
+			return zstd.NewReader(input)
+		}),
 	)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to start listener, err: %w", err)

@@ -3,8 +3,10 @@ package topicapisource
 import (
 	"context"
 	"fmt"
+	"io"
 	"testing"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
@@ -19,6 +21,8 @@ import (
 	sourcehelpers "github.com/transferia/transferia/tests/helpers/source"
 	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
 	ydbtopic "github.com/transferia/transferia/tests/helpers/ydb_recipe/topic"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 )
 
 func TestSource(t *testing.T) {
@@ -42,22 +46,7 @@ func TestSource(t *testing.T) {
 		res, err := sourcehelpers.WaitForItems(src, len(testMessages), 0)
 		require.NoError(t, err)
 
-		resLen := 0
-		for _, msg := range res {
-			resLen += len(msg)
-		}
-		require.Equal(t, len(testMessages), resLen)
-
-		i := 0
-		partitionName := abstract.NewPartition(topicName, 0).String()
-		for _, push := range res {
-			for _, item := range push {
-				require.Equal(t, partitionName, item.Table)
-				require.Equal(t, partitionName, item.ColumnValues[0])
-				require.Equal(t, testMessages[i], item.ColumnValues[7])
-				i++
-			}
-		}
+		checkItems(t, topicName, testMessages, res)
 	})
 
 	t.Run("ReadManyTopics", func(t *testing.T) {
@@ -127,22 +116,65 @@ func TestSource(t *testing.T) {
 		res, err := sourcehelpers.WaitForItems(src, len(testMessages), 0)
 		require.NoError(t, err)
 
-		resLen := 0
-		for _, msg := range res {
-			resLen += len(msg)
-		}
-		require.Equal(t, len(testMessages), resLen)
+		checkItems(t, topicName, testMessages, res)
+	})
+}
 
-		i := 0
-		partitionName := abstract.NewPartition(topicName, 0).String()
-		for _, push := range res {
-			for _, item := range push {
-				require.Equal(t, partitionName, item.Table)
-				require.Equal(t, partitionName, item.ColumnValues[0])
-				require.Equal(t, testMessages[i], item.ColumnValues[7])
-				i++
-			}
+func TestSourceCodecs(t *testing.T) {
+	sourceMetrics := stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts()))
+
+	ydbDriver := ydbrecipe.Driver(t)
+	defer func() {
+		_ = ydbDriver.Close(context.Background())
+	}()
+
+	t.Run("EncodedWithGZIP", func(t *testing.T) {
+		topicName := "gzip_topic_test"
+		testMessages := [][]byte{
+			[]byte("gzip_message_1"),
+			[]byte("gzip_message_2"),
+			[]byte("gzip_message_3"),
 		}
+		ydbtopic.CreateTopic(t, topicName, ydbDriver)
+		ydbtopic.WriteMessages(t, topicName, testMessages, ydbDriver, topicoptions.WithWriterCodec(topictypes.CodecGzip))
+
+		srcCfg := newTestSourceCfg(t, []string{topicName})
+		parser, err := parsers.NewParserFromParserConfig(&blankparser.ParserConfigBlankLb{}, false, logger.Log, sourceMetrics)
+		require.NoError(t, err)
+
+		src, err := NewSource(srcCfg, parser, logger.Log, sourceMetrics)
+		require.NoError(t, err)
+		res, err := sourcehelpers.WaitForItems(src, len(testMessages), 0)
+		require.NoError(t, err)
+
+		checkItems(t, topicName, testMessages, res)
+	})
+
+	t.Run("EncodedWithZSTD", func(t *testing.T) {
+		topicName := "zstd_topic_test"
+		testMessages := [][]byte{
+			[]byte("zstd_message_1"),
+			[]byte("zstd_message_2"),
+			[]byte("zstd_message_3"),
+		}
+		ydbtopic.CreateTopic(t, topicName, ydbDriver)
+		ydbtopic.WriteMessages(t, topicName, testMessages, ydbDriver,
+			topicoptions.WithWriterCodec(topictypes.CodecZstd),
+			topicoptions.WithWriterAddEncoder(topictypes.CodecZstd, func(writer io.Writer) (io.WriteCloser, error) {
+				return zstd.NewWriter(writer)
+			}),
+		)
+
+		srcCfg := newTestSourceCfg(t, []string{topicName})
+		parser, err := parsers.NewParserFromParserConfig(&blankparser.ParserConfigBlankLb{}, false, logger.Log, sourceMetrics)
+		require.NoError(t, err)
+
+		src, err := NewSource(srcCfg, parser, logger.Log, sourceMetrics)
+		require.NoError(t, err)
+		res, err := sourcehelpers.WaitForItems(src, len(testMessages), 0)
+		require.NoError(t, err)
+
+		checkItems(t, topicName, testMessages, res)
 	})
 }
 
@@ -204,5 +236,24 @@ func newTestSourceCfg(t *testing.T, topics []string) *topicsource.Config {
 		},
 		Topics:   topics,
 		Consumer: ydbtopic.DefaultConsumer,
+	}
+}
+
+func checkItems(t *testing.T, topicName string, expectedMessages [][]byte, items [][]abstract.ChangeItem) {
+	resLen := 0
+	for _, push := range items {
+		resLen += len(push)
+	}
+	require.Equal(t, len(expectedMessages), resLen)
+
+	i := 0
+	partitionName := abstract.NewPartition(topicName, 0).String()
+	for _, push := range items {
+		for _, item := range push {
+			require.Equal(t, partitionName, item.Table)
+			require.Equal(t, partitionName, item.ColumnValues[0])
+			require.Equal(t, expectedMessages[i], item.ColumnValues[7])
+			i++
+		}
 	}
 }
