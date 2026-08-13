@@ -30,3 +30,14 @@ type ReaderOptions struct {
 	MaxTimeLag          time.Duration
 	MinReadInterval     time.Duration
 }
+
+func NewDefaultReaderOptions() ReaderOptions {
+	return ReaderOptions{
+		ReadOnlyLocal:       true,
+		MaxMemory:           0,
+		MaxReadSize:         0,
+		MaxReadMessageCount: 0,
+		MaxTimeLag:          0,
+		MinReadInterval:     0,
+	}
+}

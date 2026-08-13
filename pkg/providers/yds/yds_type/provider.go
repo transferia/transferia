@@ -2,4 +2,5 @@ package yds_type
 
 import "github.com/transferia/transferia/pkg/abstract"
 
-const ProviderType = abstract.ProviderType("yds")
+const YDSProviderType = abstract.ProviderType("yds")
+const YDBTopicProviderType = abstract.ProviderType("ydbtopic")

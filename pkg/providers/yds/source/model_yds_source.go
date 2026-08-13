@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
+	topicsource "github.com/transferia/transferia/pkg/providers/ydb/topics/source"
 	"github.com/transferia/transferia/pkg/providers/yds/yds_type"
 	"go.uber.org/zap/zapcore"
 )
@@ -107,7 +108,7 @@ func (s *YDSSource) WithDefaults() {
 func (s *YDSSource) IsSource() {}
 
 func (s *YDSSource) GetProviderType() abstract.ProviderType {
-	return yds_type.ProviderType
+	return yds_type.YDSProviderType
 }
 
 func (s *YDSSource) Validate() error {
@@ -160,3 +161,7 @@ func (s *YDSSource) Parser() map[string]interface{} {
 }
 
 func (s *YDSSource) IsQueueToS3Source() {}
+
+func (s *YDSSource) topicSourceConfig(defaultConsumer string) *topicsource.Config {
+	return buildTopicSourceConfig(defaultConsumer, s)
+}

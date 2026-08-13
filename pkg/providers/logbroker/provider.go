@@ -118,7 +118,7 @@ func (p *Provider) SnapshotSink(middlewares.Config) (abstract.Sinker, error) {
 
 func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, table abstract.TableMap, callbacks providers.ActivateCallbacks) error {
 	if p.transfer.SrcType() == ProviderType && !p.transfer.IncrementOnly() {
-		return xerrors.New("Only allowed mode for Kafka source is replication")
+		return xerrors.New("Only allowed mode for Logbroker source is replication")
 	}
 	return nil
 }

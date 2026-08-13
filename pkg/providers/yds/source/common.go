@@ -11,10 +11,10 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func buildTopicSourceConfig(transferID string, cfg *YDSSource) *topicsource.Config {
+func buildTopicSourceConfig(defaultConsumer string, cfg *YDSSource) *topicsource.Config {
 	consumer := cfg.Consumer
 	if consumer == "" {
-		consumer = transferID
+		consumer = defaultConsumer
 	}
 
 	topicSourceCfg := &topicsource.Config{
