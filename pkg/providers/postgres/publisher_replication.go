@@ -74,7 +74,7 @@ const BufferLimit = 16 * humanize.MiByte
 
 func (p *replication) Run(sink abstract.AsyncSink) error {
 	// level of parallelism combined with hardcoded buffer size in receiver(16mb) prevent OOM in parsequeue
-	parseQ := parsequeue.New(p.logger, 10, sink, p.WithIncludeFilter, p.ack)
+	parseQ := parsequeue.NewWaitable(p.logger, 10, sink, p.WithIncludeFilter, p.ack)
 
 	runErr := p.run(parseQ)
 
@@ -82,7 +82,7 @@ func (p *replication) Run(sink abstract.AsyncSink) error {
 	return multierr.Combine(runErr, parseQ.Error())
 }
 
-func (p *replication) run(parseQ *parsequeue.ParseQueue[[]abstract.ChangeItem]) error {
+func (p *replication) run(parseQ parsequeue.WaitableQueue[[]abstract.ChangeItem]) error {
 	p.wg.Add(1)
 	go p.standbyStatus()
 
@@ -305,7 +305,7 @@ func (p *replication) standbyStatus() {
 	}
 }
 
-func (p *replication) receiver(parseQ *parsequeue.ParseQueue[[]abstract.ChangeItem], slotTroubleCh <-chan error) {
+func (p *replication) receiver(parseQ parsequeue.WaitableQueue[[]abstract.ChangeItem], slotTroubleCh <-chan error) {
 	defer p.wg.Done()
 	defer logger.Log.Info("Receiver stopped")
 	var lastLsn uint64

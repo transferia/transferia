@@ -21,6 +21,18 @@ func (p *lsnTransaction) appendLsn(newLsn uint64) error {
 	return nil
 }
 
+// removeOneLsn removes the first occurrence of lsn from the transaction.
+// Returns true if an occurrence was removed.
+func (p *lsnTransaction) removeOneLsn(lsn uint64) bool {
+	for i, cur := range p.lsns {
+		if cur == lsn {
+			p.lsns = append(p.lsns[:i], p.lsns[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 // here we go through lsns and add to the new slice those that were not found in pushedLsns
 // we also check that we only try to remove lsns that were previously added
 // objects in pushedLsns must go in increasing order

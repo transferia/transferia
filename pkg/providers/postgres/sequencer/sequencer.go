@@ -49,6 +49,25 @@ func (s *Sequencer) Pushed(changes []abstract.ChangeItem) (uint64, error) {
 	return s.progress.updateCommitted(), nil
 }
 
+// PushedOffsets acks items by LSN only (queue-to-s3 contract).
+// Offsets must be non-decreasing. Each offset removes exactly one matching
+// in-flight LSN occurrence (duplicates are allowed within a single tx, e.g. COPY).
+func (s *Sequencer) PushedOffsets(offsets []uint64) (uint64, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if err := checkOrder(offsets); err != nil {
+		return 0, xerrors.Errorf("invalid pushed offsets order: %w", err)
+	}
+
+	for _, offset := range offsets {
+		if err := s.progress.removeOneLsn(offset); err != nil {
+			return 0, xerrors.Errorf("unable to remove pushed offset %v from sequencer: %w", offset, err)
+		}
+	}
+	return s.progress.updateCommitted(), nil
+}
+
 func NewSequencer() *Sequencer {
 	return &Sequencer{
 		mutex:    sync.Mutex{},

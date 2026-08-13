@@ -41,6 +41,21 @@ func (p *progressInfo) remove(tid uint32, lsns []uint64) error {
 	return nil
 }
 
+// removeOneLsn walks in-flight transactions in order and removes the first
+// matching LSN occurrence. Unknown LSN is an error.
+func (p *progressInfo) removeOneLsn(lsn uint64) error {
+	for _, tid := range p.transactionIDs {
+		tx := p.processing[tid]
+		if tx == nil {
+			continue
+		}
+		if removed := tx.removeOneLsn(lsn); removed {
+			return nil
+		}
+	}
+	return xerrors.Errorf("lsn %v is not found in processed transactions", lsn)
+}
+
 func (p *progressInfo) updateCommitted() uint64 {
 	//in case last transaction is not complete yet
 	if len(p.transactionIDs) <= 1 {

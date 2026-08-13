@@ -86,6 +86,7 @@ type PgSource struct {
 
 var (
 	_ model.Source                   = (*PgSource)(nil)
+	_ model.QueueToS3Source          = (*PgSource)(nil)
 	_ model.WithConnectionID         = (*PgSource)(nil)
 	_ model.EndpointParamsDbDefaults = (*PgSource)(nil)
 )
@@ -319,6 +320,7 @@ func (s *PgSource) ExcludeWithGlobals() []string {
 }
 
 func (*PgSource) IsSource()                      {}
+func (*PgSource) IsQueueToS3Source()             {}
 func (*PgSource) IsStrictSource()                {}
 func (*PgSource) MaxReplicationWorkers() uint    { return 1 }
 func (*PgSource) IsIncremental()                 {}

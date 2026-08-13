@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -57,6 +58,12 @@ func (w *Worker) Run(sink abstract.AsyncSink) error {
 }
 
 func (w *Worker) run(sink abstract.AsyncSink) error {
+	return w.runPublisher(sink, func(publisher abstract.Source) error {
+		return publisher.Run(sink)
+	})
+}
+
+func (w *Worker) runPublisher(sink io.Closer, run func(abstract.Source) error) error {
 	var lockCh chan bool
 	for {
 		l, err := w.keeper.Lock(w.src.SlotID)
@@ -88,13 +95,14 @@ func (w *Worker) run(sink abstract.AsyncSink) error {
 		//nolint:descriptiveerrors
 		return err
 	}
+	w.publisher = pubStream
+
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(errCh)
-		errCh <- pubStream.Run(sink)
+		errCh <- run(pubStream)
 	}()
 
-	w.publisher = pubStream
 	defer w.metrics.Master.Set(0)
 	defer sink.Close()
 
