@@ -35,4 +35,8 @@ func TestOffsetsToRanges(t *testing.T) {
 			require.Equal(t, tt.expected, OffsetsToRanges(tt.offsets))
 		})
 	}
+
+	t.Run("uint64 offsets", func(t *testing.T) {
+		require.Equal(t, "1-3,5-6,8", OffsetsToRanges([]uint64{1, 2, 3, 5, 6, 8}))
+	})
 }

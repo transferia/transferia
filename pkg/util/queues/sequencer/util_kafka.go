@@ -31,10 +31,10 @@ func BuildMapTopicPartitionToOffsetsRange(messages []QueueMessage) string {
 	return sequencer.ToStringRangesWithTopic()
 }
 
-// OffsetsToRanges converts a sorted slice of int64 offsets into a compact range string.
+// OffsetsToRanges converts a sorted slice of offsets into a compact range string.
 // Consecutive offsets are collapsed into "start-end", non-consecutive ones are comma-separated.
 // Example: [1, 2, 3, 5, 6, 8] -> "1-3,5-6,8"
-func OffsetsToRanges(offsets []int64) string {
+func OffsetsToRanges[T ~int64 | ~uint64](offsets []T) string {
 	if len(offsets) == 0 {
 		return ""
 	}

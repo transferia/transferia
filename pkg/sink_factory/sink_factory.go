@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/middlewares/memthrottle"
+	"github.com/transferia/transferia/pkg/middlewares/offsetdedup"
 	"github.com/transferia/transferia/pkg/middlewares/synchronizer"
 	"github.com/transferia/transferia/pkg/middlewares/synchronizer/bufferer"
 	"github.com/transferia/transferia/pkg/providers"
@@ -90,6 +91,13 @@ func MakeAsyncReplicationSink(
 	asyncSink, err := factory.AsyncV2Sink(config, partition)
 	if err != nil {
 		return nil, errors.CategorizedErrorf(categories.Target, "failed to construct async v2 sink: %w", err)
+	}
+
+	// Exactly-once across restarts: source redelivers un-acked offsets; OffsetDedup
+	// skips up to the watermark from the destination-specific OffsetStore.
+	if offsetStoreBuilder, ok := asyncSink.(offsetdedup.OffsetStoreBuilder); ok {
+		offsetStore := offsetStoreBuilder.BuildOffsetStore(transfer.ID)
+		return offsetdedup.NewOffsetDedup(asyncSink, offsetStore, partition, lgr), nil
 	}
 	return asyncSink, nil
 }

@@ -20,6 +20,13 @@ type QueueSourceAsyncPushResult struct {
 	Err    error
 }
 
+func NewQueueSourceAsyncPushResult(offsets []uint64, err error) *QueueSourceAsyncPushResult {
+	return &QueueSourceAsyncPushResult{
+		Result: QueueResult{Offsets: offsets},
+		Err:    err,
+	}
+}
+
 type QueueResult struct {
 	Offsets []uint64
 }
