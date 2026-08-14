@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/tests/helpers/yatestx"
 	"github.com/transferia/transferia/tests/tcrecipes"
 	tc_clickhouse "github.com/transferia/transferia/tests/tcrecipes/clickhouse"
 )
@@ -42,12 +43,14 @@ func WithUser(user string) Option {
 }
 
 func WithInitFile(file string) Option {
+	file = yatestx.ProjectSource(file)
 	return func(c *ContainerParams) {
 		c.initScripts = append(c.initScripts, file)
 	}
 }
 
 func WithInitDir(dir string) Option {
+	dir = yatestx.ProjectSource(dir)
 	return func(opt *ContainerParams) {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -189,7 +192,10 @@ func Target(opts ...Option) (*clickhouse_model.ChDestination, error) {
 		ShardByTransferID:       false,
 		ShardByRoundRobin:       false,
 		Rotation:                nil,
-		InsertParams:            clickhouse_model.InsertParams{MaterializedViewsIgnoreErrors: false},
+		InsertParams: clickhouse_model.InsertParams{
+			MaterializedViewsIgnoreErrors:     false,
+			UnlimitedPartitionsPerInsertBlock: false,
+		},
 		ShardsList: []clickhouse_model.ClickHouseShard{
 			{
 				Name: "_",

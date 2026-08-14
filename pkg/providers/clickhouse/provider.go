@@ -213,7 +213,7 @@ func (p *Provider) Test(ctx context.Context) *abstract.TestResult {
 
 	for _, shardHosts := range shards {
 		for _, host := range shardHosts {
-			err = cl.Query(context.Background(), p.logger, host, "SELECT 1;", &res)
+			err = cl.Query(context.Background(), p.logger, host, "SELECT 1;", &res, nil)
 			if err != nil {
 				return tr.NotOk(ConnectivityHTTP, xerrors.Errorf("unable to query ClickHouse host: %s err: %w", host.Name, err))
 			}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	clickhouse_go "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/blang/semver/v4"
 	"github.com/stretchr/testify/require"
@@ -185,7 +186,7 @@ func TestTable_doOperation_updatable_delete(t *testing.T) {
 	err = json.Unmarshal([]byte(changeItemJSON), &changeItem)
 	require.NoError(t, err)
 
-	err = doOperation(table, tx, []abstract.ChangeItem{changeItem})
+	err = doOperation(table, tx, []abstract.ChangeItem{changeItem}, table.config.InsertSettings())
 	require.NoError(t, err)
 }
 
@@ -274,7 +275,7 @@ func TestTable_doOperation_failed_on_TOAST(t *testing.T) {
 	err = json.Unmarshal([]byte(changeItemJSONs[1]), &changeItems[1])
 	require.NoError(t, err)
 
-	err = doOperation(table, tx, changeItems)
+	err = doOperation(table, tx, changeItems, table.config.InsertSettings())
 	require.NoError(t, err)
 }
 
@@ -331,7 +332,7 @@ func TestTable_doOperation_ok_on_TOAST_alias_and_materialized(t *testing.T) {
 	err = json.Unmarshal([]byte(changeItemJSON), &changeItem)
 	require.NoError(t, err)
 
-	err = doOperation(table, tx, []abstract.ChangeItem{changeItem})
+	err = doOperation(table, tx, []abstract.ChangeItem{changeItem}, table.config.InsertSettings())
 	require.NoError(t, err)
 }
 
@@ -658,4 +659,47 @@ func TestAlterTableDDL_AddAndModify(t *testing.T) {
 	require.Equal(t,
 		"ALTER TABLE `test_table` ON CLUSTER `cluster-1` ADD COLUMN IF NOT EXISTS `new_col` String, MODIFY COLUMN `val_1` Int64",
 		ddl)
+}
+
+func TestTable_applyBatch_retries_on_too_many_partitions(t *testing.T) {
+	cols := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "id", DataType: "int64", PrimaryKey: true, Required: true},
+		{ColumnName: "value", DataType: "utf8"},
+	})
+
+	_, table := makeSchema(cols, false)
+	table.metrics = stats.NewChStats(emptyRegistry())
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	table.server = &SinkServer{db: db}
+
+	insertQuery := "INSERT INTO `db`.`test_table` \\(`id`,`value`\\) VALUES \\(\\?,\\?\\)"
+	tooManyPartitions := &clickhouse_go.Exception{
+		Code:    252,
+		Message: "Too many partitions for single INSERT block (more than 100). The limit is controlled by 'max_partitions_per_insert_block' setting.",
+	}
+
+	// the first attempt is rejected by the server-side limit and rolled back
+	mock.ExpectBegin()
+	mock.ExpectPrepare(insertQuery)
+	mock.ExpectExec(insertQuery).WillReturnError(tooManyPartitions)
+	mock.ExpectRollback()
+	// the batch is retried exactly once, with the limit lifted
+	mock.ExpectBegin()
+	mock.ExpectPrepare(insertQuery)
+	mock.ExpectExec(insertQuery).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	changeItem := abstract.ChangeItem{
+		Kind:         abstract.InsertKind,
+		Schema:       "db",
+		Table:        "test_table",
+		ColumnNames:  []string{"id", "value"},
+		ColumnValues: []interface{}{int64(1), "one"},
+		TableSchema:  cols,
+	}
+
+	require.NoError(t, table.applyBatch([]abstract.ChangeItem{changeItem}))
+	require.NoError(t, mock.ExpectationsWereMet())
 }

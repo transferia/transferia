@@ -51,7 +51,20 @@ func (c *httpClientImpl) prepareQuery(query interface{}) (io.Reader, error) {
 	}
 }
 
-func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *conn_clickhouse.Host, query interface{}) (io.ReadCloser, error) {
+// queryDescription returns a loggable representation of the query: a streamed body
+// (io.Reader) has already been consumed and has no replayable text, so only its type is reported.
+func queryDescription(query any) string {
+	switch q := query.(type) {
+	case string:
+		return util.DefaultSampleForLogging(q)
+	case []byte:
+		return util.DefaultSampleForLogging(string(q))
+	default:
+		return fmt.Sprintf("<%T>", q)
+	}
+}
+
+func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *conn_clickhouse.Host, query any, queryParams url.Values) (io.ReadCloser, error) {
 	preparedQuery, err := c.prepareQuery(query)
 	if err != nil {
 		return nil, xerrors.Errorf("error preparing query: %w", err)
@@ -73,6 +86,9 @@ func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *
 	lgr.Infof("compressed: %s / %s in %s", format.SizeInt(compressed.Len()), format.SizeUInt64(uint64(n)), time.Since(st))
 
 	connString := c.buildConnString(host, c.config.Database())
+	if len(queryParams) > 0 {
+		connString += "&" + queryParams.Encode()
+	}
 	lgr.Infof("built conn_string: %s", connString)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, connString, bytes.NewReader(compressed.Bytes()))
@@ -117,13 +133,13 @@ func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *
 				return nil, coded.Errorf(error_codes.ClickHouseInvalidDatabaseName, "error executing CH query: %w", chErr)
 			}
 		}
-		return nil, xerrors.Errorf("failed: %v to POST %s, status: %s: %w", query, req.URL.String(), resp.Status, chErr)
+		return nil, xerrors.Errorf("failed: %s to POST %s, status: %s: %w", queryDescription(query), req.URL.String(), resp.Status, chErr)
 	}
 	return resp.Body, nil
 }
 
-func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host *conn_clickhouse.Host, query interface{}, res interface{}) error {
-	body, err := c.QueryStream(ctx, lgr, host, query)
+func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host *conn_clickhouse.Host, query interface{}, res interface{}, queryParams url.Values) error {
+	body, err := c.QueryStream(ctx, lgr, host, query, queryParams)
 	if err != nil {
 		return err
 	}
@@ -137,8 +153,8 @@ func (c *httpClientImpl) Query(ctx context.Context, lgr log.Logger, host *conn_c
 	return nil
 }
 
-func (c *httpClientImpl) Exec(ctx context.Context, lgr log.Logger, host *conn_clickhouse.Host, query interface{}) error {
-	return c.Query(ctx, lgr, host, query, nil)
+func (c *httpClientImpl) Exec(ctx context.Context, lgr log.Logger, host *conn_clickhouse.Host, query interface{}, queryParams url.Values) error {
+	return c.Query(ctx, lgr, host, query, nil, queryParams)
 }
 
 // error string ex.: "Code: 170. DB::Exception: Requested cluster 'test' not found. (BAD_GET) (version 22.3.12.19 (official build))"

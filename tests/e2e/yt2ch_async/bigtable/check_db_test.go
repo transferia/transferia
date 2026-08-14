@@ -99,7 +99,7 @@ func TestBigTable(t *testing.T) {
 		FROM table_for_tests
 		FORMAT JSONEachRow`
 	var res numColStats
-	err = chClient.Query(context.Background(), logger.Log, host, query, &res)
+	err = chClient.Query(context.Background(), logger.Log, host, query, &res, nil)
 	require.NoError(t, err)
 
 	require.Equal(t, "1", res.MinValue)
@@ -113,7 +113,7 @@ func TestBigTable(t *testing.T) {
 			uniqExact(row_idx) as uniq_cnt
 		FROM table_for_tests
 		FORMAT JSONEachRow`
-	err = chClient.Query(context.Background(), logger.Log, host, query, &res)
+	err = chClient.Query(context.Background(), logger.Log, host, query, &res, nil)
 	require.NoError(t, err)
 
 	require.Equal(t, "0", res.MinValue)
@@ -131,7 +131,7 @@ func TestBigTable(t *testing.T) {
 		LIMIT 1000
 		FORMAT JSONEachRow`
 
-	body, err := chClient.QueryStream(context.Background(), logger.Log, host, query)
+	body, err := chClient.QueryStream(context.Background(), logger.Log, host, query, nil)
 	require.NoError(t, err)
 	b, err := io.ReadAll(body)
 	require.NoError(t, err)

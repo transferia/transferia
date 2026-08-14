@@ -9,14 +9,14 @@
 package httpclient
 
 import (
-	"context"
-	"io"
-	"reflect"
+	context "context"
+	io "io"
+	url "net/url"
+	reflect "reflect"
 
-	"go.uber.org/mock/gomock"
-
-	"go.ytsaurus.tech/library/go/core/log"
-	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	log "go.ytsaurus.tech/library/go/core/log"
+	clickhouse "github.com/transferia/transferia/pkg/connection/clickhouse"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockHTTPClient is a mock of HTTPClient interface.
@@ -43,44 +43,44 @@ func (m *MockHTTPClient) EXPECT() *MockHTTPClientMockRecorder {
 }
 
 // Exec mocks base method.
-func (m *MockHTTPClient) Exec(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query any) error {
+func (m *MockHTTPClient) Exec(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query any, queryParams url.Values) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exec", ctx, lgr, host, query)
+	ret := m.ctrl.Call(m, "Exec", ctx, lgr, host, query, queryParams)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Exec indicates an expected call of Exec.
-func (mr *MockHTTPClientMockRecorder) Exec(ctx, lgr, host, query any) *gomock.Call {
+func (mr *MockHTTPClientMockRecorder) Exec(ctx, lgr, host, query, queryParams any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockHTTPClient)(nil).Exec), ctx, lgr, host, query)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockHTTPClient)(nil).Exec), ctx, lgr, host, query, queryParams)
 }
 
 // Query mocks base method.
-func (m *MockHTTPClient) Query(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query, res any) error {
+func (m *MockHTTPClient) Query(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query, res any, queryParams url.Values) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Query", ctx, lgr, host, query, res)
+	ret := m.ctrl.Call(m, "Query", ctx, lgr, host, query, res, queryParams)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Query indicates an expected call of Query.
-func (mr *MockHTTPClientMockRecorder) Query(ctx, lgr, host, query, res any) *gomock.Call {
+func (mr *MockHTTPClientMockRecorder) Query(ctx, lgr, host, query, res, queryParams any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockHTTPClient)(nil).Query), ctx, lgr, host, query, res)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockHTTPClient)(nil).Query), ctx, lgr, host, query, res, queryParams)
 }
 
 // QueryStream mocks base method.
-func (m *MockHTTPClient) QueryStream(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query any) (io.ReadCloser, error) {
+func (m *MockHTTPClient) QueryStream(ctx context.Context, lgr log.Logger, host *clickhouse.Host, query any, queryParams url.Values) (io.ReadCloser, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueryStream", ctx, lgr, host, query)
+	ret := m.ctrl.Call(m, "QueryStream", ctx, lgr, host, query, queryParams)
 	ret0, _ := ret[0].(io.ReadCloser)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // QueryStream indicates an expected call of QueryStream.
-func (mr *MockHTTPClientMockRecorder) QueryStream(ctx, lgr, host, query any) *gomock.Call {
+func (mr *MockHTTPClientMockRecorder) QueryStream(ctx, lgr, host, query, queryParams any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryStream", reflect.TypeOf((*MockHTTPClient)(nil).QueryStream), ctx, lgr, host, query)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryStream", reflect.TypeOf((*MockHTTPClient)(nil).QueryStream), ctx, lgr, host, query, queryParams)
 }

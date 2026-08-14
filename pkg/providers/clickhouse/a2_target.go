@@ -90,7 +90,7 @@ func (c *HTTPTarget) AsyncPush(input abstract2.EventBatch) chan error {
 				host := c.HostByPart(batch.Part)
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 				defer cancel()
-				if err := c.client.Exec(ctx, c.logger, host, string(blob)); err != nil {
+				if err := c.client.Exec(ctx, c.logger, host, string(blob), nil); err != nil {
 					if subMatch := syntaxErrorRegexp.FindStringSubmatch(err.Error()); subMatch != nil {
 						errorRowNumber, _ := strconv.Atoi(subMatch[1])
 						rowBuffer := strings.Builder{}
@@ -133,7 +133,7 @@ func (c *HTTPTarget) AsyncPush(input abstract2.EventBatch) chan error {
 				if err != nil {
 					return xerrors.Errorf("unable to adjust DDL: %w", err)
 				}
-				if err := c.client.Exec(context.Background(), c.logger, c.HostByPart(nil), query); err != nil {
+				if err := c.client.Exec(context.Background(), c.logger, c.HostByPart(nil), query, nil); err != nil {
 					return xerrors.Errorf("unable to exec DDL(%v): %w", query, err)
 				}
 				c.logger.Infof("ddl completed: %v", query)
@@ -164,7 +164,7 @@ func (c *HTTPTarget) AsyncPush(input abstract2.EventBatch) chan error {
 
 				err := c.execDDL(func(distributed bool) error {
 					q := fmt.Sprintf(ddl, c.tableReferenceForDDL(c.toAltName(event.Namespace, event.Name), distributed))
-					return c.client.Exec(context.Background(), c.logger, c.HostByPart(nil), q)
+					return c.client.Exec(context.Background(), c.logger, c.HostByPart(nil), q, nil)
 				})
 				if err != nil {
 					return util.MakeChanWithError(xerrors.Errorf("unable to %s: %s: %w", c.config.Cleanup(), event, err))
@@ -211,7 +211,7 @@ func (c *HTTPTarget) resolveIsReplicatedDatabase() (bool, error) {
 			Engine string `json:"engine"`
 		} `json:"data"`
 	}
-	if err := c.client.Query(ctx, c.logger, c.HostByPart(nil), query, &resp); err != nil {
+	if err := c.client.Query(ctx, c.logger, c.HostByPart(nil), query, &resp, nil); err != nil {
 		return false, xerrors.Errorf("unable to select database engine for %q: %w", database, err)
 	}
 	if len(resp.Data) == 0 {

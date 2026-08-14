@@ -27,3 +27,28 @@ func TestIsFatalClickhouseError(t *testing.T) {
 	require.True(t, IsFatalClickhouseError(fatalChErr), "should be fatal error")
 	require.True(t, IsFatalClickhouseError(xerrors.Errorf("oh: %w", fatalChErr)), "wrapped fatal should be fatal")
 }
+
+func TestIsTooManyPartitionsError(t *testing.T) {
+	// as returned by the native driver
+	tooManyPartitions := &clickhouse.Exception{
+		Code:    252,
+		Message: "Too many partitions for single INSERT block (more than 100). The limit is controlled by 'max_partitions_per_insert_block' setting.",
+	}
+	// as produced by httpclient.ParseCHException from an HTTP response body
+	tooManyPartitionsHTTP := &clickhouse.Exception{
+		Code:    252,
+		Name:    "TOO_MANY_PARTS",
+		Message: "DB::Exception: Too many partitions for single INSERT block (more than 100). The limit is controlled by 'max_partitions_per_insert_block' setting.",
+	}
+	// the merge backlog error shares code 252 (TOO_MANY_PARTS) but is transient backpressure
+	tooManyParts := &clickhouse.Exception{
+		Code:    252,
+		Message: "Too many parts (3000 with average size of 34.35 MiB) in table 'db.table'. Merges are processing significantly slower than inserts",
+	}
+
+	require.True(t, IsTooManyPartitionsError(tooManyPartitions))
+	require.True(t, IsTooManyPartitionsError(xerrors.Errorf("failed to commit: %w", tooManyPartitions)), "must match through wrapping")
+	require.True(t, IsTooManyPartitionsError(tooManyPartitionsHTTP))
+	require.False(t, IsTooManyPartitionsError(tooManyParts), "merge backlog error must be retried as is, without lifting limits")
+	require.False(t, IsTooManyPartitionsError(xerrors.New("Too many partitions for single INSERT block")), "non-clickhouse errors must not match")
+}

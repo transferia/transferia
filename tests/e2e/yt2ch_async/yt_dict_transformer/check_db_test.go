@@ -82,9 +82,9 @@ func initCHTable(t *testing.T) {
 	host := storageParams.ConnectionParams.Shards["_"][0]
 
 	q := fmt.Sprintf(`DROP TABLE IF EXISTS %s`, TransformedTableName)
-	_ = chClient.Exec(context.Background(), logger.Log, host, q)
+	_ = chClient.Exec(context.Background(), logger.Log, host, q, nil)
 	q = fmt.Sprintf(`DROP TABLE IF EXISTS %s`, NotTransformedTableName)
-	_ = chClient.Exec(context.Background(), logger.Log, host, q)
+	_ = chClient.Exec(context.Background(), logger.Log, host, q, nil)
 	// q = fmt.Sprintf(`CREATE TABLE types_test (%s) ENGINE MergeTree() ORDER BY id`, helpers.ChSchemaForYtTypesTestData())
 	// require.NoError(t, chClient.Exec(context.Background(), logger.Log, Target.Shards()["_"][0], q))
 }

@@ -116,7 +116,7 @@ func (s *HTTPSource) fetchCount(ctx context.Context) (uint64, error) {
 	if len(s.hosts) > 1 {
 		host = s.hosts[rand.Intn(len(s.hosts))]
 	}
-	if err := s.client.Query(ctx, s.lgr, host, s.countQuery, &res); err != nil {
+	if err := s.client.Query(ctx, s.lgr, host, s.countQuery, &res, nil); err != nil {
 		return 0, xerrors.Errorf("unable to select exact row count: %w", err)
 	}
 	return res, nil
@@ -126,7 +126,7 @@ func (s *HTTPSource) rowsByHTTP(ctx context.Context, syncTarget asynchronizer.As
 	lastPushTime := time.Now()
 	query := buildQuery(s.query, s.part.Part.Rows, s.state.Current, string(s.IOFormat()))
 	s.lgr.Info("Start query in ClickHouse", log.String("table", s.part.TableID.Fqtn()), log.String("query", query))
-	body, err := s.client.QueryStream(ctx, s.lgr, s.hosts[0], query)
+	body, err := s.client.QueryStream(ctx, s.lgr, s.hosts[0], query, nil)
 	if err != nil {
 		return xerrors.Errorf("unable to exec request: %s: %v", s.part.TableID.Fqtn(), err)
 	}

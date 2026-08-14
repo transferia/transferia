@@ -86,7 +86,7 @@ func TestTargetPush(t *testing.T) {
 		),
 	)
 	var res int
-	require.NoError(t, client.Query(context.Background(), logger.Log, target.HostByPart(nil), `select count(distinct ServerName) from mtmobproxy.foo_bar;`, &res))
+	require.NoError(t, client.Query(context.Background(), logger.Log, target.HostByPart(nil), `select count(distinct ServerName) from mtmobproxy.foo_bar;`, &res, nil))
 	require.Equal(t, res, 2)
 }
 

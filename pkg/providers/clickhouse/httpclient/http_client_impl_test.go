@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	clickhouse_go "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	chconn "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
@@ -86,7 +88,7 @@ func TestCompression(t *testing.T) {
 			HTTPPort:   tcpAddr.Port,
 			NativePort: tcpAddr.Port,
 		}
-		_, err = cl.QueryStream(context.Background(), logger.Log, connHost, bytes.NewReader(expectedData))
+		_, err = cl.QueryStream(context.Background(), logger.Log, connHost, bytes.NewReader(expectedData), nil)
 		require.NoError(t, err)
 	}
 	t.Run("one-json", func(t *testing.T) {
@@ -103,6 +105,18 @@ func TestCompression(t *testing.T) {
 	})
 }
 
+func TestParseCHExceptionTooManyPartitions(t *testing.T) {
+	raw := "Code: 252. DB::Exception: Too many partitions for single INSERT block (more than 100). " +
+		"The limit is controlled by 'max_partitions_per_insert_block' setting. " +
+		"Large number of partitions is a common misconception. (TOO_MANY_PARTS) (version 23.8.14.6 (official build))"
+	err := ParseCHException(raw)
+	exception := new(clickhouse_go.Exception)
+	require.True(t, xerrors.As(err, &exception))
+	require.Equal(t, int32(252), exception.Code)
+	require.Equal(t, "TOO_MANY_PARTS", exception.Name)
+	require.Contains(t, exception.Message, "Too many partitions for single INSERT block")
+}
+
 func TestQueryStream_ReturnsNetworkUnreachableOnInvalidURL(t *testing.T) {
 	cl, err := NewHTTPClientImpl(&stubParams{port: 0})
 	require.NoError(t, err)
@@ -113,7 +127,7 @@ func TestQueryStream_ReturnsNetworkUnreachableOnInvalidURL(t *testing.T) {
 		NativePort: -1,
 	}
 
-	_, err = cl.QueryStream(context.Background(), logger.Log, badHost, "SELECT 1")
+	_, err = cl.QueryStream(context.Background(), logger.Log, badHost, "SELECT 1", nil)
 	require.Error(t, err)
 	if !codes.NetworkUnreachable.Contains(err) {
 		t.Fatalf("expected codes.NetworkUnreachable, got: %v", err)

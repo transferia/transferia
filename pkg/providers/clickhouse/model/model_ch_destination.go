@@ -3,6 +3,7 @@ package model
 import (
 	_ "embed"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -104,7 +105,8 @@ type ChDestination struct {
 }
 
 type InsertParams struct {
-	MaterializedViewsIgnoreErrors bool
+	MaterializedViewsIgnoreErrors     bool
+	UnlimitedPartitionsPerInsertBlock bool // UnlimitedPartitionsPerInsertBlock removes the server-side max_partitions_per_insert_block limit.
 }
 
 func (p InsertParams) AsQueryPart() string {
@@ -118,10 +120,23 @@ func (p InsertParams) AsQueryPart() string {
 	return ""
 }
 
+// AsURLParams returns insert settings to be passed as HTTP URL parameters. The SETTINGS clause inside an INSERT query
+// is rejected with a syntax error by older ClickHouse servers, while URL parameters are supported by every version.
+func (p InsertParams) AsURLParams() url.Values {
+	res := url.Values{}
+	if p.UnlimitedPartitionsPerInsertBlock {
+		res.Set("max_partitions_per_insert_block", "0")
+	}
+	return res
+}
+
 func (p InsertParams) ToQueryOption(version semver.Version) clickhouse_go.QueryOption {
 	settings := make(clickhouse_go.Settings)
 	if p.MaterializedViewsIgnoreErrors {
 		settings["materialized_views_ignore_errors"] = "1"
+	}
+	if p.UnlimitedPartitionsPerInsertBlock {
+		settings["max_partitions_per_insert_block"] = "0"
 	}
 	// to fill column by default value if value unknown
 	if version.GTE(InsertNullAsDefaultExistedVersion) {

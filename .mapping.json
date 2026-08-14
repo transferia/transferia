@@ -1451,6 +1451,8 @@
   "pkg/providers/clickhouse/tests/storagetest/dump/src_shard2.sql":"transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard2.sql",
   "pkg/providers/clickhouse/tests/storagetest/dump/src_shard3.sql":"transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard3.sql",
   "pkg/providers/clickhouse/tests/storagetest/storage_test.go":"transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/storage_test.go",
+  "pkg/providers/clickhouse/tests/too_many_partitions/init.sql":"transfer_manager/go/pkg/providers/clickhouse/tests/too_many_partitions/init.sql",
+  "pkg/providers/clickhouse/tests/too_many_partitions/too_many_partitions_test.go":"transfer_manager/go/pkg/providers/clickhouse/tests/too_many_partitions/too_many_partitions_test.go",
   "pkg/providers/clickhouse/tests/typefitting/endpoints.go":"transfer_manager/go/pkg/providers/clickhouse/tests/typefitting/endpoints.go",
   "pkg/providers/clickhouse/tests/typefitting/fitting_test.go":"transfer_manager/go/pkg/providers/clickhouse/tests/typefitting/fitting_test.go",
   "pkg/providers/clickhouse/tests/typefitting/init.sql":"transfer_manager/go/pkg/providers/clickhouse/tests/typefitting/init.sql",

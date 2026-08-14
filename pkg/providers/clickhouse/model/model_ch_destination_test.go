@@ -1,6 +1,7 @@
 package model
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -85,4 +86,28 @@ func TestDestinationGettersShouldBeReplacedByConnectionParams(t *testing.T) {
 	require.Equal(t, chDestinationWrapper.SSLEnabled(), connmanConnection.HasTLS)
 	require.Equal(t, chDestinationWrapper.PemFileContent(), connmanConnection.CACertificates)
 	require.Equal(t, chDestinationWrapper.AltHosts(), connmanConnection.Hosts)
+}
+
+func TestInsertParamsAsQueryPart(t *testing.T) {
+	require.Equal(t, "", InsertParams{}.AsQueryPart())
+	require.Equal(
+		t,
+		"SETTINGS materialized_views_ignore_errors = '1'",
+		InsertParams{MaterializedViewsIgnoreErrors: true}.AsQueryPart(),
+	)
+	require.Equal(
+		t,
+		"SETTINGS materialized_views_ignore_errors = '1'",
+		InsertParams{MaterializedViewsIgnoreErrors: true, UnlimitedPartitionsPerInsertBlock: true}.AsQueryPart(),
+	)
+}
+
+func TestInsertParamsAsURLParams(t *testing.T) {
+	require.Empty(t, InsertParams{}.AsURLParams())
+	require.Empty(t, InsertParams{MaterializedViewsIgnoreErrors: true}.AsURLParams())
+	require.Equal(
+		t,
+		url.Values{"max_partitions_per_insert_block": []string{"0"}},
+		InsertParams{UnlimitedPartitionsPerInsertBlock: true}.AsURLParams(),
+	)
 }

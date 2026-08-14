@@ -249,6 +249,7 @@ func FromClickhouse(t *testing.T, src *clickhouse_model.ChSource, noTimeCols boo
 		connHost,
 		`select '"' || database || '"."' || name || '"' as FullName from system.tables where database not like '%system%' FORMAT JSON`,
 		&tables,
+		nil,
 	))
 	excludeList := ""
 	if noTimeCols {
@@ -265,6 +266,7 @@ func FromClickhouse(t *testing.T, src *clickhouse_model.ChSource, noTimeCols boo
 			logger.Log,
 			connHost,
 			fmt.Sprintf(`OPTIMIZE TABLE %s FINAL`, table.FullName),
+			nil,
 		))
 
 		reader, err := httpClient.QueryStream(
@@ -272,6 +274,7 @@ func FromClickhouse(t *testing.T, src *clickhouse_model.ChSource, noTimeCols boo
 			logger.Log,
 			connHost,
 			fmt.Sprintf(`select * %s from %s order by 1 FORMAT JSON`, excludeList, table.FullName),
+			nil,
 		)
 		require.NoError(t, err)
 		data, err := io.ReadAll(reader)

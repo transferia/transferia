@@ -187,7 +187,10 @@ func (s ChSourceWrapper) GetIsSchemaMigrationDisabled() bool {
 }
 
 func (s ChSourceWrapper) InsertSettings() InsertParams {
-	return InsertParams{MaterializedViewsIgnoreErrors: false}
+	return InsertParams{
+		MaterializedViewsIgnoreErrors:     false,
+		UnlimitedPartitionsPerInsertBlock: false,
+	}
 }
 
 func (s ChSourceWrapper) RootCertPaths() []string {

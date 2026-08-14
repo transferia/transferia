@@ -290,6 +290,24 @@ func (t *sinkTable) ApplyChangeItems(rows []abstract.ChangeItem) error {
 }
 
 func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
+	err := t.applyBatchOnce(items, t.config.InsertSettings())
+	if err == nil || !clickhouse_errors.IsTooManyPartitionsError(err) {
+		return err
+	}
+	// Retry TooManyPartitionsError with disabled limit.
+	t.logger.Warn(
+		fmt.Sprintf("Batch for table %q hit the max_partitions_per_insert_block limit, retrying with the limit lifted (table partitioning may be too granular)", t.tableName),
+		log.Error(err),
+	)
+	insertParams := t.config.InsertSettings()
+	insertParams.UnlimitedPartitionsPerInsertBlock = true
+	if err := t.applyBatchOnce(items, insertParams); err != nil {
+		return xerrors.Errorf("unable to retry without max_partitions_per_insert_block limit: %w", err)
+	}
+	return nil
+}
+
+func (t *sinkTable) applyBatchOnce(items []abstract.ChangeItem, insertParams clickhouse_model.InsertParams) error {
 	if !t.config.GetIsSchemaMigrationDisabled() {
 		if err := t.ApplySchemaDiffToDB(t.cols.Columns(), items[0].TableSchema.Columns()); err != nil {
 			return xerrors.Errorf("fail to alter table schema for new batch: %w", err)
@@ -300,7 +318,7 @@ func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
 		if faultyItem := abstract.FindItemOfKind(items, abstract.UpdateKind, abstract.DeleteKind); faultyItem != nil {
 			return abstract.NewFatalError(xerrors.Errorf("ch-sink is configured as Prefer HTTP, but got update/delete changeItem: %s", faultyItem.ToJSONString()))
 		}
-		return t.uploadAsJSON(items)
+		return t.uploadAsJSON(items, insertParams)
 	}
 	if !t.config.IsUpdateable() {
 		if faultyItem := abstract.FindItemOfKind(items, abstract.UpdateKind, abstract.DeleteKind); faultyItem != nil {
@@ -324,7 +342,7 @@ func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
 	})
 	defer txRollbacks.Do()
 
-	if err := doOperation(t, tx, items); err != nil {
+	if err := doOperation(t, tx, items, insertParams); err != nil {
 		if clickhouse_errors.IsFatalClickhouseError(err) {
 			return abstract.NewFatalError(err)
 		}
@@ -346,7 +364,7 @@ func (t *sinkTable) applyBatch(items []abstract.ChangeItem) error {
 	return nil
 }
 
-func (t *sinkTable) uploadAsJSON(rows []abstract.ChangeItem) error {
+func (t *sinkTable) uploadAsJSON(rows []abstract.ChangeItem, insertParams clickhouse_model.InsertParams) error {
 	currSchema, err := getSchema(t, rows)
 	if err != nil {
 		return xerrors.Errorf("Cannot build schema from rows: %w", err)
@@ -365,7 +383,7 @@ func (t *sinkTable) uploadAsJSON(rows []abstract.ChangeItem) error {
 		abstract.MakeMapColNameToIndex(currSchema),
 		t.colTypes,
 		t.config.AnyAsString(),
-	), t.config, t.tableName, t.avgRowSize, t.logger)
+	), t.config, insertParams, t.tableName, t.avgRowSize, t.logger)
 	if err != nil {
 		return err
 	}
@@ -605,7 +623,7 @@ func getSchema(t *sinkTable, changeItems []abstract.ChangeItem) ([]abstract.ColS
 	return buildSchemaFromChangeItem(t, *masterChangeItem), nil
 }
 
-func doOperation(t *sinkTable, tx *sql.Tx, items []abstract.ChangeItem) (err error) {
+func doOperation(t *sinkTable, tx *sql.Tx, items []abstract.ChangeItem, insertParams clickhouse_model.InsertParams) (err error) {
 	if len(items) == 0 {
 		return nil
 	}
@@ -658,7 +676,7 @@ func doOperation(t *sinkTable, tx *sql.Tx, items []abstract.ChangeItem) (err err
 		strings.Join(colVals, ","),
 	)
 
-	insertCtx := clickhouse_go.Context(context.Background(), t.config.InsertSettings().ToQueryOption(t.version))
+	insertCtx := clickhouse_go.Context(context.Background(), insertParams.ToQueryOption(t.version))
 	insertQuery, err := tx.PrepareContext(insertCtx, q)
 	if err != nil {
 		if err.Error() == "Decimal128 is not supported" {

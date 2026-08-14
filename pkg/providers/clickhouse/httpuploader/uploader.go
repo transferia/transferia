@@ -63,6 +63,7 @@ func UploadCIBatch(
 	batch []abstract.ChangeItem,
 	rules *MarshallingRules,
 	config clickhouse_model.ChSinkServerParams,
+	insertParams clickhouse_model.InsertParams,
 	table string,
 	avgRowSize int,
 	lgr log.Logger,
@@ -78,7 +79,7 @@ func UploadCIBatch(
 		return nil, xerrors.Errorf("error getting HTTP client: %w", err)
 	}
 
-	q := newInsertQuery(config.InsertSettings(), config.Database(), table, len(batch), getPoolForTable(table))
+	q := newInsertQuery(insertParams, config.Database(), table, len(batch), getPoolForTable(table))
 	defer q.Close()
 	if err := marshalQuery(lgr, batch, rules, q, avgRowSize, uint64(runtime.GOMAXPROCS(0)*2)); err != nil {
 		return nil, xerrors.Errorf("error marshalling rows to JSON: %w", err)
@@ -88,7 +89,7 @@ func UploadCIBatch(
 	rd := io.TeeReader(q, st)
 
 	stats.UploadStartTime = time.Now()
-	if err := cl.Exec(context.Background(), lgr, config.Host(), rd); err != nil {
+	if err := cl.Exec(context.Background(), lgr, config.Host(), rd, insertParams.AsURLParams()); err != nil {
 		lgr.Error("Unable to insert", log.String("truncated_query", st.Sample()), log.Error(err))
 		return nil, xerrors.Errorf("error executing CH query: %w", err)
 	}
