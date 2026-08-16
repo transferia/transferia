@@ -304,7 +304,7 @@ func (p *Provider) Source() (abstract.Source, error) {
 	st := stats.NewSourceStats(p.registry)
 	return backoff.RetryNotifyWithData(func() (abstract.Source, error) {
 		return NewSourceWrapper(s, p.transfer.ID, p.transfer.DataObjects, p.logger, st, p.cp, false)
-	}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3), backoffutil.BackoffLoggerWarn(p.logger, "unable to init pg source"))
+	}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3), backoffutil.LogWithLogger(context.Background(), p.logger, "unable to init pg source"))
 }
 
 func (p *Provider) PartitionLister() (abstract.PartitionLister, error) {
@@ -518,7 +518,7 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap, ta
 				loadTableErr = backoff.Permanent(loadTableErr)
 			}
 			return loadTableErr
-		}, backoffutil.NewExponentialBackOff(), backoffutil.BackoffLogger(logger.Log, fmt.Sprintf("loading table: %s", table.String()))); err != nil {
+		}, backoffutil.NewExponentialBackOff(), backoffutil.Log(ctx, fmt.Sprintf("loading table: %s", table.String()))); err != nil {
 			return xerrors.Errorf("failed to load table: %w", err)
 		}
 	}

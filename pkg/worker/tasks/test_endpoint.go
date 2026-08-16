@@ -227,7 +227,7 @@ func TestEndpoint(ctx context.Context, param *TestEndpointParams, tr *abstract.T
 	return tr
 }
 
-func TestTargetEndpoint(transfer *model.Transfer) error {
+func TestTargetEndpoint(ctx context.Context, transfer *model.Transfer) error {
 	switch dst := transfer.Dst.(type) {
 	case *provider_postgres.PgDestination:
 		// _ping and other tables created if MaintainTables is set to true
@@ -244,7 +244,7 @@ func TestTargetEndpoint(transfer *model.Transfer) error {
 		return xerrors.Errorf("unable to make sinker: %w", err)
 	}
 	defer sink.Close()
-	return pingSinker(sink)
+	return pingSinker(ctx, sink)
 }
 
 func TestDestinationEndpoint(ctx context.Context, param *TestEndpointParams, tr *abstract.TestResult) *abstract.TestResult {
@@ -255,7 +255,7 @@ func TestDestinationEndpoint(ctx context.Context, param *TestEndpointParams, tr 
 	tr.Ok(ConfigCheckType)
 	param.Transfer.Dst = dst
 	param.Transfer.Src = new(model.MockSource)
-	if err := TestTargetEndpoint(param.Transfer); err != nil {
+	if err := TestTargetEndpoint(ctx, param.Transfer); err != nil {
 		return tr.NotOk(WriteableCheckType, errors.CategorizedErrorf(categories.Target, "unable to test target endpoint: %w", err))
 	}
 	tr.Ok(WriteableCheckType)

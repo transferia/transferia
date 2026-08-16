@@ -74,7 +74,7 @@ func (r *retrier) Push(input []abstract.ChangeItem) error {
 			return err
 		}
 		return nil
-	}, sinkerBackoff, backoffutil.BackoffLoggerWarn(r.logger, "Push")); err != nil {
+	}, sinkerBackoff, backoffutil.LogWithLogger(r.ctx, r.logger, "Push")); err != nil {
 		return xerrors.Errorf("failed to push (with retries): %w", err)
 	}
 	return nil

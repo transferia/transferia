@@ -44,7 +44,7 @@ func (l *SnapshotLoader) WaitWorkersInitiated(ctx context.Context) error {
 			return nil
 		},
 		backoff.WithContext(newMetaCheckBackoff(), ctx),
-		backoffutil.BackoffLoggerDebug(logger.Log, "waiting for creating operation workers rows"),
+		backoffutil.LogDebug(ctx, "waiting for creating operation workers rows"),
 	)
 }
 
@@ -69,7 +69,7 @@ func (l *SnapshotLoader) OperationStateExists(ctx context.Context) (bool, error)
 			return true, nil
 		},
 		backoff.WithContext(newMetaCheckBackoff(), ctx),
-		backoffutil.BackoffLoggerDebug(logger.Log, "waiting for sharded state"),
+		backoffutil.LogDebug(ctx, "waiting for sharded state"),
 	)
 	return result, err
 }
@@ -85,7 +85,7 @@ func (l *SnapshotLoader) MainWorkerCreateShardedStateFromSource(source interface
 	return "", nil
 }
 
-func (l *SnapshotLoader) enrichShardedState(storage abstract.Storage, tablePartProviderSetter table_part_provider.AbstractTablePartProviderSetter) error {
+func (l *SnapshotLoader) enrichShardedState(ctx context.Context, storage abstract.Storage, tablePartProviderSetter table_part_provider.AbstractTablePartProviderSetter) error {
 	if shardingContextStorage, ok := storage.(abstract.ShardingContextStorage); ok {
 		shardedStateBytes, err := shardingContextStorage.ShardingContext()
 		if err != nil {
@@ -97,7 +97,7 @@ func (l *SnapshotLoader) enrichShardedState(storage abstract.Storage, tablePartP
 			return xerrors.Errorf("unable to enrich sharded state: %w", err)
 		}
 
-		logger.Log.Info("will upload sharded state", log.Any("state", shardedState))
+		logger.Info(ctx, "will upload sharded state", log.Any("state", shardedState))
 		err = l.cp.SetOperationState(l.operation.OperationID, shardedState)
 		if err != nil {
 			return xerrors.Errorf("unable to set sharded state: %w", err)
@@ -122,7 +122,7 @@ func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, sourceStorage
 	}
 	for {
 		if customCheck, ok := sourceStorage.(abstract.CustomCheckSecondaryWorkersDone); !ok {
-			isDone, err := defaultCheckAreWorkersDone(startTime, l.cp, l.operation.OperationID, workersCount)
+			isDone, err := defaultCheckAreWorkersDone(ctx, startTime, l.cp, l.operation.OperationID, workersCount)
 			if err != nil {
 				return errors.CategorizedErrorf(categories.Internal, "an error occured during default waiting if secondary workers completed, err: %w", err)
 			}

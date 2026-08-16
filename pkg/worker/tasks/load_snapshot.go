@@ -29,6 +29,7 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider/shared_memory"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/library/go/core/log/ctxlog"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -537,7 +538,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return xerrors.Errorf("failed to create table part provider, err: %w", err)
 	}
 
-	err = l.enrichShardedState(sourceStorage, tppSetter)
+	err = l.enrichShardedState(ctx, sourceStorage, tppSetter)
 	if err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "unable to set sharded state: %w", err)
 	}
@@ -904,7 +905,7 @@ func (l *SnapshotLoader) DoUploadTables(
 	errorOnce := sync.Once{}
 	var tableUploadErr error
 
-	progressTracker := NewSnapshotTableProgressTracker(ctx, tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex)
+	progressTracker := NewSnapshotTableProgressTracker(tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex, ctxlog.ContextFields(ctx))
 	defer progressTracker.Close()
 
 	for ctx.Err() == nil {

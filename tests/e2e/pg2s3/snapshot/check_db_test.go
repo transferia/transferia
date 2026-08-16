@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -136,7 +137,7 @@ func Existence(t *testing.T) {
 
 func Verify(t *testing.T) {
 	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
-	err := tasks.VerifyDelivery(*transfer, logger.Log, helpers.EmptyRegistry())
+	err := tasks.VerifyDelivery(context.Background(), *transfer, logger.Log, helpers.EmptyRegistry())
 	require.NoError(t, err)
 	checkBucket(t, Target, 1)
 }

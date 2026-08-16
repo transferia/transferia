@@ -18,7 +18,7 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func VerifyDelivery(transfer model.Transfer, lgr log.Logger, registry core_metrics.Registry) error {
+func VerifyDelivery(ctx context.Context, transfer model.Transfer, lgr log.Logger, registry core_metrics.Registry) error {
 	switch dst := transfer.Dst.(type) {
 	case *provider_postgres.PgDestination:
 		// _ping and other tables created if MaintainTables is set to true
@@ -35,7 +35,7 @@ func VerifyDelivery(transfer model.Transfer, lgr log.Logger, registry core_metri
 		return xerrors.Errorf("unable to make sinker: %w", err)
 	}
 	defer sink.Close()
-	if err := pingSinker(sink); err != nil {
+	if err := pingSinker(ctx, sink); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to ping sinker: %w", err)
 	}
 
@@ -43,10 +43,10 @@ func VerifyDelivery(transfer model.Transfer, lgr log.Logger, registry core_metri
 	if !ok {
 		return nil
 	}
-	return factory.Verify(context.TODO())
+	return factory.Verify(ctx)
 }
 
-func pingSinker(s abstract.AsyncSink) error {
+func pingSinker(ctx context.Context, s abstract.AsyncSink) error {
 	dropItem := []abstract.ChangeItem{
 		{
 			CommitTime:   uint64(time.Now().UnixNano()),
@@ -56,12 +56,12 @@ func pingSinker(s abstract.AsyncSink) error {
 		},
 	}
 
-	err := <-s.AsyncPush(dropItem)
+	err := waitAsyncPush(ctx, s.AsyncPush(dropItem))
 	if err != nil {
 		return xerrors.Errorf("sinker unable to push drop item: %w", err)
 	}
 
-	err = <-s.AsyncPush([]abstract.ChangeItem{
+	err = waitAsyncPush(ctx, s.AsyncPush([]abstract.ChangeItem{
 		{
 			Kind:         abstract.InsertKind,
 			Table:        "_ping",
@@ -78,14 +78,25 @@ func pingSinker(s abstract.AsyncSink) error {
 				},
 			}),
 		},
-	})
+	}))
 	if err != nil {
 		return xerrors.Errorf("unable to push: %w", err)
 	}
 
-	if err := <-s.AsyncPush(dropItem); err != nil {
+	if err := waitAsyncPush(ctx, s.AsyncPush(dropItem)); err != nil {
 		return xerrors.Errorf("sinker unable to push drop item: %w", err)
 	}
 
 	return nil
+}
+
+func waitAsyncPush(ctx context.Context, result <-chan error) error {
+	select {
+	case err := <-result:
+		//nolint:descriptiveerrors
+		return err
+	case <-ctx.Done():
+		//nolint:descriptiveerrors
+		return ctx.Err()
+	}
 }

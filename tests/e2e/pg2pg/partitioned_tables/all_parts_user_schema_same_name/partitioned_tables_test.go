@@ -65,7 +65,7 @@ func Verify(t *testing.T) {
 	transfer.Dst = &DropTarget
 	transfer.Type = "SNAPSOT_AND_INCREMENT"
 
-	err := tasks.VerifyDelivery(transfer, logger.Log, helpers.EmptyRegistry())
+	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, helpers.EmptyRegistry())
 	require.NoError(t, err)
 
 	dstStorage, err := provider_postgres.NewStorage(DropTarget.ToStorageParams())

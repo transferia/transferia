@@ -114,7 +114,7 @@ func (r *readerWrapper) Row() (decodedRow, error) {
 		rb.Cancel()
 		return row, nil
 	}, r.retryBackoff,
-		backoffutil.BackoffLoggerWarn(r.lgr, "error reading from YT"))
+		backoffutil.LogWarnWithLogger(r.ctx, r.lgr, "error reading from YT"))
 }
 
 func (s *snapshotSource) readTableRange(

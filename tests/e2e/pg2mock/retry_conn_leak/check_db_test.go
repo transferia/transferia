@@ -116,11 +116,11 @@ func TestReplication(t *testing.T) {
 				if len(connections) < 5 {
 					return nil
 				}
-				logger.Log.Warn("too many connections", log.Any("connections", connections))
+				logger.Warn(context.Background(), "too many connections", log.Any("connections", connections))
 				return xerrors.Errorf("connection exceeded limit: %v > 5", len(connections))
 			},
 			backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 20),
-			backoffutil.BackoffLogger(logger.Log, "check connection count"),
+			backoffutil.LogWithLogger(context.Background(), logger.Log, "check connection count"),
 		),
 	)
 }

@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -183,7 +184,7 @@ func GetStat(pid int) (*SysInfo, error) {
 		batching_logger.LogLine(
 			logThrottlerOpenFilesCountErrors,
 			func(in string) {
-				logger.Log.Debug(in)
+				logger.Debug(context.Background(), in)
 			},
 			fmt.Sprintf("Failed to get open files count on platform %q", platform),
 			log.Error(err),

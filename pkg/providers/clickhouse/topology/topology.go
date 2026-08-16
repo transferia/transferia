@@ -113,7 +113,7 @@ func ResolveTopology(params clickhouse_model.ChSinkParams, lgr log.Logger) (*Top
 		}
 		//nolint:descriptiveerrors
 		return clusterName, err
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10), backoffutil.BackoffLogger(lgr, "failed to resolve cluster topology"))
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10), backoffutil.LogWithLogger(context.Background(), lgr, "failed to resolve cluster topology"))
 
 	if err != nil {
 		if singleNode {

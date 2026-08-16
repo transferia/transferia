@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"context"
+
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -67,7 +69,7 @@ func createReplicationSlot(src *PgSource, recreateIfExists bool, tracker ...*Tra
 			return false, xerrors.New("replication slot was created, but the check shows it does not exist")
 		}
 		return false, nil
-	}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3), backoffutil.BackoffLogger(logger.Log, "create replication slot"))
+	}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3), backoffutil.Log(context.Background(), "create replication slot"))
 
 	if err != nil {
 		return false, xerrors.Errorf("failed to create a replication slot: %w", err)

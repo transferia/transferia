@@ -1,6 +1,8 @@
 package staticsink
 
 import (
+	"context"
+
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
@@ -75,7 +77,7 @@ func (s *ytStateStorage) getState() (*ytState, error) {
 			return nil
 		},
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5),
-		backoffutil.BackoffLoggerDebug(s.logger, "waiting for sharded sink state"),
+		backoffutil.LogDebugWithLogger(context.Background(), s.logger, "waiting for sharded sink state"),
 	); err != nil {
 		return nil, xerrors.Errorf("failed while waiting for sharded sink state: %w", err)
 	}

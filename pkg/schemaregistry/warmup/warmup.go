@@ -2,6 +2,7 @@ package warmup
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"strings"
 	"sync"
@@ -59,6 +60,6 @@ func WarmUpSRCache(logger log.Logger, mutex *sync.Mutex, batch parsers.MessageBa
 				return nil
 			}
 			return err
-		}, backoff.NewConstantBackOff(time.Second), backoffutil.BackoffLogger(logger, "getting schema (warm-up cache)"))
+		}, backoff.NewConstantBackOff(time.Second), backoffutil.LogWithLogger(context.Background(), logger, "getting schema (warm-up cache)"))
 	}
 }

@@ -682,7 +682,7 @@ func startReplication(
 	return backoff.RetryNotifyWithData(
 		operation,
 		backoff.WithMaxRetries(backoff.NewConstantBackOff(15*time.Second), uint64(maxTries)),
-		backoffutil.BackoffLoggerWarn(lgr, "cannot start replication"),
+		backoffutil.LogWarnWithLogger(context.Background(), lgr, "cannot start replication"),
 	)
 }
 

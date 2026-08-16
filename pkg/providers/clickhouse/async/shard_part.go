@@ -1,6 +1,7 @@
 package async
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -56,7 +57,7 @@ func (s *shardPart) Append(row abstract.ChangeItem) error {
 			s.streamer = strm
 			return nil
 		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3),
-			backoffutil.BackoffLoggerWarn(s.lgr, "begin StreamInsert failed, retrying"))
+			backoffutil.LogWarnWithLogger(context.Background(), s.lgr, "begin StreamInsert failed, retrying"))
 		if err != nil {
 			return xerrors.Errorf("error starting insert query: %w", err)
 		}

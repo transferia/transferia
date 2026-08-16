@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"time"
@@ -138,7 +139,7 @@ func (p *CloudEventsImpl) getConfluentSRParser(hostPort string) *confluentschema
 		var err error
 		confluentSRParser, err = p.getConfluentSRParserImpl(hostPort)
 		return err
-	}, backoff.NewConstantBackOff(time.Second), backoffutil.BackoffLogger(p.logger, "making schema registry client"))
+	}, backoff.NewConstantBackOff(time.Second), backoffutil.LogWithLogger(context.Background(), p.logger, "making schema registry client"))
 	return confluentSRParser
 }
 

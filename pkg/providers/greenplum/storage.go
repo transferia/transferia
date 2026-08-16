@@ -254,7 +254,7 @@ func (s *Storage) LoadTableImplDistributed(ctx context.Context, table abstract.T
 			},
 			// Greenplum segments must recover in milliseconds, so 1s backoff is fine
 			backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 3),
-			backoffutil.BackoffLogger(logger.Log, fmt.Sprintf("load table %s from Greenplum %s by worker %d", table.Fqtn(), seg.String(), workerID)),
+			backoffutil.Log(ctx, fmt.Sprintf("load table %s from Greenplum %s by worker %d", table.Fqtn(), seg.String(), workerID)),
 		)
 		if err != nil {
 			// If we are here, both segment and mirror are unavailable.

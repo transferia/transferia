@@ -6,26 +6,39 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-// BackoffLogger uses level "warn" by default
-func BackoffLogger(logger log.Logger, msg string) func(error, time.Duration) {
-	return BackoffLoggerWarn(logger, msg)
-}
-
 const backoffLoggerMsg string = "Will sleep %s and then retry %s because of an error."
 
-func BackoffLoggerWarn(logger log.Logger, msg string) func(error, time.Duration) {
+// Log uses level "warn" by default and preserves context log fields.
+func Log(ctx context.Context, msg string) func(error, time.Duration) {
+	return LogWarn(ctx, msg)
+}
+
+func LogWithLogger(ctx context.Context, logger log.Logger, msg string) func(error, time.Duration) {
+	return LogWarnWithLogger(ctx, logger, msg)
+}
+
+func LogWarn(ctx context.Context, msg string) func(error, time.Duration) {
+	return LogWarnWithLogger(ctx, logger.Log, msg)
+}
+
+func LogWarnWithLogger(ctx context.Context, l log.Logger, msg string) func(error, time.Duration) {
 	return func(err error, sleep time.Duration) {
-		logger.Warn(fmt.Sprintf(backoffLoggerMsg, sleep, msg), log.Error(err))
+		logger.WarnWithLogger(ctx, l, fmt.Sprintf(backoffLoggerMsg, sleep, msg), log.Error(err))
 	}
 }
 
-func BackoffLoggerDebug(logger log.Logger, msg string) func(error, time.Duration) {
+func LogDebug(ctx context.Context, msg string) func(error, time.Duration) {
+	return LogDebugWithLogger(ctx, logger.Log, msg)
+}
+
+func LogDebugWithLogger(ctx context.Context, l log.Logger, msg string) func(error, time.Duration) {
 	return func(err error, sleep time.Duration) {
-		logger.Debug(fmt.Sprintf(backoffLoggerMsg, sleep, msg), log.Error(err))
+		logger.DebugWithLogger(ctx, l, fmt.Sprintf(backoffLoggerMsg, sleep, msg), log.Error(err))
 	}
 }
 

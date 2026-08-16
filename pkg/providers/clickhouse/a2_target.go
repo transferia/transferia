@@ -113,7 +113,8 @@ func (c *HTTPTarget) AsyncPush(input abstract2.EventBatch) chan error {
 				return nil
 			},
 			backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10),
-			backoffutil.BackoffLogger(
+			backoffutil.LogWithLogger(
+				context.Background(),
 				c.logger,
 				fmt.Sprintf("push %v data", format.SizeInt(len(batch.Data))),
 			),

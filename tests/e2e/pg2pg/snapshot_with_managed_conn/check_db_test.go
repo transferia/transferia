@@ -62,7 +62,7 @@ func Verify(t *testing.T) {
 	transfer.Dst = &Target
 	transfer.Type = "SNAPSHOT_ONLY"
 
-	err := tasks.VerifyDelivery(transfer, logger.Log, helpers.EmptyRegistry())
+	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, helpers.EmptyRegistry())
 	require.NoError(t, err)
 
 	dstStorage, err := provider_postgres.NewStorage(Target.ToStorageParams())

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/binary"
 	"strings"
 	"sync"
@@ -79,7 +80,7 @@ func (p *ConfluentSrImpl) DoWithSchemaID(
 			return nil
 		}
 		return err
-	}, backoff.NewConstantBackOff(time.Second), backoffutil.BackoffLogger(p.logger, "getting schema"))
+	}, backoff.NewConstantBackOff(time.Second), backoffutil.LogWithLogger(context.Background(), p.logger, "getting schema"))
 
 	if p.sendSrNotFoundToUnparsed && is404 {
 		errStr := xerrors.Errorf("SchemaRegistry for schema (id: %v) returned http code 404", schemaID).Error()

@@ -38,6 +38,16 @@ func (l *ytLogBundleImpl) With(fields ...log.Field) log.Logger {
 	return &lCopy
 }
 
+func (l *ytLogBundleImpl) AddCallerSkip(skip int) log.Logger {
+	if l == nil {
+		return nil
+	}
+	lCopy := *l
+	lCopy.Logger = log.AddCallerSkip(l.Logger, skip)
+	lCopy.ytLogger = log.AddCallerSkip(l.ytLogger, skip)
+	return &lCopy
+}
+
 // ExtractYTLogger extracts preconfigured YT logger with corresponding registered 'With' calls
 func (l *ytLogBundleImpl) ExtractYTLogger() log.Logger {
 	return l.ytLogger

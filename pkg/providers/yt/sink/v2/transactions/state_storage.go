@@ -1,6 +1,8 @@
 package transactions
 
 import (
+	"context"
+
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
@@ -95,7 +97,7 @@ func (s *ytStateStorage) getState() (string, error) {
 			return nil
 		},
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxRetriesCount),
-		backoffutil.BackoffLoggerDebug(s.logger, "waiting for sharded sink state"),
+		backoffutil.LogDebugWithLogger(context.Background(), s.logger, "waiting for sharded sink state"),
 	); err != nil {
 		return "", xerrors.Errorf("failed while waiting for sharded sink state: %w", err)
 	}

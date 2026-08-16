@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/library/go/core/log/ctxlog"
 )
 
 type SnapshotTableProgressTracker struct {
@@ -19,6 +20,7 @@ type SnapshotTableProgressTracker struct {
 	wg        sync.WaitGroup
 	closeOnce *sync.Once
 
+	logFields           []log.Field
 	sharedMemory        abstract.SharedMemory
 	operationID         string
 	parts               map[string]*abstract.OperationTablePart
@@ -26,17 +28,19 @@ type SnapshotTableProgressTracker struct {
 }
 
 func NewSnapshotTableProgressTracker(
-	ctx context.Context,
 	sharedMemory abstract.SharedMemory,
 	operationID string,
 	progressUpdateMutex *sync.Mutex,
+	logFields []log.Field,
 ) *SnapshotTableProgressTracker {
-	ctx, cancel := context.WithCancel(ctx)
+
+	ctx, cancel := context.WithCancel(ctxlog.WithFields(context.Background(), logFields...))
 	tracker := &SnapshotTableProgressTracker{
 		cancel:    cancel,
 		wg:        sync.WaitGroup{},
 		closeOnce: &sync.Once{},
 
+		logFields:           logFields,
 		sharedMemory:        sharedMemory,
 		operationID:         operationID,
 		parts:               map[string]*abstract.OperationTablePart{},
@@ -88,10 +92,11 @@ func (t *SnapshotTableProgressTracker) Flush(isTableDone bool) error {
 	}
 	err := backoff.RetryNotify(func() error {
 		return t.sharedMemory.UpdateOperationTablesParts(t.operationID, partsCopy)
-	}, currBackOff, backoffutil.BackoffLoggerWarn(logger.Log, "UpdateOperationTablesParts"))
+	}, currBackOff, backoffutil.Log(ctxlog.WithFields(context.Background(), t.logFields...), "UpdateOperationTablesParts"))
 	if err != nil {
 		if !isTableDone {
-			logger.Log.Warn(
+			logger.Warn(
+				ctxlog.WithFields(context.Background(), t.logFields...),
 				fmt.Sprintf("Failed to send tables progress for operation '%v'", t.operationID),
 				log.String("OperationID", t.operationID),
 				log.Error(err),

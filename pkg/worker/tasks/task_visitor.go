@@ -185,7 +185,7 @@ func (v runTaskVisitor) OnUpload(t abstract.Upload) interface{} {
 }
 
 func (v runTaskVisitor) OnVerify(t abstract.Verify) interface{} {
-	if err := VerifyDelivery(v.transfer, logger.Log, v.registry); err != nil {
+	if err := VerifyDelivery(v.ctx, v.transfer, logger.Log, v.registry); err != nil {
 		logger.Log.Error("VerifyDelivery", log.Error(err))
 		return err
 	}

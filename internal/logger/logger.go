@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -23,12 +22,6 @@ var (
 	Log     log.Logger
 	NullLog *ya_zap.Logger
 )
-
-type Factory func(context.Context) log.Logger
-
-func DummyLoggerFactory(ctx context.Context) log.Logger {
-	return Log
-}
 
 func LoggerWithLevel(lvl zapcore.Level) log.Logger {
 	cfg := zap.Config{

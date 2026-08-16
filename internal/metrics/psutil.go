@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -15,6 +16,7 @@ import (
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/pkg/format"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/library/go/core/log/ctxlog"
 )
 
 type Ps struct {
@@ -37,7 +39,7 @@ type RuntimeStat struct {
 	processDescriptors core_metrics.Gauge
 }
 
-func (p *Ps) Run() {
+func (p *Ps) Run(ctx context.Context) {
 	r := RuntimeStat{
 		memAvailable:       p.metrics.IntGauge("mem.available"),
 		memUsed:            p.metrics.IntGauge("mem.used"),
@@ -56,10 +58,15 @@ func (p *Ps) Run() {
 	var hostCPU []float64
 	var processCPU []float64
 	var processMEM []float64
-	ticker := time.NewTicker(5 * time.Minute)
+	reportTicker := time.NewTicker(5 * time.Minute)
+	defer reportTicker.Stop()
+	sampleTicker := time.NewTicker(10 * time.Second)
+	defer sampleTicker.Stop()
 	for {
 		select {
-		case <-ticker.C:
+		case <-ctx.Done():
+			return
+		case <-reportTicker.C:
 			var buf bytes.Buffer
 			table := tablewriter.NewWriter(&buf)
 			table.SetCaption(true, fmt.Sprintf("Stat for: %v", time.Now()))
@@ -81,44 +88,47 @@ func (p *Ps) Run() {
 			}
 			table.Append(memRow)
 			table.Render()
-			logger.Log.Debugf("Runtime usage:\n%v", buf.String())
+			logger.Debugf(ctx, "Runtime usage:\n%v", buf.String())
 			hostCPU = []float64{}
 			processCPU = []float64{}
 			processMEM = []float64{}
-		default:
-		}
-		time.Sleep(time.Second * 10)
-		v, err := mem.VirtualMemory()
-		if err != nil {
-			logger.Log.Warnf("mem.VirtualMemory returned error: %s", err.Error())
-			continue
-		}
-		r.memAvailable.Set(int64(v.Available))
-		r.memUsed.Set(int64(v.Used))
-		r.memPercentage.Set(v.UsedPercent)
-		c, _ := cpu.Counts(true)
-		r.cpuCounts.Set(int64(c))
-		var m runtime.MemStats
-		st, _ := cpu.Percent(1*time.Second, false)
-		hostCPU = append(hostCPU, st...)
-		runtime.ReadMemStats(&m)
-		r.runtimeAlloc.Set(int64(m.Alloc))
-		r.runtimeTotalAlloc.Set(int64(m.TotalAlloc))
-		r.runtimeSys.Set(int64(m.Sys))
-		r.runtimeNumGC.Set(int64(m.NumGC))
-		r.runtimeHeapInuse.Set(int64(m.HeapInuse))
-		r.runtimeHeapIdle.Set(int64(m.HeapIdle))
+		case <-sampleTicker.C:
+			v, err := mem.VirtualMemory()
+			if err != nil {
+				logger.Warnf(ctx, "mem.VirtualMemory returned error: %s", err.Error())
+				continue
+			}
+			r.memAvailable.Set(int64(v.Available))
+			r.memUsed.Set(int64(v.Used))
+			r.memPercentage.Set(v.UsedPercent)
+			c, _ := cpu.Counts(true)
+			r.cpuCounts.Set(int64(c))
+			var m runtime.MemStats
+			st, _ := cpu.Percent(1*time.Second, false)
+			hostCPU = append(hostCPU, st...)
+			runtime.ReadMemStats(&m)
+			r.runtimeAlloc.Set(int64(m.Alloc))
+			r.runtimeTotalAlloc.Set(int64(m.TotalAlloc))
+			r.runtimeSys.Set(int64(m.Sys))
+			r.runtimeNumGC.Set(int64(m.NumGC))
+			r.runtimeHeapInuse.Set(int64(m.HeapInuse))
+			r.runtimeHeapIdle.Set(int64(m.HeapIdle))
 
-		sysInfo, err := GetStat(os.Getpid())
-		if err != nil {
-			logger.Log.Warn("Failed to get process' stats", log.Int("pid", os.Getpid()), log.Error(err))
-			continue
+			pid := os.Getpid()
+			sysInfo, err := GetStat(pid)
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				logger.Warn(ctx, "Failed to get process' stats", log.Int("pid", pid), log.Error(err))
+				continue
+			}
+			processCPU = append(processCPU, sysInfo.CPU)
+			processMEM = append(processMEM, sysInfo.Memory)
+			r.processCPU.Set(sysInfo.CPU)
+			r.processRAM.Set(sysInfo.Memory)
+			r.processDescriptors.Set(sysInfo.Descriptors)
 		}
-		processCPU = append(processCPU, sysInfo.CPU)
-		processMEM = append(processMEM, sysInfo.Memory)
-		r.processCPU.Set(sysInfo.CPU)
-		r.processRAM.Set(sysInfo.Memory)
-		r.processDescriptors.Set(sysInfo.Descriptors)
 	}
 }
 
@@ -137,12 +147,13 @@ func (p *Ps) writeCpus(cpuStat []float64, table *tablewriter.Table, sensor strin
 	table.Append(row)
 }
 
-func NewPs(registry core_metrics.Registry) *Ps {
+func NewPs(ctx context.Context, registry core_metrics.Registry) *Ps {
+	ctx = ctxlog.WithFields(ctx, log.String("component", "psutil"))
 	psutilRegistry := registry.WithTags(map[string]string{"component": "psutil"})
 	p := &Ps{
 		metrics: psutilRegistry,
 	}
 
-	go p.Run()
+	go p.Run(ctx)
 	return p
 }

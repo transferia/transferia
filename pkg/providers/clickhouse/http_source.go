@@ -96,7 +96,7 @@ func (s *HTTPSource) Start(ctx context.Context, target abstract2.EventTarget) er
 			return s.rowsByHTTP(ctx, syncTarget)
 		},
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 12),
-		backoffutil.BackoffLogger(s.lgr, "upload"),
+		backoffutil.LogWithLogger(ctx, s.lgr, "upload"),
 	); err != nil {
 		if errST := syncTarget.Close(); errST != nil {
 			s.lgr.Warn("failed to Close destination after an error in events provider", log.Error(errST))

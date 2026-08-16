@@ -904,7 +904,7 @@ func NewStorage(config *clickhouse_model.ChStorageParams, transfer *model.Transf
 			return "", xerrors.Errorf("unable to select clickhouse %s version: %w", config.String(), err)
 		}
 		return version, nil
-	}, backoff.NewExponentialBackOff(), backoffutil.BackoffLoggerWarn(logger.Log, "version resolver"))
+	}, backoff.NewExponentialBackOff(), backoffutil.LogWarn(context.Background(), "version resolver"))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to extract version: %w", err)
 	}

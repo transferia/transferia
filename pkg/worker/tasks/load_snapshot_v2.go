@@ -29,6 +29,7 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider/shared_memory"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/library/go/core/log/ctxlog"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -494,7 +495,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 	errorOnce := sync.Once{}
 	var tableUploadErr error
 
-	progressTracker := NewSnapshotTableProgressTracker(ctx, tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex)
+	progressTracker := NewSnapshotTableProgressTracker(tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex, ctxlog.ContextFields(ctx))
 	defer progressTracker.Close()
 
 	for ctx.Err() == nil {

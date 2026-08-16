@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"context"
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -11,7 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors/categories"
 )
 
-func defaultCheckAreWorkersDone(startTime time.Time, cp coordinator.Coordinator, operationID string, workersCount int) (bool, error) {
+func defaultCheckAreWorkersDone(ctx context.Context, startTime time.Time, cp coordinator.Coordinator, operationID string, workersCount int) (bool, error) {
 	totalProgress, err := cp.GetOperationProgress(operationID)
 	if err != nil {
 		return false, errors.CategorizedErrorf(categories.Internal, "can't to get progress for operation '%v': %w", operationID, err)
@@ -54,7 +55,7 @@ func defaultCheckAreWorkersDone(startTime time.Time, cp coordinator.Coordinator,
 	if completed {
 		status = "completed"
 	}
-	logger.Log.Infof(
+	logger.Infof(ctx,
 		"Secondary workers are %v, workers: %v in progress, %v completed, %v total (%.2f%% completed), parts: %v in progress, %v completed, %v total (%.2f%% completed), rows: %v / %v (%.2f%%), elapsed time: %v",
 		status,
 		workersCount-completedWorkersCount,
