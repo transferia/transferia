@@ -19,7 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/backoff"
+	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -42,8 +42,19 @@ type S3Source struct {
 
 func (s *S3Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.New(s.logger, 10, sink, s3_reader.ParsePassthroughChunk, s.ack)
+	monitorDone := make(chan struct{})
+	go func() {
+		select {
+		case <-parseQ.Done():
+			// Failed parseQ cannot ack already pushed chunks, it leads to blocking by s3 limits (inflight not being reduced).
+			// Cancel the source so readers waiting for the inflight limit will not block and will fail (leading to replication retry).
+			s.cancel()
+		case <-monitorDone:
+		}
+	}()
 
 	runErr := s.run(parseQ)
+	close(monitorDone)
 
 	parseQ.Close()
 	return multierr.Combine(runErr, parseQ.Error())
@@ -51,7 +62,7 @@ func (s *S3Source) Run(sink abstract.AsyncSink) error {
 
 func (s *S3Source) waitPusherEmpty() {
 	for {
-		if s.pusher.IsEmpty() {
+		if s.pusher.IsEmpty() || s.ctx.Err() != nil {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
