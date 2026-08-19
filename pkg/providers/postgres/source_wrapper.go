@@ -192,12 +192,22 @@ func NewSourceWrapper(
 	if err != nil {
 		return nil, xerrors.Errorf("unable to check slot exist: %w", err)
 	}
-	if !exist {
-		if isAurora(context.Background(), conn, lgr) {
-			lgr.Warn("aurora db slot disappear, that's may be a false positive signal, wait 1 minute before retry")
-			time.Sleep(time.Minute)
+	if !exist && isAurora(context.Background(), conn, lgr) {
+		// Aurora may transiently report a missing slot right after its own failover; re-check once after a pause.
+		lgr.Warn("aurora db slot disappear, that's may be a false positive signal, wait 1 minute before retry")
+		time.Sleep(time.Minute)
+		exist, err = slot.Exist()
+		if err != nil {
+			return nil, xerrors.Errorf("unable to re-check slot exist: %w", err)
 		}
+	}
+	if !exist {
 		registry.Fatal.Inc()
+		// We use LsnTrackedSlot only when pg_tm_aux is installed in the source DB.
+		if _, tracked := slot.(*LsnTrackedSlot); !tracked {
+			return nil, abstract.NewFatalError(coded.Errorf(error_codes.PostgresReplicationSlotNotExistNoTmAux,
+				"Replication slot '%s' does not exist and pg_tm_aux extension is not installed", worker.src.SlotID))
+		}
 		return nil, abstract.NewFatalError(coded.Errorf(error_codes.PostgresReplicationSlotNotExist, "Replication slotID %s does not exist", worker.src.SlotID))
 	}
 	worker.slot = slot

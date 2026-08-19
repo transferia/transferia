@@ -54,6 +54,7 @@ var (
 	PostgresReplicationSlotInvalidated      = coded.Register("postgres", "replication_slot_invalidated")
 	PostgresReplicationSlotsInUse           = coded.Register("postgres", "replication_slots_in_use")
 	PostgresReplicationSlotNotExist         = coded.Register("postgres", "replication_slot_not_exist")
+	PostgresReplicationSlotNotExistNoTmAux  = coded.Register("postgres", "replication_slot_not_exist_no_tm_aux")
 	PostgresReplicationSlotCreateFailed     = coded.Register("postgres", "replication_slot_create_failed")
 	PostgresReplicationSlotPermissionDenied = coded.Register("postgres", "replication_slot_permission_denied")
 	PostgresSchemaDoesNotExist              = coded.Register("postgres", "schema_does_not_exist")
