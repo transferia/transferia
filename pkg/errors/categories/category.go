@@ -8,6 +8,12 @@ func (c Category) ID() string {
 	return string(c)
 }
 
+type CategorizedError interface {
+	error
+
+	Category() Category
+}
+
 const (
 	// Source is for errors originating from the source endpoint (its configuration, runtime properties, etc.)
 	Source Category = "source"

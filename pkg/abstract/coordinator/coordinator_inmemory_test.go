@@ -9,6 +9,8 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 )
 
 func TestCoordinatorInMemory_CreateOperationWorkers_InvalidCount(t *testing.T) {
@@ -90,6 +92,23 @@ func TestCoordinatorInMemory_FinishOperation_ErrorAggregate(t *testing.T) {
 	require.NoError(t, err)
 	err = model.AggregateWorkerErrors(workers, op)
 	require.Error(t, err)
+}
+
+func TestCoordinatorInMemory_FinishOperation_CodePassedThroughAggregate(t *testing.T) {
+	cp := NewStatefulFakeClient()
+	const op = "op-coded-err"
+	require.NoError(t, cp.CreateOperationWorkers(op, 2))
+	taskErr := xerrors.Errorf("task failed: %w", coded.Errorf(error_codes.PostgresDDLApplyFailed, "boom"))
+	require.NoError(t, cp.FinishOperation(op, "", "", 1, taskErr))
+
+	workers, err := cp.GetOperationWorkers(op)
+	require.NoError(t, err)
+	err = model.AggregateWorkerErrors(workers, op)
+	require.Error(t, err)
+
+	var codedErr coded.CodedError
+	require.True(t, xerrors.As(err, &codedErr))
+	require.Equal(t, error_codes.PostgresDDLApplyFailed, codedErr.Code())
 }
 
 func TestCoordinatorInMemory_GetOperationProgress(t *testing.T) {

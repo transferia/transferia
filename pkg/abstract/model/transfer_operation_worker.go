@@ -5,6 +5,8 @@ type OperationWorker struct {
 	WorkerIndex int
 	Completed   bool
 	Err         string
+	Code        string
+	Categories  []string
 	Progress    *AggregatedProgress
 }
 
@@ -14,6 +16,8 @@ func NewOperationWorker() *OperationWorker {
 		WorkerIndex: 0,
 		Completed:   false,
 		Err:         "",
+		Code:        "",
+		Categories:  nil,
 		Progress:    nil,
 	}
 }

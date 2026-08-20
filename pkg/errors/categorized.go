@@ -7,10 +7,8 @@ import (
 
 // Categorized is an error with an attached category
 type Categorized interface {
-	error
+	categories.CategorizedError
 	xerrors.Wrapper
-
-	Category() categories.Category
 }
 
 type categorizedImpl struct {

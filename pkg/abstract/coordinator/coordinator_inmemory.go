@@ -229,6 +229,8 @@ func (f *CoordinatorInMemory) CreateOperationWorkers(operationID string, workers
 			WorkerIndex: i,
 			Completed:   false,
 			Err:         "",
+			Code:        "",
+			Categories:  nil,
 			Progress:    nil,
 		})
 	}
@@ -255,7 +257,7 @@ func (f *CoordinatorInMemory) FinishOperation(operationID, _, _ string, shardInd
 		if f.operationIdToWorkers[operationID][index].WorkerIndex == shardIndex {
 			f.operationIdToWorkers[operationID][index].Completed = true
 			if taskErr != nil {
-				f.operationIdToWorkers[operationID][index].Err = taskErr.Error()
+				f.operationIdToWorkers[operationID][index].SetErr(taskErr)
 			}
 			return nil
 		}

@@ -73,7 +73,7 @@ func defaultCheckAreWorkersDone(ctx context.Context, startTime time.Time, cp coo
 	)
 
 	if err := model.AggregateWorkerErrors(workers, operationID); err != nil {
-		return false, xerrors.Errorf("errors detected on secondary workers: %v", err)
+		return false, xerrors.Errorf("errors detected on secondary workers: %w", err)
 	}
 
 	if completed {

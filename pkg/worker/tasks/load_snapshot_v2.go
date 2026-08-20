@@ -469,7 +469,7 @@ func (l *SnapshotLoader) uploadV2Secondary(ctx context.Context, snapshotProvider
 	tppGetter := table_part_provider.NewTPPGetterSync(sharedMemoryForAsyncTPP, l.transfer.ID, l.operation.OperationID, l.workerIndex)
 
 	if err := l.doUploadTablesV2(ctx, snapshotProvider, tppGetter); err != nil {
-		return xerrors.Errorf("unable to upload data objects: %w", err)
+		return xerrors.Errorf("unable to upload data objects on worker %v: %w", l.workerIndex, err)
 	}
 
 	logger.Log.Infof("Done uploading tables on worker %v", l.workerIndex)

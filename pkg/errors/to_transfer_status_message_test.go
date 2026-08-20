@@ -1,11 +1,14 @@
 package errors
 
 import (
+	stderrors "errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 )
 
 const (
@@ -102,4 +105,47 @@ func TestToAPIWarningNilError(t *testing.T) {
 	require.Equal(t, "", result.Message)
 	require.Equal(t, "", result.Heading)
 	require.Len(t, result.Categories, 0)
+}
+
+func TestToTransferStatusMessageCodeOfWrappedError(t *testing.T) {
+	err1 := coded.Errorf(error_codes.PostgresDDLApplyFailed, testErrorText1)
+	err2 := CategorizedErrorf(categories.Source, testErrorText2+"%w", err1)
+	err := xerrors.Errorf(testErrorText3+"%w", err2)
+
+	result := ToTransferStatusMessage(err)
+
+	require.NotNil(t, result)
+	require.Equal(t, error_codes.PostgresDDLApplyFailed, result.Code)
+	require.Equal(t, []string{categories.Source.ID()}, result.Categories)
+}
+
+func TestToTransferStatusMessageOuterCodeWins(t *testing.T) {
+	err1 := coded.Errorf(error_codes.PostgresDDLApplyFailed, testErrorText1)
+	err := coded.Errorf(error_codes.RuntimeMainWorkerRestart, testErrorText2+"%w", err1)
+
+	result := ToTransferStatusMessage(err)
+
+	require.NotNil(t, result)
+	require.Equal(t, error_codes.RuntimeMainWorkerRestart, result.Code)
+}
+
+func TestToTransferStatusMessageCodeOfJoinedErrors(t *testing.T) {
+	uncoded := xerrors.New(testErrorText1)
+	codedErr := coded.New(error_codes.PostgresDDLApplyFailed, CategorizedErrorf(categories.Source, testErrorText2))
+	err := xerrors.Errorf(testErrorText3+"%w", stderrors.Join(uncoded, codedErr))
+
+	result := ToTransferStatusMessage(err)
+
+	require.NotNil(t, result)
+	require.Equal(t, error_codes.PostgresDDLApplyFailed, result.Code)
+	require.Equal(t, []string{categories.Source.ID()}, result.Categories)
+}
+
+func TestToTransferStatusMessageUncodedErrorIsUnspecified(t *testing.T) {
+	err := xerrors.New(testErrorText1)
+
+	result := ToTransferStatusMessage(err)
+
+	require.NotNil(t, result)
+	require.Equal(t, error_codes.Unspecified, result.Code)
 }

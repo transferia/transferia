@@ -197,6 +197,8 @@ func (c *CoordinatorS3) CreateOperationWorkers(operationID string, workersCount 
 			WorkerIndex: i,
 			Completed:   false,
 			Err:         "",
+			Code:        "",
+			Categories:  nil,
 			Progress: &model.AggregatedProgress{
 				PartsCount:          0,
 				CompletedPartsCount: 0,
@@ -400,7 +402,7 @@ func (c *CoordinatorS3) FinishOperation(operationID string, taskType string, run
 		}
 		worker.Completed = true
 		if taskErr != nil {
-			worker.Err = taskErr.Error()
+			worker.SetErr(taskErr)
 		}
 		key := fmt.Sprintf("%s/worker_%d.json", operationID, shardIndex)
 		body, err := json.Marshal(worker)
