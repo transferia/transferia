@@ -123,6 +123,7 @@ func RecipeTarget(options ...RecipeOption) *MongoDestination {
 		Direct:            os.Getenv(opts.prefix+"MONGO_LOCAL_DIRECT") == "1",
 		RootCAFiles:       nil,
 		UserEnabledTls:    nil,
+		OrderedWrites:     false,
 	}
 }
 

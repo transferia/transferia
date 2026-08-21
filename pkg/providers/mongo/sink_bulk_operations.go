@@ -35,7 +35,7 @@ func (s *sinker) splitItemsToBulkOperations(ctx context.Context, collID Namespac
 		}
 	}
 
-	splitters := make([]bulkSplitter, sinkWriteConcurrency)
+	splitters := make([]bulkSplitter, s.writeConcurrency())
 	for i := range splitters {
 		splitters[i] = newBulkSplitter()
 	}
@@ -96,10 +96,23 @@ func extractDocumentIDs(items []abstract.ChangeItem) ([]documentID, error) {
 	return allDocumentIDs, nil
 }
 
+func (s *sinker) orderedWrites() bool {
+	return s.config.OrderedWrites
+}
+
+// writeConcurrency is the number of write shards (bulk writers) per collection.
+func (s *sinker) writeConcurrency() int {
+	if s.orderedWrites() {
+		return 1
+	}
+	return sinkWriteConcurrency
+}
+
 // bulkWrite writes one bulk. All operations target distinct _ids (guaranteed by bulkSplitter), so Ordered(false) is safe – MongoDB can apply them in any order.
+// With OrderedWrites the bulk is ordered so that a failed write does not let the following ones overtake it.
 func (s *sinker) bulkWrite(ctx context.Context, collID Namespace, bulk []mongo_driver.WriteModel) error {
 	coll := s.client.Database(collID.Database).Collection(collID.Collection)
-	opts := mongo_options.BulkWrite().SetOrdered(false)
+	opts := mongo_options.BulkWrite().SetOrdered(s.orderedWrites())
 
 	docsNumber := len(bulk)
 	startWrite := time.Now()
@@ -132,7 +145,7 @@ func (s *sinker) bulkWrite(ctx context.Context, collID Namespace, bulk []mongo_d
 // serialPush writes models one by one.
 func (s *sinker) serialPush(ctx context.Context, collID Namespace, bulk []mongo_driver.WriteModel) (*mongo_driver.BulkWriteResult, error) {
 	coll := s.client.Database(collID.Database).Collection(collID.Collection)
-	opts := mongo_options.BulkWrite().SetOrdered(false)
+	opts := mongo_options.BulkWrite().SetOrdered(s.orderedWrites())
 	totalResult := mongo_driver.BulkWriteResult{}
 	for i, m := range bulk {
 		iResult, iErr := coll.BulkWrite(ctx, []mongo_driver.WriteModel{m}, opts)

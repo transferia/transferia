@@ -32,6 +32,9 @@ type MongoDestination struct {
 	SRVMode bool `log:"true"`
 	// tls config set by user explicitly
 	UserEnabledTls *bool
+	// OrderedWrites writes every collection sequentially in the source order (one ordered bulk writer instead of
+	// sinkWriteConcurrency parallel ones). Slower; needed when unique secondary index values move between documents.
+	OrderedWrites bool `log:"true"`
 }
 
 var _ model.Destination = (*MongoDestination)(nil)
