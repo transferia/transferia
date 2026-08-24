@@ -2103,6 +2103,7 @@
   "pkg/providers/s3/s3util/ordered_multimap/ordered_multimap_test.go":"transfer_manager/go/pkg/providers/s3/s3util/ordered_multimap/ordered_multimap_test.go",
   "pkg/providers/s3/s3util/s3sess/s3sess.go":"transfer_manager/go/pkg/providers/s3/s3util/s3sess/s3sess.go",
   "pkg/providers/s3/s3util/s3sess/session_resolver.go":"transfer_manager/go/pkg/providers/s3/s3util/s3sess/session_resolver.go",
+  "pkg/providers/s3/s3util/s3sess/session_resolver_test.go":"transfer_manager/go/pkg/providers/s3/s3util/s3sess/session_resolver_test.go",
   "pkg/providers/s3/s3util/s3sess/transport.go":"transfer_manager/go/pkg/providers/s3/s3util/s3sess/transport.go",
   "pkg/providers/s3/s3util/synthetic_partition/synthetic_partition.go":"transfer_manager/go/pkg/providers/s3/s3util/synthetic_partition/synthetic_partition.go",
   "pkg/providers/s3/s3util/synthetic_partition/synthetic_partition_test.go":"transfer_manager/go/pkg/providers/s3/s3util/synthetic_partition/synthetic_partition_test.go",

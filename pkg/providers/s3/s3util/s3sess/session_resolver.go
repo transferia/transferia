@@ -14,6 +14,15 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
+func newHTTPClient(transport http.RoundTripper) *http.Client {
+	return &http.Client{
+		Transport: transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
 func findRegion(bucket, region string, s3ForcePathStyle bool) (string, error) {
 	if region != "" {
 		return region, nil
@@ -24,6 +33,7 @@ func findRegion(bucket, region string, s3ForcePathStyle bool) (string, error) {
 		Region:           aws.String("aws-global"),
 		S3ForcePathStyle: aws.Bool(s3ForcePathStyle),
 		Credentials:      aws_credentials.AnonymousCredentials,
+		HTTPClient:       newHTTPClient(http.DefaultTransport),
 	})
 	if err != nil {
 		return "", xerrors.Errorf("unable to init aws session: %w", err)
@@ -61,7 +71,7 @@ func NewAWSSession(lgr log.Logger, bucket string, cfg s3_model.ConnectionConfig)
 			Region:           aws.String(cfg.Region),
 			S3ForcePathStyle: aws.Bool(cfg.S3ForcePathStyle),
 			Credentials:      aws_credentials.AnonymousCredentials,
-			HTTPClient:       &http.Client{Transport: NewCredentialsRoundTripper(currCreds, http.DefaultTransport)},
+			HTTPClient:       newHTTPClient(NewCredentialsRoundTripper(currCreds, http.DefaultTransport)),
 		})
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create session: %w", err)
@@ -79,7 +89,7 @@ func NewAWSSession(lgr log.Logger, bucket string, cfg s3_model.ConnectionConfig)
 		S3ForcePathStyle: aws.Bool(cfg.S3ForcePathStyle),
 		Credentials:      cred,
 		DisableSSL:       aws.Bool(!cfg.UseSSL),
-		HTTPClient:       &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: !cfg.VerifySSL}}},
+		HTTPClient:       newHTTPClient(&http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: !cfg.VerifySSL}}),
 	})
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create session (without SA credentials): %w", err)
