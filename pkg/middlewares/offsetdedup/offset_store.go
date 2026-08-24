@@ -26,5 +26,5 @@ type OffsetStore interface {
 // OffsetStoreBuilder is an optional capability of QueueToS3Sink
 // implementations that persist a restart watermark (e.g. Iceberg AsyncSink).
 type OffsetStoreBuilder interface {
-	BuildOffsetStore(transferID string) OffsetStore
+	BuildOffsetStore() OffsetStore
 }

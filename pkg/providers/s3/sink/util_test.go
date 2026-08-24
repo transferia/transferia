@@ -193,6 +193,8 @@ func TestIsDynamicLayout(t *testing.T) {
 		{name: "mixed template", layout: "data-2006", expected: true},
 		{name: "year only", layout: "2006", expected: true},
 		{name: "hour minute", layout: "15:04", expected: true},
+		{name: "fractional zeros", layout: "prefix/.000", expected: true},
+		{name: "fractional nines", layout: "prefix/.999", expected: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

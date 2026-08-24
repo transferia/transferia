@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/transferia/transferia/pkg/abstract/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
@@ -17,14 +18,22 @@ const partIDHashLen = 8
 // Files belonging to the same stream share the same namespace, tableName, partID, etc.
 // The incrementing counter (managed by FileSplitter) distinguishes individual files within a stream.
 type S3ObjectRef struct {
-	layout       string
-	namespace    string
-	tableName    string
-	partID       string
-	partIDHash   string
-	timestamp    string
-	outputFormat model.ParsingFormat
-	encoding     s3_model.Encoding
+	layout        string
+	namespace     string
+	tableName     string
+	partID        string
+	partIDHash    string
+	timestamp     string
+	outputFormat  model.ParsingFormat
+	encoding      s3_model.Encoding
+	validationErr string
+}
+
+func (b S3ObjectRef) Validate() error {
+	if b.validationErr != "" {
+		return fmt.Errorf("%s", b.validationErr)
+	}
+	return nil
 }
 
 // FileStreamKey returns a unique key for FileSplitter maps for this logical stream.
@@ -58,15 +67,39 @@ func NewS3ObjectRef(
 	outputFormat model.ParsingFormat,
 	encoding s3_model.Encoding,
 ) S3ObjectRef {
+	normalizedLayout := strings.Trim(layout, "/")
+	normalizedNamespace := strings.Trim(namespace, "/")
+	normalizedTableName := strings.Trim(tableName, "/")
+	normalizedPartID := strings.Trim(partID, "/")
+	validationErr := ""
+	for _, field := range []struct{ name, value string }{
+		{name: "layout", value: layout},
+		{name: "namespace", value: namespace},
+		{name: "table name", value: tableName},
+		{name: "part ID", value: partID},
+	} {
+		if strings.Trim(field.value, "/") != field.value {
+			validationErr = fmt.Sprintf("%s %q has unsupported leading or trailing slash", field.name, field.value)
+			break
+		}
+		if strings.ContainsRune(field.value, 0) {
+			validationErr = fmt.Sprintf("%s contains an unsupported NUL byte", field.name)
+			break
+		}
+	}
+	if validationErr == "" && normalizedTableName == "" {
+		validationErr = "table name must not be empty"
+	}
 	return S3ObjectRef{
-		layout:       strings.Trim(layout, "/"),
-		namespace:    strings.Trim(namespace, "/"),
-		tableName:    strings.Trim(tableName, "/"),
-		partID:       strings.Trim(partID, "/"),
-		partIDHash:   hashPartID(partID),
-		timestamp:    timestamp,
-		outputFormat: outputFormat,
-		encoding:     encoding,
+		layout:        normalizedLayout,
+		namespace:     normalizedNamespace,
+		tableName:     normalizedTableName,
+		partID:        normalizedPartID,
+		partIDHash:    hashPartID(normalizedPartID),
+		timestamp:     timestamp,
+		outputFormat:  outputFormat,
+		encoding:      encoding,
+		validationErr: validationErr,
 	}
 }
 
@@ -132,19 +165,39 @@ func (b *S3ObjectRef) FullKey(counter int) string {
 	return builder.String()
 }
 
-// partKeyRegex matches every part-file key this sink may write for the table (any layout prefix,
-// timestamp, partID hash, or file counter). Used to filter list-by-prefix results during cleanup.
-func (b *S3ObjectRef) partKeyRegex() *regexp.Regexp {
-	tbl := regexp.QuoteMeta(b.tableName)
-	fmtExt := regexp.QuoteMeta(strings.ToLower(string(b.outputFormat)))
-
-	var pattern string
-	if b.namespace != "" {
-		ns := regexp.QuoteMeta(b.namespace)
-		pattern = `^(?:.*/)?` + ns + `/` + tbl + `/part-\d+-[a-fA-F0-9]{8}\.\d{5}\.` + fmtExt + `(?:\.gz)?$`
-	} else {
-		pattern = `^(?:.*/)?` + tbl + `/part-\d+-[a-fA-F0-9]{8}\.\d{5}\.` + fmtExt + `(?:\.gz)?$`
+func (b *S3ObjectRef) matchesPartKey(layout, key string, fileNameRegex *regexp.Regexp) bool {
+	basePath := b.basePath()
+	var fileName string
+	switch {
+	case layout == "":
+		prefix := basePath + "/"
+		if !strings.HasPrefix(key, prefix) {
+			return false
+		}
+		fileName = strings.TrimPrefix(key, prefix)
+	case !isDynamicLayout(layout):
+		prefix := layout + "/" + basePath + "/"
+		if !strings.HasPrefix(key, prefix) {
+			return false
+		}
+		fileName = strings.TrimPrefix(key, prefix)
+	default:
+		marker := "/" + basePath + "/"
+		markerStart := strings.LastIndex(key, marker)
+		if markerStart <= 0 {
+			return false
+		}
+		if _, err := time.Parse(layout, key[:markerStart]); err != nil {
+			return false
+		}
+		fileName = key[markerStart+len(marker):]
 	}
+	return fileNameRegex.MatchString(fileName)
+}
+
+func (b *S3ObjectRef) partFileNameRegex() *regexp.Regexp {
+	fmtExt := regexp.QuoteMeta(strings.ToLower(string(b.outputFormat)))
+	pattern := `^part-\d+-[a-fA-F0-9]{8}\.\d{5,}\.` + fmtExt + `(?:\.gz)?$`
 	return regexp.MustCompile(pattern)
 }
 

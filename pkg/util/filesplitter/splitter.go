@@ -1,6 +1,8 @@
 package filesplitter
 
 import (
+	"math"
+
 	"github.com/transferia/transferia/pkg/abstract"
 )
 
@@ -59,16 +61,48 @@ func (f *Splitter) AddItems(streamKey string, items []*abstract.ChangeItem) int 
 		if items[i] == nil {
 			return 0
 		}
-		return int(items[i].Size.Read)
+		return clampUint64ToInt(items[i].Size.Read)
 	})
 }
 
 // AddChangeItemsValues is like AddItems but for value slices (avoids allocating a
 // pointer slice when the caller already has []abstract.ChangeItem).
 func (f *Splitter) AddChangeItemsValues(streamKey string, items []abstract.ChangeItem) int {
-	return f.addItemsBounded(streamKey, len(items), func(i int) int {
-		return int(items[i].Size.Read)
+	return f.AddChangeItemsValuesBy(streamKey, items, func(item abstract.ChangeItem) int {
+		return clampUint64ToInt(item.Size.Read)
 	})
+}
+
+func (f *Splitter) AddChangeItemsValuesBy(streamKey string, items []abstract.ChangeItem, sizeOf func(abstract.ChangeItem) int) int {
+	return f.addItemsBounded(streamKey, len(items), func(i int) int {
+		return sizeOf(items[i])
+	})
+}
+
+func (f *Splitter) CanAddChangeItemsValues(streamKey string, items []abstract.ChangeItem) bool {
+	return f.CanAddChangeItemsValuesBy(streamKey, items, func(item abstract.ChangeItem) int {
+		return clampUint64ToInt(item.Size.Read)
+	})
+}
+
+func (f *Splitter) CanAddChangeItemsValuesBy(streamKey string, items []abstract.ChangeItem, sizeOf func(abstract.ChangeItem) int) bool {
+	rows, ok := f.rowsByRef[streamKey]
+	if !ok {
+		return false
+	}
+	bytes := f.bytesByRef[streamKey]
+	for i := range items {
+		itemBytes := nonNegative(sizeOf(items[i]))
+		if f.maxItemsPerFile > 0 && rows >= f.maxItemsPerFile {
+			return false
+		}
+		if f.maxBytesPerFile > 0 && rows > 0 && exceedsLimit(bytes, itemBytes, f.maxBytesPerFile) {
+			return false
+		}
+		rows++
+		bytes = saturatingAdd(bytes, itemBytes)
+	}
+	return true
 }
 
 func (f *Splitter) addItemsBounded(streamKey string, n int, sizeAt func(i int) int) int {
@@ -91,15 +125,40 @@ func (f *Splitter) addItemsBounded(streamKey string, n int, sizeAt func(i int) i
 		if hasRowLimit && f.rowsByRef[streamKey] >= f.maxItemsPerFile {
 			break
 		}
-		itemBytes := sizeAt(i)
-		if hasByteLimit && f.rowsByRef[streamKey] > 0 && f.bytesByRef[streamKey]+itemBytes > f.maxBytesPerFile {
+		itemBytes := nonNegative(sizeAt(i))
+		if hasByteLimit && f.rowsByRef[streamKey] > 0 && exceedsLimit(f.bytesByRef[streamKey], itemBytes, f.maxBytesPerFile) {
 			break
 		}
 
 		f.rowsByRef[streamKey]++
-		f.bytesByRef[streamKey] += itemBytes
+		f.bytesByRef[streamKey] = saturatingAdd(f.bytesByRef[streamKey], itemBytes)
 		count++
 	}
 
 	return count
+}
+
+func exceedsLimit(current, added, limit int) bool {
+	return added > limit || current > limit-added
+}
+
+func saturatingAdd(left, right int) int {
+	if right > 0 && left > math.MaxInt-right {
+		return math.MaxInt
+	}
+	return left + right
+}
+
+func clampUint64ToInt(value uint64) int {
+	if value > uint64(math.MaxInt) {
+		return math.MaxInt
+	}
+	return int(value)
+}
+
+func nonNegative(value int) int {
+	if value < 0 {
+		return math.MaxInt
+	}
+	return value
 }

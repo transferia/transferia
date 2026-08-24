@@ -92,9 +92,11 @@ func isDynamicLayout(layout string) bool {
 	if layout == "" {
 		return false
 	}
-	t1 := time.Unix(0, 0).UTC()
-	t2 := time.Unix(1<<32, 0).UTC()
-	return t1.Format(layout) != t2.Format(layout)
+	samples := [...]time.Time{
+		time.Date(2001, time.February, 3, 4, 5, 6, 123_456_789, time.FixedZone("Z1", 3600)),
+		time.Date(2037, time.November, 29, 21, 43, 58, 987_654_321, time.FixedZone("Z2", -7*3600)),
+	}
+	return samples[0].Format(layout) != samples[1].Format(layout)
 }
 
 func makeListPrefix(layout string, basePath string) string {

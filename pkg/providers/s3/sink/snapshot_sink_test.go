@@ -440,6 +440,111 @@ func TestSnapshotSink_DropTable_DynamicLayout(t *testing.T) {
 	require.Contains(t, mock.BucketFiles["test-bucket"], "random-file.txt")
 }
 
+func TestSnapshotSink_DropTable_DynamicLayoutWithoutNamespaceDoesNotDeleteNamespacedTable(t *testing.T) {
+	seed := map[string][]byte{
+		"2026/07/02/tbl/part-1-abcd1234.00001.json":    []byte("delete"),
+		"2026/07/02/ns/tbl/part-1-abcd1234.00001.json": []byte("keep"),
+	}
+	sink, mock := newTestDropSink(t, "2006/01/02", seed)
+
+	err := sink.dropTable(sink.makeS3ObjectRef(abstract.ChangeItem{Table: "tbl"}))
+	require.NoError(t, err)
+	require.Equal(t, map[string][]byte{
+		"2026/07/02/ns/tbl/part-1-abcd1234.00001.json": []byte("keep"),
+	}, mock.BucketFiles["test-bucket"])
+}
+
+func TestSnapshotSink_DropTable_DynamicLayoutKeepsAnotherStaticPrefix(t *testing.T) {
+	seed := map[string][]byte{
+		"transfer-a/2026/07/02/ns/tbl/part-1-abcd1234.00001.json": []byte("delete"),
+		"transfer-b/2026/07/02/ns/tbl/part-1-abcd1234.00001.json": []byte("keep"),
+	}
+	sink, mock := newTestDropSink(t, "transfer-a/2006/01/02", seed)
+
+	err := sink.dropTable(sink.makeS3ObjectRef(abstract.ChangeItem{Schema: "ns", Table: "tbl"}))
+	require.NoError(t, err)
+	require.Equal(t, map[string][]byte{
+		"transfer-b/2026/07/02/ns/tbl/part-1-abcd1234.00001.json": []byte("keep"),
+	}, mock.BucketFiles["test-bucket"])
+}
+
+func TestSnapshotSink_DropTable_FractionalSecondLayout(t *testing.T) {
+	seed := map[string][]byte{
+		"prefix/.123/ns/tbl/part-1-abcd1234.00001.json":   []byte("delete"),
+		"prefix/.987/ns/tbl/part-2-deadbeef.00002.json":   []byte("delete"),
+		"prefix/.123/ns/other/part-1-abcd1234.00001.json": []byte("keep"),
+	}
+	sink, mock := newTestDropSink(t, "prefix/.000", seed)
+
+	err := sink.dropTable(sink.makeS3ObjectRef(abstract.ChangeItem{Schema: "ns", Table: "tbl"}))
+	require.NoError(t, err)
+	require.Equal(t, map[string][]byte{
+		"prefix/.123/ns/other/part-1-abcd1234.00001.json": []byte("keep"),
+	}, mock.BucketFiles["test-bucket"])
+}
+
+func TestSnapshotSinkPushValidatesEntireBatchBeforeSideEffects(t *testing.T) {
+	seed := map[string][]byte{
+		"ns/tbl/part-1-abcd1234.00001.json": []byte("must remain"),
+	}
+	sink, mock := newTestDropSink(t, "", seed)
+
+	err := sink.Push([]abstract.ChangeItem{
+		{Kind: abstract.DropTableKind, Schema: "ns", Table: "tbl"},
+		{Kind: abstract.InsertKind, Schema: "ns", Table: "", PartID: "unsafe-part"},
+	})
+	require.ErrorContains(t, err, "table name must not be empty")
+	require.Equal(t, seed, mock.BucketFiles["test-bucket"])
+	require.Empty(t, mock.DeleteObjectsCalls)
+}
+
+func TestSnapshotSinkRejectedBatchDoesNotPublishKeyReservations(t *testing.T) {
+	sink, _ := newTestDropSink(t, "", map[string][]byte{})
+	first := abstract.ChangeItem{Kind: abstract.InsertKind, Schema: "ns", Table: "tbl"}
+	colliding := first
+	colliding.PartID = "default"
+	firstRef := sink.makeS3ObjectRef(first)
+	collidingRef := sink.makeS3ObjectRef(colliding)
+	require.Equal(t, firstRef.FullKey(0), collidingRef.FullKey(0))
+
+	err := sink.validatePush([]abstract.ChangeItem{
+		first,
+		{Kind: abstract.InsertKind, Schema: "ns", Table: ""},
+	})
+	require.Error(t, err)
+	require.Empty(t, sink.fileSplitter.physicalKeyOwners)
+	require.Empty(t, sink.fileSplitter.tablePathOwners)
+
+	require.NoError(t, sink.validatePush([]abstract.ChangeItem{colliding}))
+}
+
+func TestSnapshotSinkDropRejectsAmbiguousOwnedTablePath(t *testing.T) {
+	seed := map[string][]byte{
+		"a/b/c/part-1-abcd1234.00001.json": []byte("must remain"),
+	}
+	sink, mock := newTestDropSink(t, "", seed)
+	require.NoError(t, sink.validatePush([]abstract.ChangeItem{{
+		Kind: abstract.InsertKind, Schema: "a", Table: "b/c",
+	}}))
+
+	err := sink.Push([]abstract.ChangeItem{{
+		Kind: abstract.DropTableKind, Schema: "a/b", Table: "c",
+	}})
+	require.ErrorContains(t, err, "table-path collision")
+	require.Equal(t, seed, mock.BucketFiles["test-bucket"])
+	require.Empty(t, mock.DeleteObjectsCalls)
+}
+
+func TestSnapshotSink_DropTableRejectsSilentPathNormalization(t *testing.T) {
+	sink, mock := newTestDropSink(t, "2006/01/02", map[string][]byte{
+		"2026/07/02/ns/tbl/part-1-abcd1234.00001.json": []byte("keep"),
+	})
+
+	err := sink.dropTable(sink.makeS3ObjectRef(abstract.ChangeItem{Schema: "/ns", Table: "tbl"}))
+	require.ErrorContains(t, err, "leading or trailing slash")
+	require.Len(t, mock.DeleteObjectsCalls, 0)
+}
+
 func TestSnapshotSink_DropTable_NothingToDrop(t *testing.T) {
 	sink, mock := newTestDropSink(t, "", map[string][]byte{})
 

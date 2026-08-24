@@ -96,7 +96,7 @@ func MakeAsyncReplicationSink(
 	// Exactly-once across restarts: source redelivers un-acked offsets; OffsetDedup
 	// skips up to the watermark from the destination-specific OffsetStore.
 	if offsetStoreBuilder, ok := asyncSink.(offsetdedup.OffsetStoreBuilder); ok {
-		offsetStore := offsetStoreBuilder.BuildOffsetStore(transfer.ID)
+		offsetStore := offsetStoreBuilder.BuildOffsetStore()
 		return offsetdedup.NewOffsetDedup(asyncSink, offsetStore, partition, lgr), nil
 	}
 	return asyncSink, nil

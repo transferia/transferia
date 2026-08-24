@@ -30,6 +30,47 @@ func TestNewS3ObjectRefFullKey(t *testing.T) {
 	require.Equal(t, want2, got2)
 }
 
+func TestFileSplitterRejectsCollidingPhysicalKeyNamespaces(t *testing.T) {
+	splitter := newFileSplitter(0, 0)
+	emptyPartID := NewS3ObjectRef("", "ns", "events", "", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding)
+	literalDefault := NewS3ObjectRef("", "ns", "events", "default", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding)
+
+	require.Equal(t, emptyPartID.FullKey(0), literalDefault.FullKey(0), "fixture must exercise the legacy hash collision")
+	require.NoError(t, splitter.reservePhysicalKeyNamespace(emptyPartID))
+	require.ErrorContains(t, splitter.reservePhysicalKeyNamespace(literalDefault), "collision")
+	require.NoError(t, splitter.reservePhysicalKeyNamespace(emptyPartID), "the same logical stream may reuse its namespace")
+}
+
+func TestS3ObjectRefRejectsSilentPartIDNormalization(t *testing.T) {
+	ref := NewS3ObjectRef("", "ns", "events", "/part-1/", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding)
+
+	require.ErrorContains(t, ref.Validate(), "leading or trailing slash")
+	require.ErrorContains(t, newFileSplitter(0, 0).reservePhysicalKeyNamespace(ref), "leading or trailing slash")
+}
+
+func TestS3ObjectRefRejectsAllSilentPathNormalization(t *testing.T) {
+	for name, ref := range map[string]S3ObjectRef{
+		"layout":     NewS3ObjectRef("/layout", "ns", "events", "part-1", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding),
+		"namespace":  NewS3ObjectRef("layout", "/ns", "events", "part-1", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding),
+		"table name": NewS3ObjectRef("layout", "ns", "/events", "part-1", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding),
+	} {
+		t.Run(name, func(t *testing.T) {
+			require.ErrorContains(t, ref.Validate(), name)
+		})
+	}
+}
+
+func TestFileSplitterRejectsAmbiguousTablePathComponents(t *testing.T) {
+	splitter := newFileSplitter(0, 0)
+	first := NewS3ObjectRef("layout/path", "a", "b/c", "", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding)
+	second := NewS3ObjectRef("layout/path", "a/b", "c", "", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding)
+
+	require.Equal(t, first.FullKey(0), second.FullKey(0))
+	require.NoError(t, splitter.reservePhysicalKeyNamespace(first))
+	require.ErrorContains(t, splitter.reservePhysicalKeyNamespace(second), "collision")
+	require.Error(t, NewS3ObjectRef("layout/path", "a", "", "", "1700000000", model.ParsingFormatJSON, s3_model.NoEncoding).Validate())
+}
+
 func TestNewS3ObjectRefFullKeyWithLayout(t *testing.T) {
 	ref := NewS3ObjectRef(
 		"snapshot-2024",

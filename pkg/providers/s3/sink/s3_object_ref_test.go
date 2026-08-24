@@ -8,7 +8,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 )
 
-func TestS3ObjectRef_s3KeyRegex(t *testing.T) {
+func TestS3ObjectRefMatchesPartKey(t *testing.T) {
 	refWithNs := NewS3ObjectRef("", "ns", "tbl", "", "", model.ParsingFormatJSONLine, s3_model.NoEncoding)
 	refNoNs := NewS3ObjectRef("", "", "tbl", "", "", model.ParsingFormatJSONLine, s3_model.NoEncoding)
 
@@ -18,10 +18,10 @@ func TestS3ObjectRef_s3KeyRegex(t *testing.T) {
 		key     string
 		matches bool
 	}{
-		{"match with layout", refWithNs, "2026/07/02/ns/tbl/part-1751328000000-abcd1234.00001.jsonl", true},
 		{"match without layout", refWithNs, "ns/tbl/part-1751328000000-abcd1234.00001.jsonl", true},
-		{"match gz suffix", refWithNs, "2026/07/02/ns/tbl/part-1751328000000-abcd1234.00001.jsonl.gz", true},
+		{"match gz suffix", refWithNs, "ns/tbl/part-1751328000000-abcd1234.00001.jsonl.gz", true},
 		{"match zero timestamp", refWithNs, "ns/tbl/part-0-00000000.00000.jsonl", true},
+		{"match counter above fixed width", refWithNs, "ns/tbl/part-0-00000000.100000.jsonl", true},
 		{"non-match wrong table", refWithNs, "ns/other/part-1-abcd1234.00001.jsonl", false},
 		{"non-match wrong namespace", refWithNs, "other/tbl/part-1-abcd1234.00001.jsonl", false},
 		{"non-match wrong format", refWithNs, "ns/tbl/part-1-abcd1234.00001.csv", false},
@@ -33,8 +33,17 @@ func TestS3ObjectRef_s3KeyRegex(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			re := tc.ref.partKeyRegex()
-			require.Equal(t, tc.matches, re.MatchString(tc.key), "key=%q pattern=%q", tc.key, re.String())
+			require.Equal(t, tc.matches, tc.ref.matchesPartKey("", tc.key, tc.ref.partFileNameRegex()), "key=%q", tc.key)
 		})
 	}
+}
+
+func TestS3ObjectRefDynamicLayoutKeepsLiteralOwnership(t *testing.T) {
+	ref := NewS3ObjectRef("", "ns", "tbl", "", "", model.ParsingFormatJSONLine, s3_model.NoEncoding)
+	layout := "transfer-a/2006/01/02"
+
+	fileNameRegex := ref.partFileNameRegex()
+	require.True(t, ref.matchesPartKey(layout, "transfer-a/2026/08/13/ns/tbl/part-1-abcd1234.00001.jsonl", fileNameRegex))
+	require.False(t, ref.matchesPartKey(layout, "transfer-b/2026/08/13/ns/tbl/part-1-abcd1234.00001.jsonl", fileNameRegex))
+	require.False(t, ref.matchesPartKey(layout, "transfer-a/2026/08/13/other/tbl/part-1-abcd1234.00001.jsonl", fileNameRegex))
 }

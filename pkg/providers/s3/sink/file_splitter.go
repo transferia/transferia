@@ -1,6 +1,7 @@
 package sink
 
 import (
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/util/filesplitter"
 )
@@ -9,7 +10,53 @@ import (
 // It tracks row counts and byte sizes per logical file stream (S3ObjectRef)
 // and determines when to rotate to a new file based on configured limits.
 type wrappedFileSplitter struct {
-	inner *filesplitter.Splitter
+	inner             *filesplitter.Splitter
+	physicalKeyOwners map[string]string
+	tablePathOwners   map[string]string
+}
+
+func (f *wrappedFileSplitter) reservePhysicalKeyNamespace(ref S3ObjectRef) error {
+	if err := reservePhysicalTablePath(f.tablePathOwners, ref); err != nil {
+		return xerrors.Errorf("reserve physical table path: %w", err)
+	}
+	if err := reservePhysicalKeyNamespace(f.physicalKeyOwners, ref); err != nil {
+		return xerrors.Errorf("reserve physical object-key namespace: %w", err)
+	}
+	return nil
+}
+
+func reservePhysicalKeyNamespace(owners map[string]string, ref S3ObjectRef) error {
+	if err := ref.Validate(); err != nil {
+		return xerrors.Errorf("validate S3 object reference: %w", err)
+	}
+	physicalKey := ref.FullKey(0)
+	logicalStream := ref.FileStreamKey()
+	if owner, ok := owners[physicalKey]; ok && owner != logicalStream {
+		return xerrors.Errorf("S3 object-key namespace collision for %q between distinct logical streams", physicalKey)
+	}
+	owners[physicalKey] = logicalStream
+	return nil
+}
+
+func reservePhysicalTablePath(owners map[string]string, ref S3ObjectRef) error {
+	if err := ref.Validate(); err != nil {
+		return xerrors.Errorf("validate S3 object reference: %w", err)
+	}
+	physicalPath := ref.basePath()
+	logicalTable := ref.namespace + "\x00" + ref.tableName
+	if owner, ok := owners[physicalPath]; ok && owner != logicalTable {
+		return xerrors.Errorf("S3 table-path collision for %q between distinct logical tables", physicalPath)
+	}
+	owners[physicalPath] = logicalTable
+	return nil
+}
+
+func clonePhysicalKeyOwners(source map[string]string) map[string]string {
+	result := make(map[string]string, len(source))
+	for key, owner := range source {
+		result[key] = owner
+	}
+	return result
 }
 
 // increaseKey initializes or rotates the file counter for the given ref.
@@ -43,6 +90,8 @@ func (f *wrappedFileSplitter) addItems(ref S3ObjectRef, items []*abstract.Change
 
 func newFileSplitter(maxItemsPerFile int, maxBytesPerFile int) *wrappedFileSplitter {
 	return &wrappedFileSplitter{
-		inner: filesplitter.New(maxItemsPerFile, maxBytesPerFile),
+		inner:             filesplitter.New(maxItemsPerFile, maxBytesPerFile),
+		physicalKeyOwners: make(map[string]string),
+		tablePathOwners:   make(map[string]string),
 	}
 }

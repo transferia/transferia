@@ -38,6 +38,12 @@ func (s *SnapshotSink) Close() error {
 }
 
 func (s *SnapshotSink) Push(input []abstract.ChangeItem) error {
+	if len(input) == 0 {
+		return nil
+	}
+	if err := s.validatePush(input); err != nil {
+		return xerrors.Errorf("validate input batch: %w", err)
+	}
 	insertItems, err := s.processItemsAndReturnInserts(input)
 	if err != nil {
 		return xerrors.Errorf("unable to push item: %w", err)
@@ -51,9 +57,44 @@ func (s *SnapshotSink) Push(input []abstract.ChangeItem) error {
 	return nil
 }
 
+func (s *SnapshotSink) validatePush(input []abstract.ChangeItem) error {
+	stagedOwners := clonePhysicalKeyOwners(s.fileSplitter.physicalKeyOwners)
+	stagedTableOwners := clonePhysicalKeyOwners(s.fileSplitter.tablePathOwners)
+	for index := range input {
+		row := input[index]
+		switch row.Kind {
+		case abstract.InsertKind:
+			ref := s.makeS3ObjectRef(row)
+			if err := reservePhysicalTablePath(stagedTableOwners, ref); err != nil {
+				return xerrors.Errorf("row %d: %w", index, err)
+			}
+			if err := reservePhysicalKeyNamespace(stagedOwners, ref); err != nil {
+				return xerrors.Errorf("row %d: %w", index, err)
+			}
+		case abstract.DropTableKind:
+			if err := reservePhysicalTablePath(stagedTableOwners, s.makeS3ObjectRef(row)); err != nil {
+				return xerrors.Errorf("row %d: %w", index, err)
+			}
+		case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad,
+			abstract.InitTableLoad, abstract.DoneTableLoad,
+			abstract.DDLKind, abstract.PgDDLKind, abstract.MongoCreateKind,
+			abstract.MongoRenameKind, abstract.MongoDropKind,
+			abstract.TruncateTableKind, abstract.ChCreateTableKind:
+		default:
+			return xerrors.Errorf("row %d has unsupported kind %v", index, row.Kind)
+		}
+	}
+	s.fileSplitter.physicalKeyOwners = stagedOwners
+	s.fileSplitter.tablePathOwners = stagedTableOwners
+	return nil
+}
+
 func (s *SnapshotSink) initSnapshotLoaderIfNotInited(fullTableName string, ref S3ObjectRef) error {
 	if _, ok := s.snapshotWriters[ref]; ok {
 		return nil
+	}
+	if err := s.fileSplitter.reservePhysicalKeyNamespace(ref); err != nil {
+		return xerrors.Errorf("validate snapshot object key: %w", err)
 	}
 	keyPartNumber := s.fileSplitter.keyNumber(ref)
 
@@ -158,11 +199,15 @@ func (s *SnapshotSink) doneTableLoad() error {
 // dropTable removes every S3 object that this sink could have produced for the
 // given table across all layout prefixes. For dynamic layouts, match by suffix.
 func (s *SnapshotSink) dropTable(ref S3ObjectRef) error {
+	if err := ref.Validate(); err != nil {
+		return xerrors.Errorf("validate dropped table object reference: %w", err)
+	}
+	fileNameRegex := ref.partFileNameRegex()
 	totalDeleted, err := s3_delete.DeleteMatchingObjects(
 		s.s3Client,
 		s.cfg.Bucket,
 		makeListPrefix(s.cfg.Layout, ref.basePath()),
-		ref.partKeyRegex().MatchString)
+		func(key string) bool { return ref.matchesPartKey(s.cfg.Layout, key, fileNameRegex) })
 	if err != nil {
 		return err
 	}
@@ -193,6 +238,11 @@ func (s *SnapshotSink) processSnapshot(insertItems []*abstract.ChangeItem) error
 	}
 
 	groupedItems := groupSnapshotItemsByRef(insertItems, s.makeS3ObjectRef)
+	for ref := range groupedItems {
+		if err := s.fileSplitter.reservePhysicalKeyNamespace(ref); err != nil {
+			return xerrors.Errorf("validate snapshot object key: %w", err)
+		}
+	}
 	for ref, items := range groupedItems {
 		table := items[0].TableID().Fqtn()
 		if err := s.initSnapshotLoaderIfNotInited(table, ref); err != nil {
