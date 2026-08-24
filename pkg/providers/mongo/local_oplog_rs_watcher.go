@@ -25,6 +25,7 @@ type localOplogRsWatcher struct {
 	initialTime     primitive.Timestamp
 	config          *MongoSource
 	shouldReplicate func(optype string, ns Namespace) bool
+	txnTracker      *oplogTxnTracker
 
 	fullWhereStatementCache *bson.D
 }
@@ -171,6 +172,7 @@ func (w localOplogRsWatcher) watchBatchFrom(ctx context.Context, ts primitive.Ti
 		}
 	}()
 
+	until = ts
 	for oplogCursor.Next(ctx) {
 		eventsRead++
 		var oplogChangeEvent oplogRsChangeEventV2
@@ -180,35 +182,44 @@ func (w localOplogRsWatcher) watchBatchFrom(ctx context.Context, ts primitive.Ti
 			return until, eventsRead, xerrors.Errorf("Cannot decode change keyEvent: %w", err)
 		}
 		decodeTimeDuration := time.Since(decodeTimeStart)
-		until = oplogChangeEvent.Timestamp
 
-		mongoKeyChangeEvent, err := oplogChangeEvent.toMongoKeyChangeEvent(w.logger)
+		// until still holds the previous entry timestamp here
+		mongoKeyChangeEvents, eventsSize, err := w.txnTracker.Process(oplogChangeEvent, until, len(oplogCursor.Current))
+		until = oplogChangeEvent.Timestamp
 		if err != nil {
 			return until, eventsRead, xerrors.Errorf("Can't convert local.oplog.rs change keyEvent: %w", err)
 		}
-		if mongoKeyChangeEvent == nil {
-			continue // in case of no op change keyEvent
+		if len(mongoKeyChangeEvents) == 0 {
+			continue // in case of no op change keyEvent or a buffered transaction
 		}
-		if !w.shouldReplicate(mongoKeyChangeEvent.OperationType, mongoKeyChangeEvent.Namespace) {
-			if filterWithRegexp {
-				// do not spam this warnings when regexp filtering is off
-				w.logger.Warn("Skip document from local.oplog.rs as not belonging to replication",
-					log.String("ns", mongoKeyChangeEvent.Namespace.GetFullName()),
-					log.Any("oplogChangeEvent", oplogChangeEvent),
-					log.Any("changeEvent", mongoKeyChangeEvent),
-				)
+		eventSize := eventsSize / len(mongoKeyChangeEvents)
+		holdTS, held := w.txnTracker.HoldTS(oplogChangeEvent.Timestamp)
+		for _, mongoKeyChangeEvent := range mongoKeyChangeEvents {
+			if !w.shouldReplicate(mongoKeyChangeEvent.OperationType, mongoKeyChangeEvent.Namespace) {
+				if filterWithRegexp {
+					// do not spam this warnings when regexp filtering is off
+					w.logger.Warn("Skip document from local.oplog.rs as not belonging to replication",
+						log.String("ns", mongoKeyChangeEvent.Namespace.GetFullName()),
+						log.Any("oplogChangeEvent", oplogChangeEvent),
+						log.Any("changeEvent", mongoKeyChangeEvent),
+					)
+				}
+				// replace event with noop (to keep track of the oplog timeline)
+				mongoKeyChangeEvent = newNoopChangeEvent(oplogChangeEvent.Timestamp)
 			}
-			// replace event with noop (to keep track of the oplog timeline)
-			mongoKeyChangeEvent = newNoopChangeEvent(oplogChangeEvent.Timestamp)
-		}
-		event := &keyChangeEvent{
-			keyEvent:   mongoKeyChangeEvent,
-			size:       len(oplogCursor.Current),
-			decodeTime: decodeTimeDuration,
-		}
+			if held && holdTS.Compare(mongoKeyChangeEvent.ClusterTime) < 0 {
+				// keep persisted progress behind pending transactions so that restart re-reads their entries
+				mongoKeyChangeEvent.ClusterTime = holdTS
+			}
+			event := &keyChangeEvent{
+				keyEvent:   mongoKeyChangeEvent,
+				size:       eventSize,
+				decodeTime: decodeTimeDuration,
+			}
 
-		if err := batcher.PushKeyChangeEvent(event); err != nil {
-			return until, eventsRead, xerrors.Errorf("change keyEvent batcher error: %w", err)
+			if err := batcher.PushKeyChangeEvent(event); err != nil {
+				return until, eventsRead, xerrors.Errorf("change keyEvent batcher error: %w", err)
+			}
 		}
 	}
 	if oplogCursor.Err() != nil {
@@ -217,16 +228,19 @@ func (w localOplogRsWatcher) watchBatchFrom(ctx context.Context, ts primitive.Ti
 	return until, eventsRead, err
 }
 
-func newOplogWatcher(logger log.Logger, client *MongoClientWrapper, watchFrom primitive.Timestamp,
-	filterOplogWithRegexp bool,
-	config *MongoSource,
-) (*localOplogRsWatcher, error) {
+func makeOplogShouldReplicate(config *MongoSource) func(opType string, ns Namespace) bool {
 	techDB := config.TechnicalDatabase
 	if techDB == "" {
 		techDB = DataTransferSystemDatabase
 	}
 
-	shouldReplicate := func(opType string, ns Namespace) bool {
+	return func(opType string, ns Namespace) bool {
+		if opType == "noop" {
+			return true
+		}
+		if yslices.Contains(SystemDBs, ns.Database) || ns.Database == techDB {
+			return false
+		}
 		if opType == "dropDatabase" {
 			// TODO(@kry127) discuss this solution
 			if len(config.Collections) == 0 {
@@ -238,28 +252,30 @@ func newOplogWatcher(logger log.Logger, client *MongoClientWrapper, watchFrom pr
 				}
 			}
 		}
-		if opType == "noop" {
-			return true
-		}
-		if ns.Database == techDB {
-			return false // skip replicating
-		}
 		return config.Include(abstract.TableID{
 			Namespace: ns.Database,
 			Name:      ns.Collection,
 		})
 	}
+}
 
-	oplog := client.Database("local").Collection("oplog.rs")
+func newOplogWatcher(
+	lgr log.Logger, cl *MongoClientWrapper, watchFrom primitive.Timestamp, filterOplogWithRegex bool, cfg *MongoSource,
+) (*localOplogRsWatcher, error) {
+	shouldReplicate := makeOplogShouldReplicate(cfg)
+
+	oplog := cl.Database("local").Collection("oplog.rs")
+	watcherLogger := log.With(lgr, log.String("watcher", "local.oplog.rs"))
 	watcher := &localOplogRsWatcher{
-		logger:               log.With(logger, log.String("watcher", "local.oplog.rs")),
-		client:               client,
+		logger:               watcherLogger,
+		client:               cl,
 		oplog:                oplog,
-		filterOplogWithRegex: filterOplogWithRegexp,
+		filterOplogWithRegex: filterOplogWithRegex,
 
 		initialTime:     watchFrom,
-		config:          config,
+		config:          cfg,
 		shouldReplicate: shouldReplicate,
+		txnTracker:      newOplogTxnTracker(watcherLogger),
 
 		fullWhereStatementCache: nil,
 	}
