@@ -22,6 +22,9 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	topiccommon "github.com/transferia/transferia/pkg/providers/ydb/topics/common"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
+	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/pkg/util"
+	util_queues "github.com/transferia/transferia/pkg/util/queues"
 	"github.com/transferia/transferia/tests/helpers/lbenv"
 	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
@@ -333,6 +336,73 @@ func TestSynchronizeEvents(t *testing.T) {
 		lbenv.LoadMessages(t, lbEnv, dst.Connection.Database, topicFullPath, 1, dataCmp)
 
 	})
+}
+
+type neverAckingWriter struct {
+	writeStarted chan struct{}
+}
+
+func newNeverAckingWriter() *neverAckingWriter {
+	return &neverAckingWriter{writeStarted: make(chan struct{}, 1)}
+}
+
+func (w *neverAckingWriter) Write(ctx context.Context, _ ...topicwriter.Message) error {
+	select {
+	case w.writeStarted <- struct{}{}:
+	default:
+	}
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (w *neverAckingWriter) Close(_ context.Context) error {
+	return nil
+}
+
+func TestWriteDoesNotBlockWhenServerIsDown(t *testing.T) {
+	originalWriteTimeout := writerWriteTimeout
+	writerWriteTimeout = 200 * time.Millisecond
+	defer func() { writerWriteTimeout = originalWriteTimeout }()
+
+	tablePartID := abstract.TablePartID{TableID: abstract.TableID{Name: "no_ack_table"}}
+	groupID := tablePartID.FqtnWithPartID()
+
+	writer := newNeverAckingWriter()
+
+	s := &sink{
+		config: &Config{
+			Topic:            "no_ack_topic",
+			CompressionCodec: CompressionCodecGzip,
+			FormatSettings:   newFormatSettings(model.SerializationFormatJSON, nil),
+		},
+		logger:  logger.Log,
+		metrics: stats.NewSinkerStats(solomon.NewRegistry(nil)),
+		writers: util.NewConcurrentMap[string, cancelableWriter](),
+		shard:   "test_shard",
+	}
+	s.writers.Set(groupID, writer)
+
+	tableToMessages := map[abstract.TablePartID][]serializer.SerializedMessage{
+		tablePartID: {{Value: []byte("{}")}},
+	}
+
+	sendDone := make(chan error, 1)
+	go func() {
+		sendDone <- s.sendSerializedMessages(util_queues.NewTimingsStatCollector(), tableToMessages, nil)
+	}()
+
+	select {
+	case <-writer.writeStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("writer.Write was never called")
+	}
+
+	select {
+	case err := <-sendDone:
+		require.Error(t, err, "expected the write to fail once the ack-wait times out")
+	case <-time.After(5 * time.Second):
+		t.Fatal("sendSerializedMessages got stuck forever waiting for an ack that never arrives")
+	}
 }
 
 func TestSplitSerializedMessages(t *testing.T) {

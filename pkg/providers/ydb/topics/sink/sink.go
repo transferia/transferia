@@ -23,10 +23,19 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-// writerQueueLenSize is necessary to specify the required limit on the number of sending messages.
-// This is a big enough value for sending light messages. For example, if the messages
-// weigh 100 bytes each, then 10 Mb will be written at a time
-const writerQueueLenSize = 100000
+const (
+	// writerQueueLenSize is necessary to specify the required limit on the number of sending messages.
+	// This is a big enough value for sending light messages. For example, if the messages
+	// weigh 100 bytes each, then 10 Mb will be written at a time
+	writerQueueLenSize = 100000
+)
+
+// writerWriteTimeout/writerCloseTimeout are vars (not consts) so tests can shrink them
+// to keep timeout-related test cases fast.
+var (
+	writerWriteTimeout = 180 * time.Second
+	writerCloseTimeout = 60 * time.Second
+)
 
 type cancelableWriter interface {
 	Write(ctx context.Context, messages ...ydb_topicwriter.Message) error
@@ -193,12 +202,17 @@ func (s *sink) sendSerializedMessages(
 		messagesSize, messageBatches := splitSerializedMessages(maxSizePerWrite, serializedMessages)
 
 		for _, b := range messageBatches {
-			if err := currWriter.Write(ctx, b...); err != nil {
+			writeErr := func() error {
+				writeCtx, cancel := context.WithTimeout(ctx, writerWriteTimeout)
+				defer cancel()
+				return currWriter.Write(writeCtx, b...)
+			}()
+			if writeErr != nil {
 				if err := s.deleteWriterByGroupID(groupID); err != nil {
 					s.logger.Errorf("unable to close writer for table %s, err: %s", groupID, err)
 				}
-				s.logger.Error("Cannot write message to Logbroker", log.String("table", groupID), log.Error(err))
-				return xerrors.Errorf("cannot write message from table %s to topic %s: %w", groupID, s.config.Topic, err)
+				s.logger.Error("Cannot write message to Logbroker", log.String("table", groupID), log.Error(writeErr))
+				return xerrors.Errorf("cannot write message from table %s to topic %s: %w", groupID, s.config.Topic, writeErr)
 			}
 		}
 
@@ -255,7 +269,9 @@ func (s *sink) deleteWriterByGroupID(groupID string) error {
 	if !ok {
 		return xerrors.Errorf("unable to find writer for table: %s, impossible case", groupID)
 	}
-	return currWriter.Close(context.Background())
+	closeCtx, cancel := context.WithTimeout(context.Background(), writerCloseTimeout)
+	defer cancel()
+	return currWriter.Close(closeCtx)
 }
 
 func (s *sink) closeWriters() error {
@@ -263,7 +279,10 @@ func (s *sink) closeWriters() error {
 
 	s.writers.Clear(func(mp map[string]cancelableWriter) {
 		for _, wr := range mp {
-			if err := wr.Close(context.Background()); err != nil && !xerrors.Is(err, context.Canceled) {
+			closeCtx, cancel := context.WithTimeout(context.Background(), writerCloseTimeout)
+			defer cancel()
+			err := wr.Close(closeCtx)
+			if err != nil && !xerrors.Is(err, context.Canceled) {
 				closeErrs = append(closeErrs, xerrors.Errorf("failed to close Writer: %w", err))
 			}
 		}
