@@ -9,6 +9,11 @@ type K8sRuntime struct {
 	JobIndex      int
 	Threads       int
 	IsMainJob     bool
+
+	CpuRequest    string
+	CpuLimit      string
+	MemoryRequest string
+	MemoryLimit   string
 }
 
 func (r *K8sRuntime) CurrentJobIndex() int {
