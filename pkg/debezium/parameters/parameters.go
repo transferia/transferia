@@ -19,6 +19,7 @@ const (
 	TopicPrefix    = "topic.prefix"    // "name" in debezium payload - it's prefix for topic_name & it's field "name" in "source" (used to be called "db.server.name", but was renamed)
 
 	UnknownTypesPolicy        = "dt.unknown.types.policy" // by default, debezium skips user-defined types. We are failing by default in this case, but can just skip
+	SyntheticTypesPolicy      = "dt.synthetic.types.policy"
 	AddOriginalTypes          = "dt.add.original.type.info"
 	SourceType                = "dt.source.type" // common/mysql/pg - to emit database-specific fields in 'source'
 	MysqlTimeZone             = "dt.mysql.timezone"
@@ -65,6 +66,8 @@ const (
 	UnknownTypesPolicyFail     = "fail"
 	UnknownTypesPolicySkip     = "skip"
 	UnknownTypesPolicyToString = "to_string"
+	SyntheticTypesPolicyFail   = "fail"
+	SyntheticTypesPolicyCommon = "common"
 
 	SourceTypePg    = "pg"
 	SourceTypeMysql = "mysql"
@@ -141,6 +144,7 @@ var connectorSettings = []connectorSetting{
 	{DatabaseDBName, []string{}, ""},
 	{TopicPrefix, []string{}, ""},
 	{UnknownTypesPolicy, []string{UnknownTypesPolicyFail, UnknownTypesPolicySkip, UnknownTypesPolicyToString}, UnknownTypesPolicyFail},
+	{SyntheticTypesPolicy, []string{SyntheticTypesPolicyFail, SyntheticTypesPolicyCommon}, SyntheticTypesPolicyFail},
 	{AddOriginalTypes, []string{BoolFalse, BoolTrue}, BoolFalse},
 	{SourceType, []string{"", SourceTypePg, SourceTypeMysql, SourceTypeYDB}, ""},
 	{MysqlTimeZone, []string{}, MysqlTimeZoneUTC},
@@ -231,6 +235,9 @@ func GetDTAddOriginalTypeInfo(in map[string]string) string {
 }
 func GetSourceType(in map[string]string) string {
 	return in[SourceType]
+}
+func UseSyntheticTypesCommon(in map[string]string) bool {
+	return in[SyntheticTypesPolicy] == SyntheticTypesPolicyCommon
 }
 func GetMysqlTimeZone(in map[string]string) string {
 	return in[MysqlTimeZone]

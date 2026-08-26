@@ -3,6 +3,11 @@ package parameters
 import "github.com/transferia/transferia/library/go/core/xerrors"
 
 func Validate(connectorParameters map[string]string, dropKeys bool) error {
+	syntheticTypesPolicy := connectorParameters[SyntheticTypesPolicy]
+	if syntheticTypesPolicy != "" && syntheticTypesPolicy != SyntheticTypesPolicyFail && syntheticTypesPolicy != SyntheticTypesPolicyCommon {
+		return xerrors.Errorf("unknown %s value: %s", SyntheticTypesPolicy, syntheticTypesPolicy)
+	}
+
 	dtBatchingMaxSize := GetBatchingMaxSize(connectorParameters)
 	if dtBatchingMaxSize != 0 {
 		if dropKeys {

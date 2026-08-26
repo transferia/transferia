@@ -179,6 +179,11 @@ func add(colSchema *abstract.ColSchema, colName string, colVal interface{}, orig
 		if err != nil {
 			return xerrors.Errorf("unable to convert ydb event, err: %w", err)
 		}
+	} else if originalType == "" && debezium_parameters.UseSyntheticTypesCommon(connectorParameters) {
+		err := addCommon(result, colSchema, colVal)
+		if err != nil {
+			return xerrors.Errorf("unable to convert synthetic event, err: %w", err)
+		}
 	} else {
 		if ignoreUnknownSources {
 			err := addCommon(result, colSchema, colVal)

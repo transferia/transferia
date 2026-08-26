@@ -18,4 +18,8 @@ func TestValidate(t *testing.T) {
 
 	require.NoError(t, Validate(map[string]string{"dt.batching.max.size": "1", "value.converter.ysr.namespace.id": "ns1"}, true))
 	require.Error(t, Validate(map[string]string{"dt.batching.max.size": "1", "value.converter.ysr.namespace.id": "ns1"}, false))
+
+	require.NoError(t, Validate(map[string]string{SyntheticTypesPolicy: SyntheticTypesPolicyFail}, false))
+	require.NoError(t, Validate(map[string]string{SyntheticTypesPolicy: SyntheticTypesPolicyCommon}, false))
+	require.Error(t, Validate(map[string]string{SyntheticTypesPolicy: "unknown"}, false))
 }
