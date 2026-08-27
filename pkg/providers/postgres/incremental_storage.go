@@ -19,11 +19,15 @@ var _ abstract.IncrementalStorage = new(Storage)
 var repeatableReadReadOnlyTxOptions pgx.TxOptions = pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly, DeferrableMode: pgx.NotDeferrable}
 
 func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abstract.IncrementalTable) ([]abstract.IncrementalState, error) {
+	logger.Log.Info("started GetNextIncrementalState")
+
 	conn, err := s.Conn.Acquire(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to acquire a connection: %w", err)
 	}
 	defer conn.Release()
+
+	logger.Log.Info("connection acquired")
 
 	tx, txRollbacks, err := BeginTxWithSnapshot(ctx, conn.Conn(), repeatableReadReadOnlyTxOptions, s.ShardedStateLSN, logger.Log)
 	if err != nil {
@@ -31,24 +35,33 @@ func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abs
 	}
 	defer txRollbacks.Do()
 
+	logger.Log.Info("transaction started")
+
 	var res []abstract.IncrementalState
 	for _, table := range incremental {
+		logger.Log.Infof("started to handle table %q", table.Name)
+
+		query := fmt.Sprintf(
+			`select pg_typeof("%s") from "%s"."%s" limit 1`,
+			table.CursorField,
+			table.Namespace,
+			table.Name,
+		)
+
+		logger.Log.Info("built query for field-cursor", log.String("query", query))
+
 		var maxVal interface{}
 		var cursorType string
-		if err := tx.QueryRow(
-			ctx,
-			fmt.Sprintf(
-				`select pg_typeof("%s") from "%s"."%s" limit 1`,
-				table.CursorField,
-				table.Namespace,
-				table.Name,
-			)).Scan(&cursorType); err != nil {
+		if err := tx.QueryRow(ctx, query).Scan(&cursorType); err != nil {
 			if err == pgx.ErrNoRows {
 				logger.Log.Warn(fmt.Sprintf("unable get type of %s column from table", table.CursorField), log.String("table", table.TableID().Fqtn()), log.Error(err))
 				continue
 			}
 			return nil, xerrors.Errorf("unable get type of %s column from table: %s: %w", table.CursorField, table.TableID(), err)
 		}
+
+		logger.Log.Infof("found type of field-cursor: %s", cursorType)
+
 		st := time.Now()
 		initialFilter := ""
 		if table.InitialState != "" {
@@ -61,16 +74,19 @@ func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abs
 			table.Name,
 			initialFilter,
 		)
-		if err := tx.QueryRow(
-			ctx,
-			nextValueQ,
-		).Scan(&maxVal); err != nil {
+
+		logger.Log.Info("built query for next incremental state", log.String("query", nextValueQ))
+
+		if err := tx.QueryRow(ctx, nextValueQ).Scan(&maxVal); err != nil {
 			if err == pgx.ErrNoRows {
 				logger.Log.Warn(fmt.Sprintf("unable get max %s from table", table.CursorField), log.String("table", table.TableID().Fqtn()), log.Error(err))
 				continue
 			}
 			return nil, xerrors.Errorf("unable get max %s from table: %s: %w", table.CursorField, table.TableID(), err)
 		}
+
+		logger.Log.Info("query finished")
+
 		columnType := new(abstract.ColSchema)
 		columnType.OriginalType = fmt.Sprintf("pg:%v", cursorType)
 		columnType.DataType = string(PgTypeToYTType(cursorType))
