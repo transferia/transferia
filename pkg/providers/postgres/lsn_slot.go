@@ -19,6 +19,11 @@ var (
 	SelectLsnForSlot = `select restart_lsn from pg_replication_slots where slot_name = $1;`
 )
 
+func createFromLSNQuery(schema string) string {
+	function := pgx.Identifier{schema, "pg_create_logical_replication_slot_lsn"}.Sanitize()
+	return fmt.Sprintf("select * from %s($1, 'wal2json', false, pg_lsn($2))", function)
+}
+
 type LsnTrackedSlot struct {
 	logger    log.Logger
 	once      sync.Once
@@ -125,7 +130,8 @@ func (l *LsnTrackedSlot) createFromLSN(lsn string) error {
 				return xerrors.Errorf("failed to set lock_timeout: %w", err)
 			}
 
-			if err := tx.QueryRow(ctx, "select * from pg_create_logical_replication_slot_lsn($1, 'wal2json', false, pg_lsn($2))", l.slotID, lsn).Scan(&createdSlotName, &createdSlotLSN); err != nil {
+			query := createFromLSNQuery(l.schema)
+			if err := tx.QueryRow(ctx, query, l.slotID, lsn).Scan(&createdSlotName, &createdSlotLSN); err != nil {
 				return xerrors.Errorf("could not create slot from lsn:%v because of error: %w", lsn, err)
 			}
 			return nil
@@ -158,14 +164,14 @@ func (l *LsnTrackedSlot) Close() {
 	})
 }
 
-func NewLsnTrackedSlot(pool *pgxpool.Pool, logger log.Logger, src *PgSource, tracker *Tracker) AbstractSlot {
+func NewLsnTrackedSlot(pool *pgxpool.Pool, logger log.Logger, src *PgSource, schema string, tracker *Tracker) AbstractSlot {
 	return &LsnTrackedSlot{
 		logger:    logger,
 		once:      sync.Once{},
 		slotID:    src.SlotID,
 		childSlot: NewNotTrackedSlot(pool, logger, src),
 		src:       src,
-		schema:    src.KeeperSchema,
+		schema:    schema,
 		Conn:      pool,
 		lastMove:  time.Time{},
 		tracker:   tracker,

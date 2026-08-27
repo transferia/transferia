@@ -169,21 +169,28 @@ func NewNotTrackedSlot(pool *pgxpool.Pool, logger log.Logger, src *PgSource) Abs
 }
 
 func NewSlot(pool *pgxpool.Pool, logger log.Logger, src *PgSource, tracker ...*Tracker) (AbstractSlot, error) {
-	hasLSNTrack := false
+	var lsnTrackSchema string
 	if err := pool.QueryRow(context.Background(), `
-SELECT EXISTS (
-        SELECT *
-        FROM pg_catalog.pg_proc
-        JOIN pg_namespace ON pg_catalog.pg_proc.pronamespace = pg_namespace.oid
-        WHERE proname = 'pg_create_logical_replication_slot_lsn'
-)`).Scan(&hasLSNTrack); err != nil {
+SELECT coalesce(min(pg_namespace.nspname), '')
+FROM pg_catalog.pg_extension
+JOIN pg_catalog.pg_depend
+  ON pg_depend.refclassid = 'pg_catalog.pg_extension'::pg_catalog.regclass
+ AND pg_depend.refobjid = pg_extension.oid
+ AND pg_depend.deptype = 'e'
+JOIN pg_catalog.pg_proc
+  ON pg_depend.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+ AND pg_depend.objid = pg_proc.oid
+JOIN pg_catalog.pg_namespace ON pg_proc.pronamespace = pg_namespace.oid
+WHERE pg_extension.extname = 'pg_tm_aux'
+  AND pg_proc.proname = 'pg_create_logical_replication_slot_lsn'
+`).Scan(&lsnTrackSchema); err != nil {
 		return nil, err
 	}
-	if hasLSNTrack {
+	if lsnTrackSchema != "" {
 		if len(tracker) == 0 {
 			return nil, xerrors.Errorf("pg_tm_aux extension is present but no tracker was passed")
 		}
-		return NewLsnTrackedSlot(pool, logger, src, tracker[0]), nil
+		return NewLsnTrackedSlot(pool, logger, src, lsnTrackSchema, tracker[0]), nil
 	}
 	return NewNotTrackedSlot(pool, logger, src), nil
 }

@@ -1857,6 +1857,7 @@
   "pkg/providers/postgres/list_names_test.go":"transfer_manager/go/pkg/providers/postgres/list_names_test.go",
   "pkg/providers/postgres/logger.go":"transfer_manager/go/pkg/providers/postgres/logger.go",
   "pkg/providers/postgres/lsn_slot.go":"transfer_manager/go/pkg/providers/postgres/lsn_slot.go",
+  "pkg/providers/postgres/lsn_slot_test.go":"transfer_manager/go/pkg/providers/postgres/lsn_slot_test.go",
   "pkg/providers/postgres/model.go":"transfer_manager/go/pkg/providers/postgres/model.go",
   "pkg/providers/postgres/model_pg_destination.go":"transfer_manager/go/pkg/providers/postgres/model_pg_destination.go",
   "pkg/providers/postgres/model_pg_sink_params.go":"transfer_manager/go/pkg/providers/postgres/model_pg_sink_params.go",
