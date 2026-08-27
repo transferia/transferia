@@ -169,9 +169,11 @@ func TestSyncRunnersWithPartitions(t *testing.T) {
 
 	var partitions []abstract.Partition
 	partitionedStrategy.newSource = newMockSourceFactory(nil)
-	partitionedStrategy.newLister = newMockListerFactory(func() ([]abstract.Partition, error) {
-		return partitions, nil
-	})
+	partitionedStrategy.newLister = func() (abstract.PartitionLister, error) {
+		return &listerMock{listPartitionsF: func() ([]abstract.Partition, error) {
+			return partitions, nil
+		}}, nil
+	}
 
 	partitionedStrategy.newSink = newMockQueueToS3SinkFactory(func(_ []abstract.ChangeItem) error {
 		return nil
@@ -179,71 +181,71 @@ func TestSyncRunnersWithPartitions(t *testing.T) {
 
 	t.Run("First", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_1"},
-			{Partition: 1, Topic: "test_1"},
-			{Partition: 0, Topic: "test_2"},
+			abstract.NewPartition("test_1", 0),
+			abstract.NewPartition("test_1", 1),
+			abstract.NewPartition("test_2", 0),
 		}
 
 		require.NoError(t, partitionedStrategy.syncRunnersWithPartitions())
 		require.Len(t, partitionedStrategy.partitionToRunner, 3)
 		for _, testPartition := range partitions {
-			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition)
+			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition.String())
 		}
 	})
 
 	t.Run("NoChanges", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_1"},
-			{Partition: 1, Topic: "test_1"},
-			{Partition: 0, Topic: "test_2"},
+			abstract.NewPartition("test_1", 0),
+			abstract.NewPartition("test_1", 1),
+			abstract.NewPartition("test_2", 0),
 		}
 
 		require.NoError(t, partitionedStrategy.syncRunnersWithPartitions())
 		require.Len(t, partitionedStrategy.partitionToRunner, 3)
 		for _, testPartition := range partitions {
-			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition)
+			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition.String())
 		}
 	})
 
 	t.Run("TheSameCountButDifferentPartitions", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_1"},
-			{Partition: 1, Topic: "test_1"},
-			{Partition: 0, Topic: "test_3"},
+			abstract.NewPartition("test_1", 0),
+			abstract.NewPartition("test_1", 1),
+			abstract.NewPartition("test_3", 0),
 		}
 
 		require.NoError(t, partitionedStrategy.syncRunnersWithPartitions())
 		require.Len(t, partitionedStrategy.partitionToRunner, 3)
 		for _, testPartition := range partitions {
-			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition)
+			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition.String())
 		}
 	})
 
 	t.Run("PartitionsNumberHasIncreased", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_1"},
-			{Partition: 1, Topic: "test_1"},
-			{Partition: 0, Topic: "test_3"},
-			{Partition: 1, Topic: "test_3"},
+			abstract.NewPartition("test_1", 0),
+			abstract.NewPartition("test_1", 1),
+			abstract.NewPartition("test_3", 0),
+			abstract.NewPartition("test_3", 1),
 		}
 
 		require.NoError(t, partitionedStrategy.syncRunnersWithPartitions())
 		require.Len(t, partitionedStrategy.partitionToRunner, 4)
 		for _, testPartition := range partitions {
-			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition)
+			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition.String())
 		}
 	})
 
 	t.Run("PartitionsNumberHasDecreased", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_3"},
-			{Partition: 1, Topic: "test_3"},
+			abstract.NewPartition("test_3", 0),
+			abstract.NewPartition("test_3", 1),
 		}
 
 		require.NoError(t, partitionedStrategy.syncRunnersWithPartitions())
 		require.Len(t, partitionedStrategy.partitionToRunner, 2)
 		for _, testPartition := range partitions {
-			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition)
+			require.Contains(t, partitionedStrategy.partitionToRunner, testPartition.String())
 		}
 	})
 
@@ -252,13 +254,13 @@ func TestSyncRunnersWithPartitions(t *testing.T) {
 		partitionedStrategy.totalWorkersNum = 2
 
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_3"},
-			{Partition: 1, Topic: "test_3"},
+			abstract.NewPartition("test_3", 0),
+			abstract.NewPartition("test_3", 1),
 		}
 
 		require.NoError(t, partitionedStrategy.syncRunnersWithPartitions())
 		require.Len(t, partitionedStrategy.partitionToRunner, 1)
-		require.Contains(t, partitionedStrategy.partitionToRunner, partitions[0])
+		require.Contains(t, partitionedStrategy.partitionToRunner, partitions[0].String())
 	})
 }
 
@@ -282,15 +284,15 @@ func TestGetOrderedPartitions(t *testing.T) {
 
 	t.Run("GetFromExistingRunner", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_1"},
-			{Partition: 1, Topic: "test_1"},
+			abstract.NewPartition("test_1", 0),
+			abstract.NewPartition("test_1", 1),
 		}
 
 		testPartition := abstract.NewPartition("test_topic", 0)
 		src, err := partitionedStrategy.newSource(testPartition)
 		require.NoError(t, err)
 		dst := mocksink.NewMockQueueToS3Sink(nil, nil, nil)
-		partitionedStrategy.partitionToRunner[testPartition] = newPartitionRunner(src, dst)
+		partitionedStrategy.partitionToRunner[testPartition.String()] = newPartitionRunner(src, dst)
 
 		orderedPartitions, err := partitionedStrategy.getOrderedPartitions()
 		require.NoError(t, err)
@@ -299,11 +301,11 @@ func TestGetOrderedPartitions(t *testing.T) {
 
 	t.Run("GetFromLister", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_2"},
-			{Partition: 1, Topic: "test_2"},
+			abstract.NewPartition("test_2", 0),
+			abstract.NewPartition("test_2", 1),
 		}
 
-		partitionedStrategy.partitionToRunner = make(map[abstract.Partition]*partitionRunner)
+		partitionedStrategy.partitionToRunner = make(map[string]*partitionRunner)
 
 		orderedPartitions, err := partitionedStrategy.getOrderedPartitions()
 		require.NoError(t, err)
@@ -312,11 +314,11 @@ func TestGetOrderedPartitions(t *testing.T) {
 
 	t.Run("RecreateListerOnError", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 0, Topic: "test_2"},
+			abstract.NewPartition("test_2", 0),
 		}
 
 		var listCalls int
-		partitionedStrategy.partitionToRunner = make(map[abstract.Partition]*partitionRunner)
+		partitionedStrategy.partitionToRunner = make(map[string]*partitionRunner)
 		partitionedStrategy.lister = nil
 		partitionedStrategy.newLister = func() (abstract.PartitionLister, error) {
 			return &listerMock{listPartitionsF: func() ([]abstract.Partition, error) {
@@ -336,14 +338,14 @@ func TestGetOrderedPartitions(t *testing.T) {
 
 	t.Run("GetOrderedPartitions", func(t *testing.T) {
 		partitions = []abstract.Partition{
-			{Partition: 3, Topic: "test_3"},
-			{Partition: 1, Topic: "test_2"},
-			{Partition: 0, Topic: "test_2"},
+			abstract.NewPartition("test_3", 3),
+			abstract.NewPartition("test_2", 1),
+			abstract.NewPartition("test_2", 0),
 		}
 		expectedPartitions := []abstract.Partition{
-			{Partition: 0, Topic: "test_2"},
-			{Partition: 1, Topic: "test_2"},
-			{Partition: 3, Topic: "test_3"},
+			abstract.NewPartition("test_2", 0),
+			abstract.NewPartition("test_2", 1),
+			abstract.NewPartition("test_3", 3),
 		}
 
 		orderedPartitions, err := partitionedStrategy.getOrderedPartitions()
@@ -354,11 +356,11 @@ func TestGetOrderedPartitions(t *testing.T) {
 
 func TestAssignedPartitions(t *testing.T) {
 	allPartitions := []abstract.Partition{
-		{Partition: 0, Topic: "test"},
-		{Partition: 1, Topic: "test"},
-		{Partition: 2, Topic: "test"},
-		{Partition: 3, Topic: "test"},
-		{Partition: 4, Topic: "test"},
+		abstract.NewPartition("test", 0),
+		abstract.NewPartition("test", 1),
+		abstract.NewPartition("test", 2),
+		abstract.NewPartition("test", 3),
+		abstract.NewPartition("test", 4),
 	}
 
 	t.Run("ZeroIndexOneWorker", func(t *testing.T) {
@@ -370,9 +372,9 @@ func TestAssignedPartitions(t *testing.T) {
 
 	t.Run("ZeroIndexTwoWorkers", func(t *testing.T) {
 		expectedPartitions := []abstract.Partition{
-			{Partition: 0, Topic: "test"},
-			{Partition: 2, Topic: "test"},
-			{Partition: 4, Topic: "test"},
+			abstract.NewPartition("test", 0),
+			abstract.NewPartition("test", 2),
+			abstract.NewPartition("test", 4),
 		}
 
 		res := assignedPartitions(0, 2, allPartitions)
@@ -381,8 +383,8 @@ func TestAssignedPartitions(t *testing.T) {
 
 	t.Run("FirstIndexTwoWorkers", func(t *testing.T) {
 		expectedPartitions := []abstract.Partition{
-			{Partition: 1, Topic: "test"},
-			{Partition: 3, Topic: "test"},
+			abstract.NewPartition("test", 1),
+			abstract.NewPartition("test", 3),
 		}
 
 		res := assignedPartitions(1, 2, allPartitions)
@@ -404,23 +406,23 @@ func TestAssignedPartitions(t *testing.T) {
 	})
 
 	fewTopicsAllPartitions := []abstract.Partition{
-		{Partition: 0, Topic: "test_1"},
-		{Partition: 1, Topic: "test_1"},
-		{Partition: 2, Topic: "test_1"},
-		{Partition: 3, Topic: "test_1"},
-		{Partition: 4, Topic: "test_1"},
-		{Partition: 0, Topic: "test_2"},
-		{Partition: 1, Topic: "test_2"},
-		{Partition: 2, Topic: "test_2"},
+		abstract.NewPartition("test_1", 0),
+		abstract.NewPartition("test_1", 1),
+		abstract.NewPartition("test_1", 2),
+		abstract.NewPartition("test_1", 3),
+		abstract.NewPartition("test_1", 4),
+		abstract.NewPartition("test_2", 0),
+		abstract.NewPartition("test_2", 1),
+		abstract.NewPartition("test_2", 2),
 	}
 
 	t.Run("FewTopicsZeroIndexTwoWorkers", func(t *testing.T) {
 		expectedPartitions := []abstract.Partition{
-			{Partition: 0, Topic: "test_1"},
-			{Partition: 2, Topic: "test_1"},
-			{Partition: 4, Topic: "test_1"},
-			{Partition: 0, Topic: "test_2"},
-			{Partition: 2, Topic: "test_2"},
+			abstract.NewPartition("test_1", 0),
+			abstract.NewPartition("test_1", 2),
+			abstract.NewPartition("test_1", 4),
+			abstract.NewPartition("test_2", 0),
+			abstract.NewPartition("test_2", 2),
 		}
 
 		res := assignedPartitions(0, 2, fewTopicsAllPartitions)
@@ -429,7 +431,7 @@ func TestAssignedPartitions(t *testing.T) {
 
 	t.Run("FewTopicsMoreWorkersThanPartitions", func(t *testing.T) {
 		expectedPartitions := []abstract.Partition{
-			{Partition: 4, Topic: "test_1"},
+			abstract.NewPartition("test_1", 4),
 		}
 
 		res := assignedPartitions(4, 10, fewTopicsAllPartitions)

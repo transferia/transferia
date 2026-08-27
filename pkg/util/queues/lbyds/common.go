@@ -35,17 +35,14 @@ func ChangeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Part
 	}
 
 	return parsers.Message{
-			Offset:     ci.LSN,
-			SeqNo:      seqNo,
-			Key:        key,
-			CreateTime: time.Unix(0, int64(ci.CommitTime)),
-			WriteTime:  wTime,
-			Value:      data,
-			Headers:    headers,
-		}, abstract.Partition{
-			Partition: uint32(partition),
-			Topic:     ci.Table,
-		}
+		Offset:     ci.LSN,
+		SeqNo:      seqNo,
+		Key:        key,
+		CreateTime: time.Unix(0, int64(ci.CommitTime)),
+		WriteTime:  wTime,
+		Value:      data,
+		Headers:    headers,
+	}, abstract.NewPartition(ci.Table, uint32(partition))
 }
 
 func MessageAsChangeItem(m parsers.Message, b parsers.MessageBatch, useFullTopicName bool) abstract.ChangeItem {

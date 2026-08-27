@@ -28,7 +28,7 @@ type PartitionedStrategy struct {
 	errCh             chan error
 	stopCh            chan struct{}
 	mutex             sync.Mutex
-	partitionToRunner map[abstract.Partition]*partitionRunner
+	partitionToRunner map[string]*partitionRunner
 
 	currWorkerIndex int
 	totalWorkersNum int
@@ -133,7 +133,8 @@ func (s *PartitionedStrategy) syncRunnersWithPartitions() error {
 
 	// create missing runners
 	for _, partition := range currWorkerPartitions {
-		if _, ok := s.partitionToRunner[partition]; ok {
+		partitionStr := partition.String()
+		if _, ok := s.partitionToRunner[partitionStr]; ok {
 			continue
 		}
 
@@ -150,19 +151,23 @@ func (s *PartitionedStrategy) syncRunnersWithPartitions() error {
 		currRunner := newPartitionRunner(partitionSource, partitionSink)
 		currRunner.run(s.errCh)
 
-		s.partitionToRunner[partition] = currRunner
-		s.logger.Debug("runner was created for partition", log.Any("partition", partition))
+		s.partitionToRunner[partitionStr] = currRunner
+		s.logger.Debug("runner was created for partition", log.String("partition", partitionStr))
 	}
 
 	// delete extra runners
-	partitionSet := set.New(currWorkerPartitions...)
-	for partition, runner := range s.partitionToRunner {
-		if !partitionSet.Contains(partition) {
+	partitionStrs := make([]string, 0, len(currWorkerPartitions))
+	for _, p := range currWorkerPartitions {
+		partitionStrs = append(partitionStrs, p.String())
+	}
+	partitionSet := set.New(partitionStrs...)
+	for partitionStr, runner := range s.partitionToRunner {
+		if !partitionSet.Contains(partitionStr) {
 			if err := runner.stop(); err != nil {
-				return xerrors.Errorf("failed to stop runner for partition %v: %w", partition, err)
+				return xerrors.Errorf("failed to stop runner for partition %s: %w", partitionStr, err)
 			}
-			delete(s.partitionToRunner, partition)
-			s.logger.Debug("runner was stopped and removed", log.Any("partition", partition))
+			delete(s.partitionToRunner, partitionStr)
+			s.logger.Debug("runner was stopped and removed", log.String("partition", partitionStr))
 		}
 	}
 
@@ -176,14 +181,19 @@ func (s *PartitionedStrategy) getOrderedPartitions() ([]abstract.Partition, erro
 	}
 
 	slices.SortFunc(partitions, func(a, b abstract.Partition) int {
-		if a.Topic == b.Topic {
-			return int(a.Partition) - int(b.Partition)
+		if a.Cluster < b.Cluster {
+			return -1
+		} else if a.Cluster > b.Cluster {
+			return 1
 		}
 
 		if a.Topic < b.Topic {
 			return -1
+		} else if a.Topic > b.Topic {
+			return 1
 		}
-		return 1
+
+		return int(a.Partition) - int(b.Partition)
 	})
 
 	return partitions, nil
@@ -256,7 +266,7 @@ func NewPartitionedStrategy(transfer *model.Transfer, cp coordinator.Coordinator
 		errCh:             make(chan error, 1),
 		stopCh:            make(chan struct{}),
 		mutex:             sync.Mutex{},
-		partitionToRunner: make(map[abstract.Partition]*partitionRunner),
+		partitionToRunner: make(map[string]*partitionRunner),
 
 		currWorkerIndex: shardingRuntime.CurrentJobIndex(),
 		totalWorkersNum: shardingRuntime.ReplicationWorkersNum(),

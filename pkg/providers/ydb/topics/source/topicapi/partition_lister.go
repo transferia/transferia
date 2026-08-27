@@ -35,10 +35,7 @@ func (l *PartitionLister) ListPartitions() ([]abstract.Partition, error) {
 		}
 
 		for _, partition := range topicDescription.Partitions {
-			result = append(result, abstract.Partition{
-				Topic:     topic,
-				Partition: uint32(partition.PartitionID),
-			})
+			result = append(result, abstract.NewPartition(topic, uint32(partition.PartitionID)))
 		}
 	}
 

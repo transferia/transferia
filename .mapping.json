@@ -1645,6 +1645,8 @@
   "pkg/providers/logbroker/multi_dc_source.go":"transfer_manager/go/pkg/providers/logbroker/multi_dc_source.go",
   "pkg/providers/logbroker/native_source.go":"transfer_manager/go/pkg/providers/logbroker/native_source.go",
   "pkg/providers/logbroker/one_dc_source.go":"transfer_manager/go/pkg/providers/logbroker/one_dc_source.go",
+  "pkg/providers/logbroker/partition_lister.go":"transfer_manager/go/pkg/providers/logbroker/partition_lister.go",
+  "pkg/providers/logbroker/partition_source.go":"transfer_manager/go/pkg/providers/logbroker/partition_source.go",
   "pkg/providers/logbroker/provider.go":"transfer_manager/go/pkg/providers/logbroker/provider.go",
   "pkg/providers/logbroker/sink.go":"transfer_manager/go/pkg/providers/logbroker/sink.go",
   "pkg/providers/logbroker/source.go":"transfer_manager/go/pkg/providers/logbroker/source.go",

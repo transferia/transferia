@@ -12,10 +12,7 @@ func NewPartitionLister(slotID string) *PartitionLister {
 }
 
 func (l *PartitionLister) ListPartitions() ([]abstract.Partition, error) {
-	return []abstract.Partition{{
-		Topic:     l.slotID,
-		Partition: 0,
-	}}, nil
+	return []abstract.Partition{abstract.NewPartition(l.slotID, 0)}, nil
 }
 
 func (l *PartitionLister) Close() {}

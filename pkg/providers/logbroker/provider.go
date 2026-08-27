@@ -44,11 +44,12 @@ const ProviderType = abstract.ProviderType("lb")
 
 // To verify providers contract implementation
 var (
-	_ providers.Replication = (*Provider)(nil)
-	_ providers.Sniffer     = (*Provider)(nil)
-	_ providers.Sinker      = (*Provider)(nil)
-
-	_ providers.Verifier = (*Provider)(nil)
+	_ providers.Replication             = (*Provider)(nil)
+	_ providers.Sniffer                 = (*Provider)(nil)
+	_ providers.Sinker                  = (*Provider)(nil)
+	_ providers.Verifier                = (*Provider)(nil)
+	_ providers.PartitionableSource     = (*Provider)(nil)
+	_ providers.PartitionListerProvider = (*Provider)(nil)
 )
 
 type Provider struct {
@@ -150,6 +151,24 @@ func (p *Provider) Verify(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (p *Provider) PartitionLister() (abstract.PartitionLister, error) {
+	src, ok := p.transfer.Src.(*LfSource)
+	if !ok {
+		return nil, xerrors.Errorf("partition lister only supports LfSource, got: %T", p.transfer.Src)
+	}
+
+	return NewPartitionLister(src, p.logger)
+}
+
+func (p *Provider) PartitionSource(partition abstract.Partition) (abstract.QueueToS3Source, error) {
+	src, ok := p.transfer.Src.(*LfSource)
+	if !ok {
+		return nil, xerrors.Errorf("partition source only supports LfSource, got: %T", p.transfer.Src)
+	}
+
+	return NewPartitionSource(src, partition, p.logger, p.registry)
 }
 
 func New(provider abstract.ProviderType) func(lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, _ *model.TransferOperation) providers.Provider {

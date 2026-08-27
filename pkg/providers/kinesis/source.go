@@ -181,17 +181,14 @@ func (s *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, a
 		panic(fmt.Sprintf("should never happen, expect string or bytes, recieve: %T", ci.ColumnValues[4]))
 	}
 	return parsers.Message{
-			Offset:     ci.LSN,
-			SeqNo:      seqNo,
-			Key:        nil,
-			CreateTime: time.Unix(0, int64(ci.CommitTime)),
-			WriteTime:  wTime,
-			Value:      data,
-			Headers:    nil,
-		}, abstract.Partition{
-			Partition: partition,
-			Topic:     ci.Table,
-		}
+		Offset:     ci.LSN,
+		SeqNo:      seqNo,
+		Key:        nil,
+		CreateTime: time.Unix(0, int64(ci.CommitTime)),
+		WriteTime:  wTime,
+		Value:      data,
+		Headers:    nil,
+	}, abstract.NewPartition(ci.Table, partition)
 }
 
 func (s *Source) makeRawChangeItem(msg *consumer.Record) abstract.ChangeItem {

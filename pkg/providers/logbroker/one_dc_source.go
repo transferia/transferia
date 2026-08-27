@@ -2,7 +2,6 @@ package logbroker
 
 import (
 	"slices"
-	"time"
 
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -10,8 +9,6 @@ import (
 	"github.com/transferia/transferia/pkg/config/env"
 	"github.com/transferia/transferia/pkg/parsers"
 	parsers_resources "github.com/transferia/transferia/pkg/parsers/resources"
-	topiccommon "github.com/transferia/transferia/pkg/providers/ydb/topics/common"
-	topicsource "github.com/transferia/transferia/pkg/providers/ydb/topics/source"
 	pqv1source "github.com/transferia/transferia/pkg/providers/ydb/topics/source/pqv1"
 	topicapisource "github.com/transferia/transferia/pkg/providers/ydb/topics/source/topicapi"
 	"github.com/transferia/transferia/pkg/stats"
@@ -39,33 +36,7 @@ func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Regi
 		rollbacks.Add(resourceable.ResourcesObj().Close)
 	}
 
-	topicSourceCfg := &topicsource.Config{
-		Connection: topiccommon.ConnectionConfig{
-			Endpoint:         topiccommon.FormatEndpoint(string(cfg.Instance), cfg.Port),
-			Database:         cfg.db(),
-			Credentials:      cfg.Credentials,
-			TLSEnabled:       cfg.TLS == EnabledTLS,
-			RootCAFiles:      cfg.RootCAFiles,
-			TLSCACertificate: "",
-		},
-
-		Topics:   cfg.Topics,
-		Consumer: cfg.Consumer,
-		ReaderOpts: topicsource.ReaderOptions{
-			ReadOnlyLocal:       cfg.Cluster != "" || cfg.OnlyLocal,
-			MaxMemory:           int(cfg.MaxMemory),
-			MaxReadSize:         uint32(cfg.MaxReadSize),
-			MaxReadMessageCount: cfg.MaxReadMessagesCount,
-			MaxTimeLag:          cfg.MaxTimeLag,
-			MinReadInterval:     time.Millisecond * 95,
-		},
-		Transformer: nil,
-
-		IsYDBTopicSink:             cfg.IsLbSink,
-		AllowTTLRewind:             cfg.AllowTTLRewind,
-		ParseQueueParallelism:      cfg.ParseQueueParallelism,
-		UseFullTopicNameForParsing: true,
-	}
+	topicSourceCfg := cfg.buildTopicSourceConfig()
 
 	var source abstract.Source
 	if cfg.UseTopicAPI {

@@ -44,7 +44,7 @@ type parser struct {
 
 func changeItemAsMessage(ci *abstract.ChangeItem) (msg parsers.Message, part abstract.Partition, err error) {
 	if ci.TableSchema != parser_blank.BlankSchema {
-		return parsers.Message{}, abstract.Partition{}, xerrors.Errorf("unexpected schema: %v", ci.TableSchema.Columns())
+		return parsers.Message{}, abstract.NewEmptyPartition(), xerrors.Errorf("unexpected schema: %v", ci.TableSchema.Columns())
 	}
 	var errs []error
 	xtras, err := parser_blank.ExtractValue[map[string]string](ci, parser_blank.ExtrasColumn)

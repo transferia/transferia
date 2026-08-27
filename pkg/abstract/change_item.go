@@ -69,6 +69,7 @@ var Collapse = changeitem.Collapse
 var SplitByID = changeitem.SplitByID
 var SplitUpdatedPKeys = changeitem.SplitUpdatedPKeys
 var NewPartition = changeitem.NewPartition
+var NewPartitionWithCluster = changeitem.NewPartitionWithCluster
 var NewEmptyPartition = changeitem.NewEmptyPartition
 var NewTableID = changeitem.NewTableID
 var EmptyOldKeys = changeitem.EmptyOldKeys

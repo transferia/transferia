@@ -9,6 +9,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
+	topiccommon "github.com/transferia/transferia/pkg/providers/ydb/topics/common"
+	topicsource "github.com/transferia/transferia/pkg/providers/ydb/topics/source"
 	"go.uber.org/zap/zapcore"
 	xmaps "golang.org/x/exp/maps"
 )
@@ -45,6 +47,7 @@ type LfSource struct {
 }
 
 var _ model.Source = (*LfSource)(nil)
+var _ model.QueueToS3Source = (*LfSource)(nil)
 
 type LogbrokerInstance string
 type LogbrokerCluster string
@@ -52,9 +55,8 @@ type LogbrokerCluster string
 func (s *LfSource) IsLbMirror() bool {
 	if len(s.ParserConfig) == 0 {
 		return false
-	} else {
-		return xmaps.Keys(s.ParserConfig)[0] == "blank.lb"
 	}
+	return xmaps.Keys(s.ParserConfig)[0] == "blank.lb"
 }
 
 func (s *LfSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -112,9 +114,41 @@ func (s *LfSource) Parser() map[string]interface{} {
 
 func (s *LfSource) MultiYtEnabled() {}
 
+func (s *LfSource) IsQueueToS3Source() {}
+
 func (s *LfSource) db() string {
 	if s.Database == "" {
 		return defaultLogbrokerDatabase
 	}
 	return s.Database
+}
+
+func (s *LfSource) buildTopicSourceConfig() *topicsource.Config {
+	return &topicsource.Config{
+		Connection: topiccommon.ConnectionConfig{
+			Endpoint:         topiccommon.FormatEndpoint(string(s.Instance), s.Port),
+			Database:         s.db(),
+			Credentials:      s.Credentials,
+			TLSEnabled:       s.TLS == EnabledTLS,
+			RootCAFiles:      s.RootCAFiles,
+			TLSCACertificate: "",
+		},
+
+		Topics:   s.Topics,
+		Consumer: s.Consumer,
+		ReaderOpts: topicsource.ReaderOptions{
+			ReadOnlyLocal:       s.Cluster != "" || s.OnlyLocal,
+			MaxMemory:           int(s.MaxMemory),
+			MaxReadSize:         uint32(s.MaxReadSize),
+			MaxReadMessageCount: s.MaxReadMessagesCount,
+			MaxTimeLag:          s.MaxTimeLag,
+			MinReadInterval:     time.Millisecond * 95,
+		},
+		Transformer: nil,
+
+		IsYDBTopicSink:             s.IsLbSink,
+		AllowTTLRewind:             s.AllowTTLRewind,
+		ParseQueueParallelism:      s.ParseQueueParallelism,
+		UseFullTopicNameForParsing: true,
+	}
 }

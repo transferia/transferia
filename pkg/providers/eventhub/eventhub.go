@@ -233,17 +233,14 @@ func (s *Source) changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, a
 	}
 
 	return parsers.Message{
-			Offset:     ci.LSN,
-			SeqNo:      seqNo,
-			Key:        nil,
-			CreateTime: time.Unix(0, int64(ci.CommitTime)),
-			WriteTime:  wTime,
-			Value:      data,
-			Headers:    nil,
-		}, abstract.Partition{
-			Partition: uint32(partition),
-			Topic:     ci.Schema,
-		}
+		Offset:     ci.LSN,
+		SeqNo:      seqNo,
+		Key:        nil,
+		CreateTime: time.Unix(0, int64(ci.CommitTime)),
+		WriteTime:  wTime,
+		Value:      data,
+		Headers:    nil,
+	}, abstract.NewPartition(ci.Schema, uint32(partition))
 }
 
 func (s *Source) processMessages(sink abstract.AsyncSink, buffer []receivedEvent) {

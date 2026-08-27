@@ -36,10 +36,7 @@ func (l *PartitionLister) ListPartitions() ([]abstract.Partition, error) {
 				return nil, xerrors.Errorf("list topic partitions response for %s contains error: %w", topic, partitionDetails.Err)
 			}
 
-			partitions = append(partitions, abstract.Partition{
-				Topic:     topic,
-				Partition: uint32(partitionDetails.Partition),
-			})
+			partitions = append(partitions, abstract.NewPartition(topic, uint32(partitionDetails.Partition)))
 		}
 	}
 
