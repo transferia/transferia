@@ -371,7 +371,7 @@ func (s *sinker) pushOneBatch(table string, batch []abstract.ChangeItem) error {
 			"Committed",
 			log.Any("elapsed", time.Since(start)),
 			log.Any("ops", len(batch)),
-			log.Any("sorce_table", batch[0].TableID().Fqtn()),
+			log.Any("source_table", batch[0].TableID().Fqtn()),
 			log.Any("table", table),
 		)
 	} else {
@@ -385,7 +385,7 @@ func (s *sinker) pushOneBatch(table string, batch []abstract.ChangeItem) error {
 			}
 			s.logger.Info(
 				fmt.Sprintf("Upload %v changes delay %v", len(subslice), time.Since(start)),
-				log.Any("sorce_table", batch[0].TableID().Fqtn()),
+				log.Any("source_table", batch[0].TableID().Fqtn()),
 				log.Any("table", table),
 			)
 		}
