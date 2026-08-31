@@ -2,7 +2,6 @@ package table
 
 import (
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract2"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -10,22 +9,35 @@ const (
 	YtOriginalTypePropertyKey = abstract.PropertyKey("yt:originalType")
 )
 
+// YtColumn is the passive-layer column abstraction. It intentionally does not
+// embed any active-plane column interface; the passive layer speaks only in
+// terms of YT schema types plus the small set of accessors below that
+// downstream code (schema loader, skiff format builder, arena converter,
+// row decoder) actually consumes.
 type YtColumn interface {
-	abstract2.Column
-	setTable(abstract2.Table)
+	Name() string
+	FullName() string
+	Table() YtTable
 	YtType() ytschema.ComplexType
+	Nullable() bool
+	Key() bool
+	ToOldColumn() (*abstract.ColSchema, error)
+
+	setTable(YtTable)
 }
 
 type column struct {
 	name       string
 	ytType     ytschema.ComplexType
 	ytCol      ytschema.Column
-	typ        abstract2.Type
-	tbl        abstract2.Table
+	primType   ytschema.Type
+	tbl        YtTable
 	isOptional bool
 }
 
-func (c *column) Table() abstract2.Table {
+var _ YtColumn = (*column)(nil)
+
+func (c *column) Table() YtTable {
 	return c.tbl
 }
 
@@ -37,16 +49,8 @@ func (c *column) FullName() string {
 	return c.name
 }
 
-func (c *column) Type() abstract2.Type {
-	return c.typ
-}
-
 func (c *column) YtType() ytschema.ComplexType {
 	return c.ytType
-}
-
-func (c *column) Value(val interface{}) (abstract2.Value, error) {
-	panic("not implemented")
 }
 
 func (c *column) Nullable() bool {
@@ -58,11 +62,7 @@ func (c *column) Key() bool {
 }
 
 func (c *column) ToOldColumn() (*abstract.ColSchema, error) {
-	typ, err := c.Type().ToOldType()
-	if err != nil {
-		return nil, err
-	}
-	s := abstract.NewColSchema(c.Name(), typ, false)
+	s := abstract.NewColSchema(c.Name(), c.primType, false)
 	s.Required = !c.isOptional
 	s.PrimaryKey = c.Key()
 
@@ -77,7 +77,7 @@ func (c *column) ToOldColumn() (*abstract.ColSchema, error) {
 	return &s, nil
 }
 
-func (c *column) setTable(t abstract2.Table) {
+func (c *column) setTable(t YtTable) {
 	c.tbl = t
 }
 
@@ -89,12 +89,15 @@ func IsNullTyped(col YtColumn) bool {
 	return isPrimitive && ytType == ytschema.TypeNull
 }
 
-func NewColumn(name string, typ abstract2.Type, ytType ytschema.ComplexType, ytCol ytschema.Column, isOptional bool) YtColumn {
+// NewColumn constructs a YtColumn. primType is the "flat" primitive type used
+// when materializing the legacy abstract.ColSchema (composite YT types collapse
+// to ytschema.TypeAny — see types.Resolve).
+func NewColumn(name string, primType ytschema.Type, ytType ytschema.ComplexType, ytCol ytschema.Column, isOptional bool) YtColumn {
 	return &column{
 		name:       name,
 		ytType:     ytType,
 		ytCol:      ytCol,
-		typ:        typ,
+		primType:   primType,
 		tbl:        nil,
 		isOptional: isOptional,
 	}

@@ -29,7 +29,7 @@ func newRowDecoder(tbl yt_table.YtTable, idxColName string) *rowDecoder {
 	if tableHasComplexColumns(tbl, idxColName) {
 		cols := make([]yt_table.YtColumn, tbl.ColumnsCount())
 		for i := 0; i < tbl.ColumnsCount(); i++ {
-			cols[i] = tbl.Column(i).(yt_table.YtColumn)
+			cols[i] = tbl.Column(i)
 		}
 		return &rowDecoder{
 			useMapDecode:  true,

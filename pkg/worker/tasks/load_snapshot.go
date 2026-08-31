@@ -113,18 +113,24 @@ func (l *SnapshotLoader) LoadSnapshot(ctx context.Context) error {
 
 func (l *SnapshotLoader) CheckIncludeDirectives(tables []abstract.TableDescription, storageBuilder func() (abstract.Storage, error)) error {
 	unfulfilledIncludes := set.New[string]()
-	if l.transfer.DataObjects != nil {
+
+	srcStorage, err := storageBuilder()
+	if err != nil {
+		return xerrors.Errorf("unable to create storage, err: %w", err)
+	}
+	defer srcStorage.Close()
+
+	_, isFTL := srcStorage.(model.FilteredTableLister)
+
+	// FilteredTableLister sources validate include directives during listing
+	// itself (e.g. YT's filterByIncludes fails with "object not found"), so
+	// the per-object check below would re-validate against already-filtered
+	// tables and falsely report unfulfilled includes.
+	if l.transfer.DataObjects != nil && !isFTL {
 		for _, includeObject := range l.transfer.DataObjects.IncludeObjects {
-			requiredTableID, err := abstract.ParseTableIDForProvider(includeObject, l.transfer.SrcType())
+			fulfilled, err := isIncludeFulfilledByTableID(includeObject, l.transfer.SrcType(), tables)
 			if err != nil {
-				return xerrors.Errorf("unable to parse table id: %w", err)
-			}
-			fulfilled := false
-			for _, table := range tables {
-				if requiredTableID.Includes(table.ID()) {
-					fulfilled = true
-					break
-				}
+				return err
 			}
 			if !fulfilled {
 				unfulfilledIncludes.Add(includeObject)
@@ -142,12 +148,6 @@ func (l *SnapshotLoader) CheckIncludeDirectives(tables []abstract.TableDescripti
 	}
 
 	// handle 'skips'
-
-	srcStorage, err := storageBuilder()
-	if err != nil {
-		return xerrors.Errorf("unable to create storage, err: %w", err)
-	}
-	defer srcStorage.Close()
 	if skippableStorage, ok := srcStorage.(abstract.SkippableStorage); ok {
 		keys := unfulfilledIncludes.Slice()
 		for _, key := range keys {
@@ -169,6 +169,23 @@ func (l *SnapshotLoader) CheckIncludeDirectives(tables []abstract.TableDescripti
 		return errors.CategorizedErrorf(categories.Source, "some tables from include list are missing in the source database: %v", unfulfilledIncludes.SortedSliceFunc(func(a, b string) bool { return a < b }))
 	}
 	return nil
+}
+
+// isIncludeFulfilledByTableID is the default include-on-fulfillment check that
+// matches parsed TableIDs with Includes(). Providers with hierarchical paths
+// should implement FilteredTableLister instead — their include validation
+// happens during listing, so this check is skipped for them.
+func isIncludeFulfilledByTableID(includeObject string, providerType abstract.ProviderType, tables []abstract.TableDescription) (bool, error) {
+	requiredTableID, err := abstract.ParseTableIDForProvider(includeObject, providerType)
+	if err != nil {
+		return false, xerrors.Errorf("unable to parse table id: %w", err)
+	}
+	for _, table := range tables {
+		if requiredTableID.Includes(table.ID()) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // TODO Remove, legacy hacks

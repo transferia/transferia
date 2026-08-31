@@ -54,7 +54,7 @@ func NewConverter(tbl yt_table.YtTable, idxColName string) *Converter {
 	ac.converters = make([]cellConverter, cnt)
 	structIdx := 0
 	for i := 0; i < cnt; i++ {
-		c := tbl.Column(i).(yt_table.YtColumn)
+		c := tbl.Column(i)
 		if idxColName != "" && c.Name() == idxColName {
 			ac.converters[i] = synthConverter
 			continue

@@ -3,17 +3,14 @@ package provider
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"sync"
 
 	"github.com/dustin/go-humanize"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/abstract2/events"
+	"github.com/transferia/transferia/pkg/abstract"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/provider/dataobjects"
-	yt_provider_schema "github.com/transferia/transferia/pkg/providers/yt/provider/schema"
 	yt_table "github.com/transferia/transferia/pkg/providers/yt/provider/table"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -21,11 +18,16 @@ import (
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
-// 16k batches * 2 MiByte per batch should be enough to fill buffer of size 32GiB
-const (
-	PushBatchSize    = 2 * humanize.MiByte
-	MaxInflightCount = 16384 // Max number of successfuly AsyncPush'd batches for which we may wait response from pusher
-)
+// PushBatchSize is the flush threshold (in raw bytes) for accumulating rows
+// into a single abstract.Pusher call.
+const PushBatchSize = 2 * humanize.MiByte
+
+// synchronizeFlushBytes is the byte budget after which a Synchronize item is
+// pushed for the current part, so sinks flush partially loaded data. It
+// approximates the legacy abstract2 in-flight window (MaxInflightCount=16384
+// batches × PushBatchSize) that the old pusher tracked via its push queue.
+// A var so tests can shrink the budget.
+var synchronizeFlushBytes = 16384 * PushBatchSize
 
 // Parallel table reader settings. These values are taken from YT python wrapper default config
 const (
@@ -33,6 +35,9 @@ const (
 	parallelTableReaders  = 10
 )
 
+// snapshotSource loads a single row range of a YT table and streams the
+// decoded rows into an abstract.Pusher. It is instantiated per LoadTable call
+// by the outer source; state is not reused between parts.
 type snapshotSource struct {
 	cfg  provider_yt.YtSourceModel
 	yt   yt.Client
@@ -45,40 +50,38 @@ type snapshotSource struct {
 	lowerIdx uint64
 	upperIdx uint64
 	totalCnt uint64
-	doneCnt  uint64
 
-	isDone    bool
-	isStarted bool
-
-	pushQ  chan pushInfo
 	readQ  chan decodedRow
 	stopFn func()
 
-	// Set in Start() after table schema is loaded; read by readTableRange() goroutines.
+	// Populated at the start of loadPart before reader goroutines start.
 	decoder  *rowDecoder
 	skiffFmt *skiff.Format
 
 	columns []string
+
+	// synchronizeFlushBytes is the byte budget between Synchronize flushes;
+	// overridable in tests.
+	synchronizeFlushBytes int
 }
 
-type pushInfo struct {
-	res  chan error
-	rows int
-}
-
-func (s *snapshotSource) Start(ctx context.Context, target abstract2.EventTarget) error {
-	s.isStarted = true
-	defer func() { s.isStarted = false }()
-	s.isDone = false
-
+// loadPart drives the whole snapshot pipeline for the assigned part:
+// resolve schema -> spawn parallel readers -> accumulate rows into batches ->
+// synchronously flush every full batch through pusher. The TableDescription
+// is supplied by the caller (source.LoadTable) so ChangeItem.{Schema, Table,
+// PartID} stay identical to what MakeInitTableLoad emits — otherwise the async
+// CH sink cannot correlate data rows with the registered part (its part map
+// is keyed by TablePartID{TableID, PartID}).
+func (s *snapshotSource) loadPart(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
 	s.lgr.Debug("Starting snapshot source")
-	tbl, err := yt_provider_schema.Load(ctx, s.yt, s.txID, s.part.NodeID(), s.part.Name(), s.columns)
+	// Single source-of-truth for the table schema seen at data-row time. The
+	// same helper is called by source.TableSchema and source.loadTableSchema
+	// on the init-event side, so ChangeItem.TableSchema attached to rows here
+	// cannot drift from the schema the sink received at CREATE TABLE time.
+	idxColName := s.cfg.GetRowIdxColumn()
+	tbl, err := resolveYtTable(ctx, s.yt, s.txID, s.part.NodeID(), s.part.Name(), s.columns, idxColName)
 	if err != nil {
 		return xerrors.Errorf("error loading table schema: %w", err)
-	}
-	idxColName := s.cfg.GetRowIdxColumn()
-	if idxColName != "" {
-		yt_provider_schema.AddRowIdxColumn(tbl, idxColName)
 	}
 
 	s.skiffFmt = buildSkiffFormat(tbl, idxColName)
@@ -87,13 +90,12 @@ func (s *snapshotSource) Start(ctx context.Context, target abstract2.EventTarget
 	s.lowerIdx = s.part.LowerBound()
 	s.upperIdx = s.part.UpperBound()
 	s.totalCnt = s.upperIdx - s.lowerIdx
-	s.doneCnt = 0
 
 	rowCount, uncSize, err := s.getTableStats(ctx)
 	if err != nil {
 		return xerrors.Errorf("error reading table attributes: %w", err)
 	}
-	// Must be impossible case, but let prevent zero division
+	// Guard against zero division for an empty part.
 	if rowCount == 0 {
 		s.lgr.Warnf("Table %s part [%d:%d] seems to be empty, got row_count = 0", s.part.Name(), s.lowerIdx, s.upperIdx)
 		return nil
@@ -106,27 +108,81 @@ func (s *snapshotSource) Start(ctx context.Context, target abstract2.EventTarget
 	s.lgr.Infof("Infer parallel read batch size as %d rows", readBatchSizeRows)
 
 	s.readQ = make(chan decodedRow)
-	s.pushQ = make(chan pushInfo, MaxInflightCount)
 
 	var errs []error
-
 	readErrCh := s.startReading(ctx, readBatchSizeRows)
-	go s.pusher(tbl, target)
-	if pushErr := s.consumePushResults(); pushErr != nil {
-		errs = append(errs,
-			xerrors.Errorf("error pushing events for table %s[%d:%d]: %w",
-				s.part.Name(), s.lowerIdx, s.upperIdx, pushErr))
+
+	if pushErr := s.pushLoop(tbl, table, pusher); pushErr != nil {
+		// Signal readers to stop; the read loop will surface the joined error.
+		if s.stopFn != nil {
+			s.stopFn()
+		}
+		errs = append(errs, xerrors.Errorf("error pushing events for table %s[%d:%d]: %w",
+			s.part.Name(), s.lowerIdx, s.upperIdx, pushErr))
+	}
+	// Drain the reader queue if the pusher aborted early — otherwise the reader
+	// goroutines block forever on send.
+	for range s.readQ {
 	}
 	if readErr := <-readErrCh; readErr != nil {
 		errs = append(errs, xerrors.Errorf("error reading table %s[%d:%d]: %w",
 			s.part.Name(), s.lowerIdx, s.upperIdx, readErr))
 	}
 
-	if err := errors.Join(errs...); err != nil {
-		return err
-	}
+	return errors.Join(errs...)
+}
 
-	s.isDone = true
+// pushLoop consumes decoded rows from readQ, batches them by PushBatchSize
+// bytes and flushes each batch synchronously through pusher.
+//
+// After every synchronizeFlushBytes of pushed data a Synchronize item for the
+// current part is pushed as well, so sinks flush the partially loaded part
+// (intermediate visibility) — the provider-internal replacement for the
+// legacy abstract2 pusher, which emitted a Synchronize event when its
+// in-flight window (16384 batches) filled up. Only the mid-loop flush is
+// emitted: the final part state is flushed by the DoneTableLoad control
+// event, as in the legacy flow.
+func (s *snapshotSource) pushLoop(tbl yt_table.YtTable, table abstract.TableDescription, pusher abstract.Pusher) error {
+	partID := table.GeneratePartID()
+	b, err := newEmptyBatch(tbl, 100, table.Schema, table.Name, partID, s.cfg.GetRowIdxColumn())
+	if err != nil {
+		return xerrors.Errorf("unable to initialize batch: %w", err)
+	}
+	pushSynchronize := func() error {
+		sync := abstract.MakeSynchronizeEvent()
+		sync.Schema, sync.Table, sync.PartID = table.Schema, table.Name, partID
+		if err := pusher([]abstract.ChangeItem{sync}); err != nil {
+			return xerrors.Errorf("unable to push synchronize event: %w", err)
+		}
+		return nil
+	}
+	sinceSync := 0
+	for row := range s.readQ {
+		s.metrics.Size.Add(int64(row.RawSize()))
+		b.Append(row)
+		if b.Size() >= PushBatchSize {
+			batchBytes := b.Size()
+			if err := pusher(b.Items()); err != nil {
+				return xerrors.Errorf("unable to push batch (mid-loop): %w", err)
+			}
+			sinceSync += batchBytes
+			if sinceSync >= s.synchronizeFlushBytes {
+				if err := pushSynchronize(); err != nil {
+					return err
+				}
+				sinceSync = 0
+			}
+			b, err = newEmptyBatch(tbl, b.Len(), table.Schema, table.Name, partID, s.cfg.GetRowIdxColumn())
+			if err != nil {
+				return xerrors.Errorf("unable to initialize next batch: %w", err)
+			}
+		}
+	}
+	if b.Len() > 0 {
+		if err := pusher(b.Items()); err != nil {
+			return xerrors.Errorf("unable to push final batch: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -140,22 +196,6 @@ func (s *snapshotSource) getTableStats(ctx context.Context) (rowCount, uncomprSi
 		TransactionOptions: &yt.TransactionOptions{TransactionID: s.txID},
 	})
 	return data.RowCount, data.UncompressedSize, err
-}
-
-func (s *snapshotSource) consumePushResults() error {
-	var res error
-	for push := range s.pushQ {
-		err := <-push.res
-		if err != nil {
-			if res == nil {
-				s.stopFn()
-				res = err
-			}
-		} else {
-			s.doneCnt += uint64(push.rows)
-		}
-	}
-	return res
 }
 
 func (s *snapshotSource) startReading(ctx context.Context, batchSize uint64) chan error {
@@ -224,89 +264,24 @@ func (s *snapshotSource) runReaders(ctx context.Context, batchSize uint64, stopC
 	return errors.Join(errs...)
 }
 
-func (s *snapshotSource) pusher(tbl yt_table.YtTable, target abstract2.EventTarget) {
-	var batch *batch
-	var batchSize int
-
-	partID := fmt.Sprintf("%d_%d", s.lowerIdx, s.upperIdx)
-
-	resetBatch := func(size int) {
-		batch = newEmptyBatch(tbl, size, partID, s.cfg.GetRowIdxColumn())
-		batchSize = 0
-	}
-
-	push := func(batch abstract2.EventBatch, cnt int) {
-		// trigger mandatory flush if almost MaxInflightCount batches has been pushed
-		// and no results has been received or processed
-		if (cap(s.pushQ) - len(s.pushQ)) <= 1 {
-			s.pushQ <- pushInfo{
-				res:  target.AsyncPush(abstract2.NewSingleEventBatch(events.NewDefaultSynchronizeEvent(tbl, partID))),
-				rows: 0,
-			}
-		}
-		s.pushQ <- pushInfo{
-			res:  target.AsyncPush(batch),
-			rows: cnt,
-		}
-	}
-
-	push(abstract2.NewSingleEventBatch(events.NewDefaultTableLoadEvent(tbl, events.TableLoadBegin).WithPart(partID)), 0)
-
-	resetBatch(100)
-	for row := range s.readQ {
-		s.metrics.Size.Add(int64(row.RawSize()))
-
-		batch.Append(row)
-		batchSize += row.RawSize()
-
-		if batchSize >= PushBatchSize {
-			push(batch, batch.Len())
-			resetBatch(batch.Len())
-		}
-	}
-	if lastLen := batch.Len(); lastLen > 0 {
-		push(batch, lastLen)
-	}
-
-	push(abstract2.NewSingleEventBatch(events.NewDefaultTableLoadEvent(tbl, events.TableLoadEnd).WithPart(partID)), 0)
-	close(s.pushQ)
-}
-
-func (s *snapshotSource) Running() bool {
-	return s.isStarted && !s.isDone
-}
-
-func (s *snapshotSource) Stop() error {
-	if s.stopFn != nil {
-		s.stopFn()
-	}
-	return nil
-}
-
-func (s *snapshotSource) Progress() (abstract2.EventSourceProgress, error) {
-	return abstract2.NewDefaultEventSourceProgress(s.isDone, s.doneCnt, s.totalCnt), nil
-}
-
 func NewSnapshotSource(cfg provider_yt.YtSourceModel, ytc yt.Client, part *dataobjects.Part,
 	lgr log.Logger, metrics *stats.SourceStats, columns []string) *snapshotSource {
 	return &snapshotSource{
-		cfg:       cfg,
-		yt:        ytc,
-		txID:      part.TxID(),
-		part:      part,
-		lgr:       lgr,
-		metrics:   metrics,
-		lowerIdx:  0,
-		upperIdx:  0,
-		totalCnt:  0,
-		doneCnt:   0,
-		isDone:    false,
-		isStarted: false,
-		pushQ:     nil,
-		readQ:     nil,
-		stopFn:    nil,
-		decoder:   nil,
-		skiffFmt:  nil,
-		columns:   columns,
+		cfg:      cfg,
+		yt:       ytc,
+		txID:     part.TxID(),
+		part:     part,
+		lgr:      lgr,
+		metrics:  metrics,
+		lowerIdx: 0,
+		upperIdx: 0,
+		totalCnt: 0,
+		readQ:    nil,
+		stopFn:   nil,
+		decoder:  nil,
+		skiffFmt: nil,
+		columns:  columns,
+
+		synchronizeFlushBytes: synchronizeFlushBytes,
 	}
 }

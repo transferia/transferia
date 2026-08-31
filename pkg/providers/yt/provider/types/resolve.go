@@ -1,54 +1,25 @@
 package types
 
 import (
-	"math"
-
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/abstract2/types"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
-func resolvePrimitive(t ytschema.Type) (abstract2.Type, error) {
+// resolvePrimitive round-trips a YT primitive type to itself, or maps the
+// "opaque" primitives (Any, Null) to TypeAny so downstream schema layers can
+// treat them uniformly with composite types.
+func resolvePrimitive(t ytschema.Type) (ytschema.Type, error) {
 	switch t {
-	case ytschema.TypeInt8:
-		return types.NewInt8Type(), nil
-	case ytschema.TypeInt16:
-		return types.NewInt16Type(), nil
-	case ytschema.TypeInt32:
-		return types.NewInt32Type(), nil
-	case ytschema.TypeInt64:
-		return types.NewInt64Type(), nil
-	case ytschema.TypeUint8:
-		return types.NewUInt8Type(), nil
-	case ytschema.TypeUint16:
-		return types.NewUInt16Type(), nil
-	case ytschema.TypeUint32:
-		return types.NewUInt32Type(), nil
-	case ytschema.TypeUint64:
-		return types.NewUInt64Type(), nil
-	case ytschema.TypeBytes:
-		return types.NewBytesType(), nil
-	case ytschema.TypeString:
-		return types.NewStringType(math.MaxInt64), nil
-	case ytschema.TypeBoolean:
-		return types.NewBoolType(), nil
-	case ytschema.TypeFloat32:
-		return types.NewFloatType(), nil
-	case ytschema.TypeFloat64:
-		return types.NewDoubleType(), nil
-	case ytschema.TypeDate:
-		return types.NewDateType(), nil
-	case ytschema.TypeDatetime:
-		return types.NewDateTimeType(), nil
-	case ytschema.TypeInterval:
-		return types.NewIntervalType(), nil
-	case ytschema.TypeTimestamp:
-		return types.NewTimestampType(6), nil
+	case ytschema.TypeInt8, ytschema.TypeInt16, ytschema.TypeInt32, ytschema.TypeInt64,
+		ytschema.TypeUint8, ytschema.TypeUint16, ytschema.TypeUint32, ytschema.TypeUint64,
+		ytschema.TypeFloat32, ytschema.TypeFloat64,
+		ytschema.TypeBytes, ytschema.TypeString, ytschema.TypeBoolean,
+		ytschema.TypeDate, ytschema.TypeDatetime, ytschema.TypeInterval, ytschema.TypeTimestamp:
+		return t, nil
 	case ytschema.TypeAny, ytschema.TypeNull:
-		return types.NewJSONType(), nil
+		return ytschema.TypeAny, nil
 	default:
-		return nil, xerrors.Errorf("unknown yt primitive type %s", t)
+		return "", xerrors.Errorf("unknown yt primitive type %s", t)
 	}
 }
 
@@ -60,17 +31,21 @@ func UnwrapOptional(ytType ytschema.ComplexType) (ytschema.ComplexType, bool) {
 	return ytType, false
 }
 
-func Resolve(typ ytschema.ComplexType) (abstract2.Type, error) {
+// Resolve reduces a YT complex type to a single primitive that the passive
+// provider layer works with. Primitives round-trip via resolvePrimitive;
+// composite types (List, Struct, Tuple, Variant, Dict, Tagged) collapse to
+// TypeAny, since they are wire-encoded as opaque YSON on the Skiff/JSON path.
+func Resolve(typ ytschema.ComplexType) (ytschema.Type, error) {
 	switch t := typ.(type) {
 	case ytschema.Type:
-		if result, err := resolvePrimitive(t); err != nil {
-			return nil, xerrors.Errorf("cannot resolve yt primitive type: %w", err)
-		} else {
-			return result, nil
+		result, err := resolvePrimitive(t)
+		if err != nil {
+			return "", xerrors.Errorf("cannot resolve yt primitive type: %w", err)
 		}
+		return result, nil
 	case ytschema.List, ytschema.Struct, ytschema.Tuple, ytschema.Variant, ytschema.Dict, ytschema.Tagged:
-		return types.NewJSONType(), nil
+		return ytschema.TypeAny, nil
 	default:
-		return nil, xerrors.Errorf("yt type %T is not supported", typ)
+		return "", xerrors.Errorf("yt type %T is not supported", typ)
 	}
 }

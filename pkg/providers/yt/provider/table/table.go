@@ -5,11 +5,21 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract2"
 )
 
+// YtTable is the passive-layer table abstraction. As with YtColumn it no longer
+// embeds any active-plane interface; consumers use the accessors below plus
+// AddColumn/ColumnNames/ToOldTable.
 type YtTable interface {
-	abstract2.Table
+	Database() string
+	Schema() string
+	Name() string
+	FullName() string
+	ColumnsCount() int
+	Column(i int) YtColumn
+	ColumnByName(name string) YtColumn
+	ToOldTable() (*abstract.TableSchema, error)
+
 	AddColumn(YtColumn)
 	ColumnNames() ([]string, error)
 }
@@ -21,6 +31,8 @@ type table struct {
 	colNameCache     []string
 	cacheOnce        sync.Once
 }
+
+var _ YtTable = (*table)(nil)
 
 func (t *table) Database() string {
 	return ""
@@ -42,14 +54,14 @@ func (t *table) ColumnsCount() int {
 	return len(t.columns)
 }
 
-func (t *table) Column(i int) abstract2.Column {
+func (t *table) Column(i int) YtColumn {
 	if i < 0 || i >= len(t.columns) {
 		return nil
 	}
 	return t.columns[i]
 }
 
-func (t *table) ColumnByName(name string) abstract2.Column {
+func (t *table) ColumnByName(name string) YtColumn {
 	for _, col := range t.columns {
 		if col.Name() == name {
 			return col

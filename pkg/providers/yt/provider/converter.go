@@ -63,7 +63,7 @@ func skiffGoType(col yt_table.YtColumn) reflect.Type {
 func ytSchemaForSkiff(tbl yt_table.YtTable, skipColName string) ytschema.Schema {
 	var cols []ytschema.Column
 	for i := 0; i < tbl.ColumnsCount(); i++ {
-		col := tbl.Column(i).(yt_table.YtColumn)
+		col := tbl.Column(i)
 		if skipColName != "" && col.Name() == skipColName {
 			continue
 		}
@@ -99,7 +99,7 @@ func buildSkiffFormat(tbl yt_table.YtTable, idxColName string) *skiff.Format {
 func buildSkiffRowType(tbl yt_table.YtTable, idxColName string) reflect.Type {
 	var fields []reflect.StructField
 	for i := 0; i < tbl.ColumnsCount(); i++ {
-		col := tbl.Column(i).(yt_table.YtColumn)
+		col := tbl.Column(i)
 		if idxColName != "" && col.Name() == idxColName {
 			continue
 		}
@@ -117,7 +117,7 @@ func buildSkiffRowType(tbl yt_table.YtTable, idxColName string) reflect.Type {
 
 func tableHasComplexColumns(tbl yt_table.YtTable, idxColName string) bool {
 	for i := 0; i < tbl.ColumnsCount(); i++ {
-		col := tbl.Column(i).(yt_table.YtColumn)
+		col := tbl.Column(i)
 		if idxColName != "" && col.Name() == idxColName {
 			continue
 		}
@@ -163,7 +163,7 @@ func makeRowSizeEstimator(tbl yt_table.YtTable, idxColName string) *rowSizeEstim
 	)
 
 	for i := 0; i < tbl.ColumnsCount(); i++ {
-		col := tbl.Column(i).(yt_table.YtColumn)
+		col := tbl.Column(i)
 		if idxColName != "" && col.Name() == idxColName {
 			baseline += 8 // synthetic row-index: int64 on wire
 			continue

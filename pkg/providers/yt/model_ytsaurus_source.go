@@ -50,7 +50,13 @@ func (s *YTSaurusSource) Validate() error {
 	return nil
 }
 
-func (s *YTSaurusSource) IsAbstract2(model.Destination) bool { return true }
+// IsAbstract2 keeps the legacy abstract2 flow for copy destinations only:
+// the row path was migrated to abstract1, the copy path still runs on the
+// legacy abstract2 pipeline (UploadV2).
+func (s *YTSaurusSource) IsAbstract2(dst model.Destination) bool {
+	_, ok := dst.(*YtCopyDestination)
+	return ok
+}
 
 func (s *YTSaurusSource) RowIdxEnabled() bool {
 	return false

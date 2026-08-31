@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -17,6 +18,27 @@ import (
 	"go.ytsaurus.tech/yt/go/yt"
 	"golang.org/x/sync/semaphore"
 )
+
+// NewYTTableID parses a full Cypress YT path into a TableID.
+// The path is stored in Name with the leading "//" stripped so that
+// hierarchical prefix-matching (Includes) and Iceberg's TableIdentifier
+// (which splits Name by "/") both see clean path segments.
+// Namespace is always empty.
+//
+//	"//home/cdc/junk/foo"       -> {Namespace: "", Name: "home/cdc/junk/foo"}
+//	"foo"                       -> {Namespace: "", Name: "foo"}
+//	""                          -> error
+func NewYTTableID(object string) (*abstract.TableID, error) {
+	if object == "" {
+		return nil, xerrors.New("empty table identifier")
+	}
+	obj := strings.TrimRight(object, "/")
+	if brace := strings.IndexByte(obj, '{'); brace >= 0 {
+		obj = obj[:brace]
+	}
+	obj = strings.TrimPrefix(obj, "//")
+	return &abstract.TableID{Namespace: "", Name: obj}, nil
+}
 
 var (
 	defaultHandleParams = NewHandleParams(50)

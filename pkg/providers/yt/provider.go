@@ -54,12 +54,12 @@ func init() {
 	abstract.RegisterProviderName(ManagedDynamicProviderType, "YTSaurus Dynamic")
 	abstract.RegisterProviderName(ManagedStaticProviderType, "YTSaurus Static")
 
-	abstract.RegisterTableIDParser(ProviderType, abstract.NewFullPathTableID)
-	abstract.RegisterTableIDParser(StagingType, abstract.NewFullPathTableID)
+	abstract.RegisterTableIDParser(ProviderType, NewYTTableID)
+	abstract.RegisterTableIDParser(StagingType, NewYTTableID)
 	abstract.RegisterTableIDParser(CopyType, abstract.NewFullPathTableID)
-	abstract.RegisterTableIDParser(ManagedProviderType, abstract.NewFullPathTableID)
-	abstract.RegisterTableIDParser(ManagedDynamicProviderType, abstract.NewFullPathTableID)
-	abstract.RegisterTableIDParser(ManagedStaticProviderType, abstract.NewFullPathTableID)
+	abstract.RegisterTableIDParser(ManagedProviderType, NewYTTableID)
+	abstract.RegisterTableIDParser(ManagedDynamicProviderType, NewYTTableID)
+	abstract.RegisterTableIDParser(ManagedStaticProviderType, NewYTTableID)
 
 	abstract.RegisterSystemTables(TableWAL)
 }

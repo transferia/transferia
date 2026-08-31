@@ -16,6 +16,7 @@ type CanonizatorSink struct {
 	t                     *testing.T
 	commited              bool
 	cntr                  int
+	skipEmptySubtest      bool
 	changeItemMiddlewares []func(items []abstract.ChangeItem) []abstract.ChangeItem
 }
 
@@ -35,6 +36,10 @@ func (c *CanonizatorSink) Close() error {
 			logger.Log.Error("pushed rows list is not empty for commited sink")
 		}
 		c.commited = false
+		return nil
+	}
+
+	if c.skipEmptySubtest && len(c.rows) == 0 {
 		return nil
 	}
 
@@ -80,6 +85,27 @@ func Canonizator(
 	return func() abstract.Sinker {
 		return &CanonizatorSink{
 			t:                     t,
+			changeItemMiddlewares: append(changeItemMiddlewares, RemoveVariableFieldsRowMiddleware),
+		}
+	}
+}
+
+// CanonizatorSkipEmptyClose is like Canonizator, but a sink that never
+// received row events does not register a canon subtest on Close.
+//
+// The abstract1 snapshot flow creates several sink instances per activation
+// (control-event service sinks, per-part data sink, end-destination sink).
+// Without the skip, the first empty sink claims the "canon 0" subtest name
+// and the data sink's canon lands in a "#01" variant (duplicate subtest names
+// are suffixed by the testing framework).
+func CanonizatorSkipEmptyClose(
+	t *testing.T,
+	changeItemMiddlewares ...func(item []abstract.ChangeItem) []abstract.ChangeItem,
+) func() abstract.Sinker {
+	return func() abstract.Sinker {
+		return &CanonizatorSink{
+			t:                     t,
+			skipEmptySubtest:      true,
 			changeItemMiddlewares: append(changeItemMiddlewares, RemoveVariableFieldsRowMiddleware),
 		}
 	}

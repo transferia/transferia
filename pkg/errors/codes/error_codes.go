@@ -88,6 +88,7 @@ var (
 	YTSaurusNotFound               = coded.Register("yt", "not_found")
 	YTInvalidTableCompressionCodec = coded.Register("yt", "invalid_table_compression_codec")
 	YTInvalidTableErasureCodec     = coded.Register("yt", "invalid_table_erasure_codec")
+	YTTableNameCollision           = coded.Register("yt", "table_name_collision")
 
 	// greenplum
 	GreenplumExternalUrlsExceedSegments = coded.Register("greenplum", "external_urls_exceed_segments")

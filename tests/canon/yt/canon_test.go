@@ -179,7 +179,7 @@ func TestCanonSource(t *testing.T) {
 		helpers.TransferID,
 		Source,
 		&model.MockDestination{
-			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.Canonizator(t)),
+			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.CanonizatorSkipEmptyClose(t)),
 			Cleanup:       model.DisabledCleanup,
 		},
 		abstract.TransferTypeSnapshotOnly,
@@ -203,7 +203,7 @@ func TestCanonSourceWithDataObjects(t *testing.T) {
 		helpers.TransferID,
 		Source,
 		&model.MockDestination{
-			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.Canonizator(t)),
+			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.CanonizatorSkipEmptyClose(t)),
 			Cleanup:       model.DisabledCleanup,
 		},
 		abstract.TransferTypeSnapshotOnly,
@@ -228,7 +228,7 @@ func TestCanonSourceWithDirInDataObjects(t *testing.T) {
 		helpers.TransferID,
 		Source,
 		&model.MockDestination{
-			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.Canonizator(t)),
+			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.CanonizatorSkipEmptyClose(t)),
 			Cleanup:       model.DisabledCleanup,
 		},
 		abstract.TransferTypeSnapshotOnly,

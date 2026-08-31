@@ -73,6 +73,14 @@ func (s *YtSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 func (s *YtSource) IsSource()       {}
 func (s *YtSource) IsStrictSource() {}
 
+// IsAbstract2 keeps the legacy abstract2 flow for copy destinations only:
+// the row path was migrated to abstract1, the copy path still runs on the
+// legacy abstract2 pipeline (UploadV2).
+func (s *YtSource) IsAbstract2(dst model.Destination) bool {
+	_, ok := dst.(*YtCopyDestination)
+	return ok
+}
+
 func (s *YtSource) WithDefaults() {
 	if s.Cluster == "" && env.In(env.EnvironmentInternal) {
 		s.Cluster = "hahn"
@@ -109,8 +117,6 @@ func (s *YtSource) GetCluster() string {
 func (s *YtSource) GetRowIdxColumn() string {
 	return s.RowIdxColumnName
 }
-
-func (s *YtSource) IsAbstract2(model.Destination) bool { return true }
 
 func (s *YtSource) IsAsyncShardPartsSource() {}
 

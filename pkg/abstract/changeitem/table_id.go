@@ -47,8 +47,6 @@ func (t TableID) Equals(other TableID) bool {
 }
 
 // Includes returns true if the given ID identifies a subset of tables identified by the current ID.
-//
-// In other words, it is a result of an operation "is a superset of"
 func (t TableID) Includes(sub TableID) bool {
 	if t.Equals(sub) {
 		return true

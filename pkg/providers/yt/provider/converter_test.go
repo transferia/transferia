@@ -12,11 +12,11 @@ import (
 
 func testYtColumn(t *testing.T, name string, ytType ytschema.ComplexType, nullable bool) yt_table.YtColumn {
 	t.Helper()
-	resolvedType, err := yt_provider_types.Resolve(ytType)
+	primType, err := yt_provider_types.Resolve(ytType)
 	require.NoError(t, err)
 	return yt_table.NewColumn(
 		name,
-		resolvedType,
+		primType,
 		ytType,
 		ytschema.Column{Name: name, ComplexType: ytType, Required: !nullable},
 		nullable,

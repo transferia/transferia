@@ -18,6 +18,11 @@ type asynchronousSnapshotState struct {
 	errChs []chan error
 }
 
+// maxInFlightPushes bounds the number of unfinished async pushes, restoring
+// the backpressure the legacy abstract2 snapshot source had through
+// MaxInflightCount (16384 batches * ~2MiB each).
+const maxInFlightPushes = 16384
+
 func newAsynchronousSnapshotState(sink abstract.AsyncSink) *asynchronousSnapshotState {
 	return &asynchronousSnapshotState{
 		sink: sink,
@@ -73,6 +78,17 @@ overErrChs:
 			return xerrors.Errorf("unable push batch with a non row item: %w", err)
 		}
 		return nil
+	}
+
+	// Backpressure: bound the in-flight window and consume results in order
+	// (oldest first), like the legacy MaxInflightCount flush did. Readers keep
+	// producing while pushes are in flight; memory stays bounded when the
+	// sink is slower than the source.
+	if len(s.errChs) >= maxInFlightPushes {
+		if err := <-s.errChs[0]; err != nil {
+			return xerrors.Errorf("unable push batch: %w", err)
+		}
+		s.errChs = s.errChs[1:]
 	}
 
 	s.errChs = append(s.errChs, s.sink.AsyncPush(items))

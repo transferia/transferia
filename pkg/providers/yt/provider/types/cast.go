@@ -5,210 +5,147 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract2"
-	"github.com/transferia/transferia/pkg/abstract2/types"
-	yt_table "github.com/transferia/transferia/pkg/providers/yt/provider/table"
+	"github.com/transferia/transferia/pkg/util/castx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
-func castInt64Based(raw int64, col yt_table.YtColumn) (abstract2.Value, error) {
-	switch t := col.YtType().(ytschema.Type); t {
-	case ytschema.TypeInt8:
-		v := int8(raw)
-		return types.NewDefaultInt8Value(&v, col), nil
-	case ytschema.TypeInt16:
-		v := int16(raw)
-		return types.NewDefaultInt16Value(&v, col), nil
-	case ytschema.TypeInt32:
-		v := int32(raw)
-		return types.NewDefaultInt32Value(&v, col), nil
-	case ytschema.TypeInt64:
-		return types.NewDefaultInt64Value(&raw, col), nil
-	case ytschema.TypeInterval:
-		// Golang's duration is int64 in nsecs, yt's is in mircrosecs
-		if raw > math.MaxInt64/1000 || raw < math.MinInt64/1000 {
-			return nil, xerrors.Errorf("interval %d doesn't fit into Duration", raw)
-		}
-		v := time.Duration(raw * 1000)
-		return types.NewDefaultIntervalValue(&v, col), nil
-	default:
-		return nil, xerrors.Errorf("unsupported int-based type %s", t)
+// CastPrimitiveToOldValue normalizes a raw value produced by the YSON/JSON
+// deserialization layer to the exact Go type that corresponds to ytType, so a
+// map[T comparable]any downstream (see yt_dict.upsertPrimitiveToDict) can
+// accept it as a typed key.
+//
+// The mapping preserves the historical ToOldValue semantics of the previous
+// value wrappers (integers narrow to their target width, TypeFloat64 becomes
+// json.Number, time-like uint64s decode into time.Time in UTC, TypeInterval
+// int64 microseconds decode into time.Duration, TypeAny is passed through,
+// TypeNull always yields nil).
+func CastPrimitiveToOldValue(raw interface{}, ytType ytschema.ComplexType) (interface{}, error) {
+	primitive, ok := ytType.(ytschema.Type)
+	if !ok {
+		return nil, xerrors.Errorf("expected primitive yt type, got %T", ytType)
 	}
-}
-
-func castUInt64Based(raw uint64, col yt_table.YtColumn) (abstract2.Value, error) {
-	switch t := col.YtType().(ytschema.Type); t {
-	case ytschema.TypeUint8:
-		v := uint8(raw)
-		return types.NewDefaultUInt8Value(&v, col), nil
-	case ytschema.TypeUint16:
-		v := uint16(raw)
-		return types.NewDefaultUInt16Value(&v, col), nil
-	case ytschema.TypeUint32:
-		v := uint32(raw)
-		return types.NewDefaultUInt32Value(&v, col), nil
-	case ytschema.TypeUint64:
-		return types.NewDefaultUInt64Value(&raw, col), nil
-	case ytschema.TypeDate:
-		v := time.Date(1970, 1, 1+int(raw), 0, 0, 0, 0, time.UTC)
-		return types.NewDefaultDateValue(&v, col), nil
-	case ytschema.TypeDatetime:
-		v := time.Date(1970, 1, 1, 0, 0, int(raw), 0, time.UTC)
-		return types.NewDefaultDateTimeValue(&v, col), nil
-	case ytschema.TypeTimestamp:
-		msec := int(raw % 1e+6)
-		sec := int(raw / 1e+6)
-		v := time.Date(1970, 1, 1, 0, 0, sec, msec*1000, time.UTC)
-		return types.NewDefaultTimestampValue(&v, col), nil
-	default:
-		return nil, xerrors.Errorf("unsupported uint-based %s", t)
+	if primitive == ytschema.TypeNull {
+		return nil, nil
 	}
-}
-
-func castFloat64Based(raw float64, col yt_table.YtColumn) (abstract2.Value, error) {
-	switch t := col.YtType().(ytschema.Type); t {
-	case ytschema.TypeFloat32:
-		v := float32(raw)
-		return types.NewDefaultFloatValue(&v, col), nil
-	case ytschema.TypeFloat64:
-		return types.NewDefaultDoubleValue(&raw, col), nil
-	default:
-		return nil, xerrors.Errorf("unsupported float-based %s", t)
-	}
-}
-
-func castNullValue(col yt_table.YtColumn) (abstract2.Value, error) {
-	switch t := col.YtType().(ytschema.Type); t {
-	case ytschema.TypeInt8:
-		return types.NewDefaultInt8Value(nil, col), nil
-	case ytschema.TypeInt16:
-		return types.NewDefaultInt16Value(nil, col), nil
-	case ytschema.TypeInt32:
-		return types.NewDefaultInt32Value(nil, col), nil
-	case ytschema.TypeInt64:
-		return types.NewDefaultInt64Value(nil, col), nil
-	case ytschema.TypeInterval:
-		return types.NewDefaultIntervalValue(nil, col), nil
-	case ytschema.TypeUint8:
-		return types.NewDefaultUInt8Value(nil, col), nil
-	case ytschema.TypeUint16:
-		return types.NewDefaultUInt16Value(nil, col), nil
-	case ytschema.TypeUint32:
-		return types.NewDefaultUInt32Value(nil, col), nil
-	case ytschema.TypeUint64:
-		return types.NewDefaultUInt64Value(nil, col), nil
-	case ytschema.TypeDate:
-		return types.NewDefaultDateValue(nil, col), nil
-	case ytschema.TypeDatetime:
-		return types.NewDefaultDateTimeValue(nil, col), nil
-	case ytschema.TypeTimestamp:
-		return types.NewDefaultTimestampValue(nil, col), nil
-	case ytschema.TypeFloat32:
-		return types.NewDefaultFloatValue(nil, col), nil
-	case ytschema.TypeFloat64:
-		return types.NewDefaultDoubleValue(nil, col), nil
-	case ytschema.TypeBoolean:
-		return types.NewDefaultBoolValue(nil, col), nil
-	case ytschema.TypeAny:
-		return types.NewDefaultJSONValue(nil, col), nil
-	case ytschema.TypeBytes, ytschema.TypeString:
-		return types.NewDefaultStringValue(nil, col), nil
-	default:
-		return nil, xerrors.Errorf("unsupported nullable type %s", t)
-	}
-}
-
-func castPrimitive(raw interface{}, col yt_table.YtColumn) (abstract2.Value, error) {
 	if raw == nil {
-		if !col.Nullable() {
-			return nil, xerrors.Errorf("unexpected null value in column %s", col.FullName())
-		}
-		val, err := castNullValue(col)
-		if err != nil {
-			return nil, xerrors.Errorf("error casting null value for column %s: %w", col.FullName(), err)
-		}
-		return val, nil
+		return nil, nil
 	}
-	switch t := col.YtType().(ytschema.Type); t {
-	case ytschema.TypeInt8, ytschema.TypeInt16, ytschema.TypeInt32, ytschema.TypeInt64, ytschema.TypeInterval:
+	switch primitive {
+	case ytschema.TypeInt8:
 		v, ok := raw.(int64)
 		if !ok {
-			return nil, xerrors.Errorf("expected int64 as %s raw value, got %T", t, raw)
+			return nil, xerrors.Errorf("expected int64 as %s raw value, got %T", primitive, raw)
 		}
-		val, err := castInt64Based(v, col)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to cast int-based value: %w", err)
+		return int8(v), nil
+	case ytschema.TypeInt16:
+		v, ok := raw.(int64)
+		if !ok {
+			return nil, xerrors.Errorf("expected int64 as %s raw value, got %T", primitive, raw)
 		}
-		return val, nil
-	case ytschema.TypeUint8, ytschema.TypeUint16, ytschema.TypeUint32, ytschema.TypeUint64,
-		ytschema.TypeDate, ytschema.TypeDatetime, ytschema.TypeTimestamp:
+		return int16(v), nil
+	case ytschema.TypeInt32:
+		v, ok := raw.(int64)
+		if !ok {
+			return nil, xerrors.Errorf("expected int64 as %s raw value, got %T", primitive, raw)
+		}
+		return int32(v), nil
+	case ytschema.TypeInt64:
+		v, ok := raw.(int64)
+		if !ok {
+			return nil, xerrors.Errorf("expected int64 as %s raw value, got %T", primitive, raw)
+		}
+		return v, nil
+	case ytschema.TypeUint8:
 		v, ok := raw.(uint64)
 		if !ok {
-			return nil, xerrors.Errorf("expected uint64 as %s raw value, got %T", t, raw)
+			return nil, xerrors.Errorf("expected uint64 as %s raw value, got %T", primitive, raw)
 		}
-		val, err := castUInt64Based(v, col)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to cast uint-based value: %w", err)
+		return uint8(v), nil
+	case ytschema.TypeUint16:
+		v, ok := raw.(uint64)
+		if !ok {
+			return nil, xerrors.Errorf("expected uint64 as %s raw value, got %T", primitive, raw)
 		}
-		return val, nil
-	case ytschema.TypeFloat32, ytschema.TypeFloat64:
+		return uint16(v), nil
+	case ytschema.TypeUint32:
+		v, ok := raw.(uint64)
+		if !ok {
+			return nil, xerrors.Errorf("expected uint64 as %s raw value, got %T", primitive, raw)
+		}
+		return uint32(v), nil
+	case ytschema.TypeUint64:
+		v, ok := raw.(uint64)
+		if !ok {
+			return nil, xerrors.Errorf("expected uint64 as %s raw value, got %T", primitive, raw)
+		}
+		return v, nil
+	case ytschema.TypeFloat32:
 		v, ok := raw.(float64)
 		if !ok {
-			return nil, xerrors.Errorf("expected float64 as %s raw value, got %T", t, raw)
+			return nil, xerrors.Errorf("expected float64 as %s raw value, got %T", primitive, raw)
 		}
-		val, err := castFloat64Based(v, col)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to cast float-based value: %w", err)
+		return float32(v), nil
+	case ytschema.TypeFloat64:
+		v, ok := raw.(float64)
+		if !ok {
+			return nil, xerrors.Errorf("expected float64 as %s raw value, got %T", primitive, raw)
 		}
-		return val, nil
+		// The previous DefaultDoubleValue.ToOldValue() returned json.Number
+		// via castx.ToJSONNumberE; preserve that so map[json.Number]any dict
+		// keys continue to work in yt_dict.upsertPrimitiveToDict.
+		return castx.ToJSONNumberE(v)
 	case ytschema.TypeBoolean:
 		v, ok := raw.(bool)
 		if !ok {
-			return nil, xerrors.Errorf("expected bool as %s raw value, got %T", t, raw)
+			return nil, xerrors.Errorf("expected bool as %s raw value, got %T", primitive, raw)
 		}
-		return types.NewDefaultBoolValue(&v, col), nil
-	case ytschema.TypeAny:
-		return types.NewDefaultJSONValue(raw, col), nil
-	case ytschema.TypeBytes:
-		v, ok := raw.(string)
-		if !ok {
-			return nil, xerrors.Errorf("expected bytes as %s raw value, got %T", t, raw)
-		}
-		vb := []byte(v)
-		return types.NewDefaultBytesValue(vb, col), nil
-
+		return v, nil
 	case ytschema.TypeString:
 		v, ok := raw.(string)
 		if !ok {
-			return nil, xerrors.Errorf("expected string as %s raw value, got %T", t, raw)
+			return nil, xerrors.Errorf("expected string as %s raw value, got %T", primitive, raw)
 		}
-		return types.NewDefaultStringValue(&v, col), nil
+		return v, nil
+	case ytschema.TypeBytes:
+		v, ok := raw.(string)
+		if !ok {
+			return nil, xerrors.Errorf("expected string as %s raw value, got %T", primitive, raw)
+		}
+		return []byte(v), nil
+	case ytschema.TypeDate:
+		v, ok := raw.(uint64)
+		if !ok {
+			return nil, xerrors.Errorf("expected uint64 as %s raw value, got %T", primitive, raw)
+		}
+		return time.Date(1970, 1, 1+int(v), 0, 0, 0, 0, time.UTC), nil
+	case ytschema.TypeDatetime:
+		v, ok := raw.(uint64)
+		if !ok {
+			return nil, xerrors.Errorf("expected uint64 as %s raw value, got %T", primitive, raw)
+		}
+		return time.Date(1970, 1, 1, 0, 0, int(v), 0, time.UTC), nil
+	case ytschema.TypeTimestamp:
+		v, ok := raw.(uint64)
+		if !ok {
+			return nil, xerrors.Errorf("expected uint64 as %s raw value, got %T", primitive, raw)
+		}
+		msec := int(v % 1e+6)
+		sec := int(v / 1e+6)
+		return time.Date(1970, 1, 1, 0, 0, sec, msec*1000, time.UTC), nil
+	case ytschema.TypeInterval:
+		v, ok := raw.(int64)
+		if !ok {
+			return nil, xerrors.Errorf("expected int64 as %s raw value, got %T", primitive, raw)
+		}
+		// YT interval is int64 microseconds, Go's time.Duration is int64 nanoseconds.
+		// Preserve the historical overflow guard from the earlier cast path.
+		if v > math.MaxInt64/1000 || v < math.MinInt64/1000 {
+			return nil, xerrors.Errorf("interval %d doesn't fit into Duration", v)
+		}
+		return time.Duration(v) * time.Microsecond, nil
+	case ytschema.TypeAny:
+		return raw, nil
 	default:
-		return nil, xerrors.Errorf("unsupported primitive type %s", t)
+		return nil, xerrors.Errorf("unsupported primitive type %s", primitive)
 	}
-}
-
-func Cast(raw interface{}, colRaw abstract2.Column) (abstract2.Value, error) {
-	col, ok := colRaw.(yt_table.YtColumn)
-	if !ok {
-		return nil, xerrors.Errorf("expected YT column, got %T", colRaw)
-	}
-	switch col.YtType().(type) {
-	case ytschema.Type:
-		return castPrimitive(raw, col)
-	case ytschema.List, ytschema.Struct, ytschema.Tuple, ytschema.Variant, ytschema.Dict, ytschema.Tagged:
-		return types.NewDefaultJSONValue(raw, col), nil
-	default:
-		return nil, xerrors.Errorf("unsupported type %T", col.YtType())
-	}
-}
-
-func CastPrimitiveToOldValue(raw interface{}, ytType ytschema.ComplexType) (interface{}, error) {
-	//nolint:exhaustivestruct
-	col := yt_table.NewColumn("", nil, ytType, ytschema.Column{}, false)
-	casted, err := castPrimitive(raw, col) // castPrimitive needs only ytType when casting primitive types.
-	if err != nil {
-		return nil, xerrors.Errorf("unable to cast primitive: %w", err)
-	}
-	return casted.ToOldValue()
 }
