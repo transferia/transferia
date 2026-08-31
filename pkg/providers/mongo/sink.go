@@ -79,8 +79,16 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			})
 		}
 		if err := eg.Wait(); err != nil {
-			setError(collID, err)
-			return
+			if s.orderedWrites() || !mongo_driver.IsDuplicateKeyError(err) {
+				setError(collID, err)
+				return
+			}
+			// Duplicate key error received, possibly due to parallel write. Retry in non-parallel (ordered) mode.
+			msg := fmt.Sprintf("Write to %s caused duplicate key error, retrying orderly", collID.GetFullName())
+			s.logger.Warn(msg, log.Error(err))
+			if retryErr := s.retryCollectionOrdered(ctx, collID, items); retryErr != nil {
+				setError(collID, xerrors.Errorf("ordered retry failed: %w", retryErr))
+			}
 		}
 		s.logger.Debugf("flushCollection: bulk writes DONE coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
 		s.logger.Infof("Flush collection %v: change items number = %v, shards = %v, elapsed = %v", collID.GetFullName(), len(items), len(shardBulks), time.Since(startFlush))

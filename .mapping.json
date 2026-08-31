@@ -1693,6 +1693,7 @@
   "pkg/providers/mongo/sharding_storage_test.go":"transfer_manager/go/pkg/providers/mongo/sharding_storage_test.go",
   "pkg/providers/mongo/sink.go":"transfer_manager/go/pkg/providers/mongo/sink.go",
   "pkg/providers/mongo/sink_bulk_operations.go":"transfer_manager/go/pkg/providers/mongo/sink_bulk_operations.go",
+  "pkg/providers/mongo/sink_bulk_operations_test.go":"transfer_manager/go/pkg/providers/mongo/sink_bulk_operations_test.go",
   "pkg/providers/mongo/source.go":"transfer_manager/go/pkg/providers/mongo/source.go",
   "pkg/providers/mongo/source_test.go":"transfer_manager/go/pkg/providers/mongo/source_test.go",
   "pkg/providers/mongo/storage.go":"transfer_manager/go/pkg/providers/mongo/storage.go",

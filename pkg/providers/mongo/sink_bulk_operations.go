@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
@@ -17,11 +18,21 @@ import (
 
 const sinkWriteConcurrency = 16 // sinkWriteConcurrency is maximum number of shards flushed concurrently per collection.
 
-// splitItemsToBulkOperations distributes items into slice of bulks by hashing the _id, so every row for a given
-// document will always be in the same bulk and keeps its event order. An ordered list of bulks is returned.
-func (s *sinker) splitItemsToBulkOperations(ctx context.Context, collID Namespace, items []abstract.ChangeItem) ([][][]mongo_driver.WriteModel, error) {
-	startPrepare := time.Now()
+const (
+	bsonObjectTooLargeCode = 10334 // "BSONObj size ... is invalid".
+	stringTooLongCode      = 16493 // "Tried to create string longer than 16MB".
+)
 
+type preparedWrite struct {
+	model    mongo_driver.WriteModel
+	docID    documentID // docID is document _id.
+	isolated bool       // isolated marks a model which must not share a bulk with others (see shardedCollectionSinkContext).
+}
+
+// itemsToPreparedWrites prepares a write per change item, in the incoming order.
+func (s *sinker) itemsToPreparedWrites(
+	ctx context.Context, collID Namespace, items []abstract.ChangeItem,
+) ([]preparedWrite, error) {
 	docIDs, err := extractDocumentIDs(items)
 	if err != nil {
 		return nil, xerrors.Errorf("cannot extract documents _id from change items for %v: %w", collID.GetFullName(), err)
@@ -35,30 +46,43 @@ func (s *sinker) splitItemsToBulkOperations(ctx context.Context, collID Namespac
 		}
 	}
 
+	writes := make([]preparedWrite, len(items))
+	for i, item := range items {
+		writes[i].docID = docIDs[i]
+
+		var docKey bson.M
+
+		if sharding.Enabled() && !sharding.IsTrivial() {
+			var err error
+			docKey, writes[i].isolated, err = sharding.GetDocumentKey(docIDs[i], &item)
+			if err != nil {
+				return nil, xerrors.Errorf("cannot get document(with _id=%v) key from sharded collection %v: %w", docIDs[i].String, collID.GetFullName(), err)
+			}
+		}
+		writes[i].model, err = s.makeWriteModel(&item, docIDs[i], docKey, sharding)
+		if err != nil {
+			return nil, xerrors.Errorf("cannot prepare item to write into collection %v: %w", collID.GetFullName(), err)
+		}
+	}
+	return writes, nil
+}
+
+// splitItemsToBulkOperations distributes items into slice of bulks by hashing the _id, so every row for a given
+// document will always be in the same bulk and keeps its event order. An ordered list of bulks is returned.
+func (s *sinker) splitItemsToBulkOperations(ctx context.Context, collID Namespace, items []abstract.ChangeItem) ([][][]mongo_driver.WriteModel, error) {
+	startPrepare := time.Now()
+
+	writes, err := s.itemsToPreparedWrites(ctx, collID, items)
+	if err != nil {
+		return nil, err
+	}
+
 	splitters := make([]bulkSplitter, s.writeConcurrency())
 	for i := range splitters {
 		splitters[i] = newBulkSplitter()
 	}
-	for i, item := range items {
-		docID := docIDs[i]
-
-		var docKey bson.M
-		shouldBeIsolated := false
-
-		if sharding.Enabled() && !sharding.IsTrivial() {
-			var err error
-			docKey, shouldBeIsolated, err = sharding.GetDocumentKey(docID, &item)
-			if err != nil {
-				return nil, xerrors.Errorf("cannot get document(with _id=%v) key from sharded collection %v: %w", docID.String, collID.GetFullName(), err)
-			}
-		}
-
-		writeModel, err := s.makeWriteModel(&item, docID, docKey, sharding)
-		if err != nil {
-			return nil, xerrors.Errorf("cannot prepare item to write into collection %v: %w", collID.GetFullName(), err)
-		}
-
-		splitters[shardOfDocumentID(docID.String, len(splitters))].Add(writeModel, docID, shouldBeIsolated)
+	for _, write := range writes {
+		splitters[shardOfDocumentID(write.docID.String, len(splitters))].Add(write.model, write.docID, write.isolated)
 	}
 	result := make([][][]mongo_driver.WriteModel, 0, len(splitters))
 	totalBulks := 0
@@ -108,6 +132,21 @@ func (s *sinker) writeConcurrency() int {
 	return sinkWriteConcurrency
 }
 
+// codeIfIsTooLargeError maps server size limit errors to user-facing error codes.
+func codeIfIsTooLargeError(err error) coded.Code {
+	var serverErr mongo_driver.ServerError
+	if !xerrors.As(err, &serverErr) {
+		return ""
+	}
+	if serverErr.HasErrorCode(stringTooLongCode) {
+		return error_codes.MongoCollectionKeyTooLarge
+	}
+	if serverErr.HasErrorCode(bsonObjectTooLargeCode) {
+		return error_codes.MongoBSONObjectTooLarge
+	}
+	return ""
+}
+
 // bulkWrite writes one bulk. All operations target distinct _ids (guaranteed by bulkSplitter), so Ordered(false) is safe – MongoDB can apply them in any order.
 // With OrderedWrites the bulk is ordered so that a failed write does not let the following ones overtake it.
 func (s *sinker) bulkWrite(ctx context.Context, collID Namespace, bulk []mongo_driver.WriteModel) error {
@@ -128,12 +167,8 @@ func (s *sinker) bulkWrite(ctx context.Context, collID Namespace, bulk []mongo_d
 			result = serialPushResult
 		} else if strings.Contains(err.Error(), "could not extract exact shard key") {
 			return xerrors.Errorf("cannot write %v documents to sharded collection %v - check if user has clusterManager or mdbShardingManager role: %w", docsNumber, collID.GetFullName(), err)
-		} else if strings.Contains(err.Error(), "BSONObjectTooLarge") || strings.Contains(err.Error(), "Tried to create string longer than 16MB") {
-			// Fallback by message
-			if strings.Contains(err.Error(), "Tried to create string longer than 16MB") {
-				return coded.Errorf(error_codes.MongoCollectionKeyTooLarge, "bulk write failed for %v: %w", collID.GetFullName(), err)
-			}
-			return coded.Errorf(error_codes.MongoBSONObjectTooLarge, "bulk write failed for %v: %w", collID.GetFullName(), err)
+		} else if code := codeIfIsTooLargeError(err); code != "" {
+			return coded.Errorf(code, "bulk write failed for %v: %w", collID.GetFullName(), err)
 		} else {
 			return xerrors.Errorf("bulk write of %v documents to %v failed: %w", docsNumber, collID.GetFullName(), err)
 		}
@@ -155,6 +190,50 @@ func (s *sinker) serialPush(ctx context.Context, collID Namespace, bulk []mongo_
 		updateBulkWriteResult(&totalResult, *iResult)
 	}
 	return &totalResult, nil
+}
+
+// retryCollectionOrdered is the E11000 fallback: re-applies the batch document by document in the source order,
+// where a write freeing a unique index value precedes its taker; ops still failing retry in rounds.
+func (s *sinker) retryCollectionOrdered(ctx context.Context, collID Namespace, items []abstract.ChangeItem) error {
+	writes, err := s.itemsToPreparedWrites(ctx, collID, items)
+	if err != nil {
+		return xerrors.Errorf("cannot prepare ordered retry of %v: %w", collID.GetFullName(), err)
+	}
+	coll := s.client.Database(collID.Database).Collection(collID.Collection)
+	startWrite := time.Now()
+	totalResult := mongo_driver.BulkWriteResult{}
+
+	toPush := writes
+	for len(toPush) > 0 {
+		var notPushed []preparedWrite
+		failedIDs := set.New[string]()
+		for _, write := range toPush {
+			if failedIDs.Contains(write.docID.String) {
+				notPushed = append(notPushed, write) // `items` can contain many items for same docID.
+				continue
+			}
+			result, err := coll.BulkWrite(ctx, []mongo_driver.WriteModel{write.model})
+			if err == nil {
+				updateBulkWriteResult(&totalResult, *result)
+				continue
+			}
+			if !mongo_driver.IsDuplicateKeyError(err) {
+				if code := codeIfIsTooLargeError(err); code != "" {
+					return coded.Errorf(code, "ordered retry write to %s failed: %w", collID.GetFullName(), err)
+				}
+				return xerrors.Errorf("ordered retry write to %s failed: %w", collID.GetFullName(), err)
+			}
+			failedIDs.Add(write.docID.String)
+			notPushed = append(notPushed, write)
+		}
+		if len(notPushed) == len(toPush) {
+			return xerrors.Errorf("ordered retry of %v cannot make progress: %d documents keep failing with duplicate key",
+				collID.GetFullName(), len(notPushed))
+		}
+		toPush = notPushed
+	}
+	s.setBulkWriteMetrics(collID, time.Since(startWrite), len(writes), &totalResult)
+	return nil
 }
 
 func updateBulkWriteResult(totalResult *mongo_driver.BulkWriteResult, partialResult mongo_driver.BulkWriteResult) {
