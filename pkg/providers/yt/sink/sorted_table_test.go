@@ -438,6 +438,69 @@ func TestIncludeTimeoutAttribute(t *testing.T) {
 	require.Equal(t, "2200-01-12T03:32:51.298047Z", expTime)
 }
 
+func TestArchiveTableAtomicityFull(t *testing.T) {
+	const tablePath = ypath.Path("//home/cdc/test/generic/temp")
+	archivePath := ypath.Path(string(tablePath) + "_archive")
+
+	env, cancel := recipe.NewEnv(t)
+	defer cancel()
+	defer teardown(env.YT, tablePath)
+	defer teardown(env.YT, archivePath)
+
+	schema_ := abstract.NewTableSchema([]abstract.ColSchema{
+		{
+			DataType:   "string",
+			ColumnName: "key",
+			PrimaryKey: true,
+		},
+		{
+			DataType:   "string",
+			ColumnName: "value",
+		},
+	})
+
+	cfg := yt2.NewYtDestinationV1(yt2.YtDestination{
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+		Atomicity:     yt.AtomicityFull,
+		NeedArchive:   true,
+	})
+	cfg.WithDefaults()
+
+	table, err := NewSortedTable(env.YT, tablePath, schema_.Columns(), cfg, stats.NewSinkerStats(metrics.NewRegistry()), logger.Log)
+	require.NoError(t, err)
+
+	require.NoError(t, table.Write([]abstract.ChangeItem{
+		{
+			TableSchema:  schema_,
+			Kind:         abstract.InsertKind,
+			ColumnNames:  []string{"key", "value"},
+			ColumnValues: []interface{}{"k1", "v1"},
+		},
+	}))
+
+	// Deleting the row forces the sink to spawn the archive table and copy the row into it, TM-... .
+	require.NoError(t, table.Write([]abstract.ChangeItem{
+		{
+			TableSchema: schema_,
+			Kind:        abstract.DeleteKind,
+			OldKeys: abstract.OldKeysType{
+				KeyNames:  []string{"key"},
+				KeyTypes:  []string{"string"},
+				KeyValues: []interface{}{"k1"},
+			},
+		},
+	}))
+
+	var mainAtomicity string
+	require.NoError(t, env.YT.GetNode(env.Ctx, tablePath.Attr("atomicity"), &mainAtomicity, nil))
+	require.Equal(t, string(yt.AtomicityFull), mainAtomicity)
+
+	var archiveAtomicity string
+	require.NoError(t, env.YT.GetNode(env.Ctx, archivePath.Attr("atomicity"), &archiveAtomicity, nil))
+	require.Equal(t, string(yt.AtomicityFull), archiveAtomicity)
+}
+
 func TestSortedTable_Write_With_Indexes(t *testing.T) {
 	env, cancel := recipe.NewEnv(t)
 	defer cancel()

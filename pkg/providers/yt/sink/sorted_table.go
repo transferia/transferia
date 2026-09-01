@@ -403,6 +403,7 @@ func (t *SortedTable) spawnArchive(ctx context.Context) error {
 		ytDestination.OptimizeFor = t.config.OptimizeFor()
 		ytDestination.DisableDatetimeHack = t.config.DisableDatetimeHack()
 		ytDestination.PrimaryMedium = t.config.PrimaryMedium()
+		ytDestination.Atomicity = t.config.Atomicity()
 		_, err := NewSortedTable(
 			t.ytClient,
 			t.archivePath,
