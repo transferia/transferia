@@ -3,6 +3,7 @@ package iceberg
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +36,34 @@ const (
 type IcebergCluster struct {
 	minioCont testcontainers_go.Container
 	restCont  testcontainers_go.Container
+}
+
+// ExternalReaderConfig returns endpoints reachable from another test container.
+// The public mapped ports are intentionally not used because their host may be
+// localhost from the test process point of view but not from a reader container.
+func (c *IcebergCluster) ExternalReaderConfig(ctx context.Context) (ExternalReaderConfig, error) {
+	restIP, err := c.restCont.ContainerIP(ctx)
+	if err != nil {
+		return ExternalReaderConfig{}, fmt.Errorf("get Iceberg REST container IP: %w", err)
+	}
+	minioIP, err := c.minioCont.ContainerIP(ctx)
+	if err != nil {
+		return ExternalReaderConfig{}, fmt.Errorf("get MinIO container IP: %w", err)
+	}
+
+	return ExternalReaderConfig{
+		RESTCatalogURI: fmt.Sprintf("http://%s:%s", restIP, strings.TrimSuffix(restPort, "/tcp")),
+		Warehouse:      DefaultBucket,
+		S3Endpoint:     fmt.Sprintf("http://minio:%s", strings.TrimSuffix(minioPort, "/tcp")),
+		S3Region:       DefaultRegion,
+		S3AccessKeyID:  DefaultAccessKey,
+		S3SecretKey:    DefaultSecretKey,
+		S3PathStyle:    true,
+		ContainerExtraHosts: []string{
+			fmt.Sprintf("minio:%s", minioIP),
+			fmt.Sprintf("%s.minio:%s", DefaultBucket, minioIP),
+		},
+	}, nil
 }
 
 // RunCluster creates and starts all containers that form the Iceberg test environment.
