@@ -1,4 +1,4 @@
-package iceberg
+package external_readers
 
 import "context"
 
