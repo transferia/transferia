@@ -31,6 +31,9 @@ const (
 	ErrcDuplicateFunction            PgErrorCode = "42723"
 	ErrcDuplicateSchema              PgErrorCode = "42P06"
 	ErrcUndefinedColumn              PgErrorCode = "42703"
+	ErrcUndefinedObject              PgErrorCode = "42704"
+	ErrcInsufficientPrivilege        PgErrorCode = "42501"
+	ErrcLockNotAvailable             PgErrorCode = "55P03"
 )
 
 func IsPgError(err error, code PgErrorCode) bool {

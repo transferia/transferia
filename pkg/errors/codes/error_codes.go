@@ -43,6 +43,9 @@ var (
 	// postgres
 	PostgresAllHostsUnavailable             = coded.Register("postgres", "all_hosts_unavailable")
 	PostgresDDLApplyFailed                  = coded.Register("postgres", "ddl_apply_failed")
+	PostgresDDLPermissionDenied             = coded.Register("postgres", "ddl_permission_denied")
+	PostgresDDLUndefinedObject              = coded.Register("postgres", "ddl_undefined_object")
+	PostgresDDLLockTimeout                  = coded.Register("postgres", "ddl_lock_timeout")
 	PostgresDropTableWithDependencies       = coded.Register("postgres", "drop_table_with_dependencies")
 	PostgresDNSResolutionFailed             = coded.Register("postgres", "dns_resolution_failed")
 	PostgresDuplicateKeyViolation           = coded.Register("postgres", "duplicate_key_violation")

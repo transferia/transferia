@@ -1938,6 +1938,7 @@
   "pkg/providers/postgres/tests/coded_errors_test.go":"transfer_manager/go/pkg/providers/postgres/tests/coded_errors_test.go",
   "pkg/providers/postgres/tests/incremental_storage_test.go":"transfer_manager/go/pkg/providers/postgres/tests/incremental_storage_test.go",
   "pkg/providers/postgres/tests/partition_source_q2s3_test.go":"transfer_manager/go/pkg/providers/postgres/tests/partition_source_q2s3_test.go",
+  "pkg/providers/postgres/tests/pg_dump_apply_test.go":"transfer_manager/go/pkg/providers/postgres/tests/pg_dump_apply_test.go",
   "pkg/providers/postgres/tests/sequence_test.go":"transfer_manager/go/pkg/providers/postgres/tests/sequence_test.go",
   "pkg/providers/postgres/tests/sharding_storage_test.go":"transfer_manager/go/pkg/providers/postgres/tests/sharding_storage_test.go",
   "pkg/providers/postgres/tests/slot_test.go":"transfer_manager/go/pkg/providers/postgres/tests/slot_test.go",

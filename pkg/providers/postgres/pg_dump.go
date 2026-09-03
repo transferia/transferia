@@ -29,7 +29,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/sink_factory"
-	"github.com/transferia/transferia/pkg/util/backoff"
+	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 	xslices "golang.org/x/exp/slices"
@@ -103,11 +103,28 @@ func ApplyCommands(commands []*pgDumpItem, transfer model.Transfer, task *model.
 			continue
 		}
 		logger.Log.Infof("Try to apply PostgreSQL DDL of type '%v', name '%v'.'%v'", command.Typ, command.Schema, command.Name)
-		if err := <-sink.AsyncPush([]abstract.ChangeItem{{
-			CommitTime:   uint64(time.Now().UnixNano()),
-			Kind:         abstract.PgDDLKind,
-			ColumnValues: []interface{}{command.Body},
-		}}); err != nil {
+		pushDDL := func() error {
+			return <-sink.AsyncPush([]abstract.ChangeItem{{
+				CommitTime:   uint64(time.Now().UnixNano()),
+				Kind:         abstract.PgDDLKind,
+				ColumnValues: []interface{}{command.Body},
+			}})
+		}
+		err := backoff.RetryNotify(
+			func() error {
+				if err := pushDDL(); err != nil {
+					// Lock timeouts (55P03) are transient: the target object is busy with another session
+					if !pgerrors.IsPgError(err, pgerrors.ErrcLockNotAvailable) {
+						err = backoff.Permanent(err)
+					}
+					return err
+				}
+				return nil
+			},
+			backoff.WithMaxRetries(backoff.NewConstantBackOff(15*time.Second), 2),
+			backoffutil.Log(context.Background(), fmt.Sprintf("apply DDL of type '%v', name '%v'.'%v'", command.Typ, command.Schema, command.Name)),
+		)
+		if err != nil {
 			if isAlreadyExistsError(err) {
 				logger.Log.Warnf("Object(type '%v', name '%v'.'%v') already exists or is already performed", command.Typ, command.Schema, command.Name)
 				continue
@@ -134,6 +151,24 @@ func ApplyCommands(commands []*pgDumpItem, transfer model.Transfer, task *model.
 			// If schema is missing, map 3F000
 			if pgerrors.IsPgError(err, pgerrors.ErrcSchemaDoesNotExists) {
 				return coded.Errorf(error_codes.PostgresSchemaDoesNotExist,
+					"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
+					command.Typ, command.Schema, command.Name, err)
+			}
+			// 42501: transfer user lacks privileges on (or ownership of) target objects
+			if pgerrors.IsPgError(err, pgerrors.ErrcInsufficientPrivilege) {
+				return coded.Errorf(error_codes.PostgresDDLPermissionDenied,
+					"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
+					command.Typ, command.Schema, command.Name, err)
+			}
+			// 42704: referenced object (operator class / type / collation) is missing on target, usually an absent extension
+			if pgerrors.IsPgError(err, pgerrors.ErrcUndefinedObject) {
+				return coded.Errorf(error_codes.PostgresDDLUndefinedObject,
+					"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
+					command.Typ, command.Schema, command.Name, err)
+			}
+			// 55P03: still locked after retries
+			if pgerrors.IsPgError(err, pgerrors.ErrcLockNotAvailable) {
+				return coded.Errorf(error_codes.PostgresDDLLockTimeout,
 					"Unable to apply DDL of type '%v', name '%v'.'%v', error: %w",
 					command.Typ, command.Schema, command.Name, err)
 			}
