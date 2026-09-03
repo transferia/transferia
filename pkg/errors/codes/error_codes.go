@@ -103,6 +103,9 @@ var (
 	// connman
 	ConnmanPermissionDenied = coded.Register("connman", "permission_denied")
 
+	// topics (Logbroker / YDS sources)
+	TopicsOffsetRewind = coded.Register("topics", "offset_rewind")
+
 	// clickhouse
 	ClickHouseToastUpdate         = coded.Register("ch", "update_toast_error")
 	ClickHouseSSLRequired         = coded.Register("ch", "ssl_required")

@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/parsers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -36,7 +38,7 @@ func (v *LbOffsetsSourceValidator) CheckLbOffsets(batches []parsers.MessageBatch
 		if firstOffset != v.partitionToLastOffset[partition]+1 {
 			prevLastOffset := v.partitionToLastOffset[partition]
 			v.partitionToLastOffset[partition] = lastOffset // for the case when (AllowTTLRewind == false), to not to spam logs
-			return xerrors.Errorf("found rewind into the session. Last offset: %v, New offset: %v, partition: %v", prevLastOffset, firstOffset, partition)
+			return coded.Errorf(error_codes.TopicsOffsetRewind, "found rewind into the session. Last offset: %v, New offset: %v, partition: %v", prevLastOffset, firstOffset, partition)
 		}
 
 		v.partitionToLastOffset[partition] = lastOffset
