@@ -45,3 +45,13 @@ func TestWrapCreateNodeCodecError(t *testing.T) {
 		require.Equal(t, ytErr, WrapCreateNodeCodecError(ytErr))
 	})
 }
+
+func TestWrapTooManyOperationsError(t *testing.T) {
+	ytErr := yterrors.Err(`Limit for the number of concurrent operations 10 for pool "dt" has been reached`, yterrors.CodeTooManyOperations)
+	var ce coded.CodedError
+	require.ErrorAs(t, WrapTooManyOperationsError(ytErr), &ce)
+	require.Equal(t, codes.YTTooManyOperations, ce.Code())
+
+	otherErr := xerrors.New("some other error")
+	require.Equal(t, otherErr, WrapTooManyOperationsError(otherErr))
+}

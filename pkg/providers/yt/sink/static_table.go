@@ -171,7 +171,7 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 		return nil
 	}
 
-	mrClient := mapreduce.New(t.ytClient).WithTx(tableWriter.runningTx)
+	mrClient := mapreduce.New(t.ytClient, mapreduce.WithConfig(provider_yt.MapReduceConfig())).WithTx(tableWriter.runningTx)
 	mergeSpec := spec.Merge()
 	mergeSpec.MergeMode = "ordered"
 	mergeSpec.InputTablePaths = []ypath.YPath{tableWriter.target, tableWriter.tmp}
@@ -179,7 +179,7 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 	mergeSpec.Pool = t.config.Pool()
 	mergeOperation, err := mrClient.Merge(mergeSpec)
 	if err != nil {
-		return xerrors.Errorf("unable to start merge: %w", err)
+		return xerrors.Errorf("unable to start merge: %w", provider_yt.WrapTooManyOperationsError(err))
 	}
 
 	t.logger.Infof("started merging target '%v' and tmp '%v'", tableWriter.target, tableWriter.tmp)

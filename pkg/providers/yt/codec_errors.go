@@ -26,3 +26,11 @@ func WrapCreateNodeCodecError(err error) error {
 	}
 	return err
 }
+
+// WrapTooManyOperationsError marks the pool concurrent operations limit error with a code.
+func WrapTooManyOperationsError(err error) error {
+	if yterrors.ContainsErrorCode(err, yterrors.CodeTooManyOperations) {
+		return coded.Errorf(codes.YTTooManyOperations, "pool operations limit reached: %w", err)
+	}
+	return err
+}

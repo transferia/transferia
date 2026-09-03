@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/library/go/ptr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"go.ytsaurus.tech/library/go/core/log"
+	"go.ytsaurus.tech/yt/go/mapreduce"
 	"go.ytsaurus.tech/yt/go/migrate"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -332,4 +333,11 @@ func WalkValueSize(v interface{}, depth int) int {
 	default:
 		return 8 //https://yt.yandex-team.ru/docs/user-guide/storage/static-tables#limitations
 	}
+}
+
+// MapReduceConfig makes the mapreduce client wait for a free slot in the pool instead of failing at once.
+func MapReduceConfig() *mapreduce.Config {
+	cfg := mapreduce.DefaultConfig()
+	cfg.ShouldRetryTooManyOperationsError = true
+	return cfg
 }

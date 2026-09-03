@@ -49,7 +49,7 @@ func (c *commitClient) sortTable(currentPath ypath.Path, sortedPath ypath.Path) 
 		return "", xerrors.Errorf("unable to create table for the sorting operation: %w", err)
 	}
 
-	sortClient := mapreduce.New(c.Client).WithTx(c.Tx)
+	sortClient := mapreduce.New(c.Client, mapreduce.WithConfig(provider_yt.MapReduceConfig())).WithTx(c.Tx)
 	sortSpec := spec.Sort()
 	sortSpec.Pool = c.Pool
 	sortSpec.InputTablePaths = []ypath.YPath{currentPath}
@@ -69,7 +69,7 @@ func (c *commitClient) sortTable(currentPath ypath.Path, sortedPath ypath.Path) 
 	}
 	mergeOperation, err := sortClient.Sort(sortSpec)
 	if err != nil {
-		return "", xerrors.Errorf("unable to start sorting operation: %w", err)
+		return "", xerrors.Errorf("unable to start sorting operation: %w", provider_yt.WrapTooManyOperationsError(err))
 	}
 
 	if err := mergeOperation.Wait(); err != nil {
@@ -106,7 +106,7 @@ func (c *commitClient) mergeTables(currentPath ypath.Path, userPath ypath.Path, 
 		keyCols = c.Scheme.KeyColumns()
 	}
 
-	mergeClient := mapreduce.New(c.Client).WithTx(c.Tx)
+	mergeClient := mapreduce.New(c.Client, mapreduce.WithConfig(provider_yt.MapReduceConfig())).WithTx(c.Tx)
 	mergeSpec := spec.Merge()
 	mergeSpec.Pool = c.Pool
 	mergeSpec.InputTablePaths = []ypath.YPath{userPath, currentPath}
@@ -121,7 +121,7 @@ func (c *commitClient) mergeTables(currentPath ypath.Path, userPath ypath.Path, 
 	}
 	mergeOperation, err := mergeClient.Merge(mergeSpec)
 	if err != nil {
-		return xerrors.Errorf("unable to start merging operation: %w", err)
+		return xerrors.Errorf("unable to start merging operation: %w", provider_yt.WrapTooManyOperationsError(err))
 	}
 
 	if err := mergeOperation.Wait(); err != nil {
@@ -144,7 +144,7 @@ func (c *commitClient) reduceTables(currentPath, userPath, reducedPath, pathToBi
 		return "", xerrors.Errorf("unable to create table for the reducing operation: %w", err)
 	}
 
-	reduceClient := mapreduce.New(c.Client).WithTx(c.Tx)
+	reduceClient := mapreduce.New(c.Client, mapreduce.WithConfig(provider_yt.MapReduceConfig())).WithTx(c.Tx)
 	reduceSpec := spec.Reduce()
 	reduceSpec.Pool = c.Pool
 	reduceSpec.InputTablePaths = []ypath.YPath{userPath, currentPath}
@@ -171,7 +171,7 @@ func (c *commitClient) reduceTables(currentPath, userPath, reducedPath, pathToBi
 
 	reduceOperation, err := reduceClient.Reduce(ytmerge.NewMergeWithDeduplicationJob(), reduceSpec, reduceOpts...)
 	if err != nil {
-		return "", xerrors.Errorf("unable to start reduce operation: %w", err)
+		return "", xerrors.Errorf("unable to start reduce operation: %w", provider_yt.WrapTooManyOperationsError(err))
 	}
 
 	if err = reduceOperation.Wait(); err != nil {

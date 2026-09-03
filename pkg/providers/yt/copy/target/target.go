@@ -138,7 +138,7 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			copySpec.InputTablePaths[0].YPath().String(),
 			t.cfg.Cluster,
 			outPath,
-			err)
+			provider_yt.WrapTooManyOperationsError(err))
 	}
 	for {
 		status, err := t.yt.GetOperation(ctx, opID, nil)
