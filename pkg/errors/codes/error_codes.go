@@ -42,6 +42,7 @@ var (
 
 	// postgres
 	PostgresAllHostsUnavailable             = coded.Register("postgres", "all_hosts_unavailable")
+	PostgresConnectionLimitTooLow           = coded.Register("postgres", "connection_limit_too_low")
 	PostgresDDLApplyFailed                  = coded.Register("postgres", "ddl_apply_failed")
 	PostgresDDLPermissionDenied             = coded.Register("postgres", "ddl_permission_denied")
 	PostgresDDLUndefinedObject              = coded.Register("postgres", "ddl_undefined_object")

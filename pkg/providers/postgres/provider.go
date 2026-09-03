@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/stats"
 	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
@@ -206,11 +207,11 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 		if src.DBLogEnabled {
 			logger.Log.Info("DBLog enabled")
 			if err := p.DBLogUpload(ctx, tables, task); err != nil {
-				return xerrors.Errorf("DBLog snapshot loading failed: %w", err)
+				return xerrors.Errorf("DBLog snapshot loading failed: %w", p.maybeWrapError(ctx, src, err))
 			}
 		} else {
 			if err := callbacks.Upload(tables); err != nil {
-				return xerrors.Errorf("Snapshot loading failed: %w", err)
+				return xerrors.Errorf("Snapshot loading failed: %w", p.maybeWrapError(ctx, src, err))
 			}
 		}
 	}
@@ -224,6 +225,24 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 		}
 	}
 	return nil
+}
+
+// maybeWrapError adds the role connection limit and the transfer parallelism to a "too many connections" error.
+func (p *Provider) maybeWrapError(ctx context.Context, src *PgSource, err error) error {
+	if pgerrors.IsPgError(err, pgerrors.ErrcTooManyConnections) || error_codes.PostgresTooManyConnections.Contains(err) {
+		if conn, connErr := MakeConnPoolFromSrc(src, p.logger); connErr == nil {
+			defer conn.Close()
+			var connLimit int
+			params := p.transfer.ParallelismParams()
+			parallelism := params.JobCount * params.ProcessCount
+			queryErr := conn.QueryRow(ctx, "SELECT rolconnlimit FROM pg_roles WHERE rolname = current_user").Scan(&connLimit)
+			if queryErr == nil && connLimit >= 0 && connLimit < parallelism {
+				return coded.Errorf(error_codes.PostgresConnectionLimitTooLow, "role connection limit is %d, transfer parallelism is %d (%d workers x %d threads): %w",
+					connLimit, parallelism, params.JobCount, params.ProcessCount, err)
+			}
+		}
+	}
+	return err
 }
 
 func (p *Provider) Verify(ctx context.Context) error {
