@@ -66,7 +66,7 @@ func TestReplication(t *testing.T) {
 	}
 	readedData := map[string]map[string]string{}
 	for _, ci := range result {
-		kk, _ := changeitem.GetSequenceKey(&ci)
+		kk, _ := changeitem.GetRawMessageSequenceKey(ci)
 		vv, _ := changeitem.GetRawMessageData(ci)
 
 		readedData[ci.TableID().String()] = map[string]string{

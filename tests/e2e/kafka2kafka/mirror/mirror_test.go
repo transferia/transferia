@@ -101,7 +101,7 @@ func TestReplication(t *testing.T) {
 	st := time.Now()
 	for time.Since(st) < time.Second*30 {
 		if len(result) == 1 {
-			kk, _ := changeitem.GetSequenceKey(&result[0])
+			kk, _ := changeitem.GetRawMessageSequenceKey(result[0])
 			vv, _ := changeitem.GetRawMessageData(result[0])
 
 			require.Equal(t, k, kk)

@@ -354,22 +354,21 @@ func makeRawChangeItem(msg kgo.Record) abstract.ChangeItem {
 }
 
 func changeItemAsMessage(ci abstract.ChangeItem) (parsers.Message, abstract.Partition) {
-	partition := uint32(ci.ColumnValues[1].(int))
-	seqNo := ci.ColumnValues[2].(uint64)
-	wTime := ci.ColumnValues[3].(time.Time)
-	var data []byte
-	switch v := ci.ColumnValues[4].(type) {
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	default:
-		panic(fmt.Sprintf("should never happen, expect string or bytes, receive: %T", ci.ColumnValues[4]))
+	partition := uint32(abstract.GetRawMessagePartition(ci))
+	seqNo := abstract.GetRawMessageSeqNo(ci)
+	wTime := abstract.GetRawMessageWriteTime(ci)
+
+	key, _ := abstract.GetRawMessageSequenceKey(ci)
+
+	data, err := abstract.GetRawMessageData(ci)
+	if err != nil {
+		panic(fmt.Sprintf("should never happen, %s", err.Error()))
 	}
+
 	return parsers.Message{
 		Offset:     ci.LSN,
 		SeqNo:      seqNo,
-		Key:        nil,
+		Key:        key,
 		CreateTime: time.Unix(0, int64(ci.CommitTime)),
 		WriteTime:  wTime,
 		Value:      data,

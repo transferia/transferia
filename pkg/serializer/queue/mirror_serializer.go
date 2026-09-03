@@ -3,7 +3,6 @@ package queue
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	parser_blank "github.com/transferia/transferia/pkg/parsers/registry/blank"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -16,7 +15,7 @@ func (s *MirrorSerializer) serialize(changeItem *abstract.ChangeItem) ([]Seriali
 	if !changeItem.IsMirror() {
 		return nil, xerrors.Errorf("MirrorSerializer should be used only with 'Mirror' changeItems")
 	}
-	key, err := changeitem.GetSequenceKey(changeItem)
+	key, err := abstract.GetRawMessageSequenceKey(*changeItem)
 	if err != nil {
 		return nil, abstract.NewFatalError(xerrors.Errorf("unable to get sequence key: %w", err))
 	}

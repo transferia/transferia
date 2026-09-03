@@ -232,3 +232,55 @@ func TestParseLSNNotSetNull(t *testing.T) {
 	require.Len(t, parsedItems, 1)
 	require.Equal(t, uint64(3), parsedItems[0].LSN)
 }
+
+func TestChangeItemAsMessageKeyRoundTrip(t *testing.T) {
+	t.Run("WithKey", func(t *testing.T) {
+		record := kgo.Record{
+			Key:       []byte("test-key-123"),
+			Value:     []byte("test-value"),
+			Topic:     "test-topic",
+			Partition: 0,
+			Offset:    42,
+			Timestamp: time.Now(),
+		}
+
+		rawChangeItem := makeRawChangeItem(record)
+		msg, _ := changeItemAsMessage(rawChangeItem)
+
+		require.Equal(t, []byte("test-key-123"), msg.Key)
+		require.Equal(t, uint64(42), msg.Offset)
+		require.Equal(t, []byte("test-value"), msg.Value)
+	})
+
+	t.Run("EmptyKey", func(t *testing.T) {
+		record := kgo.Record{
+			Key:       []byte{},
+			Value:     []byte("test-value"),
+			Topic:     "test-topic",
+			Partition: 0,
+			Offset:    42,
+			Timestamp: time.Now(),
+		}
+
+		rawChangeItem := makeRawChangeItem(record)
+		msg, _ := changeItemAsMessage(rawChangeItem)
+
+		require.Equal(t, []byte{}, msg.Key)
+	})
+
+	t.Run("NilKey", func(t *testing.T) {
+		record := kgo.Record{
+			Key:       nil,
+			Value:     []byte("test-value"),
+			Topic:     "test-topic",
+			Partition: 0,
+			Offset:    42,
+			Timestamp: time.Now(),
+		}
+
+		rawChangeItem := makeRawChangeItem(record)
+		msg, _ := changeItemAsMessage(rawChangeItem)
+
+		require.Nil(t, msg.Key)
+	})
+}

@@ -68,15 +68,27 @@ func MakeRawMessageWithMeta(sequenceKey []byte, table string, commitTime time.Ti
 
 // getters
 
-func GetSequenceKey(changeItem *ChangeItem) ([]byte, error) {
+func GetRawMessagePartition(changeItem ChangeItem) int {
+	return changeItem.ColumnValues[RawDataColsIDX[RawMessagePartition]].(int)
+}
+
+func GetRawMessageSeqNo(changeItem ChangeItem) uint64 {
+	return changeItem.ColumnValues[RawDataColsIDX[RawMessageSeqNo]].(uint64)
+}
+
+func GetRawMessageWriteTime(changeItem ChangeItem) time.Time {
+	return changeItem.ColumnValues[RawDataColsIDX[RawMessageWriteTime]].(time.Time)
+}
+
+func GetRawMessageSequenceKey(changeItem ChangeItem) ([]byte, error) {
 	if changeItem.TableSchema != RawDataSchema {
 		return nil, xerrors.Errorf("changeItem should be 'mirror'")
 	}
 	return changeItem.ColumnValues[RawDataColsIDX[RawSequenceKey]].([]byte), nil
 }
 
-func GetRawMessageData(r ChangeItem) ([]byte, error) {
-	switch v := r.ColumnValues[RawDataColsIDX[RawMessageData]].(type) {
+func GetRawMessageData(changeItem ChangeItem) ([]byte, error) {
+	switch v := changeItem.ColumnValues[RawDataColsIDX[RawMessageData]].(type) {
 	case []byte:
 		return v, nil
 	case string:

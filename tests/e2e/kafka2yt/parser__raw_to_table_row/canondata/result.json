@@ -16,7 +16,7 @@
                 0,
                 0,
                 {},
-                null,
+                "_",
                 "\u0000\u0000\u0000\u0000\u0001{\"id\":\"1\",\"name\":\"HELLO\",\"description\":\"this suit is black\",\"age\":111}"
             ],
             "commitTime": 0,
@@ -133,7 +133,7 @@
                 1,
                 0,
                 {},
-                null,
+                "_",
                 "\u0000\u0000\u0000\u0000\u0001{\"id\":\"1\", \"description\":\"this suit is black, NOT\"}"
             ],
             "commitTime": 0,
@@ -250,7 +250,7 @@
                 2,
                 0,
                 {},
-                null,
+                "_",
                 "\u0000\u0000\u0000\u0000\u0001{\"id\":\"1\", \"age\": null}"
             ],
             "commitTime": 0,
@@ -367,7 +367,7 @@
                 3,
                 0,
                 {},
-                null,
+                "_",
                 "\u0000\u0000\u0000\u0000\u0001{\"id\":\"2\",\"age\":123}"
             ],
             "commitTime": 0,
