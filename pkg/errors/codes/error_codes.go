@@ -93,6 +93,7 @@ var (
 	YTInvalidTableCompressionCodec = coded.Register("yt", "invalid_table_compression_codec")
 	YTInvalidTableErasureCodec     = coded.Register("yt", "invalid_table_erasure_codec")
 	YTTableNameCollision           = coded.Register("yt", "table_name_collision")
+	YTValueSizeLimitExceeded       = coded.Register("yt", "value_size_limit_exceeded")
 
 	// greenplum
 	GreenplumExternalUrlsExceedSegments = coded.Register("greenplum", "external_urls_exceed_segments")

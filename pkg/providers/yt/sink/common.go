@@ -13,6 +13,8 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/util"
@@ -388,25 +390,29 @@ func RestoreWithLengthLimitCheck(colSchema abstract.ColSchema, val any, ignoreBi
 				//nolint:descriptiveerrors
 				return newAnyWrapper(MagicString)
 			}
-			return res, xerrors.Errorf("string of type %v is larger than allowed for dynamic table size", colSchema.DataType)
+			return res, newValueSizeLimitError(colSchema, len(v.ysonVal), lengthLimit)
 		}
 	case []byte:
 		if len(v) > lengthLimit {
 			if ignoreBigVals {
 				return []byte(MagicString), nil
 			}
-			return res, xerrors.Errorf("string of type %v is larger than allowed for dynamic table size", colSchema.DataType)
+			return res, newValueSizeLimitError(colSchema, len(v), lengthLimit)
 		}
 	case string:
 		if len(v) > lengthLimit {
 			if ignoreBigVals {
 				return MagicString, nil
 			}
-			return res, xerrors.Errorf("string of type %v is larger than allowed for dynamic table size", colSchema.DataType)
+			return res, newValueSizeLimitError(colSchema, len(v), lengthLimit)
 		}
 	default:
 	}
 	return res, nil
+}
+
+func newValueSizeLimitError(colSchema abstract.ColSchema, size int, lengthLimit int) error {
+	return coded.Errorf(codes.YTValueSizeLimitExceeded, "value of column '%s' is %d bytes, limit is %d", colSchema.ColumnName, size, lengthLimit)
 }
 
 func restore(colSchema abstract.ColSchema, val any, isStatic bool) (any, error) {

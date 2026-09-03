@@ -6,8 +6,36 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	"go.ytsaurus.tech/yt/go/schema"
 )
+
+func TestRestoreWithLengthLimitCheck(t *testing.T) {
+	colSchema := abstract.ColSchema{ColumnName: "payload", DataType: schema.TypeString.String()}
+	const limit = 8
+
+	t.Run("value within limit is returned as is", func(t *testing.T) {
+		res, err := RestoreWithLengthLimitCheck(colSchema, "short", false, limit)
+		require.NoError(t, err)
+		require.Equal(t, "short", res)
+	})
+
+	t.Run("big value yields coded error", func(t *testing.T) {
+		_, err := RestoreWithLengthLimitCheck(colSchema, "definitely too long", false, limit)
+		require.Error(t, err)
+		var ce coded.CodedError
+		require.ErrorAs(t, err, &ce)
+		require.Equal(t, codes.YTValueSizeLimitExceeded, ce.Code())
+		require.Contains(t, err.Error(), "'payload'")
+	})
+
+	t.Run("big value is replaced with stub when discarding is enabled", func(t *testing.T) {
+		res, err := RestoreWithLengthLimitCheck(colSchema, "definitely too long", true, limit)
+		require.NoError(t, err)
+		require.Equal(t, MagicString, res)
+	})
+}
 
 func TestInferCommonType(t *testing.T) {
 	common, compatible := inferCommonPrimitiveType(schema.TypeInt8, schema.TypeInt32)
