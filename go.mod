@@ -80,7 +80,7 @@ require (
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.1
 	go.ytsaurus.tech/library/go/core/log v0.0.5
-	go.ytsaurus.tech/yt/go v0.0.33
+	go.ytsaurus.tech/yt/go v0.0.34
 	golang.org/x/crypto v0.53.0
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
 	golang.org/x/mod v0.37.0

@@ -3236,8 +3236,8 @@ go.ytsaurus.tech/library/go/x/xreflect v0.0.3 h1:LCOjVDGKjKMTaFtn+iudhPAdvcjeJSX
 go.ytsaurus.tech/library/go/x/xreflect v0.0.3/go.mod h1:D57na+z+EjaRuBo+nxgq6KPw5wfdHtO50MdcwBAzhq0=
 go.ytsaurus.tech/library/go/x/xruntime v0.0.4 h1:VNstd2dkPZEN6nsJ3C+q/fVc4b2hajQ6ZYBS7+k7aBg=
 go.ytsaurus.tech/library/go/x/xruntime v0.0.4/go.mod h1:fS4AUByc8QIHG06qxEjXYYs8B41eDh+yo2Q1Pk+msoA=
-go.ytsaurus.tech/yt/go v0.0.33 h1:ARpengm/aO5/ZBsSKfbJNK0HlsNBk7k0tjvwSrhztPQ=
-go.ytsaurus.tech/yt/go v0.0.33/go.mod h1:S57nOk+QNqKzW4Mp55GSwyRLz/Ns7IS+PXdracMruzs=
+go.ytsaurus.tech/yt/go v0.0.34 h1:CCrpHM2FuAxeA/FDKsAL6ABNMZ2fY4ZjNXO67i4T7YQ=
+go.ytsaurus.tech/yt/go v0.0.34/go.mod h1:z5CAGpGmFpENZdpCkf8spsTcAHc7k6tnELDAASwH35I=
 golang.org/x/crypto v0.0.0-20171113213409-9f005a07e0d3/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20180723164146-c126467f60eb/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20181009213950-7c1a557ab941/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
