@@ -38,6 +38,10 @@ BEGIN;
 insert into __test_incremental_ts (text, cursor) select md5(random()::text), now() from generate_Series(1,10) as s;
 COMMIT;
 
+CREATE TABLE __test_incremental_empty (
+    cursor integer
+);
+
 CREATE TABLE __test_all_keys_are_numeric (
     id            serial,
     bigserial_key bigserial,

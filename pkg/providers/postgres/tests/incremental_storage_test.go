@@ -97,6 +97,16 @@ select md5(random()::text), $1 from generate_Series(1,10) as s;
 		logger.Log.Infof("count: %v", len(incrementRes))
 		require.Len(t, incrementRes, 10)
 	})
+	t.Run("cursor type is read from catalog for empty table", func(t *testing.T) {
+		_, err := storage.GetNextIncrementalState(context.TODO(), []abstract.IncrementalTable{{
+			Name:         "__test_incremental_empty",
+			Namespace:    "public",
+			CursorField:  "cursor",
+			InitialState: "not-an-integer",
+		}})
+		require.ErrorContains(t, err, "unable get max cursor")
+		require.ErrorContains(t, err, `invalid input syntax for integer: "not-an-integer"`)
+	})
 }
 
 func TestInitialStatePopulate(t *testing.T) {
