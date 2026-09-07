@@ -39,6 +39,11 @@ func TestSafeChildName(t *testing.T) {
 		"slashes should be deduplicated",
 	)
 	require.Equal(t,
+		ypath.Path("//home/cdc/test/kry127/table"),
+		SafeChild(ypath.Path("//home/cdc/test/kry127//"), "table"),
+		"trailing slashes of the base path should not produce double slashes",
+	)
+	require.Equal(t,
 		ypath.Path("//home/cdc/test/kry127/Append/Multiple/Children/As/Relative/Path"),
 		SafeChild(basePath, "Append///Multiple", "///Children///", "As", "/Relative/Path///"),
 		"slashes should be deduplicated even when multiple children are appended",

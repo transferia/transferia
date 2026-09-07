@@ -101,7 +101,7 @@ func (s *sink) Push(items []abstract.ChangeItem) error {
 		}
 	case abstract.InsertKind:
 		if err := s.writer.Write(items); err != nil {
-			return abstract.NewTableUploadError(xerrors.Errorf("unable to push Insert items to %s: %w", tablePath, err))
+			return abstract.NewTableUploadError(xerrors.Errorf("unable to push Insert items to %s: %w", tablePath, provider_yt.WrapYTError(err)))
 		}
 	case abstract.DropTableKind:
 		if err := s.ytClient.RemoveNode(context.Background(), tablePath, &yt.RemoveNodeOptions{
@@ -112,7 +112,7 @@ func (s *sink) Push(items []abstract.ChangeItem) error {
 		}
 	case abstract.DoneTableLoad:
 		if err := s.writer.Commit(); err != nil {
-			return xerrors.Errorf("unable to push DoneTableLoad item to %s: %w", tablePath, err)
+			return xerrors.Errorf("unable to push DoneTableLoad item to %s: %w", tablePath, provider_yt.WrapYTError(err))
 		}
 		s.writer = nil
 
@@ -218,7 +218,7 @@ func (s *sink) commitPartTx() error {
 		return xerrors.New("unable to commit part transaction: part transaction hasn't been started yet")
 	}
 	if err := s.partTx.Commit(); err != nil {
-		return xerrors.Errorf("unable to commit part transaction: %w", err)
+		return xerrors.Errorf("unable to commit part transaction: %w", provider_yt.WrapYTError(err))
 	}
 	s.logger.Info("part transaction has been committed", log.Any("tx_id", s.partTx.ID()))
 

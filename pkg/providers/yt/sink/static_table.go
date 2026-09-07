@@ -84,7 +84,7 @@ func (t *StaticTable) begin(tableID abstract.TableID) error {
 	tx, err := t.ytClient.BeginTx(ctx, nil)
 	if err != nil {
 		t.logger.Error("cannot begin internal transaction for table", log.Any("table", tableID.Fqtn()), log.Error(err))
-		return err
+		return xerrors.Errorf("unable to begin transaction: %w", provider_yt.WrapYTError(err))
 	}
 	t.tablesTxs[tableID] = tx
 
@@ -179,7 +179,7 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 	mergeSpec.Pool = t.config.Pool()
 	mergeOperation, err := mrClient.Merge(mergeSpec)
 	if err != nil {
-		return xerrors.Errorf("unable to start merge: %w", provider_yt.WrapTooManyOperationsError(err))
+		return xerrors.Errorf("unable to start merge: %w", provider_yt.WrapYTError(err))
 	}
 
 	t.logger.Infof("started merging target '%v' and tmp '%v'", tableWriter.target, tableWriter.tmp)
@@ -381,7 +381,7 @@ func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, targe
 		)
 
 		if _, err := tx.CreateNode(ctx, tmpTablePath, yt.NodeTable, &createOptions); err != nil {
-			return provider_yt.WrapCreateNodeCodecError(err)
+			return provider_yt.WrapYTError(err)
 		}
 		opts := &yt.WriteTableOptions{TableWriter: t.spec}
 		w, err := tx.WriteTable(ctx, tmpTablePath, opts)

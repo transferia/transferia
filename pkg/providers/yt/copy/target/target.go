@@ -58,7 +58,7 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 	ctx := context.Background()
 	tbl := task.evt.Node()
 
-	outPath := strings.TrimRight(t.cfg.Prefix, "/") + "/" + tbl.Name
+	outPath := strings.TrimRight(t.cfg.Prefix, "/") + "/" + strings.TrimLeft(tbl.Name, "/")
 	outYPath, err := ypath.Parse(outPath)
 	if err != nil {
 		return xerrors.Errorf("error parsing ypath %s: %w", outPath, err)
@@ -118,7 +118,7 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 		}
 	}
 	if _, err := task.yt.CreateNode(ctx, tmpOutYPath, tbl.NodeType, createOpts); err != nil {
-		return xerrors.Errorf("error creating (if not exists) node %s: %w", tmpOutYPath.YPath().String(), err)
+		return xerrors.Errorf("error creating (if not exists) node %s: %w", tmpOutYPath.YPath().String(), provider_yt.WrapYTError(err))
 	}
 
 	var opID yt.OperationID
@@ -138,19 +138,23 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			copySpec.InputTablePaths[0].YPath().String(),
 			t.cfg.Cluster,
 			outPath,
-			provider_yt.WrapTooManyOperationsError(err))
+			provider_yt.WrapYTError(err))
 	}
 	for {
 		status, err := t.yt.GetOperation(ctx, opID, nil)
 		if err != nil {
-			return xerrors.Errorf("failed to get RemoteCopy (id=%s) status for node %s: %w", opID, outPath, err)
+			return xerrors.Errorf("failed to get RemoteCopy (id=%s) status for node %s: %w", opID, outPath, provider_yt.WrapYTError(err))
 		}
 		if !status.State.IsFinished() {
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		if status.State != yt.StateCompleted {
-			return xerrors.Errorf("RemoteCopy (id=%s) error for node %s: %w", opID, outPath, status.Result.Error)
+			opErr := xerrors.Errorf("operation finished in state %s", status.State)
+			if status.Result.Error != nil {
+				opErr = provider_yt.WrapYTError(status.Result.Error)
+			}
+			return xerrors.Errorf("RemoteCopy (id=%s) error for node %s: %w", opID, outPath, opErr)
 		}
 		break
 	}
@@ -165,7 +169,7 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			outYPath,
 			moveOptions,
 		); err != nil {
-			return xerrors.Errorf("unable to move tmp node: %w", err)
+			return xerrors.Errorf("unable to move tmp node: %w", provider_yt.WrapYTError(err))
 		}
 	}
 
@@ -198,7 +202,7 @@ func (t *YtCopyTarget) AsyncPush(in abstract2.EventBatch) chan error {
 		if t.cfg.UsePushTransaction {
 			tx, err := t.yt.BeginTx(context.Background(), nil)
 			if err != nil {
-				return util.MakeChanWithError(xerrors.Errorf("unable to start snapshot TX: %w", err))
+				return util.MakeChanWithError(xerrors.Errorf("unable to start snapshot TX: %w", provider_yt.WrapYTError(err)))
 			}
 
 			rollbacks.Add(func() {
@@ -250,7 +254,7 @@ func (t *YtCopyTarget) AsyncPush(in abstract2.EventBatch) chan error {
 		rollbacks.Cancel()
 		if t.cfg.UsePushTransaction {
 			if err := ytTxClient.(yt.Tx).Commit(); err != nil {
-				return util.MakeChanWithError(xerrors.Errorf("unable to commit snapshot tx: %w", err))
+				return util.MakeChanWithError(xerrors.Errorf("unable to commit snapshot tx: %w", provider_yt.WrapYTError(err)))
 			}
 		}
 		t.logger.Debug("Done processing EventBatch")

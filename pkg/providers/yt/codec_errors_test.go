@@ -1,6 +1,7 @@
 package yt
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,48 +11,55 @@ import (
 	"go.ytsaurus.tech/yt/go/yterrors"
 )
 
-func TestWrapCreateNodeCodecError(t *testing.T) {
-	t.Run("non-codec error returned unchanged", func(t *testing.T) {
-		origErr := xerrors.New("some other error")
-		require.Equal(t, origErr, WrapCreateNodeCodecError(origErr))
-	})
-
-	t.Run("invalid compression_codec detected by attribute name", func(t *testing.T) {
-		ytErr := yterrors.Err(
-			"Error setting builtin attribute \"compression_codec\"",
-			yterrors.Err(`Error parsing ECodec value "invalid_codec"`),
-		)
-		result := WrapCreateNodeCodecError(ytErr)
-
-		var ce coded.CodedError
-		require.ErrorAs(t, result, &ce)
-		require.Equal(t, codes.YTInvalidTableCompressionCodec, ce.Code())
-	})
-
-	t.Run("invalid erasure_codec detected by attribute name", func(t *testing.T) {
-		ytErr := yterrors.Err(
-			"Error setting builtin attribute \"erasure_codec\"",
-			yterrors.Err(`Error parsing ECodec value "bad_erasure"`),
-		)
-		result := WrapCreateNodeCodecError(ytErr)
-
-		var ce coded.CodedError
-		require.ErrorAs(t, result, &ce)
-		require.Equal(t, codes.YTInvalidTableErasureCodec, ce.Code())
-	})
-
-	t.Run("unrelated YT error not wrapped", func(t *testing.T) {
-		ytErr := yterrors.Err("Error setting builtin attribute \"optimize_for\"")
-		require.Equal(t, ytErr, WrapCreateNodeCodecError(ytErr))
-	})
+func requireCode(t *testing.T, err error, expected coded.Code) {
+	var ce coded.CodedError
+	require.ErrorAs(t, err, &ce)
+	require.Equal(t, expected, ce.Code())
 }
 
-func TestWrapTooManyOperationsError(t *testing.T) {
-	ytErr := yterrors.Err(`Limit for the number of concurrent operations 10 for pool "dt" has been reached`, yterrors.CodeTooManyOperations)
-	var ce coded.CodedError
-	require.ErrorAs(t, WrapTooManyOperationsError(ytErr), &ce)
-	require.Equal(t, codes.YTTooManyOperations, ce.Code())
+func TestWrapYTError(t *testing.T) {
+	t.Run("nil and unknown errors returned unchanged", func(t *testing.T) {
+		require.NoError(t, WrapYTError(nil))
+		origErr := xerrors.New("some other error")
+		require.Equal(t, origErr, WrapYTError(origErr))
+		ytErr := yterrors.Err("Error setting builtin attribute \"optimize_for\"")
+		require.Equal(t, ytErr, WrapYTError(ytErr))
+	})
 
-	otherErr := xerrors.New("some other error")
-	require.Equal(t, otherErr, WrapTooManyOperationsError(otherErr))
+	t.Run("already coded error is not overridden", func(t *testing.T) {
+		inner := coded.Errorf(codes.YTValueSizeLimitExceeded, "row too large: %w", yterrors.Err("timeout", yterrors.CodeTimeout))
+		wrapped := xerrors.Errorf("write failed: %w", inner)
+		require.Equal(t, wrapped, WrapYTError(wrapped))
+	})
+
+	t.Run("invalid codecs detected by attribute name", func(t *testing.T) {
+		requireCode(t, WrapYTError(yterrors.Err(
+			"Error setting builtin attribute \"compression_codec\"",
+			yterrors.Err(`Error parsing ECodec value "invalid_codec"`),
+		)), codes.YTInvalidTableCompressionCodec)
+		requireCode(t, WrapYTError(yterrors.Err(
+			"Error setting builtin attribute \"erasure_codec\"",
+			yterrors.Err(`Error parsing ECodec value "bad_erasure"`),
+		)), codes.YTInvalidTableErasureCodec)
+	})
+
+	t.Run("yt error codes are mapped", func(t *testing.T) {
+		cases := map[yterrors.ErrorCode]coded.Code{
+			yterrors.CodeAccountLimitExceeded:              codes.YTAccountLimitExceeded,
+			yterrors.CodeAuthorizationError:                codes.YTAccessDenied,
+			yterrors.CodeResolveError:                      codes.YTPathNotFound,
+			yterrors.CodeTooManyOperations:                 codes.YTTooManyOperations,
+			yterrors.CodeConcurrentTransactionLockConflict: codes.YTLockConflict,
+			yterrors.CodeUnavailable:                       codes.YTUnavailable,
+			yterrors.CodeTimeout:                           codes.YTUnavailable,
+		}
+		for ytCode, expected := range cases {
+			requireCode(t, WrapYTError(yterrors.Err("Error creating node", yterrors.Err("inner", ytCode))), expected)
+		}
+	})
+
+	t.Run("client-side failures are mapped by message", func(t *testing.T) {
+		requireCode(t, WrapYTError(xerrors.Errorf("call start_transaction failed: %w", context.DeadlineExceeded)), codes.YTUnavailable)
+		requireCode(t, WrapYTError(xerrors.New("load balancer could not find any available backend (code: 1000000)")), codes.YTUnavailable)
+	})
 }

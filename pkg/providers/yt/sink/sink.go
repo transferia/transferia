@@ -16,6 +16,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/errors/coded"
+	"github.com/transferia/transferia/pkg/errors/codes"
 	generic_parser "github.com/transferia/transferia/pkg/parsers/generic"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
@@ -204,13 +206,10 @@ func (s *sinker) checkTable(schema []abstract.ColSchema, table string) error {
 		genericTable, createTableErr := s.newGenericTable(provider_yt.SafeChild(s.dir, table), schema)
 		if createTableErr != nil {
 			s.logger.Error("Create table error", log.Any("table", table), log.Error(createTableErr))
-			if wrapped := provider_yt.WrapCreateNodeCodecError(createTableErr); wrapped != createTableErr {
-				return wrapped
-			}
 			if isIncompatibleSchema(createTableErr) {
-				return xerrors.Errorf("incompatible schema changes in table %s: %w", table, createTableErr)
+				return coded.Errorf(codes.YTIncompatibleSchema, "incompatible schema changes in table %s: %w", table, createTableErr)
 			}
-			return xerrors.Errorf("failed to create table in YT: %w", createTableErr)
+			return xerrors.Errorf("failed to create table in YT: %w", provider_yt.WrapYTError(createTableErr))
 		}
 		s.logger.Info("Table created", log.Any("table", table), log.Any("schema", schema))
 		s.tables.Set(table, genericTable)
@@ -365,7 +364,7 @@ func (s *sinker) pushOneBatch(table string, batch []abstract.ChangeItem) error {
 
 	if changeitem.InsertsOnly(batch) {
 		if err := s.pushSlice(batch, table); err != nil {
-			return xerrors.Errorf("unable to upload batch: %w", err)
+			return xerrors.Errorf("unable to upload batch: %w", provider_yt.WrapYTError(err))
 		}
 		s.logger.Info(
 			"Committed",
@@ -381,7 +380,7 @@ func (s *sinker) pushOneBatch(table string, batch []abstract.ChangeItem) error {
 				return xerrors.Errorf("failed while processing key update: %w", err)
 			}
 			if err := s.pushSlice(subslice, table); err != nil {
-				return xerrors.Errorf("unable to upload batch: %w", err)
+				return xerrors.Errorf("unable to upload batch: %w", provider_yt.WrapYTError(err))
 			}
 			s.logger.Info(
 				fmt.Sprintf("Upload %v changes delay %v", len(subslice), time.Since(start)),
