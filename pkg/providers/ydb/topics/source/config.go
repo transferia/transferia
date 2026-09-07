@@ -7,6 +7,8 @@ import (
 	topiccommon "github.com/transferia/transferia/pkg/providers/ydb/topics/common"
 )
 
+const defaultMaxMemory = 100 * 1024 * 1024
+
 type Config struct {
 	Connection topiccommon.ConnectionConfig
 
@@ -40,4 +42,11 @@ func NewDefaultReaderOptions() ReaderOptions {
 		MaxTimeLag:          0,
 		MinReadInterval:     0,
 	}
+}
+
+func (o ReaderOptions) MaxMemoryOrDefault() int {
+	if o.MaxMemory == 0 {
+		return defaultMaxMemory
+	}
+	return o.MaxMemory
 }

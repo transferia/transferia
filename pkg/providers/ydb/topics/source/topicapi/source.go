@@ -21,6 +21,7 @@ import (
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/queues"
 	"github.com/transferia/transferia/pkg/util/queues/lbyds"
+	"github.com/transferia/transferia/pkg/util/throttler"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -35,6 +36,8 @@ type Source struct {
 	parser        parsers.Parser
 	cloudFunction *functions.Executor
 
+	inflightThrottler throttler.Throttler
+
 	onceStop sync.Once
 	stopCh   chan struct{}
 
@@ -42,8 +45,21 @@ type Source struct {
 	metrics *stats.SourceStats
 }
 
+type batchEvent struct {
+	size    uint64
+	batches []parsers.MessageBatch
+
+	commit func()
+}
+
+func (e *batchEvent) Commit() {
+	if e.commit != nil {
+		e.commit()
+	}
+}
+
 func (s *Source) Run(sink abstract.AsyncSink) error {
-	parseQ := parsequeue.NewWaitable[*event.ReadEvent](s.logger, s.config.ParseQueueParallelism, sink, s.parserWithCloudFunc(), s.ack)
+	parseQ := parsequeue.NewWaitable[batchEvent](s.logger, s.config.ParseQueueParallelism, sink, s.parserWithCloudFunc(), s.ack)
 
 	runErr := s.run(parseQ)
 
@@ -51,9 +67,12 @@ func (s *Source) Run(sink abstract.AsyncSink) error {
 	return multierr.Combine(runErr, parseQ.Error())
 }
 
-func (s *Source) run(parseQ parsequeue.WaitableQueue[*event.ReadEvent]) error {
+func (s *Source) run(parseQ parsequeue.WaitableQueue[batchEvent]) error {
 	lastPush := time.Now()
 	for {
+		s.metrics.Usage.Set(float64(s.inflightThrottler.InflightBytes()))
+		s.inflightThrottler.WaitLimits(s.stopCh, parseQ.Done(), s.logger)
+
 		select {
 		case <-s.stopCh:
 			return nil
@@ -91,6 +110,7 @@ func (s *Source) run(parseQ parsequeue.WaitableQueue[*event.ReadEvent]) error {
 
 		case *event.ReadEvent:
 			batches := []parsers.MessageBatch{typedEvent.Batch}
+
 			if err := s.offsetsValidator.CheckLbOffsets(batches); err != nil {
 				if s.config.AllowTTLRewind {
 					s.logger.Warn("message TTL rewind detected", log.Error(err))
@@ -103,15 +123,48 @@ func (s *Source) run(parseQ parsequeue.WaitableQueue[*event.ReadEvent]) error {
 			s.logger.Debug("got topic offsets", log.Any("range", offsetRanges))
 
 			s.metrics.Master.Set(1)
-			messagesSize, messagesCount := queues.BatchStatistics(batches)
-			s.metrics.Size.Add(messagesSize)
+			messageSize, messagesCount := queues.BatchStatistics(batches)
+			s.metrics.Size.Add(messageSize)
 			s.metrics.Count.Add(messagesCount)
 
-			s.logger.Debug("processing batch",
-				log.String("size", format.SizeUInt64(uint64(messagesSize))),
+			s.logger.Debug("read batch from topic",
+				log.String("topic", typedEvent.Batch.Topic),
+				log.UInt32("partition", typedEvent.Batch.Partition),
+				log.Int64("message_count", messagesCount),
+				log.String("size", format.SizeUInt64(uint64(messageSize))),
 				log.Duration("time_since_last", time.Since(lastPush)))
-			if err := parseQ.Add(typedEvent); err != nil {
-				return xerrors.Errorf("failed to add read event to queue: %w", err)
+
+			splittedBatches := splitBatch(
+				typedEvent.Batch,
+				uint64(s.config.ReaderOpts.MaxReadSize),
+				int(s.config.ReaderOpts.MaxReadMessageCount),
+			)
+
+			if len(splittedBatches) > 1 {
+				s.logger.Debug("batch split into sub-batches",
+					log.Int("sub_batch_count", len(splittedBatches)),
+					log.Int64("original_message_count", messagesCount),
+					log.UInt32("max_read_size", s.config.ReaderOpts.MaxReadSize),
+					log.UInt32("max_message_count", s.config.ReaderOpts.MaxReadMessageCount),
+				)
+			}
+
+			s.inflightThrottler.AddInflight(uint64(messageSize))
+
+			for i := range splittedBatches {
+				var commitFunc func()
+				if i == len(splittedBatches)-1 {
+					commitFunc = typedEvent.Commit
+				}
+
+				bEvent := batchEvent{
+					size:    batchSize(splittedBatches[i]),
+					batches: []parsers.MessageBatch{splittedBatches[i]},
+					commit:  commitFunc,
+				}
+				if err := parseQ.Add(bEvent); err != nil {
+					return xerrors.Errorf("failed to add batch event to queue: %w", err)
+				}
 			}
 			lastPush = time.Now()
 		}
@@ -136,7 +189,12 @@ func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 		case *event.ReadEvent:
 			parseF := s.parserWithCloudFunc()
 
-			result, err := parseF(typedEvent)
+			bEvent := batchEvent{
+				size:    batchSize(typedEvent.Batch),
+				batches: []parsers.MessageBatch{typedEvent.Batch},
+				commit:  typedEvent.Commit,
+			}
+			result, err := parseF(bEvent)
 			if err != nil {
 				return nil, xerrors.Errorf("failed to parse fetched event: %w", err)
 			}
@@ -161,13 +219,13 @@ func (s *Source) Stop() {
 	}
 }
 
-func (s *Source) sendSynchronizeEventIfNeeded(parseQ parsequeue.WaitableQueue[*event.ReadEvent]) error {
+func (s *Source) sendSynchronizeEventIfNeeded(parseQ parsequeue.WaitableQueue[batchEvent]) error {
 	if !s.config.IsYDBTopicSink {
 		return nil
 	}
 
 	s.logger.Info("sending synchronize event")
-	if err := parseQ.Add(nil); err != nil {
+	if err := parseQ.Add(batchEvent{batches: nil, commit: nil, size: 0}); err != nil {
 		return err
 	}
 	parseQ.Wait()
@@ -175,7 +233,7 @@ func (s *Source) sendSynchronizeEventIfNeeded(parseQ parsequeue.WaitableQueue[*e
 	return nil
 }
 
-func (s *Source) parserWithCloudFunc() func(*event.ReadEvent) ([]abstract.ChangeItem, error) {
+func (s *Source) parserWithCloudFunc() func(batchEvent) ([]abstract.ChangeItem, error) {
 	var transformFunc lbyds.TransformFunc
 	if s.cloudFunction != nil {
 		transformFunc = func(data []abstract.ChangeItem) ([]abstract.ChangeItem, error) {
@@ -191,22 +249,18 @@ func (s *Source) parserWithCloudFunc() func(*event.ReadEvent) ([]abstract.Change
 		}
 	}
 
-	return func(readEvent *event.ReadEvent) ([]abstract.ChangeItem, error) {
-		if readEvent == nil {
+	return func(batchEvent batchEvent) ([]abstract.ChangeItem, error) {
+		if batchEvent.batches == nil {
 			return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}, nil
 		}
 
-		return lbyds.Parse([]parsers.MessageBatch{readEvent.Batch}, s.parser, s.metrics, s.logger, transformFunc, s.config.UseFullTopicNameForParsing)
+		return lbyds.Parse(batchEvent.batches, s.parser, s.metrics, s.logger, transformFunc, s.config.UseFullTopicNameForParsing)
 	}
 }
 
-func (s *Source) ack(readEvent *event.ReadEvent, st time.Time) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	if err := readEvent.Commit(ctx); err != nil {
-		return xerrors.Errorf("failed to commit event: %w", err)
-	}
+func (s *Source) ack(batchEvent batchEvent, st time.Time) error {
+	defer s.inflightThrottler.ReduceInflight(batchEvent.size)
+	batchEvent.Commit()
 	s.metrics.PushTime.RecordDuration(time.Since(st))
 
 	return nil
@@ -229,7 +283,7 @@ func (s *Source) watchParserResource(parser parsers.Parser) {
 	}
 }
 
-func newBaseSource(cfg *topicsource.Config, parser parsers.Parser, ydbClient *ydb.Driver, reader eventreader.EventReader, logger log.Logger, metrics *stats.SourceStats) (*Source, error) {
+func newBaseSource(cfg *topicsource.Config, parser parsers.Parser, ydbClient *ydb.Driver, reader eventreader.EventReader, inflightThrottler throttler.Throttler, logger log.Logger, metrics *stats.SourceStats) (*Source, error) {
 	var executor *functions.Executor
 	if cfg.Transformer != nil {
 		var err error
@@ -241,16 +295,17 @@ func newBaseSource(cfg *topicsource.Config, parser parsers.Parser, ydbClient *yd
 	}
 
 	src := &Source{
-		config:           cfg,
-		ydbClient:        ydbClient,
-		reader:           reader,
-		offsetsValidator: lbyds.NewLbOffsetsSourceValidator(logger),
-		parser:           parser,
-		cloudFunction:    executor,
-		onceStop:         sync.Once{},
-		stopCh:           make(chan struct{}),
-		logger:           logger,
-		metrics:          metrics,
+		config:            cfg,
+		ydbClient:         ydbClient,
+		reader:            reader,
+		offsetsValidator:  lbyds.NewLbOffsetsSourceValidator(logger),
+		parser:            parser,
+		cloudFunction:     executor,
+		inflightThrottler: inflightThrottler,
+		onceStop:          sync.Once{},
+		stopCh:            make(chan struct{}),
+		logger:            logger,
+		metrics:           metrics,
 	}
 
 	go src.watchParserResource(parser)
@@ -278,7 +333,9 @@ func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger
 		_ = reader.Close(context.Background())
 	})
 
-	src, err := newBaseSource(cfg, parser, ydbClient, reader, logger, metrics)
+	inflightThrottler := throttler.NewMemoryThrottler(uint64(cfg.ReaderOpts.MaxMemoryOrDefault()))
+
+	src, err := newBaseSource(cfg, parser, ydbClient, reader, inflightThrottler, logger, metrics)
 	if err != nil {
 		return nil, err
 	}

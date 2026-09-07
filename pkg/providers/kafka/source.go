@@ -69,38 +69,6 @@ func (s *Source) YSRNamespaceID() string {
 // actually this is throttler by consumed memory
 // backoff is needed here to not write logs too frequently
 
-func (s *Source) waitLimits(parseQDone <-chan struct{}) {
-	backoffTimer := backoff.NewExponentialBackOff()
-	backoffTimer.Reset()
-	backoffTimer.MaxElapsedTime = 0
-	nextLogDuration := backoffTimer.NextBackOff()
-	logTime := time.Now()
-
-	for s.inflightThrottler.ExceededLimits() {
-		select {
-		case <-s.ctx.Done():
-			s.logger.Warn("context aborted, stop wait for limits")
-			return
-		case <-parseQDone:
-			s.logger.Warn("parse queue stopped, stop wait for limits")
-			return
-		default:
-		}
-
-		if time.Since(logTime) > nextLogDuration {
-			logTime = time.Now()
-			nextLogDuration = backoffTimer.NextBackOff()
-			s.logger.Infof(
-				"reader throttled for %v, limits: %v / %v",
-				backoffTimer.GetElapsedTime(),
-				format.SizeUInt64(s.inflightThrottler.InflightBytes()),
-				format.SizeInt(int(s.config.BufferSizeOrDefault())),
-			)
-		}
-		time.Sleep(time.Millisecond * 20)
-	}
-}
-
 func (s *Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.NewWaitable(s.logger, s.config.ParseQueueParallelism, sink, s.parseWithSynchronizeEvent, s.ack)
 
@@ -126,7 +94,7 @@ func (s *Source) run(parseQ parsequeue.WaitableQueue[[]kgo.Record]) error {
 	bufferSize := 0
 	for {
 		s.metrics.Master.Set(1)
-		s.waitLimits(parseQ.Done())
+		s.inflightThrottler.WaitLimits(s.ctx.Done(), parseQ.Done(), s.logger)
 		select {
 		case <-s.ctx.Done():
 			return nil

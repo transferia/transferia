@@ -113,8 +113,9 @@ func TestReadAndCommitOneTopic(t *testing.T) {
 		}
 
 		for _, batch := range batches {
-			require.NoError(t, batch.Commit(ctx))
+			batch.Commit()
 		}
+		time.Sleep(1 * time.Second)
 	})
 
 	t.Run("Try to read committed messages", func(t *testing.T) {
@@ -213,8 +214,9 @@ func TestReadAndCommitManyTopics(t *testing.T) {
 		}
 
 		for _, batch := range batches {
-			require.NoError(t, batch.Commit(ctx))
+			batch.Commit()
 		}
+		time.Sleep(1 * time.Second)
 	})
 
 	t.Run("Try to read committed messages", func(t *testing.T) {
