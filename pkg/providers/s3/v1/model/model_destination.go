@@ -127,6 +127,14 @@ func (d *S3Destination) GetProviderType() abstract.ProviderType {
 }
 
 func (d *S3Destination) Validate() error {
+	if timeBased, ok := d.GetPartitioner().(*TimeBasedPartitionerConfig); ok {
+		if _, err := timeBased.PathFormat(); err != nil {
+			return xerrors.Errorf("invalid partition type of the time based partitioner: %w", err)
+		}
+		if _, err := timeBased.Location(); err != nil {
+			return xerrors.Errorf("unable to load timezone %q of the time based partitioner: %w", timeBased.Timezone, err)
+		}
+	}
 	return nil
 }
 
@@ -170,6 +178,8 @@ func (d *S3Destination) GetPartitioner() PartitionerConfig {
 	switch d.PartitionerType {
 	case DefaultPartitioner:
 		return d.PartitionerConfig.Default
+	case TimeBasedPartitioner:
+		return d.PartitionerConfig.TimeBased
 	default:
 		return d.PartitionerConfig.Default
 	}

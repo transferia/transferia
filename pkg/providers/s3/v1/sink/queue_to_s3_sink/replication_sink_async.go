@@ -127,7 +127,12 @@ func (s *AsyncSink) processRotation(ctx context.Context, resCh chan<- abstract.A
 	// s.snapshotWriter == nil during first push
 	if s.snapshotWriter != nil {
 		for i := range items {
-			if s.rotator.ShouldRotate(&items[i]) {
+			shouldRotate, err := s.rotator.ShouldRotate(&items[i])
+			if err != nil {
+				_ = s.sendStatus(ctx, resCh, err)
+				return
+			}
+			if shouldRotate {
 				firstIdx = i
 				s.processBeforeRotation(ctx, resCh, items[:firstIdx])
 				break
@@ -196,7 +201,12 @@ func (s *AsyncSink) addOffsetsToCommit(items []abstract.ChangeItem) {
 func (s *AsyncSink) AsyncV2Push(ctx context.Context, errCh chan<- abstract.AsyncPushResult, items []abstract.ChangeItem) {
 	lastItem := items[len(items)-1]
 
-	if s.rotator.ShouldRotate(&lastItem) {
+	shouldRotate, err := s.rotator.ShouldRotate(&lastItem)
+	if err != nil {
+		_ = s.sendStatus(ctx, errCh, err)
+		return
+	}
+	if shouldRotate {
 		s.processRotation(ctx, errCh, items)
 		return
 	}
@@ -209,12 +219,13 @@ func NewReplicationAsyncSink(lgr log.Logger, cfg *s3_v1_model.S3Destination, mtr
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create s3 client: %w", err)
 	}
+	partitioner := NewPartitioner(cfg)
 	return &AsyncSink{
 		logger:          lgr,
 		metrics:         stats.NewSinkerStats(mtrcs),
 		cfg:             cfg,
-		rotator:         NewRotator(cfg.GetRotator()),
-		partitioner:     NewPartitioner(cfg),
+		rotator:         NewRotator(cfg.GetRotator(), partitioner),
+		partitioner:     partitioner,
 		s3Client:        s3Client,
 		snapshotWriter:  nil, // We can not init writer in constructor, data from first received message is needed
 		offsetsToCommit: make([]uint64, 0),

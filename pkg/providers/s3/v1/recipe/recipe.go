@@ -102,7 +102,7 @@ func PrepareS3(t *testing.T, bucket string, serializer s3_v1_model.SerializerCon
 		RotatorType:       s3_v1_model.DefaultRotator,
 		RotatorConfig:     s3_v1_model.RotatorUnion{Default: &s3_v1_model.DefaultRotatorConfig{Interval: time.Hour}},
 		PartitionerType:   s3_v1_model.DefaultPartitioner,
-		PartitionerConfig: s3_v1_model.PartitionerUnion{Default: &s3_v1_model.DefaultPartitionerConfig{}},
+		PartitionerConfig: s3_v1_model.PartitionerUnion{Default: &s3_v1_model.DefaultPartitionerConfig{}, TimeBased: nil},
 		Cleanup:           model.DisabledCleanup,
 	}
 	cfg.WithDefaults()
