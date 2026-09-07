@@ -94,7 +94,7 @@ func (s *Storage) ShardTable(ctx context.Context, tableDesc abstract.TableDescri
 	err := s.db.Table().Do(ctx, func(ctx context.Context, session ydb_table.Session) (err error) {
 		tableDescription, err := session.DescribeTable(ctx, copyPath, ydb_options.WithShardKeyBounds())
 		if err != nil {
-			return xerrors.Errorf("unable to describe table: %w", err)
+			return xerrors.Errorf("unable to describe table: %w", WrapYDBError(err))
 		}
 
 		result = make([]abstract.TableDescription, len(tableDescription.KeyRanges))

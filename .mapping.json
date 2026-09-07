@@ -2209,6 +2209,8 @@
   "pkg/providers/ydb/cdc_event.go":"transfer_manager/go/pkg/providers/ydb/cdc_event.go",
   "pkg/providers/ydb/client.go":"transfer_manager/go/pkg/providers/ydb/client.go",
   "pkg/providers/ydb/decimal/parse.go":"transfer_manager/go/pkg/providers/ydb/decimal/parse.go",
+  "pkg/providers/ydb/errors.go":"transfer_manager/go/pkg/providers/ydb/errors.go",
+  "pkg/providers/ydb/errors_test.go":"transfer_manager/go/pkg/providers/ydb/errors_test.go",
   "pkg/providers/ydb/fallback_date_and_datetime_as_timestamp.go":"transfer_manager/go/pkg/providers/ydb/fallback_date_and_datetime_as_timestamp.go",
   "pkg/providers/ydb/gotest/canondata/result.json":"transfer_manager/go/pkg/providers/ydb/gotest/canondata/result.json",
   "pkg/providers/ydb/logadapter/adapter.go":"transfer_manager/go/pkg/providers/ydb/logadapter/adapter.go",

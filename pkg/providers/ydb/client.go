@@ -39,7 +39,7 @@ func newYDBDriver(
 		if s, ok := grpc_status.FromError(err); ok && s.Code() == grpc_codes.NotFound {
 			return nil, coded.Errorf(error_codes.YDBNotFound, "Cannot create YDB driver: %w", err)
 		}
-		return nil, xerrors.Errorf("Cannot create YDB driver: %w", err)
+		return nil, xerrors.Errorf("Cannot create YDB driver: %w", WrapYDBError(err))
 	}
 	return d, nil
 }

@@ -95,7 +95,7 @@ func (s *Storage) Ping() error {
 func (s *Storage) traverse(directoryPath string) ([]string, error) {
 	parent, err := s.db.Scheme().ListDirectory(context.Background(), path.Join(s.config.Database, directoryPath))
 	if err != nil {
-		return nil, xerrors.Errorf("unable to list: %s: %w", directoryPath, err)
+		return nil, xerrors.Errorf("unable to list: %s: %w", directoryPath, WrapYDBError(err))
 	}
 	res := make([]string, 0)
 	for _, p := range parent.Children {
@@ -155,7 +155,7 @@ func (s *Storage) listaAllTablesToTransfer(ctx context.Context) ([]string, error
 
 			entry, err := s.db.Scheme().DescribePath(ctx, currFullPath)
 			if err != nil {
-				return nil, xerrors.Errorf("unable to describe path, path:%s, err:%w", currPath, err)
+				return nil, xerrors.Errorf("unable to describe path, path:%s, err:%w", currPath, WrapYDBError(err))
 			}
 
 			if entry.Type == ydb_scheme.EntryDirectory {
@@ -244,7 +244,7 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 
 		tableDescription, err := session.DescribeTable(ctx, tablePath, ydb_options.WithShardKeyBounds())
 		if err != nil {
-			return xerrors.Errorf("unable to describe table: %w", err)
+			return xerrors.Errorf("unable to describe table: %w", WrapYDBError(err))
 		}
 		if s.config.IsSnapshotSharded {
 			keyRange := tableDescription.KeyRanges[tableDescr.Offset]
@@ -354,7 +354,7 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 		}
 	}
 	if res.Err() != nil {
-		return xerrors.Errorf("stream read table error: %w", res.Err())
+		return xerrors.Errorf("stream read table error: %w", WrapYDBError(res.Err()))
 	}
 
 	if len(batch) > 0 {

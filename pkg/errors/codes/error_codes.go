@@ -85,8 +85,11 @@ var (
 	OnPremEndpointNetworkFailed = coded.Register("onprem", "endpoint_network_failed")
 
 	// ydb
-	YDBNotFound   = coded.Register("ydb", "not_found")
-	YDBOverloaded = coded.Register("ydb", "overloaded")
+	YDBNotFound         = coded.Register("ydb", "not_found")
+	YDBOverloaded       = coded.Register("ydb", "overloaded")
+	YDBAccessDenied     = coded.Register("ydb", "access_denied")
+	YDBUnavailable      = coded.Register("ydb", "unavailable")
+	YDBConnectionFailed = coded.Register("ydb", "connection_failed")
 
 	// ytsaurus
 	YTSaurusNotFound               = coded.Register("yt", "not_found")
