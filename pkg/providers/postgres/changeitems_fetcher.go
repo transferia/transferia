@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -130,7 +131,7 @@ func (f *ChangeItemsFetcher) Fetch() (items []abstract.ChangeItem, err error) {
 		if xerrors.Is(err, io.ErrUnexpectedEOF) {
 			err = xerrors.Errorf("connection closed unexpectedly: %w", err)
 		}
-		return nil, xerrors.Errorf("failed while reading data from source: %w", err)
+		return nil, xerrors.Errorf("failed while reading data from source: %w", pgerrors.Wrap(err))
 	}
 
 	f.logger.Debugf("Finishing chunk of %d ChangeItems (%s) due to exhaustion of data in result set", resultCount, humanize.Bytes(uint64(resultBytes)))

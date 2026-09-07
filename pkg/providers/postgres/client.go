@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/transferia/transferia/internal/logger"
@@ -529,7 +528,7 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	defer cancel()
 	pgxConn, err := pgx.ConnectConfig(basicCtx, poolConfig.ConnConfig)
 	if err != nil {
-		if pgerrors.IsPgError(err, pgerrors.ErrcInvalidPassword) || pgerrors.IsPgError(err, pgerrors.ErrcInvalidAuthSpec) || pgerrors.IsPgError(err, pgerrors.ErrcInvalidCatalogName) {
+		if pgerrors.IsPgError(err, pgerrors.ErrcInvalidPassword) || pgerrors.IsPgError(err, pgerrors.ErrcInvalidAuthSpec) {
 			return nil, coded.Errorf(error_codes.InvalidCredential, "failed to connect to a PostgreSQL instance: %w", err)
 		}
 		var dnsErr *net.DNSError
@@ -544,7 +543,7 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 		if xerrors.As(err, &opErr) && opErr.Op == "dial" {
 			return nil, coded.Errorf(error_codes.Dial, "failed to dial a PostgreSQL instance: %w", err)
 		}
-		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance: %w", err)
+		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance: %w", pgerrors.Wrap(err))
 	}
 	defer func() {
 		closeCtx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
@@ -555,7 +554,7 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	}()
 	statementTimeout, err := pgStatementTimeout(basicCtx, pgxConn)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get statement timeout from a PostgreSQL instance: %w", err)
+		return nil, xerrors.Errorf("failed to get statement timeout from a PostgreSQL instance: %w", pgerrors.Wrap(err))
 	}
 	cancel()
 
@@ -563,16 +562,10 @@ func NewPgConnPoolConfig(ctx context.Context, poolConfig *pgxpool.Config) (*pgxp
 	defer cancel()
 	result, err := pgxpool.ConnectConfig(goodTimeoutCtx, poolConfig)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if xerrors.As(err, &pgErr) {
-			if pgErr.Code == string(pgerrors.ErrcTooManyConnections) {
-				return nil, coded.Errorf(error_codes.PostgresTooManyConnections, "failed to connect: too many connections: %w", err)
-			}
-		}
 		if util.ContainsAnySubstrings(err.Error(), "certificate verify failed", "SSL error: certificate verify failed") {
 			return nil, coded.Errorf(error_codes.PostgresSSLVerifyFailed, "failed to connect to a PostgreSQL instance: %w", err)
 		}
-		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance or create a connection pool: %w", err)
+		return nil, xerrors.Errorf("failed to connect to a PostgreSQL instance or create a connection pool: %w", pgerrors.Wrap(err))
 	}
 
 	return result, nil

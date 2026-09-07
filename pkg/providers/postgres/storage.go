@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/dblog/tablequery"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -528,7 +529,7 @@ func (s *Storage) ExactTableDescriptionRowsCount(ctx context.Context, table abst
 			logger.Log.Warn("Calculating table rows count took too long - we recomment create index on cursor column", log.String("table", table.String()))
 			return 0, nil
 		}
-		return 0, xerrors.Errorf("failed to count rows in table %s: %w", table.String(), err)
+		return 0, xerrors.Errorf("failed to count rows in table %s: %w", table.String(), pgerrors.Wrap(err))
 	}
 	return count, nil
 }
@@ -613,7 +614,7 @@ func RowCount(ctx context.Context, conn *pgx.Conn, table *abstract.TableDescript
 	query := exactCountQuery(table)
 	var count uint64
 	if err := conn.QueryRow(ctx, query).Scan(&count); err != nil {
-		return 0, xerrors.Errorf("failed to count rows in table %s: %w", table.String(), err)
+		return 0, xerrors.Errorf("failed to count rows in table %s: %w", table.String(), pgerrors.Wrap(err))
 	}
 	logger.Log.Info("The exact number of rows in source table has been calculated", log.String("table", table.String()), log.String("query", query), log.UInt64("rows", count))
 	return count, nil
@@ -840,7 +841,7 @@ func (s *Storage) loadSample(
 	queryParams := readQueryParams(useBinary, len(tableSchema.Columns()))
 	rows, err := tx.Query(ctx, query, queryParams...)
 	if err != nil {
-		return xerrors.Errorf("failed to execute SELECT: %w", err)
+		return xerrors.Errorf("failed to execute SELECT: %w", pgerrors.Wrap(err))
 	}
 	defer rows.Close()
 
@@ -1372,7 +1373,7 @@ func (s *Storage) loadTable(
 	params := readQueryParams(useBinary, len(schema.Columns()))
 	rows, err := conn.Query(ctx, readQuery, params...)
 	if err != nil {
-		return xerrors.Errorf("failed to execute SELECT: %w", err)
+		return xerrors.Errorf("failed to execute SELECT: %w", pgerrors.Wrap(err))
 	}
 	defer rows.Close()
 

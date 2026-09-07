@@ -86,6 +86,9 @@ func (slot *Slot) Create() error {
 			if util.ContainsAnySubstrings(err.Error(), "to use replication slots", "to use logical replication slots") {
 				return coded.Errorf(error_codes.PostgresReplicationSlotPermissionDenied, "failed to create a replication slot: %w", err)
 			}
+			if util.ContainsAnySubstrings(err.Error(), "may not be used as an output plugin") {
+				return coded.Errorf(error_codes.PostgresOutputPluginNotAllowed, "failed to create a replication slot: %w", err)
+			}
 			return coded.Errorf(error_codes.PostgresReplicationSlotCreateFailed, "failed to create a replication slot: %w", err)
 		}
 		return nil

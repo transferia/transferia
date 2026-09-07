@@ -1879,6 +1879,8 @@
   "pkg/providers/postgres/partition_source_test.go":"transfer_manager/go/pkg/providers/postgres/partition_source_test.go",
   "pkg/providers/postgres/pg_dump.go":"transfer_manager/go/pkg/providers/postgres/pg_dump.go",
   "pkg/providers/postgres/pg_dump_test.go":"transfer_manager/go/pkg/providers/postgres/pg_dump_test.go",
+  "pkg/providers/postgres/pgerrors/coded.go":"transfer_manager/go/pkg/providers/postgres/pgerrors/coded.go",
+  "pkg/providers/postgres/pgerrors/coded_test.go":"transfer_manager/go/pkg/providers/postgres/pgerrors/coded_test.go",
   "pkg/providers/postgres/pgerrors/pgerrors.go":"transfer_manager/go/pkg/providers/postgres/pgerrors/pgerrors.go",
   "pkg/providers/postgres/pgerrors/pgerrors_test.go":"transfer_manager/go/pkg/providers/postgres/pgerrors/pgerrors_test.go",
   "pkg/providers/postgres/pgrecipe/postgres_recipe.go":"transfer_manager/go/pkg/providers/postgres/pgrecipe/postgres_recipe.go",
