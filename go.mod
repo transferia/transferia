@@ -42,7 +42,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/jhump/protoreflect v1.17.0
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/klauspost/compress v1.18.4
+	github.com/klauspost/compress v1.18.5
 	github.com/mattn/go-isatty v0.0.21
 	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c
 	github.com/montanaflynn/stats v0.7.1
