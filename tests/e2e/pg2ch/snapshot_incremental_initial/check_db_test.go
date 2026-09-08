@@ -26,7 +26,9 @@ func init() {
 	helpers.InitSrcDst(helpers.TransferID, Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
-func testSnapshot(t *testing.T, source *provider_postgres.PgSource, target clickhouse_model.ChDestination) {
+func testSnapshot(t *testing.T, source *provider_postgres.PgSource, target clickhouse_model.ChDestination, incremental abstract.IncrementalTable, expectedRows uint64) {
+	t.Helper()
+
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
 			helpers.LabeledPort{Label: "PG source", Port: source.Port},
@@ -35,30 +37,72 @@ func testSnapshot(t *testing.T, source *provider_postgres.PgSource, target click
 		))
 	}()
 
+	source.DBTables = []string{incremental.Namespace + "." + incremental.Name}
+	source.SlotID = ""
 	transfer := helpers.MakeTransferForIncrementalSnapshot(
-		helpers.TransferID,
+		helpers.TransferID+"_"+incremental.Name,
 		source,
 		&target,
 		TransferType,
-		"public",
-		"__test_incremental",
-		"updated_at",
-		`'2022-09-27 00:00:00Z'`,
+		incremental.Namespace,
+		incremental.Name,
+		incremental.CursorField,
+		incremental.InitialState,
 		0,
 	)
 	_ = helpers.Activate(t, transfer)
 
+	destination := helpers.GetSampleableStorageByModel(t, target)
+	defer destination.Close()
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
-		"public",
-		"__test_incremental",
-		helpers.GetSampleableStorageByModel(t, target),
+		incremental.Namespace,
+		incremental.Name,
+		destination,
 		time.Minute,
-		1000,
+		expectedRows,
 	))
 }
 
 func TestSnapshot(t *testing.T) {
-	target := Target
-
-	testSnapshot(t, Source, target)
+	for _, tc := range []struct {
+		name         string
+		incremental  abstract.IncrementalTable
+		expectedRows uint64
+	}{
+		{
+			name: "quoted timestamp",
+			incremental: abstract.IncrementalTable{
+				Namespace:    "public",
+				Name:         "__test_incremental",
+				CursorField:  "updated_at",
+				InitialState: `'2022-09-27 00:00:00Z'`,
+			},
+			expectedRows: 1000,
+		},
+		{
+			name: "to_date for timestamptz",
+			incremental: abstract.IncrementalTable{
+				Namespace:    "public",
+				Name:         "__test_incremental_timestamptz",
+				CursorField:  "updated_at",
+				InitialState: `to_date('2023-01-01', 'YYYY-MM-DD')`,
+			},
+			expectedRows: 2,
+		},
+		{
+			name: "timestamp literal",
+			incremental: abstract.IncrementalTable{
+				Namespace:    "public",
+				Name:         "__test_incremental_timestamp_literal",
+				CursorField:  "update_time",
+				InitialState: `timestamp'2000-03-16'`,
+			},
+			expectedRows: 2,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := *Source
+			testSnapshot(t, &source, Target, tc.incremental, tc.expectedRows)
+		})
+	}
 }

@@ -77,18 +77,19 @@ func (s *Storage) GetNextIncrementalState(ctx context.Context, incremental []abs
 		var nextValueQ string
 
 		if table.InitialState != "" {
+			// InitialState is a SQL expression, as in SetInitialState.
 			nextValueQ = fmt.Sprintf(`SELECT %[1]s
 				FROM %[2]s
 				WHERE %[1]s IS NOT NULL
-				  AND %[1]s > $1::text::%[3]s
+				  AND %[1]s > %[3]s
 				ORDER BY %[1]s DESC
 				LIMIT 1`,
-				cursor,     // %[1]s
-				relation,   // %[2]s
-				cursorType, // %[3]s
+				cursor,             // %[1]s
+				relation,           // %[2]s
+				table.InitialState, // %[3]s
 			)
 			logger.Log.Info("built query for next incremental state", log.String("query", nextValueQ))
-			row = tx.QueryRow(ctx, nextValueQ, table.InitialState)
+			row = tx.QueryRow(ctx, nextValueQ)
 		} else {
 			nextValueQ = fmt.Sprintf(
 				`SELECT %[1]s
