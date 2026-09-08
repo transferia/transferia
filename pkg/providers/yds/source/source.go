@@ -51,6 +51,10 @@ func newYDSSource(transferID string, cfg *YDSSource, logger log.Logger, sourceMe
 }
 
 func newYDBTopicSource(cfg *YDBTopicSource, logger log.Logger, sourceMetrics *stats.SourceStats) (abstract.Source, error) {
+	if err := cfg.prepareConfig(); err != nil {
+		return nil, xerrors.Errorf("unable to prepare source: %w", err)
+	}
+
 	parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, sourceMetrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to make parser: %w", err)
