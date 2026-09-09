@@ -98,7 +98,7 @@ func Connect(params *ConnectionParams, configAction func(config *mysql_driver2.C
 		}
 		// Check for connection timeout / dial errors
 		var opErr *net.OpError
-		if xerrors.As(err, &opErr) && opErr.Op == "dial" {
+		if (xerrors.As(err, &opErr) && opErr.Op == "dial") || xerrors.Is(err, context.DeadlineExceeded) {
 			return nil, coded.Errorf(error_codes.Dial, "Can't ping server: %w", err)
 		}
 		// MySQL error 1049 (42000): Unknown database

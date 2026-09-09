@@ -54,7 +54,7 @@ func (pg *PgHA) Close() error {
 func (pg *PgHA) hostByRole(role dbaas.Role) (*string, error) {
 	var node hasql.Node
 	// Create cluster handler
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	var err error
 	if role == dbaas.ANY {

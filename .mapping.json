@@ -1358,6 +1358,8 @@
   "pkg/providers/clickhouse/conn/connection_test.go":"transfer_manager/go/pkg/providers/clickhouse/conn/connection_test.go",
   "pkg/providers/clickhouse/conn/tls.go":"transfer_manager/go/pkg/providers/clickhouse/conn/tls.go",
   "pkg/providers/clickhouse/errors/check_distributed.go":"transfer_manager/go/pkg/providers/clickhouse/errors/check_distributed.go",
+  "pkg/providers/clickhouse/errors/coded.go":"transfer_manager/go/pkg/providers/clickhouse/errors/coded.go",
+  "pkg/providers/clickhouse/errors/coded_test.go":"transfer_manager/go/pkg/providers/clickhouse/errors/coded_test.go",
   "pkg/providers/clickhouse/errors/ddl_error.go":"transfer_manager/go/pkg/providers/clickhouse/errors/ddl_error.go",
   "pkg/providers/clickhouse/errors/error.go":"transfer_manager/go/pkg/providers/clickhouse/errors/error.go",
   "pkg/providers/clickhouse/errors/error_test.go":"transfer_manager/go/pkg/providers/clickhouse/errors/error_test.go",
