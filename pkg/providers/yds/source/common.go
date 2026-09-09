@@ -30,12 +30,18 @@ func buildTopicSourceConfig(defaultConsumer string, cfg *YDSSource) *topicsource
 		Topics:   []string{cfg.Stream},
 		Consumer: consumer,
 		ReaderOpts: topicsource.ReaderOptions{
-			ReadOnlyLocal:       false,
-			MaxMemory:           300 * 1024 * 1024,
-			MaxReadSize:         1 * 1024 * 1024,
-			MaxReadMessageCount: 0,
-			MaxTimeLag:          0,
-			MinReadInterval:     0,
+			MaxMemory: 300 * 1024 * 1024,
+			PQv1: topicsource.PQv1ReaderOptions{
+				ReadOnlyLocal:       false,
+				MaxReadSize:         1 * 1024 * 1024,
+				MaxReadMessageCount: 0,
+				MaxTimeLag:          0,
+				MinReadInterval:     0,
+			},
+			TopicAPI: topicsource.TopicAPIReaderOptions{
+				MaxBatchSize:         0,
+				MaxBatchMessageCount: 0,
+			},
 		},
 		Transformer: cfg.Transformer,
 

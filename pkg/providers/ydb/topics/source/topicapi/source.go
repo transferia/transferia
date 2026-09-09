@@ -136,16 +136,15 @@ func (s *Source) run(parseQ parsequeue.WaitableQueue[batchEvent]) error {
 
 			splittedBatches := splitBatch(
 				typedEvent.Batch,
-				uint64(s.config.ReaderOpts.MaxReadSize),
-				int(s.config.ReaderOpts.MaxReadMessageCount),
+				s.config.ReaderOpts.TopicAPI.MaxBatchSizeOrDefault(),
+				s.config.ReaderOpts.TopicAPI.MaxBatchMessageCount,
 			)
 
 			if len(splittedBatches) > 1 {
 				s.logger.Debug("batch split into sub-batches",
 					log.Int("sub_batch_count", len(splittedBatches)),
-					log.Int64("original_message_count", messagesCount),
-					log.UInt32("max_read_size", s.config.ReaderOpts.MaxReadSize),
-					log.UInt32("max_message_count", s.config.ReaderOpts.MaxReadMessageCount),
+					log.UInt32("max_batch_size", s.config.ReaderOpts.TopicAPI.MaxBatchSizeOrDefault()),
+					log.Int("max_batch_message_count", s.config.ReaderOpts.TopicAPI.MaxBatchMessageCount),
 				)
 			}
 

@@ -5,7 +5,7 @@ import "github.com/transferia/transferia/pkg/parsers"
 // splitBatch cuts a single-partition batch into parts bounded by maxSize and
 // maxMessageCount; a zero limit means unbounded. Always returns at least one
 // batch, and a message larger than maxSize is emitted as its own batch.
-func splitBatch(batch parsers.MessageBatch, maxSize uint64, maxMessageCount int) []parsers.MessageBatch {
+func splitBatch(batch parsers.MessageBatch, maxSize uint32, maxMessageCount int) []parsers.MessageBatch {
 	if maxSize == 0 && maxMessageCount == 0 {
 		return []parsers.MessageBatch{batch}
 	}
@@ -14,12 +14,12 @@ func splitBatch(batch parsers.MessageBatch, maxSize uint64, maxMessageCount int)
 		return []parsers.MessageBatch{batch}
 	}
 
+	var start int
+	var currentSize uint32
 	batches := make([]parsers.MessageBatch, 0)
-	start := 0
-	currentSize := uint64(0)
 
 	for i := 0; i < len(batch.Messages); i++ {
-		msgSize := uint64(len(batch.Messages[i].Value))
+		msgSize := uint32(len(batch.Messages[i].Value))
 		currentCount := i - start
 
 		shouldSplit := false

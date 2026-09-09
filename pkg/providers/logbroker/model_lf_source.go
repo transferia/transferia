@@ -137,12 +137,18 @@ func (s *LfSource) buildTopicSourceConfig() *topicsource.Config {
 		Topics:   s.Topics,
 		Consumer: s.Consumer,
 		ReaderOpts: topicsource.ReaderOptions{
-			ReadOnlyLocal:       s.Cluster != "" || s.OnlyLocal,
-			MaxMemory:           int(s.MaxMemory),
-			MaxReadSize:         uint32(s.MaxReadSize),
-			MaxReadMessageCount: s.MaxReadMessagesCount,
-			MaxTimeLag:          s.MaxTimeLag,
-			MinReadInterval:     time.Millisecond * 95,
+			MaxMemory: int(s.MaxMemory),
+			PQv1: topicsource.PQv1ReaderOptions{
+				ReadOnlyLocal:       s.Cluster != "" || s.OnlyLocal,
+				MaxReadSize:         uint32(s.MaxReadSize),
+				MaxReadMessageCount: s.MaxReadMessagesCount,
+				MaxTimeLag:          s.MaxTimeLag,
+				MinReadInterval:     time.Millisecond * 95,
+			},
+			TopicAPI: topicsource.TopicAPIReaderOptions{
+				MaxBatchSize:         0,
+				MaxBatchMessageCount: 0,
+			},
 		},
 		Transformer: nil,
 
