@@ -12,7 +12,8 @@
                 "t_bit_1",
                 "t_bit_8",
                 "t_varbit_8",
-                "t_bytea"
+                "t_bytea",
+                "t_uuid"
             ]
         },
         "ColumnValues": {
@@ -57,6 +58,10 @@
                 {
                     "type": "[]uint8",
                     "value": "yv66vg=="
+                },
+                {
+                    "type": "string",
+                    "value": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
                 }
             ]
         },
@@ -103,8 +108,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 64,
-                "Values": 397
+                "Read": 100,
+                "Values": 465
             }
         },
         "Table": {
@@ -233,6 +238,18 @@
                     "required": false,
                     "expression": "",
                     "original_type": "pg:bytea"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_uuid",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:uuid"
                 }
             ]
         },
@@ -254,7 +271,8 @@
                 "t_bit_1",
                 "t_bit_8",
                 "t_varbit_8",
-                "t_bytea"
+                "t_bytea",
+                "t_uuid"
             ]
         },
         "ColumnValues": {
@@ -299,6 +317,10 @@
                 {
                     "type": "[]uint8",
                     "value": ""
+                },
+                {
+                    "type": "nil",
+                    "value": null
                 }
             ]
         },
@@ -346,7 +368,7 @@
             "type": "changeitem.EventSize",
             "value": {
                 "Read": 17,
-                "Values": 354
+                "Values": 370
             }
         },
         "Table": {
@@ -475,6 +497,18 @@
                     "required": false,
                     "expression": "",
                     "original_type": "pg:bytea"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_uuid",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:uuid"
                 }
             ]
         },
@@ -496,7 +530,8 @@
                 "t_bit_1",
                 "t_bit_8",
                 "t_varbit_8",
-                "t_bytea"
+                "t_bytea",
+                "t_uuid"
             ]
         },
         "ColumnValues": {
@@ -505,6 +540,10 @@
                 {
                     "type": "int32",
                     "value": 3
+                },
+                {
+                    "type": "nil",
+                    "value": null
                 },
                 {
                     "type": "nil",
@@ -588,7 +627,7 @@
             "type": "changeitem.EventSize",
             "value": {
                 "Read": 1,
-                "Values": 188
+                "Values": 204
             }
         },
         "Table": {
@@ -717,6 +756,18 @@
                     "required": false,
                     "expression": "",
                     "original_type": "pg:bytea"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "text_types",
+                    "path": "",
+                    "name": "t_uuid",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:uuid"
                 }
             ]
         },

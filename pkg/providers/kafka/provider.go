@@ -128,9 +128,7 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if !src.SynchronizeIsNeeded {
 		src.SynchronizeIsNeeded = p.transfer.DstType() == "lb" // sorry for that
 	}
-	if len(p.transfer.DataObjects.GetIncludeObjects()) > 0 && len(src.GroupTopics) == 0 { // infer topics from transfer
-		src.GroupTopics = p.transfer.DataObjects.GetIncludeObjects()
-	}
+	src.GroupTopics = p.inferTopicsFromTransfer(src)
 	return NewSource(p.transfer.ID, src, p.logger, p.registry)
 }
 
@@ -139,8 +137,17 @@ func (p *Provider) PartitionLister() (abstract.PartitionLister, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
+	src.GroupTopics = p.inferTopicsFromTransfer(src)
 
 	return NewPartitionLister(src)
+}
+
+func (p *Provider) inferTopicsFromTransfer(src *KafkaSource) []string {
+	topics := p.transfer.DataObjects.GetIncludeObjects()
+	if len(topics) != 0 && len(src.GroupTopics) == 0 {
+		return topics
+	}
+	return src.GroupTopics
 }
 
 func (p *Provider) PartitionSource(partition abstract.Partition) (abstract.QueueToS3Source, error) {

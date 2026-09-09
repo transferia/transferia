@@ -14,11 +14,17 @@ type TableReference struct {
 	Name      string
 }
 
-// ReadResult contains values in the textual representation returned by the reader.
-// This keeps the contract independent of an engine-specific type system or driver.
+// ReadCell contains a value in the textual representation returned by the reader.
+// IsNull distinguishes SQL NULL from a non-null empty string.
+type ReadCell struct {
+	Value  string
+	IsNull bool
+}
+
+// ReadResult contains values in an engine-independent textual representation.
 type ReadResult struct {
 	Columns []string
-	Rows    [][]string
+	Rows    [][]ReadCell
 }
 
 type ExternalReaderConfig struct {

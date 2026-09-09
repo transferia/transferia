@@ -78,6 +78,20 @@ type QueueToS3Destination interface {
 	IsQueueToS3Destination()
 }
 
+// QueueOffsetDependantDestination marks a destination whose replication
+// state relies on the source QueueMessageMeta.Offset/Index pair.
+type QueueOffsetDependantDestination interface {
+	Destination
+	IsQueueOffsetDependantDestination()
+}
+
+// SingleTableDestination marks a destination that can apply CDC events to
+// only one logical table in a replication stream.
+type SingleTableDestination interface {
+	Destination
+	IsSingleTableDestination()
+}
+
 type AlterableDestination interface {
 	Destination
 	IsAlterable()

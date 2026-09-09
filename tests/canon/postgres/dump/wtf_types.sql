@@ -15,7 +15,14 @@ create table if not exists  public.wtf_types
     t_citext citext,
 
     j json,
-    jb jsonb
+    jb jsonb,
+    t_xml xml,
+    t_int4range int4range,
+    t_int8range int8range,
+    t_numrange numrange,
+    t_daterange daterange,
+    t_tsrange tsrange,
+    t_tstzrange tstzrange
 );
 
 INSERT INTO public.wtf_types VALUES
@@ -30,7 +37,14 @@ INSERT INTO public.wtf_types VALUES
     'Tom', -- t_citext
 
     '{"k": "v", "ki": 42, "kf": 1.2, "kn": null, "ks": "Ho Ho Ho my name''s \"SANTA CLAWS\""}', -- j json
-    '"\"String in quotes\""' -- jb jsonb
+    '"\"String in quotes\""', -- jb jsonb
+    '<root><value>iceberg</value></root>', -- t_xml
+    '[1,10)', -- t_int4range
+    '[10000000000,10000000010)', -- t_int8range
+    '[1.25,9.75)', -- t_numrange
+    '[2024-01-01,2024-02-01)', -- t_daterange
+    '[2024-02-29 12:00:00,2024-03-01 12:00:00)', -- t_tsrange
+    '[2024-02-29 12:00:00+03,2024-03-01 12:00:00+03)' -- t_tstzrange
 );
 
 -- insert into public.wtf_types (__primary_key, j, jb)
@@ -187,7 +201,14 @@ INSERT INTO public.wtf_types
     t_ltree,
     t_citext,
     j,
-    jb
+    jb,
+    t_xml,
+    t_int4range,
+    t_int8range,
+    t_numrange,
+    t_daterange,
+    t_tsrange,
+    t_tstzrange
 )
 VALUES
 (
@@ -198,7 +219,14 @@ VALUES
     'Electronics'::ltree, -- ltree not allowed empty values - only NULLs
     ''::citext,
     '{}'::json,
-    '{}'::jsonb
+    '{}'::jsonb,
+    ''::xml,
+    'empty'::int4range,
+    'empty'::int8range,
+    'empty'::numrange,
+    'empty'::daterange,
+    'empty'::tsrange,
+    'empty'::tstzrange
 );
 
 -- null case

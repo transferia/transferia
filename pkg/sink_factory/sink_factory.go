@@ -79,6 +79,15 @@ func MakeAsyncReplicationSink(
 	partition abstract.Partition,
 	opts ...abstract.SinkOption,
 ) (abstract.QueueToS3Sink, error) {
+	if err := model.ValidateQueueCDCReplication(
+		transfer.Type,
+		transfer.Src,
+		transfer.Dst,
+		transfer.HasTransformation(),
+		transfer.DataObjects,
+	); err != nil {
+		return nil, xerrors.Errorf("invalid async replication configuration: %w", err)
+	}
 	if mockDst, ok := transfer.Dst.(*model.QueueToS3MockDestination); ok {
 		return mockDst.AsyncV2Factory(), nil
 	}

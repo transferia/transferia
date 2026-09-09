@@ -262,6 +262,15 @@ func (f *Transfer) Validate() error {
 	if !f.SnapshotOnly() && f.RegularSnapshot != nil && f.RegularSnapshot.Enabled {
 		return xerrors.Errorf("regular snapshot not supported for %v transfer", f.Type)
 	}
+	if err := ValidateQueueCDCReplication(
+		f.Type,
+		f.Src,
+		f.Dst,
+		f.HasTransformation(),
+		f.DataObjects,
+	); err != nil {
+		return err
+	}
 	if f.RegularSnapshot != nil && len(f.RegularSnapshot.Incremental) > 0 {
 		if includes, ok := f.Src.(Includeable); ok {
 			var missedTables []abstract.TableID
@@ -297,6 +306,57 @@ func (f *Transfer) Validate() error {
 		}
 	}
 
+	return nil
+}
+
+func ValidateQueueCDCReplication(
+	transferType abstract.TransferType,
+	src Source,
+	dst Destination,
+	hasTransformation bool,
+	dataObjects *DataObjects,
+) error {
+	if transferType != abstract.TransferTypeIncrementOnly {
+		return nil
+	}
+	if _, ok := src.(QueueToS3Source); !ok {
+		return nil
+	}
+
+	if _, ok := dst.(QueueOffsetDependantDestination); ok && hasTransformation {
+		return xerrors.Errorf("transformations are not supported for replication to %s", dst.GetProviderType())
+	}
+
+	if _, ok := dst.(SingleTableDestination); !ok {
+		return nil
+	}
+	if parsedSource, ok := src.(Parseable); ok {
+		for parserName := range parsedSource.Parser() {
+			if parserName == "debezium.common" || parserName == "debezium.lb" {
+				return xerrors.Errorf("Debezium parser is not supported for replication to %s: the event stream may contain multiple CDC tables", dst.GetProviderType())
+			}
+		}
+	}
+	tableSource, ok := src.(Includeable)
+	if !ok {
+		return nil
+	}
+
+	objects := dataObjects.GetIncludeObjects()
+	if len(objects) == 0 {
+		objects = tableSource.AllIncludes()
+	}
+	if len(objects) != 1 {
+		return xerrors.Errorf("replication to %s supports exactly one CDC table, got %d", dst.GetProviderType(), len(objects))
+	}
+
+	tableID, err := abstract.ParseTableIDForProvider(objects[0], src.GetProviderType())
+	if err != nil {
+		return xerrors.Errorf("unable to validate the CDC table %q: %w", objects[0], err)
+	}
+	if strings.Contains(tableID.Namespace, "*") || strings.Contains(tableID.Name, "*") {
+		return xerrors.Errorf("replication to %s requires one exact CDC table, got %q", dst.GetProviderType(), objects[0])
+	}
 	return nil
 }
 

@@ -61,6 +61,17 @@ func TestTopicResolver(t *testing.T) {
 	abstract.Dump(items)
 }
 
+func TestInferTopicsFromTransfer(t *testing.T) {
+	src := &KafkaSource{}
+	provider := &Provider{transfer: &model.Transfer{
+		DataObjects: &model.DataObjects{IncludeObjects: []string{"first", "second"}},
+	}}
+
+	groupTopics := provider.inferTopicsFromTransfer(src)
+
+	require.Equal(t, []string{"first", "second"}, groupTopics)
+}
+
 func loadData(t *testing.T, kafkaSource *KafkaSource, topic string) {
 	lgr, closer, err := logger.NewKafkaLogger(&logger.KafkaConfig{
 		Broker:   kafkaSource.Connection.Brokers[0],
