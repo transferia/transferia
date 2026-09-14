@@ -18,7 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	"github.com/transferia/transferia/pkg/errors/codes"
-	generic_parser "github.com/transferia/transferia/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/parsers/unparsed"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/stats"
@@ -683,7 +683,7 @@ func (s *sinker) newGenericTable(path ypath.Path, schema []abstract.ColSchema) (
 		return orderedTable, nil
 	}
 	if s.config.VersionColumn() != "" {
-		if generic_parser.IsGenericUnparsedSchema(abstract.NewTableSchema(schema)) &&
+		if unparsed.IsGenericUnparsedSchema(abstract.NewTableSchema(schema)) &&
 			strings.HasSuffix(path.String(), "_unparsed") {
 			s.logger.Info("Table with unparsed schema and _unparsed postfix detected, creation of versioned table is skipped",
 				log.Any("table", path), log.Any("version_column", s.config.VersionColumn()),

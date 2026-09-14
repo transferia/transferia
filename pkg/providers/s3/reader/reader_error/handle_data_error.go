@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/pkg/abstract"
-	generic_parser "github.com/transferia/transferia/pkg/parsers/generic"
+	"github.com/transferia/transferia/pkg/parsers/unparsed"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 )
 
@@ -39,7 +39,7 @@ func HandleDataError(
 			raw = fmt.Appendf(nil, "file=%s;scope=%s;op=%s", readerError.File, readerError.Scope, readerError.Op)
 			idx = 0
 		}
-		changeItem := generic_parser.NewUnparsed(
+		changeItem := unparsed.NewUnparsed(
 			abstract.NewEmptyPartition(),
 			tableID.Name,
 			raw,

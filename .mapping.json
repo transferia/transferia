@@ -1294,6 +1294,7 @@
   "pkg/parsers/tests/samples/tskv_sample_yql.json":"transfer_manager/go/pkg/parsers/tests/samples/tskv_sample_yql.json",
   "pkg/parsers/tests/samples/yql_complex_primary_key.json":"transfer_manager/go/pkg/parsers/tests/samples/yql_complex_primary_key.json",
   "pkg/parsers/tests/utils_test.go":"transfer_manager/go/pkg/parsers/tests/utils_test.go",
+  "pkg/parsers/unparsed/unparsed.go":"transfer_manager/go/pkg/parsers/unparsed/unparsed.go",
   "pkg/parsers/utils.go":"transfer_manager/go/pkg/parsers/utils.go",
   "pkg/parsers/utils_test.go":"transfer_manager/go/pkg/parsers/utils_test.go",
   "pkg/parsers/ysrable_parser.go":"transfer_manager/go/pkg/parsers/ysrable_parser.go",
