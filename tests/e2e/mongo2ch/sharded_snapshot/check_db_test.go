@@ -12,6 +12,7 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	canon_mongo "github.com/transferia/transferia/tests/canon/mongo"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const databaseName string = "db"
@@ -35,8 +36,8 @@ func TestShardedSnapshot(t *testing.T) {
 	}
 	require.NoError(t, canon_mongo.InsertDocs(context.Background(), Source, databaseName, "test_data", canon_mongo.SnapshotDocuments...))
 
-	transfer := helpers.WithLocalRuntime(
-		helpers.MakeTransfer(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly),
+	transfer := transferhelpers.WithLocalRuntime(
+		transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly),
 		2,
 		1,
 	)

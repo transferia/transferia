@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -78,7 +79,7 @@ func TestUpdateMinimal(t *testing.T) {
 	require.NoError(t, err)
 
 	ytDestination := makeTarget()
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
 	wrkr := helpers.Activate(t, transfer)
 	defer wrkr.Close(t)
 	conn, err := mysql_driver2.NewConnector(makeConnConfig())

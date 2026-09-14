@@ -19,6 +19,7 @@ import (
 	transformer_rename "github.com/transferia/transferia/pkg/transformer/registry/rename"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -29,8 +30,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestSnapshotAndIncrement(t *testing.T) {
@@ -51,7 +52,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	Source.DBTables = []string{"public.customers_customerprofile"}
 	Target.Cleanup = model.DisabledCleanup
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	require.NoError(t, transfer.AddExtraTransformer(transformer_rename.NewRenameTableTransformer(transformer_rename.Config{
 		RenameTables: []transformer_rename.RenameTable{
 			{

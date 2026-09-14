@@ -15,6 +15,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -75,7 +76,7 @@ func Snapshot(t *testing.T) {
 	target, ok := Target.(*provider_yt.YtDestinationWrapper)
 	require.True(t, ok)
 	target.Model.Cleanup = "Disabled"
-	transfer := helpers.MakeTransferForIncrementalSnapshot(helpers.TransferID, &Source, target, abstract.TransferTypeSnapshotOnly,
+	transfer := transferhelpers.MakeTransferForIncrementalSnapshot(transferhelpers.TransferID, &Source, target, abstract.TransferTypeSnapshotOnly,
 		"public", "__test", cursorField, cursorValue, 15)
 
 	//------------------------------------------------------------------------------

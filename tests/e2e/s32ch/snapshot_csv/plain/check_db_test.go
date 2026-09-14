@@ -11,6 +11,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -57,7 +58,7 @@ func testNativeS3(t *testing.T, src *s3_model.S3Source) {
 	}
 	dst.WithDefaults()
 
-	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
 	helpers.Activate(t, transfer)
 	helpers.CheckRowsCount(t, &dst, "people", "data", 500000)
 }

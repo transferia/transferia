@@ -16,6 +16,7 @@ import (
 	provider_clickhouse "github.com/transferia/transferia/pkg/providers/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -31,7 +32,7 @@ const cursorValue = "2019-01-03"
 
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	Target.Cleanup = model.DisabledCleanup
 }
 
@@ -41,7 +42,7 @@ func TestIncrementalSnapshot(t *testing.T) {
 		helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
 	))
 
-	transfer := helpers.MakeTransferForIncrementalSnapshot(helpers.TransferID, &Source, &Target, TransferType, databaseName, tableName, cursorField, cursorValue, 15)
+	transfer := transferhelpers.MakeTransferForIncrementalSnapshot(transferhelpers.TransferID, &Source, &Target, TransferType, databaseName, tableName, cursorField, cursorValue, 15)
 	transfer.Runtime = new(abstract.LocalRuntime)
 
 	cp := coordinator.NewStatefulFakeClient()

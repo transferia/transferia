@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var Source = *pgrecipe.RecipeSource(pgrecipe.WithInitDir("init_source"))
@@ -51,8 +52,8 @@ func TestGroup(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	sinker := &mockSinker{}
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		&Source,
 		&model.MockDestination{SinkerFactory: func() abstract.Sinker {
 			return sinker

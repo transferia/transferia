@@ -65,7 +65,7 @@ func (m *ConfluentSRMock) add(subject, data string) int {
 func (m *ConfluentSRMock) Versions(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.Path
 	subject := url[len("/subjects/") : len(url)-len("/versions")]
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("unable to read post data, err: %s\n", err)

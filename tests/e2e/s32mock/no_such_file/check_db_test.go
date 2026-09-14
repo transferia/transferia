@@ -35,6 +35,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	s3_storage "github.com/transferia/transferia/pkg/providers/s3/storage"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -211,7 +212,7 @@ func deleteObject(t *testing.T, src *s3_model.S3Source, key string) {
 }
 
 func transferID(t *testing.T) string {
-	return helpers.GenerateTransferID(strings.ReplaceAll(t.Name(), "/", "_"))
+	return transferhelpers.GenerateTransferID(strings.ReplaceAll(t.Name(), "/", "_"))
 }
 
 func newNoSuchFileFixtures(t *testing.T) map[string]noSuchFixture {

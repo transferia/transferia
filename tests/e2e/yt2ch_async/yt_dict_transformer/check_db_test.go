@@ -17,6 +17,7 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -54,7 +55,7 @@ var (
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 	// to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 }
 
 func initYTTable(t *testing.T) {
@@ -93,7 +94,7 @@ func TestSnapshot(t *testing.T) {
 	initYTTable(t)
 	initCHTable(t)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	transfer.Labels = `{"dt-async-ch": "on"}`
 	require.NoError(t, transfer.TransformationFromJSON(fmt.Sprintf(`{
 		"transformers": [{

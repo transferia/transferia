@@ -39,11 +39,11 @@ func (m *MockServerStream[T]) Context() context.Context {
 	return m.ctx
 }
 
-func (m *MockServerStream[T]) SendMsg(msg any) error {
+func (m *MockServerStream[T]) SendMsg(_ any) error {
 	return nil
 }
 
-func (m *MockServerStream[T]) RecvMsg(msg any) error {
+func (m *MockServerStream[T]) RecvMsg(_ any) error {
 	return io.EOF
 }
 

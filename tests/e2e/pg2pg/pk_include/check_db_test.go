@@ -10,6 +10,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -20,7 +21,7 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 }
 
 func TestGroup(t *testing.T) {
@@ -32,13 +33,13 @@ func TestGroup(t *testing.T) {
 	}()
 
 	Source.PreSteps.Constraint = true
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
 	_ = helpers.Activate(t, transfer)
 
 	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
 
-	sink, err := provider_postgres.NewSink(logger.Log, helpers.TransferID, Target.ToSinkParams(), helpers.EmptyRegistry())
+	sink, err := provider_postgres.NewSink(logger.Log, transfer.ID, Target.ToSinkParams(), helpers.EmptyRegistry())
 	require.NoError(t, err)
 
 	arrColSchema := abstract.NewTableSchema([]abstract.ColSchema{

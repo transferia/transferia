@@ -13,6 +13,9 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 var path = "dectest/timmyb32r-test"
@@ -63,7 +66,7 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		currChangeItem := helpers.YDBInitChangeItem(path)
+		currChangeItem := testdata.YDBInitChangeItem(path)
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 	})
 
@@ -73,10 +76,10 @@ func TestGroup(t *testing.T) {
 		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	dst.WithDefaults()
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 
-	serdeTransformer := helpers.NewSimpleTransformer(t, serdeUdf, anyTablesUdf)
-	helpers.AddTransformer(t, transfer, serdeTransformer)
+	serdeTransformer := transformerhelpers.NewSimpleTransformer(t, serdeUdf, anyTablesUdf)
+	transformerhelpers.AddTransformer(t, transfer, serdeTransformer)
 
 	t.Run("activate", func(t *testing.T) {
 		helpers.Activate(t, transfer)
@@ -90,7 +93,7 @@ func TestGroup(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transferMock := helpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
+	transferMock := transferhelpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
 	var extractedChangeItem abstract.ChangeItem
 	t.Run("extract change_item from dst", func(t *testing.T) {
 		sinkMock.PushCallback = func(input []abstract.ChangeItem) error {

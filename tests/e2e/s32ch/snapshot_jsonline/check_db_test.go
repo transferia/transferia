@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -59,7 +60,7 @@ func testNativeS3(t *testing.T, src *s3_model.S3Source) {
 		Cleanup:             model.Drop,
 	}
 	dst.WithDefaults()
-	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
 	helpers.Activate(t, transfer)
 	helpers.CheckRowsCount(t, &dst, "example", "data", 500000)
 }
@@ -91,7 +92,7 @@ func testNativeS3ManualSchemaWithPkey(t *testing.T, src *s3_model.S3Source) {
 		Cleanup:       model.DisabledCleanup,
 	}
 
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 	_, err := helpers.ActivateErr(transfer)
 	require.Error(t, err)
 }

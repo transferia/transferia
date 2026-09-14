@@ -15,6 +15,8 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/transformer"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -116,16 +118,16 @@ func ScenarioCheckActivation(
 ) {
 	targetModel := provider_yt.NewYtDestinationV1(target)
 	transferType := abstract.TransferTypeSnapshotOnly
-	helpers.InitSrcDst(helpers.TransferID, &source, targetModel, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &source, targetModel, transferType)
 	transfer := model.Transfer{
 		Type: transferType,
 		Src:  &source,
 		Dst:  targetModel,
-		ID:   helpers.TransferID,
+		ID:   transferhelpers.TransferID,
 	}
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{table.Fqtn()}}
 	// add transformation in order to control rotation
-	err := transfer.AddExtraTransformer(helpers.NewSimpleTransformer(t, makeAppendTimeMiddleware(rotationTime), includeAllTables))
+	err := transfer.AddExtraTransformer(transformer.NewSimpleTransformer(t, makeAppendTimeMiddleware(rotationTime), includeAllTables))
 	require.NoError(t, err)
 
 	/// ===

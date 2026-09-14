@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_cluster"
 	"github.com/transferia/transferia/tests/e2e/mongo2mongo/rps"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
@@ -199,7 +200,7 @@ func RpsTestForRS(t *testing.T, rs provider_mongo.MongoReplicationSource) {
 
 	mongoSource := Source
 	mongoSource.ReplicationSource = rs
-	transfer := helpers.MakeTransfer(helpers.TransferID, mongoSource, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, mongoSource, &Target, TransferType)
 
 	// activate transfer
 	err = tasks.ActivateDelivery(ctx, nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())

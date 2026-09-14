@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/util/set"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
@@ -33,8 +34,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestGroup(t *testing.T) {
@@ -60,7 +61,7 @@ func Snapshot(t *testing.T) {
 	Source.PreSteps.Cast = true
 	targetAsSource.WithDefaults()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
 	// extract schema
 	itemsSource, err := provider_postgres.ExtractPgDumpSchema(transfer)
@@ -73,7 +74,7 @@ func Snapshot(t *testing.T) {
 	// make target a source and extract its schema
 	targetAsSource.PreSteps = Source.PreSteps
 	targetAsSource.PostSteps = Source.PostSteps
-	backwardFakeTransfer := helpers.MakeTransfer(helpers.TransferID, &targetAsSource, &Target, abstract.TransferTypeSnapshotOnly)
+	backwardFakeTransfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &targetAsSource, &Target, abstract.TransferTypeSnapshotOnly)
 	itemsTarget, err := provider_postgres.ExtractPgDumpSchema(backwardFakeTransfer)
 	require.NoError(t, err)
 
@@ -183,7 +184,7 @@ func Snapshot(t *testing.T) {
 			includedTable2 := "public.table_with_pk"
 			notIncludedTable := "public.table_with_fk"
 			src.DBTables = []string{includedTable, includedTable2, notIncludedTable}
-			transfer := helpers.MakeTransfer(helpers.TransferID, &src, &Target, abstract.TransferTypeSnapshotOnly)
+			transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &src, &Target, abstract.TransferTypeSnapshotOnly)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{includedTable, includedTable2}}
 			items, err := provider_postgres.ExtractPgDumpSchema(transfer)
 			require.NoError(t, err)
@@ -205,7 +206,7 @@ func Snapshot(t *testing.T) {
 			notIncludedTable := "santa.Ho-Ho-Ho"
 			src.DBTables = []string{"public.*"}
 			src.ExcludedTables = []string{excludedTable}
-			transfer := helpers.MakeTransfer(helpers.TransferID, &src, &Target, abstract.TransferTypeSnapshotOnly)
+			transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &src, &Target, abstract.TransferTypeSnapshotOnly)
 			items, err := provider_postgres.ExtractPgDumpSchema(transfer)
 			require.NoError(t, err)
 			tableNames := set.New[string]()
@@ -223,7 +224,7 @@ func Snapshot(t *testing.T) {
 
 func extractPgDumpTypToCnt(t *testing.T, DBTables []string, schemas []string) map[string]int {
 	Source.DBTables = DBTables
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
 	// clear target
 	storage, err := provider_postgres.NewStorage(targetAsSource.ToStorageParams(transfer))
@@ -247,7 +248,7 @@ func extractPgDumpTypToCnt(t *testing.T, DBTables []string, schemas []string) ma
 	targetAsSource.PostSteps = Source.PostSteps
 
 	// compare schemas
-	backwardFakeTransfer := helpers.MakeTransfer(helpers.TransferID, &targetAsSource, &Target, abstract.TransferTypeSnapshotOnly)
+	backwardFakeTransfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &targetAsSource, &Target, abstract.TransferTypeSnapshotOnly)
 	itemsTarget, err := provider_postgres.ExtractPgDumpSchema(backwardFakeTransfer)
 	require.NoError(t, err)
 	require.Equal(t, itemsSource, itemsTarget)

@@ -13,6 +13,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -47,7 +48,7 @@ func TestGroup(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	transfer := helpers.MakeTransferForIncrementalSnapshot(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement,
+	transfer := transferhelpers.MakeTransferForIncrementalSnapshot(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement,
 		"public", "__test", CursorField, CursorValue, 15)
 	require.NoError(t, transfer.TransformationFromJSON(`
 {

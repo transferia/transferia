@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -259,7 +260,7 @@ func (b *bsonOrderingTester) RunTest(t *testing.T) {
 
 	documents := b.collGenerator(20)
 
-	tr := helpers.MakeTransfer("dttztm3500ztestzid", src, dst, b.trType)
+	tr := transferhelpers.MakeTransfer("dttztm3500ztestzid", src, dst, b.trType)
 	b.stage(t, func() uint64 {
 		res, err := mongoSourceCollection.InsertMany(ctx, documents)
 		require.NoError(t, err)

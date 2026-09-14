@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -58,7 +59,7 @@ func TestSnapshot(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return mockSink },
 		Cleanup:       model.DisabledCleanup,
 	}
-	additionalTransfer := helpers.MakeTransfer("additional", &provider_kafka.KafkaSource{
+	additionalTransfer := transferhelpers.MakeTransfer("additional", &provider_kafka.KafkaSource{
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{dst.Topic},
@@ -66,8 +67,8 @@ func TestSnapshot(t *testing.T) {
 	//------------------------------------------------------------------------------
 	// activate main transfer
 
-	helpers.InitSrcDst(helpers.TransferID, Source, dst, abstract.TransferTypeSnapshotOnly)
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, dst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, dst, abstract.TransferTypeSnapshotOnly)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

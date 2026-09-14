@@ -15,6 +15,7 @@ import (
 	canon_test "github.com/transferia/transferia/tests/canon"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -56,8 +57,8 @@ func TestCanonizeSequences(t *testing.T) {
 
 			sequencer, produceSequenceDump := validator.Sequencer(t, DropNonRowKindsExceptRowMiddleware(), validator.RemoveVariableFieldsRowMiddleware, SynthesizeCommitTimeRowMiddleware())
 
-			transfer := helpers.MakeTransfer(
-				helpers.TransferID,
+			transfer := transferhelpers.MakeTransfer(
+				transferhelpers.TransferID,
 				Source,
 				&model.MockDestination{
 					SinkerFactory: validator.New(model.IsStrictSource(Source), sequencer),

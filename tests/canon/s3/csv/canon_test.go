@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -166,8 +167,8 @@ func TestCanonSource(t *testing.T) {
 			ColumnName:  "any",
 		},
 	}
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		src,
 		&model.MockDestination{
 			SinkerFactory: validator.New(
@@ -236,7 +237,7 @@ func TestNativeS3WithProvidedSchemaAndSystemCols(t *testing.T) {
 		},
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, &model.MockDestination{
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, &model.MockDestination{
 		SinkerFactory: validator.New(
 			model.IsStrictSource(src),
 			validator.Canonizator(t, storeItems),
@@ -320,7 +321,7 @@ func TestNativeS3MissingColumnsAreFilled(t *testing.T) {
 		},
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, &model.MockDestination{
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, &model.MockDestination{
 		SinkerFactory: validator.New(
 			model.IsStrictSource(src),
 			validator.Canonizator(t, storeItems),

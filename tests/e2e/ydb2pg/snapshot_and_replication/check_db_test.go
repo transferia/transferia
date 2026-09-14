@@ -15,6 +15,8 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 const pgSchema = "public"
@@ -63,7 +65,7 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 	}
 
 	transferType := abstract.TransferTypeSnapshotAndIncrement
-	helpers.InitSrcDst(helpers.TransferID, source, &target, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, &target, transferType)
 
 	defer func() {
 		ydbPort, perr := helpers.GetPortFromStr(source.Instance)
@@ -84,13 +86,13 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 	require.NoError(t, err)
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsert(t, currTableName, 1),
-		*helpers.YDBStmtInsertNulls(t, currTableName, 2),
-		*helpers.YDBStmtInsertNulls(t, currTableName, 3),
-		*helpers.YDBStmtInsert(t, currTableName, 4),
+		*testdata.YDBStmtInsert(t, currTableName, 1),
+		*testdata.YDBStmtInsertNulls(t, currTableName, 2),
+		*testdata.YDBStmtInsertNulls(t, currTableName, 3),
+		*testdata.YDBStmtInsert(t, currTableName, 4),
 	}))
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, &target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, &target, transferType)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 
@@ -104,19 +106,19 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 	))
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsert(t, currTableName, 5),
-		*helpers.YDBStmtUpdate(t, currTableName, 4, 666),
+		*testdata.YDBStmtInsert(t, currTableName, 5),
+		*testdata.YDBStmtUpdate(t, currTableName, 4, 666),
 	}))
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtUpdateTOAST(t, currTableName, 4, 777),
+		*testdata.YDBStmtUpdateTOAST(t, currTableName, 4, 777),
 	}))
 
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
 		pgSchema, currTableName, helpers.GetSampleableStorageByModel(t, &target), 60*time.Second, 5))
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtDelete(t, currTableName, 1),
+		*testdata.YDBStmtDelete(t, currTableName, 1),
 	}))
 
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount(

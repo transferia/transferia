@@ -17,6 +17,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -61,7 +62,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}
 	dst.WithDefaults()
 
-	helpers.InitSrcDst(helpers.TransferID, &Source, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, dst, abstract.TransferTypeSnapshotAndIncrement)
 	transfer1 := &model.Transfer{
 		ID:   "test_id_pg2kafka",
 		Src:  &Source,
@@ -99,7 +100,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}
 	src.WithDefaults()
 
-	helpers.InitSrcDst(helpers.TransferID, src, Target, abstract.TransferTypeIncrementOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, src, Target, abstract.TransferTypeIncrementOnly)
 	transfer2 := &model.Transfer{
 		ID:   "test_id_kafka2yt",
 		Src:  src,

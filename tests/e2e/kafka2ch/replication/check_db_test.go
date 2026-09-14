@@ -15,6 +15,8 @@ import (
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/transformer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -98,9 +100,9 @@ func TestReplication(t *testing.T) {
 
 	// activate transfer
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, &target, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, abstract.TransferTypeIncrementOnly)
 	// add transformation in order to control Kafka timestamp
-	err = transfer.AddExtraTransformer(helpers.NewSimpleTransformer(t, fixTimestampMiddleware, includeAllTables))
+	err = transfer.AddExtraTransformer(transformer.NewSimpleTransformer(t, fixTimestampMiddleware, includeAllTables))
 	require.NoError(t, err)
 
 	worker := helpers.Activate(t, transfer)

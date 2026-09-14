@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -119,7 +120,7 @@ func TestSnapshotOnlyWorksWithStaticTables(t *testing.T) {
 	fixture.transfer.Dst.(*provider_yt.YtDestinationWrapper).Model.Static = true
 	transferType := abstract.TransferTypeSnapshotOnly
 	fixture.transfer.Type = transferType
-	helpers.InitSrcDst(helpers.GenerateTransferID("TestSnapshotOnlyWorksWithStaticTables"), fixture.transfer.Src, fixture.transfer.Dst, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.GenerateTransferID("TestSnapshotOnlyWorksWithStaticTables"), fixture.transfer.Src, fixture.transfer.Dst, transferType)
 
 	_ = helpers.Activate(t, &fixture.transfer)
 
@@ -140,9 +141,9 @@ func TestSnapshotOnlyFailsWithSortedTables(t *testing.T) {
 
 	transferType := abstract.TransferTypeSnapshotOnly
 
-	transferID := helpers.GenerateTransferID("TestSnapshotOnlyFailsWithSortedTables")
+	transferID := transferhelpers.GenerateTransferID("TestSnapshotOnlyFailsWithSortedTables")
 	fixture.transfer.Type = transferType
-	helpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
+	transferhelpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
 	defer fixture.teardown()
 
 	_, err = helpers.ActivateErr(&fixture.transfer)
@@ -163,9 +164,9 @@ func TestIncrementFails(t *testing.T) {
 			))
 		}()
 
-		transferID := helpers.GenerateTransferID("TestIncrementFails")
+		transferID := transferhelpers.GenerateTransferID("TestIncrementFails")
 		fixture.transfer.Type = transferType
-		helpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
+		transferhelpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
 		defer fixture.teardown()
 
 		err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())

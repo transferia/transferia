@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -65,7 +66,7 @@ func TestReplication(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return mockSink },
 		Cleanup:       model.DisabledCleanup,
 	}
-	additionalTransfer := helpers.MakeTransfer("additional", &provider_kafka.KafkaSource{
+	additionalTransfer := transferhelpers.MakeTransfer("additional", &provider_kafka.KafkaSource{
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{dst.Topic},
@@ -73,8 +74,8 @@ func TestReplication(t *testing.T) {
 
 	// activate main transfer
 
-	helpers.InitSrcDst(helpers.TransferID, src, dst, abstract.TransferTypeIncrementOnly)
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeIncrementOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, src, dst, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeIncrementOnly)
 
 	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, solomon.NewRegistry(solomon.NewRegistryOpts()), log.With(logger.Log, log.Any("transfer", "main")))
 	localWorker.Start()

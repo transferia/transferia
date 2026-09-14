@@ -17,7 +17,9 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	"github.com/transferia/transferia/tests/helpers/transfer"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
@@ -74,7 +76,7 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem(testTableName)}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem(testTableName)}))
 	})
 
 	// creating changefeed and adding consumer
@@ -93,7 +95,7 @@ func TestGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	// running activation
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{testTableName}}
 	_, err = helpers.ActivateErr(transfer)
 	require.NoError(t, err)
@@ -110,7 +112,7 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		newItem := *helpers.YDBStmtUpdateTOAST(t, testTableName, 1, 11)
+		newItem := *testdata.YDBStmtUpdateTOAST(t, testTableName, 1, 11)
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{newItem}))
 	})
 

@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/storage_factory"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -26,7 +27,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestGroup(t *testing.T) {
@@ -113,8 +114,8 @@ func Snapshot(t *testing.T) {
 	Source.ConsistentSnapshot = true
 	Source.SnapshotDegreeOfParallelism = 1
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
-	transfer = helpers.WithLocalRuntime(transfer, 1, 1)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer = transferhelpers.WithLocalRuntime(transfer, 1, 1)
 
 	currStorage, err := storage_factory.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
 	require.NoError(t, err)

@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -26,7 +27,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func Existence(t *testing.T) {
@@ -37,7 +38,7 @@ func Existence(t *testing.T) {
 }
 
 func Snapshot(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly)
 	require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry()))
 	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
 }
@@ -54,7 +55,7 @@ func Load(t *testing.T) {
 	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, helpers.EmptyRegistry())
 	require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, TransferType)
 
 	fakeClient := coordinator.NewStatefulFakeClient()
 	err = provider_mysql.SyncBinlogPosition(Source, transfer.ID, fakeClient)

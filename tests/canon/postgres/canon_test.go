@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/tcrecipes"
 )
 
@@ -52,7 +53,7 @@ func TestCanonSource(t *testing.T) {
 			require.NoError(t, err)
 
 			counterStorage, counterSinkFactory := validator.NewCounter()
-			transfer := helpers.MakeTransfer(
+			transfer := transferhelpers.MakeTransfer(
 				tableName,
 				Source,
 				&model.MockDestination{

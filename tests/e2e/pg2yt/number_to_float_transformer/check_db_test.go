@@ -16,6 +16,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -41,7 +42,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		helpers.LabeledPort{Label: "YT target", Port: targetPort},
 	))
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, transferType)
 
 	require.NoError(t, transfer.TransformationFromJSON(`
 {

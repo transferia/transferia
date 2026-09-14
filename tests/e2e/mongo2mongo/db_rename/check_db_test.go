@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -122,7 +123,7 @@ func Snapshot(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// Upload snapshot
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 	_ = helpers.Activate(t, transfer)
 
 	//------------------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -63,7 +64,7 @@ func TestGroup(t *testing.T) {
 
 func SnapshotAndIncrement(t *testing.T) {
 	// Make transfer and do snapshot
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

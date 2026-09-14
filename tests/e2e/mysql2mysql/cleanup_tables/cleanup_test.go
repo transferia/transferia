@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	cleanup_task "github.com/transferia/transferia/pkg/worker/tasks/cleanup"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -24,8 +25,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                                                            // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                                                            // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestGroup(t *testing.T) {
@@ -44,7 +45,7 @@ func TestGroup(t *testing.T) {
 }
 
 func DropAll(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
 
 	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)
@@ -58,7 +59,7 @@ func DropAll(t *testing.T) {
 }
 
 func DropFilter(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &SourceWithBlackList, &Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SourceWithBlackList, &Target, abstract.TransferTypeSnapshotAndIncrement)
 
 	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)
@@ -74,7 +75,7 @@ func DropFilter(t *testing.T) {
 func TruncateAll(t *testing.T) {
 	dstCopy := Target
 	dstCopy.Cleanup = model.Truncate
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &dstCopy, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &dstCopy, abstract.TransferTypeSnapshotAndIncrement)
 
 	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)

@@ -19,6 +19,7 @@ import (
 	canon_mongo "github.com/transferia/transferia/tests/canon/mongo"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -86,7 +87,7 @@ func Snapshot(t *testing.T) {
 
 	require.NoError(t, canon_mongo.InsertDocs(context.Background(), Source, databaseName, "test_data", masterDoc))
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.TypeSystemVersion = 7
 	transfer.Transformation = &model.Transformation{Transformers: &transformer.Transformers{
 		DebugMode: false,

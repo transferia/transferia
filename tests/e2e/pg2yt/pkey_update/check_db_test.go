@@ -18,6 +18,7 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -114,9 +115,9 @@ func setup(t *testing.T, name string, useStaticTableOnSnapshot bool) *fixture {
 
 	src := makeSource()
 	dst := makeTarget(useStaticTableOnSnapshot)
-	transferID := helpers.GenerateTransferID(name)
-	helpers.InitSrcDst(transferID, src, dst, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	transfer := helpers.MakeTransfer(transferID, src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transferID := transferhelpers.GenerateTransferID(name)
+	transferhelpers.InitSrcDst(transferID, src, dst, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := transferhelpers.MakeTransfer(transferID, src, dst, abstract.TransferTypeSnapshotAndIncrement)
 	return &fixture{
 		t:            t,
 		transfer:     transfer,

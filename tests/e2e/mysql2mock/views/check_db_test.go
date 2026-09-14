@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 type testCaseParams struct {
@@ -87,7 +88,7 @@ func TestMySQLHeteroViewsInteraction(t *testing.T) {
 					SinkerFactory: func() abstract.Sinker { return sinker },
 					Cleanup:       model.DisabledCleanup,
 				}
-				transfer := helpers.MakeTransfer("fake", &source, &target, params.transferType)
+				transfer := transferhelpers.MakeTransfer("fake", &source, &target, params.transferType)
 				worker, err := helpers.ActivateErr(transfer)
 				if params.shouldBeError {
 					require.Error(t, err)

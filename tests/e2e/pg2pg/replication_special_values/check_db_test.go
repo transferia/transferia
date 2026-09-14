@@ -11,6 +11,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestReplicationNullInJSON(t *testing.T) {
@@ -18,7 +19,7 @@ func TestReplicationNullInJSON(t *testing.T) {
 	Target := pgrecipe.RecipeTarget()
 	transferType := abstract.TransferTypeSnapshotAndIncrement
 
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, transferType)
 
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
@@ -27,7 +28,7 @@ func TestReplicationNullInJSON(t *testing.T) {
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, transferType)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

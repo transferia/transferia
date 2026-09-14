@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestUnsopportedData(t *testing.T) {
@@ -37,8 +38,8 @@ func TestUnsopportedData(t *testing.T) {
 			src.PathPattern = "data/" + file.Name()
 			src.WithDefaults()
 
-			transfer := helpers.MakeTransfer(
-				helpers.TransferID,
+			transfer := transferhelpers.MakeTransfer(
+				transferhelpers.TransferID,
 				src,
 				&model.MockDestination{
 					SinkerFactory: validator.New(model.IsStrictSource(src)),
@@ -102,8 +103,8 @@ func TestCanonSource(t *testing.T) {
 			src.PathPattern = "data/" + file.Name()
 			src.WithDefaults()
 
-			transfer := helpers.MakeTransfer(
-				helpers.TransferID,
+			transfer := transferhelpers.MakeTransfer(
+				transferhelpers.TransferID,
 				src,
 				&model.MockDestination{
 					SinkerFactory: func() abstract.Sinker {

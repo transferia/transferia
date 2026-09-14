@@ -41,8 +41,8 @@ func TestReduceMeteringData(t *testing.T) {
 	require.Equal(
 		t,
 		[]MeteringMsg{
-			buildMeteringMsg("large", 0),
 			buildMeteringMsg("small", 19),
+			buildMeteringMsg("large", 0),
 		},
 		result,
 	)

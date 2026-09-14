@@ -11,31 +11,33 @@ type TestEntry struct {
 	Msg   string
 }
 
+// TestLogger implements log.Logger and related interfaces
 type TestLogger struct {
 	Entries []TestEntry
 }
 
 func NewTestLogger() *TestLogger { return &TestLogger{} }
 
-// Implement log.Logger and related interfaces
-func (t *TestLogger) Logger() log.Logger              { return t }
-func (t *TestLogger) Fmt() log.Fmt                    { return t }
-func (t *TestLogger) Structured() log.Structured      { return t }
-func (t *TestLogger) WithName(name string) log.Logger { return t }
+func (t *TestLogger) Logger() log.Logger           { return t }
+func (t *TestLogger) Fmt() log.Fmt                 { return t }
+func (t *TestLogger) Structured() log.Structured   { return t }
+func (t *TestLogger) WithName(_ string) log.Logger { return t }
 
 func (t *TestLogger) append(level, msg string) {
 	t.Entries = append(t.Entries, TestEntry{Level: level, Msg: msg})
 }
 
 // Structured
-func (t *TestLogger) Trace(msg string, fields ...log.Field) { t.append("TRACE", msg) }
-func (t *TestLogger) Debug(msg string, fields ...log.Field) { t.append("DEBUG", msg) }
-func (t *TestLogger) Info(msg string, fields ...log.Field)  { t.append("INFO", msg) }
-func (t *TestLogger) Warn(msg string, fields ...log.Field)  { t.append("WARN", msg) }
-func (t *TestLogger) Error(msg string, fields ...log.Field) { t.append("ERROR", msg) }
-func (t *TestLogger) Fatal(msg string, fields ...log.Field) { t.append("FATAL", msg) }
+
+func (t *TestLogger) Trace(msg string, _ ...log.Field) { t.append("TRACE", msg) }
+func (t *TestLogger) Debug(msg string, _ ...log.Field) { t.append("DEBUG", msg) }
+func (t *TestLogger) Info(msg string, _ ...log.Field)  { t.append("INFO", msg) }
+func (t *TestLogger) Warn(msg string, _ ...log.Field)  { t.append("WARN", msg) }
+func (t *TestLogger) Error(msg string, _ ...log.Field) { t.append("ERROR", msg) }
+func (t *TestLogger) Fatal(msg string, _ ...log.Field) { t.append("FATAL", msg) }
 
 // Fmt
+
 func (t *TestLogger) Tracef(format string, args ...interface{}) {
 	t.Trace(fmt.Sprintf(format, args...))
 }

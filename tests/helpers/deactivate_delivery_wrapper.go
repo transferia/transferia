@@ -9,16 +9,6 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks"
 )
 
-func Deactivate(t *testing.T, transfer *model.Transfer, worker *Worker, onErrorCallback ...func(err error)) error {
-	if len(onErrorCallback) == 0 {
-		// append default callback checker: no error!
-		onErrorCallback = append(onErrorCallback, func(err error) {
-			require.NoError(t, err)
-		})
-	}
-	return DeactivateErr(transfer, worker, onErrorCallback...)
-}
-
-func DeactivateErr(transfer *model.Transfer, worker *Worker, onErrorCallback ...func(err error)) error {
-	return tasks.Deactivate(context.Background(), worker.cp, *transfer, model.TransferOperation{}, EmptyRegistry())
+func Deactivate(t *testing.T, transfer *model.Transfer, worker *Worker) {
+	require.NoError(t, tasks.Deactivate(context.Background(), worker.cp, *transfer, model.TransferOperation{}, EmptyRegistry()))
 }

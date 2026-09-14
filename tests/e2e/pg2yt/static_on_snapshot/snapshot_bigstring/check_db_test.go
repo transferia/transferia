@@ -11,6 +11,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -51,7 +52,7 @@ func Snapshot(t *testing.T) {
 	Source.PreSteps.Constraint = true
 	Target.Model.UseStaticTableOnSnapshot = true
 	Target.Model.DiscardBigValues = true
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 
 	_ = helpers.Activate(t, transfer)
 	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test",

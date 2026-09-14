@@ -13,6 +13,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -39,11 +41,11 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem("in/test_table/dir1/my_lovely_table")}))
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem("in/test_table/dir1/my_lovely_table2")}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem("in/test_table/dir1/my_lovely_table")}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem("in/test_table/dir1/my_lovely_table2")}))
 
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem("in/test_dir/dir1/table1")}))
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem("in/test_dir/dir2/table1")}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem("in/test_dir/dir1/table1")}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem("in/test_dir/dir2/table1")}))
 	})
 
 	dst := &provider_ydb.YdbDestination{
@@ -116,7 +118,7 @@ func runTestCase(t *testing.T, caseName string, src *provider_ydb.YdbSource, dst
 	src.UseFullPaths = useFullPath
 	src.Tables = pathsIn
 	dst.Path = fmt.Sprintf("out_%s", caseName)
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 	helpers.Activate(t, transfer)
 	checkTables(t, caseName, src, pathsExpected)
 	fmt.Printf("finishing test case: %s\n", caseName)

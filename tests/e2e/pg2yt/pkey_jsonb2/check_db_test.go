@@ -12,6 +12,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -68,9 +70,9 @@ func suitableTablesUdf(table abstract.TableID, schema abstract.TableColumns) boo
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestSnapshotAndIncrement(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, TransferType)
-	jsonSerDeTransformer := helpers.NewSimpleTransformer(t, jsonSerDeUdf, suitableTablesUdf)
-	helpers.AddTransformer(t, transfer, jsonSerDeTransformer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, TransferType)
+	jsonSerDeTransformer := transformerhelpers.NewSimpleTransformer(t, jsonSerDeUdf, suitableTablesUdf)
+	transformerhelpers.AddTransformer(t, transfer, jsonSerDeTransformer)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

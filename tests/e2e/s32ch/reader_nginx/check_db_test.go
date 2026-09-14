@@ -21,6 +21,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -140,7 +141,7 @@ func buildSourceModel(t *testing.T) *s3_model.S3Source {
 func TestNginxSnapshot(t *testing.T) {
 	src := buildSourceModel(t)
 	dst := makeDst()
-	transfer := helpers.MakeTransfer("snap", src, &dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("snap", src, &dst, abstract.TransferTypeSnapshotOnly)
 	helpers.Activate(t, transfer)
 	helpers.CheckRowsCount(t, &dst, TableNamespace, TableName, uint64(len(sampleNginxLines)))
 	canonDst(t, dst, transfer)
@@ -149,7 +150,7 @@ func TestNginxSnapshot(t *testing.T) {
 func TestNginxIncrement(t *testing.T) {
 	src := buildSourceModel(t)
 	dst := makeDst()
-	transfer := helpers.MakeTransfer("incr", src, &dst, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer("incr", src, &dst, abstract.TransferTypeIncrementOnly)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

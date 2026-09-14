@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -22,7 +23,7 @@ func init() {
 
 func TestSnapshotWithEmptyTableListFails(t *testing.T) {
 	var emptyIncludeTables, emptyExcludeTables []string
-	transfer := helpers.MakeTransfer(helpers.TransferID, newSource(emptyIncludeTables, emptyExcludeTables), newTarget(), abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, newSource(emptyIncludeTables, emptyExcludeTables), newTarget(), abstract.TransferTypeSnapshotOnly)
 	err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "permission denied")
@@ -32,7 +33,7 @@ func TestSnapshotWithAccessToPublicTableWorks(t *testing.T) {
 	includeTables := []string{"public.promiscuous"}
 	var emptyExcludeTables []string
 	for _, transferType := range []abstract.TransferType{abstract.TransferTypeSnapshotOnly, abstract.TransferTypeSnapshotAndIncrement} {
-		transfer := helpers.MakeTransfer(helpers.TransferID, newSource(includeTables, emptyExcludeTables), newTarget(), transferType)
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, newSource(includeTables, emptyExcludeTables), newTarget(), transferType)
 		err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
 		require.NoError(t, err)
 	}
@@ -42,7 +43,7 @@ func TestSnapshotWithInsufficientPermissionsToSpecificTableFails(t *testing.T) {
 	includeTables := []string{"public.promiscuous", "public.secret"}
 	var emptyExcludeTables []string
 	for _, transferType := range []abstract.TransferType{abstract.TransferTypeSnapshotOnly, abstract.TransferTypeSnapshotAndIncrement} {
-		transfer := helpers.MakeTransfer(helpers.TransferID, newSource(includeTables, emptyExcludeTables), newTarget(), transferType)
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, newSource(includeTables, emptyExcludeTables), newTarget(), transferType)
 		err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Tables not found")
@@ -55,7 +56,7 @@ func TestAddTableInSource(t *testing.T) {
 	excludeTables := []string{"public.secret"} // Activation will fail with error if we don't exclude this table
 
 	// Activate
-	transfer := helpers.MakeTransfer(helpers.TransferID, newSource(emptyIncludeTables, excludeTables), newTarget(), abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, newSource(emptyIncludeTables, excludeTables), newTarget(), abstract.TransferTypeSnapshotAndIncrement)
 	err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)
 

@@ -15,7 +15,9 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
@@ -47,7 +49,7 @@ func TestSnapshotSerDeViaDebeziumEmbeddedOLAP(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		currChangeItem := helpers.YDBInitChangeItem(path)
+		currChangeItem := testdata.YDBInitChangeItem(path)
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 	})
 
@@ -58,7 +60,7 @@ func TestSnapshotSerDeViaDebeziumEmbeddedOLAP(t *testing.T) {
 		IsTableColumnOriented: true,
 	}
 	dst.WithDefaults()
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 
 	emitter, err := debezium.NewMessagesEmitter(map[string]string{
 		debezium_parameters.DatabaseDBName:   "public",

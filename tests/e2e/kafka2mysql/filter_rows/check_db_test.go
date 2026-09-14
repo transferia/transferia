@@ -18,6 +18,7 @@ import (
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	transformer_filter_rows "github.com/transferia/transferia/pkg/transformer/registry/filter_rows"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -75,7 +76,7 @@ func TestReplication(t *testing.T) {
 		"notNull != NULL",
 	}, " AND ")
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, &target, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, abstract.TransferTypeIncrementOnly)
 	transformer, err := transformer_filter_rows.NewFilterRowsTransformer(
 		transformer_filter_rows.Config{Filter: filter},
 		logger.Log,

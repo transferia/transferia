@@ -16,6 +16,8 @@ import (
 	transformer_mongo_pk_extender "github.com/transferia/transferia/pkg/transformer/registry/mongo_pk_extender"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -46,7 +48,7 @@ func initEndpoints(t *testing.T, source *provider_mongo.MongoSource, target *pro
 }
 
 func runTransfer(t *testing.T, source *provider_mongo.MongoSource, target *provider_mongo.MongoDestination, expand bool) *local.LocalWorker {
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 
 	transformer, err := transformer_mongo_pk_extender.NewMongoPKExtenderTransformer(
 		transformer_mongo_pk_extender.Config{
@@ -60,7 +62,7 @@ func runTransfer(t *testing.T, source *provider_mongo.MongoSource, target *provi
 		logger.Log,
 	)
 	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
+	transformerhelpers.AddTransformer(t, transfer, transformer)
 
 	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)

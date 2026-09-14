@@ -21,6 +21,7 @@ import (
 	_ "github.com/transferia/transferia/pkg/providers/s3/provider"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -136,14 +137,14 @@ func Existence(t *testing.T) {
 }
 
 func Verify(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 	err := tasks.VerifyDelivery(context.Background(), *transfer, logger.Log, helpers.EmptyRegistry())
 	require.NoError(t, err)
 	checkBucket(t, Target, 1)
 }
 
 func Snapshot(t *testing.T, snapshotActivateCount int) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 	helpers.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
 		// it`s unique timestamp, to make unique s3 object names, to avoid same keys for different activations
 		CreatedAt: time.Now().Add(time.Second * time.Duration(snapshotActivateCount)),

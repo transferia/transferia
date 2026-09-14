@@ -16,8 +16,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb/topics/source/topicapi/eventreader"
 	"github.com/transferia/transferia/pkg/stats"
 	sourcehelpers "github.com/transferia/transferia/tests/helpers/source"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
-	ydbtopic "github.com/transferia/transferia/tests/helpers/ydb_recipe/topic"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
+	ydbtopic "github.com/transferia/transferia/tests/helpers/ydb/recipe/topic"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 )

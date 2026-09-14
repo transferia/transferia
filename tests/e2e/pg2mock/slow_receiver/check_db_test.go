@@ -14,6 +14,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -67,8 +68,8 @@ func testAtLeastOnePushHasMultipleItems(t *testing.T) {
 	target := &model.MockDestination{SinkerFactory: func() abstract.Sinker {
 		return sinker
 	}}
-	helpers.InitSrcDst(helpers.TransferID, &Source, target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, target, TransferType)
 
 	pushedInputs := 0
 	inputs := make(chan []abstract.ChangeItem, 100)

@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -67,7 +68,7 @@ func testNativeS3(t *testing.T, src *s3_model.S3Source) {
 	require.NoError(t, err)
 
 	dst.WithDefaults()
-	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
 	helpers.Activate(t, transfer)
 	helpers.CheckRowsCount(t, &dst, "example", "data", 2)
 

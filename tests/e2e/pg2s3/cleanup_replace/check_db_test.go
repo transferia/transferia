@@ -23,6 +23,7 @@ import (
 	_ "github.com/transferia/transferia/pkg/providers/s3/v1"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -103,7 +104,7 @@ func TestReplaceCleanup(t *testing.T) {
 		createBucket(t)
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 
 	helpers.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
 		CreatedAt: time.Unix(1700000000, 0),

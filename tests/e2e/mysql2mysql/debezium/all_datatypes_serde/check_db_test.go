@@ -11,6 +11,7 @@ import (
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
@@ -137,8 +138,8 @@ INSERT INTO customers3 VALUES (
 `
 
 func init() {
-	_ = os.Setenv("YC", "1")                                                                            // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                                                            // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -182,7 +183,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.Src.(*provider_mysql.MysqlSource).PlzNoHomo = true
 	transfer.Src.(*provider_mysql.MysqlSource).AllowDecimalAsFloat = true
 	serdeTransformer := helpers_transformer.NewSimpleTransformer(t, serdeUdf, anyTablesUdf)

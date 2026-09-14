@@ -14,6 +14,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -86,7 +87,7 @@ func testUploadToYt(t *testing.T) {
 	}
 	Source.DBTables = fullTableNames
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, ytDest, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, ytDest, abstract.TransferTypeSnapshotAndIncrement)
 
 	// we'll compare this two quantities:
 

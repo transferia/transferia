@@ -16,7 +16,10 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 var path = "dectest/test-src"
@@ -45,7 +48,7 @@ func TestSnapshotAndReplicationSerDeViaDebeziumNotEnriched(t *testing.T) {
 	sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
-	currChangeItem := helpers.YDBInitChangeItem(path)
+	currChangeItem := testdata.YDBInitChangeItem(path)
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 
 	dst := &provider_ydb.YdbDestination{
@@ -53,8 +56,8 @@ func TestSnapshotAndReplicationSerDeViaDebeziumNotEnriched(t *testing.T) {
 		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
 		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
-	helpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 
 	emitter, err := debezium.NewMessagesEmitter(map[string]string{
 		debezium_parameters.DatabaseDBName:   "public",
@@ -70,14 +73,14 @@ func TestSnapshotAndReplicationSerDeViaDebeziumNotEnriched(t *testing.T) {
 
 	//-----------------------------------------------------------------------------------------------------------------
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsertValues(t, path, helpers.YDBTestValues1, 2),
-		*helpers.YDBStmtInsertNulls(t, path, 3),
-		*helpers.YDBStmtInsertValues(t, path, helpers.YDBTestValues3, 4),
+		*testdata.YDBStmtInsertValues(t, path, testdata.YDBTestValues1, 2),
+		*testdata.YDBStmtInsertNulls(t, path, 3),
+		*testdata.YDBStmtInsertValues(t, path, testdata.YDBTestValues3, 4),
 	}))
 	require.NoError(t, helpers.WaitEqualRowsCountDifferentTables(t, "", path, "", pathOut, helpers.GetSampleableStorageByModel(t, src), helpers.GetSampleableStorageByModel(t, dst), 60*time.Second))
 	worker.Close(t)
 
-	dump := helpers.YDBPullDataFromTable(t,
+	dump := ydb.PullDataFromTable(t,
 		os.Getenv("YDB_TOKEN"),
 		helpers.GetEnvOfFail(t, "YDB_DATABASE"),
 		helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),

@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -45,7 +46,7 @@ func TestGroup(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	Source.PreSteps.Constraint = true
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 
 	_ = helpers.Activate(t, transfer)
 
@@ -55,7 +56,7 @@ func Snapshot(t *testing.T) {
 func SnapshotOldVersion(t *testing.T) {
 	SourceCopy := Source
 	SourceCopy.DBTables = []string{"test_timestamp"}
-	transfer := helpers.MakeTransfer(helpers.TransferID, &SourceCopy, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SourceCopy, Target, abstract.TransferTypeSnapshotOnly)
 	transfer.TypeSystemVersion = 1
 
 	_ = helpers.Activate(t, transfer)

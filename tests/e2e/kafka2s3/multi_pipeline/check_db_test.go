@@ -21,8 +21,8 @@ import (
 	_ "github.com/transferia/transferia/pkg/providers/s3/provider"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
 	"github.com/transferia/transferia/tests/helpers/s3"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap/zapcore"
@@ -81,8 +81,8 @@ func TestReplication(t *testing.T) {
 	}
 
 	// activate transfer
-	helpers.InitSrcDst(helpers.TransferID, sourceCfg, dst, abstract.TransferTypeIncrementOnly)
-	transfer := helpers.MakeTransfer(helpers.TransferID, sourceCfg, dst, abstract.TransferTypeIncrementOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, sourceCfg, dst, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, sourceCfg, dst, abstract.TransferTypeIncrementOnly)
 
 	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.LoggerWithLevel(zapcore.DebugLevel))
 	localWorker.Start()

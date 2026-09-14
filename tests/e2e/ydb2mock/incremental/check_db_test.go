@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	ydb_options "github.com/ydb-platform/ydb-go-sdk/v3/table/options"
@@ -86,7 +87,7 @@ func TestYDBIncrementalSnapshot(t *testing.T) {
 		})
 	}
 
-	transfer := helpers.MakeTransfer("dttest", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("dttest", src, dst, abstract.TransferTypeSnapshotOnly)
 	transfer.RegularSnapshot = &abstract.RegularSnapshot{Incremental: incremental}
 
 	cpClient := coordinator.NewStatefulFakeClient()

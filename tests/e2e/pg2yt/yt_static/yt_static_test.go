@@ -14,6 +14,7 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -54,7 +55,7 @@ func TestYTStatic(t *testing.T) {
 	dst := &provider_yt.YtDestinationWrapper{Model: dstModel}
 	dst.WithDefaults()
 
-	transfer := helpers.MakeTransfer("upload_pg_yt_static", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("upload_pg_yt_static", src, dst, abstract.TransferTypeSnapshotOnly)
 
 	tablePath := ypath.Path("//home/cdc/tests/e2e/pg2yt/yt_static/test_table")
 

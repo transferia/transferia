@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -157,7 +158,7 @@ func snapshotAndIncrement(t *testing.T, ctx context.Context, source *provider_mo
 			},
 			Cleanup: model.Drop,
 		},
-		ID: helpers.TransferID,
+		ID: transferhelpers.TransferID,
 	}
 
 	accessErrorChecker := func(err error) {

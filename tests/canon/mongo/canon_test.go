@@ -13,6 +13,7 @@ import (
 	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestCanonSource(t *testing.T) {
@@ -53,8 +54,8 @@ func snapshotPlusIncrementScenario(t *testing.T, databaseName, collectionName st
 		require.NoError(t, InsertDocs(ctx, Source, databaseName, collectionName, ExtraSnapshotDocuments...))
 	}
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(

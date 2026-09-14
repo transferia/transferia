@@ -13,6 +13,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
 )
@@ -59,7 +60,7 @@ func TestGroup(t *testing.T) {
 }
 
 func EmptyTableList(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"public.__test"}}
 
 	localWorker := helpers.Activate(t, transfer)
@@ -103,7 +104,7 @@ func EmptyTableList(t *testing.T) {
 
 func NotEmptyTableList(t *testing.T) {
 	Source.DBTables = []string{"public.__test", "public.__not_included_test"}
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"public.__test"}}
 
 	localWorker := helpers.Activate(t, transfer)

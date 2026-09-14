@@ -17,6 +17,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -34,7 +35,7 @@ func TestSnapshotParquet(t *testing.T) {
 	))
 	Source.WithDefaults()
 
-	helpers.InitSrcDst(helpers.TransferID, &Source, s3Target, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, s3Target, abstract.TransferTypeSnapshotOnly)
 	// checking the bucket is empty
 	sess, err := aws_session.NewSession(&aws.Config{
 		Endpoint:         aws.String(s3Target.Endpoint),
@@ -54,7 +55,7 @@ func TestSnapshotParquet(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, s3Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, s3Target, TransferType)
 	helpers.Activate(t, transfer)
 
 	sess, err = aws_session.NewSession(&aws.Config{

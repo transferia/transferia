@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 type stopCondition func(t *testing.T, tableName string, src provider_postgres.PgSource, dst provider_postgres.PgDestination) error
@@ -53,11 +54,11 @@ func testReplicationWorks(t *testing.T, slotID, tableName string, perTransaction
 	}()
 
 	TransferType := abstract.TransferTypeIncrementOnly
-	helpers.InitSrcDst(helpers.TransferID, &source, &target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &source, &target, TransferType)
 
 	replicationWorker := local.NewLocalWorker(
 		coordinator.NewFakeClient(),
-		helpers.MakeTransfer(helpers.TransferID, &source, &target, TransferType),
+		transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, TransferType),
 		helpers.EmptyRegistry(),
 		logger.Log,
 	)

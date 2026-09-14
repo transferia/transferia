@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func execBatch(t *testing.T, conn *sql.DB, sqlCommands string) {
@@ -58,7 +59,7 @@ func TestCanonSource(t *testing.T) {
 			execBatch(t, conn, TableSQLs[tableName])
 
 			counterStorage, counterSinkFactory := validator.NewCounter()
-			transfer := helpers.MakeTransfer(
+			transfer := transferhelpers.MakeTransfer(
 				tableName,
 				Source,
 				&model.MockDestination{

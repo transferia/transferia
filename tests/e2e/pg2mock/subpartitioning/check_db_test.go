@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -62,14 +63,14 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		return nil
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, target, TransferType)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"public.actions"}}
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 	require.Equal(t, 8, len(result))
 
 	// replication
-	sinkToSource, err := provider_postgres.NewSink(logger.Log, helpers.TransferID, Source.ToSinkParams(), helpers.EmptyRegistry())
+	sinkToSource, err := provider_postgres.NewSink(logger.Log, transferhelpers.TransferID, Source.ToSinkParams(), helpers.EmptyRegistry())
 	require.NoError(t, err)
 
 	schema := abstract.NewTableSchema([]abstract.ColSchema{

@@ -15,6 +15,7 @@ import (
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -89,7 +90,7 @@ func TestReplication(t *testing.T) {
 
 	// activate transfer
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, &target, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, abstract.TransferTypeIncrementOnly)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

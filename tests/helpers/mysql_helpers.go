@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -29,7 +30,7 @@ func ExecuteMySQLStatement(t *testing.T, statement string, connectionParams *pro
 func ExecuteMySQLStatementsLineByLine(t *testing.T, statements string, connectionParams *provider_mysql.ConnectionParams) {
 	conn, err := provider_mysql.Connect(connectionParams, nil)
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	for _, line := range strings.Split(statements, "\n") {
 		_, err = conn.Exec(line)
@@ -40,7 +41,8 @@ func ExecuteMySQLStatementsLineByLine(t *testing.T, statements string, connectio
 }
 
 func isEmptyQueryError(err error) bool {
-	driverError, ok := err.(*mysql_driver2.MySQLError)
+	var driverError *mysql_driver2.MySQLError
+	ok := errors.As(err, &driverError)
 	if !ok {
 		return false
 	}

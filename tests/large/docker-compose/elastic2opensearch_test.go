@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/elastic"
 	"github.com/transferia/transferia/pkg/providers/opensearch"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -52,7 +53,7 @@ func TestElasticToOpenSearchSnapshot(t *testing.T) {
 		Cleanup:          model.Drop,
 		SanitizeDocKeys:  false,
 	}
-	helpers.InitSrcDst(elastic2opensearchTransferID, &elasticSrc, &opensearchDst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(elastic2opensearchTransferID, &elasticSrc, &opensearchDst, abstract.TransferTypeSnapshotOnly)
 
 	t.Parallel()
 
@@ -81,7 +82,7 @@ func TestElasticToOpenSearchSnapshot(t *testing.T) {
 	_, err := elasticGetAllDocuments(client, indexName)
 	require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(elastic2opensearchTransferID, &elasticSrc, &opensearchDst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(elastic2opensearchTransferID, &elasticSrc, &opensearchDst, abstract.TransferTypeSnapshotOnly)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 	// dump data

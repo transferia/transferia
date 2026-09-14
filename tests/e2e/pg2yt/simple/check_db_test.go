@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	yt_recipe "github.com/transferia/transferia/pkg/providers/yt/recipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestGroup(t *testing.T) {
@@ -34,7 +35,7 @@ func TestGroup(t *testing.T) {
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement)
 
 	worker := helpers.Activate(t, transfer)
 

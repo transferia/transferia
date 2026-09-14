@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/e2e/pg2ch"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -26,8 +27,8 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &SourcePK, &Target, TransferType)
-	helpers.InitSrcDst(helpers.TransferID, &SourceNoPK, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &SourcePK, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &SourceNoPK, &Target, TransferType)
 }
 
 func TestSnapshotAndIncrementPK(t *testing.T) {
@@ -43,7 +44,7 @@ func TestSnapshotAndIncrementPK(t *testing.T) {
 	conn, err := provider_postgres.NewPgConnPool(connConfig, logger.Log)
 	require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &SourcePK, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SourcePK, &Target, TransferType)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 
@@ -68,7 +69,7 @@ func TestSnapshotAndIncrementNoPK(t *testing.T) {
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &SourceNoPK, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SourceNoPK, &Target, TransferType)
 
 	_, err := helpers.ActivateErr(transfer)
 	require.Error(t, err)

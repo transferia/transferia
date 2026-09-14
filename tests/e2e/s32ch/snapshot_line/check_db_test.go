@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -64,7 +65,7 @@ func TestNativeS3(t *testing.T) {
 	src.WithDefaults()
 	target.WithDefaults()
 
-	transfer := helpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
 
 	helpers.Activate(t, transfer)
 	helpers.CheckRowsCount(t, &target, "clickhouse_test", "data", 415)

@@ -10,6 +10,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	// Register all dataplane providers used by activation helpers.
+	_ "github.com/transferia/transferia/pkg/dataplane"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"go.uber.org/zap/zapcore"
@@ -23,7 +25,7 @@ type fakeCpErrRepl struct {
 	onErrorCallback []func(err error)
 }
 
-func (f *fakeCpErrRepl) FailReplication(transferID string, err error) error {
+func (f *fakeCpErrRepl) FailReplication(_ string, err error) error {
 	for _, cb := range f.onErrorCallback {
 		cb(err)
 	}

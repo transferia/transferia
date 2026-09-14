@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -82,7 +83,7 @@ func TestGroup(t *testing.T) {
 }
 
 func DropAll(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &srcAll, &dstAllR, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcAll, &dstAllR, abstract.TransferTypeSnapshotAndIncrement)
 	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
@@ -117,7 +118,7 @@ func DropAll(t *testing.T) {
 }
 
 func DropFilter(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &srcFilter, &dstFilterR, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcFilter, &dstFilterR, abstract.TransferTypeSnapshotAndIncrement)
 	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
@@ -153,7 +154,7 @@ func DropFilter(t *testing.T) {
 }
 
 func DropAllSnapshotOnly(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &srcAll, &dstAllSR, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcAll, &dstAllSR, abstract.TransferTypeSnapshotOnly)
 	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
@@ -188,7 +189,7 @@ func DropAllSnapshotOnly(t *testing.T) {
 }
 
 func DropNoViewAll(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &srcNoViewAll, &dstNoViewAllR, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcNoViewAll, &dstNoViewAllR, abstract.TransferTypeSnapshotAndIncrement)
 	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
@@ -225,7 +226,7 @@ func DropNoViewAll(t *testing.T) {
 }
 
 func DropNoViewFilter(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &srcNoViewFilter, &dstNoViewFilterR, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcNoViewFilter, &dstNoViewFilterR, abstract.TransferTypeSnapshotAndIncrement)
 	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
@@ -262,7 +263,7 @@ func DropNoViewFilter(t *testing.T) {
 }
 
 func DropSelective(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &srcAll, &dstSelectiveR, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcAll, &dstSelectiveR, abstract.TransferTypeSnapshotAndIncrement)
 	tables := abstract.TableMap{
 		abstract.TableID{Namespace: "public", Name: "items_1"}: *new(abstract.TableInfo),
 	}

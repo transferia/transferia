@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -31,8 +32,8 @@ func TestAlters(t *testing.T) {
 		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 
-	t.Setenv("YC", "1")                                                  // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	t.Setenv("YC", "1")                                                                  // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	time.Sleep(10 * time.Second)
 	defer func() {
 		sourcePort, err := helpers.GetPortFromStr(Target.Instance)
@@ -43,7 +44,7 @@ func TestAlters(t *testing.T) {
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(
+	transfer := transferhelpers.MakeTransfer(
 		tableName,
 		Source,
 		Target,

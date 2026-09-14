@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -47,7 +48,7 @@ func TestIncrementalSnapshot(t *testing.T) {
 		))
 	}()
 
-	transferID := helpers.GenerateTransferID("TestIncrementalSnapshot")
+	transferID := transferhelpers.GenerateTransferID("TestIncrementalSnapshot")
 	Source.SlotID = transferID
 
 	sinkParams := Source.ToSinkParams()

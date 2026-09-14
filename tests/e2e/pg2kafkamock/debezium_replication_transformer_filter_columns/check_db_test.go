@@ -20,6 +20,7 @@ import (
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.uber.org/mock/gomock"
 )
 
@@ -113,8 +114,8 @@ func TestReplication(t *testing.T) {
 	require.NoError(t, err)
 
 	target := model.MockDestination{SinkerFactory: func() abstract.Sinker { return sink }}
-	helpers.InitSrcDst(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly)
 
 	transformer, err := transformer_filter.NewFilterColumnsTransformer(transformer_filter.FilterColumnsConfig{
 		Columns: transformer_filter.Columns{

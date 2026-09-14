@@ -12,6 +12,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -134,7 +135,7 @@ func testS3SchemaAndPkeyCase(t *testing.T, src *s3_model.S3Source) {
 		Cleanup:       model.DisabledCleanup,
 	}
 
-	transfer := MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 	_, err := ActivateErr(transfer)
 	require.Error(t, err)
 }

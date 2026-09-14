@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -36,7 +37,7 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
 	}
@@ -62,7 +63,7 @@ func DefaultMapping(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.NUMS"}
 	Source.ConvertNumberToInt64 = false
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	helpers.Activate(t, transfer)
 
 	helpers.CheckRowsCount(t, &Target, "dt_test", "nums", 3)
@@ -85,7 +86,7 @@ func ConvertToInt64(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.NUMS"}
 	Source.ConvertNumberToInt64 = true
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	helpers.Activate(t, transfer)
 
 	helpers.CheckRowsCount(t, &Target, "dt_test", "nums", 3)

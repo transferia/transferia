@@ -20,6 +20,7 @@ import (
 	provider_sample "github.com/transferia/transferia/pkg/providers/sample"
 	"github.com/transferia/transferia/tests/helpers"
 	http_proxy "github.com/transferia/transferia/tests/helpers/proxies/http_proxy"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -133,12 +134,12 @@ func TestSnapshotMultipartAccessDenied(t *testing.T) {
 	dst.Endpoint = ep
 	createBucket(t, dst)
 
-	helpers.InitSrcDst(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 
 	t.Logf("sample snapshot: SnapshotEventCount=%d PartSize=%d proxy=%s FailOnNthUploadPart=1",
 		src.SnapshotEventCount, dst.PartSize, ep)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 	w, actErr := helpers.ActivateErr(transfer)
 	t.Logf("ActivateErr: %v", actErr)
 	require.Error(t, actErr)

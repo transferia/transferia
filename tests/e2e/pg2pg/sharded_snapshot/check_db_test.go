@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -18,7 +19,7 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 }
 
 func TestShardedSnapshot(t *testing.T) {
@@ -30,8 +31,8 @@ func TestShardedSnapshot(t *testing.T) {
 	}()
 
 	Source.PreSteps.Constraint = true
-	transfer := helpers.WithLocalRuntime(
-		helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly),
+	transfer := transferhelpers.WithLocalRuntime(
+		transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly),
 		2,
 		1,
 	)

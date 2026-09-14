@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/elastic"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -51,7 +52,7 @@ func TestElasticToElasticSnapshot(t *testing.T) {
 		Cleanup:          model.Drop,
 		SanitizeDocKeys:  false,
 	}
-	helpers.InitSrcDst(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
 
 	t.Parallel()
 
@@ -79,7 +80,7 @@ func TestElasticToElasticSnapshot(t *testing.T) {
 	_, err := elasticGetAllDocuments(client, indexName)
 	require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

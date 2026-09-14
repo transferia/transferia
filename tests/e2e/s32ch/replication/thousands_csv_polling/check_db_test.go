@@ -12,6 +12,7 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -57,7 +58,7 @@ func TestNativeS3(t *testing.T) {
 	src.Format.CSVSetting.QuoteChar = "\""
 
 	start := time.Now()
-	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
 	helpers.Activate(t, transfer)
 
 	for i := 1; i < 1240; i++ {

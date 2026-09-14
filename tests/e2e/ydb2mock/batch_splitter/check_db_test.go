@@ -15,6 +15,8 @@ import (
 	transformer_batch_splitter "github.com/transferia/transferia/pkg/transformer/registry/batch_splitter"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 var expectedChangeItemsCount = 10
@@ -46,7 +48,7 @@ func TestGroup(t *testing.T) {
 
 		var changes []abstract.ChangeItem
 		for i := 1; i <= expectedChangeItemsCount; i++ {
-			changes = append(changes, *helpers.YDBStmtInsert(t, "test/batch_splitter_test", i))
+			changes = append(changes, *testdata.YDBStmtInsert(t, "test/batch_splitter_test", i))
 		}
 		require.NoError(t, sinker.Push(changes))
 	})
@@ -70,7 +72,7 @@ func TestGroup(t *testing.T) {
 	}
 
 	// create transfer with batch-splitter transformer
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 	transfer.Transformation = &model.Transformation{Transformers: &transformer.Transformers{
 		DebugMode: false,
 		Transformers: []transformer.Transformer{{

@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/tests/helpers"
 	all_types "github.com/transferia/transferia/tests/helpers/postgres/all_types"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -31,7 +32,7 @@ func TestAllDataTypes(t *testing.T, source *provider_postgres.PgSource, target *
 	// TODO: Allow to optionally transit extensions as part of transfer
 	require.NoError(t, all_types.EnsureExtensions(context.Background(), conn))
 
-	helpers.InitSrcDst(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 
 	seedTable := func(t *testing.T, tableName string) {
 		t.Helper()
@@ -49,7 +50,7 @@ func TestAllDataTypes(t *testing.T, source *provider_postgres.PgSource, target *
 			seedTable(t, tableName)
 
 			source.DBTables = []string{tableName}
-			transfer := helpers.MakeTransfer(
+			transfer := transferhelpers.MakeTransfer(
 				t.Name(),
 				source,
 				target,
@@ -141,7 +142,7 @@ FROM (
 
 			source.DBTables = []string{tableName}
 			target.Cleanup = model.DisabledCleanup
-			transfer := helpers.MakeTransfer(
+			transfer := transferhelpers.MakeTransfer(
 				t.Name(),
 				source,
 				target,

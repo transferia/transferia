@@ -23,6 +23,7 @@ import (
 	"github.com/transferia/transferia/pkg/terryid"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -233,7 +234,7 @@ func testFactoryPumpDatabaseToYt(ytDest yt_provider.YtDestinationModel, table st
 			))
 		}()
 
-		transfer := helpers.MakeTransfer(terryid.GenerateTransferID(), &pgSource, ytDest, abstract.TransferTypeSnapshotAndIncrement)
+		transfer := transferhelpers.MakeTransfer(terryid.GenerateTransferID(), &pgSource, ytDest, abstract.TransferTypeSnapshotAndIncrement)
 
 		tablePath := ypath.Path(ytDest.Path()).Child(pgSource.Database + "_" + table)
 

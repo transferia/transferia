@@ -12,6 +12,7 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/e2e/mysql2ch"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -59,7 +60,7 @@ func TestSnapshot(t *testing.T) {
 	targetForCompare, ok := Target.(*provider_yt.YtDestinationWrapper)
 	require.True(t, ok)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 
 	_ = helpers.Activate(t, transfer)
 	require.NoError(t, helpers.CompareStorages(t, &Source, targetForCompare, helpers.NewCompareStorageParams().WithPriorityComparators(mysql2ch.MySQLBytesToStringOptionalComparator)))

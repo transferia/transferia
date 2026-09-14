@@ -15,7 +15,8 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/tests/helpers"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
@@ -61,7 +62,7 @@ func TestGroup(t *testing.T) {
 
 	t.Run("fill source", func(t *testing.T) {
 		ydbConn := ydbrecipe.Driver(t)
-		helpers.InitSrcDst(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+		transferhelpers.InitSrcDst(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 
 		execDDL(t, ydbConn, fmt.Sprintf(`
 			--!syntax_v1
@@ -87,7 +88,7 @@ func TestGroup(t *testing.T) {
 	})
 
 	t.Run("snapshot", func(t *testing.T) {
-		transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 		helpers.Activate(t, transfer)
 		require.NoError(t, helpers.WaitDestinationEqualRowsCount("", ydbTableName, helpers.GetSampleableStorageByModel(t, dst), 600*time.Second, 6))
 	})

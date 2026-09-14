@@ -20,6 +20,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.uber.org/mock/gomock"
 )
 
@@ -330,8 +331,8 @@ func TestReplication(t *testing.T) {
 	require.NoError(t, err)
 
 	target := model.MockDestination{SinkerFactory: func() abstract.Sinker { return sink }}
-	helpers.InitSrcDst(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

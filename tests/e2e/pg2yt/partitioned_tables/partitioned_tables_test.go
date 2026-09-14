@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -19,7 +20,7 @@ var (
 
 	SourceWithCollapse   = newSource(true, nil)
 	TargetWithCollapse   = helpers_yt.RecipeYtTarget("//home/cdc/test/pg2yt_e2e/with_collapse")
-	TransferWithCollapse = helpers.MakeTransfer("test_slot_id_with_collapse", &SourceWithCollapse, TargetWithCollapse, TransferType)
+	TransferWithCollapse = transferhelpers.MakeTransfer("test_slot_id_with_collapse", &SourceWithCollapse, TargetWithCollapse, TransferType)
 
 	SourceWithCollapseOnlyParts = newSource(true, []string{
 		"public.measurement_inherited_y2006m02",
@@ -31,11 +32,11 @@ var (
 		"public.measurement_declarative_y2006m05",
 	})
 	TargetWithCollapseOnlyParts   = helpers_yt.RecipeYtTarget("//home/cdc/test/pg2yt_e2e/with_collapse_only_parts")
-	TransferWithCollapseOnlyParts = helpers.MakeTransfer("test_slot_id_with_collapse_only_parts", &SourceWithCollapseOnlyParts, TargetWithCollapseOnlyParts, TransferType)
+	TransferWithCollapseOnlyParts = transferhelpers.MakeTransfer("test_slot_id_with_collapse_only_parts", &SourceWithCollapseOnlyParts, TargetWithCollapseOnlyParts, TransferType)
 
 	SourceWithoutCollapse   = newSource(false, nil)
 	TargetWithoutCollapse   = helpers_yt.RecipeYtTarget("//home/cdc/test/pg2yt_e2e/without_collapse")
-	TransferWithoutCollapse = helpers.MakeTransfer("test_slot_id_without_collapse", &SourceWithoutCollapse, TargetWithoutCollapse, TransferType)
+	TransferWithoutCollapse = transferhelpers.MakeTransfer("test_slot_id_without_collapse", &SourceWithoutCollapse, TargetWithoutCollapse, TransferType)
 )
 
 func init() {

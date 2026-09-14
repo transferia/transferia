@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -39,7 +40,7 @@ var (
 func init() {
 	_ = os.Setenv("YC", "1")
 	Source.IncludeTables = []string{"DT_SHARD.*"}
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
 	}
@@ -61,8 +62,8 @@ func TestShardedSnapshot(t *testing.T) {
 	Source.RowIDBytesPerShard = 16 * 1024 // ~2 extents per range → ~6 ranges for 1000 rows with 8KB extents
 
 	cp := coordinator.NewStatefulFakeClient()
-	transfer := helpers.WithLocalRuntime(
-		helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType),
+	transfer := transferhelpers.WithLocalRuntime(
+		transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType),
 		2, // 2 workers → snapshotShardsNum=2, triggers sharding
 		1,
 	)

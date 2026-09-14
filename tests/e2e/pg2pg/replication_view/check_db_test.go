@@ -13,6 +13,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -32,9 +33,9 @@ func TestViewReplication(t *testing.T) {
 		))
 	}()
 
-	transferID := helpers.TransferID
-	helpers.InitSrcDst(transferID, &Source, &Target, transferType)
-	transfer := helpers.MakeTransfer(transferID, &Source, &Target, transferType)
+	transferID := transferhelpers.TransferID
+	transferhelpers.InitSrcDst(transferID, &Source, &Target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferID, &Source, &Target, transferType)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

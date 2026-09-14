@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestSnapshotAndReplicationViewsCompatibility(t *testing.T) {
@@ -21,7 +22,7 @@ func TestSnapshotAndReplicationViewsCompatibility(t *testing.T) {
 		helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
 		helpers.LabeledPort{Label: "Mysql target", Port: target.Port},
 	))
-	transfer := helpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotAndIncrement)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

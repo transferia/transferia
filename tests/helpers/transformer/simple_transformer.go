@@ -3,12 +3,18 @@ package transformer
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	_ "github.com/transferia/transferia/pkg/dataplane"
 )
 
 //---------------------------------------------------------------------------------------------------------------------
 // simple transformer
+
+func AddTransformer(t *testing.T, transfer *model.Transfer, transformer abstract.Transformer) {
+	require.NoError(t, transfer.AddExtraTransformer(transformer))
+}
 
 type SimpleTransformerApplyUDF func(*testing.T, []abstract.ChangeItem) abstract.TransformerResult
 type SimpleTransformerSuitableUDF func(abstract.TableID, abstract.TableColumns) bool
@@ -20,7 +26,7 @@ type SimpleTransformer struct {
 }
 
 func (s *SimpleTransformer) Type() abstract.TransformerType {
-	return abstract.TransformerType("simple_test_transformer")
+	return "simple_test_transformer"
 }
 
 func (s *SimpleTransformer) Apply(items []abstract.ChangeItem) abstract.TransformerResult {

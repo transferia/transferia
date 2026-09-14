@@ -16,6 +16,10 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 var path = "dectest/test-src"
@@ -31,7 +35,7 @@ var tableMapping = map[string]string{
 var extractedUpdatesAndDeletes []abstract.ChangeItem
 var extractedInserts []abstract.ChangeItem
 
-func makeYdb2YdbFixPathUdf() helpers.SimpleTransformerApplyUDF {
+func makeYdb2YdbFixPathUdf() transformerhelpers.SimpleTransformerApplyUDF {
 	return func(t *testing.T, items []abstract.ChangeItem) abstract.TransformerResult {
 		newChangeItems := make([]abstract.ChangeItem, 0)
 		for i := range items {
@@ -89,11 +93,11 @@ func TestSnapshotAndReplication(t *testing.T) {
 	sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
-	currChangeItem := helpers.YDBInitChangeItem(path)
+	currChangeItem := testdata.YDBInitChangeItem(path)
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 
-	currCompoundChangeItem := helpers.YDBInitChangeItem(pathCompoundKey)
-	currCompoundChangeItem = helpers.YDBStmtInsertValuesMultikey(
+	currCompoundChangeItem := testdata.YDBInitChangeItem(pathCompoundKey)
+	currCompoundChangeItem = testdata.YDBStmtInsertValuesMultikey(
 		t, pathCompoundKey, currCompoundChangeItem.ColumnValues,
 		currCompoundChangeItem.ColumnValues[0],
 		currCompoundChangeItem.ColumnValues[1],
@@ -105,11 +109,11 @@ func TestSnapshotAndReplication(t *testing.T) {
 		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
 		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
-	helpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 
-	fixPathTransformer := helpers.NewSimpleTransformer(t, makeYdb2YdbFixPathUdf(), serde.AnyTablesUdf)
-	helpers.AddTransformer(t, transfer, fixPathTransformer)
+	fixPathTransformer := transformerhelpers.NewSimpleTransformer(t, makeYdb2YdbFixPathUdf(), serde.AnyTablesUdf)
+	transformerhelpers.AddTransformer(t, transfer, fixPathTransformer)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
@@ -117,12 +121,12 @@ func TestSnapshotAndReplication(t *testing.T) {
 	// inserts
 
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsertValues(t, path, helpers.YDBTestValues1, 2),
-		*helpers.YDBStmtInsertNulls(t, path, 3),
-		*helpers.YDBStmtInsertValues(t, path, helpers.YDBTestValues3, 4),
-		*helpers.YDBStmtInsertValuesMultikey(t, pathCompoundKey, helpers.YDBTestMultikeyValues1, 1, false),
-		*helpers.YDBStmtInsertValuesMultikey(t, pathCompoundKey, helpers.YDBTestMultikeyValues2, 2, false),
-		*helpers.YDBStmtInsertValuesMultikey(t, pathCompoundKey, helpers.YDBTestMultikeyValues3, 2, true),
+		*testdata.YDBStmtInsertValues(t, path, testdata.YDBTestValues1, 2),
+		*testdata.YDBStmtInsertNulls(t, path, 3),
+		*testdata.YDBStmtInsertValues(t, path, testdata.YDBTestValues3, 4),
+		*testdata.YDBStmtInsertValuesMultikey(t, pathCompoundKey, testdata.YDBTestMultikeyValues1, 1, false),
+		*testdata.YDBStmtInsertValuesMultikey(t, pathCompoundKey, testdata.YDBTestMultikeyValues2, 2, false),
+		*testdata.YDBStmtInsertValuesMultikey(t, pathCompoundKey, testdata.YDBTestMultikeyValues3, 2, true),
 	}))
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 4))
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathCompoundKeyOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 4))
@@ -130,12 +134,12 @@ func TestSnapshotAndReplication(t *testing.T) {
 	// deletes
 
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtDelete(t, path, 4),
+		*testdata.YDBStmtDelete(t, path, 4),
 	}))
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 3))
 
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtDeleteCompoundKey(t, pathCompoundKey, 2, false),
+		*testdata.YDBStmtDeleteCompoundKey(t, pathCompoundKey, 2, false),
 	}))
 	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathCompoundKeyOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 3))
 
@@ -144,7 +148,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	// canonize
 	for testName, tablePath := range map[string]string{"simple table": pathOut, "compound key": pathCompoundKeyOut} {
 		t.Run(testName, func(t *testing.T) {
-			dump := helpers.YDBPullDataFromTable(t,
+			dump := ydb.PullDataFromTable(t,
 				os.Getenv("YDB_TOKEN"),
 				helpers.GetEnvOfFail(t, "YDB_DATABASE"),
 				helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),

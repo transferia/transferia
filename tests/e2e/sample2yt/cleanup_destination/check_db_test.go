@@ -13,7 +13,7 @@ import (
 	provider_sample "github.com/transferia/transferia/pkg/providers/sample"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/migrate"
 	"go.ytsaurus.tech/yt/go/schema"
@@ -46,14 +46,14 @@ func TestSnapshot(t *testing.T) {
 	createTmpTables(t, ctx, ytEnv.YT)
 	require.Equal(t, 1, nodeCount(t, ctx, ytEnv.YT))
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 	require.NoError(t, tasks.CleanupResource(ctx, model.TransferOperation{}, *transfer, logger.Log, coordinator.NewFakeClient()))
 
 	require.Equal(t, 0, nodeCount(t, ctx, ytEnv.YT))
 }
 
 func createTmpTables(t *testing.T, ctx context.Context, client yt.Client) {
-	tmpPath := model.MakeTmpTableName(TablePath.String(), helpers.TransferID, model.TmpTableSuffix)
+	tmpPath := model.MakeTmpTableName(TablePath.String(), transferhelpers.TransferID, model.TmpTableSuffix)
 
 	trueVal := true
 	schema := schema.Schema{

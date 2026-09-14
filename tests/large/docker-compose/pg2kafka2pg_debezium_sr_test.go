@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestPg2Kafka2PgSchemaRegistry(t *testing.T) {
@@ -153,8 +154,8 @@ func TestPg2Kafka2PgSchemaRegistry(t *testing.T) {
 					Hosts:    []string{"localhost"},
 					Cleanup:  model.Drop,
 				}
-				pg2kafka := helpers.MakeTransfer(dbName+"_pg_kafka", &pgSource, &kafkaTarget, abstract.TransferTypeSnapshotOnly)
-				kafka2pg := helpers.MakeTransfer(dbName+"_kafka_pg", &kafkaSource, &pgTarget, abstract.TransferTypeIncrementOnly)
+				pg2kafka := transferhelpers.MakeTransfer(dbName+"_pg_kafka", &pgSource, &kafkaTarget, abstract.TransferTypeSnapshotOnly)
+				kafka2pg := transferhelpers.MakeTransfer(dbName+"_kafka_pg", &kafkaSource, &pgTarget, abstract.TransferTypeIncrementOnly)
 				w1 := helpers.Activate(t, pg2kafka)
 				w2 := helpers.Activate(t, kafka2pg)
 				require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "basic_types", helpers.GetSampleableStorageByModel(t, pgTarget), 60*time.Second, 1))

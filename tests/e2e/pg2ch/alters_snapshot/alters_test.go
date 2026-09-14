@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/e2e/pg2ch"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
@@ -26,8 +27,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestAlter(t *testing.T) {
@@ -47,7 +48,7 @@ func TestAlter(t *testing.T) {
 	// start worker
 
 	Target.ProtocolUnspecified = true
-	transfer := helpers.MakeTransferForIncrementalSnapshot(helpers.TransferID, &Source, &Target, TransferType, "public", "__test", "id", "0", 1)
+	transfer := transferhelpers.MakeTransferForIncrementalSnapshot(transferhelpers.TransferID, &Source, &Target, TransferType, "public", "__test", "id", "0", 1)
 	cp := helpers.NewFakeCPErrRepl()
 	_, err = helpers.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)

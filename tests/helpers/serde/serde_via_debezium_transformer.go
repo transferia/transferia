@@ -56,6 +56,6 @@ func MakeDebeziumSerDeUdfWithoutCheck(emitter *debezium.Emitter, receiver *debez
 	return makeDebeziumSerDeUdf(emitter, receiver, false)
 }
 
-func AnyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
+func AnyTablesUdf(_ abstract.TableID, _ abstract.TableColumns) bool {
 	return true
 }

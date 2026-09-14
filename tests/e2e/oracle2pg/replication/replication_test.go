@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -45,7 +46,7 @@ func init() {
 	// CDBQueryGlobal to issue "ALTER SESSION SET CONTAINER = cdb$root" before LogMiner
 	// calls, while PDBQueryGlobal still switches to FREEPDB1 for data queries.
 	Source.PDB = os.Getenv("RECIPE_ORACLE_SERVICE")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
 	}
@@ -67,7 +68,7 @@ func TestReplication(t *testing.T) {
 func Replication(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.EVENTS"}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	_ = helpers.Activate(t, transfer)
 
 	pgStorage := helpers.GetSampleableStorageByModel(t, &Target)

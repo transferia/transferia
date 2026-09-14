@@ -16,6 +16,7 @@ import (
 	postgres_canon "github.com/transferia/transferia/tests/canon/postgres"
 	"github.com/transferia/transferia/tests/e2e/pg2ch"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -28,8 +29,8 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	Source := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
 	Target := chrecipe.MustTarget(chrecipe.WithInitDir("dump/ch"), chrecipe.WithDatabase(databaseName))
-	t.Setenv("YC", "1")                                                  // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	t.Setenv("YC", "1")                                                                  // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	defer func() {
 		require.NoError(t, helpers.CheckConnections(
 			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
@@ -48,7 +49,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 			_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
 			require.NoError(t, err)
 
-			transfer := helpers.MakeTransfer(
+			transfer := transferhelpers.MakeTransfer(
 				tableName,
 				Source,
 				Target,

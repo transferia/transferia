@@ -23,6 +23,7 @@ import (
 	transformer_replace_primary_key "github.com/transferia/transferia/pkg/transformer/registry/replace_primary_key"
 	"github.com/transferia/transferia/tests/helpers"
 	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -78,7 +79,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 	currSource.Topic = topicName
 
 	// add transformation and activate transfer
-	transfer := helpers.MakeTransfer(helpers.TransferID, currSource, target, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, currSource, target, abstract.TransferTypeIncrementOnly)
 	transformer, err := transformer_replace_primary_key.NewReplacePrimaryKeyTransformer(transformer_replace_primary_key.Config{
 		Keys: []string{"id"},
 	})

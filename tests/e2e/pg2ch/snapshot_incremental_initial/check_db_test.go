@@ -12,6 +12,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -22,8 +23,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                              // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                              // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func testSnapshot(t *testing.T, source *provider_postgres.PgSource, target clickhouse_model.ChDestination, incremental abstract.IncrementalTable, expectedRows uint64) {
@@ -39,8 +40,8 @@ func testSnapshot(t *testing.T, source *provider_postgres.PgSource, target click
 
 	source.DBTables = []string{incremental.Namespace + "." + incremental.Name}
 	source.SlotID = ""
-	transfer := helpers.MakeTransferForIncrementalSnapshot(
-		helpers.TransferID+"_"+incremental.Name,
+	transfer := transferhelpers.MakeTransferForIncrementalSnapshot(
+		transferhelpers.TransferID+"_"+incremental.Name,
 		source,
 		&target,
 		TransferType,

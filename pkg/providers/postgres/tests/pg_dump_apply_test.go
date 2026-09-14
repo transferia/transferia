@@ -17,6 +17,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 // ddlApplyTargetDB is a separate database on the recipe server. The schema is extracted by pg_dump
@@ -81,7 +82,7 @@ func (e *ddlApplyEnv) execDst(t *testing.T, queries ...string) {
 
 // apply extracts the schema of the source tables by pg_dump and applies items of the given types on the target.
 func (e *ddlApplyEnv) apply(t *testing.T, types ...provider_postgres.PgObjectType) error {
-	transfer := helpers.MakeTransfer(helpers.TransferID, e.src, e.dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, e.src, e.dst, abstract.TransferTypeSnapshotOnly)
 	items, err := provider_postgres.ExtractPgDumpSchema(transfer)
 	require.NoError(t, err)
 

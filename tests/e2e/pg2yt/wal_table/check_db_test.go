@@ -13,6 +13,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -45,7 +47,7 @@ func TestGroup(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 
 	commitTime := uint64(1714117589532851000)
 	lsn := uint64(1000)
@@ -74,8 +76,8 @@ func Load(t *testing.T) {
 		}
 	}
 
-	lsnTransformer := helpers.NewSimpleTransformer(t, fixLSN, func(abstract.TableID, abstract.TableColumns) bool { return true })
-	helpers.AddTransformer(t, transfer, lsnTransformer)
+	lsnTransformer := transformerhelpers.NewSimpleTransformer(t, fixLSN, func(abstract.TableID, abstract.TableColumns) bool { return true })
+	transformerhelpers.AddTransformer(t, transfer, lsnTransformer)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

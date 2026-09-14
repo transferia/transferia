@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/tcrecipes"
 )
 
@@ -36,7 +37,7 @@ func TestReplication(t *testing.T) {
 			chrecipe.WithDatabase(databaseName))
 	)
 
-	helpers.InitSrcDst(helpers.TransferID, source, target, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, transferType)
 
 	defer func() {
 		p := source.Endpoint[len(source.Endpoint)-4:]
@@ -55,8 +56,8 @@ func TestReplication(t *testing.T) {
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		source,
 		target,
 		transferType,

@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -65,8 +66,8 @@ func TestDBLogResumeWithExistingSlot(t *testing.T) {
 	}()
 	require.NoError(t, err)
 
-	transferID := helpers.GenerateTransferID(t.Name())
-	transfer := helpers.MakeTransfer(transferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transferID := transferhelpers.GenerateTransferID(t.Name())
+	transfer := transferhelpers.MakeTransfer(transferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 	_ = helpers.Activate(t, transfer)
 
 	// Set up the test table and initial data
@@ -99,7 +100,7 @@ func TestDBLogResumeWithExistingSlot(t *testing.T) {
 	Source.DBLogEnabled = true
 
 	// Create transfer with snapshot and increment
-	transfer = helpers.MakeTransfer(transferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer = transferhelpers.MakeTransfer(transferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 
 	t.Logf("starting transfer %s", transfer.ID)
 	// Activate transfer

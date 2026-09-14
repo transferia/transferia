@@ -13,6 +13,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -29,7 +30,7 @@ func init() {
 	Target.Cleanup = model.Drop
 	targetConnection.ClusterID = os.Getenv("TARGET_CLUSTER_ID")
 
-	helpers.InitSrcDst(helpers.TransferID, Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	helpers.InitConnectionResolver(map[string]connection.ManagedConnection{"source_mysql_conn_id": srcConnection, "target_pg_conn_id": targetConnection})
 }
 
@@ -56,7 +57,7 @@ func Existence(t *testing.T) {
 }
 
 func Snapshot(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, &Target, TransferType)
 	_ = helpers.Activate(t, transfer)
 
 	require.NoError(t, helpers.WaitStoragesSynced(t, Source, Target, 30, helpers.NewCompareStorageParams())) // 30 * 2 seconds should be enough

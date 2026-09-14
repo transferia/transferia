@@ -5,18 +5,18 @@ import (
 	"testing"
 )
 
-var isTest bool = false
+var isTest = false
 
 func IsTest() bool {
 	return isTest
 }
 
-// for cases, when in tests want to turn-off extra validations - for example, in benchmarks OR in checking max log length
+// TurnOff is for cases, when in tests want to turn-off extra validations - for example, in benchmarks OR in checking max log length
 func TurnOff() {
 	isTest = false
 }
 
-// for cases, when we want to return back
+// TurnOn is for cases, when we want to return back
 func TurnOn() {
 	isTest = true
 }

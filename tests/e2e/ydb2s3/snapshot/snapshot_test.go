@@ -20,6 +20,7 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -96,7 +97,7 @@ func TestGroup(t *testing.T) {
 		))
 	}()
 
-	helpers.InitSrcDst(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 
 	// init data
 	Target := &provider_ydb.YdbDestination{
@@ -121,7 +122,7 @@ func TestGroup(t *testing.T) {
 	}}))
 
 	// activate transfer
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 	helpers.Activate(t, transfer)
 
 	// check data

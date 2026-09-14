@@ -13,12 +13,12 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/tests/helpers"
 	sourcehelpers "github.com/transferia/transferia/tests/helpers/source"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestPartitionSourceQueueToS3(t *testing.T) {
-	transferID := helpers.GenerateTransferID("TestPartitionSourceQueueToS3")
+	transferID := transferhelpers.GenerateTransferID("TestPartitionSourceQueueToS3")
 	src := pgrecipe.RecipeSource(
 		pgrecipe.WithPrefix(""),
 		pgrecipe.WithEdit(func(pg *provider_postgres.PgSource) {

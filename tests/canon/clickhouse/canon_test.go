@@ -12,6 +12,7 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func getID(item abstract.ChangeItem) uint64 {
@@ -67,8 +68,8 @@ func TestCanonSource(t *testing.T) {
 	}
 	Source.WithDefaults()
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(

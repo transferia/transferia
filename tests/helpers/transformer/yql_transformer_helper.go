@@ -1,8 +1,9 @@
-package helpers
+package transformer
 
 import (
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 func MakeChangeItems(tablePath string) []abstract.ChangeItem {
@@ -29,7 +30,7 @@ func MakeChangeItems(tablePath string) []abstract.ChangeItem {
 		"Utf8_":   true,
 	}
 
-	result := YDBInitChangeItem(tablePath)
+	result := testdata.YDBInitChangeItem(tablePath)
 
 	values := result.AsMap()
 	result.ColumnNames = nil

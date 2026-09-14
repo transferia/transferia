@@ -14,6 +14,8 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -84,10 +86,10 @@ func runCanon(t *testing.T, Source *provider_ydb.YdbSource, tablePath string, va
 	sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
-	currChangeItem := helpers.YDBInitChangeItem(tablePath)
+	currChangeItem := testdata.YDBInitChangeItem(tablePath)
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 	// null case
-	nullChangeItem := helpers.YDBInitChangeItem(tablePath)
+	nullChangeItem := testdata.YDBInitChangeItem(tablePath)
 	require.Greater(t, len(nullChangeItem.ColumnNames), 0)
 	require.Equal(t, "id", nullChangeItem.ColumnNames[0])
 	nullChangeItem.ColumnValues[0] = 801640048
@@ -104,8 +106,8 @@ func runCanon(t *testing.T, Source *provider_ydb.YdbSource, tablePath string, va
 	counter, waiterSink := validator.NewCounter()
 
 	validators = append(validators, waiterSink)
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(model.IsStrictSource(Source), validators...),
@@ -116,7 +118,7 @@ func runCanon(t *testing.T, Source *provider_ydb.YdbSource, tablePath string, va
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 
-	replicationChangeItem := helpers.YDBStmtInsert(t, tablePath, 2)
+	replicationChangeItem := testdata.YDBStmtInsert(t, tablePath, 2)
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{*replicationChangeItem}))
 
 	require.NoError(t, helpers.WaitCond(time.Second*60,

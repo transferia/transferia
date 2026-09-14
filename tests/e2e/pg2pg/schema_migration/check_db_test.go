@@ -13,6 +13,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -24,7 +25,7 @@ var (
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
 	Target.Cleanup = model.DisabledCleanup
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 }
 
 func TestAddedColumnIsMigratedOnSnapshot(t *testing.T) {
@@ -44,7 +45,7 @@ func TestAddedColumnIsMigratedOnSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	defer dstConn.Close()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
 	helpers.Activate(t, transfer)
 	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))

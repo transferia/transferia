@@ -15,6 +15,7 @@ import (
 	yt_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
@@ -68,7 +69,7 @@ func TestYTSnapshotWithShuffledColumns(t *testing.T) {
 }
 
 func prepareDst(t *testing.T) {
-	currentSink, err := yt_sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry())
+	currentSink, err := yt_sink.NewSinker(Dst, transferhelpers.TransferID, logger.Log, helpers.EmptyRegistry())
 	require.NoError(t, err)
 
 	require.NoError(t, currentSink.Push([]abstract.ChangeItem{{
@@ -82,7 +83,7 @@ func prepareDst(t *testing.T) {
 }
 
 func fillDestination(t *testing.T) {
-	currentSink, err := yt_sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry())
+	currentSink, err := yt_sink.NewSinker(Dst, transferhelpers.TransferID, logger.Log, helpers.EmptyRegistry())
 	require.NoError(t, err)
 	defer require.NoError(t, currentSink.Close())
 

@@ -16,6 +16,7 @@ import (
 	transformer_dbt "github.com/transferia/transferia/pkg/transformer/registry/dbt"
 	_ "github.com/transferia/transferia/pkg/transformer/registry/dbt/clickhouse"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestSnapshot(t *testing.T) {
@@ -45,7 +46,7 @@ func TestSnapshot(t *testing.T) {
 	target.ProtocolUnspecified = true
 	target.UseSchemaInTableName = true
 	target.Cleanup = model.Drop
-	transfer := helpers.MakeTransfer("testtransfer", source, target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("testtransfer", source, target, abstract.TransferTypeSnapshotOnly)
 	addTransformationToTransfer(transfer, transformer_dbt.Config{
 		GitRepositoryLink: fmt.Sprintf("https://%s@github.com/doublecloud/tests-clickhouse-dbt.git", githubPAT),
 		ProfileName:       "clickhouse",

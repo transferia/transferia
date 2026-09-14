@@ -16,6 +16,9 @@ import (
 	transformer_filter_rows_by_ids "github.com/transferia/transferia/pkg/transformer/registry/filter_rows_by_ids"
 	"github.com/transferia/transferia/tests/helpers"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -26,7 +29,7 @@ var tableMapping = map[string]string{
 	path: pathOut,
 }
 
-func makeYdb2YdbFixPathUdf() helpers.SimpleTransformerApplyUDF {
+func makeYdb2YdbFixPathUdf() transformerhelpers.SimpleTransformerApplyUDF {
 	return func(t *testing.T, items []abstract.ChangeItem) abstract.TransformerResult {
 		newChangeItems := make([]abstract.ChangeItem, 0)
 		for i := range items {
@@ -96,11 +99,11 @@ func TestSnapshotAndReplication(t *testing.T) {
 		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
 		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
-	helpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 
-	fixPathTransformer := helpers.NewSimpleTransformer(t, makeYdb2YdbFixPathUdf(), serde.AnyTablesUdf)
-	helpers.AddTransformer(t, transfer, fixPathTransformer)
+	fixPathTransformer := transformerhelpers.NewSimpleTransformer(t, makeYdb2YdbFixPathUdf(), serde.AnyTablesUdf)
+	transformerhelpers.AddTransformer(t, transfer, fixPathTransformer)
 
 	transformer, err := transformer_filter_rows_by_ids.NewFilterRowsByIDsTransformer(
 		transformer_filter_rows_by_ids.Config{
@@ -118,7 +121,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		logger.Log,
 	)
 	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
+	transformerhelpers.AddTransformer(t, transfer, transformer)
 
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
@@ -144,7 +147,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	// canonize
 	for testName, tablePath := range map[string]string{"simple table": pathOut} {
 		t.Run(testName, func(t *testing.T) {
-			dump := helpers.YDBPullDataFromTable(t,
+			dump := ydb.PullDataFromTable(t,
 				os.Getenv("YDB_TOKEN"),
 				helpers.GetEnvOfFail(t, "YDB_DATABASE"),
 				helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),

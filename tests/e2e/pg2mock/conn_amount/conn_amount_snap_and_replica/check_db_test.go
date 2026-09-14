@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const ExpectedRowCount = 1000000
@@ -60,7 +61,7 @@ func TestConnLimit1Worker4ThreadsSnapshotAndReplication(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transfer1Worker4Threads := helpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer1Worker4Threads := transferhelpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotAndIncrement)
 	transfer1Worker4Threads.Runtime = &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 1, ProcessCount: 4}}
 	worker := helpers.Activate(t, transfer1Worker4Threads)
 	defer worker.Close(t)

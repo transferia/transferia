@@ -13,6 +13,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -75,8 +76,8 @@ func TestExcludeTablesWithEmptyWhitelist(t *testing.T) {
 		return sinker
 	}}
 
-	trasferID := helpers.GenerateTransferID("TestExcludeTablesWithEmptyWhitelist")
-	helpers.InitSrcDst(trasferID, source, dst, TransferType)
+	trasferID := transferhelpers.GenerateTransferID("TestExcludeTablesWithEmptyWhitelist")
+	transferhelpers.InitSrcDst(trasferID, source, dst, TransferType)
 	transfer := &model.Transfer{
 		ID:   "test_id",
 		Src:  source,

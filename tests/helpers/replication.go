@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 )
 
-// Wait for equals rows count in different DB servers.
+// WaitEqualRowsCount waits for equals rows count in different DB servers.
 func WaitEqualRowsCount(
 	t *testing.T,
 	schema, tableName string,
@@ -26,7 +26,7 @@ func WaitEqualRowsCount(
 		maxDuration)
 }
 
-// Wait for equals rows count in different schemas.
+// WaitEqualRowsCountDifferentSchemas waits for equals rows count in different schemas.
 // May be used for wait rows count in same DB.
 func WaitEqualRowsCountDifferentSchemas(
 	t *testing.T,
@@ -42,7 +42,7 @@ func WaitEqualRowsCountDifferentSchemas(
 		maxDuration)
 }
 
-// Wait for equals rows count in different schemas and tables.
+// WaitEqualRowsCountDifferentTables waits for equals rows count in different schemas and tables.
 // May be used for wait rows count in same DB, same schema and different tables.
 func WaitEqualRowsCountDifferentTables(
 	t *testing.T,

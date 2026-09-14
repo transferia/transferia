@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
@@ -20,7 +21,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	fixture := helpers.SetupMySQL2YTTest(t, makeMysqlSource("test_snapshot_and_increment"), helpers_yt.RecipeYtTarget(string(helpers_yt.YtTestDir(t, "json_canonical"))))
 	defer fixture.Teardown(t)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, fixture.Src, fixture.Dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, fixture.Src, fixture.Dst, abstract.TransferTypeSnapshotAndIncrement)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 
@@ -34,7 +35,7 @@ func TestReplication(t *testing.T) {
 	fixture := helpers.SetupMySQL2YTTest(t, makeMysqlSource("test_increment_only"), helpers_yt.RecipeYtTarget(string(helpers_yt.YtTestDir(t, "json_canonical"))))
 	defer fixture.Teardown(t)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, fixture.Src, fixture.Dst, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, fixture.Src, fixture.Dst, abstract.TransferTypeIncrementOnly)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

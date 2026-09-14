@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -175,8 +176,8 @@ func TestCanonSource(t *testing.T) {
 
 	createTestData(t, Source, Source.Paths[0])
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.CanonizatorSkipEmptyClose(t)),
@@ -199,8 +200,8 @@ func TestCanonSourceWithDataObjects(t *testing.T) {
 
 	createTestData(t, Source, "//home/cdc/junk/test_parent_dir/nested_dir/some_table")
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.CanonizatorSkipEmptyClose(t)),
@@ -224,8 +225,8 @@ func TestCanonSourceWithDirInDataObjects(t *testing.T) {
 
 	createTestData(t, Source, "//home/cdc/junk/test_parent_dir/nested_dir2/nested_dir3/some_table2")
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(model.IsStrictSource(Source), validator.CanonizatorSkipEmptyClose(t)),

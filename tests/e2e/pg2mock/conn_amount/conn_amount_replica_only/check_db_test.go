@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestConnLimitReplication(t *testing.T) {
@@ -50,7 +51,7 @@ func TestConnLimitReplication(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transfer := helpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeIncrementOnly)
 	transfer.Runtime = &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 1, ProcessCount: 4}}
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)

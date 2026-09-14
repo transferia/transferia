@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -161,8 +162,8 @@ func Table() []abstract.ChangeItem {
 }
 
 func Canon(t *testing.T, source model.Source) {
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(model.IsStrictSource(source), validator.ValuesTypeChecker, validator.Referencer(t)),

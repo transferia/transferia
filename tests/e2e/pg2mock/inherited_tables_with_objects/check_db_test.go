@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -97,7 +98,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		return nil
 	}
 
-	transfer := helpers.MakeTransfer("data-objects", &SourceCollapse, &targetNoCollapse, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("data-objects", &SourceCollapse, &targetNoCollapse, abstract.TransferTypeSnapshotOnly)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"public.log_table_inheritance_partitioning", "public.log_table_declarative_partitioning"}}
 	_ = helpers.Activate(t, transfer)
 	for k, data := range splitByTables(result) {
@@ -106,10 +107,10 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}
 	require.Len(t, result, 16)
 
-	replicationTransfer := helpers.MakeTransfer("data-objects", &SourceCollapse, &targetNoCollapse, abstract.TransferTypeIncrementOnly)
+	replicationTransfer := transferhelpers.MakeTransfer("data-objects", &SourceCollapse, &targetNoCollapse, abstract.TransferTypeIncrementOnly)
 	replicationTransfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"public.log_table_inheritance_partitioning", "public.log_table_declarative_partitioning"}}
 	w := helpers.Activate(t, replicationTransfer)
-	sinkToSource, err := provider_postgres.NewSink(logger.Log, helpers.TransferID, SourceCollapse.ToSinkParams(), helpers.EmptyRegistry())
+	sinkToSource, err := provider_postgres.NewSink(logger.Log, transferhelpers.TransferID, SourceCollapse.ToSinkParams(), helpers.EmptyRegistry())
 	schema := abstract.NewTableSchema([]abstract.ColSchema{
 		{ColumnName: "id", DataType: ytschema.TypeInt32.String(), PrimaryKey: true},
 		{ColumnName: "logdate", DataType: ytschema.TypeDate.String(), PrimaryKey: false},

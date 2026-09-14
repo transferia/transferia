@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -26,8 +27,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                              // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                              // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestSnapshotAndIncrement(t *testing.T) {
@@ -48,7 +49,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// start worker
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, TransferType)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 
@@ -90,7 +91,7 @@ func TestReplaceCleanupSnapshotAndIncrement(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// start worker
 	Target.Model.Cleanup = model.Replace
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, TransferType)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

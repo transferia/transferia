@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestCanonSource(t *testing.T) {
@@ -72,8 +73,8 @@ func TestCanonSource(t *testing.T) {
 		},
 	}
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		src,
 		&model.MockDestination{
 			SinkerFactory: validator.New(

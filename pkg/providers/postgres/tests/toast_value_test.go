@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func insertToastValue(t *testing.T, conn *pgxpool.Pool, id int) {
@@ -91,7 +92,7 @@ func TestToastValuesFromOldKeys(t *testing.T) {
 		return nil
 	}
 
-	transfer := helpers.MakeTransfer("test_toast_value", &source, &target, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer("test_toast_value", &source, &target, abstract.TransferTypeIncrementOnly)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

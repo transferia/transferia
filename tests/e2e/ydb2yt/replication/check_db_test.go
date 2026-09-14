@@ -13,6 +13,8 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 func TestSnapshotAndReplication(t *testing.T) {
@@ -37,7 +39,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		UseStaticTableOnSnapshot: true, // TM-4444
 	})
 	transferType := abstract.TransferTypeSnapshotAndIncrement
-	helpers.InitSrcDst(helpers.TransferID, source, target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 
 	//---
 
@@ -52,12 +54,12 @@ func TestSnapshotAndReplication(t *testing.T) {
 
 	// insert one rec - for snapshot uploading
 
-	currChangeItem := helpers.YDBStmtInsert(t, currTableName, 1)
+	currChangeItem := testdata.YDBStmtInsert(t, currTableName, 1)
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{*currChangeItem}))
 
 	// start snapshot & replication
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, transferType)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 
@@ -66,26 +68,26 @@ func TestSnapshotAndReplication(t *testing.T) {
 	// insert two more records - it's three of them now
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsert(t, currTableName, 2),
-		*helpers.YDBStmtInsert(t, currTableName, 3),
+		*testdata.YDBStmtInsert(t, currTableName, 2),
+		*testdata.YDBStmtInsert(t, currTableName, 3),
 	}))
 
 	// update 2nd rec
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtUpdate(t, currTableName, 2, 666),
+		*testdata.YDBStmtUpdate(t, currTableName, 2, 666),
 	}))
 
 	// update 3rd rec by TOAST
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtUpdateTOAST(t, currTableName, 3, 777),
+		*testdata.YDBStmtUpdateTOAST(t, currTableName, 3, 777),
 	}))
 
 	// delete 1st rec
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtDelete(t, currTableName, 1),
+		*testdata.YDBStmtDelete(t, currTableName, 1),
 	}))
 
 	// check

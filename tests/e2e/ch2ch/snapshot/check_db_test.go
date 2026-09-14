@@ -13,6 +13,7 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/tests/helpers"
 	proxy "github.com/transferia/transferia/tests/helpers/proxies/http_proxy"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -23,8 +24,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestSnapshot(t *testing.T) {
@@ -50,7 +51,7 @@ func TestSnapshot(t *testing.T) {
 	Target.HTTPPort = dstProxy.ListenPort
 
 	t.Run("default, CSV case", func(t *testing.T) {
-		transfer := helpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
+		transfer := transferhelpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
 		helpers.Activate(t, transfer)
 		require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "FORMAT CSV"))
@@ -59,7 +60,7 @@ func TestSnapshot(t *testing.T) {
 	})
 
 	t.Run("drop", func(t *testing.T) {
-		transfer := helpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
+		transfer := transferhelpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
 		host := &conn_clickhouse.Host{
 			Name:       "localhost",
 			NativePort: Target.NativePort,
@@ -88,7 +89,7 @@ func TestSnapshot(t *testing.T) {
 
 	t.Run("JSONCompactEachRow case", func(t *testing.T) {
 		Source.IOHomoFormat = clickhouse_model.ClickhouseIOFormatJSONCompact
-		transfer := helpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
+		transfer := transferhelpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
 		helpers.Activate(t, transfer)
 		require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "FORMAT JSONCompactEachRow"))

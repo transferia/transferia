@@ -23,6 +23,7 @@ import (
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/tests/helpers"
 	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -83,7 +84,7 @@ func checkCase(t *testing.T, currSource *provider_kafka.KafkaSource, topicName s
 
 	// activate transfer
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, currSource, target, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, currSource, target, abstract.TransferTypeIncrementOnly)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

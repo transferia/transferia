@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -41,8 +42,8 @@ func TestGroup(t *testing.T) {
 
 func Load(t *testing.T) {
 	Source.CollapseInheritTables = true
-	transfer := helpers.MakeTransferForIncrementalSnapshot(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransferForIncrementalSnapshot(
+		transferhelpers.TransferID,
 		&Source,
 		&Target,
 		abstract.TransferTypeSnapshotOnly,

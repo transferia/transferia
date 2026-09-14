@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/elastic"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -39,7 +40,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(pg2ElasticTransferID, &pg2ElasticSource, &pg2ElasticTarget, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(pg2ElasticTransferID, &pg2ElasticSource, &pg2ElasticTarget, abstract.TransferTypeSnapshotOnly)
 }
 
 func TestPgToElasticSnapshot(t *testing.T) {
@@ -54,7 +55,7 @@ func TestPgToElasticSnapshot(t *testing.T) {
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(pg2ElasticTransferID, &pg2ElasticSource, &pg2ElasticTarget, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(pg2ElasticTransferID, &pg2ElasticSource, &pg2ElasticTarget, abstract.TransferTypeSnapshotOnly)
 
 	helpers.Activate(t, transfer)
 

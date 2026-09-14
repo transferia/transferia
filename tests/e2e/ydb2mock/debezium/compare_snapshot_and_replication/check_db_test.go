@@ -19,7 +19,9 @@ import (
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 var path = "dectest/test-src"
@@ -50,8 +52,8 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 	sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsert(t, path, 1),
-		*helpers.YDBStmtDelete(t, path, 1),
+		*testdata.YDBStmtInsert(t, path, 1),
+		*testdata.YDBStmtDelete(t, path, 1),
 	}))
 	// replication
 	sinkMock := mocksink.NewMockSink(nil)
@@ -72,7 +74,7 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 		Cleanup:       model.DisabledCleanup,
 	}
 
-	transfer := helpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeIncrementOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeIncrementOnly)
 	emitter, err := debezium.NewMessagesEmitter(map[string]string{
 		debezium_parameters.DatabaseDBName:   "public",
 		debezium_parameters.TopicPrefix:      "my_topic",
@@ -87,9 +89,9 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 	worker := helpers.Activate(t, transfer)
 
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsertNulls(t, path, 1),
-		*helpers.YDBStmtInsertValues(t, path, helpers.YDBTestValues2, 2),
-		*helpers.YDBStmtInsertValues(t, path, helpers.YDBTestValues3, 3),
+		*testdata.YDBStmtInsertNulls(t, path, 1),
+		*testdata.YDBStmtInsertValues(t, path, testdata.YDBTestValues2, 2),
+		*testdata.YDBStmtInsertValues(t, path, testdata.YDBTestValues3, 3),
 	}))
 
 	require.NoError(t, helpers.WaitCond(time.Second*60, func() bool {
@@ -97,7 +99,7 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 	}))
 	worker.Close(t)
 
-	transferSnapshot := helpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
+	transferSnapshot := transferhelpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
 	require.NoError(t, transferSnapshot.AddExtraTransformer(debeziumSerDeTransformer))
 	helpers.Activate(t, transferSnapshot)
 

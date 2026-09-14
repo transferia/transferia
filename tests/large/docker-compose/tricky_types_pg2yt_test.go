@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -40,7 +41,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, trickyTypesPg2YTSource, trickyTypesPg2YTTarget, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, trickyTypesPg2YTSource, trickyTypesPg2YTTarget, abstract.TransferTypeSnapshotAndIncrement)
 }
 
 type trickyTypesPg2YTCanonData struct {
@@ -60,7 +61,7 @@ func TestTrickyTypesPg2YTSupportedTypes(t *testing.T) {
 		return buf.String()
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, trickyTypesPg2YTSource, trickyTypesPg2YTTarget, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, trickyTypesPg2YTSource, trickyTypesPg2YTTarget, abstract.TransferTypeSnapshotAndIncrement)
 	worker := helpers.Activate(t, transfer)
 	defer worker.Close(t)
 

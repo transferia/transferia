@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/tests/e2e/mysql2ch"
 	"github.com/transferia/transferia/tests/e2e/pg2ch"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestSnapshot(t *testing.T) {
@@ -24,7 +25,7 @@ func TestSnapshot(t *testing.T) {
 
 	t.Run("fake_keys", func(t *testing.T) {
 		source.UseFakePrimaryKey = true
-		transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 		_, err := helpers.ActivateErr(transfer)
 		require.NoError(t, err)
 		require.NoError(t, helpers.CompareStorages(
@@ -36,7 +37,7 @@ func TestSnapshot(t *testing.T) {
 	})
 	t.Run("no_fake_keys", func(t *testing.T) {
 		source.UseFakePrimaryKey = false
-		transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 		_, err := helpers.ActivateErr(transfer)
 		require.Error(t, err)
 	})

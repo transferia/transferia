@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	proxy "github.com/transferia/transferia/tests/helpers/proxies/pg_proxy"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestPollingFailsOnSlotInvalidation(t *testing.T) {
@@ -57,8 +58,8 @@ func TestPollingFailsOnSlotInvalidation(t *testing.T) {
 
 	source.Port = listenPort
 
-	transfer := helpers.MakeTransfer(
-		helpers.GenerateTransferID(t.Name()),
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.GenerateTransferID(t.Name()),
 		source,
 		&model.MockDestination{
 			SinkerFactory: func() abstract.Sinker {

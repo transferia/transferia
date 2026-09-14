@@ -12,8 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
-	ydb_recipe_table "github.com/transferia/transferia/tests/helpers/ydb_recipe/table"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
+	ydb_recipe_table "github.com/transferia/transferia/tests/helpers/ydb/recipe/table"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	ydb_options "github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	ydb_table_types "github.com/ydb-platform/ydb-go-sdk/v3/table/types"
@@ -104,13 +106,13 @@ func TestGroup(t *testing.T) {
 		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	dst.WithDefaults()
-	transfer := helpers.WithLocalRuntime(
-		helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly),
+	transfer := transferhelpers.WithLocalRuntime(
+		transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly),
 		2, 1,
 	)
 
-	transformer := helpers.NewSimpleTransformer(t, applyUdf, anyTablesUdf)
-	helpers.AddTransformer(t, transfer, transformer)
+	transformer := transformerhelpers.NewSimpleTransformer(t, applyUdf, anyTablesUdf)
+	transformerhelpers.AddTransformer(t, transfer, transformer)
 
 	t.Run("activate", func(t *testing.T) {
 		_, err := helpers.ActivateShardedErr(transfer, nil, nil)

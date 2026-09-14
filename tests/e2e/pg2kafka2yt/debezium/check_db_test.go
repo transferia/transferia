@@ -16,6 +16,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -75,7 +76,7 @@ func TestReplication(t *testing.T) {
 	}
 	kafkaDst.WithDefaults()
 
-	transfer1 := helpers.MakeTransfer("test_id_pg2kafka", PgSource, kafkaDst, abstract.TransferTypeIncrementOnly)
+	transfer1 := transferhelpers.MakeTransfer("test_id_pg2kafka", PgSource, kafkaDst, abstract.TransferTypeIncrementOnly)
 	localWorker1 := helpers.Activate(t, transfer1)
 	defer localWorker1.Close(t)
 
@@ -100,7 +101,7 @@ func TestReplication(t *testing.T) {
 	}
 	kafkaSrc.WithDefaults()
 
-	transfer2 := helpers.MakeTransfer("test_id_kafka2yt", kafkaSrc, YtDestination, abstract.TransferTypeIncrementOnly)
+	transfer2 := transferhelpers.MakeTransfer("test_id_kafka2yt", kafkaSrc, YtDestination, abstract.TransferTypeIncrementOnly)
 	localWorker2 := helpers.Activate(t, transfer2)
 	defer localWorker2.Close(t)
 

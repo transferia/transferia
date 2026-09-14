@@ -13,6 +13,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -41,9 +42,9 @@ func TestMultiindexBasic(t *testing.T) {
 		))
 	}()
 
-	transferID := helpers.GenerateTransferID("TestMultiindexBasic")
-	helpers.InitSrcDst(transferID, &SourceBasic, &TargetBasic, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	transfer := helpers.MakeTransfer(transferID, &SourceBasic, &TargetBasic, TransferType)
+	transferID := transferhelpers.GenerateTransferID("TestMultiindexBasic")
+	transferhelpers.InitSrcDst(transferID, &SourceBasic, &TargetBasic, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := transferhelpers.MakeTransfer(transferID, &SourceBasic, &TargetBasic, TransferType)
 
 	srcConn, err := provider_postgres.MakeConnPoolFromSrc(&SourceBasic, logger.Log)
 	require.NoError(t, err)
@@ -95,9 +96,9 @@ func TestMultiindexPkeyChange(t *testing.T) {
 
 	TargetChangePkey.PerTransactionPush = true // in per table mode result depends on collapse and so may flap
 
-	transferID := helpers.GenerateTransferID("TestMultiindexPkeyChange")
-	helpers.InitSrcDst(transferID, &SourceChangePkey, &TargetChangePkey, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	transfer := helpers.MakeTransfer(transferID, &SourceChangePkey, &TargetChangePkey, TransferType)
+	transferID := transferhelpers.GenerateTransferID("TestMultiindexPkeyChange")
+	transferhelpers.InitSrcDst(transferID, &SourceChangePkey, &TargetChangePkey, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := transferhelpers.MakeTransfer(transferID, &SourceChangePkey, &TargetChangePkey, TransferType)
 
 	srcConn, err := provider_postgres.MakeConnPoolFromSrc(&SourceChangePkey, logger.Log)
 	require.NoError(t, err)

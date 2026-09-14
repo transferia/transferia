@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const ExpectedRowCount = 1000000
@@ -96,7 +97,7 @@ func TestConnLimitPg2MockSnapOnly(t *testing.T) {
 					SinkerFactory: func() abstract.Sinker { return sinker },
 					Cleanup:       model.DisabledCleanup,
 				}
-				transfer := helpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotOnly)
+				transfer := transferhelpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotOnly)
 				transfer.Runtime = &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 1, ProcessCount: params.processCount}}
 				worker := helpers.Activate(t, transfer)
 				defer worker.Close(t)

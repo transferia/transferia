@@ -14,6 +14,7 @@ import (
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -33,7 +34,7 @@ func TestUpdateKey(t *testing.T) {
 		))
 	}()
 
-	transferID := helpers.GenerateTransferID("TestUpdateKey")
+	transferID := transferhelpers.GenerateTransferID("TestUpdateKey")
 	Source.SlotID += transferID
 
 	sinkParams := Source.ToSinkParams()

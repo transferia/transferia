@@ -17,6 +17,7 @@ import (
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -50,7 +51,7 @@ func TestGroup(t *testing.T) {
 		))
 	}()
 
-	helpers.InitSrcDst(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 	t.Run("seed data", func(t *testing.T) {
 		Target := &provider_ydb.YdbDestination{
 			Database: src.Database,
@@ -75,7 +76,7 @@ func TestGroup(t *testing.T) {
 	})
 
 	t.Run("activate transfer", func(t *testing.T) {
-		transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 		require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewStatefulFakeClient(), *transfer, helpers.EmptyRegistry()))
 	})
 

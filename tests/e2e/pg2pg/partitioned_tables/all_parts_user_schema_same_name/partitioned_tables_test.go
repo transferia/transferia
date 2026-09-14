@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
@@ -33,8 +34,8 @@ var (
 func init() {
 	TruncateTarget.Cleanup = model.Truncate
 	DropTarget.Cleanup = model.Drop
-	helpers.InitSrcDst(helpers.TransferID, &TruncateSource, &TruncateTarget, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, transferID
-	helpers.InitSrcDst(helpers.TransferID, &DropSource, &DropTarget, TransferType)         // to WithDefaults() & FillDependentFields(): IsHomo, transferID
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &TruncateSource, &TruncateTarget, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, transferID
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &DropSource, &DropTarget, TransferType)         // to WithDefaults() & FillDependentFields(): IsHomo, transferID
 }
 
 func TestGroup(t *testing.T) {
@@ -86,8 +87,8 @@ func Verify(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	truncateTransfer := helpers.MakeTransfer(helpers.TransferID, &TruncateSource, &TruncateTarget, TransferType)
-	dropTransfer := helpers.MakeTransfer(helpers.TransferID, &DropSource, &DropTarget, TransferType)
+	truncateTransfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &TruncateSource, &TruncateTarget, TransferType)
+	dropTransfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &DropSource, &DropTarget, TransferType)
 
 	load(t, dropTransfer, true)
 	load(t, truncateTransfer, false)

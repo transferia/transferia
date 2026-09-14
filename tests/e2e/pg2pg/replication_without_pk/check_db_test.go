@@ -13,6 +13,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const tableName = "public.__test"
@@ -35,9 +36,9 @@ func TestUpdatesWithoutSnapshot(t *testing.T) {
 		))
 	}()
 
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, TransferType)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, TransferType)
 
 	srcConn, err := provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
 	require.NoError(t, err)

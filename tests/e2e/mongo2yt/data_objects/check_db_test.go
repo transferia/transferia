@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -36,7 +37,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -113,7 +114,7 @@ func Load(t *testing.T) {
 		Type: abstract.TransferTypeSnapshotAndIncrement,
 		Src:  &Source,
 		Dst:  Target,
-		ID:   helpers.TransferID,
+		ID:   transferhelpers.TransferID,
 	}
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"db.test_incl"}}
 

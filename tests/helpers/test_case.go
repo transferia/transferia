@@ -63,7 +63,7 @@ func (c *TestCaseContainer) AddChangeItem(t *testing.T, in *abstract.ChangeItem)
 	obj.AddChangeItem(in)
 }
 
-func (c *TestCaseContainer) IsEnoughChangeItems(t *testing.T) bool {
+func (c *TestCaseContainer) IsEnoughChangeItems() bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 

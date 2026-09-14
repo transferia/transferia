@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -72,7 +73,7 @@ func init() {
 	// Now RecipeOracleSource finds RECIPE_ORACLE_* already set — PrepareContainer is a no-op.
 	Source = *oraclerecipe.RecipeOracleSource()
 
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 
 	// Diagnostic: log Oracle session and database timezone settings.
 	diag, err := runOracleDiagnostics(ctx)
@@ -120,7 +121,7 @@ func TestDateTimestampTZ(t *testing.T) {
 func DateTimestampTZ(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.DATE_TZ_TEST"}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	helpers.Activate(t, transfer)
 
 	// Direct PG connection to read and assert transferred values.

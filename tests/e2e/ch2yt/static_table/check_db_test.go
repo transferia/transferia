@@ -13,6 +13,7 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestClickhouseToYtStatic(t *testing.T) {
@@ -46,7 +47,7 @@ func TestClickhouseToYtStatic(t *testing.T) {
 	dst.WithDefaults()
 
 	t.Run("activate", func(t *testing.T) {
-		transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+		transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 		require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, coordinator.NewFakeClient(), *transfer, solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, helpers.CompareStorages(t, src, dst.LegacyModel(), helpers.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
 			return true

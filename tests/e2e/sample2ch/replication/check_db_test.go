@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	provider_sample "github.com/transferia/transferia/pkg/providers/sample"
 	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const minNumberOfRows = 400
@@ -32,9 +33,9 @@ func TestReplication(t *testing.T) {
 	Target.Cleanup = model.DisabledCleanup
 
 	Source.WithDefaults()
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
 	helpers.Activate(t, transfer)
 	require.NoError(t, helpers.WaitCond(60*time.Second, func() bool {

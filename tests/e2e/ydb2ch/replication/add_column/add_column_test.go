@@ -15,7 +15,8 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -76,7 +77,7 @@ func TestAddColumnOnReplication(t *testing.T) {
 		UpsertAbsentToastedRows: true,
 	}
 	transferType := abstract.TransferTypeIncrementOnly
-	helpers.InitSrcDst(helpers.TransferID, source, &target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, &target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 
 	ydbConn := ydbrecipe.Driver(t)
 
@@ -110,7 +111,7 @@ func TestAddColumnOnReplication(t *testing.T) {
 
 	// start RETRYABLE on specific error snapshot & replication
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, &target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, &target, transferType)
 	errCallback := func(err error) {
 		if strings.Contains(err.Error(), `unable to normalize column names order for table "test_table"`) {
 			logger.Log.Info("OK, correct error found in replication", log.Error(err))

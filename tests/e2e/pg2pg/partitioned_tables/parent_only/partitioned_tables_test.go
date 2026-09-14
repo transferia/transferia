@@ -10,6 +10,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
@@ -46,8 +47,8 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, &SrcWholeDB, &Dst, transferType)
-	helpers.InitSrcDst(helpers.TransferID, &SrcOnlyPartitionedTable, &Dst, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &SrcWholeDB, &Dst, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &SrcOnlyPartitionedTable, &Dst, transferType)
 }
 
 func TestGroup(t *testing.T) {
@@ -90,7 +91,7 @@ func TransferParentWithAllChildrenCollapseIgnoredForHomo(t *testing.T) {
 }
 
 func transferParentWithAllChildren(t *testing.T, collapseInheritTables bool) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &SrcOnlyPartitionedTable, &Dst, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SrcOnlyPartitionedTable, &Dst, transferType)
 	src := transfer.Src.(*provider_postgres.PgSource)
 	require.True(t, src.IsHomo, "this test validates homo pg->pg behavior")
 	src.CollapseInheritTables = collapseInheritTables
@@ -120,7 +121,7 @@ func transferParentWithAllChildren(t *testing.T, collapseInheritTables bool) {
 
 // TransferParentAndDataTables checks that selecting parent together with some leaf partitions transfers only selected parts.
 func TransferParentAndDataTables(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &SrcWholeDB, &Dst, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SrcWholeDB, &Dst, transferType)
 	src := transfer.Src.(*provider_postgres.PgSource)
 	src.CollapseInheritTables = false
 	resetTargetPartitionedTables(t, transfer.Dst)
