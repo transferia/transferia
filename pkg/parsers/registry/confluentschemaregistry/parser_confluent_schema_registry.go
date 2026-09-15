@@ -20,12 +20,12 @@ func NewParserConfluentSchemaRegistry(inWrapped interface{}, _ bool, logger log.
 		srURL, username, password = in.SchemaRegistryURL, in.Username, in.Password
 		tlsFile, namespaceID = in.TLSFile, in.NamespaceID
 		generateUpdates = in.IsGenerateUpdates
-		tableNamePolicy = in.TableNamePolicy
+		tableNamePolicy = table_name_policy.OrDefault(in.TableNamePolicy)
 	case *ParserConfigConfluentSchemaRegistryLb:
 		srURL, username, password = in.SchemaRegistryURL, in.Username, in.Password
 		tlsFile, namespaceID = in.TLSFile, in.NamespaceID
 		generateUpdates = in.IsGenerateUpdates
-		tableNamePolicy = in.TableNamePolicy
+		tableNamePolicy = table_name_policy.OrDefault(in.TableNamePolicy)
 	default:
 		return nil, xerrors.Errorf("unknown parser config type '%T'", inWrapped)
 	}
