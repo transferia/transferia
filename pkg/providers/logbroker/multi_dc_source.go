@@ -14,31 +14,6 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-var (
-	KnownClusters = map[LogbrokerCluster][]LogbrokerInstance{
-		Logbroker: {
-			"sas.logbroker.yandex.net",
-			"vla.logbroker.yandex.net",
-			"klg.logbroker.yandex.net",
-		},
-		LogbrokerPrestable: {
-			"vla.logbroker-prestable.yandex.net",
-			"klg.logbroker-prestable.yandex.net",
-			"sas.logbroker-prestable.yandex.net",
-		},
-		Lbkx:                 {"lbkx.logbroker.yandex.net"},
-		Messenger:            {"messenger.logbroker.yandex.net"},
-		Lbkxt:                {"lbkxt.logbroker.yandex.net"},
-		YcLogbroker:          {"lb.etn03iai600jur7pipla.ydb.mdb.yandexcloud.net"},
-		YcLogbrokerPrestable: {"lb.cc8035oc71oh9um52mv3.ydb.mdb.cloud-preprod.yandex.net"},
-	}
-
-	knownDatabases = map[LogbrokerCluster]string{
-		YcLogbroker:          "/global/b1gvcqr959dbmi1jltep/etn03iai600jur7pipla",
-		YcLogbrokerPrestable: "/pre-prod_global/aoeb66ftj1tbt1b2eimn/cc8035oc71oh9um52mv3",
-	}
-)
-
 type multiDcSource struct {
 	sources map[string]abstract.Source
 	configs map[string]LfSource
@@ -60,7 +35,7 @@ func isPersqueueTemporaryError(err error) bool {
 }
 
 func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
-	endpoints, knownCluster := KnownClusters[s.cfg.Cluster]
+	endpoints, knownCluster := ClusterInstances(s.cfg.Cluster)
 	if !knownCluster {
 		return xerrors.Errorf("cannot run source: unknown cluster %v", s.cfg.Cluster)
 	}
@@ -72,8 +47,8 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 			childCfg := *s.cfg
 			childCfg.MaxIdleTime = time.Hour
 			childCfg.Instance = endpoint
-			if _, ok := knownDatabases[s.cfg.Cluster]; ok && s.cfg.Database == "" {
-				childCfg.Database = knownDatabases[s.cfg.Cluster]
+			if database, ok := clusterDefaultDatabase(s.cfg.Cluster); ok && s.cfg.Database == "" {
+				childCfg.Database = database
 			}
 			for {
 				source, err := newOneDCSource(
@@ -145,12 +120,13 @@ func (s *multiDcSource) Fetch() ([]abstract.ChangeItem, error) {
 	res := make(chan []abstract.ChangeItem, len(s.sources))
 	errCh := make(chan error, len(s.sources))
 	go func() {
-		for url, endpoint := range KnownClusters[s.cfg.Cluster] {
+		endpoints, _ := ClusterInstances(s.cfg.Cluster)
+		for _, endpoint := range endpoints {
 			childCfg := *s.cfg
 			childCfg.MaxIdleTime = time.Hour
 			childCfg.Instance = endpoint
-			if _, ok := knownDatabases[s.cfg.Cluster]; ok && s.cfg.Database == "" {
-				childCfg.Database = knownDatabases[s.cfg.Cluster]
+			if database, ok := clusterDefaultDatabase(s.cfg.Cluster); ok && s.cfg.Database == "" {
+				childCfg.Database = database
 			}
 			source, err := newOneDCSource(
 				&childCfg,
@@ -161,7 +137,7 @@ func (s *multiDcSource) Fetch() ([]abstract.ChangeItem, error) {
 				errCh <- err
 				return
 			}
-			s.logger.Infof("start read one of %v", url)
+			s.logger.Infof("start read one of %v", endpoint)
 			if r, err := source.(abstract.Fetchable).Fetch(); err != nil {
 				res <- r
 			} else {

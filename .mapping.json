@@ -1644,6 +1644,7 @@
   "pkg/providers/kinesis/source.go":"transfer_manager/go/pkg/providers/kinesis/source.go",
   "pkg/providers/kinesis/stream_writer.go":"transfer_manager/go/pkg/providers/kinesis/stream_writer.go",
   "pkg/providers/logbroker/fallback_generic_parser_timestamp.go":"transfer_manager/go/pkg/providers/logbroker/fallback_generic_parser_timestamp.go",
+  "pkg/providers/logbroker/installations.go":"transfer_manager/go/pkg/providers/logbroker/installations.go",
   "pkg/providers/logbroker/model_destination.go":"transfer_manager/go/pkg/providers/logbroker/model_destination.go",
   "pkg/providers/logbroker/model_lb_source.go":"transfer_manager/go/pkg/providers/logbroker/model_lb_source.go",
   "pkg/providers/logbroker/model_lf_source.go":"transfer_manager/go/pkg/providers/logbroker/model_lf_source.go",

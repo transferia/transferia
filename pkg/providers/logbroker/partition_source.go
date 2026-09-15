@@ -36,7 +36,10 @@ func NewPartitionSource(cfg *LfSource, partition abstract.Partition, logger log.
 
 	instanceCfgCopy := *cfg
 	instanceCfgCopy.Instance = LogbrokerInstance(partition.Cluster)
-	topicSourceCfg := instanceCfgCopy.buildTopicSourceConfig()
+	topicSourceCfg, err := instanceCfgCopy.buildTopicSourceConfig()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to build topic source config: %w", err)
+	}
 
 	source, err := topicapisource.NewPartitionSource(
 		topicSourceCfg,

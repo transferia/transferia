@@ -49,9 +49,6 @@ type LfSource struct {
 var _ model.Source = (*LfSource)(nil)
 var _ model.QueueToS3Source = (*LfSource)(nil)
 
-type LogbrokerInstance string
-type LogbrokerCluster string
-
 func (s *LfSource) IsLbMirror() bool {
 	if len(s.ParserConfig) == 0 {
 		return false
@@ -116,25 +113,31 @@ func (s *LfSource) MultiYtEnabled() {}
 
 func (s *LfSource) IsQueueToS3Source() {}
 
-func (s *LfSource) db() string {
-	if s.Database == "" {
-		return defaultLogbrokerDatabase
+func (s *LfSource) buildTopicSourceConfig() (*topicsource.Config, error) {
+	config, err := alignSourceConfigWithKnownInstallations(s.Cluster, s.Instance, installationSourceConfig{
+		port:     s.Port,
+		tls:      s.TLS,
+		database: s.Database,
+		topics:   s.Topics,
+	})
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve installation source config: %w", err)
 	}
-	return s.Database
-}
+	if config.database == "" {
+		config.database = defaultLogbrokerDatabase
+	}
 
-func (s *LfSource) buildTopicSourceConfig() *topicsource.Config {
 	return &topicsource.Config{
 		Connection: topiccommon.ConnectionConfig{
-			Endpoint:         topiccommon.FormatEndpoint(string(s.Instance), s.Port),
-			Database:         s.db(),
+			Endpoint:         topiccommon.FormatEndpoint(string(s.Instance), config.port),
+			Database:         config.database,
 			Credentials:      s.Credentials,
-			TLSEnabled:       s.TLS == EnabledTLS,
+			TLSEnabled:       config.tls == EnabledTLS,
 			RootCAFiles:      s.RootCAFiles,
 			TLSCACertificate: "",
 		},
 
-		Topics:   s.Topics,
+		Topics:   config.topics,
 		Consumer: s.Consumer,
 		ReaderOpts: topicsource.ReaderOptions{
 			MaxMemory: int(s.MaxMemory),
@@ -156,5 +159,5 @@ func (s *LfSource) buildTopicSourceConfig() *topicsource.Config {
 		AllowTTLRewind:             s.AllowTTLRewind,
 		ParseQueueParallelism:      s.ParseQueueParallelism,
 		UseFullTopicNameForParsing: true,
-	}
+	}, nil
 }
