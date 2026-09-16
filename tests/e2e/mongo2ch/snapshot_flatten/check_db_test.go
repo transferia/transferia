@@ -18,7 +18,8 @@ import (
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	canon_mongo "github.com/transferia/transferia/tests/canon/mongo"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -36,10 +37,10 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "CH HTTP target", Port: Target.HTTPPort},
-			helpers.LabeledPort{Label: "CH Native target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "CH HTTP target", Port: Target.HTTPPort},
+			network.LabeledPort{Label: "CH Native target", Port: Target.NativePort},
 		))
 	}()
 
@@ -111,7 +112,7 @@ SETTINGS
 		}},
 		ErrorsOutput: nil,
 	}}
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	canon.SaveJSON(t, canon_reference.FromClickhouse(t, &clickhouse_model.ChSource{
 		Database:   databaseName,

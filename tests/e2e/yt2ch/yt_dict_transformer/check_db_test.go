@@ -16,7 +16,11 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
-	"github.com/transferia/transferia/tests/helpers"
+	canon2 "github.com/transferia/transferia/tests/helpers/canon"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -44,8 +48,8 @@ var (
 		ShardsList:          []clickhouse_model.ClickHouseShard{{Name: "_", Hosts: []string{"localhost"}}},
 		User:                "default",
 		Database:            "default",
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 		Cleanup:             model.DisabledCleanup,
 	}
@@ -104,7 +108,7 @@ func TestSnapshot(t *testing.T) {
 		}]
 	}`, TransformedTableName)))
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	t.Run("Snapshot", Snapshot)
@@ -118,25 +122,25 @@ type Response struct {
 }
 
 func Snapshot(t *testing.T) {
-	dst := helpers.GetSampleableStorageByModel(t, Target)
+	dst := storagecomparison.GetSampleableStorageByModel(t, Target)
 	n := uint64(1)
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("default", TransformedTableName, dst, Timeout, n))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("default", NotTransformedTableName, dst, Timeout, n))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("default", TransformedTableName, dst, Timeout, n))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("default", NotTransformedTableName, dst, Timeout, n))
 }
 
 func Canon(t *testing.T) {
-	dst := helpers.GetSampleableStorageByModel(t, Target)
-	var notTransformed, transformed []helpers.CanonTypedChangeItem
+	dst := storagecomparison.GetSampleableStorageByModel(t, Target)
+	var notTransformed, transformed []canon2.CanonTypedChangeItem
 
 	desc := abstract.TableDescription{Schema: "default", Name: NotTransformedTableName}
 	require.NoError(t, dst.LoadTable(context.Background(), desc, func(items []abstract.ChangeItem) error {
-		notTransformed = append(notTransformed, helpers.ToCanonTypedChangeItems(items)...)
+		notTransformed = append(notTransformed, canon2.ToCanonTypedChangeItems(items)...)
 		return nil
 	}))
 
 	desc = abstract.TableDescription{Schema: "default", Name: TransformedTableName}
 	require.NoError(t, dst.LoadTable(context.Background(), desc, func(items []abstract.ChangeItem) error {
-		transformed = append(transformed, helpers.ToCanonTypedChangeItems(items)...)
+		transformed = append(transformed, canon2.ToCanonTypedChangeItems(items)...)
 		return nil
 	}))
 

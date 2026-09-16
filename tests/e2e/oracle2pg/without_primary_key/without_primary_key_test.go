@@ -12,7 +12,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -47,9 +49,9 @@ func init() {
 
 func TestWithoutPrimaryKey(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -65,12 +67,12 @@ func WithoutPrimaryKey(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.NO_PK"}
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "no_pk", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "no_pk", 3)
 
 	// Verify that the unique-index column (code) is marked as key in the transferred schema.
-	pgStorage := helpers.GetSampleableStorageByModel(t, &Target)
+	pgStorage := storagecomparison.GetSampleableStorageByModel(t, &Target)
 	schema, err := pgStorage.TableSchema(context.Background(), *abstract.NewTableID("dt_test", "no_pk"))
 	require.NoError(t, err)
 	var keyColumns []string

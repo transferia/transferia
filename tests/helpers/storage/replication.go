@@ -1,6 +1,7 @@
-package helpers
+package storage
 
 import (
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -53,7 +54,7 @@ func WaitEqualRowsCountDifferentTables(
 	sourceTableID := *abstract.NewTableID(sourceSchema, sourceTableName)
 	sourceTableRowsCount, err := source.ExactTableRowsCount(sourceTableID)
 	require.NoError(t, err)
-	logger.Log.Infof("Source table %v rows count: %v", TableIDFullName(sourceTableID), sourceTableRowsCount)
+	logger.Log.Infof("Source table %v rows count: %v", tableIDFullName(sourceTableID), sourceTableRowsCount)
 
 	destinationTableID := *abstract.NewTableID(destinationSchema, destinationTableName)
 	if err := WaitDestinationEqualRowsCount(destinationSchema, destinationTableName, destination, maxDuration, sourceTableRowsCount); err != nil {
@@ -61,7 +62,7 @@ func WaitEqualRowsCountDifferentTables(
 			destinationTableID, err) //TODO: why we need error, if we have t?
 	}
 	logger.Log.Infof("Source table %v rows count is equal destination table %v rows count: %v",
-		TableIDFullName(sourceTableID), TableIDFullName(destinationTableID), sourceTableRowsCount)
+		tableIDFullName(sourceTableID), tableIDFullName(destinationTableID), sourceTableRowsCount)
 
 	return nil
 }
@@ -74,7 +75,7 @@ func WaitDestinationEqualRowsCount(
 ) error {
 	destinationTableID := *abstract.NewTableID(destinationSchema, destinationTableName)
 	logger.Log.Infof("Maximum wait for destination table %v target rows count: %v",
-		TableIDFullName(destinationTableID), maxDuration)
+		tableIDFullName(destinationTableID), maxDuration)
 
 	sleepTime := time.Second * 2
 	startTime := time.Now()
@@ -82,28 +83,28 @@ func WaitDestinationEqualRowsCount(
 	for {
 		duration := time.Since(startTime)
 		logger.Log.Infof("Wait for destination table %v target rows count: %v",
-			TableIDFullName(destinationTableID), duration)
+			tableIDFullName(destinationTableID), duration)
 		if duration > maxDuration {
 			if destinationTableRowsCount != math.MaxUint64 {
 				return xerrors.Errorf(
 					"Exceeded max allowed duration for destination table %v target rows count. Have %d rows instead of %d",
-					TableIDFullName(destinationTableID), destinationTableRowsCount, sourceTableRowsCount)
+					tableIDFullName(destinationTableID), destinationTableRowsCount, sourceTableRowsCount)
 			}
 			return xerrors.Errorf("Exceeded max allowed duration for destination table %v target rows count",
-				TableIDFullName(destinationTableID))
+				tableIDFullName(destinationTableID))
 		}
 
 		exists, err := destination.TableExists(destinationTableID)
 		if err != nil {
 			logger.Log.Warnf("Wait for destination table %v target rows count returned error: %s",
-				TableIDFullName(destinationTableID), err)
+				tableIDFullName(destinationTableID), err)
 
 			time.Sleep(sleepTime)
 			continue
 		}
 		if !exists {
 			logger.Log.Warnf("Wait for destination table %v: table not exists",
-				TableIDFullName(destinationTableID))
+				tableIDFullName(destinationTableID))
 
 			time.Sleep(sleepTime)
 			continue
@@ -112,12 +113,12 @@ func WaitDestinationEqualRowsCount(
 		destinationTableRowsCount, err = destination.ExactTableRowsCount(destinationTableID)
 		if err != nil {
 			logger.Log.Warnf("Wait for destination table %v target rows count, get rows count returned error: %s",
-				TableIDFullName(destinationTableID), err)
+				tableIDFullName(destinationTableID), err)
 			continue
 		}
 
 		logger.Log.Infof("Destination table %v rows count: %v, expect %v",
-			TableIDFullName(destinationTableID), destinationTableRowsCount, sourceTableRowsCount)
+			tableIDFullName(destinationTableID), destinationTableRowsCount, sourceTableRowsCount)
 
 		if sourceTableRowsCount == destinationTableRowsCount {
 			return nil
@@ -143,4 +144,8 @@ func WaitCond(maxDuration time.Duration, condFunc func() bool) error {
 		}
 		time.Sleep(time.Second)
 	}
+}
+
+func tableIDFullName(tableID abstract.TableID) string {
+	return fmt.Sprintf(`"%s"."%s"`, tableID.Namespace, tableID.Name)
 }

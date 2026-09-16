@@ -10,7 +10,8 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -28,15 +29,15 @@ func init() {
 
 func testSnapshot(t *testing.T, source *provider_postgres.PgSource, target clickhouse_model.ChDestination) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: source.Port},
-			helpers.LabeledPort{Label: "CH target Native", Port: target.NativePort},
-			helpers.LabeledPort{Label: "CH target HTTP", Port: target.HTTPPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: source.Port},
+			network.LabeledPort{Label: "CH target Native", Port: target.NativePort},
+			network.LabeledPort{Label: "CH target HTTP", Port: target.HTTPPort},
 		))
 	}()
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, &target, TransferType)
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 }
 
 func TestSnapshot(t *testing.T) {

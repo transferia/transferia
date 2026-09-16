@@ -9,7 +9,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -23,7 +26,7 @@ var (
 		User:     os.Getenv("RECIPE_MYSQL_USER"),
 		Password: model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
 		Database: os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE"),
-		Port:     helpers.GetIntFromEnv("RECIPE_MYSQL_PORT"),
+		Port:     testenv.GetIntFromEnv("RECIPE_MYSQL_PORT"),
 	}
 	target = helpers_yt.RecipeYtTarget("//home/cdc/test/mysql2yt_e2e_snapshot")
 )
@@ -34,12 +37,12 @@ func init() {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(target.Cluster())
+	targetPort, err := network.GetPortFromStr(target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -60,6 +63,6 @@ func TestGroup(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, target, abstract.TransferTypeSnapshotOnly)
-	_ = helpers.Activate(t, transfer)
-	require.NoError(t, helpers.CompareStorages(t, source, target.LegacyModel(), helpers.NewCompareStorageParams()))
+	_ = delivery.Activate(t, transfer)
+	require.NoError(t, storagecomparison.CompareStorages(t, source, target.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 }

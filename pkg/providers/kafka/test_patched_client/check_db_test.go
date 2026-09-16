@@ -15,7 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	kafka_client "github.com/transferia/transferia/pkg/providers/kafka/client"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -114,8 +114,8 @@ func TestAutoDeriveBatchBytes(t *testing.T) {
 		{ColumnName: "k", DataType: ytschema.TypeInt32.String(), OriginalType: "pg:integer", PrimaryKey: true},
 		{ColumnName: "v", DataType: ytschema.TypeString.String(), OriginalType: "pg:text", PrimaryKey: false},
 	})
-	table1ItemsBuilder := helpers.NewChangeItemsBuilder("public", "table1", tableSchema)
-	table2ItemsBuilder := helpers.NewChangeItemsBuilder("public", "table2", tableSchema)
+	table1ItemsBuilder := changeitem.NewChangeItemsBuilder("public", "table1", tableSchema)
+	table2ItemsBuilder := changeitem.NewChangeItemsBuilder("public", "table2", tableSchema)
 
 	insertIntoTable1 := table1ItemsBuilder.Inserts(t, []map[string]interface{}{{"k": 1, "v": strings.Repeat("x", 5*512*1024)}})
 	insertIntoTable2 := table2ItemsBuilder.Inserts(t, []map[string]interface{}{{"k": 1, "v": strings.Repeat("x", 5*512*1024)}})

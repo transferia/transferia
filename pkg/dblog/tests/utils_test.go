@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/dblog"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
 	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -95,7 +95,7 @@ func TestPKeysToStringArr(t *testing.T) {
 	arrColSchema, err := storage.TableSchema(context.TODO(), abstract.TableID{})
 	require.NoError(t, err)
 
-	changeItemBuilder := helpers.NewChangeItemsBuilder("public", "", arrColSchema)
+	changeItemBuilder := changeitem.NewChangeItemsBuilder("public", "", arrColSchema)
 	item := changeItemBuilder.Inserts(t, []map[string]interface{}{{"int": 1, "text": 1, "val": 2}})[0]
 
 	result, err := dblog.PKeysToStringArr(&item, []string{"int", "text"}, converter)
@@ -125,7 +125,7 @@ func TestResolveChunkMapFromArr(t *testing.T) {
 	arrColSchema, err := storage.TableSchema(context.TODO(), abstract.TableID{})
 	require.NoError(t, err)
 
-	changeItemBuilder := helpers.NewChangeItemsBuilder("public", "", arrColSchema)
+	changeItemBuilder := changeitem.NewChangeItemsBuilder("public", "", arrColSchema)
 	items := changeItemBuilder.Inserts(t, []map[string]interface{}{{"int": 1, "text": 1, "val": 2}, {"int": 11, "text": 1, "val": 11}})
 
 	expected := map[string]abstract.ChangeItem{

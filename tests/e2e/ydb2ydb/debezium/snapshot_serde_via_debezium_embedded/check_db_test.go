@@ -12,9 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/debezium"
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
@@ -27,8 +28,8 @@ var sourceChangeItem abstract.ChangeItem
 func TestSnapshotSerDeViaDebeziumEmbedded(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -53,8 +54,8 @@ func TestSnapshotSerDeViaDebeziumEmbedded(t *testing.T) {
 
 	dst := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	dst.WithDefaults()
 	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
@@ -70,7 +71,7 @@ func TestSnapshotSerDeViaDebeziumEmbedded(t *testing.T) {
 	require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
 
 	t.Run("activate", func(t *testing.T) {
-		helpers.Activate(t, transfer)
+		delivery.Activate(t, transfer)
 	})
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -91,7 +92,7 @@ func TestSnapshotSerDeViaDebeziumEmbedded(t *testing.T) {
 			}
 			return nil
 		}
-		helpers.Activate(t, transferMock)
+		delivery.Activate(t, transferMock)
 	})
 
 	sourceChangeItem.CommitTime = 0

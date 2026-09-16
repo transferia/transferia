@@ -13,8 +13,9 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/transformer"
 	transformer_batch_splitter "github.com/transferia/transferia/pkg/transformer/registry/batch_splitter"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
@@ -27,8 +28,8 @@ var maxBatchSize = 1
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -83,6 +84,6 @@ func TestGroup(t *testing.T) {
 		ErrorsOutput: nil,
 	}}
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 	require.Equal(t, expectedChangeItemsCount, changeItemsCount)
 }

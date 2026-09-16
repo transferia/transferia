@@ -14,7 +14,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
@@ -49,8 +53,8 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 
 	source := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{currTableName},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -70,8 +74,8 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 		User:                "default",
 		Password:            "",
 		Database:            "database",
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 		Cleanup:             model.Drop,
 	}
@@ -81,9 +85,9 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 	//---
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "CH target Native", Port: target.NativePort},
-			helpers.LabeledPort{Label: "CH target HTTP", Port: target.HTTPPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "CH target Native", Port: target.NativePort},
+			network.LabeledPort{Label: "CH target HTTP", Port: target.HTTPPort},
 		))
 	}()
 
@@ -108,10 +112,10 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 	// start snapshot & replication
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, &target, transferType)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	helpers.CheckRowsCount(t, target, target.Database, currTableName, 2)
+	storagecomparison.CheckRowsCount(t, target, target.Database, currTableName, 2)
 
 	// insert two more records - it's three of them now
 
@@ -176,8 +180,8 @@ ALTER TABLE %s ADD COLUMN brand_new_text_column Text;
 	// check
 
 	if mode == provider_ydb.ChangeFeedModeNewImage || mode == provider_ydb.ChangeFeedModeNewAndOldImages {
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(target.Database, currTableName, helpers.GetSampleableStorageByModel(t, target), 60*time.Second, 5))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(target.Database, currTableName, storagecomparison.GetSampleableStorageByModel(t, target), 60*time.Second, 5))
 	} else {
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(target.Database, currTableName, helpers.GetSampleableStorageByModel(t, target), 60*time.Second, 3))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(target.Database, currTableName, storagecomparison.GetSampleableStorageByModel(t, target), 60*time.Second, 3))
 	}
 }

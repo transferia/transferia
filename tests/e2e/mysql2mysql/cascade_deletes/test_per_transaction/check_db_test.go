@@ -5,14 +5,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	cascade_deletes_common "github.com/transferia/transferia/tests/e2e/mysql2mysql/cascade_deletes/common"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
 )
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: cascade_deletes_common.Source.Port},
-			helpers.LabeledPort{Label: "Mysql target", Port: cascade_deletes_common.Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: cascade_deletes_common.Source.Port},
+			network.LabeledPort{Label: "Mysql target", Port: cascade_deletes_common.Target.Port},
 		))
 	}()
 

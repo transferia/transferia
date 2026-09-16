@@ -11,14 +11,18 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 	Source       = *pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("pg_source"))
-	Target       = *helpers.RecipeMysqlTarget()
+	Target       = *mysql.RecipeMysqlTarget()
 )
 
 func init() {
@@ -29,9 +33,9 @@ func init() {
 func TestAlter(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "MYSQL target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "MYSQL target", Port: Target.Port},
 		))
 	}()
 	Target.MaintainTables = false
@@ -44,7 +48,7 @@ func TestAlter(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	var terminateErr error
-	localWorker := helpers.Activate(t, transfer, func(err error) {
+	localWorker := delivery.Activate(t, transfer, func(err error) {
 		terminateErr = err
 	})
 	defer localWorker.Close(t)
@@ -67,10 +71,10 @@ func TestAlter(t *testing.T) {
 		//------------------------------------------------------------------------------------
 		// wait & compare
 
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(
 			Target.Database,
 			"__test",
-			helpers.GetSampleableStorageByModel(t, Target),
+			storagecomparison.GetSampleableStorageByModel(t, Target),
 			60*time.Second,
 			4,
 		))

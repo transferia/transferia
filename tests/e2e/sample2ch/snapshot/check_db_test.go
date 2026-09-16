@@ -8,7 +8,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	provider_sample "github.com/transferia/transferia/pkg/providers/sample"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -23,8 +25,8 @@ var (
 
 func TestSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 	Target.WithDefaults()
@@ -35,7 +37,7 @@ func TestSnapshot(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, schemaName, "iot", expectedNumberOfRows)
+	storagecomparison.CheckRowsCount(t, &Target, schemaName, "iot", expectedNumberOfRows)
 }

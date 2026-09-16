@@ -17,8 +17,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -29,8 +30,8 @@ import (
 func TestYDBIncrementalSnapshot(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -91,7 +92,7 @@ func TestYDBIncrementalSnapshot(t *testing.T) {
 	transfer.RegularSnapshot = &abstract.RegularSnapshot{Incremental: incremental}
 
 	cpClient := coordinator.NewStatefulFakeClient()
-	require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, cpClient, *transfer, helpers.EmptyRegistry()))
+	require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, cpClient, *transfer, testmetrics.EmptyRegistry()))
 
 	readTables := abstract.SplitByTableID(readItems)
 	for _, tablePath := range tables {
@@ -101,7 +102,7 @@ func TestYDBIncrementalSnapshot(t *testing.T) {
 	}
 
 	readItems = nil
-	require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, cpClient, *transfer, helpers.EmptyRegistry()))
+	require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, cpClient, *transfer, testmetrics.EmptyRegistry()))
 
 	readTables = abstract.SplitByTableID(readItems)
 	for _, tablePath := range tables {
@@ -115,7 +116,7 @@ func TestYDBIncrementalSnapshot(t *testing.T) {
 	// forgot current increment by using clean empty state
 	cpClient = coordinator.NewStatefulFakeClient()
 	readItems = nil
-	require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, cpClient, *transfer, helpers.EmptyRegistry()))
+	require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, cpClient, *transfer, testmetrics.EmptyRegistry()))
 
 	readTables = abstract.SplitByTableID(readItems)
 	for _, tablePath := range tables {

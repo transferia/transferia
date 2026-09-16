@@ -10,7 +10,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	provider_sample "github.com/transferia/transferia/pkg/providers/sample"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -25,8 +28,8 @@ var (
 
 func TestReplication(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 	Target.WithDefaults()
@@ -37,9 +40,9 @@ func TestReplication(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	helpers.Activate(t, transfer)
-	require.NoError(t, helpers.WaitCond(60*time.Second, func() bool {
-		storage := helpers.GetSampleableStorageByModel(t, &Target)
+	delivery.Activate(t, transfer)
+	require.NoError(t, storage.WaitCond(60*time.Second, func() bool {
+		storage := storagecomparison.GetSampleableStorageByModel(t, &Target)
 		tableDescription := abstract.TableDescription{Name: Source.SampleType, Schema: schemaName}
 		rowsInSrc, err := storage.ExactTableRowsCount(tableDescription.ID())
 		if err != nil {

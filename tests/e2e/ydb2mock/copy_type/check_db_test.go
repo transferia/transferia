@@ -13,8 +13,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
@@ -25,8 +26,8 @@ func TestGroup(t *testing.T) {
 
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -138,7 +139,7 @@ func runTestCase(t *testing.T, caseName string, src *provider_ydb.YdbSource, dst
 	src.Tables = pathsIn
 	*changeItems = make([]abstract.ChangeItem, 0)
 	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 	checkTableNameExpected(t, caseName, *changeItems, pathsExpected)
 	fmt.Printf("finishing test case: %s\n", caseName)
 }

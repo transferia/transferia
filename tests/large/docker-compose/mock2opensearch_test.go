@@ -14,7 +14,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/opensearch"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 )
 
 func TestMockOpenSearchDataStreamSinkPush(t *testing.T) {
@@ -40,8 +41,8 @@ func TestMockOpenSearchDataStreamSinkPush(t *testing.T) {
 	WaitForElastic(t, "127.0.0.1", dstPort)
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "OpenSearch target", Port: dstPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "OpenSearch target", Port: dstPort},
 		))
 	}()
 
@@ -63,7 +64,7 @@ func TestMockOpenSearchDataStreamSinkPush(t *testing.T) {
 		TableSchema:  tableSchema,
 	}
 
-	sink, err := opensearch.NewSink(&opensearchDst, logger.Log, helpers.EmptyRegistry())
+	sink, err := opensearch.NewSink(&opensearchDst, logger.Log, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	defer func() { require.NoError(t, sink.Close()) }()
 

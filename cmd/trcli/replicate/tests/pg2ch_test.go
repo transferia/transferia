@@ -15,7 +15,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 )
 
 //go:embed transfer.yaml
@@ -59,6 +60,6 @@ func TestReplicate(t *testing.T) {
 	require.NoError(t, err)
 	rows.Close()
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(dst.Database, "t2", helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(dst.Database, "t3", helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(dst.Database, "t2", storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(dst.Database, "t3", storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
 }

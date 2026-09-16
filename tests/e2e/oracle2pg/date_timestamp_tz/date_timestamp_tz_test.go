@@ -18,7 +18,9 @@ import (
 	"github.com/transferia/transferia/pkg/providers/oracle/common"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -107,9 +109,9 @@ func runOracleDiagnostics(ctx context.Context) (string, error) {
 
 func TestDateTimestampTZ(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -122,7 +124,7 @@ func DateTimestampTZ(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.DATE_TZ_TEST"}
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	// Direct PG connection to read and assert transferred values.
 	pool, err := provider_postgres.MakeConnPoolFromDst(&Target, logger.Log)
@@ -178,5 +180,5 @@ func DateTimestampTZ(t *testing.T) {
 	}
 
 	// Row count check covers all 4 rows.
-	helpers.CheckRowsCount(t, &Target, "dt_test", "date_tz_test", 4)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "date_tz_test", 4)
 }

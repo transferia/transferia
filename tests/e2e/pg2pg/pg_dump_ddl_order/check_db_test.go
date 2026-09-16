@@ -9,7 +9,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
@@ -27,9 +28,9 @@ func init() {
 
 func TestDDLOrderPreSteps(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: source.Port},
+			network.LabeledPort{Label: "PG target", Port: target.Port},
 		))
 	}()
 
@@ -54,7 +55,7 @@ func TestDDLOrderPreSteps(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, items)
 
-		require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(items, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
+		require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(items, transfer, &model.TransferOperation{}, testmetrics.EmptyRegistry()))
 
 		dstStorage, err := provider_postgres.NewStorage(target.ToStorageParams())
 		require.NoError(t, err)

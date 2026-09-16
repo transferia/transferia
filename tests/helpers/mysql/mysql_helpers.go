@@ -1,4 +1,4 @@
-package helpers
+package mysql
 
 import (
 	"bytes"

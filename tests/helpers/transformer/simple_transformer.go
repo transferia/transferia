@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	_ "github.com/transferia/transferia/pkg/dataplane"
 )
 
 //---------------------------------------------------------------------------------------------------------------------

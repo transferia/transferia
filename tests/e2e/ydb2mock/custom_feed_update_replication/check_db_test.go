@@ -15,8 +15,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
@@ -34,8 +35,8 @@ const (
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:                        model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:                     helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:                     helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:                     testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:                     testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:                       nil,
 		TableColumnsFilter:           nil,
 		SubNetworkID:                 "",
@@ -97,7 +98,7 @@ func TestGroup(t *testing.T) {
 	// running activation
 	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{testTableName}}
-	_, err = helpers.ActivateErr(transfer)
+	_, err = delivery.ActivateErr(transfer)
 	require.NoError(t, err)
 	require.Equal(t, len(changeItems), 1)
 

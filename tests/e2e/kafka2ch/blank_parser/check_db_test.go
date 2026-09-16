@@ -19,7 +19,8 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/transformer"
 	transformer_jsonparser "github.com/transferia/transferia/pkg/transformer/registry/jsonparser"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -75,6 +76,6 @@ func TestLogs(t *testing.T) {
 	}()
 	w := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
 	w.Start()
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(dst.Database, src.Topic, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 50))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(dst.Database, src.Topic, storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 50))
 	require.NoError(t, w.Stop())
 }

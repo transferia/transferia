@@ -1,4 +1,4 @@
-package helpers
+package storage
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
 )
 
 func compare(l, r interface{}) (bool, bool) { // equal, less
@@ -113,12 +114,12 @@ func LoadTable(t *testing.T, storage abstract.Storage, table abstract.TableDescr
 }
 
 func ConstructLoadSnapshotItems(t *testing.T, data []abstract.ChangeItem) [][]abstract.ChangeItem {
-	tables := TableMapFromItems(data)
+	tables := changeitem.TableMapFromItems(data)
 	require.True(t, len(tables) == 1)
 
 	dataBatches := make([][]abstract.ChangeItem, 5)
 	for id, schema := range tables {
-		cb := NewChangeItemsBuilder(id.Namespace, id.Name, schema.Schema)
+		cb := changeitem.NewChangeItemsBuilder(id.Namespace, id.Name, schema.Schema)
 		dataBatches[0] = cb.InitShardedTableLoad()
 		dataBatches[1] = cb.InitTableLoad()
 		dataBatches[2] = data

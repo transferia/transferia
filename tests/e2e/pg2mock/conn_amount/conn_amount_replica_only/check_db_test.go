@@ -14,8 +14,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -30,8 +33,8 @@ func TestConnLimitReplication(t *testing.T) {
 	)
 	source.WithDefaults()
 
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: source.Port},
 	))
 
 	tableRowCounts := make(map[string]int)
@@ -53,13 +56,13 @@ func TestConnLimitReplication(t *testing.T) {
 	}
 	transfer := transferhelpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeIncrementOnly)
 	transfer.Runtime = &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 1, ProcessCount: 4}}
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 	ctx := context.Background()
 
 	writerString := fmt.Sprintf(
 		"host=localhost port=%d dbname=%s user=writer password=aA_12345",
-		helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		os.Getenv("PG_LOCAL_DATABASE"),
 	)
 	srcConn, err := pgx.Connect(ctx, writerString)
@@ -78,7 +81,7 @@ func TestConnLimitReplication(t *testing.T) {
 		require.NoError(t, err)
 		counter++
 	}
-	err = helpers.WaitCond(time.Second*30, func() bool {
+	err = storage.WaitCond(time.Second*30, func() bool {
 		rwMutex.RLock()
 		res := tableRowCounts["test1"] == counter
 		rwMutex.RUnlock()

@@ -11,8 +11,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -36,8 +40,8 @@ func init() {
 
 func TestSnapshotAndIncrement(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -65,12 +69,12 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, target, TransferType)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"public.actions"}}
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 	require.Equal(t, 8, len(result))
 
 	// replication
-	sinkToSource, err := provider_postgres.NewSink(logger.Log, transferhelpers.TransferID, Source.ToSinkParams(), helpers.EmptyRegistry())
+	sinkToSource, err := provider_postgres.NewSink(logger.Log, transferhelpers.TransferID, Source.ToSinkParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	schema := abstract.NewTableSchema([]abstract.ColSchema{
@@ -84,22 +88,22 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		{"added_at": "2024-02-08", "external_id": 2, "tenant": 1},
 	}
 
-	builder := helpers.NewChangeItemsBuilder("public", "actions", schema)
+	builder := changeitem.NewChangeItemsBuilder("public", "actions", schema)
 	require.NoError(t, sinkToSource.Push(builder.Inserts(t, valuesToInsert)))
 
 	//-----------------------------------------------------------------------------------------------------------------
 
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions", 11)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2023", 3)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_01", 3)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_01_01", 3)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_01_02", 0)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_02", 3)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_02_01", 2)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_02_02", 1)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_03", 2)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_03_01", 0)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "actions_2024_03_02", 2)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions", 11)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2023", 3)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_01", 3)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_01_01", 3)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_01_02", 0)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_02", 3)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_02_01", 2)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_02_02", 1)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_03", 2)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_03_01", 0)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "actions_2024_03_02", 2)
 
 	for {
 		if len(result) == 11 {

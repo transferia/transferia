@@ -6,7 +6,8 @@ import (
 
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -23,6 +24,6 @@ func init() {
 
 func TestSnapshot(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
-	helpers.CheckRowsCount(t, Target, "public", "__test", 1)
+	delivery.Activate(t, transfer)
+	storagecomparison.CheckRowsCount(t, Target, "public", "__test", 1)
 }

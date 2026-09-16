@@ -14,7 +14,8 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -49,15 +50,15 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source all", Port: srcAll.Port},
-			helpers.LabeledPort{Label: "PG source noview", Port: srcNoViewAll.Port},
-			helpers.LabeledPort{Label: "PG target all", Port: dstAllR.Port},
-			helpers.LabeledPort{Label: "PG target filter", Port: dstFilterR.Port},
-			helpers.LabeledPort{Label: "PG target filter snapshot", Port: dstAllSR.Port},
-			helpers.LabeledPort{Label: "PG target noview", Port: dstNoViewAllR.Port},
-			helpers.LabeledPort{Label: "PG target noview filter", Port: dstNoViewFilterR.Port},
-			helpers.LabeledPort{Label: "PG target selective", Port: dstSelectiveR.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source all", Port: srcAll.Port},
+			network.LabeledPort{Label: "PG source noview", Port: srcNoViewAll.Port},
+			network.LabeledPort{Label: "PG target all", Port: dstAllR.Port},
+			network.LabeledPort{Label: "PG target filter", Port: dstFilterR.Port},
+			network.LabeledPort{Label: "PG target filter snapshot", Port: dstAllSR.Port},
+			network.LabeledPort{Label: "PG target noview", Port: dstNoViewAllR.Port},
+			network.LabeledPort{Label: "PG target noview filter", Port: dstNoViewFilterR.Port},
+			network.LabeledPort{Label: "PG target selective", Port: dstSelectiveR.Port},
 		))
 	}()
 
@@ -84,11 +85,11 @@ func TestGroup(t *testing.T) {
 
 func DropAll(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcAll, &dstAllR, abstract.TransferTypeSnapshotAndIncrement)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
+	tables, err := tasks.ObtainAllSrcTables(transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.NoError(t, err)
 
@@ -119,11 +120,11 @@ func DropAll(t *testing.T) {
 
 func DropFilter(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcFilter, &dstFilterR, abstract.TransferTypeSnapshotAndIncrement)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
+	tables, err := tasks.ObtainAllSrcTables(transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "cannot drop table ids_1 because other objects depend on it")
@@ -155,11 +156,11 @@ func DropFilter(t *testing.T) {
 
 func DropAllSnapshotOnly(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcAll, &dstAllSR, abstract.TransferTypeSnapshotOnly)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
+	tables, err := tasks.ObtainAllSrcTables(transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.NoError(t, err)
 
@@ -190,12 +191,12 @@ func DropAllSnapshotOnly(t *testing.T) {
 
 func DropNoViewAll(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcNoViewAll, &dstNoViewAllR, abstract.TransferTypeSnapshotAndIncrement)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
+	tables, err := tasks.ObtainAllSrcTables(transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
 	// must not drop VIEW in target when it is absent in source
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed dependent VIEWs check")
@@ -227,12 +228,12 @@ func DropNoViewAll(t *testing.T) {
 
 func DropNoViewFilter(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &srcNoViewFilter, &dstNoViewFilterR, abstract.TransferTypeSnapshotAndIncrement)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
+	tables, err := tasks.ObtainAllSrcTables(transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("got tables: %v", tables)
 
 	// must not drop VIEW in target when it is absent in source
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.CleanupSinker(tables)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed dependent VIEWs check")
@@ -269,7 +270,7 @@ func DropSelective(t *testing.T) {
 	}
 	logger.Log.Infof("got tables: %v", tables)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err := snapshotLoader.CleanupSinker(tables)
 	require.NoError(t, err)
 

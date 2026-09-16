@@ -15,7 +15,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_clickhouse "github.com/transferia/transferia/pkg/providers/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -37,9 +40,9 @@ func init() {
 }
 
 func TestIncrementalSnapshot(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "CH source", Port: Source.NativePort},
-		helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "CH source", Port: Source.NativePort},
+		network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 	))
 
 	transfer := transferhelpers.MakeTransferForIncrementalSnapshot(transferhelpers.TransferID, &Source, &Target, TransferType, databaseName, tableName, cursorField, cursorValue, 15)
@@ -47,10 +50,10 @@ func TestIncrementalSnapshot(t *testing.T) {
 
 	cp := coordinator.NewStatefulFakeClient()
 
-	_, err := helpers.ActivateWithCP(transfer, cp, true)
+	_, err := delivery.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(databaseName, tableName, helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 5))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(databaseName, tableName, storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second, 5))
 
 	storageParams, err := Source.ToStorageParams()
 	require.NoError(t, err)
@@ -60,12 +63,12 @@ func TestIncrementalSnapshot(t *testing.T) {
 
 	addData(t, conn)
 
-	_, err = helpers.ActivateWithCP(transfer, cp, true)
+	_, err = delivery.ActivateWithCP(transfer, cp, true)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(databaseName, tableName, helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 6))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(databaseName, tableName, storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second, 6))
 
-	ids := readIdsFromTarget(t, helpers.GetSampleableStorageByModel(t, Target))
+	ids := readIdsFromTarget(t, storagecomparison.GetSampleableStorageByModel(t, Target))
 	require.True(t, yslices.ContainsAll(ids, []uint16{1, 2, 3, 4, 5, 7}))
 }
 

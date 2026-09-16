@@ -10,7 +10,10 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/s3"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -51,20 +54,20 @@ func testNativeS3(t *testing.T, src *s3_model.S3Source) {
 		User:                "default",
 		Password:            "",
 		Database:            "people",
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 		Cleanup:             model.Drop,
 	}
 	dst.WithDefaults()
 
 	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
-	helpers.CheckRowsCount(t, &dst, "people", "data", 500000)
+	delivery.Activate(t, transfer)
+	storagecomparison.CheckRowsCount(t, &dst, "people", "data", 500000)
 }
 
 func TestAll(t *testing.T) {
 	src := buildSourceModel(t)
 	testNativeS3(t, src)
-	helpers.TestS3SchemaAndPkeyCases(t, src, "Email", "")
+	s3.TestS3SchemaAndPkeyCases(t, src, "Email", "")
 }

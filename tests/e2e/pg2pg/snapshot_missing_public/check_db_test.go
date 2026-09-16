@@ -11,7 +11,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -28,9 +29,9 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -48,7 +49,7 @@ func Existence(t *testing.T) {
 func Snapshot(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
-	w := helpers.Activate(t, transfer)
+	w := delivery.Activate(t, transfer)
 	w.Close(t)
 
 	dstStorage, err := provider_postgres.NewStorage(Target.ToStorageParams())

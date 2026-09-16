@@ -16,7 +16,9 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -24,8 +26,8 @@ import (
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -40,14 +42,14 @@ func TestGroup(t *testing.T) {
 		UseStaticTableOnSnapshot: true, // TM-4444
 	})
 
-	sourcePort, err := helpers.GetPortFromStr(src.Instance)
+	sourcePort, err := network.GetPortFromStr(src.Instance)
 	require.NoError(t, err)
-	targetPort, err := helpers.GetPortFromStr(dst.Cluster())
+	targetPort, err := network.GetPortFromStr(dst.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YDB source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YDB source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -77,7 +79,7 @@ func TestGroup(t *testing.T) {
 
 	t.Run("activate transfer", func(t *testing.T) {
 		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
-		require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewStatefulFakeClient(), *transfer, helpers.EmptyRegistry()))
+		require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewStatefulFakeClient(), *transfer, testmetrics.EmptyRegistry()))
 	})
 
 	t.Run("check data", func(t *testing.T) {

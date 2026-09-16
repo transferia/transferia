@@ -13,7 +13,10 @@ import (
 	"github.com/transferia/transferia/pkg/parsers"
 	parser_json "github.com/transferia/transferia/pkg/parsers/registry/json"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -31,7 +34,7 @@ var (
 		SecurityGroupIDs: nil,
 		ParserConfig:     nil,
 	}
-	target = *helpers.RecipeMysqlTarget()
+	target = *mysql.RecipeMysqlTarget()
 )
 
 func TestReplication(t *testing.T) {
@@ -84,15 +87,15 @@ func TestReplication(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, abstract.TransferTypeIncrementOnly)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// check results
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		target.Database,
 		"topic1",
-		helpers.GetSampleableStorageByModel(t, target),
+		storagecomparison.GetSampleableStorageByModel(t, target),
 		60*time.Second,
 		1,
 	))

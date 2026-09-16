@@ -14,7 +14,10 @@ import (
 	parser_json "github.com/transferia/transferia/pkg/parsers/registry/json"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -34,7 +37,7 @@ var (
 	}
 	target = provider_mongo.MongoDestination{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
 		Database: "db1",
 		User:     os.Getenv("MONGO_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
@@ -92,15 +95,15 @@ func TestReplication(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, abstract.TransferTypeIncrementOnly)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// check results
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		target.Database,
 		"topic1",
-		helpers.GetSampleableStorageByModel(t, target),
+		storagecomparison.GetSampleableStorageByModel(t, target),
 		60*time.Second,
 		1,
 	))

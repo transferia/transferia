@@ -22,7 +22,11 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/terryid"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -38,11 +42,11 @@ func TestRunner(t *testing.T) {
 	t.Run("CheckGeneratorIsDeterministic", checkGeneratorIsDeterministic)
 	_, ytDest, cancel := initYt(t)
 
-	targetPort, err := helpers.GetPortFromStr(ytDest.Cluster())
+	targetPort, err := network.GetPortFromStr(ytDest.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -60,7 +64,7 @@ func newPgSource(tableName string) postgres.PgSource {
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{os.Getenv("PG_LOCAL_DATABASE") + "." + tableName},
 		SlotID:    "test_slot_" + tableName,
 	}
@@ -229,8 +233,8 @@ func testFactoryPumpDatabaseToYt(ytDest yt_provider.YtDestinationModel, table st
 
 	return func(t *testing.T) {
 		defer func() {
-			require.NoError(t, helpers.CheckConnections(
-				helpers.LabeledPort{Label: "PG source", Port: pgSource.Port},
+			require.NoError(t, network.CheckConnections(
+				network.LabeledPort{Label: "PG source", Port: pgSource.Port},
 			))
 		}()
 
@@ -256,7 +260,7 @@ func testFactoryPumpDatabaseToYt(ytDest yt_provider.YtDestinationModel, table st
 		require.NoError(t, err)
 
 		logger.Log.Info("Load snapshot", log.String("table", table), log.Any("tablePath", tablePath))
-		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+		snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 		err = snapshotLoader.LoadSnapshot(ctx)
 		require.NoError(t, err)
 
@@ -276,7 +280,7 @@ func testFactoryPumpDatabaseToYt(ytDest yt_provider.YtDestinationModel, table st
 
 		// table size should be handicap size
 		logger.Log.Info(fmt.Sprintf("Wait for expected %d rows", handicap), log.String("table", table), log.Any("tablePath", tablePath))
-		require.NoError(t, helpers.WaitEqualRowsCount(t, "postgres", table, helpers.GetSampleableStorageByModel(t, pgSource), helpers.GetSampleableStorageByModel(t, ytDest.LegacyModel()), 60*time.Second))
+		require.NoError(t, storage.WaitEqualRowsCount(t, "postgres", table, storagecomparison.GetSampleableStorageByModel(t, pgSource), storagecomparison.GetSampleableStorageByModel(t, ytDest.LegacyModel()), 60*time.Second))
 
 		// then remove the same amount of items from table
 		logger.Log.Info("Put kind=remove change items into the database", log.String("table", table), log.Any("tablePath", tablePath))
@@ -284,7 +288,7 @@ func testFactoryPumpDatabaseToYt(ytDest yt_provider.YtDestinationModel, table st
 
 		// table size should be zero
 		logger.Log.Info("Wait for expected 0 rows", log.String("table", table), log.Any("tablePath", tablePath))
-		require.NoError(t, helpers.WaitEqualRowsCount(t, "postgres", table, helpers.GetSampleableStorageByModel(t, pgSource), helpers.GetSampleableStorageByModel(t, ytDest.LegacyModel()), 60*time.Second))
+		require.NoError(t, storage.WaitEqualRowsCount(t, "postgres", table, storagecomparison.GetSampleableStorageByModel(t, pgSource), storagecomparison.GetSampleableStorageByModel(t, ytDest.LegacyModel()), 60*time.Second))
 
 		// wait worker for finish
 		logger.Log.Info("Wait for worker to finish", log.String("table", table), log.Any("tablePath", tablePath))

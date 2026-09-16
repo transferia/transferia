@@ -10,7 +10,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -30,8 +33,8 @@ var dst = clickhouse_model.ChDestination{
 	User:                "default",
 	Password:            "",
 	Database:            "test",
-	HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-	NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+	HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+	NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 	ProtocolUnspecified: true,
 	Cleanup:             model.Drop,
 }
@@ -53,31 +56,31 @@ func TestNativeS3(t *testing.T) {
 	src.Format.CSVSetting.QuoteChar = "\""
 
 	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	var err error
 
 	s3recipe.UploadOne(t, src, "test_csv_replication_gzip/test_2.csv.gz")
 	time.Sleep(time.Second)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 12)
+	err = storage.WaitDestinationEqualRowsCount("test", "data", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 12)
 	require.NoError(t, err)
 
 	s3recipe.UploadOne(t, src, "test_csv_replication_gzip/test_3.csv.gz")
 	time.Sleep(time.Second)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 24)
+	err = storage.WaitDestinationEqualRowsCount("test", "data", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 24)
 	require.NoError(t, err)
 
 	s3recipe.UploadOne(t, src, "test_csv_replication_gzip/test_4.csv.gz")
 	time.Sleep(time.Second)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 36)
+	err = storage.WaitDestinationEqualRowsCount("test", "data", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 36)
 	require.NoError(t, err)
 
 	s3recipe.UploadOne(t, src, "test_csv_replication_gzip/test_5.csv.gz")
 	time.Sleep(time.Second)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 48)
+	err = storage.WaitDestinationEqualRowsCount("test", "data", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 48)
 	require.NoError(t, err)
 }

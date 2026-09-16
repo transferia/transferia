@@ -14,7 +14,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/tests/canon/validator"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -37,13 +40,13 @@ func TestCanonSource(t *testing.T) {
 		User:                os.Getenv("RECIPE_MYSQL_USER"),
 		Password:            model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
 		Database:            os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE"),
-		Port:                helpers.GetIntFromEnv("RECIPE_MYSQL_PORT"),
+		Port:                testenv.GetIntFromEnv("RECIPE_MYSQL_PORT"),
 		AllowDecimalAsFloat: true,
 	}
 	Source.WithDefaults()
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: Source.Port},
 		))
 	}()
 
@@ -78,7 +81,7 @@ func TestCanonSource(t *testing.T) {
 				abstract.TransferTypeSnapshotAndIncrement,
 			)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{Source.Database + "." + tableName}}
-			worker := helpers.Activate(t, transfer)
+			worker := delivery.Activate(t, transfer)
 
 			_, err = conn.Exec(fmt.Sprintf(`truncate table %s`, tableName))
 			require.NoError(t, err)
@@ -91,7 +94,7 @@ func TestCanonSource(t *testing.T) {
 			srcStorage, err := mysql.NewStorage(Source.ToStorageParams())
 			require.NoError(t, err)
 
-			require.NoError(t, helpers.WaitEqualRowsCount(t, Source.Database, tableName, srcStorage, counterStorage, time.Second*60))
+			require.NoError(t, storage.WaitEqualRowsCount(t, Source.Database, tableName, srcStorage, counterStorage, time.Second*60))
 
 			defer worker.Close(t)
 		}

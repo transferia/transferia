@@ -20,7 +20,8 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -72,9 +73,9 @@ func TestGroup(t *testing.T) {
 	targetPort, err := strconv.Atoi(os.Getenv("DB0_MONGO_LOCAL_PORT"))
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: sourcePort},
-			helpers.LabeledPort{Label: "Mongo target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: sourcePort},
+			network.LabeledPort{Label: "Mongo target", Port: targetPort},
 		))
 	}()
 
@@ -98,7 +99,7 @@ func testCollectionFilterIncludeWholeDB(t *testing.T) {
 
 	transfer := makeTransfer("transfer1", src, tgt)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	if strings.Contains(err.Error(), "replication") {
 		require.EqualError(t, err, "Failed in accordance with configuration: Some tables whose replication was requested are missing in the source database. Include directives with no matching tables: [db1.*]")
 	} else {
@@ -133,7 +134,7 @@ func testCollectionFilterAllIncludesExcluded(t *testing.T) {
 	logger.Log.Info("start replication")
 	transfer := makeTransfer("transfer2", src, tgt)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.Error(t, err)
 	if strings.Contains(err.Error(), "replication") {
 		require.Contains(t, err.Error(), "Failed in accordance with configuration: Some tables whose replication was requested are missing in the source database. Include directives with no matching tables:")
@@ -184,7 +185,7 @@ func testEmptyCollectionListIncludesAll(t *testing.T) {
 
 	logger.Log.Info("Create and activate transfer")
 	transfer := makeTransfer("transfer3", src, tgt)
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	logger.Log.Info("Insert documents after activation")
@@ -233,7 +234,7 @@ func testCollectionFilterWholeDBExcludedExcludesCollection(t *testing.T) {
 	logger.Log.Info("start replication")
 	transfer := makeTransfer("transfer4", src, tgt)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	if strings.Contains(err.Error(), "replication") {
 		require.EqualError(t, err, "Failed in accordance with configuration: Some tables whose replication was requested are missing in the source database. Include directives with no matching tables: [db1.coll1]")
 	} else {

@@ -16,15 +16,20 @@ import (
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
-	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source       = *mysql.RecipeMysqlSource()
+	Target       = *mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
@@ -35,9 +40,9 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mysql target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: Source.Port},
+			network.LabeledPort{Label: "Mysql target", Port: Target.Port},
 		))
 	}()
 
@@ -56,9 +61,9 @@ func Existence(t *testing.T) {
 func Snapshot(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 
 	targetCfg := mysql_driver2.NewConfig()
 	targetCfg.Addr = fmt.Sprintf("%v:%v", Target.Host, Target.Port)
@@ -90,7 +95,7 @@ func Load(t *testing.T) {
 		Port:     Source.Port,
 	}
 	sourceAsDestination.WithDefaults()
-	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, helpers.EmptyRegistry())
+	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	transfer := &model.Transfer{
@@ -103,7 +108,7 @@ func Load(t *testing.T) {
 	err = provider_mysql.SyncBinlogPosition(&Source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(fakeClient, transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -134,12 +139,12 @@ func Load(t *testing.T) {
 	err = srcConn.Close()
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentSchemas(t,
+	require.NoError(t, storage.WaitEqualRowsCountDifferentSchemas(t,
 		Source.Database, Target.Database, "products",
-		helpers.GetSampleableStorageByModel(t, Source),
-		helpers.GetSampleableStorageByModel(t, Target),
+		storagecomparison.GetSampleableStorageByModel(t, Source),
+		storagecomparison.GetSampleableStorageByModel(t, Target),
 		time.Minute))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 
 	targetCfg := mysql_driver2.NewConfig()
 	targetCfg.Addr = fmt.Sprintf("%v:%v", Target.Host, Target.Port)

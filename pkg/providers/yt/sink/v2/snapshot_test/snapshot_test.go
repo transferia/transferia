@@ -16,7 +16,9 @@ import (
 	yt_recipe "github.com/transferia/transferia/pkg/providers/yt/recipe"
 	yt_sink_v2 "github.com/transferia/transferia/pkg/providers/yt/sink/v2"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -54,11 +56,11 @@ type row struct {
 }
 
 func TestYTStaticTableSink(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(dstSample.Cluster)
+	targetPort, err := network.GetPortFromStr(dstSample.Cluster)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YT DST", Port: targetPort}))
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YT DST", Port: targetPort}))
 	}()
 
 	t.Run("SingleSnapshotOneTable", singleSnapshotOneTable)
@@ -81,7 +83,7 @@ func singleSnapshotOneTable(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ok)
 
-	itemsBuilder := helpers.NewChangeItemsBuilder("public", tableName, testDstSchema)
+	itemsBuilder := changeitem.NewChangeItemsBuilder("public", tableName, testDstSchema)
 
 	// Without sorting
 	// push items to non-existent table
@@ -140,7 +142,7 @@ func singleSnapshotOneTable(t *testing.T) {
 
 	// push unsorted table to existent sorted
 	dst = newYTDstModel(dstSample, false)
-	sink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	sink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 
 	require.NoError(t, sink.Push(itemsBuilder.InitShardedTableLoad()))
@@ -162,18 +164,18 @@ func shardedSnapshotManyTables(t *testing.T) {
 	firstTableName := "test_sharded_table_1"
 	secondTableName := "test_sharded_table_2"
 
-	firstItemsBuilder := helpers.NewChangeItemsBuilder("public", firstTableName, testDstSchema)
-	secondItemsBuilder := helpers.NewChangeItemsBuilder("public", secondTableName, reducedDstSchema)
+	firstItemsBuilder := changeitem.NewChangeItemsBuilder("public", firstTableName, testDstSchema)
+	secondItemsBuilder := changeitem.NewChangeItemsBuilder("public", secondTableName, reducedDstSchema)
 
 	// push InitShTableLoad items
-	primarySink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	primarySink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 
 	require.NoError(t, primarySink.Push(firstItemsBuilder.InitShardedTableLoad()))
 	require.NoError(t, primarySink.Push(secondItemsBuilder.InitShardedTableLoad()))
 
 	// push Inserts to sinks on secondary workers
-	secondarySink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	secondarySink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 
 	require.NoError(t, secondarySink.Push(firstItemsBuilder.InitTableLoad()))
@@ -181,7 +183,7 @@ func shardedSnapshotManyTables(t *testing.T) {
 	require.NoError(t, secondarySink.Push(firstItemsBuilder.Inserts(t, []map[string]interface{}{{"id": 1, "author_id": "111", "is_deleted": false}})))
 	require.NoError(t, secondarySink.Push(firstItemsBuilder.DoneTableLoad()))
 
-	secondarySink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	secondarySink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 
 	require.NoError(t, secondarySink.Push(secondItemsBuilder.InitTableLoad()))
@@ -190,7 +192,7 @@ func shardedSnapshotManyTables(t *testing.T) {
 	require.NoError(t, secondarySink.Push(secondItemsBuilder.DoneTableLoad()))
 
 	// push DoneShTableLoad items and complete snapshot
-	primarySink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	primarySink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 
 	require.NoError(t, primarySink.Push(firstItemsBuilder.DoneShardedTableLoad()))
@@ -225,25 +227,25 @@ func retryingParts(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ok)
 
-	itemsBuilder := helpers.NewChangeItemsBuilder("public", tableName, testDstSchema)
+	itemsBuilder := changeitem.NewChangeItemsBuilder("public", tableName, testDstSchema)
 
-	currentSink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	currentSink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 	require.NoError(t, currentSink.Push(itemsBuilder.InitShardedTableLoad()))
 
-	currentSink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	currentSink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 	require.NoError(t, currentSink.Push(itemsBuilder.InitTableLoad()))
 	require.Error(t, currentSink.Push(itemsBuilder.Inserts(t, []map[string]interface{}{{"author_id": 123, "is_deleted": 15}})))
 	require.NoError(t, currentSink.Push(itemsBuilder.DoneTableLoad()))
 
-	currentSink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	currentSink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 	require.NoError(t, currentSink.Push(itemsBuilder.InitTableLoad()))
 	require.NoError(t, currentSink.Push(itemsBuilder.Inserts(t, []map[string]interface{}{{"id": 0, "author_id": "a", "is_deleted": true}})))
 	require.NoError(t, currentSink.Push(itemsBuilder.DoneTableLoad()))
 
-	currentSink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	currentSink, err = yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 	require.NoError(t, currentSink.Push(itemsBuilder.DoneShardedTableLoad()))
 
@@ -276,8 +278,8 @@ func twoTablesInOne(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ok)
 
-	itemsBuilderFirstTable := helpers.NewChangeItemsBuilder("public", firstTableName, testDstSchema)
-	itemsBuilderSecondTable := helpers.NewChangeItemsBuilder("public", secondTableName, testDstSchema)
+	itemsBuilderFirstTable := changeitem.NewChangeItemsBuilder("public", firstTableName, testDstSchema)
+	itemsBuilderSecondTable := changeitem.NewChangeItemsBuilder("public", secondTableName, testDstSchema)
 
 	pushItemsWithoutCommit(t, cp, transferID, dst, [][]abstract.ChangeItem{
 		itemsBuilderFirstTable.InitShardedTableLoad(),
@@ -324,7 +326,7 @@ func withShuffledColumns(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ok)
 
-	itemsBuilder := helpers.NewChangeItemsBuilder("public", tableName, testDstSchema)
+	itemsBuilder := changeitem.NewChangeItemsBuilder("public", tableName, testDstSchema)
 
 	pushItems(t, cp, dst, [][]abstract.ChangeItem{
 		itemsBuilder.InitShardedTableLoad(),
@@ -354,7 +356,7 @@ func withShuffledColumns(t *testing.T) {
 }
 
 func pushItemsWithoutCommit(t *testing.T, cp coordinator.Coordinator, transferID string, dst provider_yt.YtDestinationModel, input [][]abstract.ChangeItem) {
-	currentSink, err := yt_sink_v2.NewStaticSink(dst, cp, transferID, helpers.EmptyRegistry(), logger.Log)
+	currentSink, err := yt_sink_v2.NewStaticSink(dst, cp, transferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 
 	for _, items := range input {
@@ -363,7 +365,7 @@ func pushItemsWithoutCommit(t *testing.T, cp coordinator.Coordinator, transferID
 }
 
 func commit(t *testing.T, cp coordinator.Coordinator, transferID string, dst provider_yt.YtDestinationModel) {
-	currentSink, err := yt_sink_v2.NewStaticSink(dst, cp, transferID, helpers.EmptyRegistry(), logger.Log)
+	currentSink, err := yt_sink_v2.NewStaticSink(dst, cp, transferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 
 	completable, ok := currentSink.(abstract.Committable)
@@ -372,7 +374,7 @@ func commit(t *testing.T, cp coordinator.Coordinator, transferID string, dst pro
 }
 
 func pushItems(t *testing.T, cp coordinator.Coordinator, dst provider_yt.YtDestinationModel, input [][]abstract.ChangeItem) {
-	currentSink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, helpers.EmptyRegistry(), logger.Log)
+	currentSink, err := yt_sink_v2.NewStaticSink(dst, cp, transferhelpers.TransferID, testmetrics.EmptyRegistry(), logger.Log)
 	require.NoError(t, err)
 
 	for _, items := range input {

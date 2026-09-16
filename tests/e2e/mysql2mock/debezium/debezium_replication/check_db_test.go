@@ -15,13 +15,16 @@ import (
 	debezium_common "github.com/transferia/transferia/pkg/debezium/common"
 	debezium_testutil "github.com/transferia/transferia/pkg/debezium/testutil"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
-	Source = helpers.RecipeMysqlSource()
+	Source = mysql.RecipeMysqlSource()
 )
 
 func init() {
@@ -180,8 +183,8 @@ func ReadTextFiles(paths []string, out []*string) error {
 }
 
 func TestReplication(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
 	//------------------------------------------------------------------------------
@@ -318,7 +321,7 @@ func TestReplication(t *testing.T) {
 		return nil
 	}
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -454,7 +457,7 @@ func TestReplication(t *testing.T) {
 	}
 
 	for i := range testSuite {
-		testSuite[i].ChangeItem = helpers.UnmarshalChangeItemStr(t, testSuite[i].ChangeItem.ToJSONString())
+		testSuite[i].ChangeItem = changeitem.UnmarshalChangeItemStr(t, testSuite[i].ChangeItem.ToJSONString())
 	}
 
 	for _, testCase := range testSuite {

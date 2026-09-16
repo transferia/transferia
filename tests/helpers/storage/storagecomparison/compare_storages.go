@@ -1,4 +1,4 @@
-package helpers
+package storagecomparison
 
 import (
 	"fmt"
@@ -19,6 +19,7 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -135,7 +136,7 @@ type CompareStoragesParams struct {
 
 func NewCompareStorageParams() *CompareStoragesParams {
 	return &CompareStoragesParams{
-		EqualDataTypes:      StrictEquality,
+		EqualDataTypes:      strictEquality,
 		TableFilter:         FilterTechnicalTables,
 		PriorityComparators: nil,
 	}
@@ -174,7 +175,7 @@ func CompareStorages(t *testing.T, sourceModel, targetModel interface{}, params 
 		dstStorage,
 		params.TableFilter(all),
 		logger.Log,
-		EmptyRegistry(),
+		testmetrics.EmptyRegistry(),
 		params.EqualDataTypes,
 		&tasks.ChecksumParameters{
 			TableSizeThreshold:  0,
@@ -209,4 +210,9 @@ func CheckRowsGreaterOrEqual(t *testing.T, serverModel interface{}, schema, tabl
 	rowsInSrc, err := storage.ExactTableRowsCount(tableDescr.ID())
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, int(rowsInSrc), int(expectedMinumumRows))
+}
+
+// strictEquality - default callback for checksum - just compare typeNames
+func strictEquality(l, r string) bool {
+	return l == r
 }

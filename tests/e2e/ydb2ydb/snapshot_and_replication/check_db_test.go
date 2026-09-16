@@ -14,8 +14,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	"github.com/transferia/transferia/tests/helpers/ydb"
@@ -73,8 +76,8 @@ func makeYdb2YdbFixPathUdf() transformerhelpers.SimpleTransformerApplyUDF {
 func TestSnapshotAndReplication(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{path, pathCompoundKey},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -106,8 +109,8 @@ func TestSnapshotAndReplication(t *testing.T) {
 
 	dst := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	transferhelpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
@@ -115,7 +118,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	fixPathTransformer := transformerhelpers.NewSimpleTransformer(t, makeYdb2YdbFixPathUdf(), serde.AnyTablesUdf)
 	transformerhelpers.AddTransformer(t, transfer, fixPathTransformer)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// inserts
@@ -128,20 +131,20 @@ func TestSnapshotAndReplication(t *testing.T) {
 		*testdata.YDBStmtInsertValuesMultikey(t, pathCompoundKey, testdata.YDBTestMultikeyValues2, 2, false),
 		*testdata.YDBStmtInsertValuesMultikey(t, pathCompoundKey, testdata.YDBTestMultikeyValues3, 2, true),
 	}))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 4))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathCompoundKeyOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 4))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", pathOut, storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 4))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", pathCompoundKeyOut, storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 4))
 
 	// deletes
 
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
 		*testdata.YDBStmtDelete(t, path, 4),
 	}))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 3))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", pathOut, storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 3))
 
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
 		*testdata.YDBStmtDeleteCompoundKey(t, pathCompoundKey, 2, false),
 	}))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathCompoundKeyOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 3))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", pathCompoundKeyOut, storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 3))
 
 	require.Equal(t, abstract.DeleteKind, extractedUpdatesAndDeletes[len(extractedUpdatesAndDeletes)-1].Kind)
 
@@ -150,8 +153,8 @@ func TestSnapshotAndReplication(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			dump := ydb.PullDataFromTable(t,
 				os.Getenv("YDB_TOKEN"),
-				helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-				helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+				testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+				testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 				tablePath)
 			for i := 0; i < len(dump); i++ {
 				dump[i].CommitTime = 0

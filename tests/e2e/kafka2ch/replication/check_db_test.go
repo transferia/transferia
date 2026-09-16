@@ -14,7 +14,9 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/transformer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -105,15 +107,15 @@ func TestReplication(t *testing.T) {
 	err = transfer.AddExtraTransformer(transformer.NewSimpleTransformer(t, fixTimestampMiddleware, includeAllTables))
 	require.NoError(t, err)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// check results
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		target.Database,
 		kafkaTopic,
-		helpers.GetSampleableStorageByModel(t, target),
+		storagecomparison.GetSampleableStorageByModel(t, target),
 		60*time.Second,
 		1,
 	))

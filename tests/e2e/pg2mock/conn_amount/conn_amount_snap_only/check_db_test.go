@@ -10,8 +10,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -32,8 +34,8 @@ func TestConnLimitPg2MockSnapOnly(t *testing.T) {
 		pgrecipe.WithInitDir("init_source"),
 	)
 
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: helpers.GetIntFromEnv("PG_LOCAL_PORT")},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: testenv.GetIntFromEnv("PG_LOCAL_PORT")},
 	))
 
 	testCases := []struct {
@@ -76,7 +78,7 @@ func TestConnLimitPg2MockSnapOnly(t *testing.T) {
 					User:     params.user,
 					Password: "aA_12345",
 					Database: os.Getenv("PG_LOCAL_DATABASE"),
-					Port:     helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+					Port:     testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 					DBTables: params.tables,
 				}
 				source.WithDefaults()
@@ -99,7 +101,7 @@ func TestConnLimitPg2MockSnapOnly(t *testing.T) {
 				}
 				transfer := transferhelpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotOnly)
 				transfer.Runtime = &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 1, ProcessCount: params.processCount}}
-				worker := helpers.Activate(t, transfer)
+				worker := delivery.Activate(t, transfer)
 				defer worker.Close(t)
 				for _, val := range tableRowCounts {
 					require.Equal(t, ExpectedRowCount, val)

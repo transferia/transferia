@@ -14,7 +14,10 @@ import (
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	debezium_testutil "github.com/transferia/transferia/pkg/debezium/testutil"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
@@ -27,7 +30,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{"public.__test"},
 	}
 	Target = helpers_yt.RecipeYtTarget("//home/cdc/test/pg2yt_e2e")
@@ -81,12 +84,12 @@ func anyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -110,7 +113,7 @@ func Snapshot(t *testing.T) {
 	debeziumSerDeTransformer := transformerhelpers.NewSimpleTransformer(t, makeDebeziumSerDeUdf(emitter, receiver), anyTablesUdf)
 	transformerhelpers.AddTransformer(t, transfer, debeziumSerDeTransformer)
 
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 
-	require.NoError(t, helpers.CompareStorages(t, Source, Target.LegacyModel(), helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 }

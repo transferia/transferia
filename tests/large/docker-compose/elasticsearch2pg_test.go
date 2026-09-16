@@ -18,7 +18,9 @@ import (
 	"github.com/transferia/transferia/pkg/providers/elastic"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -63,9 +65,9 @@ func testElasticToPgSnapshot(t *testing.T) {
 	createElasticTestDocs(t, "test_doc", 0, 10)
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Postgres target", Port: pgDestination.Port},
-			helpers.LabeledPort{Label: "Elastic source", Port: elasticPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Postgres target", Port: pgDestination.Port},
+			network.LabeledPort{Label: "Elastic source", Port: elasticPort},
 		))
 	}()
 
@@ -81,9 +83,9 @@ func testElasticToPgSnapshot(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(elastic2PgTransferID, &elasticSource, &pgDestination, abstract.TransferTypeSnapshotOnly)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
-	helpers.CheckRowsCount(t, pgDestination, "public", "test_doc", 10)
+	storagecomparison.CheckRowsCount(t, pgDestination, "public", "test_doc", 10)
 
 	var canonData CanonData
 	canonData.AfterSnapshot = dumpTargetDB()

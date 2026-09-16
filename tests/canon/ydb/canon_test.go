@@ -13,7 +13,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/canon/validator"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -26,8 +28,8 @@ func init() {
 func TestCanonSource(t *testing.T) {
 	Source := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{"canon_table"},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -53,8 +55,8 @@ func TestCanonSource(t *testing.T) {
 func TestCanonLongPathSource(t *testing.T) {
 	Source := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -115,13 +117,13 @@ func runCanon(t *testing.T, Source *provider_ydb.YdbSource, tablePath string, va
 		},
 		abstract.TransferTypeSnapshotAndIncrement,
 	)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	replicationChangeItem := testdata.YDBStmtInsert(t, tablePath, 2)
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{*replicationChangeItem}))
 
-	require.NoError(t, helpers.WaitCond(time.Second*60,
+	require.NoError(t, storage.WaitCond(time.Second*60,
 		func() bool {
 			if counter.GetSum() != 2 {
 				logger.Log.Warnf(" counter rows sum (%v) is not equal to %v", counter.GetSum(), 2)

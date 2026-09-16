@@ -12,7 +12,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 )
 
 //go:embed transfer.yaml
@@ -38,8 +39,8 @@ func TestActivate(t *testing.T) {
 
 	require.NoError(t, activate.RunActivate(coordinator.NewStatefulFakeClient(), transfer, solomon.NewRegistry(solomon.NewRegistryOpts()), 0))
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(dst.Database, "t2", helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(dst.Database, "t3", helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 5))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(dst.Database, "t2", storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(dst.Database, "t3", storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 5))
 }
 
 func TestActivateWithDelay(t *testing.T) {

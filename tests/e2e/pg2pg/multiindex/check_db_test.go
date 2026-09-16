@@ -12,7 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -36,9 +39,9 @@ func init() {
 
 func TestMultiindexBasic(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: SourceBasic.Port},
-			helpers.LabeledPort{Label: "PG target", Port: TargetBasic.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: SourceBasic.Port},
+			network.LabeledPort{Label: "PG target", Port: TargetBasic.Port},
 		))
 	}()
 
@@ -54,7 +57,7 @@ func TestMultiindexBasic(t *testing.T) {
 	defer dstConn.Close()
 
 	// activate
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// insert data
@@ -68,7 +71,7 @@ func TestMultiindexBasic(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "test_basic", helpers.GetSampleableStorageByModel(t, SourceBasic), helpers.GetSampleableStorageByModel(t, TargetBasic), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "test_basic", storagecomparison.GetSampleableStorageByModel(t, SourceBasic), storagecomparison.GetSampleableStorageByModel(t, TargetBasic), 60*time.Second))
 
 	// check
 	var aid, bid int
@@ -88,9 +91,9 @@ func TestMultiindexBasic(t *testing.T) {
 
 func TestMultiindexPkeyChange(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: SourceChangePkey.Port},
-			helpers.LabeledPort{Label: "PG target", Port: TargetChangePkey.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: SourceChangePkey.Port},
+			network.LabeledPort{Label: "PG target", Port: TargetChangePkey.Port},
 		))
 	}()
 
@@ -117,7 +120,7 @@ func TestMultiindexPkeyChange(t *testing.T) {
 	require.NoError(t, err)
 
 	// activate
-	worker := helpers.ActivateWithoutStart(t, transfer)
+	worker := delivery.ActivateWithoutStart(t, transfer)
 
 	// insert data
 	_, err = srcConn.Exec(context.Background(), `

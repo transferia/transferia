@@ -1,7 +1,8 @@
-package helpers
+package network
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	gopsutil_net "github.com/shirou/gopsutil/v3/net"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/connection"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -31,7 +33,7 @@ func CheckConnections(labeledPorts ...LabeledPort) error {
 			port, label := labeledPort.Port, labeledPort.Label
 			if _, seen := visited[port]; !seen {
 				visited[port] = true
-				leaks := []string{}
+				var leaks []string
 				for _, conn := range connections {
 					if conn.Status == "ESTABLISHED" &&
 						int(conn.Pid) == pid &&
@@ -58,4 +60,30 @@ func CheckConnections(labeledPorts ...LabeledPort) error {
 
 	return nil
 
+}
+
+func InitConnectionResolver(connections map[string]connection.ManagedConnection) {
+	stubResolver := connection.NewStubConnectionResolver()
+	var err error
+	for connID, conn := range connections {
+		err = stubResolver.Add(connID, conn)
+		if err != nil {
+			panic(err)
+		}
+	}
+	connection.Init(stubResolver)
+}
+
+// GetPortFromStr - works when the port is in the end of the string, preceded by a colon
+func GetPortFromStr(s string) (int, error) {
+	tokens := strings.Split(s, ":")
+	if tokens[0] == s {
+		return 1, xerrors.Errorf("Unable to find port in string %v (no colon)", s)
+	}
+	portStr := tokens[len(tokens)-1]
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return 1, xerrors.Errorf("Unable to get port from string %v (unable to parse %v)", s, portStr)
+	}
+	return port, nil
 }

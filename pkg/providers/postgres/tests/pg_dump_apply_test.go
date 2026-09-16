@@ -16,7 +16,7 @@ import (
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -100,7 +100,7 @@ func (e *ddlApplyEnv) apply(t *testing.T, types ...provider_postgres.PgObjectTyp
 	for _, typ := range types {
 		typeNames = append(typeNames, string(typ))
 	}
-	return provider_postgres.ApplyCommands(testItems, *transfer, &model.TransferOperation{}, helpers.EmptyRegistry(), typeNames...)
+	return provider_postgres.ApplyCommands(testItems, *transfer, &model.TransferOperation{}, testmetrics.EmptyRegistry(), typeNames...)
 }
 
 // setLockTimeout makes every new session to the target database fail fast on lock waits (SQLSTATE 55P03).

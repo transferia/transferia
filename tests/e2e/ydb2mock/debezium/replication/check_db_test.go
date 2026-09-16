@@ -15,8 +15,10 @@ import (
 	"github.com/transferia/transferia/pkg/debezium"
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
@@ -47,8 +49,8 @@ func Iteration(t *testing.T, currMode provider_ydb.ChangeFeedModeType) map[strin
 
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{currTableName},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -109,7 +111,7 @@ func Iteration(t *testing.T, currMode provider_ydb.ChangeFeedModeType) map[strin
 	// start replication
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeIncrementOnly)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// write into source once row
@@ -122,17 +124,17 @@ func Iteration(t *testing.T, currMode provider_ydb.ChangeFeedModeType) map[strin
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
 		*testdata.YDBStmtUpdate(t, currTableName, 4, 666),
 	}))
-	helpers.CheckRowsCount(t, src, "", currTableName, 4)
+	storagecomparison.CheckRowsCount(t, src, "", currTableName, 4)
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
 		*testdata.YDBStmtUpdateTOAST(t, currTableName, 4, 777),
 	}))
-	helpers.CheckRowsCount(t, src, "", currTableName, 4)
+	storagecomparison.CheckRowsCount(t, src, "", currTableName, 4)
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
 		*testdata.YDBStmtDelete(t, currTableName, 1),
 	}))
-	helpers.CheckRowsCount(t, src, "", currTableName, 3)
+	storagecomparison.CheckRowsCount(t, src, "", currTableName, 3)
 
 	// wait when all events goes thought sink
 

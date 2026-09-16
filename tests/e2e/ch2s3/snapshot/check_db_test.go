@@ -16,7 +16,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -30,8 +31,8 @@ func TestSnapshotParquet(t *testing.T) {
 	s3Target := s3recipe.PrepareS3(t, testBucket, model.ParsingFormatPARQUET, s3_model.GzipEncoding)
 	s3Target.WithDefaults()
 
-	require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "CH source", Port: Source.NativePort},
+	require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "CH source", Port: Source.NativePort},
 	))
 	Source.WithDefaults()
 
@@ -56,7 +57,7 @@ func TestSnapshotParquet(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, s3Target, TransferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	sess, err = aws_session.NewSession(&aws.Config{
 		Endpoint:         aws.String(s3Target.Endpoint),

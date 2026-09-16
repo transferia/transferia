@@ -9,7 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
@@ -54,7 +54,7 @@ func snapshotRows(t *testing.T, collapseInheritTables bool, includeObjects []str
 	src.CollapseInheritTables = collapseInheritTables
 	transfer := transferhelpers.MakeTransfer(transferhelpers.GenerateTransferID(t.Name()), &src, target, abstract.TransferTypeSnapshotOnly)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: includeObjects}
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 	return rows
 }
 

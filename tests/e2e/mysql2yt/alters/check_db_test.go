@@ -16,7 +16,11 @@ import (
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -25,7 +29,7 @@ import (
 )
 
 var (
-	Source = *helpers.WithMysqlInclude(helpers.RecipeMysqlSource(), []string{"__test_a", "__test_b", "__test_c", "__test_d"})
+	Source = *mysql.WithMysqlInclude(mysql.RecipeMysqlSource(), []string{"__test_a", "__test_b", "__test_c", "__test_d"})
 	Target = helpers_yt.RecipeYtTarget("//home/cdc/test/mysql2yt_e2e_alters")
 )
 
@@ -45,12 +49,12 @@ func makeConnConfig() *mysql_driver2.Config {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -134,7 +138,7 @@ values (1, 13, 'Reverse Engineering'),
 	_, err = db.Exec(initInserts)
 	require.NoError(t, err)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(t, err)
 
@@ -142,7 +146,7 @@ values (1, 13, 'Reverse Engineering'),
 	err = provider_mysql.SyncBinlogPosition(&Source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	wrk := local.NewLocalWorker(fakeClient, transfer, helpers.EmptyRegistry(), logger.Log)
+	wrk := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)
 
 	workerErrCh := make(chan error)
 	go func() {
@@ -190,7 +194,7 @@ values (1, 13, 'Reverse Engineering'),
 
 	//------------------------------------------------------------------------------
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, Source.Database, "__test_a", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, Source.Database, "__test_a", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
 
 	//------------------------------------------------------------------------------
 
@@ -252,8 +256,8 @@ values (1, 13, 'Reverse Engineering'),
 
 	// ---------------------------------------------------------------------
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, Source.Database, "__test_a", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, Source.Database, "__test_b", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, Source.Database, "__test_c", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, Source.Database, "__test_d", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, Source.Database, "__test_a", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, Source.Database, "__test_b", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, Source.Database, "__test_c", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, Source.Database, "__test_d", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
 }

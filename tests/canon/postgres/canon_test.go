@@ -16,7 +16,10 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/canon/validator"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/tcrecipes"
 )
@@ -26,7 +29,7 @@ func TestCanonSource(t *testing.T) {
 		_ = pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("dump"))
 	}
 	t.Setenv("YC", "1") // to not go to vanga
-	srcPort := helpers.GetIntFromEnv("PG_LOCAL_PORT")
+	srcPort := testenv.GetIntFromEnv("PG_LOCAL_PORT")
 	Source := &postgres.PgSource{
 		ClusterID: os.Getenv("PG_CLUSTER_ID"),
 		Hosts:     []string{"localhost"},
@@ -38,8 +41,8 @@ func TestCanonSource(t *testing.T) {
 	}
 	Source.WithDefaults()
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -71,7 +74,7 @@ func TestCanonSource(t *testing.T) {
 				abstract.TransferTypeSnapshotAndIncrement,
 			)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableName}}
-			worker := helpers.Activate(t, transfer)
+			worker := delivery.Activate(t, transfer)
 
 			conn, err = postgres.MakeConnPoolFromSrc(Source, logger.Log)
 			require.NoError(t, err)
@@ -80,7 +83,7 @@ func TestCanonSource(t *testing.T) {
 			srcStorage, err := postgres.NewStorage(Source.ToStorageParams(transfer))
 			require.NoError(t, err)
 
-			require.NoError(t, helpers.WaitEqualRowsCount(t, strings.Split(tableName, ".")[0], strings.Split(tableName, ".")[1], srcStorage, counterStorage, time.Second*60))
+			require.NoError(t, storage.WaitEqualRowsCount(t, strings.Split(tableName, ".")[0], strings.Split(tableName, ".")[1], srcStorage, counterStorage, time.Second*60))
 			defer worker.Close(t)
 		}
 	}

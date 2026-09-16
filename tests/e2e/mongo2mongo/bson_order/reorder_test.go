@@ -16,7 +16,11 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -24,9 +28,9 @@ import (
 func makeSource(t *testing.T, database, collection string) *provider_mongo.MongoSource {
 	return &provider_mongo.MongoSource{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
-		User:     helpers.GetEnvOfFail(t, "MONGO_LOCAL_USER"),
-		Password: model.SecretString(helpers.GetEnvOfFail(t, "MONGO_LOCAL_PASSWORD")),
+		Port:     testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		User:     testenv.GetEnvOfFail(t, "MONGO_LOCAL_USER"),
+		Password: model.SecretString(testenv.GetEnvOfFail(t, "MONGO_LOCAL_PASSWORD")),
 		Collections: []provider_mongo.MongoCollection{
 			{DatabaseName: database, CollectionName: collection},
 		},
@@ -41,9 +45,9 @@ func makeSource(t *testing.T, database, collection string) *provider_mongo.Mongo
 func makeTarget(t *testing.T, targetDatabase string) *provider_mongo.MongoDestination {
 	return &provider_mongo.MongoDestination{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
-		User:     helpers.GetEnvOfFail(t, "MONGO_LOCAL_USER"),
-		Password: model.SecretString(helpers.GetEnvOfFail(t, "MONGO_LOCAL_PASSWORD")),
+		Port:     testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		User:     testenv.GetEnvOfFail(t, "MONGO_LOCAL_USER"),
+		Password: model.SecretString(testenv.GetEnvOfFail(t, "MONGO_LOCAL_PASSWORD")),
 		Database: targetDatabase,
 	}
 }
@@ -190,20 +194,20 @@ type transferStage func(t *testing.T, inserter func() uint64, transfer *model.Tr
 
 func snapshotOnlyStage(t *testing.T, inserter func() uint64, transfer *model.Transfer, _, _ string) {
 	_ = inserter()
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 }
 
 func replicationOnlyStage(t *testing.T, inserter func() uint64, transfer *model.Transfer, targetDatabase, targetCollection string) {
-	err := tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err := tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
 	amount := inserter()
 
-	err = helpers.WaitDestinationEqualRowsCount(targetDatabase, targetCollection, helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, amount)
+	err = storage.WaitDestinationEqualRowsCount(targetDatabase, targetCollection, storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, amount)
 	require.NoError(t, err)
 }
 

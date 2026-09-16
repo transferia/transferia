@@ -13,7 +13,8 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/util/set"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
@@ -40,9 +41,9 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -68,8 +69,8 @@ func Snapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	// apply on target
-	require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(itemsSource, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
-	require.NoError(t, provider_postgres.ApplyPgDumpPostSteps(itemsSource, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
+	require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(itemsSource, transfer, &model.TransferOperation{}, testmetrics.EmptyRegistry()))
+	require.NoError(t, provider_postgres.ApplyPgDumpPostSteps(itemsSource, transfer, &model.TransferOperation{}, testmetrics.EmptyRegistry()))
 
 	// make target a source and extract its schema
 	targetAsSource.PreSteps = Source.PreSteps
@@ -239,8 +240,8 @@ func extractPgDumpTypToCnt(t *testing.T, DBTables []string, schemas []string) ma
 	require.NoError(t, err)
 
 	// apply on target
-	require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(itemsSource, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
-	require.NoError(t, provider_postgres.ApplyPgDumpPostSteps(itemsSource, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
+	require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(itemsSource, transfer, &model.TransferOperation{}, testmetrics.EmptyRegistry()))
+	require.NoError(t, provider_postgres.ApplyPgDumpPostSteps(itemsSource, transfer, &model.TransferOperation{}, testmetrics.EmptyRegistry()))
 
 	// make target a source and extract its schema
 	targetAsSource.DBTables = Source.DBTables

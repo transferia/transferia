@@ -10,14 +10,18 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
 var (
-	Source = *helpers.RecipeMysqlSource()
-	Target = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source = *mysql.RecipeMysqlSource()
+	Target = *mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 var insertStmt = `
@@ -177,9 +181,9 @@ func anyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
 
 func TestSnapshotAndIncrement(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mysql target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: Source.Port},
+			network.LabeledPort{Label: "Mysql target", Port: Target.Port},
 		))
 	}()
 
@@ -188,7 +192,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	transfer.Src.(*provider_mysql.MysqlSource).AllowDecimalAsFloat = true
 	serdeTransformer := helpers_transformer.NewSimpleTransformer(t, serdeUdf, anyTablesUdf)
 	require.NoError(t, transfer.AddExtraTransformer(serdeTransformer))
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//---
@@ -203,10 +207,10 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	//---
 
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentSchemas(t,
+	require.NoError(t, storage.WaitEqualRowsCountDifferentSchemas(t,
 		Source.Database, Target.Database, "customers3",
-		helpers.GetSampleableStorageByModel(t, Source),
-		helpers.GetSampleableStorageByModel(t, Target),
+		storagecomparison.GetSampleableStorageByModel(t, Source),
+		storagecomparison.GetSampleableStorageByModel(t, Target),
 		60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

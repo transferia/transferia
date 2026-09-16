@@ -14,7 +14,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -53,9 +56,9 @@ func init() {
 // (not ORA_HASH or unsharded), and that final row counts match.
 func TestShardedSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -68,7 +71,7 @@ func TestShardedSnapshot(t *testing.T) {
 		1,
 	)
 
-	_, err := helpers.ActivateShardedWithCP(context.Background(), cp, nil, transfer, helpers.EmptyRegistry())
+	_, err := delivery.ActivateShardedWithCP(context.Background(), cp, nil, transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	// Verify ROWID sharding was actually used: parts must contain ROWID WHERE clauses.
@@ -80,6 +83,6 @@ func TestShardedSnapshot(t *testing.T) {
 			"part filter must use ROWID, got: %s", p.Filter)
 	}
 
-	helpers.CheckRowsCount(t, &Target, "dt_shard", "shard_pk", 1000)
-	helpers.CheckRowsCount(t, &Target, "dt_shard", "shard_nopk", 1000)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_shard", "shard_pk", 1000)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_shard", "shard_nopk", 1000)
 }

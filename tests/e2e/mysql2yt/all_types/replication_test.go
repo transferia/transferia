@@ -17,7 +17,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -26,7 +28,7 @@ import (
 )
 
 var (
-	Source            = helpers.WithMysqlInclude(helpers.RecipeMysqlSource(), []string{"test_table"})
+	Source            = mysql.WithMysqlInclude(mysql.RecipeMysqlSource(), []string{"test_table"})
 	ytTestPath        = "//home/cdc/test/mysql2yt_all_types"
 	Target            = helpers_yt.RecipeYtTarget(ytTestPath)
 	insertRowsRequest = strings.ReplaceAll(`
@@ -172,11 +174,7 @@ func init() {
 func TestReplication(t *testing.T) {
 	ctx := context.Background()
 
-	transfer := model.Transfer{
-		ID:  "mysql2yt",
-		Src: Source,
-		Dst: Target,
-	}
+	transfer := *transferhelpers.MakeTransfer("mysql2yt", Source, Target, "")
 
 	fakeClient := coordinator.NewStatefulFakeClient()
 	syncBinlogPosition := func() {
@@ -365,7 +363,7 @@ func readAllRows(t *testing.T, ytClient yt.Client, ctx context.Context, ytPath y
 }
 
 func startWorker(transfer model.Transfer, cp coordinator.Coordinator) *local.LocalWorker {
-	w := local.NewLocalWorker(cp, &transfer, helpers.EmptyRegistry(), logger.Log)
+	w := local.NewLocalWorker(cp, &transfer, testmetrics.EmptyRegistry(), logger.Log)
 	w.Start()
 	return w
 }

@@ -15,7 +15,10 @@ import (
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	transformer_filter_rows_by_ids "github.com/transferia/transferia/pkg/transformer/registry/filter_rows_by_ids"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	"go.mongodb.org/mongo-driver/bson"
@@ -31,9 +34,9 @@ func initEndpoints(t *testing.T, source *provider_mongo.MongoSource, target *pro
 	_ = os.Setenv("YC", "1")
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: target.Port},
 		))
 	}()
 
@@ -73,10 +76,10 @@ func runTransfer(t *testing.T, source *provider_mongo.MongoSource, target *provi
 	require.NoError(t, err)
 	transformerhelpers.AddTransformer(t, transfer, transformer)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	return localWorker
 }
@@ -153,7 +156,7 @@ func FilterRowsByIDs(t *testing.T) {
 
 	// check
 	{
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(TargetDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), 2*time.Minute, 4))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(TargetDbName, CollectionName, storagecomparison.GetSampleableStorageByModel(t, Target), 2*time.Minute, 4))
 
 		targetCollection := targetClient.Database(TargetDbName).Collection(CollectionName)
 		defer func() {

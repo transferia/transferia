@@ -17,7 +17,11 @@ import (
 	parser_json "github.com/transferia/transferia/pkg/parsers/registry/json"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	transformer_filter_rows "github.com/transferia/transferia/pkg/transformer/registry/filter_rows"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -37,7 +41,7 @@ var (
 		SecurityGroupIDs: nil,
 		ParserConfig:     nil,
 	}
-	target = *helpers.RecipeMysqlTarget()
+	target = *mysql.RecipeMysqlTarget()
 )
 
 func TestReplication(t *testing.T) {
@@ -83,7 +87,7 @@ func TestReplication(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NoError(t, transfer.AddExtraTransformer(transformer))
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// write to source topic
@@ -144,13 +148,13 @@ func TestReplication(t *testing.T) {
 		},
 	}}
 
-	dst := helpers.GetSampleableStorageByModel(t, target)
-	err = helpers.WaitDestinationEqualRowsCount(target.Database, topicName, dst, 300*time.Second, uint64(len(expected)))
+	dst := storagecomparison.GetSampleableStorageByModel(t, target)
+	err = storage.WaitDestinationEqualRowsCount(target.Database, topicName, dst, 300*time.Second, uint64(len(expected)))
 	require.NoError(t, err)
 
 	var actual []abstract.ChangeItem
 
-	dst = helpers.GetSampleableStorageByModel(t, target)
+	dst = storagecomparison.GetSampleableStorageByModel(t, target)
 	require.NoError(t, dst.LoadTable(context.Background(), abstract.TableDescription{
 		Schema: target.Database,
 		Name:   topicName,
@@ -163,7 +167,7 @@ func TestReplication(t *testing.T) {
 				ColumnNames:  row.ColumnNames,
 				ColumnValues: row.ColumnValues,
 			}
-			actual = append(actual, helpers.RemoveColumnsFromChangeItem(
+			actual = append(actual, changeitem.RemoveColumnsFromChangeItem(
 				item, []string{"_idx", "_offset", "_partition", "_timestamp"}))
 		}
 		return nil

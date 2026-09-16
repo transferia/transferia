@@ -19,7 +19,9 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.uber.org/mock/gomock"
 )
@@ -30,7 +32,7 @@ var (
 		User:     os.Getenv("PG_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("PG_LOCAL_DATABASE"),
-		Port:     helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 	}
 )
 
@@ -58,8 +60,8 @@ func callbackFunc(_, _, _ interface{}, msgs ...interface{}) error {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestReplication(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
 	//------------------------------------------------------------------------------
@@ -128,7 +130,7 @@ func TestReplication(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, transfer.AddExtraTransformer(transformer))
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//-----------------------------------------------------------------------------------------------------------------

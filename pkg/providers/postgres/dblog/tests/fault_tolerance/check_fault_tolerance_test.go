@@ -14,7 +14,10 @@ import (
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -37,8 +40,8 @@ func init() {
 
 func TestIncrementalSnapshotFaultTolerance(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -46,16 +49,16 @@ func TestIncrementalSnapshotFaultTolerance(t *testing.T) {
 	Source.SlotID = transferID
 
 	sinkParams := Source.ToSinkParams()
-	sink, err := provider_postgres.NewSink(logger.Log, transferID, sinkParams, helpers.EmptyRegistry())
+	sink, err := provider_postgres.NewSink(logger.Log, transferID, sinkParams, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	arrColSchema := abstract.NewTableSchema([]abstract.ColSchema{
 		{ColumnName: "id", DataType: ytschema.TypeInt32.String(), PrimaryKey: true},
 		{ColumnName: "num", DataType: ytschema.TypeInt32.String(), PrimaryKey: false},
 	})
-	changeItemBuilder := helpers.NewChangeItemsBuilder("public", testTableName, arrColSchema)
+	changeItemBuilder := changeitem.NewChangeItemsBuilder("public", testTableName, arrColSchema)
 
-	helpers.CheckRowsCount(t, Source, "public", testTableName, uint64(initialRowsNumber))
+	storagecomparison.CheckRowsCount(t, Source, "public", testTableName, uint64(initialRowsNumber))
 
 	pgStorage, err := provider_postgres.NewStorage(Source.ToStorageParams(nil))
 	require.NoError(t, err)
@@ -105,7 +108,7 @@ func TestIncrementalSnapshotFaultTolerance(t *testing.T) {
 	require.Equal(t, int(initialRowsNumber), len(output))
 
 	require.NoError(t, sink.Push(changeItemBuilder.Inserts(t, []map[string]interface{}{{"id": 11, "num": 11}, {"id": 12, "num": 12}, {"id": 13, "num": 13}, {"id": 14, "num": 14}})))
-	helpers.CheckRowsCount(t, Source, "public", testTableName, numberRowsAfterInserts)
+	storagecomparison.CheckRowsCount(t, Source, "public", testTableName, numberRowsAfterInserts)
 
 	src, err = provider_postgres.NewSourceWrapper(
 		&Source,

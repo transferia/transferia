@@ -10,14 +10,17 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
-	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source       = *mysql.RecipeMysqlSource()
+	Target       = *mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
@@ -33,7 +36,7 @@ type TesttableRow struct {
 func TestPartitionedTable(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	sourceDB := connectToMysql(t, Source.ToStorageParams())
@@ -46,12 +49,12 @@ func TestPartitionedTable(t *testing.T) {
 	testRow := TesttableRow{ID: 1, Value: "kek"}
 	insertOneRow(t, sourceDB, testRow)
 
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentSchemas(t,
+	require.NoError(t, storage.WaitEqualRowsCountDifferentSchemas(t,
 		Source.Database, Target.Database, "testtable",
-		helpers.GetSampleableStorageByModel(t, Source),
-		helpers.GetSampleableStorageByModel(t, Target),
+		storagecomparison.GetSampleableStorageByModel(t, Source),
+		storagecomparison.GetSampleableStorageByModel(t, Target),
 		60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }
 
 func connectToMysql(t *testing.T, storageParams *provider_mysql.MysqlStorageParams) *sql.DB {

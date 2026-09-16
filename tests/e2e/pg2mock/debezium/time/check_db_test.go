@@ -12,8 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/postgres"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -29,11 +31,11 @@ func init() {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestSnapshotAndReplication(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
-	container := helpers.NewTestCaseContainer()
+	container := postgres.NewTestCaseContainer()
 	container.AddCase(newContainerTimeWithTZ())
 	container.AddCase(newContainerTime())
 	container.Initialize(t)
@@ -54,7 +56,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		return nil
 	}
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//-----------------------------------------------------------------------------------------------------------------

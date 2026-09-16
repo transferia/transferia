@@ -16,7 +16,8 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/xtls"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_credentials "github.com/ydb-platform/ydb-go-sdk/v3/credentials"
@@ -172,10 +173,10 @@ func TestSnapshot(t *testing.T) {
 	prepareTargetTable(t)
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	targetStorage := helpers.GetSampleableStorageByModel(t, Target)
+	targetStorage := storagecomparison.GetSampleableStorageByModel(t, Target)
 	totalInserts := 0
 	require.NoError(t, targetStorage.LoadTable(context.Background(), abstract.TableDescription{
 		Name:   "test_table",

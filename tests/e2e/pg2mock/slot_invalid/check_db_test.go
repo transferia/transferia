@@ -12,8 +12,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
 	proxy "github.com/transferia/transferia/tests/helpers/proxies/pg_proxy"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
@@ -49,8 +50,8 @@ func TestPollingFailsOnSlotInvalidation(t *testing.T) {
 	defer func() {
 		require.NoError(
 			t,
-			helpers.CheckConnections(
-				helpers.LabeledPort{Label: "PG source proxy", Port: listenPort},
+			network.CheckConnections(
+				network.LabeledPort{Label: "PG source proxy", Port: listenPort},
 			),
 		)
 	}()
@@ -74,7 +75,7 @@ func TestPollingFailsOnSlotInvalidation(t *testing.T) {
 
 	fatalErrCh := make(chan error, 1)
 
-	worker := helpers.Activate(t, transfer, func(err error) {
+	worker := delivery.Activate(t, transfer, func(err error) {
 		fatalErrCh <- err
 	})
 	defer func() {

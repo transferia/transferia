@@ -11,7 +11,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
@@ -53,8 +55,8 @@ func anyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -102,8 +104,8 @@ func TestGroup(t *testing.T) {
 
 	dst := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	dst.WithDefaults()
 	transfer := transferhelpers.WithLocalRuntime(
@@ -115,10 +117,10 @@ func TestGroup(t *testing.T) {
 	transformerhelpers.AddTransformer(t, transfer, transformer)
 
 	t.Run("activate", func(t *testing.T) {
-		_, err := helpers.ActivateShardedErr(transfer, nil, nil)
+		_, err := delivery.ActivateShardedErr(transfer, nil, nil)
 		require.NoError(t, err)
 	})
-	helpers.CheckRowsCount(t, dst, "", pathOut, 4)
+	storagecomparison.CheckRowsCount(t, dst, "", pathOut, 4)
 	// check that transfer sent rows asynchronously
 	require.Equal(t, partsCountExpected, len(parts))
 }

@@ -10,7 +10,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -44,12 +48,12 @@ func init() {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(TargetWithCollapse.Cluster())
+	targetPort, err := network.GetPortFromStr(TargetWithCollapse.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: SourceWithCollapse.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: SourceWithCollapse.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -63,13 +67,13 @@ func TestGroup(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	workerWithCollapse := helpers.Activate(t, TransferWithCollapse)
+	workerWithCollapse := delivery.Activate(t, TransferWithCollapse)
 	defer workerWithCollapse.Close(t)
 
-	workerWithCollapseOnlyParts := helpers.Activate(t, TransferWithCollapseOnlyParts)
+	workerWithCollapseOnlyParts := delivery.Activate(t, TransferWithCollapseOnlyParts)
 	defer workerWithCollapseOnlyParts.Close(t)
 
-	workerWithoutCollapse := helpers.Activate(t, TransferWithoutCollapse)
+	workerWithoutCollapse := delivery.Activate(t, TransferWithoutCollapse)
 	defer workerWithoutCollapse.Close(t)
 
 	srcStorage, err := provider_postgres.NewStorage(SourceWithCollapse.ToStorageParams(nil))
@@ -90,44 +94,44 @@ func Load(t *testing.T) {
 }
 
 func checkRowsCountInSource(t *testing.T) {
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_inherited", 10)
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_inherited_y2006m02", 3)
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_inherited_y2006m03", 4)
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_inherited_y2006m04", 3)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_inherited", 10)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_inherited_y2006m02", 3)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_inherited_y2006m03", 4)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_inherited_y2006m04", 3)
 
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative", 12)
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative_y2006m02", 3)
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative_y2006m03", 4)
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative_y2006m04", 3)
-	helpers.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative_y2006m05", 2)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative", 12)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative_y2006m02", 3)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative_y2006m03", 4)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative_y2006m04", 3)
+	storagecomparison.CheckRowsCount(t, SourceWithCollapse, "public", "measurement_declarative_y2006m05", 2)
 }
 
 func checkRowsCountInTargetWithCollapse(t *testing.T) {
-	sourceStorage := helpers.GetSampleableStorageByModel(t, SourceWithCollapse)
-	targetStorage := helpers.GetSampleableStorageByModel(t, TargetWithCollapse)
+	sourceStorage := storagecomparison.GetSampleableStorageByModel(t, SourceWithCollapse)
+	targetStorage := storagecomparison.GetSampleableStorageByModel(t, TargetWithCollapse)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited", sourceStorage, targetStorage, 60*time.Second))
 }
 
 func checkRowsCountInTargetWithCollapseOnlyParts(t *testing.T) {
-	sourceStorage := helpers.GetSampleableStorageByModel(t, SourceWithCollapseOnlyParts)
-	targetStorage := helpers.GetSampleableStorageByModel(t, TargetWithCollapseOnlyParts)
+	sourceStorage := storagecomparison.GetSampleableStorageByModel(t, SourceWithCollapseOnlyParts)
+	targetStorage := storagecomparison.GetSampleableStorageByModel(t, TargetWithCollapseOnlyParts)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited", sourceStorage, targetStorage, 60*time.Second))
 }
 
 func checkRowsCountInTargetWithoutCollapse(t *testing.T) {
-	sourceStorage := helpers.GetSampleableStorageByModel(t, SourceWithoutCollapse)
-	targetStorage := helpers.GetSampleableStorageByModel(t, TargetWithoutCollapse)
+	sourceStorage := storagecomparison.GetSampleableStorageByModel(t, SourceWithoutCollapse)
+	targetStorage := storagecomparison.GetSampleableStorageByModel(t, TargetWithoutCollapse)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m02", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m03", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m04", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m02", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m03", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m04", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m02", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m03", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m04", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m02", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m03", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m04", sourceStorage, targetStorage, 60*time.Second))
 }
 
 func updateInheritedTable(t *testing.T, srcStorage *provider_postgres.Storage) {
@@ -197,7 +201,7 @@ func newSource(collapseInheritTables bool, tables []string) provider_postgres.Pg
 		User:                  os.Getenv("PG_LOCAL_USER"),
 		Password:              model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:              os.Getenv("PG_LOCAL_DATABASE"),
-		Port:                  helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:                  testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		UseFakePrimaryKey:     true, // we use PG receipe with outdated 10.5 version that doesn`t allow set primary or unique keys on virtual parent(declarative) tables
 		CollapseInheritTables: collapseInheritTables,
 		DBTables:              tables,

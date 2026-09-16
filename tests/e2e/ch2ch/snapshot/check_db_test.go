@@ -11,8 +11,10 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
 	proxy "github.com/transferia/transferia/tests/helpers/proxies/http_proxy"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -30,9 +32,9 @@ func init() {
 
 func TestSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "CH source", Port: Source.NativePort},
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "CH source", Port: Source.NativePort},
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 
@@ -52,8 +54,8 @@ func TestSnapshot(t *testing.T) {
 
 	t.Run("default, CSV case", func(t *testing.T) {
 		transfer := transferhelpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
-		helpers.Activate(t, transfer)
-		require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+		delivery.Activate(t, transfer)
+		require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "FORMAT CSV"))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "timeout_before_checking_execution_speed=0"))
 		require.True(t, proxy.CheckRequestContains(dstProxy.GetSniffedData(), "FORMAT CSV"))
@@ -90,8 +92,8 @@ func TestSnapshot(t *testing.T) {
 	t.Run("JSONCompactEachRow case", func(t *testing.T) {
 		Source.IOHomoFormat = clickhouse_model.ClickhouseIOFormatJSONCompact
 		transfer := transferhelpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
-		helpers.Activate(t, transfer)
-		require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+		delivery.Activate(t, transfer)
+		require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "FORMAT JSONCompactEachRow"))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "timeout_before_checking_execution_speed=0"))
 		require.True(t, proxy.CheckRequestContains(dstProxy.GetSniffedData(), "FORMAT JSONCompactEachRow"))

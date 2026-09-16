@@ -8,7 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -49,9 +51,9 @@ func MakeDstClient(t *provider_mongo.MongoDestination) (*provider_mongo.MongoCli
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: Target.Port},
 		))
 	}()
 
@@ -107,11 +109,11 @@ func Snapshot(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 
 	//------------------------------------------------------------------------------------
 	// check results
 
-	err = helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams())
+	err = storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams())
 	require.NoError(t, err)
 }

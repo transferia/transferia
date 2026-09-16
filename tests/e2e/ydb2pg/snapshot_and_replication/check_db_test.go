@@ -14,7 +14,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
@@ -42,8 +46,8 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 
 	source := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{currTableName},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -68,11 +72,11 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, &target, transferType)
 
 	defer func() {
-		ydbPort, perr := helpers.GetPortFromStr(source.Instance)
+		ydbPort, perr := network.GetPortFromStr(source.Instance)
 		require.NoError(t, perr)
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YDB source", Port: ydbPort},
-			helpers.LabeledPort{Label: "Pg target", Port: target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YDB source", Port: ydbPort},
+			network.LabeledPort{Label: "Pg target", Port: target.Port},
 		))
 	}()
 
@@ -93,15 +97,15 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 	}))
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, &target, transferType)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentTables(
+	require.NoError(t, storage.WaitEqualRowsCountDifferentTables(
 		t,
 		"", currTableName,
 		pgSchema, currTableName,
-		helpers.GetSampleableStorageByModel(t, source),
-		helpers.GetSampleableStorageByModel(t, &target),
+		storagecomparison.GetSampleableStorageByModel(t, source),
+		storagecomparison.GetSampleableStorageByModel(t, &target),
 		60*time.Second,
 	))
 
@@ -114,13 +118,13 @@ func testSnapshotAndReplicationWithChangeFeedMode(t *testing.T, tableName string
 		*testdata.YDBStmtUpdateTOAST(t, currTableName, 4, 777),
 	}))
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
-		pgSchema, currTableName, helpers.GetSampleableStorageByModel(t, &target), 60*time.Second, 5))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
+		pgSchema, currTableName, storagecomparison.GetSampleableStorageByModel(t, &target), 60*time.Second, 5))
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
 		*testdata.YDBStmtDelete(t, currTableName, 1),
 	}))
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
-		pgSchema, currTableName, helpers.GetSampleableStorageByModel(t, &target), 60*time.Second, 4))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
+		pgSchema, currTableName, storagecomparison.GetSampleableStorageByModel(t, &target), 60*time.Second, 4))
 }

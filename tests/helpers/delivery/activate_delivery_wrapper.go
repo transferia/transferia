@@ -1,4 +1,4 @@
-package helpers
+package delivery
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	_ "github.com/transferia/transferia/pkg/dataplane"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -45,7 +46,7 @@ type Worker struct {
 }
 
 func (w *Worker) initLocalWorker(transfer *model.Transfer) {
-	w.worker = local.NewLocalWorker(w.cp, transfer, EmptyRegistry(), logger.LoggerWithLevel(zapcore.DebugLevel))
+	w.worker = local.NewLocalWorker(w.cp, transfer, testmetrics.EmptyRegistry(), logger.LoggerWithLevel(zapcore.DebugLevel))
 }
 
 func (w *Worker) Run() error {
@@ -120,7 +121,7 @@ func ActivateSharded(t *testing.T, transfer *model.Transfer, task *model.Transfe
 
 func ActivateShardedErr(transfer *model.Transfer, task *model.TransferOperation, onErrorCallback ...func(err error)) (*Worker, error) {
 	cp := NewFakeCPErrRepl(onErrorCallback...)
-	return activateShardedWithCP(context.Background(), cp, task, transfer, EmptyRegistry())
+	return activateShardedWithCP(context.Background(), cp, task, transfer, testmetrics.EmptyRegistry())
 }
 
 func activateErr(transfer *model.Transfer, isStart bool, task *model.TransferOperation, onErrorCallback ...func(err error)) (*Worker, error) {
@@ -138,7 +139,7 @@ func activateWithCP(transfer *model.Transfer, cp coordinator.Coordinator, isStar
 		cp:     cp,
 	}
 
-	if err := tasks.ActivateDelivery(context.Background(), task, result.cp, *transfer, EmptyRegistry()); err != nil {
+	if err := tasks.ActivateDelivery(context.Background(), task, result.cp, *transfer, testmetrics.EmptyRegistry()); err != nil {
 		return nil, err
 	}
 

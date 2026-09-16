@@ -21,8 +21,10 @@ import (
 	"github.com/transferia/transferia/pkg/parsers/registry/cloudevents/engine/testutils"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
-	"github.com/transferia/transferia/tests/helpers"
 	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -85,7 +87,7 @@ func checkCase(t *testing.T, currSource *provider_kafka.KafkaSource, topicName s
 	// activate transfer
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, currSource, target, abstract.TransferTypeIncrementOnly)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// write to currSource topic
@@ -115,7 +117,7 @@ func checkCase(t *testing.T, currSource *provider_kafka.KafkaSource, topicName s
 
 	// check results
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", topicName, helpers.GetSampleableStorageByModel(t, target.LegacyModel()), 60*time.Second, 1))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", topicName, storagecomparison.GetSampleableStorageByModel(t, target.LegacyModel()), 60*time.Second, 1))
 
 	result := make([]abstract.ChangeItem, 0)
 	storage, err := yt_storage.NewStorage(target.ToStorageParams())

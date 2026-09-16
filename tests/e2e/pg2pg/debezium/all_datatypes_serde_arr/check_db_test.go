@@ -12,7 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
@@ -131,12 +134,12 @@ func anyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestSnapshotAndIncrement(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-		helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
+		network.LabeledPort{Label: "PG target", Port: Target.Port},
 	))
 
 	//---
@@ -145,7 +148,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	transfer.Src.(*provider_postgres.PgSource).NoHomo = true
 	serdeTransformer := helpers_transformer.NewSimpleTransformer(t, serdeUdf, anyTablesUdf)
 	require.NoError(t, transfer.AddExtraTransformer(serdeTransformer))
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//---
@@ -159,6 +162,6 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	//---
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "basic_types", helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 2))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "basic_types", storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second, 2))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

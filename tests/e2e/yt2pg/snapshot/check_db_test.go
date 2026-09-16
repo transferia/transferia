@@ -17,7 +17,8 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -245,10 +246,10 @@ func doSnapshotForTSV(t *testing.T, typeSystemVersion int) {
 		if typeSystemVersion != 0 {
 			transfer.TypeSystemVersion = typeSystemVersion
 		}
-		worker := helpers.Activate(t, transfer)
+		worker := delivery.Activate(t, transfer)
 		defer worker.Close(t)
 
-		pgTarget := helpers.GetSampleableStorageByModel(t, Target)
+		pgTarget := storagecomparison.GetSampleableStorageByModel(t, Target)
 		totalInserts := 0
 		require.NoError(t, pgTarget.LoadTable(context.Background(), abstract.TableDescription{
 			Name:   "test_table",

@@ -1,1 +1,0 @@
-[testing-framework doc](https://wiki.yandex-team.ru/transfer-manager/dev/cookbook/#testingframeworkfore2e/dataplanetests)

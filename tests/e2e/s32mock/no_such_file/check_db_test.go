@@ -34,7 +34,7 @@ import (
 	s3util_list "github.com/transferia/transferia/pkg/providers/s3/s3util/list"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	s3_storage "github.com/transferia/transferia/pkg/providers/s3/storage"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"google.golang.org/protobuf/proto"
@@ -97,7 +97,7 @@ func runStorageCase(t *testing.T, c noSuchFixture, mode noSuchMode) {
 	src, keepKey, missingKey := prepareSource(t, c, mode.mode, prefix)
 	uploadOrderedFiles(t, src, keepKey, c.keepBody, missingKey, c.missingBody)
 
-	registry := helpers.EmptyRegistry()
+	registry := testmetrics.EmptyRegistry()
 	files, err := s3util_list.ListAll(context.Background(), logger.Log, registry, src)
 	require.NoError(t, err)
 
@@ -138,7 +138,7 @@ func runSourceCase(t *testing.T, c noSuchFixture, mode noSuchMode) {
 
 	cp := coordinator.NewStatefulFakeClient()
 	runtime := abstract.NewFakeShardingTaskRuntime(0, 1, 1, 1)
-	fetcher, ctx, cancel, reader, _, err := object_fetcher.NewWrapped(context.Background(), logger.Log, helpers.EmptyRegistry(), src, transferID(t), cp, runtime)
+	fetcher, ctx, cancel, reader, _, err := object_fetcher.NewWrapped(context.Background(), logger.Log, testmetrics.EmptyRegistry(), src, transferID(t), cp, runtime)
 	require.NoError(t, err)
 	defer cancel()
 

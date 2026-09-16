@@ -9,7 +9,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
@@ -53,9 +55,9 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: SrcOnlyPartitionedTable.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Dst.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: SrcOnlyPartitionedTable.Port},
+			network.LabeledPort{Label: "PG target", Port: Dst.Port},
 		))
 	}()
 
@@ -72,12 +74,12 @@ func Existence(t *testing.T) {
 		require.NoError(t, err)
 		storage.Close()
 	}
-	helpers.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partitionedTable, totalPartitionedRows)
-	helpers.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partName2, rowsPartitionY2006m02)
-	helpers.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partName3, rowsPartitionY2006m03)
-	helpers.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partName4, rowsPartitionY2006m04)
-	helpers.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partName5, rowsPartitionY2006m05)
-	helpers.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, notPartitionedTable, notPartitionedRowsInSrc)
+	storagecomparison.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partitionedTable, totalPartitionedRows)
+	storagecomparison.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partName2, rowsPartitionY2006m02)
+	storagecomparison.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partName3, rowsPartitionY2006m03)
+	storagecomparison.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partName4, rowsPartitionY2006m04)
+	storagecomparison.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, partName5, rowsPartitionY2006m05)
+	storagecomparison.CheckRowsCount(t, &SrcOnlyPartitionedTable, tableSchema, notPartitionedTable, notPartitionedRowsInSrc)
 }
 
 // TransferParentWithAllChildren checks that selecting only parent transfers parent and all data tables.
@@ -98,16 +100,16 @@ func transferParentWithAllChildren(t *testing.T, collapseInheritTables bool) {
 	resetTargetPartitionedTables(t, transfer.Dst)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableSchema + "." + partitionedTable}}
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partitionedTable, totalPartitionedRows)
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partName2, rowsPartitionY2006m02)
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partName3, rowsPartitionY2006m03)
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partName4, rowsPartitionY2006m04)
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partName5, rowsPartitionY2006m05)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partitionedTable, totalPartitionedRows)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partName2, rowsPartitionY2006m02)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partName3, rowsPartitionY2006m03)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partName4, rowsPartitionY2006m04)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partName5, rowsPartitionY2006m05)
 
-	storage, ok := helpers.GetSampleableStorageByModel(t, transfer.Dst).(*provider_postgres.Storage)
+	storage, ok := storagecomparison.GetSampleableStorageByModel(t, transfer.Dst).(*provider_postgres.Storage)
 	require.True(t, ok)
 
 	var exists bool
@@ -132,18 +134,18 @@ func TransferParentAndDataTables(t *testing.T) {
 		},
 	}
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partitionedTable, rowsPartitionY2006m02)
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partName2, rowsPartitionY2006m02)
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partName3, 0)
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partName4, 0)
-	helpers.CheckRowsCount(t, transfer.Dst, tableSchema, partName5, 0)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partitionedTable, rowsPartitionY2006m02)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partName2, rowsPartitionY2006m02)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partName3, 0)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partName4, 0)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, tableSchema, partName5, 0)
 }
 
 func resetTargetPartitionedTables(t *testing.T, dst model.Destination) {
-	storage, ok := helpers.GetSampleableStorageByModel(t, dst).(*provider_postgres.Storage)
+	storage, ok := storagecomparison.GetSampleableStorageByModel(t, dst).(*provider_postgres.Storage)
 	require.True(t, ok)
 	_, err := storage.Conn.Exec(context.Background(), `
 		DROP TABLE IF EXISTS public.partitioned_table CASCADE;

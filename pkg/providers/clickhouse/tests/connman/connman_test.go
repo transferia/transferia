@@ -9,7 +9,7 @@ import (
 	conn_clickhouse "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 func init() {
 	source.WithDefaults()
 	target.WithDefaults()
-	helpers.InitConnectionResolver(map[string]connection.ManagedConnection{connID: sourceToManagedConnection(source)})
+	network.InitConnectionResolver(map[string]connection.ManagedConnection{connID: sourceToManagedConnection(source)})
 }
 
 func TestToSinkParams(t *testing.T) {

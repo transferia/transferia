@@ -22,8 +22,10 @@ import (
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
 	transformer_replace_primary_key "github.com/transferia/transferia/pkg/transformer/registry/replace_primary_key"
 	"github.com/transferia/transferia/pkg/util/raw_to_table_common"
-	"github.com/transferia/transferia/tests/helpers"
 	confluentsrmock "github.com/transferia/transferia/tests/helpers/confluent_schema_registry_mock"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -90,7 +92,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, transfer.AddExtraTransformer(transformer))
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// write to currSource topic
@@ -121,7 +123,7 @@ func TestSchemaRegistryJSONtoYT(t *testing.T) {
 	}
 
 	// check results
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", "my_table", helpers.GetSampleableStorageByModel(t, target.LegacyModel()), 60*time.Second, 4))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", "my_table", storagecomparison.GetSampleableStorageByModel(t, target.LegacyModel()), 60*time.Second, 4))
 	result := make([]abstract.ChangeItem, 0)
 	storage, err := yt_storage.NewStorage(target.ToStorageParams())
 	require.NoError(t, err)

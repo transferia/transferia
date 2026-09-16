@@ -9,7 +9,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/elastic"
 	"github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -49,15 +50,15 @@ func TestPgToElasticSnapshot(t *testing.T) {
 	WaitForElastic(t, "127.0.0.1", pg2ElasticElasticPort)
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Postgres source", Port: pg2ElasticSource.Port},
-			helpers.LabeledPort{Label: "Elastic target", Port: pg2ElasticElasticPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Postgres source", Port: pg2ElasticSource.Port},
+			network.LabeledPort{Label: "Elastic target", Port: pg2ElasticElasticPort},
 		))
 	}()
 
 	transfer := transferhelpers.MakeTransfer(pg2ElasticTransferID, &pg2ElasticSource, &pg2ElasticTarget, abstract.TransferTypeSnapshotOnly)
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	client := createTestElasticClientFromDst(t, &pg2ElasticTarget)
 	searchData, err := elasticGetAllDocuments(client, "public.test_table")

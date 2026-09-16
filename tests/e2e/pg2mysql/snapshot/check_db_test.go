@@ -7,7 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -15,7 +18,7 @@ var (
 	TransferType = abstract.TransferTypeSnapshotOnly
 
 	Source = *pgrecipe.RecipeSource()
-	Target = *helpers.RecipeMysqlTarget()
+	Target = *mysql.RecipeMysqlTarget()
 )
 
 func init() {
@@ -25,9 +28,9 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "pg source", Port: Source.Port},
-			helpers.LabeledPort{Label: "mysql target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "pg source", Port: Source.Port},
+			network.LabeledPort{Label: "mysql target", Port: Target.Port},
 		))
 	}()
 
@@ -38,6 +41,6 @@ func TestGroup(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	_ = helpers.Activate(t, transfer)
-	helpers.CheckRowsCount(t, Target, Target.Database, "__test", 16)
+	_ = delivery.Activate(t, transfer)
+	storagecomparison.CheckRowsCount(t, Target, Target.Database, "__test", 16)
 }

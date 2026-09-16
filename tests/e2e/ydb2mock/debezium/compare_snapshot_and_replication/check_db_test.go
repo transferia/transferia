@@ -16,9 +16,11 @@ import (
 	"github.com/transferia/transferia/pkg/debezium"
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
@@ -32,8 +34,8 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{path},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -86,7 +88,7 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 	debeziumSerDeTransformer := helpers_transformer.NewSimpleTransformer(t, serde.MakeDebeziumSerDeUdfWithoutCheck(emitter, receiver), serde.AnyTablesUdf)
 	require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
 		*testdata.YDBStmtInsertNulls(t, path, 1),
@@ -94,14 +96,14 @@ func TestCompareSnapshotAndReplication(t *testing.T) {
 		*testdata.YDBStmtInsertValues(t, path, testdata.YDBTestValues3, 3),
 	}))
 
-	require.NoError(t, helpers.WaitCond(time.Second*60, func() bool {
+	require.NoError(t, storage.WaitCond(time.Second*60, func() bool {
 		return len(extractedFromReplication) == 3
 	}))
 	worker.Close(t)
 
 	transferSnapshot := transferhelpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
 	require.NoError(t, transferSnapshot.AddExtraTransformer(debeziumSerDeTransformer))
-	helpers.Activate(t, transferSnapshot)
+	delivery.Activate(t, transferSnapshot)
 
 	// compare
 

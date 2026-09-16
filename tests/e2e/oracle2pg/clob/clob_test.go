@@ -13,7 +13,9 @@ import (
 	oracle "github.com/transferia/transferia/pkg/providers/oracle"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -46,9 +48,9 @@ func init() {
 
 func TestCLOB(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -65,9 +67,9 @@ func ReadCLOBAsText(t *testing.T) {
 	Source.CLOBReadingStrategy = oracle.OracleReadCLOB
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "docs", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "docs", 3)
 }
 
 // ReadCLOBAsBLOB transfers CLOB/NCLOB columns using the ReadCLOBAsBLOB strategy, which
@@ -77,7 +79,7 @@ func ReadCLOBAsBLOB(t *testing.T) {
 	Source.CLOBReadingStrategy = oracle.OracleReadCLOBAsBLOB
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "docs", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "docs", 3)
 }

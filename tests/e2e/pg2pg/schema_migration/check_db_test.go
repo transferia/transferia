@@ -12,7 +12,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -30,9 +32,9 @@ func init() {
 
 func TestAddedColumnIsMigratedOnSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 	require.False(t, Target.IsSchemaMigrationDisabled)
@@ -47,8 +49,8 @@ func TestAddedColumnIsMigratedOnSnapshot(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	helpers.Activate(t, transfer)
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	delivery.Activate(t, transfer)
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 	require.False(t, targetHasColumn(t, dstConn, "is_agent"))
 
 	_, err = srcConn.Exec(context.Background(), `ALTER TABLE __test ADD COLUMN is_agent boolean NOT NULL DEFAULT false`)
@@ -56,10 +58,10 @@ func TestAddedColumnIsMigratedOnSnapshot(t *testing.T) {
 	_, err = srcConn.Exec(context.Background(), `INSERT INTO __test (id, val, is_agent) VALUES (3, 'c', true)`)
 	require.NoError(t, err)
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	require.True(t, targetHasColumn(t, dstConn, "is_agent"))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }
 
 func targetHasColumn(t *testing.T, conn *pgxpool.Pool, column string) bool {

@@ -11,7 +11,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
@@ -25,7 +28,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{"public.permalinks_setup", "public.permalinks_setup2", "public.done"},
 	}
 	Target = helpers_yt.RecipeYtTarget("//home/cdc/test/pg2yt_e2e_pkey_jsonb")
@@ -73,7 +76,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, TransferType)
 	jsonSerDeTransformer := transformerhelpers.NewSimpleTransformer(t, jsonSerDeUdf, suitableTablesUdf)
 	transformerhelpers.AddTransformer(t, transfer, jsonSerDeTransformer)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//------------------------------------------------------------------------------
@@ -89,7 +92,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	_, err = srcConn.Exec(context.Background(), "INSERT INTO done VALUES (0);")
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "done", helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second, 1))
-	helpers.CheckRowsCount(t, Target.LegacyModel(), "public", "permalinks_setup", 1)
-	helpers.CheckRowsCount(t, Target.LegacyModel(), "public", "permalinks_setup2", 1)
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "done", storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second, 1))
+	storagecomparison.CheckRowsCount(t, Target.LegacyModel(), "public", "permalinks_setup", 1)
+	storagecomparison.CheckRowsCount(t, Target.LegacyModel(), "public", "permalinks_setup2", 1)
 }

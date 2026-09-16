@@ -17,7 +17,11 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -28,7 +32,7 @@ var (
 	ctx              = context.Background()
 	sourceConnString = fmt.Sprintf(
 		"host=localhost port=%d dbname=%s user=%s password=%s",
-		helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
+		testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
 		os.Getenv("SOURCE_PG_LOCAL_DATABASE"),
 		os.Getenv("SOURCE_PG_LOCAL_USER"),
 		os.Getenv("SOURCE_PG_LOCAL_PASSWORD"),
@@ -52,7 +56,7 @@ func makeSource() model.Source {
 		User:     os.Getenv("SOURCE_PG_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("SOURCE_PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("SOURCE_PG_LOCAL_DATABASE"),
-		Port:     helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
 		DBTables: []string{"public.test"},
 	}
 	src.WithDefaults()
@@ -89,7 +93,7 @@ type fixture struct {
 	ytEnv        *yttest.Env
 	pgConn       *pgx.Conn
 	destroyYtEnv func()
-	wrk          *helpers.Worker
+	wrk          *delivery.Worker
 	workerCh     chan error
 	markerKey    map[string]interface{}
 }
@@ -143,7 +147,7 @@ func setup(t *testing.T, name string, markerKey map[string]interface{}, idxs []s
 	f.exec(`ALTER TABLE public.test ALTER COLUMN idxcol SET STORAGE EXTERNAL`)
 	f.exec(`ALTER TABLE public.test ALTER COLUMN value SET STORAGE EXTERNAL`)
 
-	worker := helpers.ActivateWithoutStart(t, transfer)
+	worker := delivery.ActivateWithoutStart(t, transfer)
 	f.wrk = worker
 
 	insertInitialContent := `
@@ -225,7 +229,7 @@ func (f *fixture) waitMarker() {
 func srcAndDstPorts(fxt *fixture) (int, int, error) {
 	sourcePort := fxt.transfer.Src.(*provider_postgres.PgSource).Port
 	ytCluster := fxt.transfer.Dst.(provider_yt.YtDestinationModel).Cluster()
-	targetPort, err := helpers.GetPortFromStr(ytCluster)
+	targetPort, err := network.GetPortFromStr(ytCluster)
 	if err != nil {
 		return 1, 1, err
 	}
@@ -239,9 +243,9 @@ func TestIndexBasic(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -277,9 +281,9 @@ func TestIndexMany(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -325,9 +329,9 @@ func TestIndexToast(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -339,10 +343,10 @@ func TestIndexToast(t *testing.T) {
 	// there is possible case, when target_table already written, but index_table still not
 	require.NoError(
 		t,
-		helpers.WaitDestinationEqualRowsCount(
+		storage.WaitDestinationEqualRowsCount(
 			"",
 			"test__idx_idxcol",
-			helpers.GetSampleableStorageByModel(t, currFixture.transfer.Dst.(provider_yt.YtDestinationModel).LegacyModel()),
+			storagecomparison.GetSampleableStorageByModel(t, currFixture.transfer.Dst.(provider_yt.YtDestinationModel).LegacyModel()),
 			60*time.Second,
 			4, // 3 rows + MARKER
 		),
@@ -367,9 +371,9 @@ func TestIndexPrimaryKey(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -397,9 +401,9 @@ func TestSkipLongStrings(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -437,9 +441,9 @@ func TestDelete(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(currFixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 

@@ -13,7 +13,10 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -21,7 +24,7 @@ import (
 )
 
 var (
-	srcPort = helpers.GetIntFromEnv("PG_LOCAL_PORT")
+	srcPort = testenv.GetIntFromEnv("PG_LOCAL_PORT")
 	Source  = provider_postgres.PgSource{
 		ClusterID: os.Getenv("PG_CLUSTER_ID"),
 		Hosts:     []string{"localhost"},
@@ -45,12 +48,12 @@ func init() {
 }
 
 func TestDBLogResumeWithExistingSlot(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -68,7 +71,7 @@ func TestDBLogResumeWithExistingSlot(t *testing.T) {
 
 	transferID := transferhelpers.GenerateTransferID(t.Name())
 	transfer := transferhelpers.MakeTransfer(transferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 
 	// Set up the test table and initial data
 	srcPool, err := provider_postgres.MakeConnPoolFromSrc(&Source, logger.Log)
@@ -104,13 +107,13 @@ func TestDBLogResumeWithExistingSlot(t *testing.T) {
 
 	t.Logf("starting transfer %s", transfer.ID)
 	// Activate transfer
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer func() {
 		worker.Close(t)
 	}()
 
 	t.Logf("waiting for rows count to be 20")
-	rows, err := helpers.GetSampleableStorageByModel(t, Target.LegacyModel()).ExactTableRowsCount(*abstract.NewTableID("public", "test_table"))
+	rows, err := storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()).ExactTableRowsCount(*abstract.NewTableID("public", "test_table"))
 	require.NoError(t, err)
 	require.Equal(t, uint64(20), rows)
 	t.Logf("rows count is 20")

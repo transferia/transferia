@@ -17,7 +17,9 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -97,7 +99,7 @@ func setup(t *testing.T) *fixture {
 func srcAndDstPorts(fxt *fixture) (int, int, error) {
 	sourcePort := fxt.transfer.Src.(*provider_postgres.PgSource).Port
 	ytCluster := fxt.transfer.Dst.(provider_yt.YtDestinationModel).Cluster()
-	targetPort, err := helpers.GetPortFromStr(ytCluster)
+	targetPort, err := network.GetPortFromStr(ytCluster)
 	if err != nil {
 		return 1, 1, err
 	}
@@ -110,9 +112,9 @@ func TestSnapshotOnlyWorksWithStaticTables(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -122,7 +124,7 @@ func TestSnapshotOnlyWorksWithStaticTables(t *testing.T) {
 	fixture.transfer.Type = transferType
 	transferhelpers.InitSrcDst(transferhelpers.GenerateTransferID("TestSnapshotOnlyWorksWithStaticTables"), fixture.transfer.Src, fixture.transfer.Dst, transferType)
 
-	_ = helpers.Activate(t, &fixture.transfer)
+	_ = delivery.Activate(t, &fixture.transfer)
 
 	require.EqualValues(t, expectedTableContent, fixture.readAll())
 }
@@ -133,9 +135,9 @@ func TestSnapshotOnlyFailsWithSortedTables(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -146,7 +148,7 @@ func TestSnapshotOnlyFailsWithSortedTables(t *testing.T) {
 	transferhelpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
 	defer fixture.teardown()
 
-	_, err = helpers.ActivateErr(&fixture.transfer)
+	_, err = delivery.ActivateErr(&fixture.transfer)
 	require.Error(t, err)
 	require.Contains(t, strings.ToLower(err.Error()), "no key columns found")
 }
@@ -158,9 +160,9 @@ func TestIncrementFails(t *testing.T) {
 		sourcePort, targetPort, err := srcAndDstPorts(fixture)
 		require.NoError(t, err)
 		defer func() {
-			require.NoError(t, helpers.CheckConnections(
-				helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-				helpers.LabeledPort{Label: "YT target", Port: targetPort},
+			require.NoError(t, network.CheckConnections(
+				network.LabeledPort{Label: "PG source", Port: sourcePort},
+				network.LabeledPort{Label: "YT target", Port: targetPort},
 			))
 		}()
 
@@ -169,7 +171,7 @@ func TestIncrementFails(t *testing.T) {
 		transferhelpers.InitSrcDst(transferID, fixture.transfer.Src, fixture.transfer.Dst, transferType)
 		defer fixture.teardown()
 
-		err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, helpers.EmptyRegistry())
+		err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewStatefulFakeClient(), fixture.transfer, testmetrics.EmptyRegistry())
 		require.Error(t, err)
 		require.Contains(t, strings.ToLower(err.Error()), "no key columns found")
 
@@ -177,7 +179,7 @@ func TestIncrementFails(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { _ = provider_postgres.DropReplicationSlot(fixture.transfer.Src.(*provider_postgres.PgSource)) }()
 
-		wrk := local.NewLocalWorker(coordinator.NewStatefulFakeClient(), &fixture.transfer, helpers.EmptyRegistry(), logger.Log)
+		wrk := local.NewLocalWorker(coordinator.NewStatefulFakeClient(), &fixture.transfer, testmetrics.EmptyRegistry(), logger.Log)
 		err = wrk.Run()
 		require.Error(t, err)
 		require.Contains(t, strings.ToLower(err.Error()), "no key columns found")

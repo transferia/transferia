@@ -12,7 +12,11 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -29,9 +33,9 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 	Target.PerTransactionPush = true
@@ -51,8 +55,8 @@ func Existence(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry()))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }
 
 func Load(t *testing.T) {
@@ -61,7 +65,7 @@ func Load(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
 	Source.BatchSize = 10 * 1024 // to speedup repl
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	st, err := provider_postgres.NewStorage(Source.ToStorageParams(nil))
@@ -70,7 +74,7 @@ func Load(t *testing.T) {
 	_, err = st.Conn.Exec(context.Background(), "delete from __test where id > 10")
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 180*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 180*time.Second))
 
 	//-----------------------------------------------------------------------------------------------------------------
 
@@ -84,8 +88,8 @@ func Load(t *testing.T) {
 	_, err = conn.Exec(context.Background(), "UPDATE pkey_only SET key2 = 'barbar' WHERE key1 = 'foo';")
 	require.NoError(t, err)
 
-	helpers.CheckRowsCount(t, Source, "public", "trash", 1)
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "trash", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 180*time.Second))
+	storagecomparison.CheckRowsCount(t, Source, "public", "trash", 1)
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "trash", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 180*time.Second))
 
 	// "Fake" update, does not change anything in DB but is present in WAL
 	_, err = conn.Exec(context.Background(), "UPDATE pkey_only SET key2 = 'baz' WHERE key1 = 'bar';")
@@ -94,6 +98,6 @@ func Load(t *testing.T) {
 	_, err = conn.Exec(context.Background(), "INSERT INTO __test (id, title) VALUES (11, 'abc'), (12, 'def');")
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 180*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 180*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

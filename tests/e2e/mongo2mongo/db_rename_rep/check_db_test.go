@@ -15,7 +15,9 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -26,14 +28,14 @@ var (
 	TransferType = abstract.TransferTypeIncrementOnly
 	Source       = provider_mongo.MongoSource{
 		Hosts:       []string{"localhost"},
-		Port:        helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		Port:        testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
 		User:        os.Getenv("MONGO_LOCAL_USER"),
 		Password:    model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
 		Collections: []provider_mongo.MongoCollection{},
 	}
 	Target = provider_mongo.MongoDestination{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("DB0_MONGO_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("DB0_MONGO_LOCAL_PORT"),
 		Database: targetDBName,
 		User:     os.Getenv("DB0_MONGO_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("DB0_MONGO_LOCAL_PASSWORD")),
@@ -72,9 +74,9 @@ func MakeDstClient(t *provider_mongo.MongoDestination) (*provider_mongo.MongoCli
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: Target.Port},
 		))
 	}()
 
@@ -144,10 +146,10 @@ func Load(t *testing.T) {
 		ID:   transferhelpers.TransferID,
 	}
 
-	err = tasks.ActivateDelivery(ctx, nil, coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(ctx, nil, coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 

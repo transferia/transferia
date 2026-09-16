@@ -16,14 +16,17 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType = abstract.TransferTypeIncrementOnly
-	Source       = helpers.RecipeMysqlSource()
-	Target       = helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source       = mysql.RecipeMysqlSource()
+	Target       = mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
@@ -39,8 +42,8 @@ func Existence(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly)
-	require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry()))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }
 
 func Load(t *testing.T) {
@@ -52,7 +55,7 @@ func Load(t *testing.T) {
 		Port:     Source.Port,
 	}
 	sourceAsDestination.WithDefaults()
-	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, helpers.EmptyRegistry())
+	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, TransferType)
@@ -61,11 +64,11 @@ func Load(t *testing.T) {
 	err = provider_mysql.SyncBinlogPosition(Source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(fakeClient, transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	// defer localWorker.Stop() // Uncommenting makes test crash
 
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
+	tables, err := tasks.ObtainAllSrcTables(transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("Tables on source: %v", tables)
 
@@ -103,15 +106,15 @@ func Load(t *testing.T) {
 	err = sourceConn.Close()
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentSchemas(t,
+	require.NoError(t, storage.WaitEqualRowsCountDifferentSchemas(t,
 		Source.Database, Target.Database, "__test_A",
-		helpers.GetSampleableStorageByModel(t, Source),
-		helpers.GetSampleableStorageByModel(t, Target),
+		storagecomparison.GetSampleableStorageByModel(t, Source),
+		storagecomparison.GetSampleableStorageByModel(t, Target),
 		60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentSchemas(t,
+	require.NoError(t, storage.WaitEqualRowsCountDifferentSchemas(t,
 		Source.Database, Target.Database, "__test_B",
-		helpers.GetSampleableStorageByModel(t, Source),
-		helpers.GetSampleableStorageByModel(t, Target),
+		storagecomparison.GetSampleableStorageByModel(t, Source),
+		storagecomparison.GetSampleableStorageByModel(t, Target),
 		60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

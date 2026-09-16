@@ -14,7 +14,9 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	canon_test "github.com/transferia/transferia/tests/canon"
 	"github.com/transferia/transferia/tests/canon/validator"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -37,13 +39,13 @@ func TestCanonizeSequences(t *testing.T) {
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		SlotID:    "test_slot_id",
 	}
 	Source.WithDefaults()
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -68,7 +70,7 @@ func TestCanonizeSequences(t *testing.T) {
 			)
 
 			defer produceSequenceDump()
-			worker := helpers.Activate(t, transfer)
+			worker := delivery.Activate(t, transfer)
 			defer worker.Close(t)
 
 			_, err = conn.Exec(context.Background(), replicationSQL)

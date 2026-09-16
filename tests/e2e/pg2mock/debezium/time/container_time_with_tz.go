@@ -13,14 +13,14 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	debezium_common "github.com/transferia/transferia/pkg/debezium/common"
 	debezium_testutil "github.com/transferia/transferia/pkg/debezium/testutil"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
 )
 
 func check(t *testing.T, changeItem abstract.ChangeItem, key []byte, val string, isSnapshot bool) {
 	debezium_testutil.CheckCanonizedDebeziumEvent(t, &changeItem, "fullfillment", "pguser", "pg", isSnapshot, []debezium_common.KeyValue{{DebeziumKey: string(key), DebeziumVal: &val}})
 	changeItemBuf, err := json.Marshal(changeItem)
 	require.NoError(t, err)
-	changeItemDeserialized := helpers.UnmarshalChangeItem(t, changeItemBuf)
+	changeItemDeserialized := changeitem.UnmarshalChangeItem(t, changeItemBuf)
 	debezium_testutil.CheckCanonizedDebeziumEvent(t, changeItemDeserialized, "fullfillment", "pguser", "pg", isSnapshot, []debezium_common.KeyValue{{DebeziumKey: string(key), DebeziumVal: &val}})
 }
 

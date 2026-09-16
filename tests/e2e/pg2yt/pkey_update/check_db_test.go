@@ -17,7 +17,10 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -28,7 +31,7 @@ var (
 	ctx              = context.Background()
 	sourceConnString = fmt.Sprintf(
 		"host=localhost port=%d dbname=%s user=%s password=%s",
-		helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
+		testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
 		os.Getenv("SOURCE_PG_LOCAL_DATABASE"),
 		os.Getenv("SOURCE_PG_LOCAL_USER"),
 		os.Getenv("SOURCE_PG_LOCAL_PASSWORD"),
@@ -50,7 +53,7 @@ func makeSource() model.Source {
 		User:     os.Getenv("SOURCE_PG_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("SOURCE_PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("SOURCE_PG_LOCAL_DATABASE"),
-		Port:     helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"),
 		DBTables: []string{"public.test"},
 	}
 	src.WithDefaults()
@@ -207,7 +210,7 @@ func (f *fixture) waitMarker() {
 }
 
 func (f *fixture) loadAndCheckSnapshot() {
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), &model.TransferOperation{}, f.transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewStatefulFakeClient(), &model.TransferOperation{}, f.transfer, testmetrics.EmptyRegistry())
 	err := snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(f.t, err)
 
@@ -222,7 +225,7 @@ func (f *fixture) loadAndCheckSnapshot() {
 func srcAndDstPorts(fxt *fixture) (int, int, error) {
 	sourcePort := fxt.transfer.Src.(*provider_postgres.PgSource).Port
 	ytCluster := fxt.transfer.Dst.(provider_yt.YtDestinationModel).Cluster()
-	targetPort, err := helpers.GetPortFromStr(ytCluster)
+	targetPort, err := network.GetPortFromStr(ytCluster)
 	if err != nil {
 		return 1, 1, err
 	}
@@ -235,9 +238,9 @@ func TestPkeyUpdate(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -245,7 +248,7 @@ func TestPkeyUpdate(t *testing.T) {
 
 	fixture.loadAndCheckSnapshot()
 
-	worker := helpers.Activate(t, fixture.transfer)
+	worker := delivery.Activate(t, fixture.transfer)
 	defer worker.Close(t)
 
 	fixture.update("lel")
@@ -263,9 +266,9 @@ func TestPkeyUpdateIndex(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -280,7 +283,7 @@ func TestPkeyUpdateIndex(t *testing.T) {
 		require.Fail(t, "Tables do not match", "Diff:\n%s", diff)
 	}
 
-	worker := helpers.Activate(t, fixture.transfer)
+	worker := delivery.Activate(t, fixture.transfer)
 	defer worker.Close(t)
 
 	fixture.update("lel")
@@ -305,9 +308,9 @@ func TestPkeyUpdateIndexToast(t *testing.T) {
 	sourcePort, targetPort, err := srcAndDstPorts(fixture)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -322,7 +325,7 @@ func TestPkeyUpdateIndexToast(t *testing.T) {
 		require.Fail(t, "Tables do not match", "Diff:\n%s", diff)
 	}
 
-	worker := helpers.Activate(t, fixture.transfer)
+	worker := delivery.Activate(t, fixture.transfer)
 	defer worker.Close(t)
 
 	longString := strings.Repeat("x", 32000)

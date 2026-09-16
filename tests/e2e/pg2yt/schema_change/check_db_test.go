@@ -15,7 +15,12 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -30,7 +35,7 @@ var (
 		os.Getenv("SOURCE_PG_LOCAL_USER"),
 		os.Getenv("SOURCE_PG_LOCAL_PASSWORD"),
 	)
-	sourcePort    = helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT")
+	sourcePort    = testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT")
 	targetCluster = os.Getenv("YT_PROXY")
 )
 
@@ -71,12 +76,12 @@ type rowV2 struct {
 }
 
 func TestSchemaChange(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(targetCluster)
+	targetPort, err := network.GetPortFromStr(targetCluster)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -86,11 +91,7 @@ func TestSchemaChange(t *testing.T) {
 	src := makeSource("public.test1", "slot1")
 	dst := makeTarget("test1").(provider_yt.YtDestinationModel)
 
-	transfer := &model.Transfer{
-		ID:  "test1",
-		Src: src,
-		Dst: dst,
-	}
+	transfer := transferhelpers.MakeTransfer("test1", src, dst, "")
 
 	conn, err := pgx.Connect(context.Background(), sourceConnString)
 	require.NoError(t, err)
@@ -99,7 +100,7 @@ func TestSchemaChange(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Exec(context.Background(), `SELECT pg_drop_replication_slot('slot1')`) //nolint
 
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	w := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 
 	errChan := make(chan error)
 	go func() {
@@ -113,7 +114,7 @@ func TestSchemaChange(t *testing.T) {
 	_, err = conn.Exec(context.Background(), `INSERT INTO test1 VALUES (3, 'now i change the schema')`)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "test1", helpers.GetSampleableStorageByModel(t, src), helpers.GetSampleableStorageByModel(t, dst.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "test1", storagecomparison.GetSampleableStorageByModel(t, src), storagecomparison.GetSampleableStorageByModel(t, dst.LegacyModel()), 60*time.Second))
 
 	_, err = conn.Exec(context.Background(), `ALTER TABLE test1 ADD COLUMN extra TEXT;`)
 	require.NoError(t, err)
@@ -145,19 +146,15 @@ func TestSchemaChange(t *testing.T) {
 	err = r.Close()
 	require.NoError(t, err)
 
-	transfer = &model.Transfer{
-		ID:  "test1",
-		Src: makeSource("public.test1", "slot1"),
-		Dst: makeTarget("test1"),
-	}
-	w = local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	transfer = transferhelpers.MakeTransfer("test1", makeSource("public.test1", "slot1"), makeTarget("test1"), "")
+	w = local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	w.Start()
 	defer w.Stop() //nolint
 
 	_, err = conn.Exec(context.Background(), `INSERT INTO test1 VALUES (5, 'lmao', 'five')`)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "test1", helpers.GetSampleableStorageByModel(t, src), helpers.GetSampleableStorageByModel(t, dst.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "test1", storagecomparison.GetSampleableStorageByModel(t, src), storagecomparison.GetSampleableStorageByModel(t, dst.LegacyModel()), 60*time.Second))
 
 	r, err = ytEnv.YT.SelectRows(context.Background(), "* FROM [//home/cdc/test1/pg2yt_e2e_schema_change/test1] ORDER BY id ASC LIMIT 100", nil)
 	require.NoError(t, err)
@@ -187,12 +184,12 @@ func TestSchemaChange(t *testing.T) {
 }
 
 func TestNoSchemaNarrowingAttempted(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(targetCluster)
+	targetPort, err := network.GetPortFromStr(targetCluster)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -235,11 +232,7 @@ func TestNoSchemaNarrowingAttempted(t *testing.T) {
 	src := makeSource("public.test2", "slot2")
 	dst := makeTarget("test2")
 
-	transfer := &model.Transfer{
-		ID:  "test2",
-		Src: src,
-		Dst: dst,
-	}
+	transfer := transferhelpers.MakeTransfer("test2", src, dst, "")
 
 	conn, err := pgx.Connect(context.Background(), sourceConnString)
 	require.NoError(t, err)
@@ -248,7 +241,7 @@ func TestNoSchemaNarrowingAttempted(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Exec(context.Background(), `SELECT pg_drop_replication_slot('slot2')`) //nolint
 
-	w := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	w := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 
 	w.Start()
 	defer w.Stop() //nolint
@@ -258,5 +251,5 @@ func TestNoSchemaNarrowingAttempted(t *testing.T) {
 	_, err = conn.Exec(context.Background(), `INSERT INTO test2 VALUES (2, 'lel')`)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "test2", helpers.GetSampleableStorageByModel(t, src), helpers.GetSampleableStorageByModel(t, dst.(provider_yt.YtDestinationModel).LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "test2", storagecomparison.GetSampleableStorageByModel(t, src), storagecomparison.GetSampleableStorageByModel(t, dst.(provider_yt.YtDestinationModel).LegacyModel()), 60*time.Second))
 }

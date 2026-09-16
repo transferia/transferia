@@ -18,26 +18,30 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType       = abstract.TransferTypeSnapshotAndIncrement
-	Source, srcConn    = helpers.RecipeMysqlSourceWithConnection("src_conn_id")
-	Target, targetConn = helpers.RecipeMysqlTargetWithConnection("target_conn_id", mysqlrecipe.WithPrefix("TARGET_"))
+	Source, srcConn    = mysql.RecipeMysqlSourceWithConnection("src_conn_id")
+	Target, targetConn = mysql.RecipeMysqlTargetWithConnection("target_conn_id", mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
 	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	helpers.InitConnectionResolver(map[string]connection.ManagedConnection{"src_conn_id": srcConn, "target_conn_id": targetConn})
+	network.InitConnectionResolver(map[string]connection.ManagedConnection{"src_conn_id": srcConn, "target_conn_id": targetConn})
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: srcConn.Hosts[0].Port},
-			helpers.LabeledPort{Label: "Mysql target", Port: targetConn.Hosts[0].Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: srcConn.Hosts[0].Port},
+			network.LabeledPort{Label: "Mysql target", Port: targetConn.Hosts[0].Port},
 		))
 	}()
 
@@ -57,13 +61,13 @@ func Existence(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, TransferType)
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
+	tables, err := tasks.ObtainAllSrcTables(transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.UploadTables(context.TODO(), tables.ConvertToTableDescriptions(), true)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }
 
 func Load(t *testing.T) {
@@ -76,7 +80,7 @@ func Load(t *testing.T) {
 		ConnectionID: Source.ConnectionID,
 	}
 	sourceAsDestination.WithDefaults()
-	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, helpers.EmptyRegistry())
+	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, TransferType)
@@ -85,7 +89,7 @@ func Load(t *testing.T) {
 	err = provider_mysql.SyncBinlogPosition(Source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(fakeClient, transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -121,10 +125,10 @@ func Load(t *testing.T) {
 	err = conn.Close()
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentSchemas(t,
+	require.NoError(t, storage.WaitEqualRowsCountDifferentSchemas(t,
 		Source.Database, Target.Database, "customers",
-		helpers.GetSampleableStorageByModel(t, Source),
-		helpers.GetSampleableStorageByModel(t, Target),
+		storagecomparison.GetSampleableStorageByModel(t, Source),
+		storagecomparison.GetSampleableStorageByModel(t, Target),
 		60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

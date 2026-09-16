@@ -16,13 +16,15 @@ import (
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
-	Source = helpers.RecipeMysqlSource()
+	Source = mysql.RecipeMysqlSource()
 )
 
 func init() {
@@ -38,8 +40,8 @@ func eraseMeta(in string) string {
 }
 
 func TestReplication(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "Mysql source", Port: Source.Port},
 	))
 	//------------------------------------------------------------------------------
 	//initialize variables
@@ -88,7 +90,7 @@ func TestReplication(t *testing.T) {
 	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, dst, abstract.TransferTypeIncrementOnly)
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, dst, abstract.TransferTypeIncrementOnly)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -97,7 +99,7 @@ func TestReplication(t *testing.T) {
 		for {
 			// restart transfer if error
 			errCh := make(chan error, 1)
-			w, err := helpers.ActivateErr(additionalTransfer, func(err error) {
+			w, err := delivery.ActivateErr(additionalTransfer, func(err error) {
 				errCh <- err
 			})
 			require.NoError(t, err)

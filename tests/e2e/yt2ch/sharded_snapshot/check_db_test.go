@@ -13,7 +13,9 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -50,8 +52,8 @@ var (
 		User:                "default",
 		Password:            "",
 		Database:            "default",
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 		SSLEnabled:          false,
 		Cleanup:             model.Drop,
@@ -133,10 +135,10 @@ func TestShardedSnapshot(t *testing.T) {
 		2, // SnapshotWorkersNum
 		1, // SnapshotThreadsNumPerWorker
 	)
-	_, err := helpers.ActivateShardedErr(transfer, nil, nil)
+	_, err := delivery.ActivateShardedErr(transfer, nil, nil)
 	require.NoError(t, err)
 
-	chTarget := helpers.GetSampleableStorageByModel(t, Target)
+	chTarget := storagecomparison.GetSampleableStorageByModel(t, Target)
 	checkTable(t, chTarget, bigTableName, bigTableRows)
 	for _, name := range smallTableNames {
 		checkTable(t, chTarget, name, smallTableRows)

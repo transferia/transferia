@@ -16,9 +16,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	all_types "github.com/transferia/transferia/tests/helpers/postgres/all_types"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -57,7 +58,7 @@ func TestAllDataTypes(t *testing.T, source *provider_postgres.PgSource, target *
 				abstract.TransferTypeSnapshotAndIncrement,
 			)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableName}}
-			worker := helpers.Activate(t, transfer)
+			worker := delivery.Activate(t, transfer)
 
 			conn, err := provider_postgres.MakeConnPoolFromSrc(source, logger.Log)
 			require.NoError(t, err)
@@ -72,7 +73,7 @@ func TestAllDataTypes(t *testing.T, source *provider_postgres.PgSource, target *
 			defer dstStorage.Close()
 			tid, err := abstract.ParseTableIDForProvider(tableName, abstract.ProviderType("pg"))
 			require.NoError(t, err)
-			require.NoError(t, helpers.WaitEqualRowsCount(t, tid.Namespace, tid.Name, srcStorage, dstStorage, time.Second*30))
+			require.NoError(t, storage.WaitEqualRowsCount(t, tid.Namespace, tid.Name, srcStorage, dstStorage, time.Second*30))
 			worker.Close(t)
 
 			// Log per-row JSON representation to spot differences
@@ -160,7 +161,7 @@ FROM (
 			}
 			debeziumSerDeTransformer := helpers_transformer.NewSimpleTransformer(t, handler, serde.AnyTablesUdf)
 			require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
-			_ = helpers.Activate(t, transfer)
+			_ = delivery.Activate(t, transfer)
 
 			// check
 			queryFilter := make([]abstract.ChangeItem, 0)

@@ -15,7 +15,8 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/util/backoff"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -70,7 +71,7 @@ func TestReplication(t *testing.T) {
 		Type: abstract.TransferTypeIncrementOnly,
 	}
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	ctx := context.Background()
@@ -84,7 +85,7 @@ func TestReplication(t *testing.T) {
 	wg.Wait()
 
 	logger.Log.Info("pusher retries done")
-	storage := helpers.GetSampleableStorageByModel(t, transfer.Src)
+	storage := storagecomparison.GetSampleableStorageByModel(t, transfer.Src)
 	pgStorage, ok := storage.(*provider_postgres.Storage)
 	require.True(t, ok)
 

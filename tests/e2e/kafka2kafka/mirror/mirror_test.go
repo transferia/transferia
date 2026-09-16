@@ -15,7 +15,7 @@ import (
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -87,7 +87,7 @@ func TestReplication(t *testing.T) {
 		for {
 			// restart transfer if error
 			errCh := make(chan error, 1)
-			w, err := helpers.ActivateErr(additionalTransfer, func(err error) {
+			w, err := delivery.ActivateErr(additionalTransfer, func(err error) {
 				errCh <- err
 			})
 			require.NoError(t, err)

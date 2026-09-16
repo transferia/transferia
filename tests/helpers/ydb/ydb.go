@@ -9,7 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
@@ -72,6 +72,6 @@ func PullDataFromTable(t *testing.T, token, database, instance, table string) []
 		}
 		return nil
 	}
-	helpers.Activate(t, transferMock)
+	delivery.Activate(t, transferMock)
 	return extracted
 }

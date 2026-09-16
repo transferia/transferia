@@ -19,7 +19,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
@@ -63,8 +65,8 @@ func TestMain(m *testing.M) {
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -89,11 +91,11 @@ func TestGroup(t *testing.T) {
 		createBucket(t, dst)
 	}
 
-	sourcePort, err := helpers.GetPortFromStr(src.Instance)
+	sourcePort, err := network.GetPortFromStr(src.Instance)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YDB source", Port: sourcePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YDB source", Port: sourcePort},
 		))
 	}()
 
@@ -123,7 +125,7 @@ func TestGroup(t *testing.T) {
 
 	// activate transfer
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	// check data
 	sess, err := aws_session.NewSession(&aws.Config{

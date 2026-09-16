@@ -1,4 +1,4 @@
-package helpers
+package postgres
 
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"

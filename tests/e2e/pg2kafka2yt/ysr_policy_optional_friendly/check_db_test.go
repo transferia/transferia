@@ -16,7 +16,10 @@ import (
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -31,11 +34,11 @@ func init() {
 }
 
 func TestSnapshotAndIncrement(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-		helpers.LabeledPort{Label: "YT target", Port: targetPort},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
+		network.LabeledPort{Label: "YT target", Port: targetPort},
 	))
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -70,7 +73,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		Type: abstract.TransferTypeSnapshotAndIncrement,
 	}
 
-	worker1 := helpers.Activate(t, transfer1)
+	worker1 := delivery.Activate(t, transfer1)
 	defer worker1.Close(t)
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -108,7 +111,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		Type: abstract.TransferTypeIncrementOnly,
 	}
 
-	worker2 := helpers.Activate(t, transfer2)
+	worker2 := delivery.Activate(t, transfer2)
 	defer worker2.Close(t)
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -129,6 +132,6 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	//---
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "basic_types", helpers.GetSampleableStorageByModel(t, Target), 180*time.Second, 2))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "basic_types", storagecomparison.GetSampleableStorageByModel(t, Target), 180*time.Second, 2))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

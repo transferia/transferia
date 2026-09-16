@@ -13,7 +13,10 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/e2e/pg2ch"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -33,9 +36,9 @@ func init() {
 
 func TestSnapshotAndIncrementPK(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: SourcePK.Port},
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: SourcePK.Port},
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 
@@ -45,7 +48,7 @@ func TestSnapshotAndIncrementPK(t *testing.T) {
 	require.NoError(t, err)
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SourcePK, &Target, TransferType)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	time.Sleep(5 * time.Second) // for the worker to start
@@ -57,20 +60,20 @@ func TestSnapshotAndIncrementPK(t *testing.T) {
 	_, err = conn.Exec(context.Background(), "DELETE FROM multiple_uniq_idxs_pk WHERE a = 1")
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, databaseName, "multiple_uniq_idxs_pk", helpers.GetSampleableStorageByModel(t, SourcePK), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, SourcePK, Target, helpers.NewCompareStorageParams().WithEqualDataTypes(pg2ch.PG2CHDataTypesComparator)))
+	require.NoError(t, storage.WaitEqualRowsCount(t, databaseName, "multiple_uniq_idxs_pk", storagecomparison.GetSampleableStorageByModel(t, SourcePK), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, SourcePK, Target, storagecomparison.NewCompareStorageParams().WithEqualDataTypes(pg2ch.PG2CHDataTypesComparator)))
 }
 
 func TestSnapshotAndIncrementNoPK(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: SourceNoPK.Port},
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: SourceNoPK.Port},
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SourceNoPK, &Target, TransferType)
 
-	_, err := helpers.ActivateErr(transfer)
+	_, err := delivery.ActivateErr(transfer)
 	require.Error(t, err)
 }

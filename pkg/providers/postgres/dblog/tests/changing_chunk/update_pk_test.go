@@ -13,7 +13,9 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -29,8 +31,8 @@ func init() {
 
 func TestUpdateKey(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -38,14 +40,14 @@ func TestUpdateKey(t *testing.T) {
 	Source.SlotID += transferID
 
 	sinkParams := Source.ToSinkParams()
-	sink, err := provider_postgres.NewSink(logger.Log, transferID, sinkParams, helpers.EmptyRegistry())
+	sink, err := provider_postgres.NewSink(logger.Log, transferID, sinkParams, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	arrColSchema := abstract.NewTableSchema([]abstract.ColSchema{
 		{ColumnName: "id", DataType: ytschema.TypeInt32.String(), PrimaryKey: true},
 		{ColumnName: "num", DataType: ytschema.TypeInt32.String(), PrimaryKey: false},
 	})
-	changeItemBuilder := helpers.NewChangeItemsBuilder("public", testTableName, arrColSchema)
+	changeItemBuilder := changeitem.NewChangeItemsBuilder("public", testTableName, arrColSchema)
 
 	cnt := 0
 

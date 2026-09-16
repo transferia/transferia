@@ -15,7 +15,10 @@ import (
 	parser_json "github.com/transferia/transferia/pkg/parsers/registry/json"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -53,11 +56,11 @@ func TestReplication(t *testing.T) {
 	if !ok {
 		t.Fail()
 	}
-	targetPort, err := helpers.GetPortFromStr(endpoint)
+	targetPort, err := network.GetPortFromStr(endpoint)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YDB target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YDB target", Port: targetPort},
 		))
 	}()
 
@@ -117,15 +120,15 @@ func TestReplication(t *testing.T) {
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, dst, abstract.TransferTypeIncrementOnly)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// check results
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		"",
 		"topic1",
-		helpers.GetSampleableStorageByModel(t, dst),
+		storagecomparison.GetSampleableStorageByModel(t, dst),
 		60*time.Second,
 		50,
 	))

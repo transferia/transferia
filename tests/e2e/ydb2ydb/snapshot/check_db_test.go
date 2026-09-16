@@ -11,8 +11,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
@@ -47,8 +48,8 @@ func anyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -72,8 +73,8 @@ func TestGroup(t *testing.T) {
 
 	dst := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	dst.WithDefaults()
 	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
@@ -82,7 +83,7 @@ func TestGroup(t *testing.T) {
 	transformerhelpers.AddTransformer(t, transfer, serdeTransformer)
 
 	t.Run("activate", func(t *testing.T) {
-		helpers.Activate(t, transfer)
+		delivery.Activate(t, transfer)
 	})
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -104,7 +105,7 @@ func TestGroup(t *testing.T) {
 			}
 			return nil
 		}
-		helpers.Activate(t, transferMock)
+		delivery.Activate(t, transferMock)
 	})
 
 	sourceChangeItem.CommitTime = 0

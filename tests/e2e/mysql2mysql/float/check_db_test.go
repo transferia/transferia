@@ -9,13 +9,15 @@ import (
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/storage"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
-	Source = helpers.RecipeMysqlSource()
-	Target = helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source = mysql.RecipeMysqlSource()
+	Target = mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 
 	//go:embed increment.sql
 	IncrementStatements string
@@ -27,14 +29,14 @@ func init() {
 
 func TestFloat(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement)
-	worker := helpers.Activate(t, transfer, nil)
+	worker := delivery.Activate(t, transfer, nil)
 	defer worker.Close(t)
 
-	helpers.ExecuteMySQLStatementsLineByLine(t, IncrementStatements, helpers.NewMySQLConnectionParams(t, Source.ToStorageParams()))
+	mysql.ExecuteMySQLStatementsLineByLine(t, IncrementStatements, mysql.NewMySQLConnectionParams(t, Source.ToStorageParams()))
 
-	srcStorage, dstStorage := helpers.NewMySQLStorageFromSource(t, Source), helpers.NewMySQLStorageFromTarget(t, Target)
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentSchemas(t, Source.Database, Target.Database, "test", srcStorage, dstStorage, 30*time.Second))
-	dumpSrc := helpers.MySQLDump(t, Source.ToStorageParams())
-	dumpDst := helpers.MySQLDump(t, Target.ToStorageParams())
+	srcStorage, dstStorage := mysql.NewMySQLStorageFromSource(t, Source), mysql.NewMySQLStorageFromTarget(t, Target)
+	require.NoError(t, storage.WaitEqualRowsCountDifferentSchemas(t, Source.Database, Target.Database, "test", srcStorage, dstStorage, 30*time.Second))
+	dumpSrc := mysql.MySQLDump(t, Source.ToStorageParams())
+	dumpDst := mysql.MySQLDump(t, Target.ToStorageParams())
 	canon.SaveJSON(t, map[string]interface{}{"src": dumpSrc, "dst": dumpDst})
 }

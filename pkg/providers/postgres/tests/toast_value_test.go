@@ -14,7 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
@@ -93,7 +93,7 @@ func TestToastValuesFromOldKeys(t *testing.T) {
 	}
 
 	transfer := transferhelpers.MakeTransfer("test_toast_value", &source, &target, abstract.TransferTypeIncrementOnly)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	var relreplident string

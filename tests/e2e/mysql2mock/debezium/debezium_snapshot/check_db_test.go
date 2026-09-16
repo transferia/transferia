@@ -12,13 +12,16 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	debezium_common "github.com/transferia/transferia/pkg/debezium/common"
 	debezium_testutil "github.com/transferia/transferia/pkg/debezium/testutil"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
-	Source = helpers.RecipeMysqlSource()
+	Source = mysql.RecipeMysqlSource()
 )
 
 func init() {
@@ -30,8 +33,8 @@ func init() {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestSnapshot(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "mysql source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "mysql source", Port: Source.Port},
 	))
 
 	canonizedDebeziumKeyBytes, err := os.ReadFile(yatest.SourcePath("transfer_manager/go/tests/e2e/mysql2mock/debezium/debezium_snapshot/testdata/change_item_key.txt"))
@@ -55,7 +58,7 @@ func TestSnapshot(t *testing.T) {
 		return nil
 	}
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	require.Equal(t, 5, len(changeItems))
 	require.Equal(t, changeItems[0].Kind, abstract.InitShardedTableLoad)
@@ -70,6 +73,6 @@ func TestSnapshot(t *testing.T) {
 
 	changeItemBuf, err := json.Marshal(changeItems[2])
 	require.NoError(t, err)
-	changeItemDeserialized := helpers.UnmarshalChangeItem(t, changeItemBuf)
+	changeItemDeserialized := changeitem.UnmarshalChangeItem(t, changeItemBuf)
 	debezium_testutil.CheckCanonizedDebeziumEvent(t, changeItemDeserialized, "dbserver1", "source", "mysql", true, []debezium_common.KeyValue{{DebeziumKey: string(canonizedDebeziumKeyBytes), DebeziumVal: &canonizedDebeziumVal}})
 }

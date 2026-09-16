@@ -23,8 +23,9 @@ import (
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/terryid"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -90,7 +91,7 @@ func TestBigTable(t *testing.T) {
 	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, transferType)
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, transferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	ytc, err := yt_client.NewYtClientWrapper(yt_client.HTTP, nil, &yt.Config{Proxy: source.YtProxy, Token: source.YtToken})
 	require.NoError(t, err)
@@ -154,7 +155,7 @@ func TestBigTable(t *testing.T) {
 	}
 	transferhelpers.InitSrcDst(transferhelpers.TransferID, s3Src, targetMock, transferType)
 	transfer = transferhelpers.MakeTransfer(transferhelpers.TransferID, s3Src, targetMock, transferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	require.Equal(t, int64(1), minVal)
 	require.Equal(t, rowCount, maxVal)
@@ -207,7 +208,7 @@ func TestBigTableWithParallelWorkers(t *testing.T) {
 	}
 
 	logger.Log.Info("Starting main worker")
-	err := tasks.ActivateDelivery(ctx, task, cp, *transfer, helpers.EmptyRegistry())
+	err := tasks.ActivateDelivery(ctx, task, cp, *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -279,7 +280,7 @@ func TestBigTableWithParallelWorkers(t *testing.T) {
 	logger.Log.Info("start transfer from s3 to mock sink")
 	transferhelpers.InitSrcDst(transferhelpers.TransferID, s3Src, targetMock, transferType)
 	transfer = transferhelpers.MakeTransfer(transferhelpers.TransferID, s3Src, targetMock, transferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	logger.Log.Info("end transfer from s3 to mock sink")
 	logger.Log.Infof("totalCnt: %d", totalCnt)

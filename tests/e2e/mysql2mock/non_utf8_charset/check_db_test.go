@@ -15,13 +15,15 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 )
 
 var (
 	db     = os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE")
-	source = helpers.WithMysqlInclude(
-		helpers.RecipeMysqlSource(),
+	source = mysql.WithMysqlInclude(
+		mysql.RecipeMysqlSource(),
 		[]string{fmt.Sprintf("%s.kek", db)},
 	)
 )
@@ -54,8 +56,8 @@ func makeConnConfig() *mysql_driver2.Config {
 
 func TestNonUtf8Charset(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
 		))
 	}()
 
@@ -104,7 +106,7 @@ func TestNonUtf8Charset(t *testing.T) {
 	err = provider_mysql.SyncBinlogPosition(source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	wrk := local.NewLocalWorker(fakeClient, &transfer, helpers.EmptyRegistry(), logger.Log)
+	wrk := local.NewLocalWorker(fakeClient, &transfer, testmetrics.EmptyRegistry(), logger.Log)
 
 	var haveBambarbia, haveKirgudu bool
 	sinker.pushCallback = func(input []abstract.ChangeItem) error {

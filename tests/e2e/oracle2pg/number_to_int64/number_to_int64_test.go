@@ -12,7 +12,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -45,9 +47,9 @@ func init() {
 
 func TestNumberToInt64(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -64,11 +66,11 @@ func DefaultMapping(t *testing.T) {
 	Source.ConvertNumberToInt64 = false
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "nums", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "nums", 3)
 
-	pgStorage := helpers.GetSampleableStorageByModel(t, &Target)
+	pgStorage := storagecomparison.GetSampleableStorageByModel(t, &Target)
 	schema, err := pgStorage.TableSchema(context.Background(), *abstract.NewTableID("dt_test", "nums"))
 	require.NoError(t, err)
 	for _, col := range schema.Columns() {
@@ -87,11 +89,11 @@ func ConvertToInt64(t *testing.T) {
 	Source.ConvertNumberToInt64 = true
 
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "nums", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "nums", 3)
 
-	pgStorage := helpers.GetSampleableStorageByModel(t, &Target)
+	pgStorage := storagecomparison.GetSampleableStorageByModel(t, &Target)
 	schema, err := pgStorage.TableSchema(context.Background(), *abstract.NewTableID("dt_test", "nums"))
 	require.NoError(t, err)
 	for _, col := range schema.Columns() {

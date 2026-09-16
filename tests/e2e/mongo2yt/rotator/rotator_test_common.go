@@ -14,7 +14,8 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/transformer"
 	"go.mongodb.org/mongo-driver/bson"
@@ -50,7 +51,7 @@ func PrefilledSourceAndTarget() (provider_mongo.MongoSource, provider_yt.YtDesti
 	prefillIteration += 1
 	return provider_mongo.MongoSource{
 			Hosts:             []string{"localhost"},
-			Port:              helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
+			Port:              testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
 			User:              os.Getenv("MONGO_LOCAL_USER"),
 			Password:          model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
 			ReplicationSource: provider_mongo.MongoReplicationSourcePerDatabaseUpdateDocument,
@@ -160,7 +161,7 @@ func ScenarioCheckActivation(
 	require.NoError(t, err)
 
 	// Step: activate I time to allocate table in target
-	wk1 := helpers.Activate(t, &transfer, func(err error) {
+	wk1 := delivery.Activate(t, &transfer, func(err error) {
 		require.NoError(t, err)
 	})
 	defer wk1.Close(t)
@@ -192,7 +193,7 @@ func ScenarioCheckActivation(
 	require.NoError(t, err)
 
 	// Step: activate II time to check cleanup policy
-	wk2 := helpers.Activate(t, &transfer, func(err error) {
+	wk2 := delivery.Activate(t, &transfer, func(err error) {
 		require.NoError(t, err)
 	})
 	defer wk2.Close(t)

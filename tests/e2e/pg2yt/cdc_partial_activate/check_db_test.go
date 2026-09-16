@@ -12,7 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	storagehelpers "github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
@@ -33,12 +36,12 @@ func init() {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -75,7 +78,7 @@ func Load(t *testing.T) {
 }
 `))
 	// start cdc
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	require.NotNil(t, worker, "Transfer is not activated")
 
 	// check snapshot loaded
@@ -85,13 +88,13 @@ func Load(t *testing.T) {
 	defer conn.Close()
 
 	expectedYtRows := getExpectedRowsCount(t, conn)
-	storage := helpers.GetSampleableStorageByModel(t, Target.LegacyModel())
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "__test",
+	storage := storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel())
+	require.NoError(t, storagehelpers.WaitDestinationEqualRowsCount("public", "__test",
 		storage, 60*time.Second, expectedYtRows), "Wrong row number after first snapshot round!")
 
 	// add some data to pg
 	expectedYtRows = addSomeDataAndGetExpectedCount(t, conn)
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "__test", helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second, expectedYtRows))
+	require.NoError(t, storagehelpers.WaitDestinationEqualRowsCount("public", "__test", storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second, expectedYtRows))
 	worker.Close(t)
 
 	// read data from target

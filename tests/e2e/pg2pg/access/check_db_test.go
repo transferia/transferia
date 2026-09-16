@@ -12,7 +12,8 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -89,11 +90,11 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source A", Port: SourceA.Port},
-			helpers.LabeledPort{Label: "PG source IA for dump", Port: SourceIAForDump.Port},
-			helpers.LabeledPort{Label: "PG source IA", Port: SourceIA.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source A", Port: SourceA.Port},
+			network.LabeledPort{Label: "PG source IA for dump", Port: SourceIAForDump.Port},
+			network.LabeledPort{Label: "PG source IA", Port: SourceIA.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -106,19 +107,19 @@ func UploadTestAccessible(t *testing.T) {
 
 	pgdump, err := provider_postgres.ExtractPgDumpSchema(transfer)
 	require.NoError(t, err)
-	require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(pgdump, transfer, &model.TransferOperation{}, helpers.EmptyRegistry()))
+	require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(pgdump, transfer, &model.TransferOperation{}, testmetrics.EmptyRegistry()))
 
-	require.NoError(t, tasks.Upload(context.TODO(), coordinator.NewFakeClient(), *transfer, nil, tasks.UploadSpec{Tables: tablesA}, helpers.EmptyRegistry()))
+	require.NoError(t, tasks.Upload(context.TODO(), coordinator.NewFakeClient(), *transfer, nil, tasks.UploadSpec{Tables: tablesA}, testmetrics.EmptyRegistry()))
 }
 
 func UploadTestInaccessible(t *testing.T) {
 	transferForDump := transferhelpers.MakeTransfer(sourceIAForDumpTID, &SourceIAForDump, &Target, abstract.TransferTypeSnapshotOnly)
 	pgdump, err := provider_postgres.ExtractPgDumpSchema(transferForDump)
 	require.NoError(t, err)
-	require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(pgdump, transferForDump, &model.TransferOperation{}, helpers.EmptyRegistry()))
+	require.NoError(t, provider_postgres.ApplyPgDumpPreSteps(pgdump, transferForDump, &model.TransferOperation{}, testmetrics.EmptyRegistry()))
 
 	transfer := transferhelpers.MakeTransfer(sourceIATID, &SourceIA, &Target, abstract.TransferTypeSnapshotOnly)
-	err = tasks.Upload(context.TODO(), coordinator.NewFakeClient(), *transfer, nil, tasks.UploadSpec{Tables: tablesIA}, helpers.EmptyRegistry())
+	err = tasks.Upload(context.TODO(), coordinator.NewFakeClient(), *transfer, nil, tasks.UploadSpec{Tables: tablesIA}, testmetrics.EmptyRegistry())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Missing tables in source (pg)")
 	require.Contains(t, err.Error(), `"public"."t_inaccessible"`)

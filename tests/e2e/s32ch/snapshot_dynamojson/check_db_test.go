@@ -17,7 +17,9 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/s3"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -69,8 +71,8 @@ func testNativeS3(t *testing.T, src *s3_model.S3Source) {
 
 	dst.WithDefaults()
 	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
-	helpers.CheckRowsCount(t, &dst, "example", "data", 2)
+	delivery.Activate(t, transfer)
+	storagecomparison.CheckRowsCount(t, &dst, "example", "data", 2)
 
 	canon_reference.Dump(t, &clickhouse_model.ChSource{
 		Database:   "example",
@@ -84,5 +86,5 @@ func testNativeS3(t *testing.T, src *s3_model.S3Source) {
 func TestAll(t *testing.T) {
 	src := buildSourceModel(t)
 	testNativeS3(t, src)
-	helpers.TestS3SchemaAndPkeyCases(t, src, "OrderID", "Item.OrderID.S")
+	s3.TestS3SchemaAndPkeyCases(t, src, "OrderID", "Item.OrderID.S")
 }
