@@ -320,14 +320,12 @@ func (p *GenericParser) makeChangeItem(item map[string]interface{}, idx int, lin
 	}
 
 	if p.auxOpts.AddRest {
-		rest := make(map[string]interface{})
-		for k, v := range item {
-			if !p.known[k] {
-				rest[k] = v
-			}
-		}
-
-		changeItem.ColumnValues[p.restIDX()] = rest
+		changeItem.ColumnValues[p.restIDX()] = makeRest(
+			item,
+			p.known,
+			p.rawFields,
+			p.auxOpts.IgnoreColumnPaths,
+		)
 	}
 	if p.auxOpts.AddTopicColumn {
 		changeItem.ColumnValues[p.topicIDX()] = msg.Headers["logtype"]
