@@ -36,7 +36,7 @@ func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Regi
 
 	topicSourceCfg, err := cfg.buildTopicSourceConfig()
 	if err != nil {
-		return nil, xerrors.Errorf("unable to build topic source config: %w", err)
+		return nil, abstract.NewFatalError(xerrors.Errorf("unable to build topic source config: %w", err))
 	}
 
 	var source abstract.Source

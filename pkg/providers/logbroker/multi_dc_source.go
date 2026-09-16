@@ -139,9 +139,9 @@ func (s *multiDcSource) Fetch() ([]abstract.ChangeItem, error) {
 			}
 			s.logger.Infof("start read one of %v", endpoint)
 			if r, err := source.(abstract.Fetchable).Fetch(); err != nil {
-				res <- r
-			} else {
 				errCh <- err
+			} else {
+				res <- r
 			}
 		}
 	}()

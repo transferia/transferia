@@ -11,7 +11,7 @@ import (
 func NewReplicationSink(cfg *LbDestination, registry core_metrics.Registry, lgr log.Logger, transferID string) (abstract.Sinker, error) {
 	topicSinkConfig, err := cfg.TopicSinkConfig()
 	if err != nil {
-		return nil, xerrors.Errorf("unable to build topic sink config: %w", err)
+		return nil, abstract.NewFatalError(xerrors.Errorf("unable to build topic sink config: %w", err))
 	}
 	return ydb_topics_sink.NewReplicationSink(topicSinkConfig, registry, lgr, transferID)
 }
@@ -19,7 +19,7 @@ func NewReplicationSink(cfg *LbDestination, registry core_metrics.Registry, lgr 
 func NewSnapshotSink(cfg *LbDestination, registry core_metrics.Registry, lgr log.Logger, transferID string) (abstract.Sinker, error) {
 	topicSinkConfig, err := cfg.TopicSinkConfig()
 	if err != nil {
-		return nil, xerrors.Errorf("unable to build topic sink config: %w", err)
+		return nil, abstract.NewFatalError(xerrors.Errorf("unable to build topic sink config: %w", err))
 	}
 	return ydb_topics_sink.NewSnapshotSink(topicSinkConfig, registry, lgr, transferID)
 }
