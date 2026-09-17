@@ -42,8 +42,9 @@ func (p *DefaultPartitioner) ConstructKey(item *abstract.ChangeItem) (string, er
 
 // Partitioner time based <prefix>/<topic>/<time bucket>/<topic>+<kafkaPartition>+<startOffset>.<format>[.gz]
 type TimeBasedPartitioner struct {
-	config  *BasePartitionerConfig
-	timeCfg *s3_v1_model.TimeBasedPartitionerConfig
+	config        *BasePartitionerConfig
+	timeCfg       *s3_v1_model.TimeBasedPartitionerConfig
+	timeExtractor TimeExtractor
 }
 
 var _ Partitioner = (*TimeBasedPartitioner)(nil)
@@ -60,7 +61,11 @@ func (p *TimeBasedPartitioner) Dir(item *abstract.ChangeItem) (string, error) {
 	if err != nil {
 		return "", xerrors.Errorf("unable to resolve the time bucket layout: %w", err)
 	}
-	bucket := rawMessageWriteTime(item).In(location).Format(pathFormat)
+	itemTime, err := p.timeExtractor.Extract(item)
+	if err != nil {
+		return "", xerrors.Errorf("unable to resolve the time bucket of the item: %w", err)
+	}
+	bucket := itemTime.In(location).Format(pathFormat)
 	return p.config.dirPrefix() + "/" + bucket, nil
 }
 
@@ -164,7 +169,11 @@ func NewPartitioner(cfg *s3_v1_model.S3Destination) Partitioner {
 	case *s3_v1_model.DefaultPartitionerConfig:
 		return &DefaultPartitioner{config: baseCfg}
 	case *s3_v1_model.TimeBasedPartitionerConfig:
-		return &TimeBasedPartitioner{config: baseCfg, timeCfg: t}
+		return &TimeBasedPartitioner{
+			config:        baseCfg,
+			timeCfg:       t,
+			timeExtractor: NewTimeExtractor(cfg.GetTimeExtractor()),
+		}
 	default:
 		return nil
 	}

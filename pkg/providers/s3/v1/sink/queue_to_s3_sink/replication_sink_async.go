@@ -3,6 +3,7 @@ package queue_to_s3_sink
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -18,8 +19,10 @@ import (
 )
 
 type AsyncSink struct {
-	cfg         *s3_v1_model.S3Destination
-	rotator     Rotator
+	cfg *s3_v1_model.S3Destination
+	// rotator is temporarily of type *DefaultRotator until we implement other rotators.
+	// In the future, this should be an interface populated via a factory.
+	rotator     *DefaultRotator
 	partitioner Partitioner
 	serializer  s3_v1_model.SerializerConfig
 	logger      log.Logger
@@ -29,17 +32,65 @@ type AsyncSink struct {
 	s3Client       s3_v1_sink_client.S3Client
 
 	offsetsToCommit []uint64
+
+	//concurrentState is a wrapper around all the asyncronous variables that are needed for reqular rotation to work
+	concurrentState *lifecycleState
 }
 
 var _ abstract.QueueToS3Sink = (*AsyncSink)(nil)
 
 func (s *AsyncSink) Close() error {
+	s.concurrentState.stopOnce.Do(func() { close(s.concurrentState.stopCh) })
+	s.concurrentState.wg.Wait()
+	s.concurrentState.mu.Lock()
+	defer s.concurrentState.mu.Unlock()
+
+	// Nothing was ever pushed, or the committer already closed the last file
+	if s.snapshotWriter == nil {
+		return nil
+	}
+
 	err := s.snapshotWriter.Close()
 	// SnapshotWriter already closed, can happen when Close() is called while commiting new file
 	if xerrors.Is(err, io.ErrClosedPipe) {
 		return nil
 	}
 	return err
+}
+
+func (s *AsyncSink) regularRotationLoop() {
+	ticker := time.NewTicker(s.rotator.cfg.Interval)
+	defer ticker.Stop()
+	defer s.concurrentState.wg.Done()
+
+	for {
+		select {
+		case <-s.concurrentState.stopCh:
+			return
+		case <-ticker.C:
+			s.runRegularCommit()
+		}
+	}
+}
+
+func (s *AsyncSink) runRegularCommit() {
+	s.concurrentState.mu.Lock()
+	defer s.concurrentState.mu.Unlock()
+
+	// No file is open, skip rotation
+	if s.snapshotWriter == nil {
+		return
+	}
+
+	err := s.snapshotWriter.Close()
+	// The next push opens a fresh file rather than writing into the closed one
+	s.snapshotWriter = nil
+	if err != nil {
+		err = xerrors.Errorf("unable to commit file on wallclock rotation: %w", err)
+	} else {
+		s.logger.Info("committed file on wallclock rotation")
+	}
+	_ = s.sendStatus(s.concurrentState.pushCtx, s.concurrentState.resCh, err)
 }
 
 func (s *AsyncSink) pushBatch(items []*abstract.ChangeItem) error {
@@ -118,6 +169,7 @@ func (s *AsyncSink) processBeforeRotation(ctx context.Context, resCh chan<- abst
 		return
 	}
 
+	s.rotator.UpdateState(items)
 	s.addOffsetsToCommit(items)
 }
 
@@ -127,7 +179,7 @@ func (s *AsyncSink) processRotation(ctx context.Context, resCh chan<- abstract.A
 	// s.snapshotWriter == nil during first push
 	if s.snapshotWriter != nil {
 		for i := range items {
-			shouldRotate, err := s.rotator.ShouldRotate(&items[i])
+			shouldRotate, err := s.rotator.ShouldRotate(items[:i+1])
 			if err != nil {
 				_ = s.sendStatus(ctx, resCh, err)
 				return
@@ -151,8 +203,8 @@ func (s *AsyncSink) processRotation(ctx context.Context, resCh chan<- abstract.A
 	}
 
 	// Current item is the first one to be put in the next file
-	// Update Rotator settings
-	if err := s.rotator.UpdateState(&items[firstIdx]); err != nil {
+	// Reset Rotator state
+	if err := s.rotator.ResetState(&items[firstIdx]); err != nil {
 		_ = s.sendStatus(ctx, resCh, err)
 		return
 	}
@@ -170,7 +222,7 @@ func (s *AsyncSink) processRotation(ctx context.Context, resCh chan<- abstract.A
 	}
 
 	// One batch can potentially contain changes for more than two files -> we need to check if second (third, fourth...) rotation is needed
-	s.AsyncV2Push(ctx, resCh, items[firstIdx:])
+	s.asyncPush(ctx, resCh, items[firstIdx:])
 }
 
 func (s *AsyncSink) sendStatus(ctx context.Context, resCh chan<- abstract.AsyncPushResult, err error) bool {
@@ -199,9 +251,28 @@ func (s *AsyncSink) addOffsetsToCommit(items []abstract.ChangeItem) {
 }
 
 func (s *AsyncSink) AsyncV2Push(ctx context.Context, errCh chan<- abstract.AsyncPushResult, items []abstract.ChangeItem) {
-	lastItem := items[len(items)-1]
+	if len(items) == 0 {
+		return
+	}
 
-	shouldRotate, err := s.rotator.ShouldRotate(&lastItem)
+	s.concurrentState.mu.Lock()
+	defer s.concurrentState.mu.Unlock()
+
+	// Latch the stream so that the wallclock committer can report between pushes
+	s.concurrentState.pushCtx, s.concurrentState.resCh = ctx, errCh
+	s.asyncPush(ctx, errCh, items)
+}
+
+// asyncPush holds the push logic and recurses, so it runs with mu already held
+func (s *AsyncSink) asyncPush(ctx context.Context, errCh chan<- abstract.AsyncPushResult, items []abstract.ChangeItem) {
+	// No file is open: before the first push, and after the regular committer closed the
+	// previous one. Either way this batch starts a new file, whatever the rotator says.
+	if s.snapshotWriter == nil {
+		s.processRotation(ctx, errCh, items)
+		return
+	}
+
+	shouldRotate, err := s.rotator.ShouldRotate(items)
 	if err != nil {
 		_ = s.sendStatus(ctx, errCh, err)
 		return
@@ -220,15 +291,27 @@ func NewReplicationAsyncSink(lgr log.Logger, cfg *s3_v1_model.S3Destination, mtr
 		return nil, xerrors.Errorf("unable to create s3 client: %w", err)
 	}
 	partitioner := NewPartitioner(cfg)
-	return &AsyncSink{
+	rotator, err := NewDefaultRotator(cfg, partitioner)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create rotator: %w", err)
+	}
+
+	sink := &AsyncSink{
 		logger:          lgr,
 		metrics:         stats.NewSinkerStats(mtrcs),
 		cfg:             cfg,
-		rotator:         NewRotator(cfg.GetRotator(), partitioner),
+		rotator:         rotator,
 		partitioner:     partitioner,
 		s3Client:        s3Client,
 		snapshotWriter:  nil, // We can not init writer in constructor, data from first received message is needed
 		offsetsToCommit: make([]uint64, 0),
 		serializer:      cfg.GetSerializer(),
-	}, nil
+		concurrentState: newLifecycleState(),
+	}
+
+	if rotator.cfg.IsRegularRotationEnabled {
+		sink.concurrentState.wg.Add(1)
+		go sink.regularRotationLoop()
+	}
+	return sink, nil
 }

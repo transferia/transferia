@@ -27,9 +27,9 @@ func rawItem(writeTime time.Time) abstract.ChangeItem {
 	)
 }
 
-func requireShouldRotate(t *testing.T, rotator Rotator, item *abstract.ChangeItem, expected bool, msgAndArgs ...interface{}) {
+func requireShouldRotate(t *testing.T, rotator *DefaultRotator, item abstract.ChangeItem, expected bool, msgAndArgs ...interface{}) {
 	t.Helper()
-	shouldRotate, err := rotator.ShouldRotate(item)
+	shouldRotate, err := rotator.ShouldRotate([]abstract.ChangeItem{item})
 	require.NoError(t, err)
 	require.Equal(t, expected, shouldRotate, msgAndArgs...)
 }
@@ -48,8 +48,8 @@ func defaultDestination(interval time.Duration) *s3_v1_model.S3Destination {
 
 func newTestRotator(t *testing.T, cfg *s3_v1_model.S3Destination) *DefaultRotator {
 	t.Helper()
-	rotator, ok := NewRotator(cfg.GetRotator(), NewPartitioner(cfg)).(*DefaultRotator)
-	require.True(t, ok)
+	rotator, err := NewDefaultRotator(cfg, NewPartitioner(cfg))
+	require.NoError(t, err)
 	return rotator
 }
 
@@ -58,16 +58,16 @@ func TestDefaultRotator(t *testing.T) {
 
 	rotator := newTestRotator(t, defaultDestination(rotationInterval))
 
-	requireShouldRotate(t, rotator, &firstItem, true) // First ShouldRotate is always true
-	require.NoError(t, rotator.UpdateState(&firstItem))
+	requireShouldRotate(t, rotator, firstItem, true) // First ShouldRotate is always true
+	require.NoError(t, rotator.ResetState(&firstItem))
 	require.Equal(t, startTime.Add(rotationInterval), rotator.nextRotate)
 
 	secondItem := rawItem(startTime.Add(rotationInterval - time.Nanosecond))
-	requireShouldRotate(t, rotator, &secondItem, false)
+	requireShouldRotate(t, rotator, secondItem, false)
 
 	lastItem := rawItem(startTime.Add(rotationInterval))
-	requireShouldRotate(t, rotator, &lastItem, true)
-	require.NoError(t, rotator.UpdateState(&lastItem))
+	requireShouldRotate(t, rotator, lastItem, true)
+	require.NoError(t, rotator.ResetState(&lastItem))
 	require.Equal(t, startTime.Add(rotationInterval*2), rotator.nextRotate)
 }
 
@@ -76,13 +76,13 @@ func TestDefaultRotatorLongIntervals(t *testing.T) {
 
 	rotator := newTestRotator(t, defaultDestination(rotationInterval))
 
-	requireShouldRotate(t, rotator, &firstItem, true)
-	require.NoError(t, rotator.UpdateState(&firstItem))
+	requireShouldRotate(t, rotator, firstItem, true)
+	require.NoError(t, rotator.ResetState(&firstItem))
 	require.Equal(t, startTime.Add(rotationInterval), rotator.nextRotate)
 
 	secondItem := rawItem(startTime.Add(rotationInterval * 2))
-	requireShouldRotate(t, rotator, &secondItem, true)
-	require.NoError(t, rotator.UpdateState(&secondItem))
+	requireShouldRotate(t, rotator, secondItem, true)
+	require.NoError(t, rotator.ResetState(&secondItem))
 	require.Equal(t, startTime.Add(rotationInterval*3), rotator.nextRotate)
 }
 
@@ -93,11 +93,11 @@ func TestDefaultRotatorDirNeverChangesForDefaultPartitioner(t *testing.T) {
 
 	firstItemTime := time.Date(2026, time.February, 11, 23, 0, 0, 0, time.UTC)
 	firstItem := rawItem(firstItemTime)
-	requireShouldRotate(t, rotator, &firstItem, true)
-	require.NoError(t, rotator.UpdateState(&firstItem))
+	requireShouldRotate(t, rotator, firstItem, true)
+	require.NoError(t, rotator.ResetState(&firstItem))
 
 	nextDayItem := rawItem(firstItemTime.Add(time.Hour))
-	requireShouldRotate(t, rotator, &nextDayItem, false,
+	requireShouldRotate(t, rotator, nextDayItem, false,
 		"without time based partitioning, crossing a day boundary must not force rotation")
 }
 
@@ -114,21 +114,21 @@ func TestDefaultRotatorDirConsistency(t *testing.T) {
 	firstItemTime := time.Date(2026, time.February, 11, 23, 0, 0, 0, time.UTC)
 	firstItem := rawItem(firstItemTime)
 
-	requireShouldRotate(t, rotator, &firstItem, true) // first call is always true
-	require.NoError(t, rotator.UpdateState(&firstItem))
+	requireShouldRotate(t, rotator, firstItem, true) // first call is always true
+	require.NoError(t, rotator.ResetState(&firstItem))
 	require.Equal(t, topic+"/2026/02/11", rotator.currentDir)
 
 	// Crosses midnight into the next day's directory, well within the 24h interval
 	nextDayItem := rawItem(firstItemTime.Add(time.Hour))
-	requireShouldRotate(t, rotator, &nextDayItem, true,
+	requireShouldRotate(t, rotator, nextDayItem, true,
 		"a February 12th record must not be allowed into the February 11th directory just because the interval has not elapsed")
 
-	require.NoError(t, rotator.UpdateState(&nextDayItem))
+	require.NoError(t, rotator.ResetState(&nextDayItem))
 	require.Equal(t, topic+"/2026/02/12", rotator.currentDir)
 
 	// Same directory, still well within the interval -> no rotation needed
 	sameDayLaterItem := rawItem(firstItemTime.Add(6 * time.Hour))
-	requireShouldRotate(t, rotator, &sameDayLaterItem, false)
+	requireShouldRotate(t, rotator, sameDayLaterItem, false)
 }
 
 // Daily buckets in a non UTC zone roll over at local midnight, not at UTC midnight.
@@ -144,18 +144,61 @@ func TestDefaultRotatorDirConsistencyInTimezone(t *testing.T) {
 	firstItemTime := time.Date(2026, time.February, 11, 23, 0, 0, 0, time.UTC)
 	firstItem := rawItem(firstItemTime)
 
-	requireShouldRotate(t, rotator, &firstItem, true) // first call is always true
-	require.NoError(t, rotator.UpdateState(&firstItem))
+	requireShouldRotate(t, rotator, firstItem, true) // first call is always true
+	require.NoError(t, rotator.ResetState(&firstItem))
 	require.Equal(t, topic+"/2026/02/12", rotator.currentDir)
 
 	// Crosses UTC midnight but stays inside the same Tokyo day -> no rotation
 	utcNextDayItem := rawItem(firstItemTime.Add(2 * time.Hour))
-	requireShouldRotate(t, rotator, &utcNextDayItem, false,
+	requireShouldRotate(t, rotator, utcNextDayItem, false,
 		"crossing UTC midnight must not roll the file when the bucket is rendered in Asia/Tokyo")
 
 	// 15:00 UTC on the 12th is local midnight of the 13th in Tokyo
 	localNextDayItem := rawItem(firstItemTime.Add(16 * time.Hour))
-	requireShouldRotate(t, rotator, &localNextDayItem, true)
-	require.NoError(t, rotator.UpdateState(&localNextDayItem))
+	requireShouldRotate(t, rotator, localNextDayItem, true)
+	require.NoError(t, rotator.ResetState(&localNextDayItem))
 	require.Equal(t, topic+"/2026/02/13", rotator.currentDir)
+}
+
+func TestDefaultRotatorMaxRecordsCount(t *testing.T) {
+	maxRecords := 3
+	cfg := defaultDestination(time.Hour)
+	cfg.RotatorConfig.Default.MaxRecordsCount = maxRecords
+	rotator := newTestRotator(t, cfg)
+
+	firstItem := rawItem(startTime)
+	requireShouldRotate(t, rotator, firstItem, true)
+	require.NoError(t, rotator.ResetState(&firstItem))
+	rotator.UpdateState([]abstract.ChangeItem{firstItem})
+	require.Equal(t, 1, rotator.recordsInFile)
+
+	sameIntervalItem := rawItem(startTime.Add(time.Minute))
+
+	for i := 1; i < maxRecords; i++ {
+		requireShouldRotate(t, rotator, sameIntervalItem, false, "item %d of %d must still fit", i+1, maxRecords)
+		rotator.UpdateState([]abstract.ChangeItem{sameIntervalItem})
+	}
+	requireShouldRotate(t, rotator, sameIntervalItem, true)
+	require.Equal(t, maxRecords, rotator.recordsInFile)
+
+	require.NoError(t, rotator.ResetState(&sameIntervalItem))
+	require.Equal(t, 0, rotator.recordsInFile)
+	requireShouldRotate(t, rotator, sameIntervalItem, false)
+}
+
+func TestDefaultRotatorMaxRecordsCountAlongsideTime(t *testing.T) {
+	maxRecords := 100
+	cfg := defaultDestination(time.Hour)
+	cfg.RotatorConfig.Default.MaxRecordsCount = maxRecords
+	rotator := newTestRotator(t, cfg)
+
+	firstItem := rawItem(startTime)
+	requireShouldRotate(t, rotator, firstItem, true)
+	require.NoError(t, rotator.ResetState(&firstItem))
+	rotator.UpdateState([]abstract.ChangeItem{firstItem})
+	require.Equal(t, 1, rotator.recordsInFile)
+
+	pastIntervalItem := rawItem(startTime.Add(time.Hour))
+	requireShouldRotate(t, rotator, pastIntervalItem, true,
+		"time-based rotation must still fire when MaxRecordsCount has not been reached")
 }

@@ -214,54 +214,73 @@ func (p *RotatorConfig) AnnotateWithTimeFromColumn(name string, item abstract.Ch
 	}
 }
 
-func extractTimeCol(keyNames []string, keyValues []interface{}, timeColumn string) time.Time {
+func extractTimeColStrict(keyNames []string, keyValues []interface{}, timeColumn string) (time.Time, error) {
 	for i, k := range keyNames {
-		if k == timeColumn {
-			switch v := keyValues[i].(type) {
-			case time.Time:
-				return v
-			case *time.Time:
-				if v != nil {
-					return *v
-				}
-			case string:
-				t, err := dateparse.ParseAny(v)
-				if err != nil {
-					break
-				}
-				return t
-			case []byte:
-				t, err := dateparse.ParseAny(string(v))
-				if err != nil {
-					break
-				}
-				return t
-			case *string:
-				if v != nil {
-					t, err := dateparse.ParseAny(*v)
-					if err != nil {
-						break
-					}
-					return t
-				}
-			case int, int32, int64, uint, uint32, uint64:
-				t, err := dateparse.ParseAny(fmt.Sprintf("%v", v))
-				if err != nil {
-					break
-				}
-				return t
+		if k != timeColumn {
+			continue
+		}
+		switch v := keyValues[i].(type) {
+		case time.Time:
+			return v, nil
+		case *time.Time:
+			if v == nil {
+				return time.Time{}, xerrors.Errorf("column %q holds a nil *time.Time", timeColumn)
 			}
-			break
+			return *v, nil
+		case string:
+			t, err := dateparse.ParseAny(v)
+			if err != nil {
+				return time.Time{}, xerrors.Errorf("unable to parse column %q as time: %w", timeColumn, err)
+			}
+			return t, nil
+		case []byte:
+			t, err := dateparse.ParseAny(string(v))
+			if err != nil {
+				return time.Time{}, xerrors.Errorf("unable to parse column %q as time: %w", timeColumn, err)
+			}
+			return t, nil
+		case *string:
+			if v == nil {
+				return time.Time{}, xerrors.Errorf("column %q holds a nil *string", timeColumn)
+			}
+			t, err := dateparse.ParseAny(*v)
+			if err != nil {
+				return time.Time{}, xerrors.Errorf("unable to parse column %q as time: %w", timeColumn, err)
+			}
+			return t, nil
+		case int, int32, int64, uint, uint32, uint64:
+			t, err := dateparse.ParseAny(fmt.Sprintf("%v", v))
+			if err != nil {
+				return time.Time{}, xerrors.Errorf("unable to parse column %q as time: %w", timeColumn, err)
+			}
+			return t, nil
+		default:
+			return time.Time{}, xerrors.Errorf("column %q holds %T, which is not a supported time type", timeColumn, v)
 		}
 	}
-	return time.Now()
+	return time.Time{}, xerrors.Errorf("column %q not found in change item", timeColumn)
 }
 
-func ExtractTimeCol(item abstract.ChangeItem, timeColumn string) time.Time {
+// ExtractTimeColStrict is ExtractTimeCol that reports why it could not read the column
+// instead of silently falling back to the current time. Use it where a record without a
+// usable time must not be processed as if it had arrived now.
+func ExtractTimeColStrict(item abstract.ChangeItem, timeColumn string) (time.Time, error) {
 	if item.Kind == abstract.DeleteKind {
-		return extractTimeCol(item.OldKeys.KeyNames, item.OldKeys.KeyValues, timeColumn)
+		//nolint:descriptiveerrors
+		return extractTimeColStrict(item.OldKeys.KeyNames, item.OldKeys.KeyValues, timeColumn)
 	}
-	return extractTimeCol(item.ColumnNames, item.ColumnValues, timeColumn)
+	//nolint:descriptiveerrors
+	return extractTimeColStrict(item.ColumnNames, item.ColumnValues, timeColumn)
+}
+
+// ExtractTimeCol reads timeColumn off the item, falling back to the current time when the
+// column is absent, nil or unparseable.
+func ExtractTimeCol(item abstract.ChangeItem, timeColumn string) time.Time {
+	extracted, err := ExtractTimeColStrict(item, timeColumn)
+	if err != nil {
+		return time.Now()
+	}
+	return extracted
 }
 
 func (p *RotatorConfig) ParseTime(rotationTime string) (time.Time, error) {

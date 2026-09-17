@@ -8,26 +8,27 @@ import (
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 )
 
-type Rotator interface {
-	ShouldRotate(item *abstract.ChangeItem) (bool, error)
-	UpdateState(item *abstract.ChangeItem) error
-}
-
 type DefaultRotator struct {
-	cfg         *s3_v1_model.DefaultRotatorConfig
-	partitioner Partitioner
-	nextRotate  time.Time
+	cfg           *s3_v1_model.DefaultRotatorConfig
+	partitioner   Partitioner
+	timeExtractor TimeExtractor
+	nextRotate    time.Time
 
 	// Directory of the currently open file. An item landing in a different directory
 	// has to start a new file even when the rotation interval has not elapsed yet, so
 	// that e.g. a February 12th record never ends up under the February 11th directory.
 	currentDir string
+
+	// Number of records already written to the currently open file. Used when
+	// MaxRecordsCount is positive to rotate alongside the time-based strategy.
+	recordsInFile int
 }
 
-var _ Rotator = (*DefaultRotator)(nil)
-
-func (r *DefaultRotator) UpdateState(item *abstract.ChangeItem) error {
-	newTime := rawMessageWriteTime(item)
+func (r *DefaultRotator) ResetState(item *abstract.ChangeItem) error {
+	newTime, err := r.timeExtractor.Extract(item)
+	if err != nil {
+		return xerrors.Errorf("unable to resolve time of the next file: %w", err)
+	}
 
 	// If time frames between messages is huge we can spend a lot of time just reapdating rotator wich is useless
 	if newTime.Sub(r.nextRotate) >= r.cfg.Interval {
@@ -41,42 +42,55 @@ func (r *DefaultRotator) UpdateState(item *abstract.ChangeItem) error {
 		return xerrors.Errorf("unable to resolve directory of the next file: %w", err)
 	}
 	r.currentDir = dir
+
+	r.recordsInFile = 0
 	return nil
 }
 
-func (r *DefaultRotator) ShouldRotate(item *abstract.ChangeItem) (bool, error) {
-	if !rawMessageWriteTime(item).Before(r.nextRotate) {
+func (r *DefaultRotator) ShouldRotate(items []abstract.ChangeItem) (bool, error) {
+	lastItem := &items[len(items)-1]
+
+	itemTime, err := r.timeExtractor.Extract(lastItem)
+	if err != nil {
+		return false, xerrors.Errorf("unable to resolve time of the item: %w", err)
+	}
+	if !itemTime.Before(r.nextRotate) {
 		return true, nil
 	}
 
-	dir, err := r.partitioner.Dir(item)
+	// For time based partitioner we need to ensure that record is still consistent with current partition path
+	dir, err := r.partitioner.Dir(lastItem)
 	if err != nil {
 		return false, xerrors.Errorf("unable to resolve directory of the item: %w", err)
 	}
-	return dir != r.currentDir, nil
+	if dir != r.currentDir {
+		return true, nil
+	}
+
+	if r.cfg.MaxRecordsCount > 0 && r.recordsInFile+len(items) > r.cfg.MaxRecordsCount {
+		return true, nil
+	}
+	return false, nil
 }
 
-// rawMessageWriteTime reads the queue write time off a mirror-shaped ChangeItem.
-// Shared by Rotator (for rotation timing) and TimeBasedPartitioner (for path bucketing).
-func rawMessageWriteTime(item *abstract.ChangeItem) time.Time {
-	switch v := item.ColumnValues[abstract.RawDataColsIDX[abstract.RawMessageWriteTime]].(type) {
-	case time.Time:
-		return v
-	default:
-		return time.Time{}
+func (r *DefaultRotator) UpdateState(items []abstract.ChangeItem) {
+	if r.cfg.MaxRecordsCount > 0 {
+		r.recordsInFile += len(items)
 	}
 }
 
-func NewRotator(cfg s3_v1_model.RotatorConfig, partitioner Partitioner) Rotator {
-	switch t := cfg.(type) {
+func NewDefaultRotator(cfg *s3_v1_model.S3Destination, partitioner Partitioner) (*DefaultRotator, error) {
+	switch t := cfg.GetRotator().(type) {
 	case *s3_v1_model.DefaultRotatorConfig:
 		return &DefaultRotator{
-			cfg:         t,
-			partitioner: partitioner,
-			nextRotate:  time.Time{},
-			currentDir:  "",
-		}
+			cfg:           t,
+			partitioner:   partitioner,
+			timeExtractor: NewTimeExtractor(cfg.GetTimeExtractor()),
+			nextRotate:    time.Time{},
+			currentDir:    "",
+			recordsInFile: 0,
+		}, nil
 	default:
-		return nil
+		return nil, xerrors.Errorf("unexpected rotator config of type %T", t)
 	}
 }
