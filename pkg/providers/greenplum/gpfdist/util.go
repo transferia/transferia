@@ -3,6 +3,7 @@ package gpfdist
 import (
 	"net"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -87,18 +88,27 @@ func LocalAddrFromStorage(gpAddr string) (net.IP, error) {
 	return replaceWithV6IfEth0(tcpAddr.IP)
 }
 
-// getLocalIP needed when GP cluster runs on same VM as gpfdist (should be in tests/debugging only).
+// getLocalIP returns a non-loopback unicast IPv4 address of this host. It is needed when GP cluster runs on the same
+// VM as gpfdist (tests/debugging only): GP runs in Docker and must be able to connect to gpfdist listening on the host.
+// Interfaces are examined in the order of interfacePriority: on IPv6-only hosts the Docker bridge gateway address
+// (e.g. 172.17.0.1 on docker0) is the only IPv4 address available, and it is always reachable from containers.
 func getLocalIP() (net.IP, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get net interfaces: %w", err)
 	}
+	sort.SliceStable(interfaces, func(i, j int) bool {
+		return interfacePriority(interfaces[i].Name) < interfacePriority(interfaces[j].Name)
+	})
+	names := make([]string, 0, len(interfaces))
 	for _, iface := range interfaces {
-		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 || !strings.HasPrefix(iface.Name, "eth") {
+		names = append(names, iface.Name)
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
 			continue
 		}
 		addrs, err := iface.Addrs()
 		if err != nil {
+			logger.Log.Warn("Unable to get interface addresses", log.String("interface", iface.Name), log.Error(err))
 			continue
 		}
 		for _, addr := range addrs {
@@ -109,11 +119,26 @@ func getLocalIP() (net.IP, error) {
 			case *net.IPAddr:
 				ip = v.IP
 			}
-			if ip == nil || ip.IsLoopback() || !ip.To4().IsGlobalUnicast() {
+			ip = ip.To4()
+			if ip == nil || ip.IsLoopback() || !ip.IsGlobalUnicast() {
 				continue // Skip IPv6, loopback and link-local addresses.
 			}
+			logger.Log.Infof("Using IPv4 address %s of interface %s as gpfdist host", ip.String(), iface.Name)
 			return ip, nil
 		}
 	}
-	return nil, xerrors.Errorf("no non-loopback, unicast IPv4 address found")
+	return nil, xerrors.Errorf("no non-loopback, unicast IPv4 address found on interfaces %v", names)
+}
+
+// interfacePriority defines the order in which interfaces are examined by getLocalIP:
+// host interfaces first (eth* and veth0, the same as in getEth0Addrs), then Docker bridges, then everything else.
+func interfacePriority(name string) int {
+	switch {
+	case strings.HasPrefix(name, "eth"), name == "veth0":
+		return 0
+	case strings.HasPrefix(name, "docker"), strings.HasPrefix(name, "br-"):
+		return 1
+	default:
+		return 2
+	}
 }
