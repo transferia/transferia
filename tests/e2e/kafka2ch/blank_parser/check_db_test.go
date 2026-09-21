@@ -19,6 +19,8 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/transformer"
 	transformer_jsonparser "github.com/transferia/transferia/pkg/transformer/registry/jsonparser"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/kafka"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	ytschema "go.ytsaurus.tech/yt/go/schema"

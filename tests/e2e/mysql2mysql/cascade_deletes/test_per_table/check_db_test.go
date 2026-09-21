@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	cascade_deletes_common "github.com/transferia/transferia/tests/e2e/mysql2mysql/cascade_deletes/common"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mysql"
 )
 
 func TestGroup(t *testing.T) {

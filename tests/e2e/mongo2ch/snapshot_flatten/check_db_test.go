@@ -20,6 +20,8 @@ import (
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mongo"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )

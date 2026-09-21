@@ -17,6 +17,7 @@ import (
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"github.com/transferia/transferia/tests/helpers/mysql"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mysql"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 

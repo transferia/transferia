@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers/delivery"
+	_ "github.com/transferia/transferia/tests/helpers/registration/ydb"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"

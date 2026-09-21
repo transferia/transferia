@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/mysql"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mysql"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"

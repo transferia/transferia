@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers/delivery"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mongo"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/testenv"

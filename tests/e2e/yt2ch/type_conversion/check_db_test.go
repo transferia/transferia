@@ -18,6 +18,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	canon2 "github.com/transferia/transferia/tests/helpers/canon"
 	"github.com/transferia/transferia/tests/helpers/delivery"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/yt"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"

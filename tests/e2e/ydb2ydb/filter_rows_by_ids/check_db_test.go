@@ -15,6 +15,7 @@ import (
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	transformer_filter_rows_by_ids "github.com/transferia/transferia/pkg/transformer/registry/filter_rows_by_ids"
 	"github.com/transferia/transferia/tests/helpers/delivery"
+	_ "github.com/transferia/transferia/tests/helpers/registration/ydb"
 	"github.com/transferia/transferia/tests/helpers/serde"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"

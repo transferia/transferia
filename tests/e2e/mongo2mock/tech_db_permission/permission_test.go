@@ -15,6 +15,7 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mongo"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"

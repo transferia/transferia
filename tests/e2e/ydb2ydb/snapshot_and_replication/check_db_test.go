@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers/delivery"
+	_ "github.com/transferia/transferia/tests/helpers/registration/ydb"
 	"github.com/transferia/transferia/tests/helpers/serde"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"

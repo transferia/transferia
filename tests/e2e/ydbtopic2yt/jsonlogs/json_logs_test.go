@@ -19,6 +19,8 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/topicwriter"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/yds"
+	_ "github.com/transferia/transferia/tests/helpers/registration/yt"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"

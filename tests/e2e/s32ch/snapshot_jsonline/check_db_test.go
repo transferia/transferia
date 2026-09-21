@@ -15,6 +15,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/s3"
 	"github.com/transferia/transferia/tests/helpers/s3"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/testenv"

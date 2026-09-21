@@ -7,6 +7,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/tests/e2e/mongo2yt/rotator"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mongo"
+	_ "github.com/transferia/transferia/tests/helpers/registration/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
 

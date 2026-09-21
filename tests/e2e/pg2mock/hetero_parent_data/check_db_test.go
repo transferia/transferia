@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 

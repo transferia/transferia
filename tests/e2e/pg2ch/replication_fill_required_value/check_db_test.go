@@ -19,6 +19,8 @@ import (
 	transformer_rename "github.com/transferia/transferia/pkg/transformer/registry/rename"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"

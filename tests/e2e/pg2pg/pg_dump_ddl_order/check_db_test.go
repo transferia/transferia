@@ -10,10 +10,13 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
+
+const transferID = "dtt"
 
 var (
 	transferType = abstract.TransferTypeSnapshotOnly
@@ -23,7 +26,7 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	transferhelpers.InitSrcDst(transferhelpers.TransferID, &source, &target, transferType)
+	transferhelpers.InitSrcDst(transferID, &source, &target, transferType)
 }
 
 func TestDDLOrderPreSteps(t *testing.T) {
@@ -49,7 +52,7 @@ func TestDDLOrderPreSteps(t *testing.T) {
 		src.PreSteps = &preSteps
 		src.WithDefaults()
 
-		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &src, &target, transferType)
+		transfer := transferhelpers.MakeTransfer(transferID, &src, &target, transferType)
 
 		items, err := provider_postgres.ExtractPgDumpSchema(transfer)
 		require.NoError(t, err)

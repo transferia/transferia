@@ -21,6 +21,7 @@ import (
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.uber.org/mock/gomock"

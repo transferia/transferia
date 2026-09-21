@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/tests/helpers/changeitem"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"

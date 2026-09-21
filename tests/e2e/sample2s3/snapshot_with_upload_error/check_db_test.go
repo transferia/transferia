@@ -20,6 +20,8 @@ import (
 	provider_sample "github.com/transferia/transferia/pkg/providers/sample"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	http_proxy "github.com/transferia/transferia/tests/helpers/proxies/http_proxy"
+	_ "github.com/transferia/transferia/tests/helpers/registration/s3"
+	_ "github.com/transferia/transferia/tests/helpers/registration/sample"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 )

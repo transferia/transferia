@@ -34,6 +34,7 @@ import (
 	s3util_list "github.com/transferia/transferia/pkg/providers/s3/s3util/list"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	s3_storage "github.com/transferia/transferia/pkg/providers/s3/storage"
+	_ "github.com/transferia/transferia/tests/helpers/registration/s3"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"

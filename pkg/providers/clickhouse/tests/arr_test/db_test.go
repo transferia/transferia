@@ -11,6 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	provider_clickhouse "github.com/transferia/transferia/pkg/providers/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 

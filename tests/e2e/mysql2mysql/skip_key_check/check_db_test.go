@@ -13,6 +13,7 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers/mysql"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mysql"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )

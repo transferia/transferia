@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/tests/canon/validator"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mongo"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )

@@ -15,6 +15,7 @@ import (
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	_ "github.com/transferia/transferia/tests/helpers/registration/kafka"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 

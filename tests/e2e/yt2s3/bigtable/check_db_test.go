@@ -25,6 +25,8 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	_ "github.com/transferia/transferia/tests/helpers/registration/s3"
+	_ "github.com/transferia/transferia/tests/helpers/registration/yt"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"

@@ -15,6 +15,7 @@ import (
 	transformer_batch_splitter "github.com/transferia/transferia/pkg/transformer/registry/batch_splitter"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	_ "github.com/transferia/transferia/tests/helpers/registration/ydb"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/ydb/testdata"

@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )

@@ -13,6 +13,8 @@ import (
 	provider_sample "github.com/transferia/transferia/pkg/providers/sample"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	_ "github.com/transferia/transferia/tests/helpers/registration/sample"
+	_ "github.com/transferia/transferia/tests/helpers/registration/yt"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/migrate"

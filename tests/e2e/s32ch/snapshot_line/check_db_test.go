@@ -17,6 +17,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/s3"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )

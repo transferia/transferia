@@ -19,6 +19,8 @@ import (
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
+	_ "github.com/transferia/transferia/tests/helpers/registration/yt"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/testenv"

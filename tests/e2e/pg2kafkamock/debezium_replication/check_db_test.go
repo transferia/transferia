@@ -21,6 +21,7 @@ import (
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.uber.org/mock/gomock"
