@@ -20,7 +20,11 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	_ "github.com/transferia/transferia/pkg/providers/s3/provider"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -37,7 +41,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{"public.__test"},
 	}
 	Target = &s3_model.S3Destination{
@@ -109,8 +113,8 @@ func checkBucket(t *testing.T, cfg *s3_model.S3Destination, size int) {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -136,15 +140,15 @@ func Existence(t *testing.T) {
 }
 
 func Verify(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
-	err := tasks.VerifyDelivery(context.Background(), *transfer, logger.Log, helpers.EmptyRegistry())
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	err := tasks.VerifyDelivery(context.Background(), *transfer, logger.Log, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	checkBucket(t, Target, 1)
 }
 
 func Snapshot(t *testing.T, snapshotActivateCount int) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
-	helpers.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	delivery.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
 		// it`s unique timestamp, to make unique s3 object names, to avoid same keys for different activations
 		CreatedAt: time.Now().Add(time.Second * time.Duration(snapshotActivateCount)),
 	})

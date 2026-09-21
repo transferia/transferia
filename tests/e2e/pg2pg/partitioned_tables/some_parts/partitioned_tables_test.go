@@ -13,7 +13,12 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
@@ -33,15 +38,15 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, transferID
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, transferID
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -65,7 +70,7 @@ func Verify(t *testing.T) {
 	transfer.Dst = &Target
 	transfer.Type = "SNAPSOT_AND_INCREMENT"
 
-	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, helpers.EmptyRegistry())
+	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	dstStorage, err := provider_postgres.NewStorage(Target.ToStorageParams())
@@ -88,9 +93,9 @@ func Verify(t *testing.T) {
 func Load(t *testing.T) {
 	Source.PreSteps.Rule = false // if true then all rules will been tried to transfer even rules for excluded partitions
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	srcStorage, err := provider_postgres.NewStorage(Source.ToStorageParams(nil))
@@ -156,25 +161,25 @@ func Load(t *testing.T) {
 
 	//-----------------------------------------------------------------------------------------------------------------
 
-	helpers.CheckRowsCount(t, Source, "public", "measurement_inherited", 10)
-	helpers.CheckRowsCount(t, Source, "public", "measurement_inherited_y2006m02", 3)
-	helpers.CheckRowsCount(t, Source, "public", "measurement_inherited_y2006m03", 4)
-	helpers.CheckRowsCount(t, Source, "public", "measurement_inherited_y2006m04", 3)
-	helpers.CheckRowsCount(t, Source, "public", "measurement_declarative", 10)
-	helpers.CheckRowsCount(t, Source, "public", "measurement_declarative_y2006m02", 3)
-	helpers.CheckRowsCount(t, Source, "public", "measurement_declarative_y2006m03", 4)
-	helpers.CheckRowsCount(t, Source, "public", "measurement_declarative_y2006m04", 3)
+	storagecomparison.CheckRowsCount(t, Source, "public", "measurement_inherited", 10)
+	storagecomparison.CheckRowsCount(t, Source, "public", "measurement_inherited_y2006m02", 3)
+	storagecomparison.CheckRowsCount(t, Source, "public", "measurement_inherited_y2006m03", 4)
+	storagecomparison.CheckRowsCount(t, Source, "public", "measurement_inherited_y2006m04", 3)
+	storagecomparison.CheckRowsCount(t, Source, "public", "measurement_declarative", 10)
+	storagecomparison.CheckRowsCount(t, Source, "public", "measurement_declarative_y2006m02", 3)
+	storagecomparison.CheckRowsCount(t, Source, "public", "measurement_declarative_y2006m03", 4)
+	storagecomparison.CheckRowsCount(t, Source, "public", "measurement_declarative_y2006m04", 3)
 
-	sourceStorage := helpers.GetSampleableStorageByModel(t, Source)
-	targetStorage := helpers.GetSampleableStorageByModel(t, Target)
+	sourceStorage := storagecomparison.GetSampleableStorageByModel(t, Source)
+	targetStorage := storagecomparison.GetSampleableStorageByModel(t, Target)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m02", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m04", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m02", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m04", sourceStorage, targetStorage, 60*time.Second))
-	helpers.CheckRowsCount(t, Target, "public", "measurement_inherited", 6)
-	helpers.CheckRowsCount(t, Target, "public", "measurement_declarative", 6)
-	compareParams := helpers.NewCompareStorageParams()
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m02", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m04", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m02", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m04", sourceStorage, targetStorage, 60*time.Second))
+	storagecomparison.CheckRowsCount(t, Target, "public", "measurement_inherited", 6)
+	storagecomparison.CheckRowsCount(t, Target, "public", "measurement_declarative", 6)
+	compareParams := storagecomparison.NewCompareStorageParams()
 	compareParams.TableFilter = func(tables abstract.TableMap) []abstract.TableDescription {
 		return []abstract.TableDescription{
 			{
@@ -200,5 +205,5 @@ func Load(t *testing.T) {
 			},
 		}
 	}
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, compareParams))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, compareParams))
 }

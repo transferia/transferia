@@ -13,9 +13,15 @@ import (
 	"github.com/transferia/transferia/pkg/debezium"
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 var path = "dectest/test-src"
@@ -24,8 +30,8 @@ var pathOut = "dectest/test-dst"
 func TestSnapshotAndReplicationSerDeViaDebeziumEmbeddedNulls(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{path},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -45,16 +51,16 @@ func TestSnapshotAndReplicationSerDeViaDebeziumEmbeddedNulls(t *testing.T) {
 
 	require.NoError(t, err)
 
-	currChangeItem := helpers.YDBStmtInsertNulls(t, path, 1)
+	currChangeItem := testdata.YDBStmtInsertNulls(t, path, 1)
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 
 	dst := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
-	helpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 
 	emitter, err := debezium.NewMessagesEmitter(map[string]string{
 		debezium_parameters.DatabaseDBName:   "public",
@@ -67,26 +73,26 @@ func TestSnapshotAndReplicationSerDeViaDebeziumEmbeddedNulls(t *testing.T) {
 	debeziumSerDeTransformer := helpers_transformer.NewSimpleTransformer(t, serde.MakeYdb2YdbDebeziumSerDeUdf(pathOut, nil, emitter, receiver), serde.AnyTablesUdf)
 	require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 
 	//-----------------------------------------------------------------------------------------------------------------
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsertNulls(t, path, 2),
-		*helpers.YDBStmtInsertNulls(t, path, 3),
+		*testdata.YDBStmtInsertNulls(t, path, 2),
+		*testdata.YDBStmtInsertNulls(t, path, 3),
 	}))
-	require.NoError(t, helpers.WaitEqualRowsCountDifferentTables(t, "", path, "", pathOut, helpers.GetSampleableStorageByModel(t, src), helpers.GetSampleableStorageByModel(t, dst), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCountDifferentTables(t, "", path, "", pathOut, storagecomparison.GetSampleableStorageByModel(t, src), storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second))
 	worker.Close(t)
 
-	helpers.YDBTwoTablesEqual(t,
+	ydb.TwoTablesEqual(t,
 		os.Getenv("YDB_TOKEN"),
-		helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		path, pathOut)
 
-	dump := helpers.YDBPullDataFromTable(t,
+	dump := ydb.PullDataFromTable(t,
 		os.Getenv("YDB_TOKEN"),
-		helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		pathOut)
 	for _, changeItem := range dump {
 		keys := changeItem.KeysAsMap()

@@ -102,11 +102,73 @@ select md5(random()::text), $1 from generate_Series(1,10) as s;
 			Name:         "__test_incremental_empty",
 			Namespace:    "public",
 			CursorField:  "cursor",
-			InitialState: "not-an-integer",
+			InitialState: "'not-an-integer'",
 		}})
 		require.ErrorContains(t, err, "unable get max cursor")
-		require.ErrorContains(t, err, `invalid input syntax for integer: "not-an-integer"`)
+		require.ErrorContains(t, err, "invalid input syntax")
+		require.ErrorContains(t, err, `integer: "not-an-integer"`)
 	})
+}
+
+func TestStorage_IncrementalInitialState(t *testing.T) {
+	src := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("test_scripts"))
+	storage, err := provider_postgres.NewStorage(src.ToStorageParams(nil))
+	require.NoError(t, err)
+	t.Cleanup(storage.Close)
+
+	ctx := context.Background()
+	_, err = storage.Conn.Exec(ctx, `
+CREATE TABLE __test_incremental_initial_state (
+	cursor_ts timestamp,
+	cursor_tstz timestamp with time zone,
+	cursor_int integer,
+	cursor_text text
+);
+INSERT INTO __test_incremental_initial_state VALUES
+	('2022-12-31', '2022-12-31 00:00:00+00', 1, 'a'),
+	('2023-01-02', '2023-01-02 00:00:00+00', 2, 'b'),
+	(NULL, NULL, NULL, NULL);
+`)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := storage.Conn.Exec(ctx, `DROP TABLE __test_incremental_initial_state`)
+		require.NoError(t, err)
+	})
+
+	for _, tc := range []struct {
+		name         string
+		cursorField  string
+		initialState string
+		stateCount   int
+	}{
+		{"to_date for timestamptz", "cursor_tstz", "to_date('2023-01-01', 'YYYY-MM-DD')", 1},
+		{"timestamp literal", "cursor_ts", "timestamp'2000-03-16'", 1},
+		{"quoted timestamp", "cursor_ts", "'2023-01-01'", 1},
+		{"numeric literal", "cursor_int", "1", 1},
+		{"numeric expression", "cursor_int", "1 + 0", 1},
+		{"text literal", "cursor_text", "'a'", 1},
+		{"timestamp at maximum", "cursor_ts", "timestamp'2023-01-02'", 0},
+		{"timestamptz above maximum", "cursor_tstz", "to_date('2023-01-03', 'YYYY-MM-DD')", 0},
+		{"numeric at maximum", "cursor_int", "1 + 1", 0},
+		{"no initial state with nulls", "cursor_ts", "", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := storage.GetNextIncrementalState(ctx, []abstract.IncrementalTable{{
+				Name:         "__test_incremental_initial_state",
+				Namespace:    "public",
+				CursorField:  tc.cursorField,
+				InitialState: tc.initialState,
+			}})
+			require.NoError(t, err)
+			require.Len(t, res, tc.stateCount)
+			if tc.stateCount > 0 {
+				var count int
+				err = storage.Conn.QueryRow(ctx, `SELECT count(*) FROM __test_incremental_initial_state WHERE NOT (`+string(res[0].Payload)+`)`).Scan(&count)
+				require.NoError(t, err)
+				require.Equal(t, 2, count)
+			}
+		})
+	}
 }
 
 func TestInitialStatePopulate(t *testing.T) {

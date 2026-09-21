@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/kikimr/public/sdk/go/persqueue"
 	persqueue_recipe "github.com/transferia/transferia/kikimr/public/sdk/go/persqueue/recipe"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/util/jsonx"
 )
 
@@ -69,7 +70,7 @@ func LoadMessages(t *testing.T, lbEnv *persqueue_recipe.Env, database, topic str
 	}
 
 	err := reader.Err()
-	if err == context.DeadlineExceeded {
+	if xerrors.Is(err, context.DeadlineExceeded) {
 		err = nil
 	}
 	require.Equal(t, expectedNum, index)
@@ -108,7 +109,7 @@ func CheckData(t *testing.T, lbEnv *persqueue_recipe.Env, database, topic string
 	}
 
 	err := reader.Err()
-	if err == context.DeadlineExceeded {
+	if xerrors.Is(err, context.DeadlineExceeded) {
 		err = nil
 	}
 	require.NoError(t, err)

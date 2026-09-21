@@ -11,25 +11,28 @@ import (
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotOnly
-	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source       = *mysql.RecipeMysqlSource()
+	Target       = *mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mysql target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: Source.Port},
+			network.LabeledPort{Label: "Mysql target", Port: Target.Port},
 		))
 	}()
 
@@ -45,9 +48,9 @@ func Existence(t *testing.T) {
 }
 
 func Snapshot(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry()))
+	require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry()))
 
 	// Storages without primary keys cannot be compared at the moment
 }

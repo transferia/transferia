@@ -16,7 +16,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/copy/target"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -182,8 +183,8 @@ func TestYTHomoProvider(t *testing.T) {
 	err := initSrcData(srcYTEnv, testData)
 	require.NoError(t, err, "Error initializing data in source YT")
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	err = checkDstData(dstYTEnv, testData)
@@ -253,10 +254,10 @@ func TestYTCopySkipUnchangedTables(t *testing.T) {
 	for i := range testData {
 		initialRowCounts[i] = len(testData[i].Data)
 	}
-	transfer := helpers.MakeTransfer(helpers.TransferID+"-skip-unchanged", &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID+"-skip-unchanged", &Source, &Target, TransferType)
 
 	// First run: copy all tables.
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	require.NoError(t, checkDstData(dstYTEnv, testData))
@@ -268,7 +269,7 @@ func TestYTCopySkipUnchangedTables(t *testing.T) {
 	uploadSlice(t, srcYTEnv, testData[3].InPath, afterUpdateDataD)
 
 	// Second run: unchanged (a, b) must be skipped; changed (c, d) must be re-copied.
-	worker2 := helpers.Activate(t, transfer)
+	worker2 := delivery.Activate(t, transfer)
 	defer worker2.Close(t)
 	secondUpdatedAt := getTablesUpdatedAt(t, dstYTEnv.YT, outPaths)
 	for _, i := range unchangedIndices {
@@ -356,8 +357,8 @@ func TestYTCopyReplaceCleanup(t *testing.T) {
 	err := initSrcData(srcYTEnv, testData)
 	require.NoError(t, err, "Error initializing data in source YT")
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	err = checkDstData(dstYTEnv, testData)
@@ -487,8 +488,8 @@ func TestYTCopyWithFiles(t *testing.T) {
 	}
 
 	// Run the copy transfer.
-	transfer := helpers.MakeTransfer(helpers.TransferID+"-with-files", &src, &dst, TransferType)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID+"-with-files", &src, &dst, TransferType)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// Verify tables were copied.

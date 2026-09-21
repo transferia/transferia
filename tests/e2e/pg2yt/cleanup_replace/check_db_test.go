@@ -11,7 +11,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -24,7 +27,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{"public.__test1"},
 	}
 	Target          = helpers_yt.RecipeYtTarget("//home/cdc/test/pg2yt_e2e").(*provider_yt.YtDestinationWrapper)
@@ -43,7 +46,7 @@ func TestSnapshot(t *testing.T) {
 	ytEnv, cancel := yttest.NewEnv(t)
 	defer cancel()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 	require.NoError(t, transfer.TransformationFromJSON(`
 		{
 			"transformers": [
@@ -67,8 +70,8 @@ func TestSnapshot(t *testing.T) {
 		}
 		`))
 
-	_ = helpers.Activate(t, transfer)
-	require.NoError(t, helpers.CompareStorages(t, Source, TargetAsStorage.LegacyModel(), helpers.NewCompareStorageParams()))
+	_ = delivery.Activate(t, transfer)
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, TargetAsStorage.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 
 	ctx := context.Background()
 	srcConn, err := provider_postgres.MakeConnPoolFromSrc(&Source, logger.Log)
@@ -80,8 +83,8 @@ func TestSnapshot(t *testing.T) {
 	_, err = srcConn.Exec(ctx, "DELETE FROM public.__test1 WHERE id = 2;")
 	require.NoError(t, err)
 
-	_ = helpers.Activate(t, transfer)
-	require.NoError(t, helpers.CompareStorages(t, Source, TargetAsStorage.LegacyModel(), helpers.NewCompareStorageParams()))
+	_ = delivery.Activate(t, transfer)
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, TargetAsStorage.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 
 	reader, err := ytEnv.YT.ReadTable(ctx, ypath.Path("//home/cdc/test/pg2yt_e2e/test/__test1"), nil)
 	require.NoError(t, err)

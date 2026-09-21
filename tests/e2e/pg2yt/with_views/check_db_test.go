@@ -11,12 +11,17 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
 var (
-	srcPort = helpers.GetIntFromEnv("PG_LOCAL_PORT")
+	srcPort = testenv.GetIntFromEnv("PG_LOCAL_PORT")
 	Source  = provider_postgres.PgSource{
 		ClusterID: os.Getenv("PG_CLUSTER_ID"),
 		Hosts:     []string{"localhost"},
@@ -34,12 +39,12 @@ func init() {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -49,8 +54,8 @@ func TestGroup(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//------------------------------------------------------------------------------
@@ -76,9 +81,9 @@ func Load(t *testing.T) {
 
 	//------------------------------------------------------------------------------
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
 
-	isViewTransferred, err := helpers.GetSampleableStorageByModel(t, Target.LegacyModel()).TableExists(abstract.TableID{Namespace: "public", Name: "foo_view"})
+	isViewTransferred, err := storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()).TableExists(abstract.TableID{Namespace: "public", Name: "foo_view"})
 	require.NoError(t, err)
 	require.Equal(t, false, isViewTransferred)
 }

@@ -13,7 +13,9 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -35,7 +37,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 var TestData = []map[string]interface{}{
@@ -155,11 +157,11 @@ func checkDataRow(t *testing.T, targetRow map[string]interface{}, testRow map[st
 func TestSnapshot(t *testing.T) {
 	createTestData(t)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	targetStorage := helpers.GetSampleableStorageByModel(t, Target)
+	targetStorage := storagecomparison.GetSampleableStorageByModel(t, Target)
 	totalInserts := 0
 	require.NoError(t, targetStorage.LoadTable(context.Background(), abstract.TableDescription{
 		Name:   "test_table",

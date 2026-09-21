@@ -13,7 +13,12 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -23,7 +28,7 @@ import (
 const tableName = "test"
 
 var (
-	source        = *helpers.WithMysqlInclude(helpers.RecipeMysqlSource(), []string{tableName})
+	source        = *mysql.WithMysqlInclude(mysql.RecipeMysqlSource(), []string{tableName})
 	targetCluster = os.Getenv("YT_PROXY")
 )
 
@@ -60,12 +65,12 @@ type ytRow struct {
 }
 
 func TestUpdateMinimal(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(targetCluster)
+	targetPort, err := network.GetPortFromStr(targetCluster)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -78,8 +83,8 @@ func TestUpdateMinimal(t *testing.T) {
 	require.NoError(t, err)
 
 	ytDestination := makeTarget()
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
-	wrkr := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
+	wrkr := delivery.Activate(t, transfer)
 	defer wrkr.Close(t)
 	conn, err := mysql_driver2.NewConnector(makeConnConfig())
 	require.NoError(t, err)
@@ -93,8 +98,8 @@ func TestUpdateMinimal(t *testing.T) {
 		_, err := db.Exec(request)
 		require.NoError(t, err)
 	}
-	require.NoError(t, helpers.WaitEqualRowsCount(t, source.Database, "test", helpers.GetSampleableStorageByModel(t, source), helpers.GetSampleableStorageByModel(t, ytDestination.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, source, ytDestination.LegacyModel(), helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitEqualRowsCount(t, source.Database, "test", storagecomparison.GetSampleableStorageByModel(t, source), storagecomparison.GetSampleableStorageByModel(t, ytDestination.LegacyModel()), 60*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, source, ytDestination.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 	rows, err := ytEnv.YT.SelectRows(ctx, fmt.Sprintf(`* from [//home/cdc/test/mysql2yt/json/%v_test]`, source.Database), nil)
 	require.NoError(t, err)
 

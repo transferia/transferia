@@ -14,8 +14,13 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -48,8 +53,8 @@ func TestAddColumnOnReplication(t *testing.T) {
 
 	source := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{tableName},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -69,22 +74,22 @@ func TestAddColumnOnReplication(t *testing.T) {
 		User:                    "default",
 		Password:                "",
 		Database:                "database",
-		HTTPPort:                helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:              helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:                testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:              testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified:     true,
 		Cleanup:                 model.Drop,
 		UpsertAbsentToastedRows: true,
 	}
 	transferType := abstract.TransferTypeIncrementOnly
-	helpers.InitSrcDst(helpers.TransferID, source, &target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, &target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 
 	ydbConn := ydbrecipe.Driver(t)
 
 	// defer port checking
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "CH target Native", Port: target.NativePort},
-			helpers.LabeledPort{Label: "CH target HTTP", Port: target.HTTPPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "CH target Native", Port: target.NativePort},
+			network.LabeledPort{Label: "CH target HTTP", Port: target.HTTPPort},
 		))
 	}()
 
@@ -110,7 +115,7 @@ func TestAddColumnOnReplication(t *testing.T) {
 
 	// start RETRYABLE on specific error snapshot & replication
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, &target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, &target, transferType)
 	errCallback := func(err error) {
 		if strings.Contains(err.Error(), `unable to normalize column names order for table "test_table"`) {
 			logger.Log.Info("OK, correct error found in replication", log.Error(err))
@@ -118,7 +123,7 @@ func TestAddColumnOnReplication(t *testing.T) {
 			require.NoError(t, err)
 		}
 	}
-	worker, err := helpers.ActivateErr(transfer, errCallback)
+	worker, err := delivery.ActivateErr(transfer, errCallback)
 	require.NoError(t, err)
 	defer func() {
 		worker.Close(t)
@@ -146,7 +151,7 @@ func TestAddColumnOnReplication(t *testing.T) {
 		ALTER TABLE %s ADD COLUMN new_column Text;
 	`, tableName))
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(target.Database, tableName, helpers.GetSampleableStorageByModel(t, target), 60*time.Second, 9))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(target.Database, tableName, storagecomparison.GetSampleableStorageByModel(t, target), 60*time.Second, 9))
 
 	// update old data (not required right now)
 	execQuery(t, ydbConn, fmt.Sprintf(`
@@ -154,7 +159,7 @@ func TestAddColumnOnReplication(t *testing.T) {
 		UPDATE %s SET new_column = 'abc';
 	`, tableName))
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(target.Database, tableName, helpers.GetSampleableStorageByModel(t, target), 60*time.Second, 11))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(target.Database, tableName, storagecomparison.GetSampleableStorageByModel(t, target), 60*time.Second, 11))
 
 	// insert more records - it's 18 of them now, +2 previous after update = 20
 	execQuery(t, ydbConn, fmt.Sprintf(`
@@ -173,7 +178,7 @@ func TestAddColumnOnReplication(t *testing.T) {
 	`, tableName))
 
 	// wait a little bit until 18 data lines
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(target.Database, tableName, helpers.GetSampleableStorageByModel(t, target), 60*time.Second, 20))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(target.Database, tableName, storagecomparison.GetSampleableStorageByModel(t, target), 60*time.Second, 20))
 
 	// update 2nd rec
 	// update even more data
@@ -189,5 +194,5 @@ func TestAddColumnOnReplication(t *testing.T) {
 	`, tableName))
 
 	// check
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(target.Database, tableName, helpers.GetSampleableStorageByModel(t, target), 60*time.Second, 19))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(target.Database, tableName, storagecomparison.GetSampleableStorageByModel(t, target), 60*time.Second, 19))
 }

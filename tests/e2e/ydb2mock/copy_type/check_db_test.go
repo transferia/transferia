@@ -13,8 +13,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 func TestGroup(t *testing.T) {
@@ -23,8 +26,8 @@ func TestGroup(t *testing.T) {
 
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -66,11 +69,11 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem("test_table/dir1/my_lovely_table")}))
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem("test_table/dir1/my_lovely_table2")}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem("test_table/dir1/my_lovely_table")}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem("test_table/dir1/my_lovely_table2")}))
 
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem("test_dir/dir1/table1")}))
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem("test_dir/dir2/table1")}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem("test_dir/dir1/table1")}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem("test_dir/dir2/table1")}))
 	})
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -135,8 +138,8 @@ func runTestCase(t *testing.T, caseName string, src *provider_ydb.YdbSource, dst
 	src.UseFullPaths = useFullPath
 	src.Tables = pathsIn
 	*changeItems = make([]abstract.ChangeItem, 0)
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	delivery.Activate(t, transfer)
 	checkTableNameExpected(t, caseName, *changeItems, pathsExpected)
 	fmt.Printf("finishing test case: %s\n", caseName)
 }

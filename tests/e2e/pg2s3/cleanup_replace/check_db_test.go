@@ -22,7 +22,10 @@ import (
 	s3_storage "github.com/transferia/transferia/pkg/providers/s3/storage"
 	_ "github.com/transferia/transferia/pkg/providers/s3/v1"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -33,7 +36,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{"public.__test1"},
 	}
 	Target = &s3_v1_model.S3Destination{
@@ -91,8 +94,8 @@ func countObjects(t *testing.T) int {
 
 func TestReplaceCleanup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -103,9 +106,9 @@ func TestReplaceCleanup(t *testing.T) {
 		createBucket(t)
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 
-	helpers.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
+	delivery.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
 		CreatedAt: time.Unix(1700000000, 0),
 	})
 	firstCount := countObjects(t)
@@ -119,7 +122,7 @@ func TestReplaceCleanup(t *testing.T) {
 	_, err = srcConn.Exec(ctx, "UPDATE public.__test1 SET name = 'zzzzz' WHERE id = 1")
 	require.NoError(t, err)
 
-	helpers.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
+	delivery.ActivateWithCustomTask(t, transfer, &model.TransferOperation{
 		CreatedAt: time.Unix(1700000001, 0),
 	})
 	secondCount := countObjects(t)

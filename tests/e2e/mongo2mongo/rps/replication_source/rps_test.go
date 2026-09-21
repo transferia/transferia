@@ -31,7 +31,10 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/tests/e2e/mongo2mongo/rps"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
@@ -45,9 +48,9 @@ func init() {
 func TestGroup(t *testing.T) {
 	t.Skip("TM-5255 temporary skip tests")
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: Target.Port},
 		))
 	}()
 
@@ -67,7 +70,7 @@ var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 	Source       = &provider_mongo.MongoSource{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
 		User:     os.Getenv("MONGO_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
 		Collections: []provider_mongo.MongoCollection{
@@ -77,7 +80,7 @@ var (
 	}
 	Target = provider_mongo.MongoDestination{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("DB0_MONGO_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("DB0_MONGO_LOCAL_PORT"),
 		User:     os.Getenv("DB0_MONGO_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("DB0_MONGO_LOCAL_PASSWORD")),
 		Cleanup:  model.Drop,
@@ -180,14 +183,14 @@ func RpsTestFactory(testParameters RpsTestParameters) func(t *testing.T) {
 		collectionSource := dbSource.Collection(Collection)
 
 		mongoSource := testParameters.SrcParamGen()
-		transfer := helpers.MakeTransfer(helpers.TransferID, mongoSource, &Target, TransferType)
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, mongoSource, &Target, TransferType)
 
 		// activate transfer
-		err = tasks.ActivateDelivery(ctx, nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+		err = tasks.ActivateDelivery(ctx, nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 		require.NoError(t, err)
 
 		// start local worker for activation
-		localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+		localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 		errChan := make(chan error, 1)
 		go func() {
 			errChan <- localWorker.Run() // like .Start(), but we in control for processing error in test

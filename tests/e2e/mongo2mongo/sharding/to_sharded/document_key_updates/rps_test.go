@@ -18,7 +18,10 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_cluster"
 	"github.com/transferia/transferia/tests/e2e/mongo2mongo/rps"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
@@ -29,9 +32,9 @@ func TestGroup(t *testing.T) {
 	t.Skip("TM-5255 temporary skip tests")
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: Target.Port},
 		))
 	}()
 
@@ -51,7 +54,7 @@ var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 	Source       = &provider_mongo.MongoSource{
 		Hosts:      []string{os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterHost)},
-		Port:       helpers.GetIntFromEnv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
+		Port:       testenv.GetIntFromEnv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
 		User:       os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterUsername),
 		Password:   model.SecretString(os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterPassword)),
 		AuthSource: os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterAuthSource),
@@ -62,7 +65,7 @@ var (
 	}
 	Target = provider_mongo.MongoDestination{
 		Hosts:      []string{os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterHost)},
-		Port:       helpers.GetIntFromEnv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
+		Port:       testenv.GetIntFromEnv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
 		User:       os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterUsername),
 		Password:   model.SecretString(os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterPassword)),
 		AuthSource: os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterAuthSource),
@@ -199,14 +202,14 @@ func RpsTestForRS(t *testing.T, rs provider_mongo.MongoReplicationSource) {
 
 	mongoSource := Source
 	mongoSource.ReplicationSource = rs
-	transfer := helpers.MakeTransfer(helpers.TransferID, mongoSource, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, mongoSource, &Target, TransferType)
 
 	// activate transfer
-	err = tasks.ActivateDelivery(ctx, nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(ctx, nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	// start local worker for activation
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	errChan := make(chan error, 1)
 	go func() {
 		errChan <- localWorker.Run() // like .Start(), but we in control for processing error in test

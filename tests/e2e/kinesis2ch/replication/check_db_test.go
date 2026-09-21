@@ -14,7 +14,11 @@ import (
 	provider_kinesis "github.com/transferia/transferia/pkg/providers/kinesis"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/tcrecipes"
 )
 
@@ -36,27 +40,27 @@ func TestReplication(t *testing.T) {
 			chrecipe.WithDatabase(databaseName))
 	)
 
-	helpers.InitSrcDst(helpers.TransferID, source, target, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, transferType)
 
 	defer func() {
 		p := source.Endpoint[len(source.Endpoint)-4:]
 		port, err := strconv.Atoi(p)
 		require.NoError(t, err)
 
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{
 				Label: "Kinesis source",
 				Port:  port,
 			},
-			helpers.LabeledPort{
+			network.LabeledPort{
 				Label: "CH target Native",
 				Port:  target.NativePort,
 			},
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		source,
 		target,
 		transferType,
@@ -66,7 +70,7 @@ func TestReplication(t *testing.T) {
 	localWorker := local.NewLocalWorker(
 		c,
 		transfer,
-		helpers.EmptyRegistry(),
+		testmetrics.EmptyRegistry(),
 		logger.Log,
 	)
 	localWorker.Start()
@@ -88,10 +92,10 @@ func TestReplication(t *testing.T) {
 		"test",
 	))
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		databaseName,
 		source.Stream,
-		helpers.GetSampleableStorageByModel(t, target),
+		storagecomparison.GetSampleableStorageByModel(t, target),
 		60*time.Second,
 		3,
 	))

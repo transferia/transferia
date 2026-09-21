@@ -38,7 +38,7 @@ func (l *lbPartitionLister) Close() {
 func NewPartitionLister(cfg *LfSource, logger log.Logger) (abstract.PartitionLister, error) {
 	instances := []LogbrokerInstance{cfg.Instance}
 	if cfg.Cluster != "" {
-		if clusterInstances, ok := KnownClusters[cfg.Cluster]; ok {
+		if clusterInstances, ok := ClusterInstances(cfg.Cluster); ok {
 			instances = clusterInstances
 		}
 	}
@@ -50,7 +50,10 @@ func NewPartitionLister(cfg *LfSource, logger log.Logger) (abstract.PartitionLis
 	for _, instance := range instances {
 		instanceCfgCopy := *cfg
 		instanceCfgCopy.Instance = instance
-		topicSourceCfg := instanceCfgCopy.buildTopicSourceConfig()
+		topicSourceCfg, err := instanceCfgCopy.buildTopicSourceConfig()
+		if err != nil {
+			return nil, xerrors.Errorf("unable to build topic source config for instance %s: %w", instance, err)
+		}
 
 		lister, err := topicapisource.NewPartitionLister(topicSourceCfg, logger)
 		if err != nil {

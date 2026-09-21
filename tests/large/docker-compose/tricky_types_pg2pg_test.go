@@ -13,7 +13,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 // trickyTypesPg2PgTarget1Container matches docker-compose.yaml (tricky-types-pg2pg-target1.container_name)
@@ -46,7 +49,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, &trickyTypesPg2PgSource, &trickyTypesPg2PgTarget, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &trickyTypesPg2PgSource, &trickyTypesPg2PgTarget, abstract.TransferTypeSnapshotAndIncrement)
 }
 
 type CanonData struct {
@@ -73,9 +76,9 @@ func TestTrickyTypesPg2PgSupportedTypes(t *testing.T) {
 	targetCopy := trickyTypesPg2PgTarget
 	targetCopy.CopyUpload = true
 	targetCopy.Port = 6432
-	transfer := helpers.MakeTransfer(helpers.TransferID, &sourceCopy, &targetCopy, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &sourceCopy, &targetCopy, abstract.TransferTypeSnapshotAndIncrement)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	var canonData CanonData
@@ -87,7 +90,7 @@ func TestTrickyTypesPg2PgSupportedTypes(t *testing.T) {
 	_, err = conn.Exec(context.Background(), source1IncrementSQL)
 	require.NoError(t, err)
 
-	err = helpers.WaitEqualRowsCount(t, "public", "pgis_supported_types", helpers.GetSampleableStorageByModel(t, sourceCopy), helpers.GetSampleableStorageByModel(t, targetCopy), 30*time.Second)
+	err = storage.WaitEqualRowsCount(t, "public", "pgis_supported_types", storagecomparison.GetSampleableStorageByModel(t, sourceCopy), storagecomparison.GetSampleableStorageByModel(t, targetCopy), 30*time.Second)
 	require.NoError(t, err)
 	canonData.AfterIncrement = dumpTargetDB()
 	canon.SaveJSON(t, &canonData)
@@ -103,9 +106,9 @@ func TestTrickyTypesPg2PgSupportedTypesDontWorkUnlessBinarySerializationIsUsed(t
 	targetCopy := trickyTypesPg2PgTarget
 	targetCopy.Port = 6433
 	targetCopy.DisableSQLFallback = true
-	transfer := helpers.MakeTransfer(helpers.TransferID, &sourceCopy, &targetCopy, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &sourceCopy, &targetCopy, abstract.TransferTypeSnapshotOnly)
 
-	_, err := helpers.ActivateErr(transfer)
+	_, err := delivery.ActivateErr(transfer)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Invalid endian flag value encountered")
 }
@@ -120,9 +123,9 @@ func TestTrickyTypesPg2PgUnsupportedTypes(t *testing.T) {
 	targetCopy := trickyTypesPg2PgTarget
 	targetCopy.Port = 6434
 	targetCopy.DisableSQLFallback = true
-	transfer := helpers.MakeTransfer(helpers.TransferID, &sourceCopy, &targetCopy, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &sourceCopy, &targetCopy, abstract.TransferTypeSnapshotOnly)
 
-	_, err := helpers.ActivateErr(transfer)
+	_, err := delivery.ActivateErr(transfer)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no binary input function available for type")
 }
@@ -146,9 +149,9 @@ func TestTrickyTypesPg2PgTemporals(t *testing.T) {
 	targetCopy := trickyTypesPg2PgTarget
 	targetCopy.CopyUpload = true
 	targetCopy.Port = 6432
-	transfer := helpers.MakeTransfer(helpers.TransferID, &sourceCopy, &targetCopy, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &sourceCopy, &targetCopy, abstract.TransferTypeSnapshotAndIncrement)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	var canonData CanonData
@@ -160,7 +163,7 @@ func TestTrickyTypesPg2PgTemporals(t *testing.T) {
 	_, err = conn.Exec(context.Background(), source4IncrementSQL)
 	require.NoError(t, err)
 
-	err = helpers.WaitEqualRowsCount(t, "public", "temporals", helpers.GetSampleableStorageByModel(t, sourceCopy), helpers.GetSampleableStorageByModel(t, targetCopy), 30*time.Second)
+	err = storage.WaitEqualRowsCount(t, "public", "temporals", storagecomparison.GetSampleableStorageByModel(t, sourceCopy), storagecomparison.GetSampleableStorageByModel(t, targetCopy), 30*time.Second)
 	require.NoError(t, err)
 	canonData.AfterIncrement = dumpTargetDB()
 	canon.SaveJSON(t, &canonData)

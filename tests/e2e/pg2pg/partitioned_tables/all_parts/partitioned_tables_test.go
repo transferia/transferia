@@ -12,7 +12,12 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
@@ -33,15 +38,15 @@ var (
 func init() {
 	TruncateTarget.Cleanup = model.Truncate
 	DropTarget.Cleanup = model.Drop
-	helpers.InitSrcDst(helpers.TransferID, &TruncateSource, &TruncateTarget, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, transferID
-	helpers.InitSrcDst(helpers.TransferID, &DropSource, &DropTarget, TransferType)         // to WithDefaults() & FillDependentFields(): IsHomo, transferID
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &TruncateSource, &TruncateTarget, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, transferID
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &DropSource, &DropTarget, TransferType)         // to WithDefaults() & FillDependentFields(): IsHomo, transferID
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: TruncateSource.Port},
-			helpers.LabeledPort{Label: "PG target", Port: TruncateTarget.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: TruncateSource.Port},
+			network.LabeledPort{Label: "PG target", Port: TruncateTarget.Port},
 		))
 	}()
 
@@ -65,7 +70,7 @@ func Verify(t *testing.T) {
 	transfer.Dst = &DropTarget
 	transfer.Type = "SNAPSOT_AND_INCREMENT"
 
-	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, helpers.EmptyRegistry())
+	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	dstStorage, err := provider_postgres.NewStorage(DropTarget.ToStorageParams())
@@ -86,15 +91,15 @@ func Verify(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	truncateTransfer := helpers.MakeTransfer(helpers.TransferID, &TruncateSource, &TruncateTarget, TransferType)
-	dropTransfer := helpers.MakeTransfer(helpers.TransferID, &DropSource, &DropTarget, TransferType)
+	truncateTransfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &TruncateSource, &TruncateTarget, TransferType)
+	dropTransfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &DropSource, &DropTarget, TransferType)
 
 	load(t, dropTransfer, true)
 	load(t, truncateTransfer, false)
 }
 
 func load(t *testing.T, transfer *model.Transfer, updateSource bool) {
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	if updateSource {
@@ -106,29 +111,29 @@ func load(t *testing.T, transfer *model.Transfer, updateSource bool) {
 
 	//-----------------------------------------------------------------------------------------------------------------
 
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_inherited", 10)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_inherited_y2006m02", 3)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_inherited_y2006m03", 4)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_inherited_y2006m04", 3)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_inherited", 10)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_inherited_y2006m02", 3)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_inherited_y2006m03", 4)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_inherited_y2006m04", 3)
 
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative", 12)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative_y2006m02", 3)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative_y2006m03", 4)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative_y2006m04", 3)
-	helpers.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative_y2006m05", 2)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative", 12)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative_y2006m02", 3)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative_y2006m03", 4)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative_y2006m04", 3)
+	storagecomparison.CheckRowsCount(t, transfer.Src, "public", "measurement_declarative_y2006m05", 2)
 
-	sourceStorage := helpers.GetSampleableStorageByModel(t, transfer.Src)
-	targetStorage := helpers.GetSampleableStorageByModel(t, transfer.Dst)
+	sourceStorage := storagecomparison.GetSampleableStorageByModel(t, transfer.Src)
+	targetStorage := storagecomparison.GetSampleableStorageByModel(t, transfer.Dst)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m02", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m03", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m04", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m02", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m03", sourceStorage, targetStorage, 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m04", sourceStorage, targetStorage, 60*time.Second))
-	helpers.CheckRowsCount(t, transfer.Dst, "public", "measurement_inherited", 10)
-	helpers.CheckRowsCount(t, transfer.Dst, "public", "measurement_declarative", 12)
-	compareParams := helpers.NewCompareStorageParams()
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m02", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m03", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_inherited_y2006m04", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m02", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m03", sourceStorage, targetStorage, 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "measurement_declarative_y2006m04", sourceStorage, targetStorage, 60*time.Second))
+	storagecomparison.CheckRowsCount(t, transfer.Dst, "public", "measurement_inherited", 10)
+	storagecomparison.CheckRowsCount(t, transfer.Dst, "public", "measurement_declarative", 12)
+	compareParams := storagecomparison.NewCompareStorageParams()
 	compareParams.TableFilter = func(tables abstract.TableMap) []abstract.TableDescription {
 		return []abstract.TableDescription{
 			{
@@ -162,7 +167,7 @@ func load(t *testing.T, transfer *model.Transfer, updateSource bool) {
 			},
 		}
 	}
-	require.NoError(t, helpers.CompareStorages(t, transfer.Src, transfer.Dst, compareParams))
+	require.NoError(t, storagecomparison.CompareStorages(t, transfer.Src, transfer.Dst, compareParams))
 }
 
 func pushDataToStorage(t *testing.T, storage *provider_postgres.Storage) {

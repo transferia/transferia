@@ -8,8 +8,9 @@ import (
 )
 
 type (
-	RotatorType     string
-	PartitionerType string
+	RotatorType       string
+	PartitionerType   string
+	TimeExtractorType string
 )
 
 const (
@@ -17,6 +18,9 @@ const (
 
 	DefaultPartitioner   = PartitionerType("DEFAULT")
 	TimeBasedPartitioner = PartitionerType("TIME_BASED")
+
+	RecordMetaTimeExtractor = TimeExtractorType("RECORD_META")
+	DataFieldTimeExtractor  = TimeExtractorType("DATA_FIELD")
 )
 
 type RotatorConfig interface {
@@ -26,7 +30,9 @@ type RotatorConfig interface {
 var _ RotatorConfig = (*DefaultRotatorConfig)(nil)
 
 type DefaultRotatorConfig struct {
-	Interval time.Duration
+	Interval                 time.Duration
+	MaxRecordsCount          int
+	IsRegularRotationEnabled bool
 }
 
 func (r *DefaultRotatorConfig) IsRotatorConfig() {}
@@ -96,4 +102,33 @@ func (p *TimeBasedPartitionerConfig) Location() (*time.Location, error) {
 type PartitionerUnion struct {
 	Default   *DefaultPartitionerConfig
 	TimeBased *TimeBasedPartitionerConfig
+}
+
+// TimeExtractorConfig selects where the sink reads "the time of a record" from. That time
+// drives file rotation and, with the time based partitioner, the bucket a file lands in
+type TimeExtractorConfig interface {
+	IsTimeExtractorConfig()
+}
+
+var _ TimeExtractorConfig = (*RecordMetaTimeExtractorConfig)(nil)
+
+// RecordMetaTimeExtractorConfig takes the queue write time carried in the record's metadata
+type RecordMetaTimeExtractorConfig struct{}
+
+func (e *RecordMetaTimeExtractorConfig) IsTimeExtractorConfig() {}
+
+var _ TimeExtractorConfig = (*DataFieldTimeExtractorConfig)(nil)
+
+// DataFieldTimeExtractorConfig takes the time out of a column of the record itself, so that
+// files are laid out by event time rather than by when the queue accepted the message
+type DataFieldTimeExtractorConfig struct {
+	// Column of the record holding the time. Required
+	Column string
+}
+
+func (e *DataFieldTimeExtractorConfig) IsTimeExtractorConfig() {}
+
+type TimeExtractorUnion struct {
+	RecordMeta *RecordMetaTimeExtractorConfig
+	DataField  *DataFieldTimeExtractorConfig
 }

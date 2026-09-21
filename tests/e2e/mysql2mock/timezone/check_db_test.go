@@ -17,7 +17,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 )
 
 const (
@@ -27,8 +29,8 @@ const (
 
 var (
 	db     = os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE")
-	source = helpers.WithMysqlInclude(
-		helpers.RecipeMysqlSource(),
+	source = mysql.WithMysqlInclude(
+		mysql.RecipeMysqlSource(),
 		[]string{fmt.Sprintf("%s.%s", db, tableName)},
 	)
 )
@@ -62,8 +64,8 @@ func makeConnConfig() *mysql_driver2.Config {
 
 func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
 		))
 	}()
 
@@ -99,7 +101,7 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 	err = provider_mysql.SyncBinlogPosition(source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	wrk := local.NewLocalWorker(fakeClient, &transfer, helpers.EmptyRegistry(), logger.Log)
+	wrk := local.NewLocalWorker(fakeClient, &transfer, testmetrics.EmptyRegistry(), logger.Log)
 
 	sinker.pushCallback = func(input []abstract.ChangeItem) error {
 		for _, item := range input {
@@ -160,8 +162,8 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 
 func TestDifferentTimezones(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
 		))
 	}()
 

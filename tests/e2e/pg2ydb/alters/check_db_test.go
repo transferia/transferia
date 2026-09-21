@@ -14,7 +14,12 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -27,29 +32,29 @@ func TestAlters(t *testing.T) {
 	Source := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
 	Target := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 
-	t.Setenv("YC", "1")                                                  // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	t.Setenv("YC", "1")                                                                  // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	time.Sleep(10 * time.Second)
 	defer func() {
-		sourcePort, err := helpers.GetPortFromStr(Target.Instance)
+		sourcePort, err := network.GetPortFromStr(Target.Instance)
 		require.NoError(t, err)
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YDB target", Port: sourcePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YDB target", Port: sourcePort},
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(
+	transfer := transferhelpers.MakeTransfer(
 		tableName,
 		Source,
 		Target,
 		TransferType,
 	)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	conn, err := provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
@@ -62,6 +67,6 @@ func TestAlters(t *testing.T) {
 	_, err = conn.Exec(context.Background(), fmt.Sprintf(`insert into %s values(6, 'You', 42)`, tableName))
 	require.NoError(t, err)
 	t.Logf("Waiting for rows to be equal")
-	require.NoError(t, helpers.WaitEqualRowsCount(t, databaseName, tableName, helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(databaseName, tableName, helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 6))
+	require.NoError(t, storage.WaitEqualRowsCount(t, databaseName, tableName, storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(databaseName, tableName, storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second, 6))
 }

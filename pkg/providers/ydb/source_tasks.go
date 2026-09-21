@@ -28,7 +28,7 @@ func execQuery(ctx context.Context, ydbClient *ydb_go_sdk.Driver, query string) 
 	err := ydbClient.Table().Do(ctx, func(ctx context.Context, s ydb_table.Session) error {
 		err := s.ExecuteSchemeQuery(ctx, query)
 		if err != nil {
-			return xerrors.Errorf("failed to execute changefeed query '%s': %w", query, err)
+			return xerrors.Errorf("failed to execute changefeed query '%s': %w", query, WrapYDBError(err))
 		}
 		return nil
 	}, ydb_table.WithIdempotent())

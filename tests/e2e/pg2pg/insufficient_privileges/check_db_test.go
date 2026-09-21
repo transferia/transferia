@@ -13,7 +13,9 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -22,8 +24,8 @@ func init() {
 
 func TestSnapshotWithEmptyTableListFails(t *testing.T) {
 	var emptyIncludeTables, emptyExcludeTables []string
-	transfer := helpers.MakeTransfer(helpers.TransferID, newSource(emptyIncludeTables, emptyExcludeTables), newTarget(), abstract.TransferTypeSnapshotOnly)
-	err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, newSource(emptyIncludeTables, emptyExcludeTables), newTarget(), abstract.TransferTypeSnapshotOnly)
+	err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "permission denied")
 }
@@ -32,8 +34,8 @@ func TestSnapshotWithAccessToPublicTableWorks(t *testing.T) {
 	includeTables := []string{"public.promiscuous"}
 	var emptyExcludeTables []string
 	for _, transferType := range []abstract.TransferType{abstract.TransferTypeSnapshotOnly, abstract.TransferTypeSnapshotAndIncrement} {
-		transfer := helpers.MakeTransfer(helpers.TransferID, newSource(includeTables, emptyExcludeTables), newTarget(), transferType)
-		err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, newSource(includeTables, emptyExcludeTables), newTarget(), transferType)
+		err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 		require.NoError(t, err)
 	}
 }
@@ -42,8 +44,8 @@ func TestSnapshotWithInsufficientPermissionsToSpecificTableFails(t *testing.T) {
 	includeTables := []string{"public.promiscuous", "public.secret"}
 	var emptyExcludeTables []string
 	for _, transferType := range []abstract.TransferType{abstract.TransferTypeSnapshotOnly, abstract.TransferTypeSnapshotAndIncrement} {
-		transfer := helpers.MakeTransfer(helpers.TransferID, newSource(includeTables, emptyExcludeTables), newTarget(), transferType)
-		err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, newSource(includeTables, emptyExcludeTables), newTarget(), transferType)
+		err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Tables not found")
 		require.Contains(t, err.Error(), "public.secret")
@@ -55,50 +57,50 @@ func TestAddTableInSource(t *testing.T) {
 	excludeTables := []string{"public.secret"} // Activation will fail with error if we don't exclude this table
 
 	// Activate
-	transfer := helpers.MakeTransfer(helpers.TransferID, newSource(emptyIncludeTables, excludeTables), newTarget(), abstract.TransferTypeSnapshotAndIncrement)
-	err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, newSource(emptyIncludeTables, excludeTables), newTarget(), abstract.TransferTypeSnapshotAndIncrement)
+	err := tasks.ActivateDelivery(context.Background(), nil, cpclient.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	// Replication, first try
 	transfer.Dst.(*postgres.PgDestination).CopyUpload = false // :(
-	wrkr1 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	wrkr1 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	runChannel := make(chan error)
 	go func() { runChannel <- wrkr1.Run() }()
 
 	// Wait until replication has started and transfers one row
-	insertOneRow(t, helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.promiscuous", tableRow{100, "100"})
-	for rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.promiscuous") < 4 {
+	insertOneRow(t, testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.promiscuous", tableRow{100, "100"})
+	for rowCount(t, testenv.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.promiscuous") < 4 {
 		time.Sleep(time.Second)
 	}
-	require.Equal(t, 4, rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.promiscuous"))
+	require.Equal(t, 4, rowCount(t, testenv.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.promiscuous"))
 
 	// Add table with one row to the source database and create an empty one in the target
-	createTable(t, helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.secret2")
-	createTable(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2")
-	insertOneRow(t, helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.secret2", tableRow{100, "100"})
+	createTable(t, testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.secret2")
+	createTable(t, testenv.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2")
+	insertOneRow(t, testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.secret2", tableRow{100, "100"})
 
 	// Expect replication to fail now
 	err = <-runChannel
 	require.Error(t, err)
 	require.False(t, abstract.IsFatal(err))
-	require.Equal(t, 0, rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2"))
+	require.Equal(t, 0, rowCount(t, testenv.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2"))
 	require.NoError(t, wrkr1.Stop())
 
 	// Replication, second try
-	wrkr2 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	wrkr2 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	err = wrkr2.Run()
 	require.Error(t, err)
 	require.False(t, abstract.IsFatal(err))
-	require.Equal(t, 0, rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2"))
+	require.Equal(t, 0, rowCount(t, testenv.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2"))
 	require.NoError(t, wrkr2.Stop())
 
 	// Give access to the source table secret2 to loser and check that replication works after that
-	grantPrivileges(t, helpers.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.secret2", "loser")
-	wrkr3 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	grantPrivileges(t, testenv.GetIntFromEnv("SOURCE_PG_LOCAL_PORT"), "public.secret2", "loser")
+	wrkr3 := local.NewLocalWorker(cpclient.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	defer wrkr3.Stop()
 	wrkr3.Start()
-	for rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2") == 0 {
+	for rowCount(t, testenv.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2") == 0 {
 		time.Sleep(time.Second)
 	}
-	require.Equal(t, 1, rowCount(t, helpers.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2"))
+	require.Equal(t, 1, rowCount(t, testenv.GetIntFromEnv("TARGET_PG_LOCAL_PORT"), "public.secret2"))
 }

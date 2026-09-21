@@ -16,7 +16,11 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -36,8 +40,8 @@ var (
 		User:                "default",
 		Password:            "",
 		Database:            "test",
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 		Cleanup:             model.Drop,
 	}
@@ -74,8 +78,8 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	dst.WithDefaults()
 	src.Format.JSONLSetting.BlockSize = 1 * 1024 * 1024
 
-	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
+	delivery.Activate(t, transfer)
 
 	if os.Getenv("S3MDS_PORT") != "" {
 		src.Bucket = "data6"
@@ -100,25 +104,25 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	err = sendMessageToQueue(aws.String(fmt.Sprintf(messageBody, testCasePath, "simple%3D1234.jsonl")), queueURL, sqsClient)
 	require.NoError(t, err)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "unescaped", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 3)
+	err = storage.WaitDestinationEqualRowsCount("test", "unescaped", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 3)
 	require.NoError(t, err)
 
 	err = sendMessageToQueue(aws.String(fmt.Sprintf(messageBody, testCasePath, "simple%3D1234+%281%29.jsonl")), queueURL, sqsClient)
 	require.NoError(t, err)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "unescaped", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 6)
+	err = storage.WaitDestinationEqualRowsCount("test", "unescaped", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 6)
 	require.NoError(t, err)
 
 	err = sendMessageToQueue(aws.String(fmt.Sprintf(messageBody, testCasePath, "simple%3D1234+%28copy%29.jsonl")), queueURL, sqsClient)
 	require.NoError(t, err)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "unescaped", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 9)
+	err = storage.WaitDestinationEqualRowsCount("test", "unescaped", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 9)
 	require.NoError(t, err)
 
 	err = sendMessageToQueue(aws.String(fmt.Sprintf(messageBody, testCasePath, "simple%3D+test++wtih+spaces.jsonl")), queueURL, sqsClient)
 	require.NoError(t, err)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "unescaped", helpers.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 12)
+	err = storage.WaitDestinationEqualRowsCount("test", "unescaped", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 60*time.Second, 12)
 	require.NoError(t, err)
 }
 

@@ -13,7 +13,12 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -24,7 +29,7 @@ var (
 		User:     os.Getenv("RECIPE_MYSQL_USER"),
 		Password: model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
 		Database: os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE"),
-		Port:     helpers.GetIntFromEnv("RECIPE_MYSQL_PORT"),
+		Port:     testenv.GetIntFromEnv("RECIPE_MYSQL_PORT"),
 		ServerID: 1, // what is it?
 	}
 	Target = clickhouse_model.ChDestination{
@@ -39,22 +44,22 @@ var (
 		User:                "default",
 		Password:            "",
 		Database:            databaseName,
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 	}
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestReplication(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: Source.Port},
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 
@@ -66,13 +71,13 @@ func TestReplication(t *testing.T) {
 
 	//------------------------------------------------------------------------------------
 	// start worker
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
 	fakeClient := coordinator.NewStatefulFakeClient()
 	err = provider_mysql.SyncBinlogPosition(&Source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(fakeClient, transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -94,8 +99,8 @@ func TestReplication(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// wait & compare
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, databaseName, "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams().WithEqualDataTypes(compareDataTypes)))
+	require.NoError(t, storage.WaitEqualRowsCount(t, databaseName, "__test", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams().WithEqualDataTypes(compareDataTypes)))
 }
 
 func compareDataTypes(l, r string) bool {

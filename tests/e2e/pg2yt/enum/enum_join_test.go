@@ -13,7 +13,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/ypath"
@@ -27,7 +30,7 @@ var Source = provider_postgres.PgSource{
 	User:      os.Getenv("PG_LOCAL_USER"),
 	Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 	Database:  os.Getenv("PG_LOCAL_DATABASE"),
-	Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+	Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 	DBTables:  []string{"public.__fullnames", "public.__food_expenditure"},
 }
 
@@ -65,8 +68,8 @@ func initYt(t *testing.T, cypressPath string) (testEnv *yttest.Env, testCfg prov
 func testUploadToYt(t *testing.T) {
 	ytEnv, ytDest, cancel := initYt(t, "//home/cdc/test/TM-2118")
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -86,7 +89,7 @@ func testUploadToYt(t *testing.T) {
 	}
 	Source.DBTables = fullTableNames
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, ytDest, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, ytDest, abstract.TransferTypeSnapshotAndIncrement)
 
 	// we'll compare this two quantities:
 
@@ -109,7 +112,7 @@ func testUploadToYt(t *testing.T) {
 	require.False(t, rows.Next())
 
 	// upload tableName from public database to YT
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// see how many rows in YT

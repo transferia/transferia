@@ -9,7 +9,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -27,10 +30,10 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "CH target Native", Port: Target.NativePort},
-			helpers.LabeledPort{Label: "CH target HTTP", Port: Target.HTTPPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "CH target Native", Port: Target.NativePort},
+			network.LabeledPort{Label: "CH target HTTP", Port: Target.HTTPPort},
 		))
 	}()
 
@@ -41,8 +44,8 @@ func TestGroup(t *testing.T) {
 
 func Load(t *testing.T) {
 	Source.CollapseInheritTables = true
-	transfer := helpers.MakeTransferForIncrementalSnapshot(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransferForIncrementalSnapshot(
+		transferhelpers.TransferID,
 		&Source,
 		&Target,
 		abstract.TransferTypeSnapshotOnly,
@@ -53,6 +56,6 @@ func Load(t *testing.T) {
 		1,
 	)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"public.measurement_declarative"}}
-	_ = helpers.Activate(t, transfer)
-	helpers.CheckRowsCount(t, Target, "", "measurement_declarative", 5)
+	_ = delivery.Activate(t, transfer)
+	storagecomparison.CheckRowsCount(t, Target, "", "measurement_declarative", 5)
 }

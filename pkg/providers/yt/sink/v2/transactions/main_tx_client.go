@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
+	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/yson"
@@ -63,7 +64,7 @@ func (c *MainTxClient) BeginTx() error {
 	})
 	if err != nil {
 		c.logger.Error("cannot start sink main tx for snapshot", log.Error(err))
-		return err
+		return xerrors.Errorf("cannot start main transaction: %w", provider_yt.WrapYTError(err))
 	}
 
 	if err := c.stateStorage.SetState(txID); err != nil {
@@ -118,7 +119,7 @@ func (c *MainTxClient) BeginSubTx() (yt.Tx, error) {
 		},
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("unable to begin part transaction: %w", err)
+		return nil, xerrors.Errorf("unable to begin part transaction: %w", provider_yt.WrapYTError(err))
 	}
 	c.logger.Info("part transaction has been started", log.Any("tx_id", partTx.ID()))
 	return partTx, nil
@@ -134,7 +135,7 @@ func (c *MainTxClient) Commit() error {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			if err := c.client.CommitTx(ctx, mainTxID, nil); err != nil {
-				return xerrors.Errorf("cannot commit main transaction: %w", err)
+				return xerrors.Errorf("cannot commit main transaction: %w", provider_yt.WrapYTError(err))
 			}
 			return nil
 		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxRetriesCount)); err != nil {

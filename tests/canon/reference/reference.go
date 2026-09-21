@@ -20,7 +20,8 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 )
 
 func constructSinkCleanupAndPush(t *testing.T, transfer *model.Transfer, tables abstract.TableMap, itemBatches ...[]abstract.ChangeItem) {
@@ -38,7 +39,7 @@ func constructSinkCleanupAndPush(t *testing.T, transfer *model.Transfer, tables 
 		logger.Log.Debugf("constructSinkCleanupAndPush: AsyncSink.Close DONE elapsed=%v", time.Since(start))
 	}()
 
-	snapshotLoader := tasks.NewSnapshotLoader(cp, &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(cp, &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	logger.Log.Debugf("constructSinkCleanupAndPush: CleanupSinker START tables=%d elapsed=%v", len(tables), time.Since(start))
 	require.NoError(t, snapshotLoader.CleanupSinker(tables))
 	logger.Log.Debugf("constructSinkCleanupAndPush: CleanupSinker DONE elapsed=%v", time.Since(start))
@@ -79,7 +80,7 @@ func ReferenceTestFn(transfer *model.Transfer, sinkAsSource model.Source, itemBa
 		allItems = append(allItems, itemBatches[i]...)
 	}
 
-	tables := helpers.TableMapFromItems(allItems)
+	tables := changeitem.TableMapFromItems(allItems)
 	return func(t *testing.T) {
 		_caseStart := time.Now()
 		logger.Log.Debugf("ReferenceTestFn START tables=%d batches=%d typesystem_versions=%d", len(tables), len(itemBatches), typesystem.LatestVersion)

@@ -15,8 +15,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -53,11 +56,11 @@ func TestSnapshotAndReplication(t *testing.T) {
 		Cleanup:       model.Drop,
 	}
 
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: source.Port},
 	))
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, transferType)
 
 	require.NoError(t, transfer.TransformationFromJSON(`
 {
@@ -79,7 +82,7 @@ func TestSnapshotAndReplication(t *testing.T) {
   ]
 }`))
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	t.Run("Snapshot", Snapshot)
@@ -118,11 +121,11 @@ func Validate(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	n := 3
-	require.NoError(t, helpers.WaitCond(waitTimeout, func() bool {
+	require.NoError(t, storage.WaitCond(waitTimeout, func() bool {
 		logger.Log.Infof("For table %s got %d of %d items", transformedTable, len(targetItems[transformedTable]), n)
 		return len(targetItems[transformedTable]) == n
 	}))
-	require.NoError(t, helpers.WaitCond(waitTimeout, func() bool {
+	require.NoError(t, storage.WaitCond(waitTimeout, func() bool {
 		logger.Log.Infof("For table %s got %d of %d items", notTransformedTable, len(targetItems[notTransformedTable]), n)
 		return len(targetItems[notTransformedTable]) == n
 	}))
@@ -142,11 +145,11 @@ func Replication(t *testing.T) {
 	require.NoError(t, err)
 
 	n := 6
-	require.NoError(t, helpers.WaitCond(waitTimeout, func() bool {
+	require.NoError(t, storage.WaitCond(waitTimeout, func() bool {
 		logger.Log.Infof("For table %s got %d of %d items", transformedTable, len(targetItems[transformedTable]), n)
 		return len(targetItems[transformedTable]) == n
 	}))
-	require.NoError(t, helpers.WaitCond(waitTimeout, func() bool {
+	require.NoError(t, storage.WaitCond(waitTimeout, func() bool {
 		logger.Log.Infof("For table %s got %d of %d items", notTransformedTable, len(targetItems[notTransformedTable]), n)
 		return len(targetItems[notTransformedTable]) == n
 	}))

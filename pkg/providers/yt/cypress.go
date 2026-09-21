@@ -49,13 +49,16 @@ func GetNodeAttrs(ctx context.Context, client yt.CypressClient, path ypath.Path)
 
 // SafeChild appends children to path. It works like path.Child(child) with exceptions.
 // this method assumes:
-//  1. ypath object is correct, i.e. no trailing path delimiter symbol exists
+//  1. ypath object is correct; trailing path delimiters are tolerated and removed
 //
 // This method guarantees:
 //  1. YPath with appended children has deduplicated path delimiters in appended string and
 //     no trailing path delimiter would be presented.
 //  2. TODO(@kry127) TM-6290 not yet guaranteed, but nice to have: special symbols should be replaced
 func SafeChild(path ypath.Path, children ...string) ypath.Path {
+	for len(path) > 2 && strings.HasSuffix(string(path), "/") {
+		path = path[:len(path)-1]
+	}
 	unrefinedRelativePath := strings.Join(children, "/")
 	relativePath := relativePathSuitableForYPath(unrefinedRelativePath)
 	if len(relativePath) > 0 {

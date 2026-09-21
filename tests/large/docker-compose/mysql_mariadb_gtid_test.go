@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
 )
 
 // This test ensures that for MariaDB flavor we read GTID via @@GLOBAL.gtid_current_pos
@@ -24,12 +24,12 @@ func TestMySQL_MariaDB_GtidPosition(t *testing.T) {
 	defer cleanup()
 
 	// Ensure binlog+gtid is usable by doing a write
-	connParams := helpers.NewMySQLConnectionParams(t, src.ToStorageParams())
-	helpers.ExecuteMySQLStatement(t, "CREATE TABLE IF NOT EXISTS t(id INT PRIMARY KEY)", connParams)
-	helpers.ExecuteMySQLStatement(t, "INSERT INTO t(id) VALUES (1) ON DUPLICATE KEY UPDATE id = id", connParams)
+	connParams := mysql.NewMySQLConnectionParams(t, src.ToStorageParams())
+	mysql.ExecuteMySQLStatement(t, "CREATE TABLE IF NOT EXISTS t(id INT PRIMARY KEY)", connParams)
+	mysql.ExecuteMySQLStatement(t, "INSERT INTO t(id) VALUES (1) ON DUPLICATE KEY UPDATE id = id", connParams)
 
 	// Create storage and read position
-	storage := helpers.NewMySQLStorageFromSource(t, &src)
+	storage := mysql.NewMySQLStorageFromSource(t, &src)
 	defer storage.Close()
 
 	pos, err := storage.Position(context.Background())

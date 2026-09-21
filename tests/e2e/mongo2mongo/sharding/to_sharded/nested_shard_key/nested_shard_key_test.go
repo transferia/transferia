@@ -16,7 +16,12 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_cluster"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 )
@@ -27,9 +32,9 @@ func init() {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: Target.Port},
 		))
 	}()
 
@@ -51,7 +56,7 @@ var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 	Source       = &provider_mongo.MongoSource{
 		Hosts:      []string{os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterHost)},
-		Port:       helpers.GetIntFromEnv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
+		Port:       testenv.GetIntFromEnv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
 		User:       os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterUsername),
 		Password:   model.SecretString(os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterPassword)),
 		AuthSource: os.Getenv("DB1_" + mongo_sharded_cluster.EnvMongoShardedClusterAuthSource),
@@ -64,7 +69,7 @@ var (
 	}
 	Target = provider_mongo.MongoDestination{
 		Hosts:      []string{os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterHost)},
-		Port:       helpers.GetIntFromEnv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
+		Port:       testenv.GetIntFromEnv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterPort),
 		User:       os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterUsername),
 		Password:   model.SecretString(os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterPassword)),
 		AuthSource: os.Getenv("DB2_" + mongo_sharded_cluster.EnvMongoShardedClusterAuthSource),
@@ -225,12 +230,12 @@ func Load(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// activate
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -265,8 +270,8 @@ func Load(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// check results
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, DB, Collection1, helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, DB, Collection2, helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, DB, Collection3, helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitEqualRowsCount(t, DB, Collection1, storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, DB, Collection2, storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, DB, Collection3, storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

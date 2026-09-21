@@ -14,12 +14,16 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/tests/helpers"
+	canon2 "github.com/transferia/transferia/tests/helpers/canon"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
-	Source = helpers.RecipeMysqlSource()
+	Source = mysql.RecipeMysqlSource()
 )
 
 func init() {
@@ -35,8 +39,8 @@ func eraseMeta(in string) string {
 }
 
 func TestSnapshot(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "Mysql source", Port: Source.Port},
 	))
 	//------------------------------------------------------------------------------
 	//prepare dst
@@ -58,7 +62,7 @@ func TestSnapshot(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return mockSink },
 		Cleanup:       model.DisabledCleanup,
 	}
-	additionalTransfer := helpers.MakeTransfer("additional", &provider_kafka.KafkaSource{
+	additionalTransfer := transferhelpers.MakeTransfer("additional", &provider_kafka.KafkaSource{
 		Connection:  dst.Connection,
 		Auth:        dst.Auth,
 		GroupTopics: []string{dst.Topic},
@@ -66,10 +70,10 @@ func TestSnapshot(t *testing.T) {
 	//------------------------------------------------------------------------------
 	// activate main transfer
 
-	helpers.InitSrcDst(helpers.TransferID, Source, dst, abstract.TransferTypeSnapshotOnly)
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, dst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, dst, abstract.TransferTypeSnapshotOnly)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -78,7 +82,7 @@ func TestSnapshot(t *testing.T) {
 		for {
 			// restart transfer if error
 			errCh := make(chan error, 1)
-			w, err := helpers.ActivateErr(additionalTransfer, func(err error) {
+			w, err := delivery.ActivateErr(additionalTransfer, func(err error) {
 				errCh <- err
 			})
 			require.NoError(t, err)
@@ -94,7 +98,7 @@ func TestSnapshot(t *testing.T) {
 		if len(result) == 1 {
 			vv, _ := changeitem.GetRawMessageData(result[0])
 			canonVal := eraseMeta(string(vv))
-			canon.SaveJSON(t, helpers.AddIndentToJSON(t, canonVal))
+			canon.SaveJSON(t, canon2.AddIndentToJSON(t, canonVal))
 			break
 		}
 		time.Sleep(time.Second)

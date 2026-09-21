@@ -14,7 +14,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -39,7 +43,7 @@ var (
 func init() {
 	_ = os.Setenv("YC", "1")
 	Source.IncludeTables = []string{"DT_SHARD.*"}
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
 	}
@@ -52,22 +56,22 @@ func init() {
 // (not ORA_HASH or unsharded), and that final row counts match.
 func TestShardedSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
 	Source.RowIDBytesPerShard = 16 * 1024 // ~2 extents per range → ~6 ranges for 1000 rows with 8KB extents
 
 	cp := coordinator.NewStatefulFakeClient()
-	transfer := helpers.WithLocalRuntime(
-		helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType),
+	transfer := transferhelpers.WithLocalRuntime(
+		transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType),
 		2, // 2 workers → snapshotShardsNum=2, triggers sharding
 		1,
 	)
 
-	_, err := helpers.ActivateShardedWithCP(context.Background(), cp, nil, transfer, helpers.EmptyRegistry())
+	_, err := delivery.ActivateShardedWithCP(context.Background(), cp, nil, transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	// Verify ROWID sharding was actually used: parts must contain ROWID WHERE clauses.
@@ -79,6 +83,6 @@ func TestShardedSnapshot(t *testing.T) {
 			"part filter must use ROWID, got: %s", p.Filter)
 	}
 
-	helpers.CheckRowsCount(t, &Target, "dt_shard", "shard_pk", 1000)
-	helpers.CheckRowsCount(t, &Target, "dt_shard", "shard_nopk", 1000)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_shard", "shard_pk", 1000)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_shard", "shard_nopk", 1000)
 }

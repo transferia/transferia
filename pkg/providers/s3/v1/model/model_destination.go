@@ -60,10 +60,12 @@ type S3Destination struct {
 	MaxBytesPerFile int `log:"true"`
 
 	// Replication
-	RotatorType       RotatorType      `log:"true"`
-	RotatorConfig     RotatorUnion     `log:"true"`
-	PartitionerType   PartitionerType  `log:"true"`
-	PartitionerConfig PartitionerUnion `log:"true"`
+	RotatorType         RotatorType        `log:"true"`
+	RotatorConfig       RotatorUnion       `log:"true"`
+	PartitionerType     PartitionerType    `log:"true"`
+	PartitionerConfig   PartitionerUnion   `log:"true"`
+	TimeExtractorType   TimeExtractorType  `log:"true"`
+	TimeExtractorConfig TimeExtractorUnion `log:"true"`
 }
 
 var (
@@ -86,10 +88,17 @@ func (d *S3Destination) WithDefaults() {
 		d.BufferSize = model.BytesSize(clickhouse_model.BufferTriggingSizeDefault)
 	}
 	if d.RotatorType == "" {
-		d.RotatorConfig.Default = &DefaultRotatorConfig{Interval: 3600 * time.Second}
+		d.RotatorConfig.Default = &DefaultRotatorConfig{
+			Interval:                 3600 * time.Second,
+			MaxRecordsCount:          0,
+			IsRegularRotationEnabled: false,
+		}
 	}
 	if d.PartitionerType == "" {
 		d.PartitionerConfig.Default = &DefaultPartitionerConfig{}
+	}
+	if d.TimeExtractorType == "" {
+		d.TimeExtractorConfig.RecordMeta = &RecordMetaTimeExtractorConfig{}
 	}
 	if d.Cleanup == "" {
 		d.Cleanup = model.DisabledCleanup
@@ -135,6 +144,19 @@ func (d *S3Destination) Validate() error {
 			return xerrors.Errorf("unable to load timezone %q of the time based partitioner: %w", timeBased.Timezone, err)
 		}
 	}
+	if dataField, ok := d.GetTimeExtractor().(*DataFieldTimeExtractorConfig); ok {
+		if dataField.Column == "" {
+			return xerrors.New("the data field time extractor requires the name of the column holding the time")
+		}
+	}
+	if defaultRotator, ok := d.GetRotator().(*DefaultRotatorConfig); ok && defaultRotator != nil {
+		if defaultRotator.MaxRecordsCount < 0 {
+			return xerrors.New("max records count of the default rotator must be non-negative")
+		}
+		if defaultRotator.Interval <= 0 {
+			return xerrors.New("rotation interval of the default rotator must be positive")
+		}
+	}
 	return nil
 }
 
@@ -166,12 +188,7 @@ func (d *S3Destination) GetSerializer() SerializerConfig {
 }
 
 func (d *S3Destination) GetRotator() RotatorConfig {
-	switch d.RotatorType {
-	case DefaultRotator:
-		return d.RotatorConfig.Default
-	default:
-		return d.RotatorConfig.Default
-	}
+	return d.RotatorConfig.Default
 }
 
 func (d *S3Destination) GetPartitioner() PartitionerConfig {
@@ -183,4 +200,20 @@ func (d *S3Destination) GetPartitioner() PartitionerConfig {
 	default:
 		return d.PartitionerConfig.Default
 	}
+}
+
+// GetTimeExtractor never returns nil: endpoints created before the time extractor became
+// configurable carry an empty union, and the time source they were written with is the
+// record metadata one.
+func (d *S3Destination) GetTimeExtractor() TimeExtractorConfig {
+	switch d.TimeExtractorType {
+	case DataFieldTimeExtractor:
+		if d.TimeExtractorConfig.DataField != nil {
+			return d.TimeExtractorConfig.DataField
+		}
+	}
+	if d.TimeExtractorConfig.RecordMeta != nil {
+		return d.TimeExtractorConfig.RecordMeta
+	}
+	return &RecordMetaTimeExtractorConfig{}
 }

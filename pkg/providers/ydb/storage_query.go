@@ -174,7 +174,7 @@ func (s *Storage) LoadTableViaQueryService(ctx context.Context, tableDescr abstr
 	tablePath := s.makeTablePath(tableDescr.Schema, tableDescr.Name)
 	tableDescription, err := describeTable(ctx, s.db, tablePath)
 	if err != nil {
-		return xerrors.Errorf("unable to describe table: %w", err)
+		return xerrors.Errorf("unable to describe table: %w", WrapYDBError(err))
 	}
 
 	tableColumns, err := filterYdbTableColumns(s.config.TableColumnsFilter, *tableDescription)
@@ -193,7 +193,7 @@ func (s *Storage) LoadTableViaQueryService(ctx context.Context, tableDescr abstr
 	if err := s.db.Query().Do(ctx, func(ctx context.Context, session ydb_query.Session) error {
 		res, err = session.Query(ctx, selectQuery)
 		if err != nil {
-			return xerrors.Errorf("unable to execute query: %w", err)
+			return xerrors.Errorf("unable to execute query: %w", WrapYDBError(err))
 		}
 		return nil
 	}, ydb_query.WithIdempotent()); err != nil {
@@ -217,7 +217,7 @@ func (s *Storage) LoadTableViaQueryService(ctx context.Context, tableDescr abstr
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return xerrors.Errorf("unable to get next result set: %w", err)
+			return xerrors.Errorf("unable to get next result set: %w", WrapYDBError(err))
 		}
 
 		for {

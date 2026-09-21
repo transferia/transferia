@@ -11,8 +11,11 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
 	proxy "github.com/transferia/transferia/tests/helpers/proxies/http_proxy"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -23,15 +26,15 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "CH source", Port: Source.NativePort},
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "CH source", Port: Source.NativePort},
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 
@@ -50,16 +53,16 @@ func TestSnapshot(t *testing.T) {
 	Target.HTTPPort = dstProxy.ListenPort
 
 	t.Run("default, CSV case", func(t *testing.T) {
-		transfer := helpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
-		helpers.Activate(t, transfer)
-		require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+		transfer := transferhelpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
+		delivery.Activate(t, transfer)
+		require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "FORMAT CSV"))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "timeout_before_checking_execution_speed=0"))
 		require.True(t, proxy.CheckRequestContains(dstProxy.GetSniffedData(), "FORMAT CSV"))
 	})
 
 	t.Run("drop", func(t *testing.T) {
-		transfer := helpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
+		transfer := transferhelpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
 		host := &conn_clickhouse.Host{
 			Name:       "localhost",
 			NativePort: Target.NativePort,
@@ -84,9 +87,9 @@ func TestSnapshot(t *testing.T) {
 
 	t.Run("JSONCompactEachRow case", func(t *testing.T) {
 		Source.IOHomoFormat = clickhouse_model.ClickhouseIOFormatJSONCompact
-		transfer := helpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
-		helpers.Activate(t, transfer)
-		require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+		transfer := transferhelpers.MakeTransfer("fake", &Source, &Target, abstract.TransferTypeSnapshotOnly)
+		delivery.Activate(t, transfer)
+		require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "FORMAT JSONCompactEachRow"))
 		require.True(t, proxy.CheckRequestContains(srcProxy.GetSniffedData(), "timeout_before_checking_execution_speed=0"))
 		require.True(t, proxy.CheckRequestContains(dstProxy.GetSniffedData(), "FORMAT JSONCompactEachRow"))

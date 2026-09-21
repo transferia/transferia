@@ -25,7 +25,8 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/sink_factory"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/testenv"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -149,14 +150,14 @@ func getAlterableDestination(t *testing.T, sinkType abstract.ProviderType) (mode
 	case provider_postgres.ProviderType:
 		return pgrecipe.RecipeTarget(), nil
 	case provider_mysql.ProviderType:
-		return helpers.RecipeMysqlTarget(), nil
+		return mysql.RecipeMysqlTarget(), nil
 	case provider_clickhouse.ProviderType:
 		return chrecipe.MustTarget(chrecipe.WithInitFile("data/ch.sql"), chrecipe.WithDatabase("test"), chrecipe.WithPrefix("DB0_")), nil
 	case provider_ydb.ProviderType:
 		dst := provider_ydb.YdbDestination{
 			Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-			Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-			Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+			Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+			Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		}
 		dst.WithDefaults()
 		return &dst, nil

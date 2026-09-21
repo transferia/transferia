@@ -69,11 +69,11 @@ func (c *commitClient) sortTable(currentPath ypath.Path, sortedPath ypath.Path) 
 	}
 	mergeOperation, err := sortClient.Sort(sortSpec)
 	if err != nil {
-		return "", xerrors.Errorf("unable to start sorting operation: %w", provider_yt.WrapTooManyOperationsError(err))
+		return "", xerrors.Errorf("unable to start sorting operation: %w", provider_yt.WrapYTError(err))
 	}
 
 	if err := mergeOperation.Wait(); err != nil {
-		return "", xerrors.Errorf("unable to finish sort operation or to check operation status: %w", err)
+		return "", xerrors.Errorf("unable to finish sort operation or to check operation status: %w", provider_yt.WrapYTError(err))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -121,11 +121,11 @@ func (c *commitClient) mergeTables(currentPath ypath.Path, userPath ypath.Path, 
 	}
 	mergeOperation, err := mergeClient.Merge(mergeSpec)
 	if err != nil {
-		return xerrors.Errorf("unable to start merging operation: %w", provider_yt.WrapTooManyOperationsError(err))
+		return xerrors.Errorf("unable to start merging operation: %w", provider_yt.WrapYTError(err))
 	}
 
 	if err := mergeOperation.Wait(); err != nil {
-		return xerrors.Errorf("unable to finish merge operation or to check operation status: %w", err)
+		return xerrors.Errorf("unable to finish merge operation or to check operation status: %w", provider_yt.WrapYTError(err))
 	}
 
 	return nil
@@ -171,11 +171,11 @@ func (c *commitClient) reduceTables(currentPath, userPath, reducedPath, pathToBi
 
 	reduceOperation, err := reduceClient.Reduce(ytmerge.NewMergeWithDeduplicationJob(), reduceSpec, reduceOpts...)
 	if err != nil {
-		return "", xerrors.Errorf("unable to start reduce operation: %w", provider_yt.WrapTooManyOperationsError(err))
+		return "", xerrors.Errorf("unable to start reduce operation: %w", provider_yt.WrapYTError(err))
 	}
 
 	if err = reduceOperation.Wait(); err != nil {
-		return "", xerrors.Errorf("unable to reduce: %w", err)
+		return "", xerrors.Errorf("unable to reduce: %w", provider_yt.WrapYTError(err))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -205,7 +205,7 @@ func (c *commitClient) createTableForOperation(tablePath ypath.Path, scheme ytsc
 	defer cancel()
 	createOptions := createNodeOptions(scheme, c.OptimizedFor, c.CustomAttributes)
 	if _, err := c.Tx.CreateNode(ctx, tablePath, yt.NodeTable, &createOptions); err != nil {
-		return provider_yt.WrapCreateNodeCodecError(err)
+		return provider_yt.WrapYTError(err)
 	}
 
 	return nil

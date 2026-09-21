@@ -11,8 +11,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 var path = "dectest/timmyb32r-test"
@@ -44,8 +48,8 @@ func anyTablesUdf(table abstract.TableID, schema abstract.TableColumns) bool {
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -63,23 +67,23 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		currChangeItem := helpers.YDBInitChangeItem(path)
+		currChangeItem := testdata.YDBInitChangeItem(path)
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 	})
 
 	dst := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	dst.WithDefaults()
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 
-	serdeTransformer := helpers.NewSimpleTransformer(t, serdeUdf, anyTablesUdf)
-	helpers.AddTransformer(t, transfer, serdeTransformer)
+	serdeTransformer := transformerhelpers.NewSimpleTransformer(t, serdeUdf, anyTablesUdf)
+	transformerhelpers.AddTransformer(t, transfer, serdeTransformer)
 
 	t.Run("activate", func(t *testing.T) {
-		helpers.Activate(t, transfer)
+		delivery.Activate(t, transfer)
 	})
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -90,7 +94,7 @@ func TestGroup(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transferMock := helpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
+	transferMock := transferhelpers.MakeTransfer("fake", src, &targetMock, abstract.TransferTypeSnapshotOnly)
 	var extractedChangeItem abstract.ChangeItem
 	t.Run("extract change_item from dst", func(t *testing.T) {
 		sinkMock.PushCallback = func(input []abstract.ChangeItem) error {
@@ -101,7 +105,7 @@ func TestGroup(t *testing.T) {
 			}
 			return nil
 		}
-		helpers.Activate(t, transferMock)
+		delivery.Activate(t, transferMock)
 	})
 
 	sourceChangeItem.CommitTime = 0

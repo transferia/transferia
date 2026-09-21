@@ -8,7 +8,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -19,7 +23,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 	}
 	Target = helpers_yt.RecipeYtTarget("//home/cdc/test/pg2yt_e2e")
 )
@@ -30,12 +34,12 @@ func init() {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -45,18 +49,18 @@ func TestGroup(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	Source.PreSteps.Constraint = true
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 
-	require.NoError(t, helpers.CompareStorages(t, Source, Target.LegacyModel(), helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 }
 
 func SnapshotOldVersion(t *testing.T) {
 	SourceCopy := Source
 	SourceCopy.DBTables = []string{"test_timestamp"}
-	transfer := helpers.MakeTransfer(helpers.TransferID, &SourceCopy, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &SourceCopy, Target, abstract.TransferTypeSnapshotOnly)
 	transfer.TypeSystemVersion = 1
 
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 }

@@ -13,8 +13,12 @@ import (
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
@@ -133,17 +137,17 @@ INSERT INTO public.basic_types VALUES (
 `
 
 func init() {
-	_ = os.Setenv("YC", "1")                                                                            // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                                                            // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestSnapshotAndIncrement(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-		helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
+		network.LabeledPort{Label: "PG target", Port: Target.Port},
 	))
 
 	//---
@@ -157,7 +161,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	require.NoError(t, err)
 	receiver := debezium.NewReceiver(nil, nil)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.Src.(*provider_postgres.PgSource).NoHomo = true
 	transfer.Src.(*provider_postgres.PgSource).PreSteps.Table = false
 	transfer.Src.(*provider_postgres.PgSource).PreSteps.PrimaryKey = false
@@ -165,7 +169,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	debeziumSerDeTransformer := helpers_transformer.NewSimpleTransformer(t, serde.MakeDebeziumSerDeUdfWithoutCheck(emitter, receiver), serde.AnyTablesUdf)
 	require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	//---
 
@@ -178,7 +182,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	//---
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "basic_types", helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 2))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "basic_types", storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second, 2))
 	require.Equal(t, 2, serde.CountOfProcessedMessage)
 }
 

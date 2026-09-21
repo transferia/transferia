@@ -10,22 +10,26 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestSnapshotAndReplicationViewsCompatibility(t *testing.T) {
-	source := *helpers.RecipeMysqlSource()
+	source := *mysql.RecipeMysqlSource()
 	source.PreSteps.View = true
-	target := *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
-		helpers.LabeledPort{Label: "Mysql target", Port: target.Port},
+	target := *mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "Mysql source", Port: source.Port},
+		network.LabeledPort{Label: "Mysql target", Port: target.Port},
 	))
-	transfer := helpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotAndIncrement)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotAndIncrement)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	require.NoError(t, helpers.CompareStorages(t, source, target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, source, target, storagecomparison.NewCompareStorageParams()))
 
 	requests := []string{
 		"update test set name = 'Test Name' where id = 1;",
@@ -54,5 +58,5 @@ func TestSnapshotAndReplicationViewsCompatibility(t *testing.T) {
 
 	err = conn.Close()
 	require.NoError(t, err)
-	require.NoError(t, helpers.CompareStorages(t, source, target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, source, target, storagecomparison.NewCompareStorageParams()))
 }

@@ -19,12 +19,15 @@ import (
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
-	Source = *helpers.RecipeMysqlSource()
-	Target = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source = *mysql.RecipeMysqlSource()
+	Target = *mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
@@ -40,9 +43,9 @@ func Existence(t *testing.T) {
 }
 
 func Snapshot(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
-	require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry()))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	require.NoError(t, tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }
 
 func defaultChecksumParams() *tasks.ChecksumParameters {
@@ -65,7 +68,7 @@ func Load(t *testing.T) {
 		Port:     Source.Port,
 	}
 	sourceAsDestination.WithDefaults()
-	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, helpers.EmptyRegistry())
+	_, err := provider_mysql.NewSinker(logger.Log, &sourceAsDestination, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	connector := &model.Transfer{
@@ -78,13 +81,13 @@ func Load(t *testing.T) {
 	err = provider_mysql.SyncBinlogPosition(&Source, connector.ID, fakeClient)
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(fakeClient, connector, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(fakeClient, connector, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotAndIncrement)
 
-	tables, err := tasks.ObtainAllSrcTables(transfer, helpers.EmptyRegistry())
+	tables, err := tasks.ObtainAllSrcTables(transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	logger.Log.Infof("Tables on source: %v", tables)
 
@@ -121,7 +124,7 @@ func Load(t *testing.T) {
 
 	require.NoError(t, waitForSync(t))
 
-	require.NoError(t, tasks.Checksum(*transfer, logger.Log, helpers.EmptyRegistry(), defaultChecksumParams(), &model.TransferOperation{}))
+	require.NoError(t, tasks.Checksum(*transfer, logger.Log, testmetrics.EmptyRegistry(), defaultChecksumParams(), &model.TransferOperation{}))
 }
 
 func waitForSync(t *testing.T) error {

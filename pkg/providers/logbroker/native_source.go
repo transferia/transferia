@@ -32,12 +32,18 @@ func newNativeSource(cfg *LbSource, logger log.Logger, registry core_metrics.Reg
 		Topics:   []string{cfg.Topic},
 		Consumer: cfg.Consumer,
 		ReaderOpts: topicsource.ReaderOptions{
-			ReadOnlyLocal:       false,
-			MaxMemory:           100 * 1024 * 1024, // 100 mb max memory usage
-			MaxReadSize:         1 * 1024 * 1024,
-			MaxReadMessageCount: 0,
-			MaxTimeLag:          0,
-			MinReadInterval:     0,
+			MaxMemory: 100 * 1024 * 1024, // 100 MiB max memory usage.
+			PQv1: topicsource.PQv1ReaderOptions{
+				ReadOnlyLocal:       false,
+				MaxReadSize:         1 * 1024 * 1024,
+				MaxReadMessageCount: 0,
+				MaxTimeLag:          0,
+				MinReadInterval:     0,
+			},
+			TopicAPI: topicsource.TopicAPIReaderOptions{
+				MaxBatchSize:         0,
+				MaxBatchMessageCount: 0,
+			},
 		},
 		Transformer: nil,
 

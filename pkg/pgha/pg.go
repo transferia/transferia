@@ -54,7 +54,7 @@ func (pg *PgHA) Close() error {
 func (pg *PgHA) hostByRole(role dbaas.Role) (*string, error) {
 	var node hasql.Node
 	// Create cluster handler
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	var err error
 	if role == dbaas.ANY {
@@ -65,6 +65,9 @@ func (pg *PgHA) hostByRole(role dbaas.Role) (*string, error) {
 		node, err = pg.cluster.WaitForPrimary(ctx)
 	}
 	if err != nil {
+		if role == dbaas.MASTER {
+			return nil, coded.Errorf(error_codes.PostgresMasterUnavailable, "There are no available hosts with role %v: %w", role, err)
+		}
 		return nil, xerrors.Errorf("There are no available hosts with role %v: %w", role, err)
 	}
 
@@ -244,7 +247,10 @@ func NewFromHosts(dbName, user, password string, hosts []string, port int, ssl b
 	if len(pingErrs) > 0 && len(pingErrs) == len(hosts) {
 		logger.Log.Error("unable to ping any host", log.Any("error", pingErrs))
 		joinedErr := errors.Join(pingErrs...)
-		if pgerrors.AnyErrHasCode(pingErrs, pgerrors.ErrcInvalidPassword, pgerrors.ErrcInvalidAuthSpec, pgerrors.ErrcInvalidCatalogName) {
+		if pgerrors.AnyErrHasCode(pingErrs, pgerrors.ErrcInvalidCatalogName) {
+			return nil, coded.Errorf(error_codes.PostgresDatabaseNotFound, "All hosts are unavailable: database does not exist: %w", joinedErr)
+		}
+		if pgerrors.AnyErrHasCode(pingErrs, pgerrors.ErrcInvalidPassword, pgerrors.ErrcInvalidAuthSpec) {
 			return nil, coded.Errorf(error_codes.InvalidCredential, "All hosts are unavailable due to authentication failure: %w", joinedErr)
 		}
 		return nil, coded.Errorf(error_codes.PostgresAllHostsUnavailable, "All hosts are unavailable: %w", joinedErr)

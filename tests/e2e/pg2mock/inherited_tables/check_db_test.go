@@ -14,8 +14,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -105,8 +109,8 @@ func requireAllNamesSame(t *testing.T, expectedName string, items []abstract.Cha
 }
 
 func TestSnapshotAndIncrement(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: SourceNoCollapse.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: SourceNoCollapse.Port},
 	))
 
 	partitionedTable := *abstract.NewTableID("public", "log_table_declarative_partitioning")
@@ -124,7 +128,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinkerNoCollapse },
 		Cleanup:       model.Drop,
 	}
-	transferNoCollapse := helpers.MakeTransfer("fake_no_collapse", &SourceNoCollapse, &targetNoCollapse, abstract.TransferTypeSnapshotAndIncrement)
+	transferNoCollapse := transferhelpers.MakeTransfer("fake_no_collapse", &SourceNoCollapse, &targetNoCollapse, abstract.TransferTypeSnapshotAndIncrement)
 
 	var changeItemsNoCollapse []abstract.ChangeItem
 	sinkerNoCollapse.PushCallback = func(input []abstract.ChangeItem) error {
@@ -142,7 +146,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		return nil
 	}
 
-	worker1 := helpers.Activate(t, transferNoCollapse)
+	worker1 := delivery.Activate(t, transferNoCollapse)
 	defer worker1.Close(t)
 
 	waitForLoaded(t, &changeItemsNoCollapse, &sinkerNoCollapseMutex, 46, 30*time.Second)
@@ -175,7 +179,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinkerCollapse },
 		Cleanup:       model.Drop,
 	}
-	transferCollapse := helpers.MakeTransfer("fake_collapse", &SourceCollapse, &targetCollapse, abstract.TransferTypeSnapshotAndIncrement)
+	transferCollapse := transferhelpers.MakeTransfer("fake_collapse", &SourceCollapse, &targetCollapse, abstract.TransferTypeSnapshotAndIncrement)
 
 	var changeItemsCollapse []abstract.ChangeItem
 	sinkerCollapse.PushCallback = func(input []abstract.ChangeItem) error {
@@ -191,7 +195,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		return nil
 	}
 
-	worker2 := helpers.Activate(t, transferCollapse)
+	worker2 := delivery.Activate(t, transferCollapse)
 	defer worker2.Close(t)
 
 	waitForLoaded(t, &changeItemsCollapse, &sinkerCollapseMutex, 34, 30*time.Second)
@@ -217,7 +221,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	//---
 
-	sinkToSource, err := provider_postgres.NewSink(logger.Log, helpers.TransferID, SourceCollapse.ToSinkParams(), helpers.EmptyRegistry())
+	sinkToSource, err := provider_postgres.NewSink(logger.Log, transferhelpers.TransferID, SourceCollapse.ToSinkParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	schema := abstract.NewTableSchema([]abstract.ColSchema{
@@ -231,8 +235,8 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		{"id": 102, "logdate": "2022-02-08", "msg": "repl_msg"},
 	}
 
-	changeItemBuilderPartitioned := helpers.NewChangeItemsBuilder("public", "log_table_declarative_partitioning", schema)
-	changeItemBuilderParent := helpers.NewChangeItemsBuilder("public", "log_table_inheritance_partitioning", schema)
+	changeItemBuilderPartitioned := changeitem.NewChangeItemsBuilder("public", "log_table_declarative_partitioning", schema)
+	changeItemBuilderParent := changeitem.NewChangeItemsBuilder("public", "log_table_inheritance_partitioning", schema)
 	require.NoError(t, sinkToSource.Push(changeItemBuilderPartitioned.Inserts(t, valuesForPartitions)))
 	require.NoError(t, sinkToSource.Push(changeItemBuilderParent.Inserts(t, valuesForPartitions)))
 
@@ -289,8 +293,8 @@ func testDBLogEnabled(t *testing.T) {
 		{"id": 402, "logdate": "2022-04-08", "msg": "repl_msg"},
 		{"id": 403, "logdate": "2022-04-09", "msg": "repl_msg"},
 	}
-	changeItemBuilderParent := helpers.NewChangeItemsBuilder("public", "log_table_declarative_partitioning", schema)
-	sinkToSource, err := provider_postgres.NewSink(logger.Log, helpers.TransferID, SourceCollapseDBLogEnabled.ToSinkParams(), helpers.EmptyRegistry())
+	changeItemBuilderParent := changeitem.NewChangeItemsBuilder("public", "log_table_declarative_partitioning", schema)
+	sinkToSource, err := provider_postgres.NewSink(logger.Log, transferhelpers.TransferID, SourceCollapseDBLogEnabled.ToSinkParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	var changeItemsCollapse []abstract.ChangeItem
@@ -317,8 +321,8 @@ func testDBLogEnabled(t *testing.T) {
 		return nil
 	}
 
-	transferDBLogEnabled := helpers.MakeTransfer("fake_collapse_dblog_enabled", &SourceCollapseDBLogEnabled, &targetCollapse, abstract.TransferTypeSnapshotAndIncrement)
-	workerDBLogEnabled := helpers.Activate(t, transferDBLogEnabled)
+	transferDBLogEnabled := transferhelpers.MakeTransfer("fake_collapse_dblog_enabled", &SourceCollapseDBLogEnabled, &targetCollapse, abstract.TransferTypeSnapshotAndIncrement)
+	workerDBLogEnabled := delivery.Activate(t, transferDBLogEnabled)
 	defer workerDBLogEnabled.Close(t)
 
 	waitForLoaded(t, &changeItemsCollapse, &sinkerCollapseMutex, 28, 30*time.Second) // 1 drop table + 12 values before snapshot + 5 * 3 values during snapshot

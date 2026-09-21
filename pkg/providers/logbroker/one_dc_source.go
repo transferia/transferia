@@ -1,8 +1,6 @@
 package logbroker
 
 import (
-	"slices"
-
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -36,7 +34,10 @@ func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Regi
 		rollbacks.Add(resourceable.ResourcesObj().Close)
 	}
 
-	topicSourceCfg := cfg.buildTopicSourceConfig()
+	topicSourceCfg, err := cfg.buildTopicSourceConfig()
+	if err != nil {
+		return nil, abstract.NewFatalError(xerrors.Errorf("unable to build topic source config: %w", err))
+	}
 
 	var source abstract.Source
 	if cfg.UseTopicAPI {
@@ -57,10 +58,6 @@ func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Regi
 }
 
 func checkInstanceValidity(configInstance LogbrokerInstance) bool {
-	for _, knownInstances := range KnownClusters {
-		if slices.Contains(knownInstances, configInstance) {
-			return true
-		}
-	}
-	return false
+	_, ok := installationByInstance(configInstance)
+	return ok
 }

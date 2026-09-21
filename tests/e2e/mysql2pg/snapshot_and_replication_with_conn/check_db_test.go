@@ -12,13 +12,17 @@ import (
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 
-	Source, srcConnection = helpers.RecipeMysqlSourceWithConnection("source_mysql_conn_id")
+	Source, srcConnection = mysql.RecipeMysqlSourceWithConnection("source_mysql_conn_id")
 	Target                = *pgrecipe.RecipeTarget(pgrecipe.WithPrefix(""), pgrecipe.WithConnection("target_pg_conn_id"))
 	targetConnection      = pgrecipe.ManagedConnection(pgrecipe.WithPrefix(""))
 )
@@ -29,15 +33,15 @@ func init() {
 	Target.Cleanup = model.Drop
 	targetConnection.ClusterID = os.Getenv("TARGET_CLUSTER_ID")
 
-	helpers.InitSrcDst(helpers.TransferID, Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	helpers.InitConnectionResolver(map[string]connection.ManagedConnection{"source_mysql_conn_id": srcConnection, "target_pg_conn_id": targetConnection})
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	network.InitConnectionResolver(map[string]connection.ManagedConnection{"source_mysql_conn_id": srcConnection, "target_pg_conn_id": targetConnection})
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: srcConnection.Hosts[0].Port},
-			helpers.LabeledPort{Label: "Pg target", Port: targetConnection.Hosts[0].Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: srcConnection.Hosts[0].Port},
+			network.LabeledPort{Label: "Pg target", Port: targetConnection.Hosts[0].Port},
 		))
 	}()
 
@@ -56,10 +60,10 @@ func Existence(t *testing.T) {
 }
 
 func Snapshot(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, &Target, TransferType)
-	_ = helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, &Target, TransferType)
+	_ = delivery.Activate(t, transfer)
 
-	require.NoError(t, helpers.WaitStoragesSynced(t, Source, Target, 30, helpers.NewCompareStorageParams())) // 30 * 2 seconds should be enough
+	require.NoError(t, storagecomparison.WaitStoragesSynced(t, Source, Target, 30, storagecomparison.NewCompareStorageParams())) // 30 * 2 seconds should be enough
 }
 
 func Replication(t *testing.T) {
@@ -71,7 +75,7 @@ func Replication(t *testing.T) {
 	execCheck(t, db, "UPDATE test SET val = 'test' WHERE id = 1")
 	execCheck(t, db, "DELETE FROM test WHERE id = 2")
 
-	require.NoError(t, helpers.WaitStoragesSynced(t, Source, Target, 30, helpers.NewCompareStorageParams())) // 30 * 2 seconds should be enough
+	require.NoError(t, storagecomparison.WaitStoragesSynced(t, Source, Target, 30, storagecomparison.NewCompareStorageParams())) // 30 * 2 seconds should be enough
 }
 
 func execCheck(t *testing.T, db *sql.DB, query string) {

@@ -16,7 +16,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 )
 
@@ -153,8 +153,8 @@ func TestCheckTypeCompatibilityWithPrecision(t *testing.T) {
 
 func TestIncrementalSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 

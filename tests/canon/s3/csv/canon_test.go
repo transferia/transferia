@@ -14,7 +14,8 @@ import (
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	"github.com/transferia/transferia/tests/canon/validator"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -166,8 +167,8 @@ func TestCanonSource(t *testing.T) {
 			ColumnName:  "any",
 		},
 	}
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		src,
 		&model.MockDestination{
 			SinkerFactory: validator.New(
@@ -182,7 +183,7 @@ func TestCanonSource(t *testing.T) {
 		},
 		abstract.TransferTypeSnapshotOnly,
 	)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	time.Sleep(1 * time.Second)
@@ -236,7 +237,7 @@ func TestNativeS3WithProvidedSchemaAndSystemCols(t *testing.T) {
 		},
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, &model.MockDestination{
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, &model.MockDestination{
 		SinkerFactory: validator.New(
 			model.IsStrictSource(src),
 			validator.Canonizator(t, storeItems),
@@ -244,7 +245,7 @@ func TestNativeS3WithProvidedSchemaAndSystemCols(t *testing.T) {
 		Cleanup: model.DisabledCleanup,
 	}, abstract.TransferTypeSnapshotOnly)
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	require.Len(t, processed, 3)
 
@@ -320,7 +321,7 @@ func TestNativeS3MissingColumnsAreFilled(t *testing.T) {
 		},
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, &model.MockDestination{
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, &model.MockDestination{
 		SinkerFactory: validator.New(
 			model.IsStrictSource(src),
 			validator.Canonizator(t, storeItems),
@@ -328,7 +329,7 @@ func TestNativeS3MissingColumnsAreFilled(t *testing.T) {
 		Cleanup: model.DisabledCleanup,
 	}, abstract.TransferTypeSnapshotOnly)
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	require.Len(t, processed, 3)
 

@@ -122,7 +122,12 @@ func (p *GenericParser) genericParse(msg parsers.Message, partition abstract.Par
 			continue
 		}
 		if p.auxOpts.AddRest {
-			bldr.Column("_rest", rest)
+			bldr.Column("_rest", makeRest(
+				rest,
+				p.known,
+				p.rawFields,
+				p.auxOpts.IgnoreColumnPaths,
+			))
 		}
 		bldr.Column("_timestamp", msg.WriteTime)
 		bldr.Column("_idx", idx)

@@ -17,7 +17,11 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -32,7 +36,7 @@ var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 	Source       = provider_mongo.MongoSource{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
 		User:     os.Getenv("MONGO_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
 		Collections: []provider_mongo.MongoCollection{
@@ -43,7 +47,7 @@ var (
 	}
 	Target = provider_mongo.MongoDestination{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("DB0_MONGO_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("DB0_MONGO_LOCAL_PORT"),
 		User:     os.Getenv("DB0_MONGO_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("DB0_MONGO_LOCAL_PASSWORD")),
 		Cleanup:  model.Drop,
@@ -51,8 +55,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 type KV struct {
@@ -99,9 +103,9 @@ func MakeDstClient(t *provider_mongo.MongoDestination) (*provider_mongo.MongoCli
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: Target.Port},
 		))
 	}()
 
@@ -166,12 +170,12 @@ func LoadFromchangestream(t *testing.T) {
 
 	// start replication
 	Source.ReplicationSource = provider_mongo.MongoReplicationSourcePerDatabaseFullDocument // set fetch mode
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	errChan := make(chan error, 1)
 	go func() {
 		errChan <- localWorker.Run() // like .Start(), but we in control for processing error in test
@@ -217,7 +221,7 @@ func LoadFromchangestream(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 
 	// insert large documents
 	for _, coll := range []*mongo_driver.Collection{coll1toolarge, coll2toolarge} {
@@ -259,12 +263,12 @@ func LoadFrompurecursor(t *testing.T) {
 
 	// start replication
 	Source.ReplicationSource = provider_mongo.MongoReplicationSourcePerDatabase
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer func() { _ = localWorker.Stop() }()
 
@@ -306,7 +310,7 @@ func LoadFrompurecursor(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 
 	// insert large documents
 	const badInsertionsSize uint64 = 19923008
@@ -339,7 +343,7 @@ func LoadFrompurecursor(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }
 
 func LoadFromoplog(t *testing.T) {
@@ -354,12 +358,12 @@ func LoadFromoplog(t *testing.T) {
 
 	// start replication
 	Source.ReplicationSource = provider_mongo.MongoReplicationSourceOplog // set replication source
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer func() { _ = localWorker.Stop() }()
 
@@ -375,5 +379,5 @@ func LoadFromoplog(t *testing.T) {
 	// wait for large document insertion
 	time.Sleep(5 * time.Second)
 
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

@@ -7,13 +7,16 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
 
-func lookupComplex(obj interface{}, path string) (interface{}, error) {
+func splitColumnPath(path string) []string {
 	fieldNames := strings.Split(path, ".")
 	if len(fieldNames) == 1 {
 		fieldNames = strings.Split(path, "/")
 	}
+	return fieldNames
+}
 
-	for _, fieldName := range fieldNames {
+func lookupComplex(obj interface{}, path string) (interface{}, error) {
+	for _, fieldName := range splitColumnPath(path) {
 		var m map[string]interface{}
 		switch value := obj.(type) {
 		case map[string]interface{}:

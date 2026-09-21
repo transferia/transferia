@@ -15,7 +15,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -32,9 +35,9 @@ var (
 
 func TestNativeS3(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "CH target Native", Port: target.NativePort},
-			helpers.LabeledPort{Label: "CH target HTTP", Port: target.HTTPPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "CH target Native", Port: target.NativePort},
+			network.LabeledPort{Label: "CH target HTTP", Port: target.HTTPPort},
 		))
 	}()
 
@@ -64,8 +67,8 @@ func TestNativeS3(t *testing.T) {
 	src.WithDefaults()
 	target.WithDefaults()
 
-	transfer := helpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
 
-	helpers.Activate(t, transfer)
-	helpers.CheckRowsCount(t, &target, "clickhouse_test", "data", 415)
+	delivery.Activate(t, transfer)
+	storagecomparison.CheckRowsCount(t, &target, "clickhouse_test", "data", 415)
 }

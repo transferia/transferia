@@ -17,7 +17,12 @@ import (
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -25,7 +30,7 @@ import (
 )
 
 var (
-	source = helpers.RecipeMysqlSource()
+	source = mysql.RecipeMysqlSource()
 	target = helpers_yt.RecipeYtTarget("//home/cdc/test/mysql2yt_e2e_replication")
 
 	sourceDatabase   = os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE")
@@ -47,12 +52,12 @@ func makeConnConfig() *mysql_driver2.Config {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(target.Cluster())
+	targetPort, err := network.GetPortFromStr(target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -72,12 +77,12 @@ func TestGroup(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{fmt.Sprintf("%s.__test", sourceDatabase)}}
 
 	ctx := context.Background()
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err := snapshotLoader.LoadSnapshot(ctx)
 	require.NoError(t, err)
 
@@ -85,7 +90,7 @@ func Load(t *testing.T) {
 	err = provider_mysql.SyncBinlogPosition(source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(fakeClient, transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -99,7 +104,7 @@ func Load(t *testing.T) {
 	_, err = db.Exec("INSERT INTO `__not_included_test` (`id`, `value`) VALUES (4, 'retroCarzzz')")
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, source.Database, "__test", helpers.GetSampleableStorageByModel(t, source), helpers.GetSampleableStorageByModel(t, target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, source.Database, "__test", storagecomparison.GetSampleableStorageByModel(t, source), storagecomparison.GetSampleableStorageByModel(t, target.LegacyModel()), 60*time.Second))
 
 	ytEnv, cancel := yttest.NewEnv(t)
 	defer cancel()

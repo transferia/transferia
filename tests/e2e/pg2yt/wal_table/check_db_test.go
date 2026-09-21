@@ -12,7 +12,12 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -32,12 +37,12 @@ var (
 func TestGroup(t *testing.T) {
 	target.WithDefaults()
 
-	targetPort, err := helpers.GetPortFromStr(target.Cluster())
+	targetPort, err := network.GetPortFromStr(target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -45,7 +50,7 @@ func TestGroup(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 
 	commitTime := uint64(1714117589532851000)
 	lsn := uint64(1000)
@@ -74,9 +79,9 @@ func Load(t *testing.T) {
 		}
 	}
 
-	lsnTransformer := helpers.NewSimpleTransformer(t, fixLSN, func(abstract.TableID, abstract.TableColumns) bool { return true })
-	helpers.AddTransformer(t, transfer, lsnTransformer)
-	worker := helpers.Activate(t, transfer)
+	lsnTransformer := transformerhelpers.NewSimpleTransformer(t, fixLSN, func(abstract.TableID, abstract.TableColumns) bool { return true })
+	transformerhelpers.AddTransformer(t, transfer, lsnTransformer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//------------------------------------------------------------------------------
@@ -95,7 +100,7 @@ func Load(t *testing.T) {
 	_, err = srcConn.Exec(ctx, `DELETE FROM public.test WHERE str = 'this should be deleted';`)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "test", helpers.GetSampleableStorageByModel(t, source), helpers.GetSampleableStorageByModel(t, target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "test", storagecomparison.GetSampleableStorageByModel(t, source), storagecomparison.GetSampleableStorageByModel(t, target.LegacyModel()), 60*time.Second))
 
 	ytEnv, cancel := yttest.NewEnv(t)
 	defer cancel()

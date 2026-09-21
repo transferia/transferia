@@ -23,8 +23,10 @@ import (
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"github.com/transferia/transferia/pkg/terryid"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -86,10 +88,10 @@ func runSecondaryWorker(ctx context.Context, t *testing.T, cp coordinator.Coordi
 
 func TestBigTable(t *testing.T) {
 	target := s3recipe.PrepareS3(t, t.Name(), model.ParsingFormatJSON, s3_model.NoEncoding)
-	helpers.InitSrcDst(helpers.TransferID, source, target, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, transferType)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, transferType)
+	delivery.Activate(t, transfer)
 
 	ytc, err := yt_client.NewYtClientWrapper(yt_client.HTTP, nil, &yt.Config{Proxy: source.YtProxy, Token: source.YtToken})
 	require.NoError(t, err)
@@ -151,9 +153,9 @@ func TestBigTable(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinkMock },
 		Cleanup:       model.DisabledCleanup,
 	}
-	helpers.InitSrcDst(helpers.TransferID, s3Src, targetMock, transferType)
-	transfer = helpers.MakeTransfer(helpers.TransferID, s3Src, targetMock, transferType)
-	helpers.Activate(t, transfer)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, s3Src, targetMock, transferType)
+	transfer = transferhelpers.MakeTransfer(transferhelpers.TransferID, s3Src, targetMock, transferType)
+	delivery.Activate(t, transfer)
 
 	require.Equal(t, int64(1), minVal)
 	require.Equal(t, rowCount, maxVal)
@@ -178,12 +180,12 @@ func TestBigTableWithParallelWorkers(t *testing.T) {
 	source.DesiredPartSizeBytes = 1024 * 1024 // 1MB
 	target := s3recipe.PrepareS3(t, t.Name(), model.ParsingFormatJSON, s3_model.NoEncoding)
 	target.MaxItemsPerFile = 30000
-	helpers.InitSrcDst(helpers.TransferID, source, target, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, transferType)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, transferType)
 
 	workersCount := 2
-	transfer = helpers.WithLocalRuntime(transfer, workersCount, 2)
+	transfer = transferhelpers.WithLocalRuntime(transfer, workersCount, 2)
 
 	cp := coordinator.NewStatefulFakeClient()
 
@@ -206,7 +208,7 @@ func TestBigTableWithParallelWorkers(t *testing.T) {
 	}
 
 	logger.Log.Info("Starting main worker")
-	err := tasks.ActivateDelivery(ctx, task, cp, *transfer, helpers.EmptyRegistry())
+	err := tasks.ActivateDelivery(ctx, task, cp, *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -276,9 +278,9 @@ func TestBigTableWithParallelWorkers(t *testing.T) {
 	}
 
 	logger.Log.Info("start transfer from s3 to mock sink")
-	helpers.InitSrcDst(helpers.TransferID, s3Src, targetMock, transferType)
-	transfer = helpers.MakeTransfer(helpers.TransferID, s3Src, targetMock, transferType)
-	helpers.Activate(t, transfer)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, s3Src, targetMock, transferType)
+	transfer = transferhelpers.MakeTransfer(transferhelpers.TransferID, s3Src, targetMock, transferType)
+	delivery.Activate(t, transfer)
 
 	logger.Log.Info("end transfer from s3 to mock sink")
 	logger.Log.Infof("totalCnt: %d", totalCnt)

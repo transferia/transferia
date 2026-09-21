@@ -14,7 +14,10 @@ import (
 	yt_recipe "github.com/transferia/transferia/pkg/providers/yt/recipe"
 	yt_sink "github.com/transferia/transferia/pkg/providers/yt/sink"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
@@ -46,11 +49,11 @@ var (
 )
 
 func TestYTSnapshotWithShuffledColumns(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Dst.Cluster())
+	targetPort, err := network.GetPortFromStr(Dst.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YT DST", Port: targetPort}))
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YT DST", Port: targetPort}))
 	}()
 
 	ytEnv, cancel := yt_recipe.NewEnv(t)
@@ -68,7 +71,7 @@ func TestYTSnapshotWithShuffledColumns(t *testing.T) {
 }
 
 func prepareDst(t *testing.T) {
-	currentSink, err := yt_sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry())
+	currentSink, err := yt_sink.NewSinker(Dst, transferhelpers.TransferID, logger.Log, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	require.NoError(t, currentSink.Push([]abstract.ChangeItem{{
@@ -82,7 +85,7 @@ func prepareDst(t *testing.T) {
 }
 
 func fillDestination(t *testing.T) {
-	currentSink, err := yt_sink.NewSinker(Dst, helpers.TransferID, logger.Log, helpers.EmptyRegistry())
+	currentSink, err := yt_sink.NewSinker(Dst, transferhelpers.TransferID, logger.Log, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	defer require.NoError(t, currentSink.Close())
 
@@ -122,7 +125,7 @@ func checkData(t *testing.T) {
 		Name:   TestTableName,
 		Schema: "",
 	}
-	changeItems := helpers.LoadTable(t, st, td)
+	changeItems := storage.LoadTable(t, st, td)
 
 	var data []map[string]interface{}
 	for _, row := range changeItems {

@@ -13,8 +13,11 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/transformer"
 	transformer_batch_splitter "github.com/transferia/transferia/pkg/transformer/registry/batch_splitter"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 var expectedChangeItemsCount = 10
@@ -25,8 +28,8 @@ var maxBatchSize = 1
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -46,7 +49,7 @@ func TestGroup(t *testing.T) {
 
 		var changes []abstract.ChangeItem
 		for i := 1; i <= expectedChangeItemsCount; i++ {
-			changes = append(changes, *helpers.YDBStmtInsert(t, "test/batch_splitter_test", i))
+			changes = append(changes, *testdata.YDBStmtInsert(t, "test/batch_splitter_test", i))
 		}
 		require.NoError(t, sinker.Push(changes))
 	})
@@ -70,7 +73,7 @@ func TestGroup(t *testing.T) {
 	}
 
 	// create transfer with batch-splitter transformer
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 	transfer.Transformation = &model.Transformation{Transformers: &transformer.Transformers{
 		DebugMode: false,
 		Transformers: []transformer.Transformer{{
@@ -81,6 +84,6 @@ func TestGroup(t *testing.T) {
 		ErrorsOutput: nil,
 	}}
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 	require.Equal(t, expectedChangeItemsCount, changeItemsCount)
 }

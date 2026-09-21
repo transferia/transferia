@@ -9,7 +9,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -20,25 +25,25 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
 	Source.PreSteps.Constraint = true
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 
-	sink, err := provider_postgres.NewSink(logger.Log, helpers.TransferID, Target.ToSinkParams(), helpers.EmptyRegistry())
+	sink, err := provider_postgres.NewSink(logger.Log, transfer.ID, Target.ToSinkParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	arrColSchema := abstract.NewTableSchema([]abstract.ColSchema{
@@ -48,7 +53,7 @@ func TestGroup(t *testing.T) {
 		{ColumnName: "numerator", DataType: "int32", PrimaryKey: false, OriginalType: "pg:integer"},
 		{ColumnName: "denominator", DataType: "int32", PrimaryKey: false, OriginalType: "pg:integer"},
 	})
-	builder := helpers.NewChangeItemsBuilder("public", "problems_by_day", arrColSchema)
+	builder := changeitem.NewChangeItemsBuilder("public", "problems_by_day", arrColSchema)
 
 	require.NoError(t, sink.Push(builder.Inserts(t, []map[string]interface{}{
 		{"place_id": 1, "problem": "pothole", "date": "2024-01-01", "numerator": 99, "denominator": 200},
@@ -58,5 +63,5 @@ func TestGroup(t *testing.T) {
 		{"place_id": 3, "problem": "new_problem", "date": "2024-01-03", "numerator": 1, "denominator": 10},
 	})))
 
-	helpers.CheckRowsCount(t, Target, "public", "problems_by_day", 4)
+	storagecomparison.CheckRowsCount(t, Target, "public", "problems_by_day", 4)
 }

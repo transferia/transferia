@@ -15,7 +15,11 @@ import (
 	provider_kafka "github.com/transferia/transferia/pkg/providers/kafka"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -25,7 +29,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{"public.__test"},
 	}
 	YtDestination = provider_yt.NewYtDestinationV1(provider_yt.YtDestination{
@@ -75,8 +79,8 @@ func TestReplication(t *testing.T) {
 	}
 	kafkaDst.WithDefaults()
 
-	transfer1 := helpers.MakeTransfer("test_id_pg2kafka", PgSource, kafkaDst, abstract.TransferTypeIncrementOnly)
-	localWorker1 := helpers.Activate(t, transfer1)
+	transfer1 := transferhelpers.MakeTransfer("test_id_pg2kafka", PgSource, kafkaDst, abstract.TransferTypeIncrementOnly)
+	localWorker1 := delivery.Activate(t, transfer1)
 	defer localWorker1.Close(t)
 
 	//------------------------------------------------------------------------------
@@ -100,8 +104,8 @@ func TestReplication(t *testing.T) {
 	}
 	kafkaSrc.WithDefaults()
 
-	transfer2 := helpers.MakeTransfer("test_id_kafka2yt", kafkaSrc, YtDestination, abstract.TransferTypeIncrementOnly)
-	localWorker2 := helpers.Activate(t, transfer2)
+	transfer2 := transferhelpers.MakeTransfer("test_id_kafka2yt", kafkaSrc, YtDestination, abstract.TransferTypeIncrementOnly)
+	localWorker2 := delivery.Activate(t, transfer2)
 	defer localWorker2.Close(t)
 
 	//------------------------------------------------------------------------------
@@ -112,6 +116,6 @@ func TestReplication(t *testing.T) {
 	_, err = srcConn.Exec(context.Background(), "DELETE FROM public.__test WHERE a_id=1;")
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "__test", helpers.GetSampleableStorageByModel(t, YtDestination.LegacyModel()), 60*time.Second, 2))
-	require.NoError(t, helpers.CompareStorages(t, PgSource, YtDestination.LegacyModel(), helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "__test", storagecomparison.GetSampleableStorageByModel(t, YtDestination.LegacyModel()), 60*time.Second, 2))
+	require.NoError(t, storagecomparison.CompareStorages(t, PgSource, YtDestination.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 }

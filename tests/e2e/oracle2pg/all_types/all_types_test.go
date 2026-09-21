@@ -12,7 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -36,7 +39,7 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
 	}
@@ -44,9 +47,9 @@ func init() {
 
 func TestAllTypes(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -85,14 +88,14 @@ func AllTypes(t *testing.T) {
 		"DT_TEST.LONG_BINARY",
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "all_types", 3)
-	helpers.CheckRowsCount(t, &Target, "dt_test", "nchar_types", 3)
-	helpers.CheckRowsCount(t, &Target, "dt_test", "tslocal_types", 3)
-	helpers.CheckRowsCount(t, &Target, "dt_test", "nclob_types", 3)
-	helpers.CheckRowsCount(t, &Target, "dt_test", "blob_types", 3)
-	helpers.CheckRowsCount(t, &Target, "dt_test", "long_text", 3)
-	helpers.CheckRowsCount(t, &Target, "dt_test", "long_binary", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "all_types", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "nchar_types", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "tslocal_types", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "nclob_types", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "blob_types", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "long_text", 3)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "long_binary", 3)
 }

@@ -18,7 +18,12 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -28,7 +33,7 @@ const tableName = "kek"
 
 var (
 	sourceDatabase = os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE")
-	source         = *helpers.WithMysqlInclude(helpers.RecipeMysqlSource(), []string{tableName})
+	source         = *mysql.WithMysqlInclude(mysql.RecipeMysqlSource(), []string{tableName})
 	targetCluster  = os.Getenv("YT_PROXY")
 )
 
@@ -58,12 +63,12 @@ func makeTarget() provider_yt.YtDestinationModel {
 }
 
 func TestNonUtf8Charset(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(targetCluster)
+	targetPort, err := network.GetPortFromStr(targetCluster)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -76,18 +81,18 @@ func TestNonUtf8Charset(t *testing.T) {
 	require.NoError(t, err)
 
 	ytDestination := makeTarget()
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.LoadSnapshot(context.Background())
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.CompareStorages(t, source, ytDestination.LegacyModel(), helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, source, ytDestination.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 
 	fakeClient := coordinator.NewStatefulFakeClient()
 	err = provider_mysql.SyncBinlogPosition(&source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(fakeClient, transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -99,6 +104,6 @@ func TestNonUtf8Charset(t *testing.T) {
 	_, err = db.Exec("INSERT INTO kek VALUES (4, 'Где карта,', ' Билли? Нам', ' нужна карта!')")
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, sourceDatabase, tableName, helpers.GetSampleableStorageByModel(t, source), helpers.GetSampleableStorageByModel(t, ytDestination.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, source, ytDestination.LegacyModel(), helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitEqualRowsCount(t, sourceDatabase, tableName, storagecomparison.GetSampleableStorageByModel(t, source), storagecomparison.GetSampleableStorageByModel(t, ytDestination.LegacyModel()), 60*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, source, ytDestination.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 }

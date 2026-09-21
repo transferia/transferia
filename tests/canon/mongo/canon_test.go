@@ -12,7 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	mongocommon "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/tests/canon/validator"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestCanonSource(t *testing.T) {
@@ -29,7 +32,7 @@ func TestCanonSource(t *testing.T) {
 func snapshotPlusIncrementScenario(t *testing.T, databaseName, collectionName string, isHomo, preventJSONRepack bool) {
 	Source := &mongocommon.MongoSource{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
 		User:     os.Getenv("MONGO_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
 		Collections: []mongocommon.MongoCollection{
@@ -40,8 +43,8 @@ func snapshotPlusIncrementScenario(t *testing.T, databaseName, collectionName st
 	}
 	Source.WithDefaults()
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
 		))
 	}()
 
@@ -53,8 +56,8 @@ func snapshotPlusIncrementScenario(t *testing.T, databaseName, collectionName st
 		require.NoError(t, InsertDocs(ctx, Source, databaseName, collectionName, ExtraSnapshotDocuments...))
 	}
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(
@@ -70,7 +73,7 @@ func snapshotPlusIncrementScenario(t *testing.T, databaseName, collectionName st
 		},
 		abstract.TransferTypeSnapshotAndIncrement,
 	)
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	time.Sleep(1 * time.Second)

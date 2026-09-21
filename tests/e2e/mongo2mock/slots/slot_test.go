@@ -15,7 +15,8 @@ import (
 	"github.com/transferia/transferia/pkg/randutil"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -31,7 +32,7 @@ const (
 var (
 	allDBs = []string{testDB1, testDB2, testDB3}
 
-	port         = helpers.GetIntFromEnv("MONGO_LOCAL_PORT")
+	port         = testenv.GetIntFromEnv("MONGO_LOCAL_PORT")
 	userName     = os.Getenv("MONGO_LOCAL_USER")
 	userPassword = os.Getenv("MONGO_LOCAL_PASSWORD")
 )
@@ -145,7 +146,7 @@ func snapshotPhase(t *testing.T, ctx context.Context, source *provider_mongo.Mon
 	// start worker
 	transfer := getTransfer(source)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 }
 
@@ -160,7 +161,7 @@ func incrementPhaseWithRestart(t *testing.T, ctx context.Context, source *provid
 
 	// start replication
 	func() {
-		localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, helpers.EmptyRegistry(), logger.Log)
+		localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, testmetrics.EmptyRegistry(), logger.Log)
 		localWorker.Start()
 		defer localWorker.Stop() //nolint
 
@@ -198,7 +199,7 @@ func incrementPhaseWithRestart(t *testing.T, ctx context.Context, source *provid
 
 	// restart replication
 	newMockCP := mockCPFailRepl{}
-	localWorker := local.NewLocalWorker(&newMockCP, &transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(&newMockCP, &transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	time.Sleep(3 * time.Second)
 	err = localWorker.Stop() //nolint

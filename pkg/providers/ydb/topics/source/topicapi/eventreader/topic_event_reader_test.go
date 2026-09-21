@@ -13,7 +13,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/providers/ydb/topics/source/topicapi/eventreader/event"
 	"github.com/transferia/transferia/pkg/util/set"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
@@ -113,8 +113,9 @@ func TestReadAndCommitOneTopic(t *testing.T) {
 		}
 
 		for _, batch := range batches {
-			require.NoError(t, batch.Commit(ctx))
+			batch.Commit()
 		}
+		time.Sleep(1 * time.Second)
 	})
 
 	t.Run("Try to read committed messages", func(t *testing.T) {
@@ -213,8 +214,9 @@ func TestReadAndCommitManyTopics(t *testing.T) {
 		}
 
 		for _, batch := range batches {
-			require.NoError(t, batch.Commit(ctx))
+			batch.Commit()
 		}
+		time.Sleep(1 * time.Second)
 	})
 
 	t.Run("Try to read committed messages", func(t *testing.T) {

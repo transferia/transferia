@@ -18,7 +18,11 @@ import (
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	transformer_rename "github.com/transferia/transferia/pkg/transformer/registry/rename"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -29,15 +33,15 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestSnapshotAndIncrement(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 
@@ -51,7 +55,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	Source.DBTables = []string{"public.customers_customerprofile"}
 	Target.Cleanup = model.DisabledCleanup
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	require.NoError(t, transfer.AddExtraTransformer(transformer_rename.NewRenameTableTransformer(transformer_rename.Config{
 		RenameTables: []transformer_rename.RenameTable{
 			{
@@ -78,10 +82,10 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, transfer.AddExtraTransformer(transformer_filter.NewCustomFilterColumnsTransformer(tables, columns, logger.Log)))
 
-	err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.Background(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -111,5 +115,5 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// wait & compare
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(databaseName, "clickhouse_chcustomerprofile", helpers.GetSampleableStorageByModel(t, Target), 10*time.Second, 2))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(databaseName, "clickhouse_chcustomerprofile", storagecomparison.GetSampleableStorageByModel(t, Target), 10*time.Second, 2))
 }

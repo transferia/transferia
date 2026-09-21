@@ -13,7 +13,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -58,8 +60,8 @@ func TestSlowReceiver(t *testing.T) {
 
 func testAtLeastOnePushHasMultipleItems(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
@@ -67,8 +69,8 @@ func testAtLeastOnePushHasMultipleItems(t *testing.T) {
 	target := &model.MockDestination{SinkerFactory: func() abstract.Sinker {
 		return sinker
 	}}
-	helpers.InitSrcDst(helpers.TransferID, &Source, target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, target, TransferType)
 
 	pushedInputs := 0
 	inputs := make(chan []abstract.ChangeItem, 100)
@@ -99,7 +101,7 @@ func testAtLeastOnePushHasMultipleItems(t *testing.T) {
 
 	// activate
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// insert 5 events

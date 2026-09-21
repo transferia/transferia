@@ -48,6 +48,13 @@ func DefaultDerivedTableNamePolicy() TableNamePolicy {
 	}
 }
 
+func OrDefault(policy *TableNamePolicy) TableNamePolicy {
+	if policy == nil {
+		return DefaultDerivedTableNamePolicy()
+	}
+	return *policy
+}
+
 func BuildProtobufTableID(tableNamePolicy TableNamePolicy, fullMessageName string) (string, string, error) {
 	if tableNamePolicy.Manual.TableName != "" {
 		return "", tableNamePolicy.Manual.TableName, nil

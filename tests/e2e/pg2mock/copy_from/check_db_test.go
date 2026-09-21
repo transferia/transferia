@@ -14,8 +14,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -29,7 +31,7 @@ func TestExcludeTablesWithEmptyWhitelist(t *testing.T) {
 	target := &model.MockDestination{
 		SinkerFactory: func() abstract.Sinker { return sinker },
 	}
-	helpers.InitSrcDst(helpers.TransferID, source, target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	var changes []abstract.ChangeItem
 	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, item := range input {
@@ -42,13 +44,13 @@ func TestExcludeTablesWithEmptyWhitelist(t *testing.T) {
 	}
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: source.Port},
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	connConfig, err := provider_postgres.MakeConnConfigFromSrc(logger.Log, source)

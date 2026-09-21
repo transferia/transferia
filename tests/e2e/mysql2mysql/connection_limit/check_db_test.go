@@ -12,26 +12,31 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotOnly
-	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source       = *mysql.RecipeMysqlSource()
+	Target       = *mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestConnectionLimit(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "MYSQL source", Port: Source.Port},
-			helpers.LabeledPort{Label: "MYSQL target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "MYSQL source", Port: Source.Port},
+			network.LabeledPort{Label: "MYSQL target", Port: Target.Port},
 		))
 	}()
 	cfg := mysql_driver2.NewConfig()
@@ -54,16 +59,16 @@ func TestConnectionLimit(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// start worker
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 	var terminateErr error
-	localWorker := helpers.Activate(t, transfer, func(err error) {
+	localWorker := delivery.Activate(t, transfer, func(err error) {
 		terminateErr = err
 	})
 	defer localWorker.Close(t)
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		Target.Database,
 		"some_table",
-		helpers.GetSampleableStorageByModel(t, Target),
+		storagecomparison.GetSampleableStorageByModel(t, Target),
 		60*time.Second,
 		5,
 	))

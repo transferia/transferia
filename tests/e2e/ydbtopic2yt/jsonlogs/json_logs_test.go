@@ -11,7 +11,6 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
-	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/logging"
 	"github.com/transferia/transferia/pkg/parsers"
 	parser_json "github.com/transferia/transferia/pkg/parsers/registry/json"
@@ -19,9 +18,12 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/topicwriter"
-	"github.com/transferia/transferia/tests/helpers"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
-	ydbtopic "github.com/transferia/transferia/tests/helpers/ydb_recipe/topic"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
+	ydbtopic "github.com/transferia/transferia/tests/helpers/ydb/recipe/topic"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -44,13 +46,13 @@ func TestPushClientLogs(t *testing.T) {
 	ydbtopic.CreateTopic(t, topicName, ydbrecipe.Driver(t))
 
 	sourcePort := port
-	targetPort, err := helpers.GetPortFromStr(ytProxy)
+	targetPort, err := network.GetPortFromStr(ytProxy)
 	require.NoError(t, err)
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YDBTopic source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YDBTopic source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 	defer cancel()
@@ -92,11 +94,7 @@ func TestPushClientLogs(t *testing.T) {
 	})
 	dst.WithDefaults()
 
-	transfer := &model.Transfer{
-		ID:  "e2e_test",
-		Src: src,
-		Dst: dst,
-	}
+	transfer := transferhelpers.MakeTransfer("e2e_test", src, dst, "")
 
 	go func() {
 		for i := 0; i < 50; i++ {
@@ -114,5 +112,5 @@ func TestPushClientLogs(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", tableName, helpers.GetSampleableStorageByModel(t, dst.LegacyModel()), 60*time.Second, 50))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", tableName, storagecomparison.GetSampleableStorageByModel(t, dst.LegacyModel()), 60*time.Second, 50))
 }

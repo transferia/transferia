@@ -16,7 +16,11 @@ import (
 	kafka_provider "github.com/transferia/transferia/pkg/providers/kafka"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestPg2Kafka2PgSchemaRegistry(t *testing.T) {
@@ -32,10 +36,10 @@ func TestPg2Kafka2PgSchemaRegistry(t *testing.T) {
 	pgConnString := fmt.Sprintf("user=postgres dbname=postgres password=123 host=localhost port=%d", postgresPort)
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Postgres", Port: postgresPort},
-			helpers.LabeledPort{Label: "Kafka", Port: kafkaPort},
-			helpers.LabeledPort{Label: "Schema Registry", Port: schemaRegistryPort1},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Postgres", Port: postgresPort},
+			network.LabeledPort{Label: "Kafka", Port: kafkaPort},
+			network.LabeledPort{Label: "Schema Registry", Port: schemaRegistryPort1},
 		))
 	}()
 
@@ -153,16 +157,16 @@ func TestPg2Kafka2PgSchemaRegistry(t *testing.T) {
 					Hosts:    []string{"localhost"},
 					Cleanup:  model.Drop,
 				}
-				pg2kafka := helpers.MakeTransfer(dbName+"_pg_kafka", &pgSource, &kafkaTarget, abstract.TransferTypeSnapshotOnly)
-				kafka2pg := helpers.MakeTransfer(dbName+"_kafka_pg", &kafkaSource, &pgTarget, abstract.TransferTypeIncrementOnly)
-				w1 := helpers.Activate(t, pg2kafka)
-				w2 := helpers.Activate(t, kafka2pg)
-				require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "basic_types", helpers.GetSampleableStorageByModel(t, pgTarget), 60*time.Second, 1))
+				pg2kafka := transferhelpers.MakeTransfer(dbName+"_pg_kafka", &pgSource, &kafkaTarget, abstract.TransferTypeSnapshotOnly)
+				kafka2pg := transferhelpers.MakeTransfer(dbName+"_kafka_pg", &kafkaSource, &pgTarget, abstract.TransferTypeIncrementOnly)
+				w1 := delivery.Activate(t, pg2kafka)
+				w2 := delivery.Activate(t, kafka2pg)
+				require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "basic_types", storagecomparison.GetSampleableStorageByModel(t, pgTarget), 60*time.Second, 1))
 				w1.Close(t)
 				w2.Close(t)
 
 				if testCases[i].serializerParams[parameters.AddOriginalTypes] == parameters.BoolTrue {
-					require.NoError(t, helpers.CompareStorages(t, pgSource, pgTarget, helpers.NewCompareStorageParams()))
+					require.NoError(t, storagecomparison.CompareStorages(t, pgSource, pgTarget, storagecomparison.NewCompareStorageParams()))
 				} else {
 					canon.SaveJSON(t, pgrecipe.PgDump(
 						t,

@@ -12,7 +12,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 func TestSnapshotAndReplication(t *testing.T) {
@@ -20,8 +25,8 @@ func TestSnapshotAndReplication(t *testing.T) {
 
 	source := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{currTableName},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -37,7 +42,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		UseStaticTableOnSnapshot: true, // TM-4444
 	})
 	transferType := abstract.TransferTypeSnapshotAndIncrement
-	helpers.InitSrcDst(helpers.TransferID, source, target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, transferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 
 	//---
 
@@ -52,43 +57,43 @@ func TestSnapshotAndReplication(t *testing.T) {
 
 	// insert one rec - for snapshot uploading
 
-	currChangeItem := helpers.YDBStmtInsert(t, currTableName, 1)
+	currChangeItem := testdata.YDBStmtInsert(t, currTableName, 1)
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{*currChangeItem}))
 
 	// start snapshot & replication
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, transferType)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	helpers.CheckRowsCount(t, target, "", currTableName, 1)
+	storagecomparison.CheckRowsCount(t, target, "", currTableName, 1)
 
 	// insert two more records - it's three of them now
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtInsert(t, currTableName, 2),
-		*helpers.YDBStmtInsert(t, currTableName, 3),
+		*testdata.YDBStmtInsert(t, currTableName, 2),
+		*testdata.YDBStmtInsert(t, currTableName, 3),
 	}))
 
 	// update 2nd rec
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtUpdate(t, currTableName, 2, 666),
+		*testdata.YDBStmtUpdate(t, currTableName, 2, 666),
 	}))
 
 	// update 3rd rec by TOAST
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtUpdateTOAST(t, currTableName, 3, 777),
+		*testdata.YDBStmtUpdateTOAST(t, currTableName, 3, 777),
 	}))
 
 	// delete 1st rec
 
 	require.NoError(t, srcSink.Push([]abstract.ChangeItem{
-		*helpers.YDBStmtDelete(t, currTableName, 1),
+		*testdata.YDBStmtDelete(t, currTableName, 1),
 	}))
 
 	// check
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", currTableName, helpers.GetSampleableStorageByModel(t, target), 60*time.Second, 2))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", currTableName, storagecomparison.GetSampleableStorageByModel(t, target), 60*time.Second, 2))
 }

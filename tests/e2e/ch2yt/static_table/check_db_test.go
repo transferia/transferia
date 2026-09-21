@@ -12,7 +12,9 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestClickhouseToYtStatic(t *testing.T) {
@@ -28,8 +30,8 @@ func TestClickhouseToYtStatic(t *testing.T) {
 		User:       "default",
 		Password:   "",
 		Database:   "mtmobproxy",
-		HTTPPort:   helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort: helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:   testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort: testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 	}
 	src.WithDefaults()
 
@@ -46,9 +48,9 @@ func TestClickhouseToYtStatic(t *testing.T) {
 	dst.WithDefaults()
 
 	t.Run("activate", func(t *testing.T) {
-		transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+		transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 		require.NoError(t, tasks.ActivateDelivery(context.Background(), nil, coordinator.NewFakeClient(), *transfer, solomon.NewRegistry(solomon.NewRegistryOpts())))
-		require.NoError(t, helpers.CompareStorages(t, src, dst.LegacyModel(), helpers.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
+		require.NoError(t, storagecomparison.CompareStorages(t, src, dst.LegacyModel(), storagecomparison.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
 			return true
 		})))
 	})

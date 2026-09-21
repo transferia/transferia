@@ -19,7 +19,10 @@ import (
 	kafka_writer "github.com/transferia/transferia/pkg/providers/kafka/writer"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	serializer "github.com/transferia/transferia/pkg/serializer/queue"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.uber.org/mock/gomock"
 )
 
@@ -29,7 +32,7 @@ var (
 		User:     os.Getenv("PG_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database: os.Getenv("PG_LOCAL_DATABASE"),
-		Port:     helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 	}
 )
 
@@ -223,8 +226,8 @@ func callbackFunc(_, _, _ interface{}, msgs ...interface{}) error {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestReplication(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
 	//------------------------------------------------------------------------------
@@ -330,10 +333,10 @@ func TestReplication(t *testing.T) {
 	require.NoError(t, err)
 
 	target := model.MockDestination{SinkerFactory: func() abstract.Sinker { return sink }}
-	helpers.InitSrcDst(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &target, abstract.TransferTypeIncrementOnly)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//-----------------------------------------------------------------------------------------------------------------

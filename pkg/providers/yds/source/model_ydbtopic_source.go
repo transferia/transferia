@@ -15,8 +15,12 @@ import (
 
 type YDBTopicSource struct {
 	Endpoint string `log:"true"`
-	Database string `log:"true"`
 
+	// DatabaseID is the Managed YDB database ID; when set, Database is resolved from it.
+	DatabaseID string `log:"true"`
+	Database   string `log:"true"`
+
+	Token       model.SecretString
 	Credentials provider_ydb.TokenCredentials
 	TLS         model.TLSMode `log:"true"`
 	RootCAFiles []string
@@ -61,6 +65,44 @@ func (s *YDBTopicSource) Validate() error {
 		}
 		return parserConfigStruct.Validate()
 	}
+	return nil
+}
+
+func (s *YDBTopicSource) YSRNamespaceID() string {
+	if s.ParserConfig == nil {
+		return ""
+	}
+	parserConfig, _ := parsers.ParserConfigMapToStruct(s.ParserConfig)
+	if parserConfig == nil {
+		return ""
+	}
+	if ysrable, ok := parserConfig.(parsers.YSRable); ok {
+		return ysrable.YSRNamespaceID()
+	}
+	return ""
+}
+
+func (s *YDBTopicSource) prepareConfig() error {
+	if s.Credentials != nil {
+		return nil
+	}
+
+	var err error
+	s.Credentials, err = provider_ydb.ResolveCredentials(
+		false,
+		string(s.Token),
+		provider_ydb.JWTAuthParams{
+			KeyContent:      "",
+			TokenServiceURL: "",
+		},
+		"",
+		nil,
+		logger.Log,
+	)
+	if err != nil {
+		return xerrors.Errorf("cannot create YDB credentials: %w", err)
+	}
+
 	return nil
 }
 

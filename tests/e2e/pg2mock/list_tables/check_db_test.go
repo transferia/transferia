@@ -10,7 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
 )
 
 var dumpRs = map[string]idAndColumnNames{
@@ -66,8 +66,8 @@ func checkTableNotInMap(t *testing.T, expected abstract.TableID, actualMap abstr
 func TestTableListStarAllPrivileges(t *testing.T) {
 	src := &SourceAllPrivileges
 
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: src.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: src.Port},
 	))
 
 	storage, err := provider_postgres.NewStorage(src.ToStorageParams(nil))
@@ -92,8 +92,8 @@ func TestTableListStarAllPrivileges(t *testing.T) {
 func TestTableListStarRestrictedPrivileges(t *testing.T) {
 	src := &SourceRestrictedPrivileges
 
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: src.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: src.Port},
 	))
 
 	storage, err := provider_postgres.NewStorage(src.ToStorageParams(nil))
@@ -118,8 +118,8 @@ func TestTableListStarRestrictedPrivileges(t *testing.T) {
 func TestTableListPublicAllPrivileges(t *testing.T) {
 	src := &SourceAllPrivileges
 
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: src.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: src.Port},
 	))
 
 	storage, err := provider_postgres.NewStorage(src.ToStorageParams(nil))

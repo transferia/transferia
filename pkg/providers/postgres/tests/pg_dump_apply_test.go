@@ -16,7 +16,8 @@ import (
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 // ddlApplyTargetDB is a separate database on the recipe server. The schema is extracted by pg_dump
@@ -81,7 +82,7 @@ func (e *ddlApplyEnv) execDst(t *testing.T, queries ...string) {
 
 // apply extracts the schema of the source tables by pg_dump and applies items of the given types on the target.
 func (e *ddlApplyEnv) apply(t *testing.T, types ...provider_postgres.PgObjectType) error {
-	transfer := helpers.MakeTransfer(helpers.TransferID, e.src, e.dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, e.src, e.dst, abstract.TransferTypeSnapshotOnly)
 	items, err := provider_postgres.ExtractPgDumpSchema(transfer)
 	require.NoError(t, err)
 
@@ -99,7 +100,7 @@ func (e *ddlApplyEnv) apply(t *testing.T, types ...provider_postgres.PgObjectTyp
 	for _, typ := range types {
 		typeNames = append(typeNames, string(typ))
 	}
-	return provider_postgres.ApplyCommands(testItems, *transfer, &model.TransferOperation{}, helpers.EmptyRegistry(), typeNames...)
+	return provider_postgres.ApplyCommands(testItems, *transfer, &model.TransferOperation{}, testmetrics.EmptyRegistry(), typeNames...)
 }
 
 // setLockTimeout makes every new session to the target database fail fast on lock waits (SQLSTATE 55P03).

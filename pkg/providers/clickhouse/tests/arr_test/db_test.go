@@ -11,7 +11,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	provider_clickhouse "github.com/transferia/transferia/pkg/providers/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -70,7 +70,7 @@ func TestCHArray(t *testing.T) {
 		},
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 	sinker, err := provider_clickhouse.NewSink(transfer, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), middlewares.MakeConfig())
 	require.NoError(t, err)
 	require.NoError(t, sinker.Push(items))

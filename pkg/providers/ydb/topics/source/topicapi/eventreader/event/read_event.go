@@ -1,8 +1,6 @@
 package event
 
 import (
-	"bytes"
-	"context"
 	"io"
 
 	"github.com/transferia/transferia/pkg/parsers"
@@ -14,11 +12,11 @@ const ipMetaKey = "_ip"
 type ReadEvent struct {
 	Batch parsers.MessageBatch
 
-	commit func(ctx context.Context) error
+	commit func()
 }
 
-func (e *ReadEvent) Commit(ctx context.Context) error {
-	return e.commit(ctx)
+func (e *ReadEvent) Commit() {
+	e.commit()
 }
 
 func (e *ReadEvent) isEvent() {}
@@ -26,15 +24,15 @@ func (e *ReadEvent) isEvent() {}
 func NewReadEvent(event *topiclistener.ReadMessages) (*ReadEvent, error) {
 	messages := make([]parsers.Message, 0, len(event.Batch.Messages))
 	for _, msg := range event.Batch.Messages {
-		var buf bytes.Buffer
-		if _, err := io.Copy(&buf, msg); err != nil {
+		data, err := io.ReadAll(msg)
+		if err != nil {
 			return nil, err
 		}
 
 		messages = append(messages, parsers.Message{
 			Offset:     uint64(msg.Offset),
 			Key:        []byte(msg.ProducerID),
-			Value:      buf.Bytes(),
+			Value:      data,
 			CreateTime: msg.CreatedAt,
 			WriteTime:  msg.CreatedAt,
 			Headers:    combineMetadata(msg.Metadata, msg.WriteSessionMetadata),
@@ -48,7 +46,7 @@ func NewReadEvent(event *topiclistener.ReadMessages) (*ReadEvent, error) {
 			Partition: uint32(event.PartitionSession.PartitionID),
 			Messages:  messages,
 		},
-		commit: event.ConfirmWithAck,
+		commit: event.Confirm,
 	}, nil
 }
 

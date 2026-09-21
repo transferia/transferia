@@ -10,10 +10,11 @@ type ParserConfigConfluentSchemaRegistryCommon struct {
 	Username          string
 	Password          string
 	TLSFile           string
+	UserEnabledTls    *bool  // nil when TLS mode was not set explicitly
 	NamespaceID       string // when specified, all other connection settings are ignored
 
 	IsGenerateUpdates bool
-	TableNamePolicy   table_name_policy.TableNamePolicy
+	TableNamePolicy   *table_name_policy.TableNamePolicy // nil means DefaultDerivedTableNamePolicy
 }
 
 func (c *ParserConfigConfluentSchemaRegistryCommon) IsNewParserConfig() {}

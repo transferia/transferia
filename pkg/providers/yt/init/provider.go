@@ -27,6 +27,7 @@ import (
 	"go.ytsaurus.tech/yt/go/migrate"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
+	"go.ytsaurus.tech/yt/go/yterrors"
 )
 
 func init() {
@@ -229,27 +230,31 @@ func (p *Provider) CleanupSuitable(transferType abstract.TransferType) bool {
 }
 
 func (p *Provider) CleanupDestination(ctx context.Context) error {
-	dst, ok := p.transfer.Dst.(provider_yt.YtDestinationModel)
-	if !ok {
+	var conn yt_client.ConnParams
+	var root ypath.Path
+	switch dst := p.transfer.Dst.(type) {
+	case *provider_yt.YtCopyDestination:
+		if dst.Cleanup != model.Replace {
+			return nil
+		}
+		conn, root = dst, ypath.Path(dst.Prefix)
+	case provider_yt.YtDestinationModel:
+		// In that case we don't need to cleanup anything, transaction will be aborted.
+		if dst.Static() || dst.UseStaticTableOnSnapshot() || dst.CleanupMode() != model.Replace {
+			return nil
+		}
+		conn, root = dst, ypath.Path(dst.Path())
+	default:
 		return xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 
-	// In that case we don't need to cleanup anything, transaction will be aborted
-	if dst.Static() || dst.UseStaticTableOnSnapshot() {
-		return nil
-	}
-
-	if dst.CleanupMode() != model.Replace {
-		return nil
-	}
-
 	tmpSuffix := model.MakeTmpSuffix(p.transfer.ID, model.TmpTableSuffix)
-	client, err := yt_client.FromConnParams(dst, p.logger)
+	client, err := yt_client.FromConnParams(conn, p.logger)
 	if err != nil {
 		return xerrors.Errorf("error getting YT Client: %w", err)
 	}
 
-	if err := provider_yt.HandleNodes(ctx, client, ypath.Path(dst.Path()), nil,
+	if err := provider_yt.HandleNodes(ctx, client, root, nil,
 		func(ctx context.Context, client yt.Client, tablePath ypath.Path, attrs *provider_yt.NodeAttrs) error {
 			if attrs.Type != yt.NodeTable {
 				return nil
@@ -259,14 +264,11 @@ func (p *Provider) CleanupDestination(ctx context.Context) error {
 				return nil
 			}
 
-			if err := provider_yt.MountUnmountWrapper(
-				ctx,
-				client,
-				tablePath,
-				migrate.UnmountAndWait,
-			); err != nil {
-				p.logger.Error("unable to unmount table", log.Any("path", tablePath), log.Error(err))
-				return xerrors.Errorf("unable to unmount table %s : %w", tablePath.String(), err)
+			if attrs.Dynamic {
+				if err := provider_yt.MountUnmountWrapper(ctx, client, tablePath, migrate.UnmountAndWait); err != nil {
+					p.logger.Error("unable to unmount table", log.Any("path", tablePath), log.Error(err))
+					return xerrors.Errorf("unable to unmount table %s : %w", tablePath.String(), err)
+				}
 			}
 
 			removeOptions := &yt.RemoveNodeOptions{
@@ -281,7 +283,7 @@ func (p *Provider) CleanupDestination(ctx context.Context) error {
 				return xerrors.Errorf("unable to remove node %s : %w", tablePath.String(), err)
 			}
 			return nil
-		}); err != nil {
+		}); err != nil && !yterrors.ContainsResolveError(err) {
 		return xerrors.Errorf("unable to cleanup yt path: %w", err)
 	}
 	return nil

@@ -16,7 +16,12 @@ import (
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	transformer_filter_rows_by_ids "github.com/transferia/transferia/pkg/transformer/registry/filter_rows_by_ids"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 )
 
 var (
@@ -25,15 +30,15 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                                                          // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                                                          // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotAndIncrement) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -43,7 +48,7 @@ func TestGroup(t *testing.T) {
 }
 
 func runTransfer(t *testing.T, source *provider_postgres.PgSource, target *provider_postgres.PgDestination) *local.LocalWorker {
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 
 	transformer, err := transformer_filter_rows_by_ids.NewFilterRowsByIDsTransformer(
 		transformer_filter_rows_by_ids.Config{
@@ -65,12 +70,12 @@ func runTransfer(t *testing.T, source *provider_postgres.PgSource, target *provi
 		logger.Log,
 	)
 	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
+	transformerhelpers.AddTransformer(t, transfer, transformer)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	return localWorker
 }
@@ -106,7 +111,7 @@ func Replication(t *testing.T) {
 
 	// check
 	{
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "testtable", helpers.GetSampleableStorageByModel(t, Target), 2*time.Minute, 3))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "testtable", storagecomparison.GetSampleableStorageByModel(t, Target), 2*time.Minute, 3))
 
 		dstConn, err := provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
 		require.NoError(t, err)

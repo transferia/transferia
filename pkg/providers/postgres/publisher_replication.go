@@ -661,6 +661,12 @@ func startReplication(
 				return nil, backoff.Permanent(abstract.NewFatalError(
 					coded.Errorf(error_codes.PostgresReplicationSlotInvalidated, "cannot start replication via replication connection: %w", err)))
 			}
+			// wal2json is not in output_plugin_libraries (SQLSTATE 42501), retrying is pointless
+			if strings.Contains(err.Error(), "may not be used as an output plugin") {
+				//nolint:descriptiveerrors
+				return nil, backoff.Permanent(abstract.NewFatalError(
+					coded.Errorf(error_codes.PostgresOutputPluginNotAllowed, "cannot start replication via replication connection: %w", err)))
+			}
 			// object_in_use code means some other process is reading the slot
 			// nobody is expected to read transfer slot so most common case of this error is stale transfer process
 			if strings.Contains(err.Error(), "SQLSTATE 55006") {

@@ -16,7 +16,11 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -36,8 +40,8 @@ var (
 		User:                "default",
 		Password:            "",
 		Database:            "test",
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 		Cleanup:             model.Drop,
 	}
@@ -97,10 +101,10 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	start := time.Now()
-	transfer := helpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer("fake", src, &dst, abstract.TransferTypeIncrementOnly)
+	delivery.Activate(t, transfer)
 
-	err = helpers.WaitDestinationEqualRowsCount("test", "data", helpers.GetSampleableStorageByModel(t, transfer.Dst), 500*time.Second, 426560)
+	err = storage.WaitDestinationEqualRowsCount("test", "data", storagecomparison.GetSampleableStorageByModel(t, transfer.Dst), 500*time.Second, 426560)
 	require.NoError(t, err)
 	finish := time.Now()
 	duration := finish.Sub(start)

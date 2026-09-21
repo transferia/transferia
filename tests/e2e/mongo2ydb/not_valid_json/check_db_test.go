@@ -18,7 +18,12 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -26,7 +31,7 @@ var (
 	TransferType = abstract.TransferTypeIncrementOnly
 	Source       = provider_mongo.MongoSource{
 		Hosts:             []string{"localhost"},
-		Port:              helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		Port:              testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
 		User:              os.Getenv("MONGO_LOCAL_USER"),
 		Password:          model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
 		ReplicationSource: provider_mongo.MongoReplicationSourcePerDatabaseUpdateDocument,
@@ -39,7 +44,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -56,8 +61,8 @@ func LogMongoSource(s *provider_mongo.MongoSource) {
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
 		))
 	}()
 
@@ -115,14 +120,14 @@ func Load(t *testing.T) {
 		Type: abstract.TransferTypeSnapshotAndIncrement,
 		Src:  &Source,
 		Dst:  Target,
-		ID:   helpers.TransferID,
+		ID:   transferhelpers.TransferID,
 	}
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{"db.test_incl"}}
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -141,11 +146,11 @@ func Load(t *testing.T) {
 	result, err := provider_ydb.NewStorage(Target.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(
+	require.NoError(t, storage.WaitEqualRowsCount(
 		t,
 		"db",
 		"test_incl",
-		helpers.GetSampleableStorageByModel(t, Source),
+		storagecomparison.GetSampleableStorageByModel(t, Source),
 		result,
 		60*time.Second,
 	))

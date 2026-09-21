@@ -11,7 +11,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -25,7 +30,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{"public.__test_a", "public.__test_b", "public.__test_c", "public.__test_d"},
 		SlotID:    "test_slot_id",
 	}
@@ -38,12 +43,12 @@ func init() {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -63,7 +68,7 @@ func TestGroup(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotAndIncrement)
 
 	srcConnConfig, err := provider_postgres.MakeConnConfigFromSrc(logger.Log, &Source)
 	require.NoError(t, err)
@@ -73,7 +78,7 @@ func Load(t *testing.T) {
 
 	//------------------------------------------------------------------------------
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//------------------------------------------------------------------------------
@@ -117,10 +122,10 @@ func Load(t *testing.T) {
 
 	//------------------------------------------------------------------------------
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test_a", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test_b", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test_c", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test_d", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test_a", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test_b", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test_c", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test_d", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
 
 	logger.Log.Info("wait 30 seconds for slot to move LSN")
 	time.Sleep(30 * time.Second)
@@ -179,8 +184,8 @@ func Load(t *testing.T) {
 
 	// ---------------------------------------------------------------------
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test_a", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test_b", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test_c", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test_d", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test_a", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test_b", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test_c", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test_d", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
 }

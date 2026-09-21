@@ -12,7 +12,10 @@ import (
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	yt_helpers "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -40,7 +43,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, trickyTypesPg2YTSource, trickyTypesPg2YTTarget, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, trickyTypesPg2YTSource, trickyTypesPg2YTTarget, abstract.TransferTypeSnapshotAndIncrement)
 }
 
 type trickyTypesPg2YTCanonData struct {
@@ -60,8 +63,8 @@ func TestTrickyTypesPg2YTSupportedTypes(t *testing.T) {
 		return buf.String()
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, trickyTypesPg2YTSource, trickyTypesPg2YTTarget, abstract.TransferTypeSnapshotAndIncrement)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, trickyTypesPg2YTSource, trickyTypesPg2YTTarget, abstract.TransferTypeSnapshotAndIncrement)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	var canonData trickyTypesPg2YTCanonData
@@ -73,7 +76,7 @@ func TestTrickyTypesPg2YTSupportedTypes(t *testing.T) {
 	_, err = conn.Exec(context.Background(), trickyTypesPg2YTIncrementSQL)
 	require.NoError(t, err)
 
-	err = helpers.WaitEqualRowsCount(t, "public", "pgis_supported_types", helpers.GetSampleableStorageByModel(t, trickyTypesPg2YTSource), helpers.GetSampleableStorageByModel(t, trickyTypesPg2YTTarget.LegacyModel()), 30*time.Second)
+	err = storage.WaitEqualRowsCount(t, "public", "pgis_supported_types", storagecomparison.GetSampleableStorageByModel(t, trickyTypesPg2YTSource), storagecomparison.GetSampleableStorageByModel(t, trickyTypesPg2YTTarget.LegacyModel()), 30*time.Second)
 	require.NoError(t, err)
 	canonData.AfterIncrement = dumpTargetDB()
 	canon.SaveJSON(t, &canonData)

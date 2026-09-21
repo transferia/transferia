@@ -12,8 +12,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 const testTableName = "test_table/my_lovely_table"
@@ -21,8 +24,8 @@ const testTableName = "test_table/my_lovely_table"
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -61,7 +64,7 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem(testTableName)}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem(testTableName)}))
 	})
 
 	runTestCase(t, "no filter", src, dst, &changeItems,
@@ -86,9 +89,9 @@ func runTestCase(t *testing.T, caseName string, src *provider_ydb.YdbSource, dst
 	src.Tables = srcTables
 	*changeItems = make([]abstract.ChangeItem, 0)
 
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: includeObjects}
-	_, err := helpers.ActivateErr(transfer)
+	_, err := delivery.ActivateErr(transfer)
 	if isError {
 		require.Error(t, err)
 	} else {

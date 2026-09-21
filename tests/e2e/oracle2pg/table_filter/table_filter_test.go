@@ -12,7 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -36,7 +39,7 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
 	}
@@ -44,9 +47,9 @@ func init() {
 
 func TestTableFilter(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -60,13 +63,13 @@ func FilterByInclude(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.TBL_A", "DT_TEST.TBL_B"}
 	Source.ExcludeTables = nil
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "tbl_a", 2)
-	helpers.CheckRowsCount(t, &Target, "dt_test", "tbl_b", 2)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "tbl_a", 2)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "tbl_b", 2)
 
-	pgStorage := helpers.GetSampleableStorageByModel(t, &Target)
+	pgStorage := storagecomparison.GetSampleableStorageByModel(t, &Target)
 	exists, err := pgStorage.TableExists(*abstract.NewTableID("dt_test", "tbl_c"))
 	require.NoError(t, err)
 	require.False(t, exists, "tbl_c must be absent when IncludeTables excludes it")
@@ -76,13 +79,13 @@ func FilterByExclude(t *testing.T) {
 	Source.IncludeTables = nil
 	Source.ExcludeTables = []string{"DT_TEST.TBL_C"}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "tbl_a", 2)
-	helpers.CheckRowsCount(t, &Target, "dt_test", "tbl_b", 2)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "tbl_a", 2)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "tbl_b", 2)
 
-	pgStorage := helpers.GetSampleableStorageByModel(t, &Target)
+	pgStorage := storagecomparison.GetSampleableStorageByModel(t, &Target)
 	exists, err := pgStorage.TableExists(*abstract.NewTableID("dt_test", "tbl_c"))
 	require.NoError(t, err)
 	require.False(t, exists, "tbl_c must be absent when ExcludeTables contains it")

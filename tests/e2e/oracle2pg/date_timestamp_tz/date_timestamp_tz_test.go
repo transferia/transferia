@@ -18,7 +18,10 @@ import (
 	"github.com/transferia/transferia/pkg/providers/oracle/common"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -72,7 +75,7 @@ func init() {
 	// Now RecipeOracleSource finds RECIPE_ORACLE_* already set — PrepareContainer is a no-op.
 	Source = *oraclerecipe.RecipeOracleSource()
 
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 
 	// Diagnostic: log Oracle session and database timezone settings.
 	diag, err := runOracleDiagnostics(ctx)
@@ -106,9 +109,9 @@ func runOracleDiagnostics(ctx context.Context) (string, error) {
 
 func TestDateTimestampTZ(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -120,8 +123,8 @@ func TestDateTimestampTZ(t *testing.T) {
 func DateTimestampTZ(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.DATE_TZ_TEST"}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	delivery.Activate(t, transfer)
 
 	// Direct PG connection to read and assert transferred values.
 	pool, err := provider_postgres.MakeConnPoolFromDst(&Target, logger.Log)
@@ -177,5 +180,5 @@ func DateTimestampTZ(t *testing.T) {
 	}
 
 	// Row count check covers all 4 rows.
-	helpers.CheckRowsCount(t, &Target, "dt_test", "date_tz_test", 4)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "date_tz_test", 4)
 }

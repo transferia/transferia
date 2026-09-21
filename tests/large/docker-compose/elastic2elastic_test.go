@@ -12,7 +12,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/elastic"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -51,7 +53,7 @@ func TestElasticToElasticSnapshot(t *testing.T) {
 		Cleanup:          model.Drop,
 		SanitizeDocKeys:  false,
 	}
-	helpers.InitSrcDst(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
 
 	t.Parallel()
 
@@ -59,9 +61,9 @@ func TestElasticToElasticSnapshot(t *testing.T) {
 	WaitForElastic(t, "127.0.0.1", dstPort)
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Elastic source", Port: srcPort},
-			helpers.LabeledPort{Label: "Elastic target", Port: dstPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Elastic source", Port: srcPort},
+			network.LabeledPort{Label: "Elastic target", Port: dstPort},
 		))
 	}()
 	client := createTestElasticClientFromSrc(t, &elasticSrc)
@@ -79,8 +81,8 @@ func TestElasticToElasticSnapshot(t *testing.T) {
 	_, err := elasticGetAllDocuments(client, indexName)
 	require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(elastic2elasticTransferID, &elasticSrc, &elasticDst, abstract.TransferTypeSnapshotOnly)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	clientDst := createTestElasticClientFromDst(t, &elasticDst)

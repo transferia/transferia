@@ -11,8 +11,10 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/transformer"
 	transformer_problem_item_detector "github.com/transferia/transferia/pkg/transformer/registry/problem_item_detector"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -27,8 +29,8 @@ func init() {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestSnapshotAndIncrement(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
 	//------------------------------------------------------------------------------
@@ -39,7 +41,7 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		Cleanup:       model.DisabledCleanup,
 	}
 
-	transfer := helpers.MakeTransfer("fake", Source, &target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", Source, &target, abstract.TransferTypeSnapshotOnly)
 	transfer.Transformation = &model.Transformation{Transformers: &transformer.Transformers{
 		DebugMode: false,
 		Transformers: []transformer.Transformer{{
@@ -52,8 +54,8 @@ func TestSnapshotAndIncrement(t *testing.T) {
 		return xerrors.New("error")
 	}
 
-	cp := helpers.NewFakeCPErrRepl()
-	worker, err := helpers.ActivateWithCP(transfer, cp, true)
+	cp := delivery.NewFakeCPErrRepl()
+	worker, err := delivery.ActivateWithCP(transfer, cp, true)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "bad item detector found problem item")
 	if worker != nil {

@@ -15,7 +15,9 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -26,7 +28,7 @@ const (
 )
 
 var (
-	port                 = helpers.GetIntFromEnv("ADMIN_MONGO_LOCAL_PORT")
+	port                 = testenv.GetIntFromEnv("ADMIN_MONGO_LOCAL_PORT")
 	adminUserName        = os.Getenv("ADMIN_MONGO_LOCAL_USER")
 	adminUserPassword    = os.Getenv("ADMIN_MONGO_LOCAL_PASSWORD")
 	transferUserName     = os.Getenv("TRANSFER_USER_NAME")
@@ -157,7 +159,7 @@ func snapshotAndIncrement(t *testing.T, ctx context.Context, source *provider_mo
 			},
 			Cleanup: model.Drop,
 		},
-		ID: helpers.TransferID,
+		ID: transferhelpers.TransferID,
 	}
 
 	accessErrorChecker := func(err error) {
@@ -172,10 +174,10 @@ func snapshotAndIncrement(t *testing.T, ctx context.Context, source *provider_mo
 		}
 	}
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry())
 	accessErrorChecker(err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, testmetrics.EmptyRegistry(), logger.Log)
 	defer localWorker.Stop() //nolint
 
 	//------------------------------------------------------------------------------------

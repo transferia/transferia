@@ -11,13 +11,17 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotAndIncrement
 
-	Source = *helpers.RecipeMysqlSource()
+	Source = *mysql.RecipeMysqlSource()
 
 	dstPort, _ = strconv.Atoi(os.Getenv("PG_LOCAL_PORT"))
 	Target     = provider_postgres.PgDestination{
@@ -32,15 +36,15 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Pg target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: Source.Port},
+			network.LabeledPort{Label: "Pg target", Port: Target.Port},
 		))
 	}()
 
@@ -59,10 +63,10 @@ func Existence(t *testing.T) {
 }
 
 func Snapshot(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	_ = helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	_ = delivery.Activate(t, transfer)
 
-	require.NoError(t, helpers.WaitStoragesSynced(t, Source, Target, 30, helpers.NewCompareStorageParams())) // 30 * 2 seconds should be enough
+	require.NoError(t, storagecomparison.WaitStoragesSynced(t, Source, Target, 30, storagecomparison.NewCompareStorageParams())) // 30 * 2 seconds should be enough
 	//require.NoError(t, helpers.WaitDestinationEqualRowsCount(
 	//	"source",
 	//	"test",
@@ -81,7 +85,7 @@ func Replication(t *testing.T) {
 	execCheck(t, db, "UPDATE test SET val = 'test' WHERE id = 1")
 	execCheck(t, db, "DELETE FROM test WHERE id = 2")
 
-	require.NoError(t, helpers.WaitStoragesSynced(t, Source, Target, 30, helpers.NewCompareStorageParams())) // 30 * 2 seconds should be enough
+	require.NoError(t, storagecomparison.WaitStoragesSynced(t, Source, Target, 30, storagecomparison.NewCompareStorageParams())) // 30 * 2 seconds should be enough
 }
 
 func execCheck(t *testing.T, db *sql.DB, query string) {

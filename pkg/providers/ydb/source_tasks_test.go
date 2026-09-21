@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract/model"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
-	ydbtopic "github.com/transferia/transferia/tests/helpers/ydb_recipe/topic"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
+	ydbtopic "github.com/transferia/transferia/tests/helpers/ydb/recipe/topic"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicwriter"
 )

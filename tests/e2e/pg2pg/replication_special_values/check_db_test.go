@@ -10,7 +10,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func TestReplicationNullInJSON(t *testing.T) {
@@ -18,18 +22,18 @@ func TestReplicationNullInJSON(t *testing.T) {
 	Target := pgrecipe.RecipeTarget()
 	transferType := abstract.TransferTypeSnapshotAndIncrement
 
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, transferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, transferType)
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, transferType)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	srcConn, err := provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
@@ -38,6 +42,6 @@ func TestReplicationNullInJSON(t *testing.T) {
 	_, err = srcConn.Exec(context.Background(), `INSERT INTO rsv_null_in_json(i, j, jb) VALUES (101, 'null', 'null'), (102, '"null"', '"null"')`)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "rsv_null_in_json", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "rsv_null_in_json", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

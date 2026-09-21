@@ -12,8 +12,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	pgcommon "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/postgres"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -28,11 +31,11 @@ func init() {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestSnapshotAndReplication(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
-	container := helpers.NewTestCaseContainer()
+	container := postgres.NewTestCaseContainer()
 	container.AddCase(newContainerTimeWithTZ())
 	container.AddCase(newContainerTime())
 	container.Initialize(t)
@@ -44,7 +47,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transfer := helpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeSnapshotAndIncrement)
 
 	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, el := range input {
@@ -53,7 +56,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		return nil
 	}
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -70,7 +73,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	for {
 		time.Sleep(time.Second)
 
-		if container.IsEnoughChangeItems(t) {
+		if container.IsEnoughChangeItems() {
 			break
 		}
 	}

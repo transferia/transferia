@@ -17,8 +17,6 @@ import (
 	"go.ytsaurus.tech/library/go/core/log/nop"
 )
 
-const defaultLogbrokerDatabase = "/Root"
-
 type LbDestination struct {
 	Instance string `log:"true"`
 	Database string `log:"true"`
@@ -48,14 +46,6 @@ type LbDestination struct {
 }
 
 var _ model.Destination = (*LbDestination)(nil)
-
-type TLSMode = model.TLSMode
-
-const (
-	DefaultTLS  = model.DefaultTLS
-	EnabledTLS  = model.EnabledTLS
-	DisabledTLS = model.DisabledTLS
-)
 
 type CompressionCodec ydb_topics_sink.CompressionCodec
 
@@ -167,26 +157,33 @@ func (d *LbDestination) FillDependentFields(transfer *model.Transfer) {
 	}
 }
 
-func (d *LbDestination) db() string {
-	if d.Database == "" {
-		return defaultLogbrokerDatabase
+func (d *LbDestination) TopicSinkConfig() (*ydb_topics_sink.Config, error) {
+	config, err := alignDestinationConfigWithKnownInstallations(LogbrokerInstance(d.Instance), installationDestinationConfig{
+		port:        d.Port,
+		tls:         d.TLS,
+		database:    d.Database,
+		topic:       d.Topic,
+		topicPrefix: d.TopicPrefix,
+	})
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve installation destination config: %w", err)
 	}
-	return d.Database
-}
+	if config.database == "" {
+		config.database = defaultLogbrokerDatabase
+	}
 
-func (d *LbDestination) TopicSinkConfig() *ydb_topics_sink.Config {
 	return &ydb_topics_sink.Config{
 		Connection: topiccommon.ConnectionConfig{
-			Endpoint:         topiccommon.FormatEndpoint(d.Instance, d.Port),
-			Database:         d.db(),
+			Endpoint:         topiccommon.FormatEndpoint(d.Instance, config.port),
+			Database:         config.database,
 			Credentials:      d.Credentials,
-			TLSEnabled:       d.TLS == EnabledTLS,
+			TLSEnabled:       config.tls == EnabledTLS,
 			RootCAFiles:      d.RootCAFiles,
 			TLSCACertificate: d.TLSCACertificate,
 		},
 
-		Topic:            d.Topic,
-		TopicPrefix:      d.TopicPrefix,
+		Topic:            config.topic,
+		TopicPrefix:      config.topicPrefix,
 		CompressionCodec: ydb_topics_sink.CompressionCodec(d.CompressionCodec),
 		FormatSettings:   d.FormatSettings,
 
@@ -194,5 +191,5 @@ func (d *LbDestination) TopicSinkConfig() *ydb_topics_sink.Config {
 
 		AddSystemTables: d.AddSystemTables,
 		SaveTxOrder:     d.SaveTxOrder,
-	}
+	}, nil
 }

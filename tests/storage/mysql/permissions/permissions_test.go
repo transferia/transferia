@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
 )
 
 func prepareSource() *provider_mysql.MysqlSource {
-	source := helpers.RecipeMysqlSource()
+	source := mysql.RecipeMysqlSource()
 	source.User = "test_user"
 	source.Password = "test_pass"
 	return source
@@ -27,7 +27,7 @@ func TestTableListError(t *testing.T) {
 }
 
 func TestTableListNoError(t *testing.T) {
-	source := helpers.WithMysqlInclude(prepareSource(), []string{"foo"})
+	source := mysql.WithMysqlInclude(prepareSource(), []string{"foo"})
 
 	storage, err := provider_mysql.NewStorage(source.ToStorageParams())
 	require.NoError(t, err)

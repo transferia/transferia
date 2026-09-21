@@ -20,7 +20,11 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -140,23 +144,23 @@ func buildSourceModel(t *testing.T) *s3_model.S3Source {
 func TestNginxSnapshot(t *testing.T) {
 	src := buildSourceModel(t)
 	dst := makeDst()
-	transfer := helpers.MakeTransfer("snap", src, &dst, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
-	helpers.CheckRowsCount(t, &dst, TableNamespace, TableName, uint64(len(sampleNginxLines)))
+	transfer := transferhelpers.MakeTransfer("snap", src, &dst, abstract.TransferTypeSnapshotOnly)
+	delivery.Activate(t, transfer)
+	storagecomparison.CheckRowsCount(t, &dst, TableNamespace, TableName, uint64(len(sampleNginxLines)))
 	canonDst(t, dst, transfer)
 }
 
 func TestNginxIncrement(t *testing.T) {
 	src := buildSourceModel(t)
 	dst := makeDst()
-	transfer := helpers.MakeTransfer("incr", src, &dst, abstract.TransferTypeIncrementOnly)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer("incr", src, &dst, abstract.TransferTypeIncrementOnly)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	s3recipe.UploadOneFromMemory(t, src, testPathPrefix+"/access_incr.log.gz", makeGzipData(t, sampleNginxLines))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		TableNamespace, TableName,
-		helpers.GetSampleableStorageByModel(t, transfer.Dst),
+		storagecomparison.GetSampleableStorageByModel(t, transfer.Dst),
 		5*time.Minute,
 		uint64(len(sampleNginxLines)),
 	))
@@ -186,8 +190,8 @@ func makeDst() clickhouse_model.ChDestination {
 		ShardsList:          []clickhouse_model.ClickHouseShard{{Name: "_", Hosts: []string{"localhost"}}},
 		User:                "default",
 		Database:            TableNamespace,
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 		Cleanup:             model.Drop,
 	}

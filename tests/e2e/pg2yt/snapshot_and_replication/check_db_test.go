@@ -14,7 +14,11 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -26,17 +30,17 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                              // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                              // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestSnapshotAndIncrement(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -48,8 +52,8 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// start worker
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, TransferType)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, TransferType)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//------------------------------------------------------------------------------------
@@ -73,12 +77,12 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	// wait & compare
 
 	// table_simple__replica_identity_full won't match bcs of '__dummy' column - so we will compare only count
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "table_simple__replica_identity_full", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "table_simple__replica_identity_full", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
 
 	// table_simple will match
 	sourceCopy := Source
 	sourceCopy.DBTables = []string{"public.table_simple"}
-	require.NoError(t, helpers.CompareStorages(t, sourceCopy, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, sourceCopy, Target, storagecomparison.NewCompareStorageParams()))
 }
 
 func TestReplaceCleanupSnapshotAndIncrement(t *testing.T) {
@@ -90,8 +94,8 @@ func TestReplaceCleanupSnapshotAndIncrement(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// start worker
 	Target.Model.Cleanup = model.Replace
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, TransferType)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, TransferType)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	//------------------------------------------------------------------------------------
@@ -115,10 +119,10 @@ func TestReplaceCleanupSnapshotAndIncrement(t *testing.T) {
 	// wait & compare
 
 	// table_simple__replica_identity_full won't match bcs of '__dummy' column - so we will compare only count
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "table_simple__replica_identity_full", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "table_simple__replica_identity_full", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
 
 	// table_simple will match
 	sourceCopy := Source
 	sourceCopy.DBTables = []string{"public.table_simple"}
-	require.NoError(t, helpers.CompareStorages(t, sourceCopy, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, sourceCopy, Target, storagecomparison.NewCompareStorageParams()))
 }

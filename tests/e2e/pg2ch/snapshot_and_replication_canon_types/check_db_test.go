@@ -15,7 +15,11 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	postgres_canon "github.com/transferia/transferia/tests/canon/postgres"
 	"github.com/transferia/transferia/tests/e2e/pg2ch"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -28,12 +32,12 @@ func TestSnapshotAndIncrement(t *testing.T) {
 
 	Source := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
 	Target := chrecipe.MustTarget(chrecipe.WithInitDir("dump/ch"), chrecipe.WithDatabase(databaseName))
-	t.Setenv("YC", "1")                                                  // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	t.Setenv("YC", "1")                                                                  // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "CH target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "CH target", Port: Target.NativePort},
 		))
 	}()
 
@@ -48,21 +52,21 @@ func TestSnapshotAndIncrement(t *testing.T) {
 			_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
 			require.NoError(t, err)
 
-			transfer := helpers.MakeTransfer(
+			transfer := transferhelpers.MakeTransfer(
 				tableName,
 				Source,
 				Target,
 				abstract.TransferTypeSnapshotAndIncrement,
 			)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableName}}
-			worker := helpers.Activate(t, transfer)
+			worker := delivery.Activate(t, transfer)
 
 			conn, err = provider_postgres.MakeConnPoolFromSrc(Source, logger.Log)
 			require.NoError(t, err)
 			_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
 			require.NoError(t, err)
-			require.NoError(t, helpers.WaitEqualRowsCount(t, databaseName, tid.Name, helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-			require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams().WithEqualDataTypes(pg2ch.PG2CHDataTypesComparator).WithPriorityComparators(pg2ch.ValueComparator)))
+			require.NoError(t, storage.WaitEqualRowsCount(t, databaseName, tid.Name, storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+			require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams().WithEqualDataTypes(pg2ch.PG2CHDataTypesComparator).WithPriorityComparators(pg2ch.ValueComparator)))
 			defer worker.Close(t)
 		}
 	}

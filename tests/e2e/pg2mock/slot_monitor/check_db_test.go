@@ -13,7 +13,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var Source = pgrecipe.RecipeSource(pgrecipe.WithPrefix(""), pgrecipe.WithInitDir("init_source"))
@@ -44,16 +46,16 @@ func (s *mockSinker) Push(input []abstract.ChangeItem) error {
 
 func TestSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
 	// build transfer
 
 	sinker := new(mockSinker)
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{SinkerFactory: func() abstract.Sinker {
 			return sinker
@@ -68,7 +70,7 @@ func TestSnapshot(t *testing.T) {
 
 	// activate
 
-	worker, err := helpers.ActivateErr(transfer)
+	worker, err := delivery.ActivateErr(transfer)
 	if err != nil {
 		if strings.Contains(err.Error(), "lag for replication slot") {
 			return // everything is ok

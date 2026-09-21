@@ -390,7 +390,7 @@ func NewSinkServer(cfg clickhouse_model.ChSinkServerParams, lgr log.Logger, metr
 	// nevertheless different CH servers may really have different timezone and versions
 	version, err := resolveServerVersion(db)
 	if err != nil {
-		return nil, xerrors.Errorf("error resolving CH server version: %w", err)
+		return nil, xerrors.Errorf("error resolving CH server version: %w", clickhouse_errors.WrapConnectError(err))
 	}
 
 	timezone, err := resolveServerTimezone(db)

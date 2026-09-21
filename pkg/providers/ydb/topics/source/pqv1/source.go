@@ -317,12 +317,12 @@ func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger
 		Consumer:                  cfg.Consumer,
 		ManualPartitionAssignment: true,
 		RetryOnFailure:            true,
-		ReadOnlyLocal:             cfg.ReaderOpts.ReadOnlyLocal,
+		ReadOnlyLocal:             cfg.ReaderOpts.PQv1.ReadOnlyLocal,
 		MaxMemory:                 cfg.ReaderOpts.MaxMemory,
-		MaxReadSize:               cfg.ReaderOpts.MaxReadSize,
-		MaxReadMessagesCount:      cfg.ReaderOpts.MaxReadMessageCount,
-		MaxTimeLag:                cfg.ReaderOpts.MaxTimeLag,
-		MinReadInterval:           cfg.ReaderOpts.MinReadInterval,
+		MaxReadSize:               cfg.ReaderOpts.PQv1.MaxReadSize,
+		MaxReadMessagesCount:      cfg.ReaderOpts.PQv1.MaxReadMessageCount,
+		MaxTimeLag:                cfg.ReaderOpts.PQv1.MaxTimeLag,
+		MinReadInterval:           cfg.ReaderOpts.PQv1.MinReadInterval,
 	}
 
 	if cfg.Connection.TLSCACertificate != "" {

@@ -14,7 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/functions"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
 	"go.ytsaurus.tech/library/go/core/log"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -62,7 +62,7 @@ func TestLambdaTransformer(t *testing.T) {
 	schema := abstract.NewTableSchema([]abstract.ColSchema{
 		{ColumnName: "msg", DataType: ytschema.TypeString.String(), PrimaryKey: false},
 	})
-	builder := helpers.NewChangeItemsBuilder("public", "test", schema)
+	builder := changeitem.NewChangeItemsBuilder("public", "test", schema)
 
 	changes := builder.Inserts(t, []map[string]any{{
 		"msg": "message",

@@ -14,7 +14,11 @@ import (
 	oracle "github.com/transferia/transferia/pkg/providers/oracle"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -45,7 +49,7 @@ func init() {
 	// CDBQueryGlobal to issue "ALTER SESSION SET CONTAINER = cdb$root" before LogMiner
 	// calls, while PDBQueryGlobal still switches to FREEPDB1 for data queries.
 	Source.PDB = os.Getenv("RECIPE_ORACLE_SERVICE")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
 	}
@@ -53,9 +57,9 @@ func init() {
 
 func TestReplication(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -67,13 +71,13 @@ func TestReplication(t *testing.T) {
 func Replication(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.EVENTS"}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	_ = helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	_ = delivery.Activate(t, transfer)
 
-	pgStorage := helpers.GetSampleableStorageByModel(t, &Target)
+	pgStorage := storagecomparison.GetSampleableStorageByModel(t, &Target)
 
 	// Wait for initial snapshot (1 row: id=1)
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		"dt_test", "events", pgStorage, 30*time.Second, 1,
 	))
 
@@ -82,7 +86,7 @@ func Replication(t *testing.T) {
 		"INSERT INTO dt_test.events VALUES (2, 'second'); INSERT INTO dt_test.events VALUES (4, 'fourth'); UPDATE dt_test.events SET val = 'updated' WHERE id = 1; DELETE FROM dt_test.events WHERE id = 2; COMMIT",
 	))
 
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(
 		"dt_test", "events", pgStorage, 60*time.Second, 2,
 	))
 }

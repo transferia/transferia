@@ -68,7 +68,7 @@ func VerifyPostgresTables(src *PgSource, transfer *model.Transfer, lgr log.Logge
 		}
 	}
 	if len(missed) > 0 {
-		return xerrors.Errorf("Tables not found. Missed: %v", missed)
+		return coded.Errorf(error_codes.FilteredObjectNotFound, "Tables not found. Missed: %v", missed)
 	}
 	if noKeysTables := exist.NoKeysTables(); len(noKeysTables) > 0 {
 		return coded.Errorf(error_codes.PostgresNoPrimaryKeyCode, "unable to check primary keys: %v", noKeysTables)

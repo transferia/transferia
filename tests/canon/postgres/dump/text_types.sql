@@ -13,7 +13,8 @@ create table if not exists public.text_types
     t_bit_8  bit(8),
     t_varbit_8  varbit(8),
 
-    t_bytea              bytea
+    t_bytea              bytea,
+    t_uuid               uuid
 );
 
 INSERT INTO public.text_types VALUES
@@ -29,7 +30,8 @@ INSERT INTO public.text_types VALUES
     b'1', -- bit(1)
     b'10101111', -- bit(8),
     b'10101110', -- varbit(8)
-    decode('CAFEBABE', 'hex') -- bytea
+    decode('CAFEBABE', 'hex'), -- bytea
+    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' -- uuid
 );
 
 -- empty case

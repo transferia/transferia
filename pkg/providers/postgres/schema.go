@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
 	"go.ytsaurus.tech/library/go/core/log"
 	xmaps "golang.org/x/exp/maps"
 )
@@ -224,7 +225,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 		rows, err = conn.Query(ctx, query)
 	}
 	if err != nil {
-		return nil, xerrors.Errorf("failed to execute schema retrieval SQL: %w", err)
+		return nil, xerrors.Errorf("failed to execute schema retrieval SQL: %w", pgerrors.Wrap(err))
 	}
 	defer rows.Close()
 
@@ -307,7 +308,7 @@ func (e *SchemaExtractor) tableToColumnsMapping(ctx context.Context, conn *pgx.C
 		e.logger.Debug("column schema retrieved successfully", log.Any("col.TableID()", col.TableID()), log.Any("col", col))
 	}
 	if err := rows.Err(); err != nil {
-		return nil, xerrors.Errorf("failed to get next row from schema retrieval query: %w", err)
+		return nil, xerrors.Errorf("failed to get next row from schema retrieval query: %w", pgerrors.Wrap(err))
 	}
 
 	e.logger.Debug("Schema retrieved successfully")

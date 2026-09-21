@@ -17,8 +17,11 @@ import (
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -52,8 +55,8 @@ func getMessage(t *testing.T, changeItem *abstract.ChangeItem, additionalParamKe
 }
 
 func TestSnapshotAndReplication(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
 	// extract changeItems
@@ -63,7 +66,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transfer := helpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeSnapshotAndIncrement)
 
 	myMap := make(map[string][]abstract.ChangeItem)
 	index := 0
@@ -82,7 +85,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		return nil
 	}
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	srcConn, err := provider_postgres.MakeConnPoolFromSrc(&Source, logger.Log)
@@ -94,7 +97,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 	_, err = srcConn.Exec(context.Background(), `INSERT INTO table_with_enum (id, val) VALUES (2, 'bar');`)
 	require.NoError(t, err)
 
-	err = helpers.WaitCond(15*time.Second, func() bool {
+	err = storage.WaitCond(15*time.Second, func() bool {
 		myMutex.Lock()
 		defer myMutex.Unlock()
 		return len(myMap["events"])+len(myMap["table_with_enum"]) == 4

@@ -13,7 +13,7 @@ type FakeShardingStorage struct {
 	tables []abstract.TableDescription
 }
 
-func (f *FakeShardingStorage) TableSchema(ctx context.Context, table abstract.TableID) (*abstract.TableSchema, error) {
+func (f *FakeShardingStorage) TableSchema(_ context.Context, _ abstract.TableID) (*abstract.TableSchema, error) {
 	return nil, nil
 }
 
@@ -24,7 +24,7 @@ func (f *FakeShardingStorage) Ping() error {
 	return nil
 }
 
-func (f *FakeShardingStorage) LoadTable(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
+func (f *FakeShardingStorage) LoadTable(_ context.Context, _ abstract.TableDescription, _ abstract.Pusher) error {
 	return nil
 }
 
@@ -32,7 +32,7 @@ func (f *FakeShardingStorage) TableList(abstract.IncludeTableList) (abstract.Tab
 	return nil, nil
 }
 
-func (f *FakeShardingStorage) ShardTable(ctx context.Context, table abstract.TableDescription) ([]abstract.TableDescription, error) {
+func (f *FakeShardingStorage) ShardTable(_ context.Context, table abstract.TableDescription) ([]abstract.TableDescription, error) {
 	if table.Offset != 0 {
 		logger.Log.Infof("Table %v will not be sharded, offset: %v", table.Fqtn(), table.Offset)
 		return []abstract.TableDescription{table}, nil
@@ -49,15 +49,15 @@ func (f *FakeShardingStorage) ShardTable(ctx context.Context, table abstract.Tab
 	return res, nil
 }
 
-func (f *FakeShardingStorage) ExactTableRowsCount(table abstract.TableID) (uint64, error) {
+func (f *FakeShardingStorage) ExactTableRowsCount(_ abstract.TableID) (uint64, error) {
 	return 0, xerrors.New("not implemented")
 }
 
-func (f *FakeShardingStorage) EstimateTableRowsCount(table abstract.TableID) (uint64, error) {
+func (f *FakeShardingStorage) EstimateTableRowsCount(_ abstract.TableID) (uint64, error) {
 	return 0, xerrors.New("not implemented")
 }
 
-func (f *FakeShardingStorage) TableExists(table abstract.TableID) (bool, error) {
+func (f *FakeShardingStorage) TableExists(_ abstract.TableID) (bool, error) {
 	return false, xerrors.New("not implemented")
 }
 

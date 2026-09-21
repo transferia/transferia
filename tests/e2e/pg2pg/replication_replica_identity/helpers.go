@@ -12,30 +12,34 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 type stopCondition func(t *testing.T, tableName string, src provider_postgres.PgSource, dst provider_postgres.PgDestination) error
 
 func untilStoragesEqual(t *testing.T, tableName string, src provider_postgres.PgSource, dst provider_postgres.PgDestination) error {
-	params := helpers.NewCompareStorageParams().WithTableFilter(makeTableFilter(tableName))
-	return helpers.WaitStoragesSynced(t, src, dst, 15, params)
+	params := storagecomparison.NewCompareStorageParams().WithTableFilter(makeTableFilter(tableName))
+	return storagecomparison.WaitStoragesSynced(t, src, dst, 15, params)
 }
 
 func untilDestinationRowCountEquals(rowCount uint64) stopCondition {
 	return func(t *testing.T, tableName string, src provider_postgres.PgSource, dst provider_postgres.PgDestination) error {
-		return helpers.WaitDestinationEqualRowsCount("public", tableName, helpers.GetSampleableStorageByModel(t, dst), time.Minute, rowCount)
+		return storage.WaitDestinationEqualRowsCount("public", tableName, storagecomparison.GetSampleableStorageByModel(t, dst), time.Minute, rowCount)
 	}
 }
 
 func untilTimeElapsesAndStoragesEqual(delay time.Duration, expectedDstRowCount uint64) stopCondition {
 	return func(t *testing.T, tableName string, src provider_postgres.PgSource, dst provider_postgres.PgDestination) error {
 		time.Sleep(delay)
-		params := helpers.NewCompareStorageParams().WithTableFilter(makeTableFilter(tableName))
-		if err := helpers.WaitStoragesSynced(t, src, dst, 15, params); err != nil {
+		params := storagecomparison.NewCompareStorageParams().WithTableFilter(makeTableFilter(tableName))
+		if err := storagecomparison.WaitStoragesSynced(t, src, dst, 15, params); err != nil {
 			return err
 		}
-		return helpers.WaitDestinationEqualRowsCount("public", tableName, helpers.GetSampleableStorageByModel(t, dst), 5*time.Second, expectedDstRowCount)
+		return storage.WaitDestinationEqualRowsCount("public", tableName, storagecomparison.GetSampleableStorageByModel(t, dst), 5*time.Second, expectedDstRowCount)
 	}
 }
 
@@ -46,19 +50,19 @@ func testReplicationWorks(t *testing.T, slotID, tableName string, perTransaction
 	target.PerTransactionPush = perTransactionPush
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: source.Port},
+			network.LabeledPort{Label: "PG target", Port: target.Port},
 		))
 	}()
 
 	TransferType := abstract.TransferTypeIncrementOnly
-	helpers.InitSrcDst(helpers.TransferID, &source, &target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &source, &target, TransferType)
 
 	replicationWorker := local.NewLocalWorker(
 		coordinator.NewFakeClient(),
-		helpers.MakeTransfer(helpers.TransferID, &source, &target, TransferType),
-		helpers.EmptyRegistry(),
+		transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, TransferType),
+		testmetrics.EmptyRegistry(),
 		logger.Log,
 	)
 	replicationWorker.Start()
@@ -72,7 +76,7 @@ func testReplicationWorks(t *testing.T, slotID, tableName string, perTransaction
 func makeTableFilter(tableName string) func(tables abstract.TableMap) []abstract.TableDescription {
 	return func(tables abstract.TableMap) []abstract.TableDescription {
 		var filteredTables []abstract.TableDescription
-		for _, table := range helpers.FilterTechnicalTables(tables) {
+		for _, table := range storagecomparison.FilterTechnicalTables(tables) {
 			if table.Name != tableName {
 				continue
 			}

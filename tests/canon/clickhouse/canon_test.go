@@ -11,7 +11,9 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/tests/canon/validator"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func getID(item abstract.ChangeItem) uint64 {
@@ -62,13 +64,13 @@ func TestCanonSource(t *testing.T) {
 		User:       "default",
 		Password:   "",
 		Database:   "canon",
-		HTTPPort:   helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort: helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:   testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort: testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 	}
 	Source.WithDefaults()
 
-	transfer := helpers.MakeTransfer(
-		helpers.TransferID,
+	transfer := transferhelpers.MakeTransfer(
+		transferhelpers.TransferID,
 		Source,
 		&model.MockDestination{
 			SinkerFactory: validator.New(
@@ -82,5 +84,5 @@ func TestCanonSource(t *testing.T) {
 		},
 		abstract.TransferTypeSnapshotOnly,
 	)
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 }

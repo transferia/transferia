@@ -14,7 +14,13 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb"
 )
 
 var (
@@ -27,19 +33,19 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	Source := pgrecipe.RecipeSource(pgrecipe.WithPrefix(""))
 	Target := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 
-	t.Setenv("YC", "1")                                                  // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	t.Setenv("YC", "1")                                                                  // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, Source, Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 
 	defer func() {
-		sourcePort, err := helpers.GetPortFromStr(Target.Instance)
+		sourcePort, err := network.GetPortFromStr(Target.Instance)
 		require.NoError(t, err)
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YDB target", Port: sourcePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YDB target", Port: sourcePort},
 		))
 	}()
 
@@ -48,8 +54,8 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	conn, err := provider_postgres.NewPgConnPool(connConfig, logger.Log)
 	require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, TransferType)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, TransferType)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	time.Sleep(5 * time.Second) // for the worker to start
@@ -61,8 +67,8 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	_, err = conn.Exec(context.Background(), "DELETE FROM test WHERE i1 != 1")
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, databaseName, tableName, helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount(databaseName, tableName, helpers.GetSampleableStorageByModel(t, Target), 60*time.Second, 1))
+	require.NoError(t, storage.WaitEqualRowsCount(t, databaseName, tableName, storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount(databaseName, tableName, storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second, 1))
 
 	var large string
 	var small string
@@ -71,10 +77,10 @@ func TestSnapshotAndIncrement(t *testing.T) {
 	}, backoff.NewConstantBackOff(time.Second))
 	require.NoError(t, err)
 
-	dump := helpers.YDBPullDataFromTable(t,
+	dump := ydb.PullDataFromTable(t,
 		os.Getenv("YDB_TOKEN"),
-		helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		"public_test")
 	require.Equal(t, 1, len(dump))
 

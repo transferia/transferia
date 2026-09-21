@@ -53,7 +53,7 @@ func DumpYtDirectoryToString(ytClient yt.Client, tablePath ypath.Path) (string, 
 		Path string `yson:"path,attr"`
 		Type string `yson:"type,attr"`
 	}
-	if err := ytClient.ListNode(context.Background(), ypath.Path(tablePath), &outNodes, &yt.ListNodeOptions{Attributes: []string{"type", "path"}}); err != nil {
+	if err := ytClient.ListNode(context.Background(), tablePath, &outNodes, &yt.ListNodeOptions{Attributes: []string{"type", "path"}}); err != nil {
 		return "", xerrors.Errorf("list nodes error: %w", err)
 	}
 

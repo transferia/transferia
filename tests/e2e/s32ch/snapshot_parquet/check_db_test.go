@@ -13,8 +13,12 @@ import (
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/s3"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const testCasePath = "fhv_taxi"
@@ -46,16 +50,16 @@ func testNativeS3(t *testing.T, src *s3_model.S3Source) {
 		User:                "default",
 		Password:            "",
 		Database:            "taxi",
-		HTTPPort:            helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
-		NativePort:          helpers.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
+		HTTPPort:            testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_HTTP_PORT"),
+		NativePort:          testenv.GetIntFromEnv("RECIPE_CLICKHOUSE_NATIVE_PORT"),
 		ProtocolUnspecified: true,
 		ChClusterName:       "test_shard_localhost",
 		Cleanup:             model.Truncate,
 	}
 	target.WithDefaults()
-	transfer := helpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
-	helpers.Activate(t, transfer)
-	helpers.CheckRowsCount(t, &target, "taxi", "trip", 2439039)
+	transfer := transferhelpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
+	delivery.Activate(t, transfer)
+	storagecomparison.CheckRowsCount(t, &target, "taxi", "trip", 2439039)
 }
 
 func testNativeS3ManualSchemaWithPkey(t *testing.T, src *s3_model.S3Source) {
@@ -85,13 +89,13 @@ func testNativeS3ManualSchemaWithPkey(t *testing.T, src *s3_model.S3Source) {
 		Cleanup:       model.DisabledCleanup,
 	}
 
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
-	_, err := helpers.ActivateErr(transfer)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	_, err := delivery.ActivateErr(transfer)
 	require.Error(t, err)
 }
 
 func TestAll(t *testing.T) {
 	src := buildSourceModel(t)
 	testNativeS3(t, src)
-	helpers.TestS3SchemaAndPkeyCases(t, src, "Affiliated_base_number", "")
+	s3.TestS3SchemaAndPkeyCases(t, src, "Affiliated_base_number", "")
 }

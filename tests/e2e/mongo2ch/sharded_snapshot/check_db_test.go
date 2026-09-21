@@ -11,7 +11,10 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	canon_mongo "github.com/transferia/transferia/tests/canon/mongo"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const databaseName string = "db"
@@ -23,10 +26,10 @@ var (
 
 func TestShardedSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "CH HTTP target", Port: Target.HTTPPort},
-			helpers.LabeledPort{Label: "CH Native target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "CH HTTP target", Port: Target.HTTPPort},
+			network.LabeledPort{Label: "CH Native target", Port: Target.NativePort},
 		))
 	}()
 
@@ -35,15 +38,15 @@ func TestShardedSnapshot(t *testing.T) {
 	}
 	require.NoError(t, canon_mongo.InsertDocs(context.Background(), Source, databaseName, "test_data", canon_mongo.SnapshotDocuments...))
 
-	transfer := helpers.WithLocalRuntime(
-		helpers.MakeTransfer(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly),
+	transfer := transferhelpers.WithLocalRuntime(
+		transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly),
 		2,
 		1,
 	)
 	transfer.TypeSystemVersion = 7
-	_, err := helpers.ActivateShardedErr(transfer, nil, nil)
+	_, err := delivery.ActivateShardedErr(transfer, nil, nil)
 	require.NoError(t, err)
-	err = helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
+	err = storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
 		return true
 	}).WithPriorityComparators(func(lVal interface{}, lSchema abstract.ColSchema, rVal interface{}, rSchema abstract.ColSchema, intoArray bool) (comparable bool, result bool, err error) {
 		ld, _ := json.Marshal(lVal)

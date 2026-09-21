@@ -11,7 +11,10 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	canon_mongo "github.com/transferia/transferia/tests/canon/mongo"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const databaseName string = "db"
@@ -27,10 +30,10 @@ func MakeDstClient(t *provider_mongo.MongoDestination) (*provider_mongo.MongoCli
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "CH HTTP target", Port: Target.HTTPPort},
-			helpers.LabeledPort{Label: "CH Native target", Port: Target.NativePort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "CH HTTP target", Port: Target.HTTPPort},
+			network.LabeledPort{Label: "CH Native target", Port: Target.NativePort},
 		))
 	}()
 
@@ -54,11 +57,11 @@ func Snapshot(t *testing.T) {
 
 	require.NoError(t, canon_mongo.InsertDocs(context.Background(), Source, databaseName, "test_data", canon_mongo.SnapshotDocuments...))
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, Source, Target, abstract.TransferTypeSnapshotOnly)
 	transfer.TypeSystemVersion = 7
 
-	_ = helpers.Activate(t, transfer)
-	err := helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
+	_ = delivery.Activate(t, transfer)
+	err := storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams().WithEqualDataTypes(func(lDataType, rDataType string) bool {
 		return true
 	}).WithPriorityComparators(func(lVal interface{}, lSchema abstract.ColSchema, rVal interface{}, rSchema abstract.ColSchema, intoArray bool) (comparable bool, result bool, err error) {
 		ld, _ := json.Marshal(lVal)

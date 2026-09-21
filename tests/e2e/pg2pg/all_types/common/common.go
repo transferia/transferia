@@ -16,61 +16,54 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	postgres_canon "github.com/transferia/transferia/tests/canon/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	all_types "github.com/transferia/transferia/tests/helpers/postgres/all_types"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func TestAllDataTypes(t *testing.T, source *provider_postgres.PgSource, target *provider_postgres.PgDestination) {
+func TestAllDataTypes(t *testing.T, source *provider_postgres.PgSource, target *provider_postgres.PgDestination, tableSQLs map[string]string) {
+	cases := all_types.TableNames
 	conn, err := provider_postgres.MakeConnPoolFromDst(target, logger.Log)
 	require.NoError(t, err)
 	defer conn.Close()
 	// TODO: Allow to optionally transit extensions as part of transfer
-	_, err = conn.Exec(context.Background(), `
-create extension if not exists hstore;
-create extension if not exists ltree;
-create extension if not exists citext;
-`)
-	require.NoError(t, err)
+	require.NoError(t, all_types.EnsureExtensions(context.Background(), conn))
 
-	helpers.InitSrcDst(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 
-	cases := []string{
-		"public.array_types",
-		"public.date_types",
-		"public.geom_types",
-		"public.numeric_types",
-		"public.text_types",
-		"public.user_types",
-		"public.wtf_types",
+	seedTable := func(t *testing.T, tableName string) {
+		t.Helper()
+		conn, err := provider_postgres.MakeConnPoolFromSrc(source, logger.Log)
+		require.NoError(t, err)
+		defer conn.Close()
+		sql, ok := tableSQLs[tableName]
+		require.True(t, ok, "unknown canon table %s", tableName)
+		_, err = conn.Exec(context.Background(), sql)
+		require.NoError(t, err, "seed canon table %s", tableName)
 	}
 
 	tableCase := func(tableName string) func(t *testing.T) {
 		return func(t *testing.T) {
-			t.Run("initial data", func(t *testing.T) {
-				conn, err := provider_postgres.MakeConnPoolFromSrc(source, logger.Log)
-				require.NoError(t, err)
-				defer conn.Close()
-				_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
-				require.NoError(t, err)
-			})
+			seedTable(t, tableName)
 
 			source.DBTables = []string{tableName}
-			transfer := helpers.MakeTransfer(
+			transfer := transferhelpers.MakeTransfer(
 				t.Name(),
 				source,
 				target,
 				abstract.TransferTypeSnapshotAndIncrement,
 			)
 			transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{tableName}}
-			worker := helpers.Activate(t, transfer)
+			worker := delivery.Activate(t, transfer)
 
 			conn, err := provider_postgres.MakeConnPoolFromSrc(source, logger.Log)
 			require.NoError(t, err)
 			defer conn.Close()
-			_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
+			_, err = conn.Exec(context.Background(), tableSQLs[tableName])
 			require.NoError(t, err)
 			srcStorage, err := provider_postgres.NewStorage(source.ToStorageParams(nil))
 			require.NoError(t, err)
@@ -80,7 +73,7 @@ create extension if not exists citext;
 			defer dstStorage.Close()
 			tid, err := abstract.ParseTableIDForProvider(tableName, abstract.ProviderType("pg"))
 			require.NoError(t, err)
-			require.NoError(t, helpers.WaitEqualRowsCount(t, tid.Namespace, tid.Name, srcStorage, dstStorage, time.Second*30))
+			require.NoError(t, storage.WaitEqualRowsCount(t, tid.Namespace, tid.Name, srcStorage, dstStorage, time.Second*30))
 			worker.Close(t)
 
 			// Log per-row JSON representation to spot differences
@@ -146,17 +139,11 @@ FROM (
 	queriesStr := make([]string, 0)
 	tableCaseAfterFallbackFromCopyFrom := func(tableName string) func(t *testing.T) {
 		return func(t *testing.T) {
-			t.Run("initial data", func(t *testing.T) {
-				conn, err := provider_postgres.MakeConnPoolFromSrc(source, logger.Log)
-				require.NoError(t, err)
-				defer conn.Close()
-				_, err = conn.Exec(context.Background(), postgres_canon.TableSQLs[tableName])
-				require.NoError(t, err)
-			})
+			seedTable(t, tableName)
 
 			source.DBTables = []string{tableName}
 			target.Cleanup = model.DisabledCleanup
-			transfer := helpers.MakeTransfer(
+			transfer := transferhelpers.MakeTransfer(
 				t.Name(),
 				source,
 				target,
@@ -174,7 +161,7 @@ FROM (
 			}
 			debeziumSerDeTransformer := helpers_transformer.NewSimpleTransformer(t, handler, serde.AnyTablesUdf)
 			require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
-			_ = helpers.Activate(t, transfer)
+			_ = delivery.Activate(t, transfer)
 
 			// check
 			queryFilter := make([]abstract.ChangeItem, 0)

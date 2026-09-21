@@ -15,7 +15,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 )
 
@@ -33,15 +37,15 @@ func init() {
 }
 
 func TestSnapshotAndReplication(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(target.Cluster())
+	targetPort, err := network.GetPortFromStr(target.Cluster())
 	require.NoError(t, err)
 
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: source.Port},
-		helpers.LabeledPort{Label: "YT target", Port: targetPort},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: source.Port},
+		network.LabeledPort{Label: "YT target", Port: targetPort},
 	))
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, transferType)
 
 	require.NoError(t, transfer.TransformationFromJSON(`
 {
@@ -59,7 +63,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 }
 `))
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	t.Run("Snapshot", Snapshot)
@@ -70,10 +74,10 @@ func TestSnapshotAndReplication(t *testing.T) {
 }
 
 func Snapshot(t *testing.T) {
-	dst := helpers.GetSampleableStorageByModel(t, target)
+	dst := storagecomparison.GetSampleableStorageByModel(t, target)
 	n := uint64(1)
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "test", dst, waitTimeout, n))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "test_not_transformed", dst, waitTimeout, n))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "test", dst, waitTimeout, n))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "test_not_transformed", dst, waitTimeout, n))
 }
 
 func Replication(t *testing.T) {
@@ -168,14 +172,14 @@ func Replication(t *testing.T) {
 	srcConn.Close()
 	require.NoError(t, err)
 
-	dst := helpers.GetSampleableStorageByModel(t, target)
+	dst := storagecomparison.GetSampleableStorageByModel(t, target)
 	n := uint64(len(toQuery)) + 2 // +2 because we have 1 row from snapshot and 1 row with update
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "test", dst, waitTimeout, n))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "test_not_transformed", dst, waitTimeout, n))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "test", dst, waitTimeout, n))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "test_not_transformed", dst, waitTimeout, n))
 }
 
 func Canon(t *testing.T) {
-	dst := helpers.GetSampleableStorageByModel(t, target)
+	dst := storagecomparison.GetSampleableStorageByModel(t, target)
 
 	var resWithNumbers []abstract.ChangeItem
 	desc := abstract.TableDescription{Schema: "public", Name: "test_not_transformed"}

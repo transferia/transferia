@@ -13,8 +13,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 type testCaseParams struct {
@@ -66,11 +69,11 @@ func TestMySQLHeteroViewsInteraction(t *testing.T) {
 			t.Run(params.testCaseName, func(t *testing.T) {
 				notesCounter := make(map[string]int)
 				mutex := sync.RWMutex{}
-				source := *helpers.RecipeMysqlSource()
+				source := *mysql.RecipeMysqlSource()
 				source.IncludeTableRegex = params.tables
 				defer func() {
-					require.NoError(t, helpers.CheckConnections(
-						helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
+					require.NoError(t, network.CheckConnections(
+						network.LabeledPort{Label: "Mysql source", Port: source.Port},
 					))
 				}()
 				sinker := mocksink.NewMockSink(func(items []abstract.ChangeItem) error {
@@ -87,8 +90,8 @@ func TestMySQLHeteroViewsInteraction(t *testing.T) {
 					SinkerFactory: func() abstract.Sinker { return sinker },
 					Cleanup:       model.DisabledCleanup,
 				}
-				transfer := helpers.MakeTransfer("fake", &source, &target, params.transferType)
-				worker, err := helpers.ActivateErr(transfer)
+				transfer := transferhelpers.MakeTransfer("fake", &source, &target, params.transferType)
+				worker, err := delivery.ActivateErr(transfer)
 				if params.shouldBeError {
 					require.Error(t, err)
 					require.ErrorIs(t, err, tasks.NoTablesError)

@@ -13,8 +13,11 @@ import (
 	debezium_common "github.com/transferia/transferia/pkg/debezium/common"
 	debezium_testutil "github.com/transferia/transferia/pkg/debezium/testutil"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -29,8 +32,8 @@ func init() {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestSnapshot(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
 	canonizedDebeziumKeyBytes, err := os.ReadFile(yatest.SourcePath("transfer_manager/go/tests/e2e/pg2mock/debezium/debezium_snapshot/testdata/change_item_key.txt"))
@@ -46,7 +49,7 @@ func TestSnapshot(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transfer := helpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", &Source, &target, abstract.TransferTypeSnapshotOnly)
 
 	var changeItems []abstract.ChangeItem
 	sinker.PushCallback = func(input []abstract.ChangeItem) error {
@@ -54,7 +57,7 @@ func TestSnapshot(t *testing.T) {
 		return nil
 	}
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	require.Equal(t, 5, len(changeItems))
 	require.Equal(t, changeItems[0].Kind, abstract.InitShardedTableLoad)
@@ -69,6 +72,6 @@ func TestSnapshot(t *testing.T) {
 
 	changeItemBuf, err := json.Marshal(changeItems[2])
 	require.NoError(t, err)
-	changeItemDeserialized := helpers.UnmarshalChangeItem(t, changeItemBuf)
+	changeItemDeserialized := changeitem.UnmarshalChangeItem(t, changeItemBuf)
 	debezium_testutil.CheckCanonizedDebeziumEvent(t, changeItemDeserialized, "fullfillment", "pguser", "pg", true, []debezium_common.KeyValue{{DebeziumKey: string(canonizedDebeziumKeyBytes), DebeziumVal: &canonizedDebeziumVal}})
 }

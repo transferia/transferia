@@ -5,14 +5,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	replace_fkey_common "github.com/transferia/transferia/tests/e2e/mysql2mysql/replace_fkey/common"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
 )
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: replace_fkey_common.Source.Port},
-			helpers.LabeledPort{Label: "Mysql target", Port: replace_fkey_common.Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: replace_fkey_common.Source.Port},
+			network.LabeledPort{Label: "Mysql target", Port: replace_fkey_common.Target.Port},
 		))
 	}()
 

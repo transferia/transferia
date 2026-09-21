@@ -8,7 +8,8 @@ import (
 )
 
 func NewSource(cfg *LfSource, logger log.Logger, registry core_metrics.Registry) (abstract.Source, error) {
-	if cfg.Cluster != "" && len(KnownClusters[cfg.Cluster]) > 0 {
+	instances, knownCluster := ClusterInstances(cfg.Cluster)
+	if cfg.Cluster != "" && knownCluster && len(instances) > 0 {
 		result, err := NewMultiDCSource(cfg, logger, registry)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create multi-dc source, err: %w", err)

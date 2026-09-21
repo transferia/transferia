@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/ydb/topics/source/topicapi/eventreader"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
+	"github.com/transferia/transferia/pkg/util/throttler"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -73,7 +74,9 @@ func NewPartitionSource(cfg *topicsource.Config, partitionDesc PartitionDescript
 		_ = reader.Close(context.Background())
 	})
 
-	src, err := newBaseSource(cfg, parser, ydbClient, reader, logger, metrics)
+	inflightThrottler := throttler.NewStubThrottler()
+
+	src, err := newBaseSource(cfg, parser, ydbClient, reader, inflightThrottler, logger, metrics)
 	if err != nil {
 		return nil, err
 	}

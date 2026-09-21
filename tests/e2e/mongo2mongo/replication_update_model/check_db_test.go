@@ -15,7 +15,12 @@ import (
 	provider_mongo "github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -23,7 +28,7 @@ var (
 	TransferType = abstract.TransferTypeIncrementOnly
 	Source       = provider_mongo.MongoSource{
 		Hosts:             []string{"localhost"},
-		Port:              helpers.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		Port:              testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
 		User:              os.Getenv("MONGO_LOCAL_USER"),
 		Password:          model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
 		Collections:       []provider_mongo.MongoCollection{{DatabaseName: "db", CollectionName: "timmyb32r_test"}},
@@ -31,7 +36,7 @@ var (
 	}
 	Target = provider_mongo.MongoDestination{
 		Hosts:    []string{"localhost"},
-		Port:     helpers.GetIntFromEnv("DB0_MONGO_LOCAL_PORT"),
+		Port:     testenv.GetIntFromEnv("DB0_MONGO_LOCAL_PORT"),
 		User:     os.Getenv("DB0_MONGO_LOCAL_USER"),
 		Password: model.SecretString(os.Getenv("DB0_MONGO_LOCAL_PASSWORD")),
 		Cleanup:  model.Drop,
@@ -39,8 +44,8 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -68,9 +73,9 @@ func MakeDstClient(t *provider_mongo.MongoDestination) (*provider_mongo.MongoCli
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: Source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: Target.Port},
 		))
 	}()
 
@@ -132,13 +137,13 @@ func Load(t *testing.T) {
 		Type: abstract.TransferTypeSnapshotAndIncrement,
 		Src:  &Source,
 		Dst:  &Target,
-		ID:   helpers.TransferID,
+		ID:   transferhelpers.TransferID,
 	}
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), &transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -164,6 +169,6 @@ func Load(t *testing.T) {
 	//------------------------------------------------------------------------------------
 	// check results
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "db", "timmyb32r_test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "db", "timmyb32r_test", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 60*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

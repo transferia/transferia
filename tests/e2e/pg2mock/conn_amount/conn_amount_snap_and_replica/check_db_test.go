@@ -14,8 +14,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const ExpectedRowCount = 1000000
@@ -38,8 +42,8 @@ func TestConnLimit1Worker4ThreadsSnapshotAndReplication(t *testing.T) {
 	)
 	source.WithDefaults()
 
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: source.Port},
 	))
 
 	tableRowCounts := make(map[string]int)
@@ -60,16 +64,16 @@ func TestConnLimit1Worker4ThreadsSnapshotAndReplication(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transfer1Worker4Threads := helpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer1Worker4Threads := transferhelpers.MakeTransfer("fake", &source, &target, abstract.TransferTypeSnapshotAndIncrement)
 	transfer1Worker4Threads.Runtime = &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{JobCount: 1, ProcessCount: 4}}
-	worker := helpers.Activate(t, transfer1Worker4Threads)
+	worker := delivery.Activate(t, transfer1Worker4Threads)
 	defer worker.Close(t)
 
 	CheckEntriesPerTable(t, tableRowCounts)
 	ctx := context.Background()
 	writerString := fmt.Sprintf(
 		"host=localhost port=%d dbname=%s user=writer password=aA_12345",
-		helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		os.Getenv("PG_LOCAL_DATABASE"),
 	)
 	srcConn, err := pgx.Connect(ctx, writerString)
@@ -88,7 +92,7 @@ func TestConnLimit1Worker4ThreadsSnapshotAndReplication(t *testing.T) {
 		require.NoError(t, err)
 		counter++
 	}
-	err = helpers.WaitCond(time.Second*30, func() bool {
+	err = storage.WaitCond(time.Second*30, func() bool {
 		rwMutex.RLock()
 		res := tableRowCounts["test1"] == ExpectedRowCount+counter
 		rwMutex.RUnlock()

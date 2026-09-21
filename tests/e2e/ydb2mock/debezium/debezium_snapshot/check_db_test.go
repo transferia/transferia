@@ -14,8 +14,12 @@ import (
 	debezium_common "github.com/transferia/transferia/pkg/debezium/common"
 	debezium_testutil "github.com/transferia/transferia/pkg/debezium/testutil"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 )
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -23,8 +27,8 @@ import (
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -53,7 +57,7 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		currChangeItem := helpers.YDBInitChangeItem("dectest/timmyb32r-test")
+		currChangeItem := testdata.YDBInitChangeItem("dectest/timmyb32r-test")
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 	})
 
@@ -65,7 +69,7 @@ func TestGroup(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transfer := helpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, &target, abstract.TransferTypeSnapshotOnly)
 
 	var changeItems []abstract.ChangeItem
 	sinker.PushCallback = func(input []abstract.ChangeItem) error {
@@ -73,7 +77,7 @@ func TestGroup(t *testing.T) {
 		return nil
 	}
 
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// check
@@ -90,6 +94,6 @@ func TestGroup(t *testing.T) {
 	debezium_testutil.CheckCanonizedDebeziumEvent(t, &changeItems[2], "fullfillment", "pguser", "pg", true, []debezium_common.KeyValue{{DebeziumKey: string(canonizedDebeziumKeyArr), DebeziumVal: &canonizedDebeziumVal}})
 	changeItemBuf, err := json.Marshal(changeItems[2])
 	require.NoError(t, err)
-	changeItemDeserialized := helpers.UnmarshalChangeItem(t, changeItemBuf)
+	changeItemDeserialized := changeitem.UnmarshalChangeItem(t, changeItemBuf)
 	debezium_testutil.CheckCanonizedDebeziumEvent(t, changeItemDeserialized, "fullfillment", "pguser", "pg", true, []debezium_common.KeyValue{{DebeziumKey: string(canonizedDebeziumKeyArr), DebeziumVal: &canonizedDebeziumVal}})
 }

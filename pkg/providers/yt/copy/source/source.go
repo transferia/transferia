@@ -51,7 +51,7 @@ func (s *source) BeginSnapshot() error {
 	ctx := context.Background()
 	var err error
 	if s.nodes, err = cypressmeta.ListNodes(ctx, s.yt, s.cfg.GetCluster(), s.cfg.GetPaths(), []yt.NodeType{yt.NodeTable, yt.NodeFile}, s.skipLinkFollowing, s.logger); err != nil {
-		return xerrors.Errorf("error getting list of nodes: %w", err)
+		return xerrors.Errorf("error getting list of nodes: %w", provider_yt.WrapYTError(err))
 	}
 	s.logger.Infof("Got %d nodes to copy", len(s.nodes))
 	s.snapshotID = strings.Join(s.cfg.GetPaths(), ";")

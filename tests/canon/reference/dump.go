@@ -32,7 +32,7 @@ import (
 	"github.com/transferia/transferia/pkg/util/set"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	canon_test "github.com/transferia/transferia/tests/canon"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
@@ -156,7 +156,7 @@ order by
 
 		return stdout.String()
 	case *provider_mysql.MysqlSource:
-		dump := helpers.MySQLDump(t, src.ToStorageParams())
+		dump := mysql.MySQLDump(t, src.ToStorageParams())
 		return dump
 	case *provider_mongo.MongoSource:
 		dumpStart := time.Now()

@@ -43,6 +43,7 @@ var (
 	// postgres
 	PostgresAllHostsUnavailable             = coded.Register("postgres", "all_hosts_unavailable")
 	PostgresConnectionLimitTooLow           = coded.Register("postgres", "connection_limit_too_low")
+	PostgresDatabaseNotFound                = coded.Register("postgres", "database_not_found")
 	PostgresDDLApplyFailed                  = coded.Register("postgres", "ddl_apply_failed")
 	PostgresDDLPermissionDenied             = coded.Register("postgres", "ddl_permission_denied")
 	PostgresDDLUndefinedObject              = coded.Register("postgres", "ddl_undefined_object")
@@ -52,8 +53,11 @@ var (
 	PostgresDuplicateKeyViolation           = coded.Register("postgres", "duplicate_key_violation")
 	PostgresGeneratedColumnWriteAttempt     = coded.Register("postgres", "generated_column_write_attempt")
 	PostgresInvalidSnapshot                 = coded.Register("postgres", "invalid_snapshot_identifier")
+	PostgresLockTimeout                     = coded.Register("postgres", "lock_timeout")
+	PostgresMasterUnavailable               = coded.Register("postgres", "master_unavailable")
 	PostgresNoPrimaryKeyCode                = coded.Register("postgres", "no_primary_key")
 	PostgresObjectInUse                     = coded.Register("postgres", "object_in_use")
+	PostgresOutputPluginNotAllowed          = coded.Register("postgres", "output_plugin_not_allowed")
 	PostgresReplicationConnectionNotAllowed = coded.Register("postgres", "replication_connection_not_allowed")
 	PostgresReplicationSlotInvalidated      = coded.Register("postgres", "replication_slot_invalidated")
 	PostgresReplicationSlotsInUse           = coded.Register("postgres", "replication_slots_in_use")
@@ -85,8 +89,11 @@ var (
 	OnPremEndpointNetworkFailed = coded.Register("onprem", "endpoint_network_failed")
 
 	// ydb
-	YDBNotFound   = coded.Register("ydb", "not_found")
-	YDBOverloaded = coded.Register("ydb", "overloaded")
+	YDBNotFound         = coded.Register("ydb", "not_found")
+	YDBOverloaded       = coded.Register("ydb", "overloaded")
+	YDBAccessDenied     = coded.Register("ydb", "access_denied")
+	YDBUnavailable      = coded.Register("ydb", "unavailable")
+	YDBConnectionFailed = coded.Register("ydb", "connection_failed")
 
 	// ytsaurus
 	YTSaurusNotFound               = coded.Register("yt", "not_found")
@@ -95,6 +102,12 @@ var (
 	YTTableNameCollision           = coded.Register("yt", "table_name_collision")
 	YTValueSizeLimitExceeded       = coded.Register("yt", "value_size_limit_exceeded")
 	YTTooManyOperations            = coded.Register("yt", "too_many_operations")
+	YTAccountLimitExceeded         = coded.Register("yt", "account_limit_exceeded")
+	YTAccessDenied                 = coded.Register("yt", "access_denied")
+	YTLockConflict                 = coded.Register("yt", "lock_conflict")
+	YTPathNotFound                 = coded.Register("yt", "path_not_found")
+	YTUnavailable                  = coded.Register("yt", "unavailable")
+	YTIncompatibleSchema           = coded.Register("yt", "incompatible_schema")
 
 	// greenplum
 	GreenplumExternalUrlsExceedSegments = coded.Register("greenplum", "external_urls_exceed_segments")

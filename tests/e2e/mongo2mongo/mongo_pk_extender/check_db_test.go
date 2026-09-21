@@ -15,7 +15,12 @@ import (
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	transformer_mongo_pk_extender "github.com/transferia/transferia/pkg/transformer/registry/mongo_pk_extender"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -30,9 +35,9 @@ func initEndpoints(t *testing.T, source *provider_mongo.MongoSource, target *pro
 	_ = os.Setenv("YC", "1")
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mongo source", Port: source.Port},
-			helpers.LabeledPort{Label: "Mongo target", Port: target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mongo source", Port: source.Port},
+			network.LabeledPort{Label: "Mongo target", Port: target.Port},
 		))
 	}()
 
@@ -46,7 +51,7 @@ func initEndpoints(t *testing.T, source *provider_mongo.MongoSource, target *pro
 }
 
 func runTransfer(t *testing.T, source *provider_mongo.MongoSource, target *provider_mongo.MongoDestination, expand bool) *local.LocalWorker {
-	transfer := helpers.MakeTransfer(helpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, source, target, abstract.TransferTypeSnapshotAndIncrement)
 
 	transformer, err := transformer_mongo_pk_extender.NewMongoPKExtenderTransformer(
 		transformer_mongo_pk_extender.Config{
@@ -60,12 +65,12 @@ func runTransfer(t *testing.T, source *provider_mongo.MongoSource, target *provi
 		logger.Log,
 	)
 	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
+	transformerhelpers.AddTransformer(t, transfer, transformer)
 
-	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, helpers.EmptyRegistry())
+	err = tasks.ActivateDelivery(context.TODO(), nil, coordinator.NewFakeClient(), *transfer, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(coordinator.NewFakeClient(), transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	return localWorker
 }
@@ -151,7 +156,7 @@ func SimpleFromMultipleToCommon(t *testing.T) {
 
 	// check
 	{
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(CommonDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), 2*time.Minute, 5))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(CommonDbName, CollectionName, storagecomparison.GetSampleableStorageByModel(t, Target), 2*time.Minute, 5))
 
 		targetColl := targetClient.Database(CommonDbName).Collection(CollectionName)
 		defer func() {
@@ -238,8 +243,8 @@ func SimpleFromCommonToMultiple(t *testing.T) {
 
 	// check
 	{
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(FirstDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 3))
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(SecondDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 2))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(FirstDbName, CollectionName, storagecomparison.GetSampleableStorageByModel(t, Target), time.Minute, 3))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(SecondDbName, CollectionName, storagecomparison.GetSampleableStorageByModel(t, Target), time.Minute, 2))
 
 		db1SimpleColl := targetClient.Database(FirstDbName).Collection(CollectionName)
 		db2SimpleColl := targetClient.Database(SecondDbName).Collection(CollectionName)
@@ -330,7 +335,7 @@ func CompositeFromMultipleToCommon(t *testing.T) {
 
 	// check
 	{
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(CommonDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 5))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(CommonDbName, CollectionName, storagecomparison.GetSampleableStorageByModel(t, Target), time.Minute, 5))
 
 		targetColl := targetClient.Database(CommonDbName).Collection(CollectionName)
 		defer func() {
@@ -417,8 +422,8 @@ func CompositeFromCommonToMultiple(t *testing.T) {
 
 	// check
 	{
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(FirstDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 3))
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount(SecondDbName, CollectionName, helpers.GetSampleableStorageByModel(t, Target), time.Minute, 2))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(FirstDbName, CollectionName, storagecomparison.GetSampleableStorageByModel(t, Target), time.Minute, 3))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount(SecondDbName, CollectionName, storagecomparison.GetSampleableStorageByModel(t, Target), time.Minute, 2))
 
 		db1SimpleColl := targetClient.Database(FirstDbName).Collection(CollectionName)
 		db2SimpleColl := targetClient.Database(SecondDbName).Collection(CollectionName)

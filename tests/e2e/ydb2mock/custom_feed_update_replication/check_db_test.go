@@ -15,9 +15,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
@@ -32,8 +35,8 @@ const (
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:                        model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:                     helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:                     helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:                     testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:                     testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:                       nil,
 		TableColumnsFilter:           nil,
 		SubNetworkID:                 "",
@@ -74,7 +77,7 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		require.NoError(t, sinker.Push([]abstract.ChangeItem{*helpers.YDBInitChangeItem(testTableName)}))
+		require.NoError(t, sinker.Push([]abstract.ChangeItem{*testdata.YDBInitChangeItem(testTableName)}))
 	})
 
 	// creating changefeed and adding consumer
@@ -93,9 +96,9 @@ func TestGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	// running activation
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{testTableName}}
-	_, err = helpers.ActivateErr(transfer)
+	_, err = delivery.ActivateErr(transfer)
 	require.NoError(t, err)
 	require.Equal(t, len(changeItems), 1)
 
@@ -110,7 +113,7 @@ func TestGroup(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		newItem := *helpers.YDBStmtUpdateTOAST(t, testTableName, 1, 11)
+		newItem := *testdata.YDBStmtUpdateTOAST(t, testTableName, 1, 11)
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{newItem}))
 	})
 

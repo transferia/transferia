@@ -14,8 +14,14 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
-	"github.com/transferia/transferia/tests/helpers"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	canon2 "github.com/transferia/transferia/tests/helpers/canon"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
@@ -41,8 +47,8 @@ func execQuery(t *testing.T, ydbConn *ydb_go_sdk.Driver, query string) {
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
 	dst := provider_yt.NewYtDestinationV1(provider_yt.YtDestination{
 		Path:          "//home/cdc/test/pg2yt_e2e",
@@ -50,18 +56,18 @@ func TestGroup(t *testing.T) {
 		CellBundle:    "default",
 		PrimaryMedium: "default",
 	})
-	sourcePort, err := helpers.GetPortFromStr(src.Instance)
+	sourcePort, err := network.GetPortFromStr(src.Instance)
 	require.NoError(t, err)
-	targetPort, err := helpers.GetPortFromStr(dst.Cluster())
+	targetPort, err := network.GetPortFromStr(dst.Cluster())
 	require.NoError(t, err)
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "YDB source", Port: sourcePort},
-		helpers.LabeledPort{Label: "YT target", Port: targetPort},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "YDB source", Port: sourcePort},
+		network.LabeledPort{Label: "YT target", Port: targetPort},
 	))
 
 	t.Run("fill source", func(t *testing.T) {
 		ydbConn := ydbrecipe.Driver(t)
-		helpers.InitSrcDst(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+		transferhelpers.InitSrcDst(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 
 		execDDL(t, ydbConn, fmt.Sprintf(`
 			--!syntax_v1
@@ -83,13 +89,13 @@ func TestGroup(t *testing.T) {
 				(6, DateTime::IntervalFromMicroseconds(7862400000000));
 		`, ydbTableName))
 
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount("", ydbTableName, helpers.GetSampleableStorageByModel(t, src), 600*time.Second, 6))
+		require.NoError(t, storage.WaitDestinationEqualRowsCount("", ydbTableName, storagecomparison.GetSampleableStorageByModel(t, src), 600*time.Second, 6))
 	})
 
 	t.Run("snapshot", func(t *testing.T) {
-		transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
-		helpers.Activate(t, transfer)
-		require.NoError(t, helpers.WaitDestinationEqualRowsCount("", ydbTableName, helpers.GetSampleableStorageByModel(t, dst), 600*time.Second, 6))
+		transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+		delivery.Activate(t, transfer)
+		require.NoError(t, storage.WaitDestinationEqualRowsCount("", ydbTableName, storagecomparison.GetSampleableStorageByModel(t, dst), 600*time.Second, 6))
 	})
 
 	t.Run("canon", func(t *testing.T) {
@@ -101,12 +107,12 @@ func TestGroup(t *testing.T) {
 		st, err := yt_storage.NewStorage(&ytStorageParams)
 		require.NoError(t, err)
 
-		var data []helpers.CanonTypedChangeItem
+		var data []canon2.CanonTypedChangeItem
 		require.NoError(t, st.LoadTable(context.Background(), abstract.TableDescription{Schema: "", Name: ydbTableName},
 			func(input []abstract.ChangeItem) error {
 				for _, row := range input {
 					if row.Kind == abstract.InsertKind {
-						data = append(data, helpers.ToCanonTypedChangeItem(row))
+						data = append(data, canon2.ToCanonTypedChangeItem(row))
 					}
 				}
 				return nil

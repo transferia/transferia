@@ -12,7 +12,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -26,17 +30,17 @@ func TestViewReplication(t *testing.T) {
 	transferType := abstract.TransferTypeIncrementOnly
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
-	transferID := helpers.TransferID
-	helpers.InitSrcDst(transferID, &Source, &Target, transferType)
-	transfer := helpers.MakeTransfer(transferID, &Source, &Target, transferType)
+	transferID := transferhelpers.TransferID
+	transferhelpers.InitSrcDst(transferID, &Source, &Target, transferType)
+	transfer := transferhelpers.MakeTransfer(transferID, &Source, &Target, transferType)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// insert
@@ -58,6 +62,6 @@ func TestViewReplication(t *testing.T) {
 
 	// check
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "tv_table", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 20*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "odd_channels", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 20*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "tv_table", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 20*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "odd_channels", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 20*time.Second))
 }

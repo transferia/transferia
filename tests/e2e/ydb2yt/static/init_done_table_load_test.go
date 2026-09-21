@@ -13,7 +13,10 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -22,8 +25,8 @@ import (
 func TestGroup(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -38,18 +41,18 @@ func TestGroup(t *testing.T) {
 		Static:        true,
 	})
 
-	sourcePort, err := helpers.GetPortFromStr(src.Instance)
+	sourcePort, err := network.GetPortFromStr(src.Instance)
 	require.NoError(t, err)
-	targetPort, err := helpers.GetPortFromStr(dst.Cluster())
+	targetPort, err := network.GetPortFromStr(dst.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "YDB source", Port: sourcePort},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "YDB source", Port: sourcePort},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
-	helpers.InitSrcDst(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 
 	// init data
 	Target := &provider_ydb.YdbDestination{
@@ -74,9 +77,9 @@ func TestGroup(t *testing.T) {
 	}}))
 
 	// activate transfer
-	transfer := helpers.MakeTransfer(helpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, src, dst, abstract.TransferTypeSnapshotOnly)
 	transfer.TypeSystemVersion = 9
-	helpers.Activate(t, transfer)
+	delivery.Activate(t, transfer)
 
 	// check data
 

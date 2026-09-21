@@ -16,7 +16,11 @@ import (
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/stats"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/transferia/transferia/tests/helpers/yatestx"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
@@ -43,27 +47,27 @@ func init() {
 
 func TestIncrementalSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
 		))
 	}()
 
-	transferID := helpers.GenerateTransferID("TestIncrementalSnapshot")
+	transferID := transferhelpers.GenerateTransferID("TestIncrementalSnapshot")
 	Source.SlotID = transferID
 
 	sinkParams := Source.ToSinkParams()
-	sink, err := provider_postgres.NewSink(logger.Log, transferID, sinkParams, helpers.EmptyRegistry())
+	sink, err := provider_postgres.NewSink(logger.Log, transferID, sinkParams, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	arrColSchema := abstract.NewTableSchema([]abstract.ColSchema{
 		{ColumnName: "text_pk", DataType: ytschema.TypeString.String(), PrimaryKey: true},
 		{ColumnName: "int_pk", DataType: ytschema.TypeInt32.String(), PrimaryKey: true},
 	})
-	changeItemBuilder := helpers.NewChangeItemsBuilder("public", testTableName, arrColSchema)
+	changeItemBuilder := changeitem.NewChangeItemsBuilder("public", testTableName, arrColSchema)
 
 	require.NoError(t, sink.Push(changeItemBuilder.Inserts(t, []map[string]interface{}{{"text_pk": "11", "int_pk": 11}, {"text_pk": 12, "int_pk": 12}, {"text_pk": 13, "int_pk": 13}, {"text_pk": 14, "int_pk": 14}})))
 
-	helpers.CheckRowsCount(t, Source, "public", testTableName, rowsAfterInserts)
+	storagecomparison.CheckRowsCount(t, Source, "public", testTableName, rowsAfterInserts)
 
 	pgStorage, err := provider_postgres.NewStorage(Source.ToStorageParams(nil))
 	require.NoError(t, err)

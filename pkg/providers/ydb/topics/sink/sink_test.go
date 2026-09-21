@@ -26,7 +26,7 @@ import (
 	"github.com/transferia/transferia/pkg/util"
 	util_queues "github.com/transferia/transferia/pkg/util/queues"
 	"github.com/transferia/transferia/tests/helpers/lbenv"
-	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb_recipe"
+	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicwriter"

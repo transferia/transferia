@@ -14,8 +14,14 @@ import (
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	transformer_filter_rows_by_ids "github.com/transferia/transferia/pkg/transformer/registry/filter_rows_by_ids"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
+	transformerhelpers "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -26,7 +32,7 @@ var tableMapping = map[string]string{
 	path: pathOut,
 }
 
-func makeYdb2YdbFixPathUdf() helpers.SimpleTransformerApplyUDF {
+func makeYdb2YdbFixPathUdf() transformerhelpers.SimpleTransformerApplyUDF {
 	return func(t *testing.T, items []abstract.ChangeItem) abstract.TransformerResult {
 		newChangeItems := make([]abstract.ChangeItem, 0)
 		for i := range items {
@@ -68,8 +74,8 @@ func ydbUpdateChangeItem(tablePath string, values []interface{}) abstract.Change
 func TestSnapshotAndReplication(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             []string{path},
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -93,14 +99,14 @@ func TestSnapshotAndReplication(t *testing.T) {
 
 	dst := &provider_ydb.YdbDestination{
 		Token:    model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database: helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance: helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database: testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance: testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 	}
-	helpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transferhelpers.InitSrcDst("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotAndIncrement)
 
-	fixPathTransformer := helpers.NewSimpleTransformer(t, makeYdb2YdbFixPathUdf(), serde.AnyTablesUdf)
-	helpers.AddTransformer(t, transfer, fixPathTransformer)
+	fixPathTransformer := transformerhelpers.NewSimpleTransformer(t, makeYdb2YdbFixPathUdf(), serde.AnyTablesUdf)
+	transformerhelpers.AddTransformer(t, transfer, fixPathTransformer)
 
 	transformer, err := transformer_filter_rows_by_ids.NewFilterRowsByIDsTransformer(
 		transformer_filter_rows_by_ids.Config{
@@ -118,9 +124,9 @@ func TestSnapshotAndReplication(t *testing.T) {
 		logger.Log,
 	)
 	require.NoError(t, err)
-	helpers.AddTransformer(t, transfer, transformer)
+	transformerhelpers.AddTransformer(t, transfer, transformer)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	// inserts
@@ -130,7 +136,7 @@ func TestSnapshotAndReplication(t *testing.T) {
 		ydbInsertChangeItem(path, []interface{}{3, []byte("ID2_suffix"), "ID2_2", 3}),
 		ydbInsertChangeItem(path, []interface{}{4, []byte("ID3_suffix"), "ID2_3", 4}),
 	}))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", pathOut, storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
 
 	// updates
 	require.NoError(t, sinker.Push([]abstract.ChangeItem{
@@ -139,15 +145,15 @@ func TestSnapshotAndReplication(t *testing.T) {
 		ydbInsertChangeItem(path, []interface{}{3, []byte("ID2_suffix"), "ID2_2", 4}),
 		ydbInsertChangeItem(path, []interface{}{4, []byte("ID3_suffix"), "ID2_3", 5}),
 	}))
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("", pathOut, helpers.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("", pathOut, storagecomparison.GetSampleableStorageByModel(t, dst), 60*time.Second, 2))
 
 	// canonize
 	for testName, tablePath := range map[string]string{"simple table": pathOut} {
 		t.Run(testName, func(t *testing.T) {
-			dump := helpers.YDBPullDataFromTable(t,
+			dump := ydb.PullDataFromTable(t,
 				os.Getenv("YDB_TOKEN"),
-				helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-				helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+				testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+				testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 				tablePath)
 			for i := 0; i < len(dump); i++ {
 				dump[i].CommitTime = 0

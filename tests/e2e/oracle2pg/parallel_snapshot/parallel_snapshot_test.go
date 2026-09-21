@@ -12,7 +12,10 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/oracle/oraclerecipe"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 //go:embed dump/init.sql
@@ -36,7 +39,7 @@ var (
 
 func init() {
 	_ = os.Setenv("YC", "1")
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType)
 	if err := oraclerecipe.ExecSQL(context.Background(), &Source, initSQL); err != nil {
 		panic(err)
 	}
@@ -44,9 +47,9 @@ func init() {
 
 func TestParallelSnapshot(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Oracle source", Port: Source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Oracle source", Port: Source.Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -59,8 +62,8 @@ func TestParallelSnapshot(t *testing.T) {
 func ParallelSnapshot(t *testing.T) {
 	Source.IncludeTables = []string{"DT_TEST.BIG_TABLE"}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
-	helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
+	delivery.Activate(t, transfer)
 
-	helpers.CheckRowsCount(t, &Target, "dt_test", "big_table", 2000)
+	storagecomparison.CheckRowsCount(t, &Target, "dt_test", "big_table", 2000)
 }

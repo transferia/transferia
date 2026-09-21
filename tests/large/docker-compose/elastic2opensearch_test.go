@@ -13,7 +13,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/elastic"
 	"github.com/transferia/transferia/pkg/providers/opensearch"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -52,7 +54,7 @@ func TestElasticToOpenSearchSnapshot(t *testing.T) {
 		Cleanup:          model.Drop,
 		SanitizeDocKeys:  false,
 	}
-	helpers.InitSrcDst(elastic2opensearchTransferID, &elasticSrc, &opensearchDst, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(elastic2opensearchTransferID, &elasticSrc, &opensearchDst, abstract.TransferTypeSnapshotOnly)
 
 	t.Parallel()
 
@@ -60,9 +62,9 @@ func TestElasticToOpenSearchSnapshot(t *testing.T) {
 	WaitForElastic(t, "127.0.0.1", dstPort)
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Elastic source", Port: srcPort},
-			helpers.LabeledPort{Label: "Opensearch target", Port: dstPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Elastic source", Port: srcPort},
+			network.LabeledPort{Label: "Opensearch target", Port: dstPort},
 		))
 	}()
 
@@ -81,8 +83,8 @@ func TestElasticToOpenSearchSnapshot(t *testing.T) {
 	_, err := elasticGetAllDocuments(client, indexName)
 	require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(elastic2opensearchTransferID, &elasticSrc, &opensearchDst, abstract.TransferTypeSnapshotOnly)
-	worker := helpers.Activate(t, transfer)
+	transfer := transferhelpers.MakeTransfer(elastic2opensearchTransferID, &elasticSrc, &opensearchDst, abstract.TransferTypeSnapshotOnly)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 	// dump data
 	clientDst := createTestElasticClientFromDst(t, &opensearchDst)

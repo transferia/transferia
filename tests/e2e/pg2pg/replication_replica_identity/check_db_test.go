@@ -12,7 +12,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/runtime/local"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 func init() {
@@ -63,19 +65,19 @@ func TestReplicaIdentityNotFullFails(t *testing.T) {
 	target := *pgrecipe.RecipeTarget(pgrecipe.WithInitDir("init_target"))
 
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: source.Port},
-			helpers.LabeledPort{Label: "PG target", Port: target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: source.Port},
+			network.LabeledPort{Label: "PG target", Port: target.Port},
 		))
 	}()
 
 	TransferType := abstract.TransferTypeIncrementOnly
-	helpers.InitSrcDst(helpers.TransferID, &source, &target, TransferType)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &source, &target, TransferType)
 
 	replicationWorker := local.NewLocalWorker(
 		coordinator.NewFakeClient(),
-		helpers.MakeTransfer(helpers.TransferID, &source, &target, TransferType),
-		helpers.EmptyRegistry(),
+		transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, TransferType),
+		testmetrics.EmptyRegistry(),
 		logger.Log,
 	)
 	err := replicationWorker.Run()

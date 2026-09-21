@@ -16,24 +16,27 @@ import (
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/storage_factory"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
 	TransferType = abstract.TransferTypeSnapshotOnly
-	Source       = *helpers.RecipeMysqlSource()
-	Target       = *helpers.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
+	Source       = *mysql.RecipeMysqlSource()
+	Target       = *mysql.RecipeMysqlTarget(mysqlrecipe.WithPrefix("TARGET_"))
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: Source.Port},
-			helpers.LabeledPort{Label: "Mysql target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: Source.Port},
+			network.LabeledPort{Label: "Mysql target", Port: Target.Port},
 		))
 	}()
 
@@ -113,10 +116,10 @@ func Snapshot(t *testing.T) {
 	Source.ConsistentSnapshot = true
 	Source.SnapshotDegreeOfParallelism = 1
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
-	transfer = helpers.WithLocalRuntime(transfer, 1, 1)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer = transferhelpers.WithLocalRuntime(transfer, 1, 1)
 
-	currStorage, err := storage_factory.NewStorage(transfer, coordinator.NewFakeClient(), helpers.EmptyRegistry())
+	currStorage, err := storage_factory.NewStorage(transfer, coordinator.NewFakeClient(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	defer currStorage.Close()
 
@@ -130,7 +133,7 @@ func Snapshot(t *testing.T) {
 
 	dropData(t)
 
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 
 	tppGetter, _, err := snapshotLoader.BuildTPP(
 		context.Background(),

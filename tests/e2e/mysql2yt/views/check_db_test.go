@@ -11,7 +11,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -23,7 +28,7 @@ var (
 		User:     os.Getenv("RECIPE_MYSQL_USER"),
 		Password: model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
 		Database: os.Getenv("RECIPE_MYSQL_SOURCE_DATABASE"),
-		Port:     helpers.GetIntFromEnv("RECIPE_MYSQL_PORT"),
+		Port:     testenv.GetIntFromEnv("RECIPE_MYSQL_PORT"),
 	}
 	target = provider_yt.NewYtDestinationV1(provider_yt.YtDestination{
 		Path:    "//home/cdc/test/mysql2yt_e2e_snapshot",
@@ -39,12 +44,12 @@ func init() {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(target.Cluster())
+	targetPort, err := network.GetPortFromStr(target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -67,13 +72,13 @@ func TestGroup(t *testing.T) {
 }
 
 func Existence(t *testing.T) {
-	helpers.GetSampleableStorageByModel(t, source)
-	helpers.GetSampleableStorageByModel(t, target.LegacyModel().(*provider_yt.YtDestination))
+	storagecomparison.GetSampleableStorageByModel(t, source)
+	storagecomparison.GetSampleableStorageByModel(t, target.LegacyModel().(*provider_yt.YtDestination))
 }
 
 func Snapshot(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, target, abstract.TransferTypeSnapshotOnly)
-	_ = helpers.Activate(t, transfer)
-	require.NoError(t, helpers.WaitEqualRowsCount(t, source.Database, "__test_view", helpers.GetSampleableStorageByModel(t, source), helpers.GetSampleableStorageByModel(t, target.LegacyModel()), 10*time.Second))
-	require.NoError(t, helpers.WaitEqualRowsCount(t, source.Database, "__test", helpers.GetSampleableStorageByModel(t, source), helpers.GetSampleableStorageByModel(t, target.LegacyModel()), 10*time.Second))
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, target, abstract.TransferTypeSnapshotOnly)
+	_ = delivery.Activate(t, transfer)
+	require.NoError(t, storage.WaitEqualRowsCount(t, source.Database, "__test_view", storagecomparison.GetSampleableStorageByModel(t, source), storagecomparison.GetSampleableStorageByModel(t, target.LegacyModel()), 10*time.Second))
+	require.NoError(t, storage.WaitEqualRowsCount(t, source.Database, "__test", storagecomparison.GetSampleableStorageByModel(t, source), storagecomparison.GetSampleableStorageByModel(t, target.LegacyModel()), 10*time.Second))
 }

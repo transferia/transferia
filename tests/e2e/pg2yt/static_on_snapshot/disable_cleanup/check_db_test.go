@@ -12,7 +12,12 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_yt "github.com/transferia/transferia/tests/helpers/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -25,7 +30,7 @@ var (
 		User:      os.Getenv("PG_LOCAL_USER"),
 		Password:  model.SecretString(os.Getenv("PG_LOCAL_PASSWORD")),
 		Database:  os.Getenv("PG_LOCAL_DATABASE"),
-		Port:      helpers.GetIntFromEnv("PG_LOCAL_PORT"),
+		Port:      testenv.GetIntFromEnv("PG_LOCAL_PORT"),
 		DBTables:  []string{"public.__test1"},
 	}
 	Target = helpers_yt.RecipeYtTarget("//home/cdc/test/pg2yt_e2e").(*provider_yt.YtDestinationWrapper)
@@ -42,12 +47,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestGroup(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(Target.Cluster())
+	targetPort, err := network.GetPortFromStr(Target.Cluster())
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: Source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: Source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 	Source.PreSteps.Constraint = true
@@ -63,12 +68,12 @@ func Snapshot(t *testing.T) {
 	ytEnv, cancel := yttest.NewEnv(t)
 	defer cancel()
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, Target, abstract.TransferTypeSnapshotOnly)
 
-	_ = helpers.Activate(t, transfer)
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test1",
-		helpers.GetSampleableStorageByModel(t, Source),
-		helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
+	_ = delivery.Activate(t, transfer)
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test1",
+		storagecomparison.GetSampleableStorageByModel(t, Source),
+		storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second))
 
 	ctx := context.Background()
 	srcConn, err := provider_postgres.MakeConnPoolFromSrc(&Source, logger.Log)
@@ -80,9 +85,9 @@ func Snapshot(t *testing.T) {
 	_, err = srcConn.Exec(ctx, "DELETE FROM public.__test1 WHERE id = 2;")
 	require.NoError(t, err)
 
-	_ = helpers.Activate(t, transfer)
-	require.NoError(t, helpers.WaitDestinationEqualRowsCount("public", "__test1",
-		helpers.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second, 3))
+	_ = delivery.Activate(t, transfer)
+	require.NoError(t, storage.WaitDestinationEqualRowsCount("public", "__test1",
+		storagecomparison.GetSampleableStorageByModel(t, Target.LegacyModel()), 60*time.Second, 3))
 
 	reader, err := ytEnv.YT.ReadTable(ctx, ypath.Path("//home/cdc/test/pg2yt_e2e/__test1"), nil)
 	require.NoError(t, err)

@@ -18,7 +18,12 @@ import (
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -32,7 +37,7 @@ const (
 )
 
 var (
-	source        = *helpers.WithMysqlInclude(helpers.RecipeMysqlSource(), []string{tableName})
+	source        = *mysql.WithMysqlInclude(mysql.RecipeMysqlSource(), []string{tableName})
 	targetCluster = os.Getenv("YT_PROXY")
 )
 
@@ -71,12 +76,12 @@ func ParseDate(value string) ytschema.Date {
 }
 
 func TestDateTime(t *testing.T) {
-	targetPort, err := helpers.GetPortFromStr(targetCluster)
+	targetPort, err := network.GetPortFromStr(targetCluster)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "Mysql source", Port: source.Port},
-			helpers.LabeledPort{Label: "YT target", Port: targetPort},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "Mysql source", Port: source.Port},
+			network.LabeledPort{Label: "YT target", Port: targetPort},
 		))
 	}()
 
@@ -91,18 +96,18 @@ func TestDateTime(t *testing.T) {
 	require.NoError(t, err)
 
 	ytDestination := makeTarget()
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
-	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, helpers.EmptyRegistry())
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, ytDestination, abstract.TransferTypeSnapshotAndIncrement)
+	snapshotLoader := tasks.NewSnapshotLoader(coordinator.NewFakeClient(), &model.TransferOperation{}, transfer, testmetrics.EmptyRegistry())
 	err = snapshotLoader.LoadSnapshot(context.Background())
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.CompareStorages(t, source, ytDestination.(provider_yt.YtDestinationModel).LegacyModel(), helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, source, ytDestination.(provider_yt.YtDestinationModel).LegacyModel(), storagecomparison.NewCompareStorageParams()))
 
 	fakeClient := coordinator.NewStatefulFakeClient()
 	err = provider_mysql.SyncBinlogPosition(&source, transfer.ID, fakeClient)
 	require.NoError(t, err)
 
-	localWorker := local.NewLocalWorker(fakeClient, transfer, helpers.EmptyRegistry(), logger.Log)
+	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)
 	localWorker.Start()
 	defer localWorker.Stop() //nolint
 
@@ -124,6 +129,6 @@ func TestDateTime(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO time_test VALUES (107, '2025-05-25', '2025-05-25 00:05:25.555', '2025-05-25 00:05:25.555555')`)
 	require.NoError(t, err)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, source.Database, tableName, helpers.GetSampleableStorageByModel(t, source), helpers.GetSampleableStorageByModel(t, ytDestination.(provider_yt.YtDestinationModel).LegacyModel()), 60*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, source, ytDestination.(provider_yt.YtDestinationModel).LegacyModel(), helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitEqualRowsCount(t, source.Database, tableName, storagecomparison.GetSampleableStorageByModel(t, source), storagecomparison.GetSampleableStorageByModel(t, ytDestination.(provider_yt.YtDestinationModel).LegacyModel()), 60*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, source, ytDestination.(provider_yt.YtDestinationModel).LegacyModel(), storagecomparison.NewCompareStorageParams()))
 }

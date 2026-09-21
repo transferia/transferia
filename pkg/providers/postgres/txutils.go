@@ -81,7 +81,7 @@ func BeginTxWithSnapshot(ctx context.Context, conn *pgx.Conn, options pgx.TxOpti
 	qry := fmt.Sprintf("SET TRANSACTION SNAPSHOT '%s'", snapshot)
 	if _, err := tx.Exec(ctx, qry); err != nil {
 		rollbacks.Do()
-		if pgerrors.IsPgError(err, pgerrors.ErrcInvalidSnapshotIdentifier) {
+		if pgerrors.IsPgError(err, pgerrors.ErrcInvalidSnapshotIdentifier) || pgerrors.IsPgError(err, pgerrors.ErrcUndefinedObject) {
 			return nil, nil, coded.Errorf(error_codes.PostgresInvalidSnapshot, "failed to execute %s: %w", qry, err)
 		}
 		return nil, nil, xerrors.Errorf("failed to execute %s: %w", qry, err)

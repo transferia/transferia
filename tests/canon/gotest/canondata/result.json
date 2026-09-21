@@ -12413,6 +12413,10 @@
                         "GoType": "string",
                         "Val": "text_example"
                     },
+                    "t_uuid": {
+                        "GoType": "string",
+                        "Val": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+                    },
                     "t_varbit_8": {
                         "GoType": "string",
                         "Val": "10101110"
@@ -12457,6 +12461,10 @@
                         "GoType": "string",
                         "Val": ""
                     },
+                    "t_uuid": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
                     "t_varbit_8": {
                         "GoType": "string",
                         "Val": ""
@@ -12498,6 +12506,10 @@
                         "Val": null
                     },
                     "t_text": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_uuid": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -12636,6 +12648,18 @@
                 "table_name": "text_types",
                 "table_schema": "public",
                 "type": "string"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_uuid",
+                "original_type": "pg:uuid",
+                "path": "",
+                "required": false,
+                "table_name": "text_types",
+                "table_schema": "public",
+                "type": "utf8"
             }
         ]
     },
@@ -12675,6 +12699,10 @@
                         "GoType": "string",
                         "Val": "text_example"
                     },
+                    "t_uuid": {
+                        "GoType": "string",
+                        "Val": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+                    },
                     "t_varbit_8": {
                         "GoType": "string",
                         "Val": "10101110"
@@ -12719,6 +12747,10 @@
                         "GoType": "string",
                         "Val": ""
                     },
+                    "t_uuid": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
                     "t_varbit_8": {
                         "GoType": "string",
                         "Val": ""
@@ -12760,6 +12792,10 @@
                         "Val": null
                     },
                     "t_text": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_uuid": {
                         "GoType": "<nil>",
                         "Val": null
                     },
@@ -12898,6 +12934,18 @@
                 "table_name": "text_types",
                 "table_schema": "public",
                 "type": "string"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_uuid",
+                "original_type": "pg:uuid",
+                "path": "",
+                "required": false,
+                "table_name": "text_types",
+                "table_schema": "public",
+                "type": "utf8"
             }
         ]
     },
@@ -12931,6 +12979,10 @@
                         "GoType": "string",
                         "Val": "Tom"
                     },
+                    "t_daterange": {
+                        "GoType": "string",
+                        "Val": "[2024-01-01,2024-02-01)"
+                    },
                     "t_hstore": {
                         "GoType": "map[string]interface {}",
                         "Val": {
@@ -12942,6 +12994,14 @@
                         "GoType": "string",
                         "Val": "192.168.1.5/32"
                     },
+                    "t_int4range": {
+                        "GoType": "string",
+                        "Val": "[1,10)"
+                    },
+                    "t_int8range": {
+                        "GoType": "string",
+                        "Val": "[10000000000,10000000010)"
+                    },
                     "t_ltree": {
                         "GoType": "string",
                         "Val": "Electronics.Phones"
@@ -12949,6 +13009,22 @@
                     "t_macaddr": {
                         "GoType": "string",
                         "Val": "08:00:2b:01:02:03"
+                    },
+                    "t_numrange": {
+                        "GoType": "string",
+                        "Val": "[125e-2,975e-2)"
+                    },
+                    "t_tsrange": {
+                        "GoType": "string",
+                        "Val": "[2024-02-29 12:00:00,2024-03-01 12:00:00)"
+                    },
+                    "t_tstzrange": {
+                        "GoType": "string",
+                        "Val": "[2024-02-29 09:00:00Z,2024-03-01 09:00:00Z)"
+                    },
+                    "t_xml": {
+                        "GoType": "string",
+                        "Val": "<root><value>iceberg</value></root>"
                     }
                 }
             },
@@ -12974,6 +13050,10 @@
                         "GoType": "string",
                         "Val": ""
                     },
+                    "t_daterange": {
+                        "GoType": "string",
+                        "Val": "[0001-01-01,0001-01-01)"
+                    },
                     "t_hstore": {
                         "GoType": "map[string]interface {}",
                         "Val": {}
@@ -12982,6 +13062,14 @@
                         "GoType": "string",
                         "Val": "0.0.0.0/32"
                     },
+                    "t_int4range": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
+                    "t_int8range": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
                     "t_ltree": {
                         "GoType": "string",
                         "Val": "Electronics"
@@ -12989,6 +13077,22 @@
                     "t_macaddr": {
                         "GoType": "string",
                         "Val": "00:00:00:00:00:00"
+                    },
+                    "t_numrange": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
+                    "t_tsrange": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
+                    "t_tstzrange": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
+                    "t_xml": {
+                        "GoType": "string",
+                        "Val": ""
                     }
                 }
             },
@@ -13014,6 +13118,10 @@
                         "GoType": "<nil>",
                         "Val": null
                     },
+                    "t_daterange": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
                     "t_hstore": {
                         "GoType": "<nil>",
                         "Val": null
@@ -13022,11 +13130,35 @@
                         "GoType": "<nil>",
                         "Val": null
                     },
+                    "t_int4range": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_int8range": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
                     "t_ltree": {
                         "GoType": "<nil>",
                         "Val": null
                     },
                     "t_macaddr": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_numrange": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_tsrange": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_tstzrange": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_xml": {
                         "GoType": "<nil>",
                         "Val": null
                     }
@@ -13140,6 +13272,90 @@
                 "key": false,
                 "name": "jb",
                 "original_type": "pg:jsonb",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_xml",
+                "original_type": "pg:xml",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_int4range",
+                "original_type": "pg:int4range",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_int8range",
+                "original_type": "pg:int8range",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_numrange",
+                "original_type": "pg:numrange",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_daterange",
+                "original_type": "pg:daterange",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_tsrange",
+                "original_type": "pg:tsrange",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_tstzrange",
+                "original_type": "pg:tstzrange",
                 "path": "",
                 "required": false,
                 "table_name": "wtf_types",
@@ -13178,6 +13394,10 @@
                         "GoType": "string",
                         "Val": "Tom"
                     },
+                    "t_daterange": {
+                        "GoType": "string",
+                        "Val": "[2024-01-01,2024-02-01)"
+                    },
                     "t_hstore": {
                         "GoType": "map[string]interface {}",
                         "Val": {
@@ -13189,6 +13409,14 @@
                         "GoType": "string",
                         "Val": "192.168.1.5"
                     },
+                    "t_int4range": {
+                        "GoType": "string",
+                        "Val": "[1,10)"
+                    },
+                    "t_int8range": {
+                        "GoType": "string",
+                        "Val": "[10000000000,10000000010)"
+                    },
                     "t_ltree": {
                         "GoType": "string",
                         "Val": "Electronics.Phones"
@@ -13196,6 +13424,22 @@
                     "t_macaddr": {
                         "GoType": "string",
                         "Val": "08:00:2b:01:02:03"
+                    },
+                    "t_numrange": {
+                        "GoType": "string",
+                        "Val": "[1.25,9.75)"
+                    },
+                    "t_tsrange": {
+                        "GoType": "string",
+                        "Val": "[\"2024-02-29 12:00:00\",\"2024-03-01 12:00:00\")"
+                    },
+                    "t_tstzrange": {
+                        "GoType": "string",
+                        "Val": "[\"2024-02-29 10:00:00+01\",\"2024-03-01 10:00:00+01\")"
+                    },
+                    "t_xml": {
+                        "GoType": "string",
+                        "Val": "<root><value>iceberg</value></root>"
                     }
                 }
             },
@@ -13221,6 +13465,10 @@
                         "GoType": "string",
                         "Val": ""
                     },
+                    "t_daterange": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
                     "t_hstore": {
                         "GoType": "map[string]interface {}",
                         "Val": {}
@@ -13229,6 +13477,14 @@
                         "GoType": "string",
                         "Val": "0.0.0.0"
                     },
+                    "t_int4range": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
+                    "t_int8range": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
                     "t_ltree": {
                         "GoType": "string",
                         "Val": "Electronics"
@@ -13236,6 +13492,22 @@
                     "t_macaddr": {
                         "GoType": "string",
                         "Val": "00:00:00:00:00:00"
+                    },
+                    "t_numrange": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
+                    "t_tsrange": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
+                    "t_tstzrange": {
+                        "GoType": "string",
+                        "Val": "empty"
+                    },
+                    "t_xml": {
+                        "GoType": "string",
+                        "Val": ""
                     }
                 }
             },
@@ -13261,6 +13533,10 @@
                         "GoType": "<nil>",
                         "Val": null
                     },
+                    "t_daterange": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
                     "t_hstore": {
                         "GoType": "<nil>",
                         "Val": null
@@ -13269,11 +13545,35 @@
                         "GoType": "<nil>",
                         "Val": null
                     },
+                    "t_int4range": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_int8range": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
                     "t_ltree": {
                         "GoType": "<nil>",
                         "Val": null
                     },
                     "t_macaddr": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_numrange": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_tsrange": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_tstzrange": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "t_xml": {
                         "GoType": "<nil>",
                         "Val": null
                     }
@@ -13387,6 +13687,90 @@
                 "key": false,
                 "name": "jb",
                 "original_type": "pg:jsonb",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_xml",
+                "original_type": "pg:xml",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_int4range",
+                "original_type": "pg:int4range",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_int8range",
+                "original_type": "pg:int8range",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_numrange",
+                "original_type": "pg:numrange",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_daterange",
+                "original_type": "pg:daterange",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_tsrange",
+                "original_type": "pg:tsrange",
+                "path": "",
+                "required": false,
+                "table_name": "wtf_types",
+                "table_schema": "public",
+                "type": "any"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "t_tstzrange",
+                "original_type": "pg:tstzrange",
                 "path": "",
                 "required": false,
                 "table_name": "wtf_types",

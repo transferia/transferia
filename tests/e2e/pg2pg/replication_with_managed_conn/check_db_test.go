@@ -14,7 +14,13 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -26,16 +32,16 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, transferID
-	helpers.InitConnectionResolver(map[string]connection.ManagedConnection{"connID": SrcConnection})
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, transferID
+	network.InitConnectionResolver(map[string]connection.ManagedConnection{"connID": SrcConnection})
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: SrcConnection.Hosts[0].Port},
-			helpers.LabeledPort{Label: "PG target", Port: Target.Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: SrcConnection.Hosts[0].Port},
+			network.LabeledPort{Label: "PG target", Port: Target.Port},
 		))
 	}()
 
@@ -59,7 +65,7 @@ func Verify(t *testing.T) {
 	transfer.Dst = &Target
 	transfer.Type = "INCREMENT_ONLY"
 
-	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, helpers.EmptyRegistry())
+	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	dstStorage, err := provider_postgres.NewStorage(Target.ToStorageParams())
@@ -80,17 +86,17 @@ func Verify(t *testing.T) {
 }
 
 func Load(t *testing.T) {
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, TransferType)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 240*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 240*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 
 	//-----------------------------------------------------------------------------------------------------------------
 
-	sink, err := provider_postgres.NewSink(logger.Log, helpers.TransferID, Source.ToSinkParams(), helpers.EmptyRegistry())
+	sink, err := provider_postgres.NewSink(logger.Log, transfer.ID, Source.ToSinkParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	arrColSchema := abstract.NewTableSchema([]abstract.ColSchema{
@@ -99,7 +105,7 @@ func Load(t *testing.T) {
 		{ColumnName: "id", DataType: ytschema.TypeUint8.String(), PrimaryKey: true},
 		{ColumnName: "jb", DataType: ytschema.TypeAny.String(), PrimaryKey: false},
 	})
-	changeItemBuilder := helpers.NewChangeItemsBuilder("public", "__test", arrColSchema)
+	changeItemBuilder := changeitem.NewChangeItemsBuilder("public", "__test", arrColSchema)
 
 	require.NoError(t, sink.Push(changeItemBuilder.Inserts(t, []map[string]interface{}{{"aid": 11, "str": "a", "id": 11, "jb": "{}"}, {"aid": 22, "str": "b", "id": 22, "jb": `{"x": 1, "y": -2}`}, {"aid": 33, "str": "c", "id": 33}})))
 	require.NoError(t, sink.Push(changeItemBuilder.Updates(t, []map[string]interface{}{{"aid": 33, "str": "c", "id": 34, "jb": `{"test": "test"}`}}, []map[string]interface{}{{"aid": 33, "str": "c", "id": 33}})))
@@ -108,7 +114,7 @@ func Load(t *testing.T) {
 
 	//-----------------------------------------------------------------------------------------------------------------
 
-	helpers.CheckRowsCount(t, Source, "public", "__test", 14)
-	require.NoError(t, helpers.WaitEqualRowsCount(t, "public", "__test", helpers.GetSampleableStorageByModel(t, Source), helpers.GetSampleableStorageByModel(t, Target), 240*time.Second))
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	storagecomparison.CheckRowsCount(t, Source, "public", "__test", 14)
+	require.NoError(t, storage.WaitEqualRowsCount(t, "public", "__test", storagecomparison.GetSampleableStorageByModel(t, Source), storagecomparison.GetSampleableStorageByModel(t, Target), 240*time.Second))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

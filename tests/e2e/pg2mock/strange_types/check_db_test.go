@@ -9,8 +9,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/changeitem"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
+	"github.com/transferia/transferia/tests/helpers/network"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -26,8 +29,8 @@ func init() {
 //---------------------------------------------------------------------------------------------------------------------
 
 func TestSnapshot(t *testing.T) {
-	defer require.NoError(t, helpers.CheckConnections(
-		helpers.LabeledPort{Label: "PG source", Port: Source.Port},
+	defer require.NoError(t, network.CheckConnections(
+		network.LabeledPort{Label: "PG source", Port: Source.Port},
 	))
 
 	//------------------------------------------------------------------------------
@@ -37,12 +40,12 @@ func TestSnapshot(t *testing.T) {
 		SinkerFactory: func() abstract.Sinker { return sinker },
 		Cleanup:       model.DisabledCleanup,
 	}
-	transfer := helpers.MakeTransfer("fake", Source, &target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", Source, &target, abstract.TransferTypeSnapshotOnly)
 	checksTriggered := 0
 
 	sinker.PushCallback = func(input []abstract.ChangeItem) error {
 		for _, changeItem := range input {
-			tableSchema := helpers.MakeTableSchema(&changeItem)
+			tableSchema := changeitem.MakeTableSchema(&changeItem)
 			fmt.Printf("changeItem=%s\n", changeItem.ToJSONString())
 
 			//------------------------------------------------------------------------------
@@ -58,6 +61,6 @@ func TestSnapshot(t *testing.T) {
 		return nil
 	}
 
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 	require.Equal(t, 1, checksTriggered)
 }

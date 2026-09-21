@@ -28,16 +28,6 @@ type LbSource struct {
 
 var _ model.Source = (*LbSource)(nil)
 
-const (
-	Logbroker            LogbrokerCluster = "logbroker"
-	Lbkx                 LogbrokerCluster = "lbkx"
-	Messenger            LogbrokerCluster = "messenger"
-	LogbrokerPrestable   LogbrokerCluster = "logbroker-prestable"
-	Lbkxt                LogbrokerCluster = "lbkxt"
-	YcLogbroker          LogbrokerCluster = "yc-logbroker"
-	YcLogbrokerPrestable LogbrokerCluster = "yc-logbroker-prestable"
-)
-
 func (s *LbSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return logger.MarshalSanitizedObject(s, enc)
 }

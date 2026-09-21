@@ -13,7 +13,11 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/worker/tasks"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	"github.com/transferia/transferia/tests/helpers/network"
+	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 const srcConnID = "src_connection_id"
@@ -29,16 +33,16 @@ var (
 )
 
 func init() {
-	_ = os.Setenv("YC", "1")                                               // to not go to vanga
-	helpers.InitSrcDst(helpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
-	helpers.InitConnectionResolver(map[string]connection.ManagedConnection{srcConnID: SrcConnection, targetConnID: TargetConnection})
+	_ = os.Setenv("YC", "1")                                                               // to not go to vanga
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &Source, &Target, TransferType) // to WithDefaults() & FillDependentFields(): IsHomo, helpers.TransferID, IsUpdateable
+	network.InitConnectionResolver(map[string]connection.ManagedConnection{srcConnID: SrcConnection, targetConnID: TargetConnection})
 }
 
 func TestGroup(t *testing.T) {
 	defer func() {
-		require.NoError(t, helpers.CheckConnections(
-			helpers.LabeledPort{Label: "PG source", Port: SrcConnection.Hosts[0].Port},
-			helpers.LabeledPort{Label: "PG target", Port: TargetConnection.Hosts[0].Port},
+		require.NoError(t, network.CheckConnections(
+			network.LabeledPort{Label: "PG source", Port: SrcConnection.Hosts[0].Port},
+			network.LabeledPort{Label: "PG target", Port: TargetConnection.Hosts[0].Port},
 		))
 	}()
 
@@ -62,7 +66,7 @@ func Verify(t *testing.T) {
 	transfer.Dst = &Target
 	transfer.Type = "SNAPSHOT_ONLY"
 
-	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, helpers.EmptyRegistry())
+	err := tasks.VerifyDelivery(context.Background(), transfer, logger.Log, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	dstStorage, err := provider_postgres.NewStorage(Target.ToStorageParams())
@@ -84,9 +88,9 @@ func Verify(t *testing.T) {
 
 func Snapshot(t *testing.T) {
 	Source.PreSteps.Constraint = true
-	transfer := helpers.MakeTransfer(helpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, abstract.TransferTypeSnapshotOnly)
 
-	_ = helpers.Activate(t, transfer)
+	_ = delivery.Activate(t, transfer)
 
-	require.NoError(t, helpers.CompareStorages(t, Source, Target, helpers.NewCompareStorageParams()))
+	require.NoError(t, storagecomparison.CompareStorages(t, Source, Target, storagecomparison.NewCompareStorageParams()))
 }

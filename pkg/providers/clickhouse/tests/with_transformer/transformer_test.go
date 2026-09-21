@@ -17,7 +17,7 @@ import (
 	transformer_clickhouse "github.com/transferia/transferia/pkg/transformer/registry/clickhouse"
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
@@ -99,7 +99,7 @@ FROM table
 	}, logger.Log)
 	require.NoError(t, err)
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &source, &target, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &source, &target, abstract.TransferTypeSnapshotOnly)
 	require.NoError(t, transfer.AddExtraTransformer(transformer))
 	sinker, err := sink_factory.MakeAsyncSink(transfer, &model.TransferOperation{}, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), coordinator.NewFakeClient(), middlewares.MakeConfig())
 	require.NoError(t, err)

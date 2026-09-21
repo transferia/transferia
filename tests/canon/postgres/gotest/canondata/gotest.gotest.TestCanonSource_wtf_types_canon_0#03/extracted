@@ -11,7 +11,14 @@
                 "t_ltree",
                 "t_citext",
                 "j",
-                "jb"
+                "jb",
+                "t_xml",
+                "t_int4range",
+                "t_int8range",
+                "t_numrange",
+                "t_daterange",
+                "t_tsrange",
+                "t_tstzrange"
             ]
         },
         "ColumnValues": {
@@ -82,6 +89,34 @@
                 {
                     "type": "string",
                     "value": "\"String in quotes\""
+                },
+                {
+                    "type": "string",
+                    "value": "\u003croot\u003e\u003cvalue\u003eiceberg\u003c/value\u003e\u003c/root\u003e"
+                },
+                {
+                    "type": "string",
+                    "value": "[1,10)"
+                },
+                {
+                    "type": "string",
+                    "value": "[10000000000,10000000010)"
+                },
+                {
+                    "type": "string",
+                    "value": "[1.25,9.75)"
+                },
+                {
+                    "type": "string",
+                    "value": "[2024-01-01,2024-02-01)"
+                },
+                {
+                    "type": "string",
+                    "value": "[\"2024-02-29 12:00:00\",\"2024-03-01 12:00:00\")"
+                },
+                {
+                    "type": "string",
+                    "value": "[\"2024-02-29 10:00:00+01\",\"2024-03-01 10:00:00+01\")"
                 }
             ]
         },
@@ -128,8 +163,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 572,
-                "Values": 733
+                "Read": 995,
+                "Values": 1153
             }
         },
         "Table": {
@@ -246,6 +281,90 @@
                     "required": false,
                     "expression": "",
                     "original_type": "pg:jsonb"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_xml",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:xml"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_int4range",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:int4range"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_int8range",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:int8range"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_numrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numrange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_daterange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:daterange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_tsrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:tsrange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_tstzrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:tstzrange"
                 }
             ]
         },
@@ -266,7 +385,14 @@
                 "t_ltree",
                 "t_citext",
                 "j",
-                "jb"
+                "jb",
+                "t_xml",
+                "t_int4range",
+                "t_int8range",
+                "t_numrange",
+                "t_daterange",
+                "t_tsrange",
+                "t_tstzrange"
             ]
         },
         "ColumnValues": {
@@ -307,6 +433,34 @@
                 {
                     "type": "map[string]interface {}",
                     "value": {}
+                },
+                {
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "type": "string",
+                    "value": "empty"
+                },
+                {
+                    "type": "string",
+                    "value": "empty"
+                },
+                {
+                    "type": "string",
+                    "value": "empty"
+                },
+                {
+                    "type": "string",
+                    "value": "empty"
+                },
+                {
+                    "type": "string",
+                    "value": "empty"
+                },
+                {
+                    "type": "string",
+                    "value": "empty"
                 }
             ]
         },
@@ -353,8 +507,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 402,
-                "Values": 320
+                "Read": 651,
+                "Values": 574
             }
         },
         "Table": {
@@ -471,6 +625,90 @@
                     "required": false,
                     "expression": "",
                     "original_type": "pg:jsonb"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_xml",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:xml"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_int4range",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:int4range"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_int8range",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:int8range"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_numrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numrange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_daterange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:daterange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_tsrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:tsrange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_tstzrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:tstzrange"
                 }
             ]
         },
@@ -491,7 +729,14 @@
                 "t_ltree",
                 "t_citext",
                 "j",
-                "jb"
+                "jb",
+                "t_xml",
+                "t_int4range",
+                "t_int8range",
+                "t_numrange",
+                "t_daterange",
+                "t_tsrange",
+                "t_tstzrange"
             ]
         },
         "ColumnValues": {
@@ -532,6 +777,34 @@
                 {
                     "type": "nil",
                     "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
                 }
             ]
         },
@@ -578,8 +851,8 @@
         "Size": {
             "type": "changeitem.EventSize",
             "value": {
-                "Read": 370,
-                "Values": 172
+                "Read": 603,
+                "Values": 284
             }
         },
         "Table": {
@@ -696,6 +969,90 @@
                     "required": false,
                     "expression": "",
                     "original_type": "pg:jsonb"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_xml",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:xml"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_int4range",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:int4range"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_int8range",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:int8range"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_numrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:numrange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_daterange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:daterange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_tsrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:tsrange"
+                },
+                {
+                    "table_schema": "public",
+                    "table_name": "wtf_types",
+                    "path": "",
+                    "name": "t_tstzrange",
+                    "type": "any",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "pg:tstzrange"
                 }
             ]
         },

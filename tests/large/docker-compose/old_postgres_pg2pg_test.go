@@ -7,7 +7,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
+	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
 var (
@@ -34,7 +35,7 @@ var (
 )
 
 func init() {
-	helpers.InitSrcDst(helpers.TransferID, &oldPostgresPg2PgSource, &oldPostgresPg2PgTarget, abstract.TransferTypeSnapshotOnly)
+	transferhelpers.InitSrcDst(transferhelpers.TransferID, &oldPostgresPg2PgSource, &oldPostgresPg2PgTarget, abstract.TransferTypeSnapshotOnly)
 }
 
 func TestOldPostgresPg2Pg(t *testing.T) {
@@ -50,9 +51,9 @@ func TestOldPostgresPg2Pg(t *testing.T) {
 		)
 	}
 
-	transfer := helpers.MakeTransfer(helpers.TransferID, &oldPostgresPg2PgSource, &oldPostgresPg2PgTarget, abstract.TransferTypeSnapshotAndIncrement)
+	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &oldPostgresPg2PgSource, &oldPostgresPg2PgTarget, abstract.TransferTypeSnapshotAndIncrement)
 
-	worker := helpers.Activate(t, transfer)
+	worker := delivery.Activate(t, transfer)
 	defer worker.Close(t)
 
 	var canonData CanonData

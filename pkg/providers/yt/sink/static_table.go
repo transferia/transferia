@@ -31,7 +31,7 @@ type StaticTable struct {
 	txMutex       sync.Mutex
 	tablesTxs     map[abstract.TableID]yt.Tx
 	wrMutex       sync.Mutex
-	tablesWriters map[abstract.TableID]map[ypath.Path]*tableWriter
+	tablesWriters map[abstract.TableID]*tableWriter
 	spec          map[string]interface{}
 	config        provider_yt.YtDestinationModel
 	metrics       *stats.SinkerStats
@@ -55,7 +55,7 @@ func (t *StaticTable) rollbackAll() error {
 	t.logger.Info("rollback all transactions")
 
 	defer func() {
-		t.tablesWriters = map[abstract.TableID]map[ypath.Path]*tableWriter{}
+		t.tablesWriters = map[abstract.TableID]*tableWriter{}
 		t.tablesTxs = map[abstract.TableID]yt.Tx{}
 	}()
 
@@ -84,7 +84,7 @@ func (t *StaticTable) begin(tableID abstract.TableID) error {
 	tx, err := t.ytClient.BeginTx(ctx, nil)
 	if err != nil {
 		t.logger.Error("cannot begin internal transaction for table", log.Any("table", tableID.Fqtn()), log.Error(err))
-		return err
+		return xerrors.Errorf("unable to begin transaction: %w", provider_yt.WrapYTError(err))
 	}
 	t.tablesTxs[tableID] = tx
 
@@ -114,8 +114,8 @@ func (t *StaticTable) commit(tableID abstract.TableID) error {
 		return xerrors.Errorf("cannot commit: transaction for table %v was not started", tableID.Fqtn())
 	}
 
-	writers := t.getWriters(tableID)
-	if len(writers) == 0 {
+	twr, ok := t.getWriter(tableID)
+	if !ok {
 		t.logger.Infof("there were no writes for table %v, commit empty transaction", tableID.Fqtn())
 		if err := tx.Commit(); err != nil {
 			t.logger.Error("cannot commit empty transaction", log.Any("table", tableID.Fqtn()), log.Error(err))
@@ -124,12 +124,9 @@ func (t *StaticTable) commit(tableID abstract.TableID) error {
 		return nil
 	}
 
-	ctx := context.Background()
-	for _, twr := range writers {
-		if twr.runningTx == nil {
-			continue
-		}
+	if twr.runningTx != nil {
 		t.logger.Info("try commit", log.Any("table", tableID.Fqtn()), log.Any("transaction", twr.runningTx.ID()), log.Any("path", twr.target))
+		ctx := context.Background()
 		if err := twr.wr.Commit(); err != nil {
 			t.logger.Error("cannot commit table writer, aborting transaction", log.Any("table", tableID.Fqtn()), log.Any("transaction", twr.runningTx.ID()))
 			_ = twr.runningTx.Abort()
@@ -149,12 +146,11 @@ func (t *StaticTable) commit(tableID abstract.TableID) error {
 			//nolint:descriptiveerrors
 			return err
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		t.logger.Error("cannot commit transaction, aborting...", log.Any("table", tableID.Fqtn()), log.Any("transaction", tx.ID()))
-		//nolint:descriptiveerrors
-		return err
+		if err := twr.runningTx.Commit(); err != nil {
+			t.logger.Error("cannot commit transaction, aborting...", log.Any("table", tableID.Fqtn()), log.Any("transaction", twr.runningTx.ID()))
+			//nolint:descriptiveerrors
+			return err
+		}
 	}
 	return nil
 }
@@ -179,7 +175,7 @@ func (t *StaticTable) mergeIfNeeded(ctx context.Context, tableWriter *tableWrite
 	mergeSpec.Pool = t.config.Pool()
 	mergeOperation, err := mrClient.Merge(mergeSpec)
 	if err != nil {
-		return xerrors.Errorf("unable to start merge: %w", provider_yt.WrapTooManyOperationsError(err))
+		return xerrors.Errorf("unable to start merge: %w", provider_yt.WrapYTError(err))
 	}
 
 	t.logger.Infof("started merging target '%v' and tmp '%v'", tableWriter.target, tableWriter.tmp)
@@ -225,7 +221,6 @@ func (t *StaticTable) Push(items []abstract.ChangeItem) error {
 	}
 
 	var prevTableID abstract.TableID
-	var prevTarget ypath.Path
 	var writer *tableWriter = nil
 	colSchemaByNameByTable := map[abstract.TableID]map[string]abstract.ColSchema{}
 	var colSchemaByName map[string]abstract.ColSchema
@@ -234,22 +229,19 @@ func (t *StaticTable) Push(items []abstract.ChangeItem) error {
 
 		switch item.Kind {
 		case abstract.InsertKind:
-			target := t.getTableName(tableID, item)
-			if prevTableID != tableID || prevTarget != target {
+			if prevTableID != tableID {
 				ok := false
 
-				writer, ok = t.getWriter(tableID, target)
+				writer, ok = t.getWriter(tableID)
 				if !ok {
-					if err := t.addWriter(ctx, tableID, target, item); err != nil {
+					if err := t.addWriter(ctx, tableID, item); err != nil {
 						t.metrics.Table(tableID.Fqtn(), "error", 1)
 						t.logger.Error("cannot create table writer", log.Any("table", tableID), log.Error(err))
 						return err
 					}
-					writer, _ = t.getWriter(tableID, target)
+					writer, _ = t.getWriter(tableID)
 				}
-			}
-			if prevTableID != tableID {
-				ok := false
+
 				colSchemaByName, ok = colSchemaByNameByTable[tableID]
 				if !ok {
 					colSchemaByName = columnSchemaByName(item.TableSchema.Columns())
@@ -257,7 +249,6 @@ func (t *StaticTable) Push(items []abstract.ChangeItem) error {
 				}
 			}
 			prevTableID = tableID
-			prevTarget = target
 
 			row := map[string]interface{}{}
 			for i, columnName := range item.ColumnNames {
@@ -302,19 +293,12 @@ func (t *StaticTable) Push(items []abstract.ChangeItem) error {
 	return nil
 }
 
-func (t *StaticTable) getWriter(tID abstract.TableID, target ypath.Path) (twr *tableWriter, ok bool) {
+func (t *StaticTable) getWriter(tID abstract.TableID) (twr *tableWriter, ok bool) {
 	t.wrMutex.Lock()
 	defer t.wrMutex.Unlock()
 
-	twr, ok = t.tablesWriters[tID][target]
+	twr, ok = t.tablesWriters[tID]
 	return twr, ok
-}
-
-func (t *StaticTable) getWriters(tID abstract.TableID) map[ypath.Path]*tableWriter {
-	t.wrMutex.Lock()
-	defer t.wrMutex.Unlock()
-
-	return t.tablesWriters[tID]
 }
 
 func (t *StaticTable) getTableName(tID abstract.TableID, item abstract.ChangeItem) ypath.Path {
@@ -329,12 +313,13 @@ func (t *StaticTable) getTableName(tID abstract.TableID, item abstract.ChangeIte
 	}
 }
 
-func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, target ypath.Path, item abstract.ChangeItem) error {
+func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, item abstract.ChangeItem) error {
 	ytSchema := staticYTSchema(item)
 	if ytSchema == nil {
 		return nil // or we should return error?
 	}
 
+	target := t.getTableName(tID, item)
 	tmpTablePath := ypath.Path(fmt.Sprintf("%v_%v", target, getRandomPostfix()))
 
 	tmpTableDirPath := getDirPath(tmpTablePath)
@@ -347,7 +332,7 @@ func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, targe
 
 	t.wrMutex.Lock()
 	defer t.wrMutex.Unlock()
-	if _, ok := t.tablesWriters[tID][target]; !ok {
+	if _, ok := t.tablesWriters[tID]; !ok {
 		tx, ok := t.getTx(tID)
 		if !ok {
 			t.logger.Error("cannot init table writer: transaction was not started", log.Any("table", tID))
@@ -381,18 +366,15 @@ func (t *StaticTable) addWriter(ctx context.Context, tID abstract.TableID, targe
 		)
 
 		if _, err := tx.CreateNode(ctx, tmpTablePath, yt.NodeTable, &createOptions); err != nil {
-			return provider_yt.WrapCreateNodeCodecError(err)
+			return provider_yt.WrapYTError(err)
 		}
 		opts := &yt.WriteTableOptions{TableWriter: t.spec}
 		w, err := tx.WriteTable(ctx, tmpTablePath, opts)
 		if err != nil {
 			return xerrors.Errorf("unable to create table writer: %w", err)
 		}
-		t.logger.Info("add new writer", log.Any("table", tID), log.Any("target", target), log.Any("transaction", tx.ID()))
-		if t.tablesWriters[tID] == nil {
-			t.tablesWriters[tID] = map[ypath.Path]*tableWriter{}
-		}
-		t.tablesWriters[tID][target] = &tableWriter{
+		t.logger.Info("add new writer", log.Any("table", tID), log.Any("transaction", tx.ID()))
+		t.tablesWriters[tID] = &tableWriter{
 			runningTx: tx,
 			target:    target,
 			tmp:       tmpTablePath,
@@ -418,7 +400,7 @@ func NewStaticTableFromConfig(ytClient yt.Client, cfg provider_yt.YtDestinationM
 		txMutex:       sync.Mutex{},
 		tablesTxs:     map[abstract.TableID]yt.Tx{},
 		wrMutex:       sync.Mutex{},
-		tablesWriters: map[abstract.TableID]map[ypath.Path]*tableWriter{},
+		tablesWriters: map[abstract.TableID]*tableWriter{},
 		spec:          cfg.Spec().GetConfig(),
 		config:        cfg,
 		metrics:       stats.NewSinkerStats(registry),
@@ -433,7 +415,7 @@ func NewStaticTable(ytClient yt.Client, path ypath.Path, ytSpec map[string]inter
 		txMutex:       sync.Mutex{},
 		tablesTxs:     map[abstract.TableID]yt.Tx{},
 		wrMutex:       sync.Mutex{},
-		tablesWriters: map[abstract.TableID]map[ypath.Path]*tableWriter{},
+		tablesWriters: map[abstract.TableID]*tableWriter{},
 		spec:          ytSpec,
 		config:        nil,
 		metrics:       stats.NewSinkerStats(registry),

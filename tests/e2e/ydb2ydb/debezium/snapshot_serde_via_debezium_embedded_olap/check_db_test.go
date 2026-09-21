@@ -13,9 +13,12 @@ import (
 	"github.com/transferia/transferia/pkg/debezium"
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
-	"github.com/transferia/transferia/tests/helpers"
+	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/serde"
+	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/transfer"
 	helpers_transformer "github.com/transferia/transferia/tests/helpers/transformer"
+	"github.com/transferia/transferia/tests/helpers/ydb/testdata"
 	ydb_go_sdk "github.com/ydb-platform/ydb-go-sdk/v3"
 	ydb_table "github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
@@ -28,8 +31,8 @@ var sourceChangeItem abstract.ChangeItem
 func TestSnapshotSerDeViaDebeziumEmbeddedOLAP(t *testing.T) {
 	src := &provider_ydb.YdbSource{
 		Token:              model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:           helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:           helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:           testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:           testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		Tables:             nil,
 		TableColumnsFilter: nil,
 		SubNetworkID:       "",
@@ -47,18 +50,18 @@ func TestSnapshotSerDeViaDebeziumEmbeddedOLAP(t *testing.T) {
 		sinker, err := provider_ydb.NewSinker(logger.Log, Target, solomon.NewRegistry(solomon.NewRegistryOpts()))
 		require.NoError(t, err)
 
-		currChangeItem := helpers.YDBInitChangeItem(path)
+		currChangeItem := testdata.YDBInitChangeItem(path)
 		require.NoError(t, sinker.Push([]abstract.ChangeItem{*currChangeItem}))
 	})
 
 	dst := &provider_ydb.YdbDestination{
 		Token:                 model.SecretString(os.Getenv("YDB_TOKEN")),
-		Database:              helpers.GetEnvOfFail(t, "YDB_DATABASE"),
-		Instance:              helpers.GetEnvOfFail(t, "YDB_ENDPOINT"),
+		Database:              testenv.GetEnvOfFail(t, "YDB_DATABASE"),
+		Instance:              testenv.GetEnvOfFail(t, "YDB_ENDPOINT"),
 		IsTableColumnOriented: true,
 	}
 	dst.WithDefaults()
-	transfer := helpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
+	transfer := transferhelpers.MakeTransfer("fake", src, dst, abstract.TransferTypeSnapshotOnly)
 
 	emitter, err := debezium.NewMessagesEmitter(map[string]string{
 		debezium_parameters.DatabaseDBName:   "public",
@@ -71,7 +74,7 @@ func TestSnapshotSerDeViaDebeziumEmbeddedOLAP(t *testing.T) {
 	require.NoError(t, transfer.AddExtraTransformer(debeziumSerDeTransformer))
 
 	t.Run("activate", func(t *testing.T) {
-		helpers.Activate(t, transfer)
+		delivery.Activate(t, transfer)
 	})
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -79,7 +82,7 @@ func TestSnapshotSerDeViaDebeziumEmbeddedOLAP(t *testing.T) {
 	var foundInOlap uint8
 	t.Run("Check by selfclient", func(t *testing.T) {
 		clientCtx, cancelFunc := context.WithCancel(context.Background())
-		url := "grpc://" + helpers.GetEnvOfFail(t, "YDB_ENDPOINT") + "/" + helpers.GetEnvOfFail(t, "YDB_DATABASE")
+		url := "grpc://" + testenv.GetEnvOfFail(t, "YDB_ENDPOINT") + "/" + testenv.GetEnvOfFail(t, "YDB_DATABASE")
 		db, err := ydb_go_sdk.Open(clientCtx, url)
 		require.NoError(t, err)
 
