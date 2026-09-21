@@ -3819,6 +3819,7 @@
   "tests/e2e/s32ch/snapshot_parquet/check_db_test.go":"transfer_manager/go/tests/e2e/s32ch/snapshot_parquet/check_db_test.go",
   "tests/e2e/s32ch/snapshot_parquet/initdb.sql":"transfer_manager/go/tests/e2e/s32ch/snapshot_parquet/initdb.sql",
   "tests/e2e/s32mock/no_such_file/check_db_test.go":"transfer_manager/go/tests/e2e/s32mock/no_such_file/check_db_test.go",
+  "tests/e2e/s32yt/access_denied/check_db_test.go":"transfer_manager/go/tests/e2e/s32yt/access_denied/check_db_test.go",
   "tests/e2e/sample2ch/replication/check_db_test.go":"transfer_manager/go/tests/e2e/sample2ch/replication/check_db_test.go",
   "tests/e2e/sample2ch/replication/dump/dst.sql":"transfer_manager/go/tests/e2e/sample2ch/replication/dump/dst.sql",
   "tests/e2e/sample2ch/snapshot/check_db_test.go":"transfer_manager/go/tests/e2e/sample2ch/snapshot/check_db_test.go",
