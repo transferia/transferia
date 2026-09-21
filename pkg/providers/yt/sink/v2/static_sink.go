@@ -168,16 +168,13 @@ func (s *sink) initTableLoad(tablePath ypath.Path, schema abstract.TableColumns)
 
 func (s *sink) disableChunkMerger(dir ypath.Path) error {
 	fn := func(mainTxID yt.TxID) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
 		transactionOptions := &yt.TransactionOptions{
 			TransactionID: mainTxID,
 			PingAncestors: true,
 			Ping:          true,
 		}
 
-		if err := s.ytClient.SetNode(ctx, dir.Attr("chunk_merger_mode"), "none", &yt.SetNodeOptions{TransactionOptions: transactionOptions}); err != nil {
+		if err := s.ytClient.SetNode(context.Background(), dir.Attr("chunk_merger_mode"), "none", &yt.SetNodeOptions{TransactionOptions: transactionOptions}); err != nil {
 			return xerrors.Errorf("unable to set chunk_merger_mode = none for table %s: %w", dir.String(), err)
 		}
 		return nil
