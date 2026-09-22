@@ -838,6 +838,10 @@ func (s *sink) buildInsertQuery(
 			if !ok {
 				return "", xerrors.Errorf("Key \"%v\" not found in source table schema", keyName)
 			}
+			if row.OldKeys.KeyValues[i] == nil {
+				predicate = append(predicate, fmt.Sprintf("\"%v\" IS NULL", keyName))
+				continue
+			}
 			reprBuf.Reset()
 			if err := representWithCastToWriter(&reprBuf, row.OldKeys.KeyValues[i], schema[schemaIndex]); err != nil {
 				return "", xerrors.Errorf("failed to represent the old value of a key column %q: %w", keyName, err)
@@ -866,6 +870,10 @@ func (s *sink) buildDeleteQuery(table string, schema []abstract.ColSchema, row a
 	deleteConditions := make([]string, len(row.OldKeys.KeyNames))
 	var reprBuf bytes.Buffer
 	for idx := range row.OldKeys.KeyNames {
+		if row.OldKeys.KeyValues[idx] == nil {
+			deleteConditions[idx] = fmt.Sprintf("(\"%s\" IS NULL)", row.OldKeys.KeyNames[idx])
+			continue
+		}
 		var keyType, keyOrigType string
 		columnIndex := rev[row.OldKeys.KeyNames[idx]]
 		keyType = schema[columnIndex].DataType
