@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -28,6 +29,7 @@ type PostgresContainer struct {
 	dbName      string
 	user        string
 	password    string
+	host        string
 	exposedPort nat.Port
 }
 
@@ -41,19 +43,13 @@ func (c *PostgresContainer) ConnectionString(ctx context.Context, args ...string
 		return "", err
 	}
 
-	host, err := c.Container.Host(ctx)
-	if err != nil {
-		return "", err
-	}
-
 	extraArgs := strings.Join(args, "&")
-	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?%s", c.user, c.password, net.JoinHostPort(host, containerPort.Port()), c.dbName, extraArgs)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?%s", c.user, c.password, net.JoinHostPort(c.host, containerPort.Port()), c.dbName, extraArgs)
 	return connStr, nil
 }
 
 func (c *PostgresContainer) Host() string {
-	host, _ := c.Container.Host(context.Background())
-	return host
+	return c.host
 }
 
 func (c *PostgresContainer) Port() int {
@@ -204,6 +200,35 @@ func WithImage(image string) testcontainers.CustomizeRequestOption {
 	}
 }
 
+type hostNetworkOption struct {
+	host string
+}
+
+func (o hostNetworkOption) Customize(req *testcontainers.GenericContainerRequest) error {
+	req.Cmd = append(req.Cmd, "-c", fmt.Sprintf("listen_addresses=%s", o.host))
+	// testcontainers-go v0.32 waits for request-level exposed ports to have
+	// published mappings. Host networking has no mappings, so omit them here;
+	// MappedPort returns the original port and the log wait still checks readiness.
+	req.ExposedPorts = nil
+	// The Podman provider appends its default bridge to every request, even in host mode.
+	req.ProviderType = testcontainers.ProviderDocker
+	previous := req.HostConfigModifier
+	req.HostConfigModifier = func(hostConfig *container.HostConfig) {
+		if previous != nil {
+			previous(hostConfig)
+		}
+		hostConfig.NetworkMode = "host"
+		hostConfig.PortBindings = nil
+	}
+	return nil
+}
+
+// WithHostNetwork runs PostgreSQL in the host network namespace and binds it
+// only to the supplied IPv4 loopback address.
+func WithHostNetwork(host string) testcontainers.ContainerCustomizer {
+	return hostNetworkOption{host: host}
+}
+
 type funcLogger func(format string, v ...any)
 
 var _ testcontainers.Logging = (funcLogger)(nil)
@@ -220,7 +245,7 @@ func WithLogger(logger func(format string, v ...any)) testcontainers.CustomizeRe
 }
 
 // Prepare creates an instance of the postgres container type
-func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*PostgresContainer, error) {
+func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (_ *PostgresContainer, resultErr error) {
 	req := testcontainers.ContainerRequest{
 		Image: defaultPostgresImage,
 		Env: map[string]string{
@@ -245,22 +270,45 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 		Started:          true,
 	}
 
+	hostNetworkAddress := ""
 	for _, opt := range opts {
-		_ = opt.Customize(&genericContainerReq)
+		if option, ok := opt.(hostNetworkOption); ok {
+			hostNetworkAddress = option.host
+		}
+		if err := opt.Customize(&genericContainerReq); err != nil {
+			return nil, err
+		}
 	}
 	if genericContainerReq.ContainerRequest.FromDockerfile.Dockerfile != "" {
 		genericContainerReq.ContainerRequest.Image = ""
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, genericContainerReq)
+	container, resultErr := testcontainers.GenericContainer(ctx, genericContainerReq)
+	if container != nil {
+		defer func() {
+			if resultErr == nil {
+				return
+			}
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			resultErr = errors.Join(resultErr, container.Terminate(cleanupCtx))
+		}()
+	}
+	if resultErr != nil {
+		return nil, resultErr
+	}
+
+	user := genericContainerReq.Env["POSTGRES_USER"]
+	password := genericContainerReq.Env["POSTGRES_PASSWORD"]
+	dbName := genericContainerReq.Env["POSTGRES_DB"]
+	host, err := container.Host(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	user := req.Env["POSTGRES_USER"]
-	password := req.Env["POSTGRES_PASSWORD"]
-	dbName := req.Env["POSTGRES_DB"]
-	if err := os.Setenv(fmt.Sprintf("%s_POSTGRESQL_RECIPE_HOST", strings.ToUpper(dbName)), "localhost"); err != nil {
+	if hostNetworkAddress != "" {
+		host = hostNetworkAddress
+	}
+	if err := os.Setenv(fmt.Sprintf("%s_POSTGRESQL_RECIPE_HOST", strings.ToUpper(dbName)), host); err != nil {
 		return nil, err
 	}
 	exposedPort, err := container.MappedPort(ctx, defaultPort)
@@ -271,5 +319,5 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 		return nil, err
 	}
 
-	return &PostgresContainer{Container: container, dbName: dbName, password: password, user: user, exposedPort: exposedPort}, nil
+	return &PostgresContainer{Container: container, dbName: dbName, password: password, user: user, host: host, exposedPort: exposedPort}, nil
 }
