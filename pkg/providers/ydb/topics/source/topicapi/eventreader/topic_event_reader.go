@@ -29,13 +29,20 @@ type TopicEventReader struct {
 	eventsCh <-chan eventWithError
 	listener *topiclistener.TopicListener
 
+	listenerErr error
+
 	stopCh   chan struct{}
 	stopOnce sync.Once
+
+	logger log.Logger
 }
 
 func (r *TopicEventReader) NextEvent(ctx context.Context) (event.Event, error) {
 	select {
 	case <-r.stopCh:
+		if r.listenerErr != nil {
+			return nil, xerrors.Errorf("topic listener stopped: %w", r.listenerErr)
+		}
 		return nil, ErrClosedReader
 	default:
 	}
@@ -44,6 +51,9 @@ func (r *TopicEventReader) NextEvent(ctx context.Context) (event.Event, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-r.stopCh:
+		if r.listenerErr != nil {
+			return nil, xerrors.Errorf("topic listener stopped: %w", r.listenerErr)
+		}
 		return nil, ErrClosedReader
 	case e := <-r.eventsCh:
 		if e.err != nil {
@@ -66,6 +76,15 @@ func (r *TopicEventReader) Close(ctx context.Context) error {
 	return nil
 }
 
+func (r *TopicEventReader) waitListenerStop() {
+	if err := r.listener.WaitStop(context.Background()); err != nil {
+		r.logger.Warn("listener stopped with error", log.Error(err))
+
+		r.listenerErr = err
+		_ = r.Close(context.Background())
+	}
+}
+
 func newTopicEventReader(consumer string, selectors []topicoptions.ReadSelector, ydbClient *ydb.Driver, logger log.Logger) (*TopicEventReader, error) {
 	eventsCh := make(chan eventWithError, 1)
 	handler := newEventHandler(eventsCh, logger)
@@ -85,6 +104,7 @@ func newTopicEventReader(consumer string, selectors []topicoptions.ReadSelector,
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := listener.WaitInit(ctx); err != nil {
+		_ = listener.Close(context.Background())
 		if ydbOperationErr := ydb.OperationError(err); ydbOperationErr != nil && ydbOperationErr.Code() == ydbSchemeErrorCode {
 			return nil, abstract.NewFatalError(
 				coded.Errorf(error_codes.MissingData, "topic path does not exist or you do not have access rights: %w ", ydbOperationErr),
@@ -94,12 +114,18 @@ func newTopicEventReader(consumer string, selectors []topicoptions.ReadSelector,
 		return nil, xerrors.Errorf("unable to init topic listener: %w", err)
 	}
 
-	return &TopicEventReader{
-		eventsCh: eventsCh,
-		listener: listener,
-		stopCh:   make(chan struct{}),
-		stopOnce: sync.Once{},
-	}, nil
+	reader := &TopicEventReader{
+		eventsCh:    eventsCh,
+		listener:    listener,
+		listenerErr: nil,
+		stopCh:      make(chan struct{}),
+		stopOnce:    sync.Once{},
+		logger:      logger,
+	}
+
+	go reader.waitListenerStop()
+
+	return reader, nil
 }
 
 func NewTopicEventReader(consumer string, topicPaths []string, ydbClient *ydb.Driver, logger log.Logger) (*TopicEventReader, error) {
