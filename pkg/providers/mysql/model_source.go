@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"hash/fnv"
 	"regexp"
 	"strings"
@@ -64,6 +65,7 @@ type MysqlSource struct {
 var _ model.Source = (*MysqlSource)(nil)
 var _ model.WithConnectionID = (*MysqlSource)(nil)
 var _ model.EndpointParamsDbDefaults = (*MysqlSource)(nil)
+var _ model.ConnectionChecker = (*MysqlSource)(nil)
 
 type MysqlDumpSteps struct {
 	View    bool
@@ -230,4 +232,8 @@ func (s *MysqlSource) ToStorageParams() *MysqlStorageParams {
 		PreSteps:     s.PreSteps,
 		ConnectionID: s.ConnectionID,
 	}
+}
+
+func (s *MysqlSource) CheckConnection(ctx context.Context) error {
+	return checkConnection(ctx, s.ToStorageParams())
 }

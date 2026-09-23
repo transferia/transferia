@@ -8,6 +8,7 @@ type Coordinator interface {
 	StatusMessageProvider
 	TransferState
 	TestReporter
+	CheckEndpointReporter
 	OperationStatus
 	OperationState
 	Sharding

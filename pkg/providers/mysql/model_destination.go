@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -53,6 +54,7 @@ var (
 	_ model.Destination          = (*MysqlDestination)(nil)
 	_ model.WithConnectionID     = (*MysqlDestination)(nil)
 	_ model.AlterableDestination = (*MysqlDestination)(nil)
+	_ model.ConnectionChecker    = (*MysqlDestination)(nil)
 )
 
 func (d *MysqlDestination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -162,4 +164,8 @@ func (d *MysqlDestination) ToStorageParams() *MysqlStorageParams {
 		RootCAFiles:         d.RootCAFiles,
 		ConnectionID:        d.ConnectionID,
 	}
+}
+
+func (d *MysqlDestination) CheckConnection(ctx context.Context) error {
+	return checkConnection(ctx, d.ToStorageParams())
 }

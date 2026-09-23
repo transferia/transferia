@@ -90,6 +90,9 @@ type (
 	TestEndpoint struct {
 		runnable
 	}
+	CheckEndpoint struct {
+		runnable
+	}
 )
 
 func (Activate) isShardableTask()       {}
@@ -202,6 +205,7 @@ type RunnableVisitor interface {
 	OnUpload(t Upload) interface{}
 	OnVerify(t Verify) interface{}
 	OnTestEndpoint(t TestEndpoint) interface{}
+	OnCheckEndpoint(t CheckEndpoint) interface{}
 }
 
 type FakeVisitor interface {
@@ -236,6 +240,7 @@ func (t Deactivate) VisitRunnable(v RunnableVisitor) interface{}      { return v
 func (t CleanupResource) VisitRunnable(v RunnableVisitor) interface{} { return v.OnCleanupResource(t) }
 func (t Checksum) VisitRunnable(v RunnableVisitor) interface{}        { return v.OnChecksum(t) }
 func (t TestEndpoint) VisitRunnable(v RunnableVisitor) interface{}    { return v.OnTestEndpoint(t) }
+func (t CheckEndpoint) VisitRunnable(v RunnableVisitor) interface{}   { return v.OnCheckEndpoint(t) }
 func (t UpdateTransfer) VisitRunnable(v RunnableVisitor) interface{} {
 	return v.OnUpdateTransfer(t)
 }
@@ -253,6 +258,7 @@ func (t Deactivate) Visit(v TaskVisitor) interface{}      { return t.VisitRunnab
 func (t CleanupResource) Visit(v TaskVisitor) interface{} { return t.VisitRunnable(v) }
 func (t Checksum) Visit(v TaskVisitor) interface{}        { return t.VisitRunnable(v) }
 func (t TestEndpoint) Visit(v TaskVisitor) interface{}    { return t.VisitRunnable(v) }
+func (t CheckEndpoint) Visit(v TaskVisitor) interface{}   { return t.VisitRunnable(v) }
 func (t UpdateTransfer) Visit(v TaskVisitor) interface{}  { return t.VisitRunnable(v) }
 
 func (t Replication) VisitFake(v FakeVisitor) interface{}    { return v.OnReplication(t) }

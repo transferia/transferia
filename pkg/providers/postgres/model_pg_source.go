@@ -89,6 +89,7 @@ var (
 	_ model.QueueToS3Source          = (*PgSource)(nil)
 	_ model.WithConnectionID         = (*PgSource)(nil)
 	_ model.EndpointParamsDbDefaults = (*PgSource)(nil)
+	_ model.ConnectionChecker        = (*PgSource)(nil)
 )
 
 func (s *PgSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
@@ -585,4 +586,9 @@ func (s *PgSource) ToStorageParams(transfer *model.Transfer) *PgStorageParams {
 		ShardingKeyFields:           s.ShardingKeyFields,
 		ConnectionID:                s.ConnectionID,
 	}
+}
+
+func (s *PgSource) CheckConnection(ctx context.Context) error {
+	connConfig, err := MakeConnConfigFromSrc(logger.Log, s)
+	return checkConnection(ctx, connConfig, err)
 }

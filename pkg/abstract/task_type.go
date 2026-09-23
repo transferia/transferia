@@ -101,20 +101,21 @@ func (t TaskType) Description(taskParams interface{}) string {
 
 type toStringVisitor struct{}
 
-func (toStringVisitor) OnActivate(t Activate) interface{}         { return "Activate" }
-func (toStringVisitor) OnUpload(t Upload) interface{}             { return "Upload" }
-func (toStringVisitor) OnReUpload(t ReUpload) interface{}         { return "ReUpload" }
-func (toStringVisitor) OnStart(t Start) interface{}               { return "Start" }
-func (toStringVisitor) OnRestart(t Restart) interface{}           { return "Restart" }
-func (toStringVisitor) OnStop(t Stop) interface{}                 { return "Stop" }
-func (toStringVisitor) OnVerify(t Verify) interface{}             { return "Verify" }
-func (toStringVisitor) OnAddTables(t AddTables) interface{}       { return "AddTables" }
-func (toStringVisitor) OnRemoveTables(t RemoveTables) interface{} { return "RemoveTables" }
-func (toStringVisitor) OnDeactivate(t Deactivate) interface{}     { return "Deactivate" }
-func (toStringVisitor) OnChecksum(t Checksum) interface{}         { return "Checksum" }
-func (toStringVisitor) OnReplication(t Replication) interface{}   { return "Replication" }
-func (toStringVisitor) OnTermination(t Termination) interface{}   { return "Termination" }
-func (toStringVisitor) OnTestEndpoint(t TestEndpoint) interface{} { return "TestEndpoint" }
+func (toStringVisitor) OnActivate(t Activate) interface{}           { return "Activate" }
+func (toStringVisitor) OnUpload(t Upload) interface{}               { return "Upload" }
+func (toStringVisitor) OnReUpload(t ReUpload) interface{}           { return "ReUpload" }
+func (toStringVisitor) OnStart(t Start) interface{}                 { return "Start" }
+func (toStringVisitor) OnRestart(t Restart) interface{}             { return "Restart" }
+func (toStringVisitor) OnStop(t Stop) interface{}                   { return "Stop" }
+func (toStringVisitor) OnVerify(t Verify) interface{}               { return "Verify" }
+func (toStringVisitor) OnAddTables(t AddTables) interface{}         { return "AddTables" }
+func (toStringVisitor) OnRemoveTables(t RemoveTables) interface{}   { return "RemoveTables" }
+func (toStringVisitor) OnDeactivate(t Deactivate) interface{}       { return "Deactivate" }
+func (toStringVisitor) OnChecksum(t Checksum) interface{}           { return "Checksum" }
+func (toStringVisitor) OnReplication(t Replication) interface{}     { return "Replication" }
+func (toStringVisitor) OnTermination(t Termination) interface{}     { return "Termination" }
+func (toStringVisitor) OnTestEndpoint(t TestEndpoint) interface{}   { return "TestEndpoint" }
+func (toStringVisitor) OnCheckEndpoint(t CheckEndpoint) interface{} { return "CheckEndpoint" }
 func (v toStringVisitor) OnUpdateTransfer(t UpdateTransfer) interface{} {
 	return "UpdateTransfer"
 }
@@ -143,20 +144,21 @@ func (toStringVisitor) OnTransferVersionUnfreeze(t TransferVersionUnfreeze) inte
 
 type paramsVisitor struct{}
 
-func (paramsVisitor) OnActivate(t Activate) interface{}         { return new(interface{}) }
-func (paramsVisitor) OnUpload(t Upload) interface{}             { return new(interface{}) }
-func (paramsVisitor) OnReUpload(t ReUpload) interface{}         { return new(interface{}) }
-func (paramsVisitor) OnStart(t Start) interface{}               { return new(interface{}) }
-func (paramsVisitor) OnRestart(t Restart) interface{}           { return new(interface{}) }
-func (paramsVisitor) OnStop(t Stop) interface{}                 { return new(interface{}) }
-func (paramsVisitor) OnVerify(t Verify) interface{}             { return new(interface{}) }
-func (paramsVisitor) OnAddTables(t AddTables) interface{}       { return new(interface{}) }
-func (paramsVisitor) OnRemoveTables(t RemoveTables) interface{} { return new(interface{}) }
-func (paramsVisitor) OnDeactivate(t Deactivate) interface{}     { return new(interface{}) }
-func (paramsVisitor) OnChecksum(t Checksum) interface{}         { return new(interface{}) }
-func (paramsVisitor) OnReplication(t Replication) interface{}   { return new(interface{}) }
-func (paramsVisitor) OnTermination(t Termination) interface{}   { return new(interface{}) }
-func (paramsVisitor) OnTestEndpoint(t TestEndpoint) interface{} { return new(interface{}) }
+func (paramsVisitor) OnActivate(t Activate) interface{}           { return new(interface{}) }
+func (paramsVisitor) OnUpload(t Upload) interface{}               { return new(interface{}) }
+func (paramsVisitor) OnReUpload(t ReUpload) interface{}           { return new(interface{}) }
+func (paramsVisitor) OnStart(t Start) interface{}                 { return new(interface{}) }
+func (paramsVisitor) OnRestart(t Restart) interface{}             { return new(interface{}) }
+func (paramsVisitor) OnStop(t Stop) interface{}                   { return new(interface{}) }
+func (paramsVisitor) OnVerify(t Verify) interface{}               { return new(interface{}) }
+func (paramsVisitor) OnAddTables(t AddTables) interface{}         { return new(interface{}) }
+func (paramsVisitor) OnRemoveTables(t RemoveTables) interface{}   { return new(interface{}) }
+func (paramsVisitor) OnDeactivate(t Deactivate) interface{}       { return new(interface{}) }
+func (paramsVisitor) OnChecksum(t Checksum) interface{}           { return new(interface{}) }
+func (paramsVisitor) OnReplication(t Replication) interface{}     { return new(interface{}) }
+func (paramsVisitor) OnTermination(t Termination) interface{}     { return new(interface{}) }
+func (paramsVisitor) OnTestEndpoint(t TestEndpoint) interface{}   { return new(interface{}) }
+func (paramsVisitor) OnCheckEndpoint(t CheckEndpoint) interface{} { return new(interface{}) }
 func (paramsVisitor) OnCleanupResource(t CleanupResource) interface{} {
 	return new(interface{})
 }

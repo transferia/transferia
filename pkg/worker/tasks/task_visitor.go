@@ -67,6 +67,17 @@ func (v runTaskVisitor) OnTestEndpoint(t abstract.TestEndpoint) interface{} {
 	}
 }
 
+func (v runTaskVisitor) OnCheckEndpoint(abstract.CheckEndpoint) interface{} {
+	checkErr := CheckEndpoint(v.ctx, &v.transfer)
+	if checkErr != nil {
+		logger.Log.Warn("endpoint connection check failed", log.Error(checkErr))
+	}
+	if err := v.cp.ReportCheckEndpointResult(v.task.OperationID, checkErr); err != nil {
+		return xerrors.Errorf("unable to report check endpoint result: %w", err)
+	}
+	return nil
+}
+
 func (v runTaskVisitor) OnActivate(t abstract.Activate) interface{} {
 	if err := ActivateDelivery(v.ctx, &v.task, v.cp, v.transfer, v.registry); err != nil {
 		logger.Log.Error("Unable to Activate", log.Error(err))

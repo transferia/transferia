@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -56,6 +57,7 @@ var (
 	_ model.Destination          = (*PgDestination)(nil)
 	_ model.WithConnectionID     = (*PgDestination)(nil)
 	_ model.AlterableDestination = (*PgDestination)(nil)
+	_ model.ConnectionChecker    = (*PgDestination)(nil)
 )
 
 const PGDefaultQueryTimeout time.Duration = 30 * time.Minute
@@ -266,4 +268,9 @@ func (d *PgDestination) ToStorageParams() *PgStorageParams {
 		ShardingKeyFields:           map[string][]string{},
 		ConnectionID:                d.ConnectionID,
 	}
+}
+
+func (d *PgDestination) CheckConnection(ctx context.Context) error {
+	connConfig, err := MakeConnConfigFromSink(logger.Log, d.ToSinkParams())
+	return checkConnection(ctx, connConfig, err)
 }

@@ -254,6 +254,11 @@ type HackableTarget interface {
 	PostSnapshotHacks()
 }
 
+// ConnectionChecker opens and closes a connection with the endpoint credentials, nothing is read or written
+type ConnectionChecker interface {
+	CheckConnection(ctx context.Context) error
+}
+
 // LegacyFillDependentFields for cp-dp backward compatibility, some fields were calculated on backend side before, so we preserve it
 type LegacyFillDependentFields interface {
 	FillDependentFields(transfer *Transfer)
