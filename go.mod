@@ -72,7 +72,7 @@ require (
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260810122915-65bfd5c4b705
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.151.3
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.152.0
 	go.mongodb.org/mongo-driver v1.17.6
 	go.opentelemetry.io/contrib/bridges/otelzap v0.13.0
 	go.opentelemetry.io/otel v1.46.0
