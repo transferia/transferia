@@ -19,6 +19,26 @@ var (
 	// airbyte
 	AirbyteConnectionFailed = coded.Register("airbyte", "connection_failed")
 
+	// iceberg
+	IcebergConfig                     = coded.Register("iceberg", "config")
+	IcebergCatalog                    = coded.Register("iceberg", "catalog")
+	IcebergCatalogUnparseableResponse = coded.Register("iceberg", "catalog_unparseable_response")
+	IcebergCatalogUnavailable         = coded.Register("iceberg", "catalog_unavailable")
+	IcebergCatalogAccessDenied        = coded.Register("iceberg", "catalog_access_denied")
+	IcebergCredentials                = coded.Register("iceberg", "credentials")
+	IcebergNamespace                  = coded.Register("iceberg", "namespace")
+	IcebergNamespaceNotFound          = coded.Register("iceberg", "namespace_not_found")
+	IcebergTable                      = coded.Register("iceberg", "table")
+	IcebergTableNotFound              = coded.Register("iceberg", "table_not_found")
+	IcebergSchema                     = coded.Register("iceberg", "schema")
+	IcebergSchemaMismatch             = coded.Register("iceberg", "schema_mismatch")
+	IcebergPartitionUnsupported       = coded.Register("iceberg", "partition_unsupported")
+	IcebergData                       = coded.Register("iceberg", "data")
+	IcebergCommit                     = coded.Register("iceberg", "commit")
+	IcebergCommitConflict             = coded.Register("iceberg", "commit_conflict")
+	IcebergCommitStateUnknown         = coded.Register("iceberg", "commit_state_unknown")
+	IcebergCleanup                    = coded.Register("iceberg", "cleanup")
+
 	// data
 	DataOutOfRange        = coded.Register("data", "out_of_range")
 	UnsupportedConversion = coded.Register("data", "unsupported_type_conversion")
