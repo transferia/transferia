@@ -40,7 +40,7 @@ func NewTPPSetter(
 ) (AbstractTablePartProviderSetter, error) {
 	if _, isAsyncParts := sourceStorage.(abstract.NextArrTableDescriptionGetterBuilder); isAsyncParts {
 		lgr.Infof("NewTPPSetter - factory calls NewTPPSetterAsync")
-		result := NewTPPSetterAsync(sharedMemory)
+		result := NewTPPSetterAsync(sharedMemory, tables)
 		return result, nil
 	} else {
 		lgr.Infof("NewTPPSetter - factory calls NewTPPSetterSync")

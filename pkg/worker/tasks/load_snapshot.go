@@ -436,7 +436,7 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 
 	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, tppSetter.AllPartsOrNil(), &l.progressUpdateMutex)
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.Tables()); err != nil {
 		return errors.CategorizedErrorf(categories.Source, "unable to start loading tables: %w", err)
 	}
 
@@ -472,7 +472,7 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		return errors.CategorizedErrorf(categories.Internal, "unable to end snapshot: %w", err)
 	}
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tppSetter.Tables()); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to finish tables loading: %w", err)
 	}
 
@@ -562,7 +562,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 
 	metricsTracker := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operation.OperationID, l.cp)
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.Tables()); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to start loading tables: %w", err)
 	}
 
@@ -603,7 +603,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to end snapshot: %w", err)
 	}
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tppSetter.Tables()); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to finish tables loading: %w", err)
 	}
 
@@ -840,7 +840,7 @@ func (l *SnapshotLoader) sendTableControlEvent(
 	ctx context.Context,
 	sourceStorage abstract.Storage,
 	kind abstract.Kind,
-	arrOperationTablePart ...*abstract.OperationTablePart,
+	tables []abstract.TableDescription,
 ) error {
 	if kind != abstract.InitShardedTableLoad && kind != abstract.DoneShardedTableLoad {
 		return xerrors.Errorf("Unsupported event type '%v'", kind)
@@ -852,15 +852,9 @@ func (l *SnapshotLoader) sendTableControlEvent(
 	}
 	defer closeSink.Do()
 
-	tablesSet := map[string]bool{}
-	for _, table := range arrOperationTablePart {
-		fqtn := table.TableFQTN()
-		if tablesSet[fqtn] {
-			continue
-		}
-		tablesSet[fqtn] = true
-
-		schema, err := l.tableSchema(ctx, *table.ToTableID(), sourceStorage)
+	for _, table := range tables {
+		fqtn := table.Fqtn()
+		schema, err := l.tableSchema(ctx, table.ID(), sourceStorage)
 		if err != nil {
 			return xerrors.Errorf("unable to get schema for table %s: %w", fqtn, err)
 		}

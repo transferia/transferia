@@ -21,6 +21,10 @@ func (s *TPPSetterSync) AllPartsOrNil() []*abstract.OperationTablePart {
 	return s.cachedParts
 }
 
+func (s *TPPSetterSync) Tables() []abstract.TableDescription {
+	return uniqueTables(s.cachedParts)
+}
+
 func (s *TPPSetterSync) EnrichShardedState(state string) (string, error) {
 	return state, nil
 }

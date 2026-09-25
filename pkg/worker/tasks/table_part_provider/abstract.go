@@ -13,6 +13,7 @@ type AbstractTablePartProviderGetter interface {
 
 type AbstractTablePartProviderSetter interface {
 	AllPartsOrNil() []*abstract.OperationTablePart
+	Tables() []abstract.TableDescription // Tables returns tables for table control events.
 	EnrichShardedState(state string) (string, error)
 	AsyncLoadPartsIfNeeded(
 		ctx context.Context,

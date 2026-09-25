@@ -66,6 +66,19 @@ func asyncLoadParts(
 	return nil
 }
 
+// uniqueTables returns tables of parts, in order of first occurrence.
+func uniqueTables(parts []*abstract.OperationTablePart) []abstract.TableDescription {
+	seen := map[abstract.TableID]bool{}
+	var tables []abstract.TableDescription
+	for _, part := range parts {
+		if id := *part.ToTableID(); !seen[id] {
+			seen[id] = true
+			tables = append(tables, *part.ToTableDescription())
+		}
+	}
+	return tables
+}
+
 // addKeyToJson unmarshals jsonStr to map[string]any, adds key with value and returns marshalled json.
 func addKeyToJson(jsonStr, key string, value any) ([]byte, error) {
 	dict := make(map[string]any)

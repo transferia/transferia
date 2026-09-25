@@ -15,10 +15,15 @@ var (
 
 type TPPSetterAsync struct {
 	sharedMemory abstract.SharedMemory
+	tables       []abstract.TableDescription
 }
 
 func (s *TPPSetterAsync) AllPartsOrNil() []*abstract.OperationTablePart {
 	return nil
+}
+
+func (s *TPPSetterAsync) Tables() []abstract.TableDescription {
+	return s.tables
 }
 
 func (s *TPPSetterAsync) EnrichShardedState(inState string) (string, error) {
@@ -100,8 +105,9 @@ func (s *TPPSetterAsync) AsyncLoadPartsIfNeeded(
 	return nil
 }
 
-func NewTPPSetterAsync(sharedMemory abstract.SharedMemory) *TPPSetterAsync {
+func NewTPPSetterAsync(sharedMemory abstract.SharedMemory, tables []abstract.TableDescription) *TPPSetterAsync {
 	return &TPPSetterAsync{
 		sharedMemory: sharedMemory,
+		tables:       tables,
 	}
 }
