@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"errors"
-	"math"
 	"sync"
 
 	"github.com/dustin/go-humanize"
@@ -14,6 +13,7 @@ import (
 	yt_table "github.com/transferia/transferia/pkg/providers/yt/provider/table"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
+	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/skiff"
 	"go.ytsaurus.tech/yt/go/yt"
 )
@@ -29,13 +29,7 @@ const PushBatchSize = 2 * humanize.MiByte
 // A var so tests can shrink the budget.
 var synchronizeFlushBytes = 16384 * PushBatchSize
 
-// Parallel table reader settings. These values are taken from YT python wrapper default config
-const (
-	parallelReadBatchSize = 8 * humanize.MiByte
-	parallelTableReaders  = 10
-)
-
-// snapshotSource loads a single row range of a YT table and streams the
+// snapshotSource loads a single YT SDK table partition and streams the
 // decoded rows into an abstract.Pusher. It is instantiated per LoadTable call
 // by the outer source; state is not reused between parts.
 type snapshotSource struct {
@@ -55,8 +49,9 @@ type snapshotSource struct {
 	stopFn func()
 
 	// Populated at the start of loadPart before reader goroutines start.
-	decoder  *rowDecoder
-	skiffFmt *skiff.Format
+	decoder     *rowDecoder
+	skiffFmt    *skiff.Format
+	tableSchema *ytschema.Schema
 
 	columns []string
 
@@ -66,7 +61,7 @@ type snapshotSource struct {
 }
 
 // loadPart drives the whole snapshot pipeline for the assigned part:
-// resolve schema -> spawn parallel readers -> accumulate rows into batches ->
+// resolve schema -> read SDK partition -> accumulate rows into batches ->
 // synchronously flush every full batch through pusher. The TableDescription
 // is supplied by the caller (source.LoadTable) so ChangeItem.{Schema, Table,
 // PartID} stay identical to what MakeInitTableLoad emits — otherwise the async
@@ -84,33 +79,24 @@ func (s *snapshotSource) loadPart(ctx context.Context, table abstract.TableDescr
 		return xerrors.Errorf("error loading table schema: %w", err)
 	}
 
+	ytSchema := ytSchemaForSkiff(tbl, idxColName)
+	s.tableSchema = &ytSchema
 	s.skiffFmt = buildSkiffFormat(tbl, idxColName)
 	s.decoder = newRowDecoder(tbl, idxColName)
 
 	s.lowerIdx = s.part.LowerBound()
 	s.upperIdx = s.part.UpperBound()
-	s.totalCnt = s.upperIdx - s.lowerIdx
+	s.totalCnt = s.part.RowCount()
 
-	rowCount, uncSize, err := s.getTableStats(ctx)
-	if err != nil {
-		return xerrors.Errorf("error reading table attributes: %w", err)
-	}
-	// Guard against zero division for an empty part.
-	if rowCount == 0 {
+	if s.totalCnt == 0 {
 		s.lgr.Warnf("Table %s part [%d:%d] seems to be empty, got row_count = 0", s.part.Name(), s.lowerIdx, s.upperIdx)
 		return nil
 	}
-	avgRowWeight := float64(uncSize) / float64(rowCount)
-	readBatchSizeRows := uint64(math.Ceil(float64(parallelReadBatchSize) / avgRowWeight))
-	if readBatchSizeRows > s.totalCnt {
-		readBatchSizeRows = s.totalCnt
-	}
-	s.lgr.Infof("Infer parallel read batch size as %d rows", readBatchSizeRows)
 
 	s.readQ = make(chan decodedRow)
 
 	var errs []error
-	readErrCh := s.startReading(ctx, readBatchSizeRows)
+	readErrCh := s.startReading(ctx)
 
 	if pushErr := s.pushLoop(tbl, table, pusher); pushErr != nil {
 		// Signal readers to stop; the read loop will surface the joined error.
@@ -186,19 +172,7 @@ func (s *snapshotSource) pushLoop(tbl yt_table.YtTable, table abstract.TableDesc
 	return nil
 }
 
-func (s *snapshotSource) getTableStats(ctx context.Context) (rowCount, uncomprSize int64, err error) {
-	var data struct {
-		RowCount         int64 `yson:"row_count,attr"`
-		UncompressedSize int64 `yson:"uncompressed_data_size,attr"`
-	}
-	err = s.yt.GetNode(ctx, s.part.NodeID().YPath(), &data, &yt.GetNodeOptions{
-		Attributes:         []string{"row_count", "uncompressed_data_size"},
-		TransactionOptions: &yt.TransactionOptions{TransactionID: s.txID},
-	})
-	return data.RowCount, data.UncompressedSize, err
-}
-
-func (s *snapshotSource) startReading(ctx context.Context, batchSize uint64) chan error {
+func (s *snapshotSource) startReading(ctx context.Context) chan error {
 	stopCh := make(chan bool)
 	var stopOnce sync.Once
 	s.stopFn = func() {
@@ -209,78 +183,31 @@ func (s *snapshotSource) startReading(ctx context.Context, batchSize uint64) cha
 	resCh := make(chan error, 1)
 
 	go func() {
-		resCh <- s.runReaders(ctx, batchSize, stopCh)
+		defer close(s.readQ)
+		resCh <- s.readTablePartition(ctx, stopCh)
 		close(resCh)
 	}()
 	return resCh
 }
 
-func (s *snapshotSource) runReaders(ctx context.Context, batchSize uint64, stopCh <-chan bool) error {
-	var errs []error
-	type tblRange struct {
-		lower uint64
-		upper uint64
-	}
-
-	ranges := make(chan tblRange, s.totalCnt/batchSize+1)
-	for i := s.lowerIdx; i < s.upperIdx; i += batchSize {
-		upper := i + batchSize
-		if upper > s.upperIdx {
-			upper = s.upperIdx
-		}
-		ranges <- tblRange{i, upper}
-	}
-	close(ranges)
-
-	readResCh := make(chan error, parallelTableReaders)
-	for i := 0; i < parallelTableReaders; i++ {
-		go func() {
-			var err error
-			defer func() { readResCh <- err }()
-			for {
-				select {
-				case rng, ok := <-ranges:
-					if !ok {
-						return
-					}
-					if err = s.readTableRange(ctx, rng.lower, rng.upper, stopCh, s.columns); err != nil {
-						return
-					}
-				case <-stopCh:
-					return
-				}
-			}
-		}()
-	}
-
-	for i := 0; i < parallelTableReaders; i++ {
-		readErr := <-readResCh
-		if readErr != nil {
-			s.stopFn()
-			errs = append(errs, readErr)
-		}
-	}
-	close(s.readQ)
-	return errors.Join(errs...)
-}
-
 func NewSnapshotSource(cfg provider_yt.YtSourceModel, ytc yt.Client, part *dataobjects.Part,
 	lgr log.Logger, metrics *stats.SourceStats, columns []string) *snapshotSource {
 	return &snapshotSource{
-		cfg:      cfg,
-		yt:       ytc,
-		txID:     part.TxID(),
-		part:     part,
-		lgr:      lgr,
-		metrics:  metrics,
-		lowerIdx: 0,
-		upperIdx: 0,
-		totalCnt: 0,
-		readQ:    nil,
-		stopFn:   nil,
-		decoder:  nil,
-		skiffFmt: nil,
-		columns:  columns,
+		cfg:         cfg,
+		yt:          ytc,
+		txID:        part.TxID(),
+		part:        part,
+		lgr:         lgr,
+		metrics:     metrics,
+		lowerIdx:    0,
+		upperIdx:    0,
+		totalCnt:    0,
+		readQ:       nil,
+		stopFn:      nil,
+		decoder:     nil,
+		skiffFmt:    nil,
+		tableSchema: nil,
+		columns:     columns,
 
 		synchronizeFlushBytes: synchronizeFlushBytes,
 	}

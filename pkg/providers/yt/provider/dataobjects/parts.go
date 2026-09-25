@@ -18,10 +18,6 @@ import (
 // emit.
 const grpcShardLimit = 1024
 
-// MinShardSize is the minimum number of rows per part; smaller than this and
-// the sharding cost dominates the actual read.
-const MinShardSize = 50000
-
 var tablesWeightOverflowErr = xerrors.NewSentinel("total tables weight overflow")
 
 // CheckTableCountLimit returns an error when the snapshot contains more than
@@ -35,11 +31,7 @@ func CheckTableCountLimit(tables cypressmeta.YtNodes) error {
 	return nil
 }
 
-// ComputeParts splits a batch of tables into shard-sized parts. Each returned
-// abstract.TableDescription carries a YSON-serialized PartKey in its Filter
-// field so that secondary workers can reconstruct the exact row range without
-// re-listing YT. The Filter payload format must stay stable across releases
-// so ParsePartKey can still parse plans persisted by older versions.
+// ComputeParts splits a batch of tables into SDK table partitions.
 func ComputeParts(
 	ctx context.Context,
 	tx yt.Tx,
@@ -47,6 +39,7 @@ func ComputeParts(
 	tables cypressmeta.YtNodes,
 	cfg provider_yt.YtSourceModel,
 	lgr log.Logger,
+	columns map[yt.NodeID][]string,
 ) ([]abstract.TableDescription, error) {
 	partsMapping, err := ComputePartsMapping(tables, cfg, lgr)
 	if err != nil {
@@ -55,7 +48,11 @@ func ComputeParts(
 
 	res := make([]abstract.TableDescription, 0, len(tables))
 	for i, t := range tables {
-		parts, err := BuildPartsForTable(ctx, tx, txID, t, partsMapping[i])
+		var tableColumns []string
+		if t.NodeID != nil {
+			tableColumns = columns[*t.NodeID]
+		}
+		parts, err := BuildPartsForTable(ctx, tx, txID, t, partsMapping[i], cfg.GetDesiredPartSizeBytes(), tableColumns)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to build parts for table '%v': %w", t.OriginalYPath(), err)
 		}
@@ -64,10 +61,27 @@ func ComputeParts(
 	return res, nil
 }
 
-// BuildPartsForTable splits a single table into shardCount row-range parts.
-// The table is locked with a snapshot lock (filling in NodeID) when it has
-// not been locked yet.
-func BuildPartsForTable(ctx context.Context, tx yt.Tx, txID yt.TxID, t *cypressmeta.YtNodeMeta, shardCount int) ([]abstract.TableDescription, error) {
+// BuildPartsForTable splits a single table using YT SDK partition cookies.
+// The table is locked with a snapshot lock (filling in NodeID) when it has not
+// been locked yet.
+func BuildPartsForTable(
+	ctx context.Context,
+	tx yt.Tx,
+	txID yt.TxID,
+	t *cypressmeta.YtNodeMeta,
+	shardCount int,
+	desiredPartSizeBytes int64,
+	columns []string,
+) ([]abstract.TableDescription, error) {
+	if tx == nil {
+		return nil, xerrors.New("yt transaction is required to partition table")
+	}
+	if shardCount <= 0 {
+		return nil, xerrors.Errorf("invalid shard count: %d", shardCount)
+	}
+	if desiredPartSizeBytes <= 0 {
+		desiredPartSizeBytes = 1
+	}
 	if t.NodeID == nil {
 		lock, err := tx.LockNode(ctx, t.OriginalYPath(), yt.LockSnapshot, nil)
 		if err != nil {
@@ -76,32 +90,36 @@ func BuildPartsForTable(ctx context.Context, tx yt.Tx, txID yt.TxID, t *cypressm
 		t.NodeID = &lock.NodeID
 	}
 
-	shardSize := t.RowCount/int64(shardCount) + 1
-	if shardSize < MinShardSize {
-		shardSize = MinShardSize
+	path := t.NodeID.YPath().Rich()
+	if columns != nil {
+		path.SetColumns(columns)
 	}
-	res := make([]abstract.TableDescription, 0, shardCount)
-	for lower := int64(0); lower < t.RowCount; lower += shardSize {
-		upper := lower + shardSize
-		if upper > t.RowCount {
-			upper = t.RowCount
+	enableCookies := true
+	partitionMode := yt.PartitionModeOrdered
+	options := &yt.PartitionTablesOptions{
+		DataWeightPerPartition: desiredPartSizeBytes,
+		MaxPartitionCount:      &shardCount,
+		PartitionMode:          &partitionMode,
+		EnableCookies:          &enableCookies,
+		TransactionOptions:     &yt.TransactionOptions{TransactionID: txID},
+	}
+
+	partitions, err := tx.PartitionTables(ctx, []ypath.YPath{path}, options)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to partition table %s: %w", t.Name, err)
+	}
+
+	res := make([]abstract.TableDescription, 0, len(partitions.Partitions))
+	for _, partition := range partitions.Partitions {
+		part, err := NewPartFromPartition(t.Name, *t.NodeID, partition, txID)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to build table part from sdk partition: %w", err)
 		}
-		rng := ypath.Interval(ypath.RowIndex(lower), ypath.RowIndex(upper))
-		part := NewPart(t.Name, *t.NodeID, rng, txID)
-		key, keyErr := part.PartKey().String()
-		if keyErr != nil {
-			return nil, xerrors.Errorf("error serializing part key: %w", keyErr)
+		tablePart, err := part.ToTablePart()
+		if err != nil {
+			return nil, xerrors.Errorf("unable to convert table part: %w", err)
 		}
-		res = append(res, abstract.TableDescription{
-			// Name is the node path relative to its listing root — the same
-			// naming TableList emits — so sharded and non-sharded parts stay
-			// key-compatible and the sink correlates init/data events.
-			Name:   t.Name,
-			Schema: "",
-			Filter: abstract.WhereStatement(key),
-			EtaRow: uint64(upper - lower),
-			Offset: uint64(lower),
-		})
+		res = append(res, *tablePart)
 	}
 	return res, nil
 }

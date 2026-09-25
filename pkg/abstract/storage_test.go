@@ -248,6 +248,26 @@ func TestTableIDFQTN(t *testing.T) {
 	})
 }
 
+func TestTableDescriptionGeneratePartIDIgnoresPayload(t *testing.T) {
+	table := TableDescription{
+		Schema: "schema",
+		Name:   "table",
+		Filter: WhereStatement("rows=[10:20]"),
+		Offset: 10,
+	}
+	partIDWithoutPayload := table.GeneratePartID()
+
+	table.SetPayload([]byte("payload-1"))
+	partIDWithPayload := table.GeneratePartID()
+	require.Equal(t, partIDWithoutPayload, partIDWithPayload)
+
+	table.SetPayload([]byte("payload-2"))
+	require.Equal(t, partIDWithPayload, table.GeneratePartID())
+
+	table.SetPayload(nil)
+	require.Equal(t, partIDWithoutPayload, table.GeneratePartID())
+}
+
 func TestTableIDsIntersection(t *testing.T) {
 	t.Run("tii_one_and_one", func(t *testing.T) {
 		result := TableIDsIntersection(

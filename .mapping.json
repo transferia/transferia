@@ -2362,7 +2362,6 @@
   "pkg/providers/yt/provider/converter_test.go":"transfer_manager/go/pkg/providers/yt/provider/converter_test.go",
   "pkg/providers/yt/provider/dataobjects/objects_test.go":"transfer_manager/go/pkg/providers/yt/provider/dataobjects/objects_test.go",
   "pkg/providers/yt/provider/dataobjects/part.go":"transfer_manager/go/pkg/providers/yt/provider/dataobjects/part.go",
-  "pkg/providers/yt/provider/dataobjects/partkey.go":"transfer_manager/go/pkg/providers/yt/provider/dataobjects/partkey.go",
   "pkg/providers/yt/provider/dataobjects/parts.go":"transfer_manager/go/pkg/providers/yt/provider/dataobjects/parts.go",
   "pkg/providers/yt/provider/discovery_test.go":"transfer_manager/go/pkg/providers/yt/provider/discovery_test.go",
   "pkg/providers/yt/provider/reader.go":"transfer_manager/go/pkg/providers/yt/provider/reader.go",

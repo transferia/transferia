@@ -68,10 +68,10 @@ func TestMakeMapRowConverter_ConvertsComplexVariantList(t *testing.T) {
 	require.Equal(t, expectedComplex, values[1])
 }
 
-func TestNullTypedColumn_ExcludedFromWireAndDecodedAsNil(t *testing.T) {
+func TestNullTypedColumn_DescribedAsNothingAndDecodedAsNil(t *testing.T) {
 	tbl := yt_table.NewTable("types_test")
 	tbl.AddColumn(testYtColumn(t, "id", ytschema.TypeUint8, false))
-	tbl.AddColumn(testYtColumn(t, "n", ytschema.TypeNull, false))
+	tbl.AddColumn(testYtColumn(t, "n", ytschema.TypeNull, true))
 	tbl.AddColumn(testYtColumn(t, "name", ytschema.TypeString, false))
 
 	f := buildSkiffFormat(tbl, "")
@@ -94,6 +94,24 @@ func TestNullTypedColumn_ExcludedFromWireAndDecodedAsNil(t *testing.T) {
 	require.Equal(t, []any{uint8(5), nil, "abc"}, values)
 }
 
+func TestReadColumnProjection_DropsNullTypedColumns(t *testing.T) {
+	tbl := yt_table.NewTable("types_test")
+	tbl.AddColumn(testYtColumn(t, "id", ytschema.TypeUint8, false))
+	tbl.AddColumn(testYtColumn(t, "n", ytschema.TypeNull, true))
+	tbl.AddColumn(testYtColumn(t, "name", ytschema.TypeString, false))
+
+	require.Equal(t, []string{"id", "name"}, readColumnProjection(tbl, "", false))
+}
+
+func TestReadColumnProjection_PreservesExplicitProjection(t *testing.T) {
+	tbl := yt_table.NewTable("types_test")
+	tbl.AddColumn(testYtColumn(t, "id", ytschema.TypeUint8, false))
+	tbl.AddColumn(testYtColumn(t, "name", ytschema.TypeString, false))
+
+	require.Nil(t, readColumnProjection(tbl, "", false))
+	require.Equal(t, []string{"id", "name"}, readColumnProjection(tbl, "", true))
+}
+
 func TestNullTypedColumn_MapDecodePathYieldsNil(t *testing.T) {
 	tbl := yt_table.NewTable("types_test")
 	tbl.AddColumn(testYtColumn(t, "id", ytschema.TypeUint8, false))
@@ -103,9 +121,9 @@ func TestNullTypedColumn_MapDecodePathYieldsNil(t *testing.T) {
 	decoder := newRowDecoder(tbl, "")
 	require.True(t, decoder.useMapDecode)
 
-	// The null-typed column is absent from the Skiff format, so the decoded map has no key for it.
 	values, err := mapRowToValues(map[string]any{
 		"id":           uint64(1),
+		"n":            nil,
 		"complex_list": []any{int64(9)},
 	}, 0, decoder.cols, decoder.idxColName)
 	require.NoError(t, err)

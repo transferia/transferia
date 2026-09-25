@@ -16,11 +16,31 @@ import (
 type LoadProgress func(current, progress, total uint64)
 
 type TableDescription struct {
-	Schema string // for example - for mysql here are database name
-	Name   string
-	Filter WhereStatement
-	EtaRow uint64 // estimated number of rows in the table
-	Offset uint64 // offset (in rows) along the ordering key (not necessary primary key)
+	Schema  string // for example - for mysql here are database name
+	Name    string
+	Filter  WhereStatement
+	payload *[]byte
+	EtaRow  uint64 // estimated number of rows in the table
+	Offset  uint64 // offset (in rows) along the ordering key (not necessary primary key)
+}
+
+func (t TableDescription) GetPayload() []byte {
+	if t.payload == nil || len(*t.payload) == 0 {
+		return nil
+	}
+	return append([]byte(nil), (*t.payload)...)
+}
+
+func (t *TableDescription) SetPayload(payload []byte) {
+	if t == nil {
+		return
+	}
+	if len(payload) == 0 {
+		t.payload = nil
+		return
+	}
+	cp := append([]byte(nil), payload...)
+	t.payload = &cp
 }
 
 const IsAsyncPartsUploadedStateKey = "is-async-parts-uploaded"
@@ -199,11 +219,12 @@ func (m *TableMap) ConvertToTableDescriptions() []TableDescription {
 	tableDescriptions := make([]TableDescription, 0, len(*m))
 	for tID, tInfo := range *m {
 		tableDescriptions = append(tableDescriptions, TableDescription{
-			Name:   tID.Name,
-			Schema: tID.Namespace,
-			EtaRow: tInfo.EtaRow,
-			Filter: "",
-			Offset: 0,
+			Name:    tID.Name,
+			Schema:  tID.Namespace,
+			EtaRow:  tInfo.EtaRow,
+			Filter:  "",
+			payload: nil,
+			Offset:  0,
 		})
 	}
 	return tableDescriptions

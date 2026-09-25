@@ -170,11 +170,12 @@ func (p UpdateTransferParams) AddedTables() ([]TableDescription, error) {
 			continue
 		}
 		tables = append(tables, TableDescription{
-			Name:   obj.Name,
-			Schema: obj.Namespace,
-			Filter: "",
-			EtaRow: 0,
-			Offset: 0,
+			Name:    obj.Name,
+			Schema:  obj.Namespace,
+			Filter:  "",
+			payload: nil,
+			EtaRow:  0,
+			Offset:  0,
 		})
 	}
 	return tables, nil

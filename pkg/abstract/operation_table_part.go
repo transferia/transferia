@@ -11,6 +11,7 @@ type OperationTablePart struct {
 	Name          string // Table name
 	Offset        uint64 // Table part offset
 	Filter        string // Table part filter
+	Payload       []byte // Provider-specific table part payload
 	PartsCount    uint64 // Parts count for table
 	PartIndex     uint64 // Index of this part in the table
 	WorkerIndex   *int   // Worker index, that assigned to this part. If nil - worker not assigned yet.
@@ -27,6 +28,7 @@ func (t *OperationTablePart) Copy() *OperationTablePart {
 		Name:          t.Name,
 		Offset:        t.Offset,
 		Filter:        t.Filter,
+		Payload:       append([]byte(nil), t.Payload...),
 		PartsCount:    t.PartsCount,
 		PartIndex:     t.PartIndex,
 		WorkerIndex:   t.WorkerIndex,
@@ -54,13 +56,16 @@ func (t *OperationTablePart) CompletedPercent() float64 {
 }
 
 func (t *OperationTablePart) ToTableDescription() *TableDescription {
-	return &TableDescription{
-		Name:   t.Name,
-		Schema: t.Schema,
-		Filter: WhereStatement(t.Filter),
-		EtaRow: t.ETARows,
-		Offset: t.Offset,
+	table := &TableDescription{
+		Name:    t.Name,
+		Schema:  t.Schema,
+		Filter:  WhereStatement(t.Filter),
+		payload: nil,
+		EtaRow:  t.ETARows,
+		Offset:  t.Offset,
 	}
+	table.SetPayload(t.Payload)
+	return table
 }
 
 func (t *OperationTablePart) ToTableID() *TableID {
@@ -130,6 +135,7 @@ func NewOperationTablePartFromDescription(operationID string, description *Table
 		Name:          description.Name,
 		Offset:        description.Offset,
 		Filter:        string(description.Filter),
+		Payload:       append([]byte(nil), description.GetPayload()...),
 		PartsCount:    0,
 		PartIndex:     0,
 		WorkerIndex:   nil,

@@ -58,8 +58,7 @@ func skiffGoType(col yt_table.YtColumn) reflect.Type {
 }
 
 // ytSchemaForSkiff builds a ytschema.Schema for use with skiff.FromTableSchema,
-// skipping the synthetic row-index column (skipColName) and null-typed columns,
-// neither of which has a wire representation.
+// skipping columns that are not present in the requested wire stream.
 func ytSchemaForSkiff(tbl yt_table.YtTable, skipColName string) ytschema.Schema {
 	var cols []ytschema.Column
 	for i := 0; i < tbl.ColumnsCount(); i++ {
@@ -84,6 +83,29 @@ func ytSchemaForSkiff(tbl yt_table.YtTable, skipColName string) ytschema.Schema 
 	return ytschema.Schema{Columns: cols, Strict: &strict}
 }
 
+// readColumnProjection returns the physical column projection used for
+// PartitionTables cookies. TypeNull columns are not read from YT because they
+// always materialize as nil locally and have no Skiff payload.
+func readColumnProjection(tbl yt_table.YtTable, idxColName string, forceProjection bool) []string {
+	cols := make([]string, 0, tbl.ColumnsCount())
+	skippedNull := false
+	for i := 0; i < tbl.ColumnsCount(); i++ {
+		col := tbl.Column(i)
+		if idxColName != "" && col.Name() == idxColName {
+			continue
+		}
+		if yt_table.IsNullTyped(col) {
+			skippedNull = true
+			continue
+		}
+		cols = append(cols, col.Name())
+	}
+	if !forceProjection && !skippedNull {
+		return nil
+	}
+	return cols
+}
+
 // buildSkiffFormat returns a pointer to the skiff.Format to pass to yt.ReadTableOptions.Format
 // and to store on snapshotSource.
 func buildSkiffFormat(tbl yt_table.YtTable, idxColName string) *skiff.Format {
@@ -95,7 +117,7 @@ func buildSkiffFormat(tbl yt_table.YtTable, idxColName string) *skiff.Format {
 
 // buildSkiffRowType builds a reflect.StructOf type that the Skiff decoder will populate.
 // Fields are named F0..FN-1 with yson:"colname" tags; the synthetic idx column and
-// null-typed columns are excluded, matching ytSchemaForSkiff.
+// null-typed columns are excluded from the Go struct and filled as nil by arena conversion.
 func buildSkiffRowType(tbl yt_table.YtTable, idxColName string) reflect.Type {
 	var fields []reflect.StructField
 	for i := 0; i < tbl.ColumnsCount(); i++ {
