@@ -35,7 +35,6 @@ func (s *TPPSetterSync) AsyncLoadPartsIfNeeded(
 	tables []abstract.TableDescription,
 	transferID string,
 	operationID string,
-	checkLoaderError func() error,
 ) error {
 	return nil
 }

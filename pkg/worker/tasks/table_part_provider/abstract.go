@@ -21,6 +21,5 @@ type AbstractTablePartProviderSetter interface {
 		tables []abstract.TableDescription,
 		transferID string,
 		operationID string,
-		checkLoaderError func() error,
 	) error
 }
