@@ -22,7 +22,7 @@ func init() {
 
 func isKindMatch(target abstract.Kind) bool {
 	switch target {
-	case abstract.InsertKind, abstract.UpdateKind:
+	case abstract.InsertKind, abstract.UpdateKind, abstract.InitShardedTableLoad, abstract.InitTableLoad, abstract.DoneTableLoad, abstract.DoneShardedTableLoad:
 		return true
 	}
 	return false
