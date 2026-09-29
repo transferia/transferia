@@ -12,6 +12,8 @@ import (
 	provider_sample "github.com/transferia/transferia/pkg/providers/sample"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/sample"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"

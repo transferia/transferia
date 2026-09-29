@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
 	proxy "github.com/transferia/transferia/tests/helpers/proxies/http_proxy"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )

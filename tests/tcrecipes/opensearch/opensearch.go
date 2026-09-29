@@ -2,12 +2,14 @@ package opensearch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -23,13 +25,13 @@ type OpenSearchContainer struct {
 	clusterName     string
 	username        string
 	password        string
+	host            string
 	exposedHTTPPort nat.Port
 	exposedTCPPort  nat.Port
 }
 
 func (c *OpenSearchContainer) Host() string {
-	host, _ := c.Container.Host(context.Background())
-	return host
+	return c.host
 }
 
 func (c *OpenSearchContainer) HTTPPort() int {
@@ -96,7 +98,38 @@ func WithSingleNode() testcontainers.CustomizeRequestOption {
 	}
 }
 
-func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*OpenSearchContainer, error) {
+type hostNetworkOption struct {
+	host string
+}
+
+func (o hostNetworkOption) Customize(req *testcontainers.GenericContainerRequest) error {
+	req.Env["network.host"] = o.host
+	// Performance Analyzer otherwise opens an additional wildcard listener on port 9600.
+	req.Env["DISABLE_PERFORMANCE_ANALYZER_AGENT_CLI"] = "true"
+	// testcontainers-go v0.32 waits for request-level exposed ports to have
+	// published mappings. Host networking has no mappings, so omit them here;
+	// MappedPort returns the original ports and the HTTP wait still checks readiness.
+	req.ExposedPorts = nil
+	// The Podman provider appends its default bridge to every request, even in host mode.
+	req.ProviderType = testcontainers.ProviderDocker
+	previous := req.HostConfigModifier
+	req.HostConfigModifier = func(hostConfig *dockercontainer.HostConfig) {
+		if previous != nil {
+			previous(hostConfig)
+		}
+		hostConfig.NetworkMode = "host"
+		hostConfig.PortBindings = nil
+	}
+	return nil
+}
+
+// WithHostNetwork runs OpenSearch in the host network namespace and binds it
+// only to the supplied IPv4 loopback address.
+func WithHostNetwork(host string) testcontainers.ContainerCustomizer {
+	return hostNetworkOption{host: host}
+}
+
+func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (_ *OpenSearchContainer, resultErr error) {
 	req := testcontainers.ContainerRequest{
 		Image: defaultOpenSearchImage,
 		Env: map[string]string{
@@ -122,17 +155,32 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 		Started:          true,
 	}
 
+	hostNetworkAddress := ""
 	for _, opt := range opts {
-		_ = opt.Customize(&genericContainerReq)
+		if option, ok := opt.(hostNetworkOption); ok {
+			hostNetworkAddress = option.host
+		}
+		if err := opt.Customize(&genericContainerReq); err != nil {
+			return nil, err
+		}
 	}
-
 	if genericContainerReq.ContainerRequest.FromDockerfile.Dockerfile != "" {
 		genericContainerReq.ContainerRequest.Image = ""
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, genericContainerReq)
-	if err != nil {
-		return nil, err
+	container, resultErr := testcontainers.GenericContainer(ctx, genericContainerReq)
+	if container != nil {
+		defer func() {
+			if resultErr == nil {
+				return
+			}
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			resultErr = errors.Join(resultErr, container.Terminate(cleanupCtx))
+		}()
+	}
+	if resultErr != nil {
+		return nil, resultErr
 	}
 
 	clusterName := genericContainerReq.ContainerRequest.Env["cluster.name"]
@@ -150,6 +198,9 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 	host, err := container.Host(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if hostNetworkAddress != "" {
+		host = hostNetworkAddress
 	}
 
 	envPrefix := strings.ToUpper(strings.Replace(clusterName, "-", "_", -1))
@@ -169,6 +220,7 @@ func Prepare(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*
 		// DISABLE_SECURITY_PLUGIN=true is set, so empty user/password will do for test clients
 		username:        "",
 		password:        "",
+		host:            host,
 		exposedHTTPPort: exposedHTTPPort,
 		exposedTCPPort:  exposedTCPPort,
 	}, nil

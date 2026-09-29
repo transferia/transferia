@@ -120,7 +120,7 @@ func (e *SchemaExtractor) LoadSchema(ctx context.Context, conn *pgx.Conn, specif
 	replIdentFullTables := make(map[abstract.TableID]bool)
 	if !e.disableCheckReplIdentity {
 		for tID := range tableColumns {
-			if _, ok := tablePKs[tID]; !ok {
+			if len(tablePKs[tID]) == 0 {
 				// query REPLICA IDENTITY FULL only when there is at least one table for which this can be useful
 				if replIdentFullTables, err = e.replicaIdentityFullTables(ctx, conn, specificTable); err != nil {
 					return nil, xerrors.Errorf("failed to list tables with REPLICA IDENTITY FULL: %w", err)
@@ -449,8 +449,11 @@ func (e *SchemaExtractor) tableToPKColumnsMapping(ctx context.Context, conn *pgx
 // replicaIdentityFullListTablesQuery returns a SQL query without placeholders when the given table is `nil`, or with two placeholders otherwise
 func (e *SchemaExtractor) replicaIdentityFullListTablesQuery(specificTable *abstract.TableID) string {
 	// See documentation on PostgreSQL service relations and views used in this query:
-	// https://www.postgresql.org/docs/9.4/catalog-pg-class.html
-	// https://www.postgresql.org/docs/9.4/catalog-pg-namespace.html
+	// https://www.postgresql.org/docs/10/catalog-pg-class.html
+	// https://www.postgresql.org/docs/10/catalog-pg-namespace.html
+	// Partitioned tables have relkind = 'p' starting with PostgreSQL 10.
+	// Including 'p' is safe on older versions: relkind is a character column,
+	// and those versions have no matching rows.
 	return fmt.Sprintf(`SELECT
 	pgn.nspname AS nspname,
 	pgc.relname AS relname
@@ -458,7 +461,7 @@ FROM
 	pg_catalog.pg_class pgc
 	LEFT JOIN pg_catalog.pg_namespace pgn ON (pgc.relnamespace = pgn.oid)
 WHERE
-	pgc.relreplident = 'f' AND pgc.relkind = 'r'
+	pgc.relreplident = 'f' AND pgc.relkind IN ('r', 'p')
 	AND %[1]s`,
 		func() string {
 			if specificTable != nil {

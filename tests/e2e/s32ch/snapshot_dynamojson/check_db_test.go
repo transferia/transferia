@@ -18,6 +18,8 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
 	"github.com/transferia/transferia/tests/helpers/delivery"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/s3"
 	"github.com/transferia/transferia/tests/helpers/s3"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"

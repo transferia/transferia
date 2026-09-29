@@ -14,6 +14,7 @@ import (
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/tests/helpers/delivery"
+	_ "github.com/transferia/transferia/tests/helpers/registration/ydb"
 	"github.com/transferia/transferia/tests/helpers/serde"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"

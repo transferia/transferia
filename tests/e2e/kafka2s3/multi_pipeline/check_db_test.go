@@ -21,6 +21,8 @@ import (
 	_ "github.com/transferia/transferia/pkg/providers/s3/provider"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	"github.com/transferia/transferia/pkg/runtime/local"
+	_ "github.com/transferia/transferia/tests/helpers/registration/kafka"
+	_ "github.com/transferia/transferia/tests/helpers/registration/s3"
 	"github.com/transferia/transferia/tests/helpers/s3"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"github.com/twmb/franz-go/pkg/kadm"

@@ -121,6 +121,9 @@ func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, sourceStorage
 		return errors.CategorizedErrorf(categories.Internal, "unable to wait workers initiated: %w", err)
 	}
 	for {
+		if err := ctx.Err(); err != nil {
+			return xerrors.Errorf("waiting for secondary workers canceled: %w", err)
+		}
 		if customCheck, ok := sourceStorage.(abstract.CustomCheckSecondaryWorkersDone); !ok {
 			isDone, err := defaultCheckAreWorkersDone(ctx, startTime, l.cp, l.operation.OperationID, workersCount)
 			if err != nil {
@@ -138,6 +141,10 @@ func (l *SnapshotLoader) WaitWorkersCompleted(ctx context.Context, sourceStorage
 				return nil
 			}
 		}
-		time.Sleep(metaCheckInterval)
+		select {
+		case <-time.After(metaCheckInterval):
+		case <-ctx.Done():
+			return xerrors.Errorf("waiting for secondary workers canceled: %w", ctx.Err())
+		}
 	}
 }

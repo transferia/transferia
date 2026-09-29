@@ -26,11 +26,12 @@ func IncrementalStateToTableDescription(in []IncrementalState) []TableDescriptio
 	result := make([]TableDescription, 0, len(in))
 	for i := range in {
 		result = append(result, TableDescription{
-			Schema: in[i].Schema,
-			Name:   in[i].Name,
-			Filter: in[i].Payload,
-			EtaRow: 0,
-			Offset: 0,
+			Schema:  in[i].Schema,
+			Name:    in[i].Name,
+			Filter:  in[i].Payload,
+			payload: nil,
+			EtaRow:  0,
+			Offset:  0,
 		})
 	}
 	return result

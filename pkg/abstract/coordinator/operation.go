@@ -16,6 +16,11 @@ type TestReporter interface {
 	UpdateTestResults(transferID string, request *abstract.TestResult) error
 }
 
+type CheckEndpointReporter interface {
+	// checkErr is nil when the endpoint is reachable.
+	ReportCheckEndpointResult(operationID string, checkErr error) error
+}
+
 type OperationState interface {
 	// SetOperationState called by *main* worker to store coordinator info
 	// for example:

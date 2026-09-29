@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/randutil"
 	"github.com/transferia/transferia/pkg/runtime/local"
 	"github.com/transferia/transferia/pkg/worker/tasks"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mongo"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"go.mongodb.org/mongo-driver/bson"

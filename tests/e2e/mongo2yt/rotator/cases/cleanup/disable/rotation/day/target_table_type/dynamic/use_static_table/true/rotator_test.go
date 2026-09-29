@@ -9,6 +9,8 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/tests/e2e/mongo2yt/rotator"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mongo"
+	_ "github.com/transferia/transferia/tests/helpers/registration/yt"
 	"go.ytsaurus.tech/yt/go/ypath"
 )
 

@@ -180,6 +180,32 @@ func writeRows(t *testing.T, env *yttest.Env, tablePath ypath.Path, n int) {
 	require.NoError(t, w.Commit())
 }
 
+func requirePartitionCookies(t *testing.T, env *yttest.Env, tablePath ypath.Path) {
+	t.Helper()
+
+	enableCookies := true
+	maxPartitionCount := 1
+	partitionMode := yt.PartitionModeOrdered
+	_, err := env.YT.PartitionTables(env.Ctx, []ypath.YPath{tablePath}, &yt.PartitionTablesOptions{
+		DataWeightPerPartition: 1,
+		MaxPartitionCount:      &maxPartitionCount,
+		PartitionMode:          &partitionMode,
+		EnableCookies:          &enableCookies,
+	})
+	if isSignatureGenerationUnsupported(err) {
+		t.Skip("local YT proxy does not support signed partition cookies")
+	}
+	require.NoError(t, err)
+}
+
+func isSignatureGenerationUnsupported(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "signature generation is unsupported") || strings.Contains(msg, "code: 1928")
+}
+
 // TestUniqueTableIDsDedup covers P1#12: the same table listed twice under
 // overlapping roots is deduplicated by OriginalPath (first occurrence wins),
 // while two DIFFERENT tables with the same relative name still collide.
@@ -434,8 +460,7 @@ func TestShardTableSkipsEmptyTables(t *testing.T) {
 // budget: the mapping is computed once per snapshot and reused across
 // repeated ShardTable calls. The global-budget math itself is covered by
 // TestComputePartsMappingGlobalBudget (a pure unit test with synthetic
-// weights — with 60000-row tables the MinShardSize cap makes the parts sum
-// trivially small).
+// weights).
 func TestShardTableGlobalBudget(t *testing.T) {
 	env, cancel := recipe.NewEnv(t)
 	defer cancel()
@@ -449,6 +474,7 @@ func TestShardTableGlobalBudget(t *testing.T) {
 	require.NoError(t, createTestTable(env, ctx, rootPath.Child("table_b")))
 	writeRows(t, env, rootPath.Child("table_a"), 60000)
 	writeRows(t, env, rootPath.Child("table_b"), 60000)
+	requirePartitionCookies(t, env, rootPath.Child("table_a"))
 
 	cfg := testYtSourceCfg(rootPath)
 	cfg.DesiredPartSizeBytes = 1024
@@ -495,6 +521,7 @@ func TestPushLoopEmitsSynchronize(t *testing.T) {
 		require.NoError(t, w.Write(bigRow{Column1: int64(i), Column2: strings.Repeat("x", 4096)}))
 	}
 	require.NoError(t, w.Commit())
+	requirePartitionCookies(t, env, rootPath.Child("sample_table_1"))
 
 	oldBudget := synchronizeFlushBytes
 	synchronizeFlushBytes = 1

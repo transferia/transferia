@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/recipe/mongo/pkg/mongo_sharded_cluster"
 	"github.com/transferia/transferia/tests/e2e/mongo2mongo/rps"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mongo"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"

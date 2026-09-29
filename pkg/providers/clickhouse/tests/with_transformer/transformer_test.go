@@ -17,6 +17,7 @@ import (
 	transformer_clickhouse "github.com/transferia/transferia/pkg/transformer/registry/clickhouse"
 	transformer_filter "github.com/transferia/transferia/pkg/transformer/registry/filter"
 	canon_reference "github.com/transferia/transferia/tests/canon/reference"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/tests/helpers/mysql"
+	_ "github.com/transferia/transferia/tests/helpers/registration/all"
 )
 
 // This test ensures that for MariaDB flavor we read GTID via @@GLOBAL.gtid_current_pos

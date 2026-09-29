@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	replace_fkey_common "github.com/transferia/transferia/tests/e2e/mysql2mysql/replace_fkey/common"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/mysql"
 )
 
 func TestGroup(t *testing.T) {

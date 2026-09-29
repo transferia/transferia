@@ -1,7 +1,6 @@
 package dataobjects
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/yt"
 	"github.com/transferia/transferia/pkg/providers/yt/cypressmeta"
 	"go.ytsaurus.tech/yt/go/guid"
+	"go.ytsaurus.tech/yt/go/ypath"
 	ytgo "go.ytsaurus.tech/yt/go/yt"
 )
 
@@ -98,38 +98,33 @@ func testNodeID() *ytgo.NodeID {
 	return &nid
 }
 
-func TestBuildPartsForTableIntervals(t *testing.T) {
-	tbl := &cypressmeta.YtNodeMeta{Name: "t", NodeID: testNodeID(), RowCount: 150000}
-	parts, err := BuildPartsForTable(context.Background(), nil, ytgo.TxID{}, tbl, 2)
-	require.NoError(t, err)
-	require.Len(t, parts, 2)
+func TestNewPartFromPartition(t *testing.T) {
+	nodeID := testNodeID()
+	partition := ytgo.TablePartition{
+		Cookie: []byte("cookie"),
+		TableRanges: []ypath.Rich{
+			*ypath.NewRich("//tmp/t").AddRange(ypath.Interval(ypath.RowIndex(0), ypath.RowIndex(75001))),
+			*ypath.NewRich("//tmp/t").AddRange(ypath.Interval(ypath.RowIndex(75001), ypath.RowIndex(150000))),
+		},
+		AggregateStatistics: ytgo.PartitionStatistics{
+			RowCount: 150000,
+		},
+	}
 
-	// shardSize = 150000/2 + 1 = 75001 -> [0, 75001) and [75001, 150000).
-	key, err := ParsePartKey(string(parts[0].Filter))
+	part, err := NewPartFromPartition("t", *nodeID, partition, ytgo.TxID{})
 	require.NoError(t, err)
-	require.Equal(t, int64(0), *key.Range().Lower.RowIndex)
-	require.Equal(t, int64(75001), *key.Range().Upper.RowIndex)
-	require.Equal(t, uint64(75001), parts[0].EtaRow)
-	require.Equal(t, uint64(0), parts[0].Offset)
+	tablePart, err := part.ToTablePart()
+	require.NoError(t, err)
+	require.Equal(t, "rows=[0:75001,75001:150000]", string(tablePart.Filter))
+	require.Equal(t, []byte("cookie"), tablePart.GetPayload())
+	require.Equal(t, uint64(150000), tablePart.EtaRow)
+	require.Equal(t, uint64(0), tablePart.Offset)
 
-	key, err = ParsePartKey(string(parts[1].Filter))
+	ranges, err := FilterToRanges(tablePart.Filter)
 	require.NoError(t, err)
-	require.Equal(t, int64(75001), *key.Range().Lower.RowIndex)
-	require.Equal(t, int64(150000), *key.Range().Upper.RowIndex)
-	require.Equal(t, uint64(74999), parts[1].EtaRow)
-	require.Equal(t, uint64(75001), parts[1].Offset)
-}
-
-func TestBuildPartsForTableMinShardSize(t *testing.T) {
-	// RowCount/shardCount would give ~601-row parts, but MinShardSize
-	// (50000) caps the part count: 60000 rows -> 2 parts, not 100.
-	tbl := &cypressmeta.YtNodeMeta{Name: "t", NodeID: testNodeID(), RowCount: 60000}
-	parts, err := BuildPartsForTable(context.Background(), nil, ytgo.TxID{}, tbl, 100)
-	require.NoError(t, err)
-	require.Len(t, parts, 2)
-
-	key, err := ParsePartKey(string(parts[0].Filter))
-	require.NoError(t, err)
-	require.Equal(t, int64(0), *key.Range().Lower.RowIndex)
-	require.Equal(t, int64(50000), *key.Range().Upper.RowIndex)
+	require.Len(t, ranges, 2)
+	require.Equal(t, int64(0), *ranges[0].Lower.RowIndex)
+	require.Equal(t, int64(75001), *ranges[0].Upper.RowIndex)
+	require.Equal(t, int64(75001), *ranges[1].Lower.RowIndex)
+	require.Equal(t, int64(150000), *ranges[1].Upper.RowIndex)
 }

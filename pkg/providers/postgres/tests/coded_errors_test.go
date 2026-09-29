@@ -17,6 +17,7 @@ import (
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	"github.com/transferia/transferia/pkg/sink_factory"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 )
 
 func TestCodedErrors_DropTableWithDependencies(t *testing.T) {

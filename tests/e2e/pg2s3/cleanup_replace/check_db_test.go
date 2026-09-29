@@ -24,6 +24,8 @@ import (
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	"github.com/transferia/transferia/tests/helpers/network"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
+	_ "github.com/transferia/transferia/tests/helpers/registration/s3"
 	"github.com/transferia/transferia/tests/helpers/testenv"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/schema"

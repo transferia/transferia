@@ -113,6 +113,10 @@ func (f *CoordinatorNoOp) UpdateTestResults(id string, request *abstract.TestRes
 	return nil
 }
 
+func (f *CoordinatorNoOp) ReportCheckEndpointResult(operationID string, checkErr error) error {
+	return nil
+}
+
 func (f *CoordinatorNoOp) SetStatus(transferID string, status model.TransferStatus) error {
 	logger.Log.Infof("fake change status: %v -> %v", transferID, status)
 	return nil

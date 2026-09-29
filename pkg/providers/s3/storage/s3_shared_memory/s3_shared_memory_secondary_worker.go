@@ -58,6 +58,7 @@ func (m *S3SharedMemorySecondaryWorker) NextOperationTablePart(ctx context.Conte
 		Name:          m.cfg.TableName,
 		Offset:        uint64(0),
 		Filter:        string(valBytes),
+		Payload:       nil,
 		PartsCount:    uint64(0),
 		PartIndex:     uint64(0),
 		WorkerIndex:   nil,

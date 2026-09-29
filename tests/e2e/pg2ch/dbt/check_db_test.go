@@ -16,6 +16,8 @@ import (
 	transformer_dbt "github.com/transferia/transferia/pkg/transformer/registry/dbt"
 	_ "github.com/transferia/transferia/pkg/transformer/registry/dbt/clickhouse"
 	"github.com/transferia/transferia/tests/helpers/delivery"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )

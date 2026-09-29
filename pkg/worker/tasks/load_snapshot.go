@@ -1,8 +1,8 @@
 package tasks
 
 import (
+	"cmp"
 	"context"
-	stderrors "errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -30,6 +30,7 @@ import (
 	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider/shared_memory"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/library/go/core/log/ctxlog"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -44,9 +45,6 @@ type SnapshotLoader struct {
 	operation *model.TransferOperation
 	transfer  *model.Transfer
 	registry  core_metrics.Registry
-
-	cancelUpload    context.CancelFunc
-	waitErrOrDoneCh chan error
 
 	// Transfer params
 	parallelismParams *abstract.ShardUploadParams
@@ -70,14 +68,11 @@ func NewSnapshotLoader(cp coordinator.Coordinator, operation *model.TransferOper
 		transfer:  transfer,
 		registry:  registry,
 
-		cancelUpload:    nil,
-		waitErrOrDoneCh: make(chan error),
-
 		parallelismParams: transfer.ParallelismParams(),
 		workerIndex:       transfer.CurrentJobIndex(),
 
 		slotKiller:             abstract.MakeStubSlotKiller(),
-		slotKillerErrorChannel: make(<-chan error),
+		slotKillerErrorChannel: nil,
 
 		progressUpdateMutex: sync.Mutex{},
 
@@ -403,8 +398,8 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		return abstract.NewFatalError(xerrors.New("no tables in snapshot"))
 	}
 
-	ctx, l.cancelUpload = context.WithCancel(ctx)
-	defer l.cancelUpload()
+	ctx, cancelUpload := context.WithCancel(ctx)
+	defer cancelUpload()
 
 	sourceStorage, err := storage_factory.NewStorage(l.transfer, l.cp, l.registry)
 	if err != nil {
@@ -436,35 +431,27 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 
 	metricsTracker := NewNotShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, tppSetter.AllPartsOrNil(), &l.progressUpdateMutex)
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.Tables()); err != nil {
 		return errors.CategorizedErrorf(categories.Source, "unable to start loading tables: %w", err)
 	}
 
-	l.waitErrOrDoneCh = make(chan error, 1)
-	asyncProviderCtx, cancelAsyncPartsLoading := context.WithCancel(ctx)
-	go func() {
-		defer close(l.waitErrOrDoneCh)
-		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from asyncLoadParts.
-		logger.Log.Info("Start uploading tables on single worker")
-		l.waitErrOrDoneCh <- l.DoUploadTables(ctx, sourceStorage, tppGetter)
-		logger.Log.Info("Uploading tables process on single worker finished")
-	}()
-
-	err = tppSetter.AsyncLoadPartsIfNeeded(
-		asyncProviderCtx,
-		sourceStorage,
-		tables,
-		l.transfer.ID,
-		l.operation.OperationID,
-		func() error {
-			return l.checkLoaderError()
-		},
-	)
+	uploadGroup, uploadCtx := errgroup.WithContext(ctx)
+	uploadGroup.Go(func() error {
+		return l.DoUploadTables(uploadCtx, sourceStorage, tppGetter)
+	})
+	uploadGroup.Go(func() error {
+		return tppSetter.AsyncLoadPartsIfNeeded(uploadCtx, sourceStorage, tables, l.transfer.ID, l.operation.OperationID)
+	})
+	var slotErr error
+	var group errgroup.Group
+	group.Go(uploadGroup.Wait)
+	group.Go(func() error {
+		slotErr = l.waitForSlot(uploadCtx, cancelUpload)
+		return slotErr
+	})
+	err = group.Wait()
+	err = cmp.Or(slotErr, err, ctx.Err())
 	if err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to async load parts: %w", err)
-	}
-
-	if err := l.waitLoaderErrorOrDone(); err != nil {
 		return errors.CategorizedErrorf(categories.Internal, "upload of %d tables failed: %w", len(tables), err)
 	}
 
@@ -472,7 +459,7 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		return errors.CategorizedErrorf(categories.Internal, "unable to end snapshot: %w", err)
 	}
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tppSetter.Tables()); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to finish tables loading: %w", err)
 	}
 
@@ -528,8 +515,8 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return abstract.NewFatalError(xerrors.New("no tables in snapshot"))
 	}
 
-	ctx, l.cancelUpload = context.WithCancel(ctx)
-	defer l.cancelUpload()
+	ctx, cancelUpload := context.WithCancel(ctx)
+	defer cancelUpload()
 
 	sourceStorage, err := storage_factory.NewStorage(l.transfer, l.cp, l.registry)
 	if err != nil {
@@ -562,7 +549,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 
 	metricsTracker := NewShardedSnapshotTableMetricsTracker(ctx, l.transfer, l.registry, l.operation.OperationID, l.cp)
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.InitShardedTableLoad, tppSetter.Tables()); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to start loading tables: %w", err)
 	}
 
@@ -571,31 +558,23 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to create operation workers for operation '%v': %w", l.operation.OperationID, err)
 	}
 
-	l.waitErrOrDoneCh = make(chan error, 1)
-	asyncProviderCtx, cancelAsyncPartsLoading := context.WithCancel(ctx)
-	go func(inSourceStorage abstract.Storage, inRuntime abstract.ShardingTaskRuntime) {
-		defer close(l.waitErrOrDoneCh)
-		defer cancelAsyncPartsLoading() // Cancel parts loading to prevent deadlocks from asyncLoadParts.
-		logger.Log.Info("Start uploading tables on many workers", log.Int("parallelism", l.parallelismParams.ProcessCount))
-		l.waitErrOrDoneCh <- l.WaitWorkersCompleted(ctx, inSourceStorage, inRuntime.SnapshotWorkersNum())
-		logger.Log.Info("Uploading tables process on many workers finished")
-	}(sourceStorage, runtime)
-
-	err = tppSetter.AsyncLoadPartsIfNeeded(
-		asyncProviderCtx,
-		sourceStorage,
-		tables,
-		l.transfer.ID,
-		l.operation.OperationID,
-		func() error {
-			return l.checkLoaderError()
-		},
-	)
+	uploadGroup, uploadCtx := errgroup.WithContext(ctx)
+	uploadGroup.Go(func() error {
+		return l.WaitWorkersCompleted(uploadCtx, sourceStorage, runtime.SnapshotWorkersNum())
+	})
+	uploadGroup.Go(func() error {
+		return tppSetter.AsyncLoadPartsIfNeeded(uploadCtx, sourceStorage, tables, l.transfer.ID, l.operation.OperationID)
+	})
+	var slotErr error
+	var group errgroup.Group
+	group.Go(uploadGroup.Wait)
+	group.Go(func() error {
+		slotErr = l.waitForSlot(uploadCtx, cancelUpload)
+		return slotErr
+	})
+	err = group.Wait()
+	err = cmp.Or(slotErr, err, ctx.Err())
 	if err != nil {
-		return errors.CategorizedErrorf(categories.Internal, "unable to async load parts: %w", err)
-	}
-
-	if err := l.waitLoaderErrorOrDone(); err != nil { // wait secondary workers here
 		return errors.CategorizedErrorf(categories.Internal, "failed to upload %d tables: %w", len(tables), err)
 	}
 
@@ -603,7 +582,7 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Internal, "unable to end snapshot: %w", err)
 	}
 
-	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tppSetter.AllPartsOrNil()...); err != nil {
+	if err := l.sendTableControlEvent(ctx, sourceStorage, abstract.DoneShardedTableLoad, tppSetter.Tables()); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to finish tables loading: %w", err)
 	}
 
@@ -628,8 +607,8 @@ func (l *SnapshotLoader) uploadSecondary(ctx context.Context) error {
 		return errors.CategorizedErrorf(categories.Internal, "run sharding upload with non sharding runtime for operation '%v'", l.operation.OperationID)
 	}
 
-	ctx, l.cancelUpload = context.WithCancel(ctx)
-	defer l.cancelUpload()
+	ctx, cancelUpload := context.WithCancel(ctx)
+	defer cancelUpload()
 
 	logger.Log.Infof("Sharding upload on worker '%v' started", l.workerIndex)
 
@@ -758,65 +737,28 @@ func (l *SnapshotLoader) startSnapshotIncremental(
 	return tables, nextIncrementalState, nil
 }
 
-func (l *SnapshotLoader) handleSlotKillerError(err error) error {
-	l.cancelUpload()
-	logger.Log.Info("slot monitor detected an error", log.Error(err))
-	if slotErr := l.slotKiller.KillSlot(); slotErr != nil {
-		logger.Log.Warn("failed to kill slot", log.Error(slotErr))
-	}
-	// the context passed to DoUploadTables has been cancelled, so it is reasonable to wait for the routines to finish
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	if uploadErrs := extractErrorsUntil(ctx, l.waitErrOrDoneCh); uploadErrs != nil {
-		logger.Log.Warn("errors during upload", log.Error(uploadErrs))
-	}
-	return errors.CategorizedErrorf(categories.Source, "slot monitor detected an error: %w", err)
-}
-
-func (l *SnapshotLoader) waitLoaderErrorOrDone() error {
-	var err error
-	select {
-	case err = <-l.waitErrOrDoneCh:
-	case err = <-l.slotKillerErrorChannel:
-		if err != nil {
-			err = xerrors.Errorf("slot killer error: %w", l.handleSlotKillerError(err))
-		}
-	}
-	return err
-}
-
-func (l *SnapshotLoader) checkLoaderError() error {
-	var err error
-	select {
-	case err = <-l.waitErrOrDoneCh:
-	case err = <-l.slotKillerErrorChannel:
-		if err != nil {
-			err = xerrors.Errorf("slot killer error: %w", l.handleSlotKillerError(err))
-		}
-	default:
-	}
-	return err
-}
-
-// extractErrorsUntil extracts errors from the passed channel and places them in a single box
-// until either the context is cancelled (or finished), or the passed channel is closed.
-func extractErrorsUntil(ctx context.Context, ch <-chan error) error {
-	var collected []error
-
-overCh:
+func (l *SnapshotLoader) waitForSlot(ctx context.Context, cancelUpload context.CancelFunc) error {
+	monitor := l.slotKillerErrorChannel
 	for {
 		select {
 		case <-ctx.Done():
-			break overCh
-		case err, ok := <-ch:
+			return nil
+		case err, ok := <-monitor:
 			if !ok {
-				break overCh
+				monitor = nil
+				continue
 			}
-			collected = append(collected, err)
+			if err == nil {
+				continue
+			}
+			cancelUpload()
+			logger.Log.Info("slot monitor detected an error", log.Error(err))
+			if killErr := l.slotKiller.KillSlot(); killErr != nil {
+				logger.Log.Warn("failed to kill slot", log.Error(killErr))
+			}
+			return errors.CategorizedErrorf(categories.Source, "slot monitor detected an error: %w", err)
 		}
 	}
-
-	return stderrors.Join(collected...)
 }
 
 func (l *SnapshotLoader) tableSchema(ctx context.Context, table abstract.TableID, storage abstract.Storage) (*abstract.TableSchema, error) {
@@ -840,7 +782,7 @@ func (l *SnapshotLoader) sendTableControlEvent(
 	ctx context.Context,
 	sourceStorage abstract.Storage,
 	kind abstract.Kind,
-	arrOperationTablePart ...*abstract.OperationTablePart,
+	tables []abstract.TableDescription,
 ) error {
 	if kind != abstract.InitShardedTableLoad && kind != abstract.DoneShardedTableLoad {
 		return xerrors.Errorf("Unsupported event type '%v'", kind)
@@ -852,15 +794,9 @@ func (l *SnapshotLoader) sendTableControlEvent(
 	}
 	defer closeSink.Do()
 
-	tablesSet := map[string]bool{}
-	for _, table := range arrOperationTablePart {
-		fqtn := table.TableFQTN()
-		if tablesSet[fqtn] {
-			continue
-		}
-		tablesSet[fqtn] = true
-
-		schema, err := l.tableSchema(ctx, *table.ToTableID(), sourceStorage)
+	for _, table := range tables {
+		fqtn := table.Fqtn()
+		schema, err := l.tableSchema(ctx, table.ID(), sourceStorage)
 		if err != nil {
 			return xerrors.Errorf("unable to get schema for table %s: %w", fqtn, err)
 		}

@@ -40,6 +40,10 @@ func decorateIPv6HostWithBraces(host string) string {
 }
 
 func Connect(params *ConnectionParams, configAction func(config *mysql_driver2.Config) error) (*sql.DB, error) {
+	return ConnectContext(context.Background(), params, configAction)
+}
+
+func ConnectContext(ctx context.Context, params *ConnectionParams, configAction func(config *mysql_driver2.Config) error) (*sql.DB, error) {
 	config := mysql_driver2.NewConfig()
 
 	// default settings
@@ -88,9 +92,9 @@ func Connect(params *ConnectionParams, configAction func(config *mysql_driver2.C
 	db := sql.OpenDB(connector)
 	rollbacks.AddCloser(db, logger.Log, "cannot close database")
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	pingCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
+	if err := db.PingContext(pingCtx); err != nil {
 		// DNS resolution errors (match by type or by common message patterns from drivers)
 		var dnsErr *net.DNSError
 		if xerrors.As(err, &dnsErr) {

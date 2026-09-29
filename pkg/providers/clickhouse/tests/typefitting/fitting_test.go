@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers/clickhouse"
+	_ "github.com/transferia/transferia/tests/helpers/registration/clickhouse"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.ytsaurus.tech/yt/go/schema"
 )

@@ -3,48 +3,40 @@ package provider
 import (
 	"context"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/util"
-	"github.com/transferia/transferia/pkg/util/backoff"
-	"go.ytsaurus.tech/library/go/core/log"
+	ytschema "go.ytsaurus.tech/yt/go/schema"
 	"go.ytsaurus.tech/yt/go/skiff"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 )
 
-const ReadRetries = 5
-
 type readerWrapper struct {
 	currentIdx uint64
-	upperIdx   uint64
-	columns    []string
-	reader     yt.TableReader
+	reader     yt.TablePartitionReader
 	txID       yt.TxID
-	lgr        log.Logger
 	yt         yt.TableClient
 	ctx        context.Context
-	tblPath    ypath.Path
+	cookie     []byte
+	ranges     []ypath.Range
+	rangeIndex int
 
-	decoder  *rowDecoder
-	skiffFmt *skiff.Format
-
-	// retryBackoff is reused across Row() calls instead of building a fresh
-	// ExponentialBackOff per row, which dominates the allocation profile.
-	retryBackoff backoff.BackOff
+	decoder     *rowDecoder
+	skiffFmt    *skiff.Format
+	tableSchema *ytschema.Schema
 }
 
 func (r *readerWrapper) init() error {
 	if r.reader != nil {
 		return nil
 	}
-	opts := &yt.ReadTableOptions{
+	opts := &yt.ReadTablePartitionOptions{
 		TransactionOptions: &yt.TransactionOptions{TransactionID: r.txID},
 		Format:             *r.skiffFmt,
+		TableSchema:        r.tableSchema,
 	}
-	rd, err := r.yt.ReadTable(r.ctx, r.batchPath(), opts)
+	rd, err := r.yt.ReadTablePartition(r.ctx, r.cookie, opts)
 	if err != nil {
-		return xerrors.Errorf("error (re)creating table reader: %w", err)
+		return xerrors.Errorf("error creating table partition reader: %w", err)
 	}
 	r.reader = rd
 	return nil
@@ -52,100 +44,83 @@ func (r *readerWrapper) init() error {
 
 func (r *readerWrapper) Close() {
 	if r.reader != nil {
-		r.reader.Next() // Closing reader without exhausting it causes errors in logs
 		_ = r.reader.Close()
 		r.reader = nil
 	}
 }
 
-func (r *readerWrapper) batchPath() *ypath.Rich {
-	rng := ypath.Interval(ypath.RowIndex(int64(r.currentIdx)), ypath.RowIndex(int64(r.upperIdx)))
-	res := r.tblPath.Rich().AddRange(rng)
-	if len(r.columns) > 0 {
-		res = res.SetColumns(r.columns)
+func (r *readerWrapper) advanceRowIndex() {
+	r.currentIdx++
+	for r.rangeIndex < len(r.ranges) {
+		upper := r.ranges[r.rangeIndex].Upper
+		if upper == nil || upper.RowIndex == nil || r.currentIdx < uint64(*upper.RowIndex) {
+			return
+		}
+		r.rangeIndex++
+		if r.rangeIndex >= len(r.ranges) {
+			return
+		}
+		lower := r.ranges[r.rangeIndex].Lower
+		if lower != nil && lower.RowIndex != nil {
+			r.currentIdx = uint64(*lower.RowIndex)
+			return
+		}
 	}
-	return res
 }
 
 func (r *readerWrapper) Row() (decodedRow, error) {
-	r.retryBackoff.Reset()
-	return backoff.RetryNotifyWithData(func() (decodedRow, error) {
-		if err := r.ctx.Err(); err != nil {
-			//nolint:descriptiveerrors
-			return decodedRow{}, backoff.Permanent(xerrors.Errorf("reader context error: %w", err))
+	if err := r.ctx.Err(); err != nil {
+		return decodedRow{}, xerrors.Errorf("reader context error: %w", err)
+	}
+	if err := r.init(); err != nil {
+		return decodedRow{}, err
+	}
+	if !r.reader.Next() {
+		if err := r.reader.Err(); err != nil {
+			return decodedRow{}, xerrors.Errorf("reader error: %w", err)
 		}
+		return decodedRow{}, xerrors.New("reader exhausted")
+	}
 
-		var rb util.Rollbacks
-		defer rb.Do()
+	values, err := r.decoder.decode(r.reader, r.currentIdx)
+	if err != nil {
+		return decodedRow{}, xerrors.Errorf("decode error (row=%d): %w", r.currentIdx, err)
+	}
 
-		if err := r.init(); err != nil {
-			// error is self-descriptive, so no reason to wrap it
-			//nolint:descriptiveerrors
-			return decodedRow{}, err
-		}
-		rb.Add(r.Close)
-
-		if !r.reader.Next() {
-			if err := r.reader.Err(); err != nil {
-				return decodedRow{}, xerrors.Errorf("reader error: %w", err)
-			} else {
-				return decodedRow{}, xerrors.New("reader exhausted")
-			}
-		}
-
-		values, err := r.decoder.decode(r.reader, r.currentIdx)
-		if err != nil {
-			return decodedRow{}, xerrors.Errorf(
-				"decode error (table=%s, row=%d, columns=%v): %w",
-				r.tblPath,
-				r.currentIdx,
-				r.columns,
-				err,
-			)
-		}
-
-		row := decodedRow{
-			values:  values,
-			rowIDX:  int64(r.currentIdx),
-			rawSize: r.decoder.sizeEstimator.estimate(values),
-		}
-		r.currentIdx++
-
-		rb.Cancel()
-		return row, nil
-	}, r.retryBackoff,
-		backoffutil.LogWarnWithLogger(r.ctx, r.lgr, "error reading from YT"))
+	row := decodedRow{
+		values:  values,
+		rowIDX:  int64(r.currentIdx),
+		rawSize: r.decoder.sizeEstimator.estimate(values),
+	}
+	r.advanceRowIndex()
+	return row, nil
 }
 
-func (s *snapshotSource) readTableRange(
-	ctx context.Context,
-	lowerIdx, upperIdx uint64,
-	stopCh <-chan bool,
-	columns []string,
-) error {
+func (s *snapshotSource) readTablePartition(ctx context.Context, stopCh <-chan bool) error {
+	ranges := s.part.Ranges()
 	rd := readerWrapper{
-		ctx:        ctx,
-		tblPath:    s.part.NodeID().YPath(),
-		currentIdx: lowerIdx,
-		upperIdx:   upperIdx,
-		columns:    columns,
-		reader:     nil,
-		txID:       s.txID,
-		lgr:        s.lgr,
-		yt:         s.yt,
-		decoder:    s.decoder.cloneForReader(),
-		skiffFmt:   s.skiffFmt,
-
-		retryBackoff: backoff.WithMaxRetries(backoff.NewExponentialBackOff(), ReadRetries),
+		currentIdx:  0,
+		ctx:         ctx,
+		reader:      nil,
+		txID:        s.txID,
+		yt:          s.yt,
+		cookie:      s.part.Cookie(),
+		ranges:      ranges,
+		rangeIndex:  0,
+		decoder:     s.decoder.cloneForReader(),
+		skiffFmt:    s.skiffFmt,
+		tableSchema: s.tableSchema,
+	}
+	if len(ranges) > 0 && ranges[0].Lower != nil && ranges[0].Lower.RowIndex != nil {
+		rd.currentIdx = uint64(*ranges[0].Lower.RowIndex)
 	}
 	defer rd.Close()
 
-	rowCount := upperIdx - lowerIdx
-	s.lgr.Debugf("Init reader for %d:%d", lowerIdx, upperIdx)
-	for i := uint64(0); i < rowCount; i++ {
+	s.lgr.Debugf("Init partition reader for %s", s.part.Name())
+	for i := uint64(0); i < s.part.RowCount(); i++ {
 		row, err := rd.Row()
 		if err != nil {
-			return xerrors.Errorf("error reading row %d of %d: %w", rd.currentIdx, rd.upperIdx, err)
+			return xerrors.Errorf("error reading row %d of %d: %w", i, s.part.RowCount(), err)
 		}
 		select {
 		case <-stopCh:
@@ -154,6 +129,6 @@ func (s *snapshotSource) readTableRange(
 			continue
 		}
 	}
-	s.lgr.Debugf("Done reader for %d:%d", lowerIdx, upperIdx)
+	s.lgr.Debugf("Done partition reader for %s", s.part.Name())
 	return nil
 }

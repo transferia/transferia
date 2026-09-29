@@ -365,6 +365,21 @@ func (s *source) columnsFor(nodeID yt.NodeID) []string {
 	return s.columnFilter[nodeID]
 }
 
+func (s *source) partitionColumns(ctx context.Context, node *cypressmeta.YtNodeMeta) ([]string, error) {
+	if node.NodeID == nil {
+		return nil, xerrors.Errorf("table %s is not locked", node.Name)
+	}
+	includeCols := s.columnsFor(*node.NodeID)
+	s.mu.Lock()
+	txID := s.txID
+	s.mu.Unlock()
+	tbl, err := resolveYtTable(ctx, s.yt, txID, *node.NodeID, node.Name, includeCols, s.cfg.GetRowIdxColumn())
+	if err != nil {
+		return nil, err
+	}
+	return readColumnProjection(tbl, s.cfg.GetRowIdxColumn(), len(includeCols) > 0), nil
+}
+
 // uniqueTableIDs dedups the same table listed twice under overlapping roots
 // (e.g. a source path and its parent directory) — the first occurrence of an
 // OriginalPath wins. Two DIFFERENT tables resolving to the same TableID are
@@ -533,10 +548,9 @@ func (s *source) EndSnapshot(ctx context.Context) error {
 // --- abstract.ShardingStorage ---
 
 // ShardTable takes a single table description (typically produced by
-// TableList) and expands it into row-range parts sized around
-// cfg.GetDesiredPartSizeBytes(). Each returned TableDescription carries a
-// YSON PartKey in its Filter — the same on-disk format already-persisted
-// plans use, so secondary workers can still parse them via ParsePartKey.
+// TableList) and expands it into YT SDK table partitions. Each returned
+// TableDescription carries a short row-range summary in Filter and the SDK
+// cookie in Payload.
 //
 // The shard budget is computed once per snapshot across ALL tables (1024
 // parts in total, like the legacy global uniformParts), so a single table's
@@ -588,13 +602,16 @@ func (s *source) ShardTable(ctx context.Context, table abstract.TableDescription
 	s.mu.Lock()
 	tx, txID := s.tx, s.txID
 	s.mu.Unlock()
-	parts, err := dataobjects.BuildPartsForTable(ctx, tx, txID, target, shards)
+	if target.NodeID == nil {
+		return nil, xerrors.Errorf("table %s is not locked; ShardTable requires an active snapshot", table.Name)
+	}
+	columns, err := s.partitionColumns(ctx, target)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve partition columns for table %s: %w", table.Name, err)
+	}
+	parts, err := dataobjects.BuildPartsForTable(ctx, tx, txID, target, shards, s.cfg.GetDesiredPartSizeBytes(), columns)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to build parts for table %s: %w", table.Name, err)
-	}
-	if len(parts) <= 1 {
-		return nil, abstract.NewNonShardableError(
-			xerrors.Errorf("table %s is too small to shard (%d part)", table.Name, len(parts)))
 	}
 	return parts, nil
 }
@@ -744,21 +761,14 @@ func (s *source) resolveTable(ctx context.Context, tid abstract.TableID) (*cypre
 
 // tableDescriptionToPart materializes a *dataobjects.Part for LoadTable.
 //
-// When Filter is a YSON PartKey (secondary workers see this after
-// SetShardingContext / ShardTable), the row range is parsed straight out of
-// it. When Filter is empty (main worker preflight paths or non-sharded
-// loads), we resolve the table and construct a full-range part.
+// When Payload contains a partition cookie, the row ranges are restored from
+// the short Filter value. When Payload is empty (for non-sharded callers), the
+// table is partitioned into a single SDK partition here so YT reads still go
+// through ReadTablePartition only.
 func (s *source) tableDescriptionToPart(ctx context.Context, table abstract.TableDescription) (*dataobjects.Part, error) {
 	s.mu.Lock()
-	txID := s.txID
+	tx, txID := s.tx, s.txID
 	s.mu.Unlock()
-	if len(table.Filter) > 0 {
-		key, err := dataobjects.ParsePartKey(string(table.Filter))
-		if err != nil {
-			return nil, xerrors.Errorf("cannot parse part key %q: %w", string(table.Filter), err)
-		}
-		return dataobjects.NewPart(key.Table, key.NodeID, key.Range(), txID), nil
-	}
 	node, err := s.resolveTable(ctx, abstract.TableID{Namespace: table.Schema, Name: table.Name})
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve table for load: %w", err)
@@ -766,6 +776,30 @@ func (s *source) tableDescriptionToPart(ctx context.Context, table abstract.Tabl
 	if node.NodeID == nil {
 		return nil, xerrors.Errorf("table %s is not locked; LoadTable requires an active BeginSnapshot", table.Name)
 	}
-	full := ypath.Interval(ypath.RowIndex(0), ypath.RowIndex(node.RowCount))
-	return dataobjects.NewPart(node.Name, *node.NodeID, full, txID), nil
+	if node.RowCount == 0 {
+		return dataobjects.NewPart(node.Name, *node.NodeID, nil, 0, nil, txID), nil
+	}
+	if len(table.GetPayload()) > 0 {
+		part, err := dataobjects.NewPartFromTableDescription(node.Name, *node.NodeID, table, txID)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to build sdk partition part from table description: %w", err)
+		}
+		return part, nil
+	}
+	columns, err := s.partitionColumns(ctx, node)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve partition columns for table %s: %w", table.Name, err)
+	}
+	parts, err := dataobjects.BuildPartsForTable(ctx, tx, txID, node, 1, s.cfg.GetDesiredPartSizeBytes(), columns)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to build single sdk partition for table %s: %w", table.Name, err)
+	}
+	if len(parts) != 1 {
+		return nil, xerrors.Errorf("expected a single sdk partition for table %s, got %d", table.Name, len(parts))
+	}
+	part, err := dataobjects.NewPartFromTableDescription(node.Name, *node.NodeID, parts[0], txID)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to build single sdk partition part from table description: %w", err)
+	}
+	return part, nil
 }

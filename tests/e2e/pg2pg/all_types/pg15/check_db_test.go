@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/postgres/pgrecipe"
 	postgres_canon "github.com/transferia/transferia/tests/canon/postgres"
 	"github.com/transferia/transferia/tests/e2e/pg2pg/all_types/common"
+	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 )
 
 func TestAllDataTypes(t *testing.T) {
