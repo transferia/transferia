@@ -34,7 +34,7 @@ func NewReadEvent(event *topiclistener.ReadMessages) (*ReadEvent, error) {
 			Key:        []byte(msg.ProducerID),
 			Value:      data,
 			CreateTime: msg.CreatedAt,
-			WriteTime:  msg.CreatedAt,
+			WriteTime:  msg.WrittenAt,
 			Headers:    combineMetadata(msg.Metadata, msg.WriteSessionMetadata),
 			SeqNo:      uint64(msg.SeqNo),
 		})
