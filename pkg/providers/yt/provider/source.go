@@ -495,7 +495,7 @@ func (s *source) TableExists(tid abstract.TableID) (bool, error) {
 
 // --- abstract.SnapshotableStorage ---
 
-func (s *source) BeginSnapshot(ctx context.Context) error {
+func (s *source) BeginSnapshot(ctx context.Context, _ ...abstract.TableDescription) error {
 	// Idempotent: listTables may have already opened the TX via ensureTx
 	// (e.g. from FilteredTableList), so a second call must not leak another TX.
 	return s.ensureTx(ctx)

@@ -37,7 +37,7 @@ func (s *Storage) ensureSnapshot() error {
 	return nil
 }
 
-func (s *Storage) BeginSnapshot(_ context.Context) error {
+func (s *Storage) BeginSnapshot(_ context.Context, _ ...abstract.TableDescription) error {
 	return s.ensureSnapshot()
 }
 

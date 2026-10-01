@@ -19,7 +19,7 @@ func (s *Storage) modifyTableName(tablePath string) string {
 	return strings.ReplaceAll(tablePath, "/", "_")
 }
 
-func (s *Storage) BeginSnapshot(ctx context.Context) error {
+func (s *Storage) BeginSnapshot(ctx context.Context, _ ...abstract.TableDescription) error {
 	if !s.config.IsSnapshotSharded {
 		return nil
 	}

@@ -68,7 +68,7 @@ func (s *Storage) DatabaseSchema() string {
 	return s.ConnectionParams.Database
 }
 
-func (s *Storage) BeginSnapshot(ctx context.Context) error {
+func (s *Storage) BeginSnapshot(ctx context.Context, _ ...abstract.TableDescription) error {
 	if !s.consistentSnapshot {
 		return nil
 	}

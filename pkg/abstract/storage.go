@@ -378,7 +378,7 @@ type IncrementalStorage interface {
 }
 
 type SnapshotableStorage interface {
-	BeginSnapshot(ctx context.Context) error
+	BeginSnapshot(ctx context.Context, tables ...TableDescription) error
 	EndSnapshot(ctx context.Context) error
 }
 

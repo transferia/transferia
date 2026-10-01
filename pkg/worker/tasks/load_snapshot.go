@@ -258,7 +258,7 @@ func (l *SnapshotLoader) beginSnapshot(
 ) error {
 	switch specificStorage := sourceStorage.(type) {
 	case abstract.SnapshotableStorage:
-		err := specificStorage.BeginSnapshot(ctx)
+		err := specificStorage.BeginSnapshot(ctx, tables...)
 		if err != nil {
 			return errors.CategorizedErrorf(categories.Source, "Can't begin %s snapshot: %w", l.transfer.SrcType(), err)
 		}
