@@ -16,9 +16,12 @@ type TestReporter interface {
 	UpdateTestResults(transferID string, request *abstract.TestResult) error
 }
 
+// CheckEndpointReporter reports the checks of a CheckEndpoint operation.
 type CheckEndpointReporter interface {
-	// checkErr is nil when the endpoint is reachable.
-	ReportCheckEndpointResult(operationID string, checkErr error) error
+	// checkErr is error of checking endpoint availability (nil when the endpoint is reachable).
+	ReportConnectionCheck(operationID string, checkErr error) error
+	// tables is list of tables extracted from the endpoint, ignored when listErr is not nil.
+	ReportListTables(operationID string, tables []abstract.TableID, listErr error) error
 }
 
 type OperationState interface {

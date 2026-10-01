@@ -113,7 +113,11 @@ func (f *CoordinatorNoOp) UpdateTestResults(id string, request *abstract.TestRes
 	return nil
 }
 
-func (f *CoordinatorNoOp) ReportCheckEndpointResult(operationID string, checkErr error) error {
+func (f *CoordinatorNoOp) ReportConnectionCheck(operationID string, checkErr error) error {
+	return nil
+}
+
+func (f *CoordinatorNoOp) ReportListTables(operationID string, tables []abstract.TableID, listErr error) error {
 	return nil
 }
 

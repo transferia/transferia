@@ -68,12 +68,8 @@ func (v runTaskVisitor) OnTestEndpoint(t abstract.TestEndpoint) interface{} {
 }
 
 func (v runTaskVisitor) OnCheckEndpoint(abstract.CheckEndpoint) interface{} {
-	checkErr := CheckEndpoint(v.ctx, &v.transfer)
-	if checkErr != nil {
-		logger.Log.Warn("endpoint connection check failed", log.Error(checkErr))
-	}
-	if err := v.cp.ReportCheckEndpointResult(v.task.OperationID, checkErr); err != nil {
-		return xerrors.Errorf("unable to report check endpoint result: %w", err)
+	if err := CheckEndpoint(v.ctx, v.task.OperationID, &v.transfer, v.cp, v.registry); err != nil {
+		return xerrors.Errorf("unable to check endpoint: %w", err)
 	}
 	return nil
 }

@@ -16,6 +16,9 @@ var (
 	FilteredObjectNotFound   = coded.Register("generic", "filtered_object_not_found")
 	ShardedTransferTmpPolicy = coded.Register("generic", "sharded_transfer_tmp_policy")
 
+	// check endpoint
+	CheckEndpointNotSupported = coded.Register("check_endpoint", "not_supported")
+
 	// airbyte
 	AirbyteConnectionFailed = coded.Register("airbyte", "connection_failed")
 
