@@ -1,0 +1,23 @@
+{
+    "oracle.oracle.TestCanonSource/all_types/canon_0": {
+        "uri": "file://oracle.oracle.TestCanonSource_all_types_canon_0/extracted"
+    },
+    "oracle.oracle.TestCanonSource/blob_types/canon_0": {
+        "uri": "file://oracle.oracle.TestCanonSource_blob_types_canon_0/extracted"
+    },
+    "oracle.oracle.TestCanonSource/long_binary/canon_0": {
+        "uri": "file://oracle.oracle.TestCanonSource_long_binary_canon_0/extracted"
+    },
+    "oracle.oracle.TestCanonSource/long_text/canon_0": {
+        "uri": "file://oracle.oracle.TestCanonSource_long_text_canon_0/extracted"
+    },
+    "oracle.oracle.TestCanonSource/nchar_types/canon_0": {
+        "uri": "file://oracle.oracle.TestCanonSource_nchar_types_canon_0/extracted"
+    },
+    "oracle.oracle.TestCanonSource/nclob_types/canon_0": {
+        "uri": "file://oracle.oracle.TestCanonSource_nclob_types_canon_0/extracted"
+    },
+    "oracle.oracle.TestCanonSource/tslocal_types/canon_0": {
+        "uri": "file://oracle.oracle.TestCanonSource_tslocal_types_canon_0/extracted"
+    }
+}

@@ -1,0 +1,983 @@
+[
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "id",
+                "col_int",
+                "col_decimal",
+                "col_number",
+                "col_float",
+                "col_bfloat",
+                "col_bdouble",
+                "col_varchar",
+                "col_nvarchar",
+                "col_char",
+                "col_date",
+                "col_ts",
+                "col_tstz",
+                "col_raw",
+                "col_clob"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "string",
+                    "value": "1"
+                },
+                {
+                    "type": "string",
+                    "value": "42"
+                },
+                {
+                    "type": "string",
+                    "value": "1234.5678"
+                },
+                {
+                    "type": "string",
+                    "value": "99999999999"
+                },
+                {
+                    "type": "float64",
+                    "value": 3.14
+                },
+                {
+                    "type": "float32",
+                    "value": 2.71
+                },
+                {
+                    "type": "float64",
+                    "value": 1.41
+                },
+                {
+                    "type": "string",
+                    "value": "hello"
+                },
+                {
+                    "type": "string",
+                    "value": "мир"
+                },
+                {
+                    "type": "string",
+                    "value": "CHAR      "
+                },
+                {
+                    "type": "time.Time",
+                    "value": "2024-01-15T10:30:00Z"
+                },
+                {
+                    "type": "time.Time",
+                    "value": "2024-01-15T10:30:00.123456Z"
+                },
+                {
+                    "type": "time.Time",
+                    "value": "2024-01-15T10:30:00Z"
+                },
+                {
+                    "type": "[]uint8",
+                    "value": "ASNFZ4mrze8BI0VniavN7w=="
+                },
+                {
+                    "type": "string",
+                    "value": "short clob text"
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "dt_test"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 0,
+                "Values": 583
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "all_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "id",
+                    "type": "utf8",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_int",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_decimal",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_number",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_float",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:FLOAT"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_bfloat",
+                    "type": "float",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:BINARY_FLOAT"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_bdouble",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:BINARY_DOUBLE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_varchar",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:VARCHAR2"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_nvarchar",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NVARCHAR2"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_char",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:CHAR"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_date",
+                    "type": "datetime",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:DATE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_ts",
+                    "type": "timestamp",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:TIMESTAMP(6)"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_tstz",
+                    "type": "timestamp",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:TIMESTAMP(6) WITH TIME ZONE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_raw",
+                    "type": "string",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:RAW"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_clob",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:CLOB"
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    },
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "id",
+                "col_int",
+                "col_decimal",
+                "col_number",
+                "col_float",
+                "col_bfloat",
+                "col_bdouble",
+                "col_varchar",
+                "col_nvarchar",
+                "col_char",
+                "col_date",
+                "col_ts",
+                "col_tstz",
+                "col_raw",
+                "col_clob"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "string",
+                    "value": "2"
+                },
+                {
+                    "type": "string",
+                    "value": "-1"
+                },
+                {
+                    "type": "string",
+                    "value": "-0.0001"
+                },
+                {
+                    "type": "string",
+                    "value": "0"
+                },
+                {
+                    "type": "float64",
+                    "value": -1.5
+                },
+                {
+                    "type": "float32",
+                    "value": -0.5
+                },
+                {
+                    "type": "float64",
+                    "value": -0.25
+                },
+                {
+                    "type": "string",
+                    "value": "world"
+                },
+                {
+                    "type": "string",
+                    "value": "hello"
+                },
+                {
+                    "type": "string",
+                    "value": "ABC       "
+                },
+                {
+                    "type": "time.Time",
+                    "value": "1970-01-01T00:00:00Z"
+                },
+                {
+                    "type": "time.Time",
+                    "value": "1970-01-01T00:00:00.000001Z"
+                },
+                {
+                    "type": "time.Time",
+                    "value": "1970-01-01T00:00:00Z"
+                },
+                {
+                    "type": "[]uint8",
+                    "value": "/////////////////////w=="
+                },
+                {
+                    "type": "string",
+                    "value": "another clob value"
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "dt_test"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 0,
+                "Values": 573
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "all_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "id",
+                    "type": "utf8",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_int",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_decimal",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_number",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_float",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:FLOAT"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_bfloat",
+                    "type": "float",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:BINARY_FLOAT"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_bdouble",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:BINARY_DOUBLE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_varchar",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:VARCHAR2"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_nvarchar",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NVARCHAR2"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_char",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:CHAR"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_date",
+                    "type": "datetime",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:DATE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_ts",
+                    "type": "timestamp",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:TIMESTAMP(6)"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_tstz",
+                    "type": "timestamp",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:TIMESTAMP(6) WITH TIME ZONE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_raw",
+                    "type": "string",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:RAW"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_clob",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:CLOB"
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    },
+    {
+        "ColumnNames": {
+            "type": "[]string",
+            "value": [
+                "id",
+                "col_int",
+                "col_decimal",
+                "col_number",
+                "col_float",
+                "col_bfloat",
+                "col_bdouble",
+                "col_varchar",
+                "col_nvarchar",
+                "col_char",
+                "col_date",
+                "col_ts",
+                "col_tstz",
+                "col_raw",
+                "col_clob"
+            ]
+        },
+        "ColumnValues": {
+            "type": "[]interface {}",
+            "value": [
+                {
+                    "type": "string",
+                    "value": "3"
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                },
+                {
+                    "type": "nil",
+                    "value": null
+                }
+            ]
+        },
+        "CommitTime": {
+            "type": "uint64",
+            "value": 0
+        },
+        "Counter": {
+            "type": "int",
+            "value": 0
+        },
+        "ID": {
+            "type": "uint32",
+            "value": 0
+        },
+        "Kind": {
+            "type": "changeitem.Kind",
+            "value": "insert"
+        },
+        "LSN": {
+            "type": "uint64",
+            "value": 0
+        },
+        "OldKeys": {
+            "type": "changeitem.OldKeysType",
+            "value": {}
+        },
+        "PartID": {
+            "type": "string",
+            "value": ""
+        },
+        "Query": {
+            "type": "string",
+            "value": ""
+        },
+        "QueueMessageMeta": {
+            "type": "changeitem.QueueMessageMeta",
+            "value": "{\"TopicName\":\"\",\"PartitionNum\":0,\"Offset\":0,\"Index\":0}"
+        },
+        "Schema": {
+            "type": "string",
+            "value": "dt_test"
+        },
+        "Size": {
+            "type": "changeitem.EventSize",
+            "value": {
+                "Read": 0,
+                "Values": 281
+            }
+        },
+        "Table": {
+            "type": "string",
+            "value": "all_types"
+        },
+        "TableSchema": {
+            "type": "[]changeitem.ColSchema",
+            "value": [
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "id",
+                    "type": "utf8",
+                    "key": true,
+                    "fake_key": false,
+                    "required": true,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_int",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_decimal",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_number",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NUMBER"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_float",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:FLOAT"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_bfloat",
+                    "type": "float",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:BINARY_FLOAT"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_bdouble",
+                    "type": "double",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:BINARY_DOUBLE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_varchar",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:VARCHAR2"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_nvarchar",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:NVARCHAR2"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_char",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:CHAR"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_date",
+                    "type": "datetime",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:DATE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_ts",
+                    "type": "timestamp",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:TIMESTAMP(6)"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_tstz",
+                    "type": "timestamp",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:TIMESTAMP(6) WITH TIME ZONE"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_raw",
+                    "type": "string",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:RAW"
+                },
+                {
+                    "table_schema": "dt_test",
+                    "table_name": "all_types",
+                    "path": "",
+                    "name": "col_clob",
+                    "type": "utf8",
+                    "key": false,
+                    "fake_key": false,
+                    "required": false,
+                    "expression": "",
+                    "original_type": "oracle:CLOB"
+                }
+            ]
+        },
+        "TxID": {
+            "type": "string",
+            "value": ""
+        }
+    }
+]

@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_clickhouse "github.com/transferia/transferia/pkg/providers/clickhouse"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
+	provider_oracle "github.com/transferia/transferia/pkg/providers/oracle"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	provider_ydb "github.com/transferia/transferia/pkg/providers/ydb"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
@@ -27,6 +28,8 @@ var (
 	ClickhouseCanon embed.FS
 	//go:embed mysql/canondata/*/extracted
 	MysqlCanon embed.FS
+	//go:embed oracle/canondata/*/extracted
+	OracleCanon embed.FS
 	//go:embed ydb/canondata/*/extracted
 	YdbCanon embed.FS
 	//go:embed yt/canondata/*/extracted
@@ -45,6 +48,7 @@ var (
 	AllCanon = map[abstract.ProviderType]embed.FS{
 		provider_postgres.ProviderType:   PostgresCanon,
 		provider_mysql.ProviderType:      MysqlCanon,
+		provider_oracle.ProviderType:     OracleCanon,
 		provider_clickhouse.ProviderType: ClickhouseCanon,
 		provider_yt.ProviderType:         YtCanon,
 		provider_ydb.ProviderType:        YdbCanon,

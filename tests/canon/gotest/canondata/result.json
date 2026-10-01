@@ -7619,6 +7619,808 @@
             }
         ]
     },
+    "gotest.gotest.TestAll/oracle.TestCanonSource_all_types_canon_0/dt_test.all_types": {
+        "Rows": [
+            {
+                "Data": {
+                    "col_bdouble": {
+                        "GoType": "float64",
+                        "Val": 1.41
+                    },
+                    "col_bfloat": {
+                        "GoType": "float32",
+                        "Val": 2.71
+                    },
+                    "col_char": {
+                        "GoType": "string",
+                        "Val": "CHAR      "
+                    },
+                    "col_clob": {
+                        "GoType": "string",
+                        "Val": "short clob text"
+                    },
+                    "col_date": {
+                        "GoType": "time.Time",
+                        "Val": "2024-01-15T10:30:00Z"
+                    },
+                    "col_decimal": {
+                        "GoType": "string",
+                        "Val": "1234.5678"
+                    },
+                    "col_float": {
+                        "GoType": "float64",
+                        "Val": 3.14
+                    },
+                    "col_int": {
+                        "GoType": "string",
+                        "Val": "42"
+                    },
+                    "col_number": {
+                        "GoType": "string",
+                        "Val": "99999999999"
+                    },
+                    "col_nvarchar": {
+                        "GoType": "string",
+                        "Val": "мир"
+                    },
+                    "col_raw": {
+                        "GoType": "[]uint8",
+                        "Val": "ASNFZ4mrze8BI0VniavN7w=="
+                    },
+                    "col_ts": {
+                        "GoType": "time.Time",
+                        "Val": "2024-01-15T10:30:00.123456Z"
+                    },
+                    "col_tstz": {
+                        "GoType": "time.Time",
+                        "Val": "2024-01-15T10:30:00Z"
+                    },
+                    "col_varchar": {
+                        "GoType": "string",
+                        "Val": "hello"
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "1"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_bdouble": {
+                        "GoType": "float64",
+                        "Val": -0.25
+                    },
+                    "col_bfloat": {
+                        "GoType": "float32",
+                        "Val": -0.5
+                    },
+                    "col_char": {
+                        "GoType": "string",
+                        "Val": "ABC       "
+                    },
+                    "col_clob": {
+                        "GoType": "string",
+                        "Val": "another clob value"
+                    },
+                    "col_date": {
+                        "GoType": "time.Time",
+                        "Val": "1970-01-01T00:00:00Z"
+                    },
+                    "col_decimal": {
+                        "GoType": "string",
+                        "Val": "-0.0001"
+                    },
+                    "col_float": {
+                        "GoType": "float64",
+                        "Val": -1.5
+                    },
+                    "col_int": {
+                        "GoType": "string",
+                        "Val": "-1"
+                    },
+                    "col_number": {
+                        "GoType": "string",
+                        "Val": "0"
+                    },
+                    "col_nvarchar": {
+                        "GoType": "string",
+                        "Val": "hello"
+                    },
+                    "col_raw": {
+                        "GoType": "[]uint8",
+                        "Val": "/////////////////////w=="
+                    },
+                    "col_ts": {
+                        "GoType": "time.Time",
+                        "Val": "1970-01-01T00:00:00.000001Z"
+                    },
+                    "col_tstz": {
+                        "GoType": "time.Time",
+                        "Val": "1970-01-01T00:00:00Z"
+                    },
+                    "col_varchar": {
+                        "GoType": "string",
+                        "Val": "world"
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "2"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_bdouble": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_bfloat": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_char": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_clob": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_date": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_decimal": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_float": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_int": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_number": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_nvarchar": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_raw": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_ts": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_tstz": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "col_varchar": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "3"
+                    }
+                }
+            }
+        ],
+        "TableID": {
+            "Name": "all_types",
+            "Namespace": "dt_test"
+        },
+        "TableSchema": [
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": true,
+                "name": "id",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": true,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_int",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_decimal",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_number",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_float",
+                "original_type": "oracle:FLOAT",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "double"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_bfloat",
+                "original_type": "oracle:BINARY_FLOAT",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "float"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_bdouble",
+                "original_type": "oracle:BINARY_DOUBLE",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "double"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_varchar",
+                "original_type": "oracle:VARCHAR2",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_nvarchar",
+                "original_type": "oracle:NVARCHAR2",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_char",
+                "original_type": "oracle:CHAR",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_date",
+                "original_type": "oracle:DATE",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "datetime"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_ts",
+                "original_type": "oracle:TIMESTAMP(6)",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "timestamp"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_tstz",
+                "original_type": "oracle:TIMESTAMP(6) WITH TIME ZONE",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "timestamp"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_raw",
+                "original_type": "oracle:RAW",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "string"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_clob",
+                "original_type": "oracle:CLOB",
+                "path": "",
+                "required": false,
+                "table_name": "all_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            }
+        ]
+    },
+    "gotest.gotest.TestAll/oracle.TestCanonSource_blob_types_canon_0/dt_test.blob_types": {
+        "Rows": [
+            {
+                "Data": {
+                    "col_blob": {
+                        "GoType": "[]uint8",
+                        "Val": "AQIDBAUGBwgJCgsMDQ4PEA=="
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "1"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_blob": {
+                        "GoType": "[]uint8",
+                        "Val": "3q2+78r+ur4BAgMEBQYHCA=="
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "2"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_blob": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "3"
+                    }
+                }
+            }
+        ],
+        "TableID": {
+            "Name": "blob_types",
+            "Namespace": "dt_test"
+        },
+        "TableSchema": [
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": true,
+                "name": "id",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": true,
+                "table_name": "blob_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_blob",
+                "original_type": "oracle:BLOB",
+                "path": "",
+                "required": false,
+                "table_name": "blob_types",
+                "table_schema": "dt_test",
+                "type": "string"
+            }
+        ]
+    },
+    "gotest.gotest.TestAll/oracle.TestCanonSource_long_binary_canon_0/dt_test.long_binary": {
+        "Rows": [
+            {
+                "Data": {
+                    "col_long_raw": {
+                        "GoType": "[]uint8",
+                        "Val": "AQIDBAU="
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "1"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_long_raw": {
+                        "GoType": "[]uint8",
+                        "Val": "3q2+7w=="
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "2"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_long_raw": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "3"
+                    }
+                }
+            }
+        ],
+        "TableID": {
+            "Name": "long_binary",
+            "Namespace": "dt_test"
+        },
+        "TableSchema": [
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": true,
+                "name": "id",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": true,
+                "table_name": "long_binary",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_long_raw",
+                "original_type": "oracle:LONG RAW",
+                "path": "",
+                "required": false,
+                "table_name": "long_binary",
+                "table_schema": "dt_test",
+                "type": "string"
+            }
+        ]
+    },
+    "gotest.gotest.TestAll/oracle.TestCanonSource_long_text_canon_0/dt_test.long_text": {
+        "Rows": [
+            {
+                "Data": {
+                    "col_long": {
+                        "GoType": "string",
+                        "Val": "long character data"
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "1"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_long": {
+                        "GoType": "string",
+                        "Val": "another long value"
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "2"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_long": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "3"
+                    }
+                }
+            }
+        ],
+        "TableID": {
+            "Name": "long_text",
+            "Namespace": "dt_test"
+        },
+        "TableSchema": [
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": true,
+                "name": "id",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": true,
+                "table_name": "long_text",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_long",
+                "original_type": "oracle:LONG",
+                "path": "",
+                "required": false,
+                "table_name": "long_text",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            }
+        ]
+    },
+    "gotest.gotest.TestAll/oracle.TestCanonSource_nchar_types_canon_0/dt_test.nchar_types": {
+        "Rows": [
+            {
+                "Data": {
+                    "col_nchar": {
+                        "GoType": "string",
+                        "Val": "NCHAR     "
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "1"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_nchar": {
+                        "GoType": "string",
+                        "Val": "XYZ       "
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "2"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_nchar": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "3"
+                    }
+                }
+            }
+        ],
+        "TableID": {
+            "Name": "nchar_types",
+            "Namespace": "dt_test"
+        },
+        "TableSchema": [
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": true,
+                "name": "id",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": true,
+                "table_name": "nchar_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_nchar",
+                "original_type": "oracle:NCHAR",
+                "path": "",
+                "required": false,
+                "table_name": "nchar_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            }
+        ]
+    },
+    "gotest.gotest.TestAll/oracle.TestCanonSource_nclob_types_canon_0/dt_test.nclob_types": {
+        "Rows": [
+            {
+                "Data": {
+                    "col_nclob": {
+                        "GoType": "string",
+                        "Val": "short nclob text"
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "1"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_nclob": {
+                        "GoType": "string",
+                        "Val": "another nclob value"
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "2"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_nclob": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "3"
+                    }
+                }
+            }
+        ],
+        "TableID": {
+            "Name": "nclob_types",
+            "Namespace": "dt_test"
+        },
+        "TableSchema": [
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": true,
+                "name": "id",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": true,
+                "table_name": "nclob_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_nclob",
+                "original_type": "oracle:NCLOB",
+                "path": "",
+                "required": false,
+                "table_name": "nclob_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            }
+        ]
+    },
+    "gotest.gotest.TestAll/oracle.TestCanonSource_tslocal_types_canon_0/dt_test.tslocal_types": {
+        "Rows": [
+            {
+                "Data": {
+                    "col_tslocal": {
+                        "GoType": "time.Time",
+                        "Val": "2024-01-15T10:30:00.123456Z"
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "1"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_tslocal": {
+                        "GoType": "time.Time",
+                        "Val": "1970-01-01T00:00:00.000001Z"
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "2"
+                    }
+                }
+            },
+            {
+                "Data": {
+                    "col_tslocal": {
+                        "GoType": "<nil>",
+                        "Val": null
+                    },
+                    "id": {
+                        "GoType": "string",
+                        "Val": "3"
+                    }
+                }
+            }
+        ],
+        "TableID": {
+            "Name": "tslocal_types",
+            "Namespace": "dt_test"
+        },
+        "TableSchema": [
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": true,
+                "name": "id",
+                "original_type": "oracle:NUMBER",
+                "path": "",
+                "required": true,
+                "table_name": "tslocal_types",
+                "table_schema": "dt_test",
+                "type": "utf8"
+            },
+            {
+                "expression": "",
+                "fake_key": false,
+                "key": false,
+                "name": "col_tslocal",
+                "original_type": "oracle:TIMESTAMP(6) WITH LOCAL TIME ZONE",
+                "path": "",
+                "required": false,
+                "table_name": "tslocal_types",
+                "table_schema": "dt_test",
+                "type": "timestamp"
+            }
+        ]
+    },
     "gotest.gotest.TestAll/pg.TestCanonSource_array_types_canon_0#01/public.array_types": {
         "Rows": [
             {

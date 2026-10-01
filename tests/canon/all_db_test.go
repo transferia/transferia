@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/mongo"
 	"github.com/transferia/transferia/pkg/providers/mysql"
+	"github.com/transferia/transferia/pkg/providers/oracle"
 	"github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/providers/ydb"
 	"github.com/transferia/transferia/pkg/providers/yt"
@@ -20,6 +21,7 @@ func TestAll(t *testing.T) {
 		mongo.ProviderType,
 		clickhouse.ProviderType,
 		mysql.ProviderType,
+		oracle.ProviderType,
 		postgres.ProviderType,
 	)
 	for _, tc := range cases {
