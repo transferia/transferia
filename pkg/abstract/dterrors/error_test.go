@@ -34,7 +34,7 @@ func (v ValueError) Error() string { return "value error" }
 
 type PointerError string
 
-func (PointerError) Error() string { return "pointer error" }
+func (*PointerError) Error() string { return "pointer error" }
 
 func TestValueError(t *testing.T) {
 	processWithCast := func(err error) (ValueError, error) {

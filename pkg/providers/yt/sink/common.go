@@ -52,8 +52,8 @@ func IsIncompatibleSchemaErr(err error) bool {
 	return xerrors.Is(err, IncompatibleSchemaErr{error: err})
 }
 
-func NewIncompatibleSchemaErr(err error) *IncompatibleSchemaErr {
-	return &IncompatibleSchemaErr{error: err}
+func NewIncompatibleSchemaErr(err error) IncompatibleSchemaErr {
+	return IncompatibleSchemaErr{error: err}
 }
 
 var NoKeyColumnsFound = xerrors.New("No key columns found")

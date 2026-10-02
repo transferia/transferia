@@ -18,8 +18,9 @@ func TestMongoFatalErrors(t *testing.T) {
 			{
 				require.True(t, isFatalMongoCode(xerrors.Errorf("mongo err: %w", mongo.CommandError{Code: code})))
 				require.True(t, isFatalMongoCode(mongo.CommandError{Code: code}))
-				require.True(t, isFatalMongoCode(&mongo.CommandError{Code: code}))
-				require.True(t, isFatalMongoCode(xerrors.Errorf("mongo err: %w", &mongo.CommandError{Code: code})))
+				var commandErr error = &mongo.CommandError{Code: code}
+				require.True(t, isFatalMongoCode(commandErr))
+				require.True(t, isFatalMongoCode(xerrors.Errorf("mongo err: %w", commandErr)))
 			}
 		}
 	}
@@ -28,8 +29,9 @@ func TestMongoFatalErrors(t *testing.T) {
 			{
 				require.False(t, isFatalMongoCode(xerrors.Errorf("mongo err: %w", mongo.CommandError{Code: code})))
 				require.False(t, isFatalMongoCode(mongo.CommandError{Code: code}))
-				require.False(t, isFatalMongoCode(&mongo.CommandError{Code: code}))
-				require.False(t, isFatalMongoCode(xerrors.Errorf("mongo err: %w", &mongo.CommandError{Code: code})))
+				var commandErr error = &mongo.CommandError{Code: code}
+				require.False(t, isFatalMongoCode(commandErr))
+				require.False(t, isFatalMongoCode(xerrors.Errorf("mongo err: %w", commandErr)))
 			}
 		}
 	}
