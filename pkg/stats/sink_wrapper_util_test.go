@@ -14,14 +14,23 @@ func TestBatchStats(t *testing.T) {
 	toNS := func(nsec int64) uint64 {
 		return uint64(time.Unix(0, nsec).UnixNano())
 	}
+	items := []abstract.ChangeItem{
+		{Kind: abstract.InsertKind, CommitTime: toNS(19), Table: "my_table", Size: changeitem.EventSize{Read: 1, Values: 1}},
+		{Kind: abstract.InsertKind, CommitTime: toNS(99), Table: "my_table", Size: changeitem.EventSize{Read: 1, Values: 2}},
+	}
 
-	t.Run("default case", func(t *testing.T) {
-		oldestTime, freshestTime, rowEvents, bytes := batchStats(logger.Log, []abstract.ChangeItem{
-			{Kind: abstract.InsertKind, CommitTime: toNS(19), Table: "my_table", Size: changeitem.EventSize{Read: 1, Values: 1}},
-			{Kind: abstract.InsertKind, CommitTime: toNS(99), Table: "my_table", Size: changeitem.EventSize{Read: 1, Values: 2}},
-		})
-		require.Equal(t, int64(99), oldestTime.UnixNano())
-		require.Equal(t, int64(19), freshestTime.UnixNano())
+	t.Run("OldestTimeIsTheMinimumCommitTime", func(t *testing.T) {
+		oldestTime, _, _, _ := batchStats(logger.Log, items)
+		require.Equal(t, int64(19), oldestTime.UnixNano())
+	})
+
+	t.Run("FreshestTimeIsTheMaximumCommitTime", func(t *testing.T) {
+		_, freshestTime, _, _ := batchStats(logger.Log, items)
+		require.Equal(t, int64(99), freshestTime.UnixNano())
+	})
+
+	t.Run("RowEventsAndBytes", func(t *testing.T) {
+		_, _, rowEvents, bytes := batchStats(logger.Log, items)
 		require.Equal(t, int64(2), rowEvents)
 		require.Equal(t, uint64(0x3), bytes)
 	})

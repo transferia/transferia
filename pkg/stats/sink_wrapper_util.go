@@ -37,10 +37,10 @@ func batchStats(logger log.Logger, input []abstract.ChangeItem) (oldestTime time
 			freshestTime = eventTime
 			continue
 		}
-		if oldestTime.Before(eventTime) {
+		if eventTime.Before(oldestTime) {
 			oldestTime = eventTime
 		}
-		if freshestTime.After(eventTime) {
+		if eventTime.After(freshestTime) {
 			freshestTime = eventTime
 		}
 	}
