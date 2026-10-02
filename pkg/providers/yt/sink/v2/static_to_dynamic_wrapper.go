@@ -110,6 +110,10 @@ func (s *sinker) Commit() error {
 
 func (s *sinker) convertStaticToDynamic(ctx context.Context, tableYPath ypath.Path) error {
 	return backoff.Retry(func() error {
+		if err := s.ytClient.SetNode(ctx, tableYPath.Attr("tablet_cell_bundle"), s.config.CellBundle(), nil); err != nil {
+			return xerrors.Errorf("unable to set tablet cell bundle %q for destination table %q: %w", s.config.CellBundle(), tableYPath, err)
+		}
+
 		alterOptions := yt.AlterTableOptions{
 			Dynamic: util.TruePtr(),
 		}
