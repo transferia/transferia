@@ -50,17 +50,17 @@ var (
 func PrefilledSourceAndTarget() (provider_mongo.MongoSource, provider_yt.YtDestination) {
 	prefillIteration += 1
 	return provider_mongo.MongoSource{
-			Hosts:             []string{"localhost"},
-			Port:              testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
-			User:              os.Getenv("MONGO_LOCAL_USER"),
-			Password:          model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
-			ReplicationSource: provider_mongo.MongoReplicationSourcePerDatabaseUpdateDocument,
-		}, provider_yt.YtDestination{
-			Path:          fmt.Sprintf("//home/cdc/test/mongo2yt/rotator/prefill%d", prefillIteration),
-			Cluster:       os.Getenv("YT_PROXY"),
-			CellBundle:    "default",
-			PrimaryMedium: "default",
-		}
+		Hosts:             []string{"localhost"},
+		Port:              testenv.GetIntFromEnv("MONGO_LOCAL_PORT"),
+		User:              os.Getenv("MONGO_LOCAL_USER"),
+		Password:          model.SecretString(os.Getenv("MONGO_LOCAL_PASSWORD")),
+		ReplicationSource: provider_mongo.MongoReplicationSourcePerDatabaseUpdateDocument,
+	}, provider_yt.YtDestination{
+		Path:          fmt.Sprintf("//home/cdc/test/mongo2yt/rotator/prefill%d", prefillIteration),
+		Cluster:       os.Getenv("YT_PROXY"),
+		CellBundle:    "default",
+		PrimaryMedium: "default",
+	}
 }
 
 var (
