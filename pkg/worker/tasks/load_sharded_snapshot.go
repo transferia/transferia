@@ -34,11 +34,12 @@ func init() {
 func (l *SnapshotLoader) WaitWorkersInitiated(ctx context.Context) error {
 	return backoff.RetryNotify(
 		func() error {
-			workersCount, err := l.cp.GetOperationWorkersCount(l.operation.OperationID, false)
+			// Completed workers still prove that the worker rows were created.
+			workers, err := l.cp.GetOperationWorkers(l.operation.OperationID)
 			if err != nil {
-				return errors.CategorizedErrorf(categories.Internal, "can't to get workers count for operation '%v': %w", l.operation.OperationID, err)
+				return errors.CategorizedErrorf(categories.Internal, "can't to get workers for operation '%v': %w", l.operation.OperationID, err)
 			}
-			if workersCount <= 0 {
+			if len(workers) == 0 {
 				return errors.CategorizedErrorf(categories.Internal, "workers for operation '%v' not ready yet", l.operation.OperationID)
 			}
 			return nil

@@ -52,7 +52,8 @@ type Sharding interface {
 	CreateOperationWorkers(operationID string, workersCount int) error
 	// GetOperationWorkers return all secondary workers to *main* worker
 	GetOperationWorkers(operationID string) ([]*model.OperationWorker, error)
-	// GetOperationWorkersCount return number of registered secondary operation workers to *main* worker
+	// GetOperationWorkersCount returns the number of secondary operation workers with the given completion status.
+	// Deprecated: use GetOperationWorkers instead. This method is subject to removal.
 	GetOperationWorkersCount(operationID string, completed bool) (int, error)
 	// CreateOperationTablesParts store operation parts (or shards or splits).
 	// each part is either full table, or some part of table defined by predicate

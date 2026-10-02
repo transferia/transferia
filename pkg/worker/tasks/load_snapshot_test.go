@@ -74,6 +74,19 @@ func TestWaitForSlotExternalCancellation(t *testing.T) {
 	require.NoError(t, loader.waitForSlot(ctx, cancel))
 }
 
+func TestWaitWorkersInitiatedAfterCompletion(t *testing.T) {
+	const operationID = "completed-workers"
+	cp := coordinator.NewStatefulFakeClient()
+	require.NoError(t, cp.CreateOperationWorkers(operationID, 2))
+	require.NoError(t, cp.FinishOperation(operationID, "", "", 1, nil))
+	require.NoError(t, cp.FinishOperation(operationID, "", "", 2, nil))
+
+	loader := &SnapshotLoader{cp: cp, operation: &model.TransferOperation{OperationID: operationID}}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	require.NoError(t, loader.WaitWorkersInitiated(ctx))
+}
+
 func TestCheckIncludeDirectives_DataObjects_NoError(t *testing.T) {
 	transfer := new(model.Transfer)
 	transfer.DataObjects = &model.DataObjects{IncludeObjects: []string{
