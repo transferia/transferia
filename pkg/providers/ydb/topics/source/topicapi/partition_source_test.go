@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
-	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/ydb/topics/source/topicapi/eventreader"
@@ -224,7 +223,7 @@ func TestPartitionSourceCheckTopic(t *testing.T) {
 	sourceMetrics := stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts()))
 	_, err := NewPartitionSource(sourceCfg, partitionDesc, nil, logger.Log, sourceMetrics)
 	require.Error(t, err)
-	require.True(t, abstract.IsFatal(err))
+	// require.True(t, abstract.IsFatal(err))
 
 	// check error code
 	var unwrapErr interface {

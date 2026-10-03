@@ -8,7 +8,6 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/transferia/transferia/library/go/core/xerrors"
-	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/ydb/topics/source/topicapi/eventreader/event"
@@ -106,9 +105,7 @@ func newTopicEventReader(consumer string, selectors []topicoptions.ReadSelector,
 	if err := listener.WaitInit(ctx); err != nil {
 		_ = listener.Close(context.Background())
 		if ydbOperationErr := ydb.OperationError(err); ydbOperationErr != nil && ydbOperationErr.Code() == ydbSchemeErrorCode {
-			return nil, abstract.NewFatalError(
-				coded.Errorf(error_codes.MissingData, "topic path does not exist or you do not have access rights: %w ", ydbOperationErr),
-			)
+			return nil, coded.Errorf(error_codes.MissingData, "topic path does not exist or you do not have access rights: %w ", ydbOperationErr)
 		}
 
 		return nil, xerrors.Errorf("unable to init topic listener: %w", err)
