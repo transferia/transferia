@@ -48,6 +48,18 @@ func (r *K8sRuntime) WithDefaults() {
 	if r.TotalJobCount == 0 {
 		r.TotalJobCount = 1
 	}
+	if r.CpuLimit == "" {
+		r.CpuLimit = "1"
+	}
+	if r.CpuRequest == "" {
+		r.CpuRequest = "0.5"
+	}
+	if r.MemoryLimit == "" {
+		r.MemoryLimit = "1Gi"
+	}
+	if r.MemoryRequest == "" {
+		r.MemoryRequest = "512Mi"
+	}
 }
 
 func (r *K8sRuntime) CopyWithDefaults() *K8sRuntime {
