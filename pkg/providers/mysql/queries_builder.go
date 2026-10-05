@@ -43,7 +43,7 @@ type queryBuilder interface {
 }
 
 type insertQueryBuilder struct {
-	uniqConstraints    map[string]bool
+	indexes            map[string]tableIndexes
 	tableID            abstract.TableID
 	columns            []abstract.ColSchema
 	columnNameToIndex  map[string]int
@@ -54,7 +54,7 @@ type insertQueryBuilder struct {
 }
 
 func newInsertQueryBuilder(
-	uniqConstraints map[string]bool,
+	indexes map[string]tableIndexes,
 	tableID abstract.TableID,
 	columns []abstract.ColSchema,
 	columnNameToIndex map[string]int,
@@ -62,7 +62,7 @@ func newInsertQueryBuilder(
 	conflictUpdate string,
 ) *insertQueryBuilder {
 	return &insertQueryBuilder{
-		uniqConstraints:    uniqConstraints,
+		indexes:            indexes,
 		tableID:            tableID,
 		columns:            columns,
 		columnNameToIndex:  columnNameToIndex,
@@ -94,7 +94,7 @@ func (b *insertQueryBuilder) BuildQuery() *sinkQuery {
 		return nil
 	}
 
-	if b.uniqConstraints[b.tableID.Fqtn()] {
+	if b.indexes[b.tableID.Fqtn()].hasUnique {
 		return newSinkQuery(fmt.Sprintf(
 			"REPLACE `%v`.`%v` (%v) VALUES\n%v;",
 			b.tableID.Namespace,
@@ -355,7 +355,9 @@ func (b *queriesBuilder) BuildQueries(items []abstract.ChangeItem) ([]sinkQuery,
 	b.queries = []sinkQuery{}
 
 	createInsertQueryBuilder := func() queryBuilder {
-		return newInsertQueryBuilder(b.sink.uniqConstraints, b.table, b.columns, b.columnNameToIndex, b.columnNamesEscaped, b.conflictUpdate)
+		return newInsertQueryBuilder(
+			b.sink.indexes, b.table, b.columns, b.columnNameToIndex, b.columnNamesEscaped, b.conflictUpdate,
+		)
 	}
 	createUpdateQueryBuilder := func() queryBuilder {
 		return newUpdateQueryBuilder(b.table, b.columns, b.columnNameToIndex)

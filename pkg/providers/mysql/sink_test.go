@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"fmt"
 	"math/rand"
 	"os"
@@ -513,7 +514,7 @@ func Test_pushQuires_Deadlock_ReturnsCodedError(t *testing.T) {
 	require.True(t, codes.MySQLDeadlock.Contains(err), "expected MySQLDeadlock, got: %v", err)
 }
 
-func TestNewSinker_UniqueIndexDisablesParallelWrite(t *testing.T) {
+func recipeTarget(t *testing.T) (*MysqlDestination, *sql.DB) {
 	port, err := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
 	require.NoError(t, err)
 	dst := &MysqlDestination{
@@ -529,10 +530,17 @@ func TestNewSinker_UniqueIndexDisablesParallelWrite(t *testing.T) {
 	require.NoError(t, err)
 	db, err := Connect(connParams, nil)
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
+	return dst, db
+}
+
+func TestNewSinker_SecondaryIndexes(t *testing.T) {
+	dst, db := recipeTarget(t)
 	for _, ddl := range []string{
-		"CREATE TABLE `%s`.`uniq_idx` (id INT PRIMARY KEY, a INT, UNIQUE KEY (a))",
-		"CREATE TABLE `%s`.`plain_idx` (id INT PRIMARY KEY, a INT, KEY (a))",
+		"DROP TABLE IF EXISTS `%[1]s`.`uniq_idx`, `%[1]s`.`plain_idx`, `%[1]s`.`no_idx`, `%[1]s`.`late_idx`",
+		"CREATE TABLE `%[1]s`.`uniq_idx` (id INT PRIMARY KEY, a INT, UNIQUE KEY (a))",
+		"CREATE TABLE `%[1]s`.`plain_idx` (id INT PRIMARY KEY, a INT, KEY (a))",
+		"CREATE TABLE `%[1]s`.`no_idx` (id INT PRIMARY KEY, a INT)",
 	} {
 		_, err := db.Exec(fmt.Sprintf(ddl, dst.Database))
 		require.NoError(t, err)
@@ -543,6 +551,101 @@ func TestNewSinker_UniqueIndexDisablesParallelWrite(t *testing.T) {
 	defer sink.Close()
 
 	s := sink.(*sinker)
-	require.True(t, s.disableParallelWrite(abstract.TableID{Namespace: dst.Database, Name: "uniq_idx"}.Fqtn()))
-	require.False(t, s.disableParallelWrite(abstract.TableID{Namespace: dst.Database, Name: "plain_idx"}.Fqtn()))
+	columns := []abstract.ColSchema{{ColumnName: "id", PrimaryKey: true}, {ColumnName: "a"}}
+	items := []abstract.ChangeItem{{
+		Kind:         abstract.InsertKind,
+		ColumnNames:  []string{"id", "a"},
+		ColumnValues: []any{1, 1},
+	}}
+	type expectation struct {
+		oneTx  bool
+		insert string
+	}
+	expected := map[string]expectation{
+		"uniq_idx":  {oneTx: true, insert: "REPLACE"},
+		"plain_idx": {oneTx: true, insert: "INSERT INTO"},
+		"no_idx":    {oneTx: false, insert: "INSERT INTO"},
+	}
+	check := func() {
+		for table, e := range expected {
+			tableID := abstract.TableID{Namespace: dst.Database, Name: table}
+			require.Equal(t, e.oneTx, s.disableParallelWrite(tableID.Fqtn()), table)
+			queries, err := s.buildQueries(tableID, columns, items)
+			require.NoError(t, err)
+			require.True(t, strings.HasPrefix(queries[len(queries)-1].query, e.insert), table)
+		}
+	}
+	check()
+
+	// tx done comes as DDL, the sink refills the constraints on it
+	lateDDL := "CREATE TABLE `%s`.`late_idx` (id INT PRIMARY KEY, a INT, UNIQUE KEY (a))"
+	_, err = db.Exec(fmt.Sprintf(lateDDL, dst.Database))
+	require.NoError(t, err)
+	expected["late_idx"] = expectation{oneTx: false, insert: "INSERT INTO"}
+	check()
+	require.NoError(t, sink.Push([]abstract.ChangeItem{abstract.MakeTxDone(1, 1, time.Now(), "", "1")}))
+	expected["late_idx"] = expectation{oneTx: true, insert: "REPLACE"}
+	check()
+}
+
+// the source repeats a failed batch, so a batch must be safe to apply twice
+func TestPush_UniqueTableRepeatedBatch(t *testing.T) {
+	dst, db := recipeTarget(t)
+	dst.IsSchemaMigrationDisabled = true
+	for _, ddl := range []string{
+		"DROP TABLE IF EXISTS `%[1]s`.`flag_flip`",
+		"CREATE TABLE `%[1]s`.`flag_flip` (" +
+			"id INT PRIMARY KEY, dev INT NOT NULL, is_last TINYINT, pad VARCHAR(1024), UNIQUE KEY (dev, is_last))",
+	} {
+		_, err := db.Exec(fmt.Sprintf(ddl, dst.Database))
+		require.NoError(t, err)
+	}
+
+	sink, err := NewSinker(logger.Log, dst, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	require.NoError(t, err)
+	defer sink.Close()
+
+	schema := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "id", PrimaryKey: true},
+		{ColumnName: "dev"},
+		{ColumnName: "is_last"},
+		{ColumnName: "pad"},
+	})
+	// 1 KiB rows make the batch span several insert queries
+	pad := strings.Repeat("x", 1024)
+	row := func(kind abstract.Kind, id, dev int, isLast any) abstract.ChangeItem {
+		item := abstract.ChangeItem{
+			Kind:         kind,
+			Table:        "flag_flip",
+			TableSchema:  schema,
+			ColumnNames:  []string{"id", "dev", "is_last", "pad"},
+			ColumnValues: []any{id, dev, isLast, pad},
+		}
+		if kind == abstract.UpdateKind {
+			item.OldKeys = abstract.OldKeysType{KeyNames: []string{"id"}, KeyValues: []any{id}}
+		}
+		return item
+	}
+	const devices = 1500
+	var batch []abstract.ChangeItem
+	for dev := 0; dev < devices; dev++ {
+		// each device moves the flag from the old row to the new one
+		batch = append(batch,
+			row(abstract.InsertKind, 2*dev, dev, 1),
+			row(abstract.UpdateKind, 2*dev, dev, nil),
+			row(abstract.InsertKind, 2*dev+1, dev, 1),
+		)
+	}
+	require.NoError(t, sink.Push(batch))
+	require.NoError(t, sink.Push(batch))
+
+	// the old row of a device has an even id and no flag, the new one has an odd id and the flag
+	var total, correct int
+	query := fmt.Sprintf(
+		"SELECT COUNT(*), COALESCE(SUM(dev = id DIV 2 AND is_last <=> IF(id %% 2, 1, NULL)), 0) FROM `%s`.`flag_flip`",
+		dst.Database,
+	)
+	require.NoError(t, db.QueryRow(query).Scan(&total, &correct))
+	require.Equal(t, 2*devices, total)
+	require.Equal(t, 2*devices, correct)
 }

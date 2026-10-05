@@ -1,6 +1,7 @@
 CREATE TABLE `__test_A` (
     `a_id` integer NOT NULL PRIMARY KEY,
-    `a_name` varchar(255) NOT NULL
+    `a_name` varchar(255) NOT NULL,
+    UNIQUE (`a_name`)
 ) engine=innodb default charset=utf8;
 
 CREATE TABLE `__test_B` (

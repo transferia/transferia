@@ -98,6 +98,11 @@ func Load(t *testing.T) {
             ) engine=innodb default charset=utf8`)
 	require.NoError(t, err)
 
+	// the sink writes a table with a unique index via REPLACE, it must not cascade to the rows of __test_B.
+	// It goes before the delete: the checks below wait for row counts only
+	_, err = tx.Exec("UPDATE `__test_A` SET `a_name`='Johnny' WHERE `a_id`=1;")
+	require.NoError(t, err)
+
 	_, err = tx.Query(cascadeDeleteRequest)
 	require.NoError(t, err)
 

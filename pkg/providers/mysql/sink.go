@@ -102,6 +102,12 @@ func (t *txBatch) txQueries() []string {
 	return res
 }
 
+// tableIndexes describes secondary (non-primary) indexes of a target table
+type tableIndexes struct {
+	hasSecondary bool
+	hasUnique    bool
+}
+
 type sinker struct {
 	cache              abstract.DBSchema
 	db                 *sql.DB
@@ -109,7 +115,7 @@ type sinker struct {
 	config             *MysqlDestination
 	logger             log.Logger
 	limit              int
-	uniqConstraints    map[string]bool
+	indexes            map[string]tableIndexes
 	progress           LsnProgress
 	progressState      map[string]TableStatus
 	rw                 sync.Mutex
@@ -119,12 +125,12 @@ type sinker struct {
 	database           string
 }
 
-func (s *sinker) fillUniqueConstraints() error {
-	newUniqConstraints, err := fillUniqConstraints(s.db)
+func (s *sinker) refreshTableIndexes() error {
+	indexes, err := loadTableIndexes(s.db)
 	if err != nil {
-		return xerrors.Errorf("Cannot get unique constraints from the target database: %w", err)
+		return xerrors.Errorf("Cannot get table indexes from the target database: %w", err)
 	}
-	s.uniqConstraints = newUniqConstraints
+	s.indexes = indexes
 	return nil
 }
 
@@ -133,8 +139,9 @@ func (s *sinker) disableParallelWrite(table string) bool {
 		s.logger.Info("Parallel write disabled due to configuration", log.String("table", table))
 		return true
 	}
-	if s.uniqConstraints[table] {
-		s.logger.Info("Parallel write disabled due to unique constraint", log.String("table", table))
+	// parallel inserts may deadlock on any secondary index, not only unique; see DTSUPPORT-480
+	if s.indexes[table].hasSecondary {
+		s.logger.Info("Parallel write disabled due to secondary index", log.String("table", table))
 		return true
 	}
 	return false
@@ -192,9 +199,9 @@ func (s *sinker) prepareInputPerTables(input []abstract.ChangeItem) (map[abstrac
 			} else {
 				s.logger.Infof("Done DDL:\n%v", util.SampleForLogging(ddlQ, maxSampleLen))
 			}
-			err := s.fillUniqueConstraints()
+			err := s.refreshTableIndexes()
 			if err != nil {
-				return nil, xerrors.Errorf("unable to fill unique constraints: %w", err)
+				return nil, xerrors.Errorf("unable to refresh table indexes: %w", err)
 			}
 		case abstract.DropTableKind:
 			if s.config.Cleanup != model.Drop {
@@ -538,7 +545,8 @@ func (s *sinker) perTablePush(tables map[abstract.TableID][]abstract.ChangeItem)
 			}
 			if len(rows) < 1000 || s.disableParallelWrite(table.Fqtn()) {
 				// if less then 1k rows, no need to split in tx-s
-				// if has uniq constraint we must do everything in one tx to prevent uniq contraint fails; see TM-1284
+				// if has secondary index we must do everything in one tx
+				// to prevent deadlocks and uniq constraint fails; see TM-1284
 				if err := s.txPush(table, queries); err != nil {
 					s.logger.Warn("Unable to perform queries sequentially", log.Error(err))
 					errCh <- err
@@ -799,36 +807,37 @@ func (s *sinker) alterTable(tableID abstract.TableID, in *abstract.TableSchema) 
 	return nil
 }
 
-func fillUniqConstraints(db *sql.DB) (map[string]bool, error) {
+func loadTableIndexes(db *sql.DB) (map[string]tableIndexes, error) {
 	rows, err := db.Query(`
-select TABLE_SCHEMA, TABLE_NAME, count(*)
+select TABLE_SCHEMA, TABLE_NAME, min(NON_UNIQUE)
 from INFORMATION_SCHEMA.STATISTICS
-where INDEX_NAME != 'PRIMARY' and NON_UNIQUE = 0
+where INDEX_NAME != 'PRIMARY'
 group by TABLE_SCHEMA, TABLE_NAME;
 `)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to select table statistics: %w", err)
 	}
 	defer rows.Close()
-	constraint := map[string]bool{}
+	indexes := map[string]tableIndexes{}
 	for rows.Next() {
 		var schema, table string
-		var count int
-		if err := rows.Scan(&schema, &table, &count); err != nil {
+		var nonUnique int
+		if err := rows.Scan(&schema, &table, &nonUnique); err != nil {
 			return nil, err
 		}
-		constraint[fmt.Sprintf("`%v`.`%v`", schema, table)] = true
-		constraint[fmt.Sprintf("%v.\"%v\"", schema, table)] = true
-		constraint[fmt.Sprintf("\"%v\".\"%v\"", schema, table)] = true
-		constraint[fmt.Sprintf("%v.%v", schema, table)] = true
-		constraint[fmt.Sprintf("`%v`", table)] = true
-		constraint[fmt.Sprintf("\"%v\"", table)] = true
-		constraint[fmt.Sprintf("%v", table)] = true
+		info := tableIndexes{hasSecondary: true, hasUnique: nonUnique == 0}
+		indexes[fmt.Sprintf("`%v`.`%v`", schema, table)] = info
+		indexes[fmt.Sprintf("%v.\"%v\"", schema, table)] = info
+		indexes[fmt.Sprintf("\"%v\".\"%v\"", schema, table)] = info
+		indexes[fmt.Sprintf("%v.%v", schema, table)] = info
+		indexes[fmt.Sprintf("`%v`", table)] = info
+		indexes[fmt.Sprintf("\"%v\"", table)] = info
+		indexes[fmt.Sprintf("%v", table)] = info
 	}
 	if err := rows.Err(); err != nil {
 		return nil, xerrors.Errorf("unable to read table statistics rows: %w", err)
 	}
-	return constraint, nil
+	return indexes, nil
 }
 
 func NewSinker(lgr log.Logger, cfg *MysqlDestination, mtrcs core_metrics.Registry) (abstract.Sinker, error) {
@@ -857,9 +866,9 @@ func NewSinker(lgr log.Logger, cfg *MysqlDestination, mtrcs core_metrics.Registr
 		return nil, err
 	}
 	lgr.Infof("max allowed packet infered: %v", format.SizeInt(limit))
-	uniqConstraints, err := fillUniqConstraints(db)
+	indexes, err := loadTableIndexes(db)
 	if err != nil {
-		return nil, xerrors.Errorf("Cannot get unique constraints from the target database: %w", err)
+		return nil, xerrors.Errorf("Cannot get table indexes from the target database: %w", err)
 	}
 	progress, err := NewTableProgressTracker(db, cfg.ProgressTrackerDB)
 	if err != nil {
@@ -882,7 +891,7 @@ func NewSinker(lgr log.Logger, cfg *MysqlDestination, mtrcs core_metrics.Registr
 		config:             cfg,
 		logger:             lgr,
 		limit:              limit,
-		uniqConstraints:    uniqConstraints,
+		indexes:            indexes,
 		progressState:      progressState,
 		progress:           progress,
 		rw:                 sync.Mutex{},

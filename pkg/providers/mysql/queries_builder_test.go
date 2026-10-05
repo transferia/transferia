@@ -210,7 +210,7 @@ func Test_buildQueries05(t *testing.T) {
 }
 
 func Test_buildQueries06(t *testing.T) {
-	t.Run("insert - when table have uniqConstraints", func(t *testing.T) {
+	t.Run("insert - when table has unique index", func(t *testing.T) {
 		changeItems := []abstract.ChangeItem{
 			{
 				Kind:         "insert",
@@ -227,8 +227,7 @@ func Test_buildQueries06(t *testing.T) {
 		}
 
 		s := makeStubSinker()
-		s.uniqConstraints = make(map[string]bool)
-		s.uniqConstraints[tableID.Fqtn()] = true
+		s.indexes = map[string]tableIndexes{tableID.Fqtn(): {hasSecondary: true, hasUnique: true}}
 		queries, err := s.buildQueries(tableID, tableSchema.Columns(), changeItems)
 		require.NoError(t, err)
 		require.Equal(t, []sinkQuery{
