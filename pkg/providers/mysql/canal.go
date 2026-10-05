@@ -367,7 +367,7 @@ func (c *Canal) loadTableConstraints(db, table string) (map[string][]string, []c
 			logger.Log.Errorf("Unable to close storage db connector: %v", err)
 		}
 	}()
-	return LoadTableConstraints(dbConn, abstract.TableID{Namespace: db, Name: table})
+	return LoadTableConstraints(context.Background(), dbConn, abstract.TableID{Namespace: db, Name: table})
 }
 
 // ClearTableCache clear table cache

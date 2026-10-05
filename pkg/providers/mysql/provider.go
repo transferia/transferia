@@ -65,6 +65,7 @@ const ProviderType = abstract.ProviderType("mysql")
 // To verify providers contract implementation
 var (
 	_ providers.Snapshot     = (*Provider)(nil)
+	_ providers.TableLister  = (*Provider)(nil)
 	_ providers.Replication  = (*Provider)(nil)
 	_ providers.Sinker       = (*Provider)(nil)
 	_ providers.Checksumable = (*Provider)(nil)
@@ -134,6 +135,10 @@ func (p *Provider) DestinationChecksumableStorage() (abstract.ChecksumableStorag
 }
 
 func (p *Provider) Storage() (abstract.Storage, error) {
+	return p.storage(context.Background())
+}
+
+func (p *Provider) storage(ctx context.Context) (*Storage, error) {
 	src, ok := p.transfer.Src.(*MysqlSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
@@ -148,12 +153,21 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 			src.Timezone = timeZone
 		}
 	}
-	res, err := NewStorage(src.ToStorageParams())
+	res, err := newStorage(ctx, src.ToStorageParams())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to construct storage: %w", err)
 	}
 	res.IsHomo = src.IsHomo
 	return res, nil
+}
+
+func (p *Provider) ListTables(ctx context.Context) (abstract.TableMap, error) {
+	storage, err := p.storage(ctx)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to create storage: %w", err)
+	}
+	defer storage.Close()
+	return storage.tableList(ctx, nil)
 }
 
 func (p *Provider) Source() (abstract.Source, error) {

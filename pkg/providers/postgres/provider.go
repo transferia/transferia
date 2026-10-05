@@ -69,6 +69,7 @@ const ProviderType = abstract.ProviderType("pg")
 var (
 	_ providers.Checksumable = (*Provider)(nil)
 	_ providers.Snapshot     = (*Provider)(nil)
+	_ providers.TableLister  = (*Provider)(nil)
 	_ providers.Replication  = (*Provider)(nil)
 	_ providers.Sinker       = (*Provider)(nil)
 	_ providers.Verifier     = (*Provider)(nil)
@@ -379,6 +380,22 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	}
 	storage.IsHomo = src.IsHomo
 	return storage, nil
+}
+
+func (p *Provider) ListTables(ctx context.Context) (abstract.TableMap, error) {
+	src, err := p.srcParamsFromTransfer()
+	if err != nil {
+		return nil, xerrors.Errorf("error getting src storage params from transfer: %w", err)
+	}
+	params := src.ToStorageParams(p.transfer)
+	params.PreferReplica = false // the replica lookup is not bound to ctx
+	storage, err := newStorage(ctx, params, WithMetrics(p.registry))
+	if err != nil {
+		return nil, xerrors.Errorf("failed to create a PostgreSQL storage: %w", err)
+	}
+	defer storage.Close()
+	storage.IsHomo = src.IsHomo
+	return storage.tableList(ctx, nil, true)
 }
 
 func (p *Provider) srcParamsFromTransfer() (*PgSource, error) {

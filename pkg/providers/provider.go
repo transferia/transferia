@@ -1,6 +1,8 @@
 package providers
 
 import (
+	"context"
+
 	"github.com/transferia/transferia/internal/logger"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -21,6 +23,12 @@ type Provider interface {
 type Snapshot interface {
 	Provider
 	Storage() (abstract.Storage, error)
+}
+
+// TableLister add to provider listing of the source tables, the queries to the database are bound to ctx.
+type TableLister interface {
+	Provider
+	ListTables(ctx context.Context) (abstract.TableMap, error)
 }
 
 // Replication add to provider `abstract.Source` factory to provider.

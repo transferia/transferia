@@ -10,8 +10,10 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
 	"github.com/transferia/transferia/pkg/providers/postgres"
@@ -106,6 +108,19 @@ func TestMySQL(t *testing.T) {
 	r = check(t, &model.Transfer{Src: src})
 	require.True(t, error_codes.InvalidCredential.Contains(r.connErr), r.connErr)
 	require.False(t, r.listed, "no listing after a failed connection check")
+}
+
+func TestListTablesContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for _, src := range []model.Source{pgrecipe.RecipeSource(pgrecipe.WithPrefix("")), mysqlrecipe.RecipeMysqlSource()} {
+		lister, ok := providers.Source[providers.TableLister](
+			logger.Log, solomon.NewRegistry(nil), coordinator.NewFakeClient(), &model.Transfer{Src: src},
+		)
+		require.True(t, ok)
+		_, err := lister.ListTables(ctx)
+		require.ErrorIs(t, err, context.Canceled, src.GetProviderType())
+	}
 }
 
 func TestInternalErrors(t *testing.T) {

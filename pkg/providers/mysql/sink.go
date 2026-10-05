@@ -770,7 +770,7 @@ func (s *sinker) ensureTableSchema(tableID abstract.TableID, input *abstract.Tab
 	if schema, ok := s.cache[tableID]; ok && schema.Equal(input) {
 		return nil
 	}
-	tables, err := LoadSchema(s.db, false, false, s.database)
+	tables, err := LoadSchema(context.Background(), s.db, false, false, s.database)
 	if err != nil {
 		return xerrors.Errorf("failed to load schema: %w", err)
 	}

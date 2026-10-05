@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"time"
 
 	"github.com/transferia/transferia/internal/logger"
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
@@ -13,9 +14,11 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
-	"github.com/transferia/transferia/pkg/storage_factory"
+	"github.com/transferia/transferia/pkg/providers"
 	"go.ytsaurus.tech/library/go/core/log"
 )
+
+const checkStageTimeout = 5 * time.Minute
 
 // CheckEndpoint checks the endpoint of the transfer (in Src or in Dst, the other side is nil) and reports every check
 // to cp as soon as it finishes. Nothing is written.
@@ -51,7 +54,7 @@ func checkSource(
 	if connErr != nil {
 		return nil
 	}
-	tables, listErr := listTables(transfer, registry)
+	tables, listErr := listTables(ctx, transfer, registry)
 	if listErr != nil {
 		logger.Log.Error("source table listing failed", log.Error(listErr))
 	}
@@ -73,17 +76,22 @@ func checkConnection(ctx context.Context, endpoint model.EndpointParams) error {
 	if !ok {
 		return coded.Errorf(error_codes.CheckEndpointNotSupported, "connection check is not supported for this endpoint")
 	}
+	ctx, cancel := context.WithTimeout(ctx, checkStageTimeout)
+	defer cancel()
 	return checker.CheckConnection(ctx)
 }
 
 // listTables lists the source tables: the filters of the source apply, the ones of the transfer do not.
-func listTables(transfer *model.Transfer, registry core_metrics.Registry) ([]abstract.TableID, error) {
-	storage, err := storage_factory.NewStorage(transfer, coordinator.NewFakeClient(), registry)
-	if err != nil {
-		return nil, xerrors.Errorf("unable to create storage: %w", err)
+func listTables(
+	ctx context.Context, transfer *model.Transfer, registry core_metrics.Registry,
+) ([]abstract.TableID, error) {
+	lister, ok := providers.Source[providers.TableLister](logger.Log, registry, coordinator.NewFakeClient(), transfer)
+	if !ok {
+		return nil, coded.Errorf(error_codes.CheckEndpointNotSupported, "table listing is not supported for this endpoint")
 	}
-	defer storage.Close()
-	tables, err := storage.TableList(nil)
+	ctx, cancel := context.WithTimeout(ctx, checkStageTimeout)
+	defer cancel()
+	tables, err := lister.ListTables(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to list tables: %w", err)
 	}

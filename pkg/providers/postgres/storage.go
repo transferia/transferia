@@ -333,9 +333,7 @@ func (s *Storage) getParentToChildMap(ctx context.Context) (map[abstract.TableID
 	return parentToChildren, nil
 }
 
-func (s *Storage) handleSkips(inTableMap abstract.TableMap) (abstract.TableMap, error) {
-	ctx := context.Background()
-
+func (s *Storage) handleSkips(ctx context.Context, inTableMap abstract.TableMap) (abstract.TableMap, error) {
 	// handle partitioned tables
 
 	result, err := func(in abstract.TableMap) (abstract.TableMap, error) {
@@ -386,22 +384,24 @@ func (s *Storage) handleSkips(inTableMap abstract.TableMap) (abstract.TableMap, 
 	return result, nil
 }
 
-func (s *Storage) tableList(filter abstract.IncludeTableList, applySkips bool) (abstract.TableMap, error) {
+func (s *Storage) tableList(
+	ctx context.Context, filter abstract.IncludeTableList, applySkips bool,
+) (abstract.TableMap, error) {
 	var tableMapResult abstract.TableMap
-	err := s.tx(func(ctx context.Context, tx pgx.Tx) error {
+	err := doUnderTransactionWithOptions(ctx, s.Conn, func(ctx context.Context, tx pgx.Tx) error {
 		tableMapTemporary, err := s.tableListImpl(ctx, tx, filter)
 		if err != nil {
 			return err
 		}
 		tableMapResult = tableMapTemporary
 		return nil
-	}, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	}, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}, logger.Log)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to tableList, err: %w", err)
 	}
 
 	if applySkips {
-		tableMapResult, err = s.handleSkips(tableMapResult)
+		tableMapResult, err = s.handleSkips(ctx, tableMapResult)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to handleSkips, err: %w", err)
 		}
@@ -412,11 +412,11 @@ func (s *Storage) tableList(filter abstract.IncludeTableList, applySkips bool) (
 }
 
 func (s *Storage) TableList(filter abstract.IncludeTableList) (abstract.TableMap, error) {
-	return s.tableList(filter, true)
+	return s.tableList(context.TODO(), filter, true)
 }
 
 func (s *Storage) TableListWithoutSkips(filter abstract.IncludeTableList) (abstract.TableMap, error) {
-	return s.tableList(filter, false)
+	return s.tableList(context.TODO(), filter, false)
 }
 
 // TableList in PostgreSQL returns a table map with schema
@@ -1421,6 +1421,11 @@ func (s *Storage) loadTable(
 }
 
 func NewStorage(config *PgStorageParams, opts ...StorageOpt) (*Storage, error) {
+	return newStorage(context.TODO(), config, opts...)
+}
+
+// newStorage is NewStorage with ctx; host resolution and pgx pool connects have timeouts of their own
+func newStorage(ctx context.Context, config *PgStorageParams, opts ...StorageOpt) (*Storage, error) {
 	var err error
 	var connConfig *pgx.ConnConfig
 
@@ -1461,12 +1466,12 @@ func NewStorage(config *PgStorageParams, opts ...StorageOpt) (*Storage, error) {
 	}
 	poolConfig.AfterConnect = MakeInitDataTypes(dataTypesOptions...)
 
-	conn, err := NewPgConnPoolConfig(context.TODO(), poolConfig)
+	conn, err := NewPgConnPoolConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to make a connection pool: %w", err)
 	}
 
-	version := ResolveVersion(conn)
+	version := resolveVersionContext(ctx, conn)
 
 	storage := &Storage{
 		Config:                   config,

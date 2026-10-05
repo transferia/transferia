@@ -33,8 +33,12 @@ func (v PgVersion) SupportsLtreeBinary() bool {
 }
 
 func ResolveVersion(pool pgxtype.Querier) PgVersion {
+	return resolveVersionContext(context.TODO(), pool)
+}
+
+func resolveVersionContext(ctx context.Context, pool pgxtype.Querier) PgVersion {
 	version := "unknown"
-	if err := pool.QueryRow(context.TODO(), "SELECT version()").Scan(&version); err != nil {
+	if err := pool.QueryRow(ctx, "SELECT version()").Scan(&version); err != nil {
 		logger.Log.Error("failed to resolve PostgreSQL version", log.Error(err))
 	}
 	return NewPgVersion(version)

@@ -116,7 +116,7 @@ func ConnectContext(ctx context.Context, params *ConnectionParams, configAction 
 		return nil, xerrors.Errorf("Can't ping server: %w", err)
 	}
 
-	_, err = db.Exec("SET NAMES 'utf8mb4';")
+	_, err = db.ExecContext(ctx, "SET NAMES 'utf8mb4';")
 	if err != nil {
 		return nil, xerrors.Errorf("Can't set names: %w", err)
 	}

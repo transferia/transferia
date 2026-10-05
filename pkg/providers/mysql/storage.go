@@ -429,6 +429,10 @@ func (s *Storage) ListViews() ([]abstract.TableID, error) {
 }
 
 func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstract.TableMap, error) {
+	return s.tableList(context.Background(), includeTableFilter)
+}
+
+func (s *Storage) tableList(ctx context.Context, includeTableFilter abstract.IncludeTableList) (abstract.TableMap, error) {
 	warnTooLongExec := util.DelayFunc(
 		func() {
 			logger.Log.Warn("Schema retrieval takes longer than usual. Check the list of tables included in the transfer and the load of source database.")
@@ -437,7 +441,7 @@ func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstr
 	)
 	defer warnTooLongExec.Cancel()
 
-	rows, err := s.DB.Query(`
+	rows, err := s.DB.QueryContext(ctx, `
 		SELECT
 			table_schema,
 			table_name,
@@ -475,7 +479,7 @@ func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstr
 		tables[tID] = tInfo
 	}
 
-	schema, err := s.LoadSchema()
+	schema, err := LoadSchema(ctx, s.DB, s.useFakePrimaryKey, true, s.database)
 	if err != nil {
 		return nil, xerrors.Errorf("Cannot load schema: %w", err)
 	}
@@ -497,7 +501,7 @@ func (s *Storage) TableList(includeTableFilter abstract.IncludeTableList) (abstr
 }
 
 func (s *Storage) LoadSchema() (schema abstract.DBSchema, err error) {
-	return LoadSchema(s.DB, s.useFakePrimaryKey, true, s.database)
+	return LoadSchema(context.Background(), s.DB, s.useFakePrimaryKey, true, s.database)
 }
 
 func (s *Storage) getGtid(ctx context.Context, tx Queryable) (string, error) {
@@ -573,6 +577,11 @@ func timezoneOffset(timezone *time.Location) string {
 }
 
 func NewStorage(config *MysqlStorageParams) (*Storage, error) {
+	return newStorage(context.Background(), config)
+}
+
+// newStorage is NewStorage with ctx; host resolution has timeouts of its own
+func newStorage(ctx context.Context, config *MysqlStorageParams) (*Storage, error) {
 	var rollbacks util.Rollbacks
 	defer rollbacks.Do()
 
@@ -581,13 +590,13 @@ func NewStorage(config *MysqlStorageParams) (*Storage, error) {
 		return nil, xerrors.Errorf("Can't connect to server: %w", err)
 	}
 
-	db, err := Connect(connectionParams, nil)
+	db, err := ConnectContext(ctx, connectionParams, nil)
 	if err != nil {
 		return nil, xerrors.Errorf("Can't connect to server: %w", err)
 	}
 	rollbacks.AddCloser(db, logger.Log, "cannot close database")
 
-	fqtnToSchema, err := LoadSchema(db, config.UseFakePrimaryKey, true, config.Database)
+	fqtnToSchema, err := LoadSchema(ctx, db, config.UseFakePrimaryKey, true, config.Database)
 	if err != nil {
 		return nil, xerrors.Errorf("Can't load schema: %w", err)
 	}
