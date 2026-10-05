@@ -147,6 +147,9 @@ var (
 	ClickHouseSSLRequired         = coded.Register("ch", "ssl_required")
 	ClickHouseInvalidDatabaseName = coded.Register("ch", "invalid_database_name")
 
+	// metrika
+	MetrikaPaymentRequired = coded.Register("metrika", "payment_required")
+
 	// mongo
 	MongoBSONObjectTooLarge             = coded.Register("mongo", "bson_object_too_large")
 	MongoCollectionKeyTooLarge          = coded.Register("mongo", "collection_key_too_large")
