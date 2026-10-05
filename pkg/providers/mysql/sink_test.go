@@ -1,8 +1,11 @@
 package mysql
 
 import (
+	"fmt"
 	"math/rand"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +18,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
+	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/stats"
@@ -507,4 +511,38 @@ func Test_pushQuires_Deadlock_ReturnsCodedError(t *testing.T) {
 	err = s.pushQuires(mockWrapper.tx, queries)
 	require.Error(t, err)
 	require.True(t, codes.MySQLDeadlock.Contains(err), "expected MySQLDeadlock, got: %v", err)
+}
+
+func TestNewSinker_UniqueIndexDisablesParallelWrite(t *testing.T) {
+	port, err := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
+	require.NoError(t, err)
+	dst := &MysqlDestination{
+		Host:     os.Getenv("RECIPE_MYSQL_HOST"),
+		Port:     port,
+		User:     os.Getenv("RECIPE_MYSQL_USER"),
+		Password: model.SecretString(os.Getenv("RECIPE_MYSQL_PASSWORD")),
+		Database: os.Getenv("RECIPE_MYSQL_TARGET_DATABASE"),
+	}
+	dst.WithDefaults()
+
+	connParams, err := NewConnectionParams(dst.ToStorageParams())
+	require.NoError(t, err)
+	db, err := Connect(connParams, nil)
+	require.NoError(t, err)
+	defer db.Close()
+	for _, ddl := range []string{
+		"CREATE TABLE `%s`.`uniq_idx` (id INT PRIMARY KEY, a INT, UNIQUE KEY (a))",
+		"CREATE TABLE `%s`.`plain_idx` (id INT PRIMARY KEY, a INT, KEY (a))",
+	} {
+		_, err := db.Exec(fmt.Sprintf(ddl, dst.Database))
+		require.NoError(t, err)
+	}
+
+	sink, err := NewSinker(logger.Log, dst, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	require.NoError(t, err)
+	defer sink.Close()
+
+	s := sink.(*sinker)
+	require.True(t, s.disableParallelWrite(abstract.TableID{Namespace: dst.Database, Name: "uniq_idx"}.Fqtn()))
+	require.False(t, s.disableParallelWrite(abstract.TableID{Namespace: dst.Database, Name: "plain_idx"}.Fqtn()))
 }

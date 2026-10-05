@@ -128,22 +128,16 @@ func (s *sinker) fillUniqueConstraints() error {
 	return nil
 }
 
-func (s *sinker) disableParallelWrite(table string) (bool, error) {
+func (s *sinker) disableParallelWrite(table string) bool {
 	if s.config.DisableParallelWrite[table] {
 		s.logger.Info("Parallel write disabled due to configuration", log.String("table", table))
-		return true, nil
-	}
-	if s.uniqConstraints == nil {
-		err := s.fillUniqueConstraints()
-		if err != nil {
-			return false, err
-		}
+		return true
 	}
 	if s.uniqConstraints[table] {
 		s.logger.Info("Parallel write disabled due to unique constraint", log.String("table", table))
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
 
 func (s *sinker) Push(input []abstract.ChangeItem) error {
@@ -531,12 +525,6 @@ func (s *sinker) perTablePush(tables map[abstract.TableID][]abstract.ChangeItem)
 		}
 		go func(table abstract.TableID, rows []abstract.ChangeItem) {
 			defer wg.Done()
-			disableParallelWrite, err := s.disableParallelWrite(table.Fqtn())
-			if err != nil {
-				s.logger.Warn("Cannot check unique constraints on table %s", log.Error(err))
-				errCh <- xerrors.Errorf("Cannot check unique constraints on table %s: %w", table.Fqtn(), err)
-				return
-			}
 			queries := []sinkQuery{s.queryHeader()}
 			dataQueries, err := s.buildQueries(table, rows[0].TableSchema.Columns(), rows)
 			if err != nil {
@@ -548,7 +536,7 @@ func (s *sinker) perTablePush(tables map[abstract.TableID][]abstract.ChangeItem)
 				lsnQuery := *newSinkQuery(s.progress.BuildLSNQuery(table.Fqtn(), lastLSN, InSync), false)
 				queries = append(queries, lsnQuery)
 			}
-			if disableParallelWrite || len(rows) < 1000 {
+			if len(rows) < 1000 || s.disableParallelWrite(table.Fqtn()) {
 				// if less then 1k rows, no need to split in tx-s
 				// if has uniq constraint we must do everything in one tx to prevent uniq contraint fails; see TM-1284
 				if err := s.txPush(table, queries); err != nil {
@@ -815,7 +803,7 @@ func fillUniqConstraints(db *sql.DB) (map[string]bool, error) {
 	rows, err := db.Query(`
 select TABLE_SCHEMA, TABLE_NAME, count(*)
 from INFORMATION_SCHEMA.STATISTICS
-where INDEX_NAME != 'PRIMARY'
+where INDEX_NAME != 'PRIMARY' and NON_UNIQUE = 0
 group by TABLE_SCHEMA, TABLE_NAME;
 `)
 	if err != nil {
@@ -837,7 +825,7 @@ group by TABLE_SCHEMA, TABLE_NAME;
 		constraint[fmt.Sprintf("\"%v\"", table)] = true
 		constraint[fmt.Sprintf("%v", table)] = true
 	}
-	if rows.Err() != nil {
+	if err := rows.Err(); err != nil {
 		return nil, xerrors.Errorf("unable to read table statistics rows: %w", err)
 	}
 	return constraint, nil
@@ -869,6 +857,10 @@ func NewSinker(lgr log.Logger, cfg *MysqlDestination, mtrcs core_metrics.Registr
 		return nil, err
 	}
 	lgr.Infof("max allowed packet infered: %v", format.SizeInt(limit))
+	uniqConstraints, err := fillUniqConstraints(db)
+	if err != nil {
+		return nil, xerrors.Errorf("Cannot get unique constraints from the target database: %w", err)
+	}
 	progress, err := NewTableProgressTracker(db, cfg.ProgressTrackerDB)
 	if err != nil {
 		lgr.Warn("Unable to init progress tracker")
@@ -890,7 +882,7 @@ func NewSinker(lgr log.Logger, cfg *MysqlDestination, mtrcs core_metrics.Registr
 		config:             cfg,
 		logger:             lgr,
 		limit:              limit,
-		uniqConstraints:    map[string]bool{},
+		uniqConstraints:    uniqConstraints,
 		progressState:      progressState,
 		progress:           progress,
 		rw:                 sync.Mutex{},
