@@ -68,7 +68,15 @@ func Permanent(err error) error {
 }
 
 func RetryNotify(operation backoff.Operation, b backoff.BackOff, notify backoff.Notify) error {
-	return backoff.RetryNotify(operation, b, notify)
+	return backoff.RetryNotify(func() error {
+		err := operation()
+		if err != nil && abstract.IsFatal(err) {
+			//nolint:descriptiveerrors
+			return Permanent(err)
+		}
+		//nolint:descriptiveerrors
+		return err
+	}, b, notify)
 }
 
 func WithContext(b backoff.BackOff, ctx context.Context) backoff.BackOff {

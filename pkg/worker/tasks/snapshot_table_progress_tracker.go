@@ -128,3 +128,17 @@ func (t *SnapshotTableProgressTracker) Add(part *abstract.OperationTablePart) {
 	defer t.progressUpdateMutex.Unlock()
 	t.parts[part.Key()] = part
 }
+
+func (t *SnapshotTableProgressTracker) Start(part *abstract.OperationTablePart) {
+	t.progressUpdateMutex.Lock()
+	defer t.progressUpdateMutex.Unlock()
+	part.CompletedRows = 0
+	part.Completed = false
+	t.parts[part.Key()] = part
+}
+
+func (t *SnapshotTableProgressTracker) Complete(part *abstract.OperationTablePart) {
+	t.progressUpdateMutex.Lock()
+	defer t.progressUpdateMutex.Unlock()
+	part.Completed = true
+}

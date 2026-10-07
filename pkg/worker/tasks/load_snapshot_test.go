@@ -3,8 +3,11 @@ package tasks
 import (
 	"context"
 	stderrors "errors"
+	"fmt"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,6 +20,8 @@ import (
 	transfererrors "github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
 	"github.com/transferia/transferia/pkg/providers/postgres"
+	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider"
+	"github.com/transferia/transferia/pkg/worker/tasks/table_part_provider/shared_memory"
 	"github.com/transferia/transferia/tests/helpers/fake_sharding_storage"
 	mockstorage "github.com/transferia/transferia/tests/helpers/mock_storage"
 )
@@ -316,4 +321,340 @@ func TestSingleWorkerUploadCancelled(t *testing.T) {
 	defer kindsMu.Unlock()
 	require.Contains(t, kinds, abstract.InitShardedTableLoad)
 	require.NotContains(t, kinds, abstract.DoneShardedTableLoad)
+}
+
+type uploadTablePartGetter struct {
+	memory abstract.SharedMemory
+	next   func(context.Context) (*abstract.OperationTablePart, error)
+}
+
+var _ table_part_provider.AbstractTablePartProviderGetter = (*uploadTablePartGetter)(nil)
+
+func (g *uploadTablePartGetter) SharedMemory() abstract.SharedMemory {
+	return g.memory
+}
+
+func (g *uploadTablePartGetter) NextOperationTablePart(ctx context.Context) (*abstract.OperationTablePart, error) {
+	return g.next(ctx)
+}
+
+func newUploadTablesTestLoader(storage abstract.Storage, parallelism int) *SnapshotLoader {
+	transfer := &model.Transfer{
+		Runtime: &abstract.LocalRuntime{ShardingUpload: abstract.ShardUploadParams{ProcessCount: parallelism}},
+		Src:     &model.MockSource{StorageFactory: func() abstract.Storage { return storage }},
+		Dst: &model.MockDestination{SinkerFactory: func() abstract.Sinker {
+			return newFakeSink(func([]abstract.ChangeItem) error { return nil })
+		}},
+	}
+	return NewSnapshotLoader(&FakeControlplane{}, &model.TransferOperation{}, transfer, solomon.NewRegistry(nil))
+}
+
+func TestDoUploadTablesParallelism(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	started := make(chan string, 4)
+	assigned := make(chan string, 4)
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(release) })
+	var active, maximum atomic.Int64
+	storage := mockstorage.NewMockStorage()
+	storage.LoadTableF = func(ctx context.Context, table abstract.TableDescription, _ abstract.Pusher) error {
+		current := active.Add(1)
+		defer active.Add(-1)
+		for old := maximum.Load(); current > old; old = maximum.Load() {
+			if maximum.CompareAndSwap(old, current) {
+				break
+			}
+		}
+		started <- table.Name
+		select {
+		case <-release:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	parts := abstract.NewOperationTablePartFromDescriptionArr("",
+		abstract.TableDescription{Name: "first"}, abstract.TableDescription{Name: "second"},
+		abstract.TableDescription{Name: "third"}, abstract.TableDescription{Name: "fourth"})
+	expectedInitial := []string{parts[0].Name, parts[1].Name}
+	expectedRemaining := []string{parts[2].Name, parts[3].Name}
+	var getterActive atomic.Int64
+	var getterOverlap atomic.Bool
+	nilParts := 0
+	getter := &uploadTablePartGetter{memory: shared_memory.NewLocal(""), next: func(context.Context) (*abstract.OperationTablePart, error) {
+		if getterActive.Add(1) != 1 {
+			getterOverlap.Store(true)
+		}
+		defer getterActive.Add(-1)
+		runtime.Gosched()
+		if len(parts) == 0 {
+			nilParts++
+			return nil, nil
+		}
+		part := parts[0]
+		parts = parts[1:]
+		assigned <- part.Name
+		return part, nil
+	}}
+	loader := newUploadTablesTestLoader(storage, 2)
+	done := make(chan error, 1)
+	go func() { done <- loader.DoUploadTables(ctx, storage, getter) }()
+	initialLoads := make([]string, 0, 2)
+	for range 2 {
+		select {
+		case name := <-started:
+			initialLoads = append(initialLoads, name)
+		case <-ctx.Done():
+			t.Fatal("uploads did not start")
+		}
+	}
+	initialAssignments := make([]string, 0, 2)
+	for range 2 {
+		select {
+		case name := <-assigned:
+			initialAssignments = append(initialAssignments, name)
+		case <-ctx.Done():
+			t.Fatal("next part was not assigned")
+		}
+	}
+	select {
+	case name := <-started:
+		t.Fatalf("upload %s started above parallelism limit", name)
+	default:
+	}
+	select {
+	case name := <-assigned:
+		t.Fatalf("part %s assigned before a worker became available", name)
+	default:
+	}
+	releaseOnce.Do(func() { close(release) })
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-ctx.Done():
+		t.Fatal("uploads did not complete")
+	}
+	require.ElementsMatch(t, expectedInitial, initialLoads)
+	require.ElementsMatch(t, expectedInitial, initialAssignments)
+	require.EqualValues(t, 2, maximum.Load())
+	require.Len(t, started, 2)
+	remainingLoads := []string{<-started, <-started}
+	remainingAssignments := []string{<-assigned, <-assigned}
+	require.ElementsMatch(t, expectedRemaining, remainingLoads)
+	require.ElementsMatch(t, expectedRemaining, remainingAssignments)
+	require.False(t, getterOverlap.Load(), "getter must be called serially")
+	require.Equal(t, 1, nilParts, "getter must not be called again after exhaustion")
+}
+
+func TestDoUploadTablesGetterErrorCancelsAndWaits(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	started := make(chan struct{})
+	cancelled := make(chan struct{})
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(release) })
+	storage := mockstorage.NewMockStorage()
+	storage.LoadTableF = func(ctx context.Context, _ abstract.TableDescription, _ abstract.Pusher) error {
+		close(started)
+		<-ctx.Done()
+		close(cancelled)
+		<-release
+		return ctx.Err()
+	}
+	getterErr := stderrors.New("getter failed")
+	calls := 0
+	getter := &uploadTablePartGetter{memory: shared_memory.NewLocal(""), next: func(ctx context.Context) (*abstract.OperationTablePart, error) {
+		calls++
+		if calls == 1 {
+			return &abstract.OperationTablePart{Name: "first"}, nil
+		}
+		select {
+		case <-started:
+			return nil, getterErr
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}}
+	loader := newUploadTablesTestLoader(storage, 2)
+	done := make(chan error, 1)
+	go func() { done <- loader.DoUploadTables(ctx, storage, getter) }()
+	select {
+	case <-cancelled:
+	case <-ctx.Done():
+		t.Fatal("getter failure did not cancel upload")
+	}
+	select {
+	case err := <-done:
+		t.Fatalf("returned before active upload exited: %v", err)
+	default:
+	}
+	releaseOnce.Do(func() { close(release) })
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, getterErr)
+	case <-ctx.Done():
+		t.Fatal("did not return after active upload exited")
+	}
+}
+
+func TestDoUploadTablesCancellationStopsAssigningParts(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	started := make(chan struct{})
+	var loads atomic.Int64
+	storage := mockstorage.NewMockStorage()
+	storage.LoadTableF = func(ctx context.Context, _ abstract.TableDescription, _ abstract.Pusher) error {
+		loads.Add(1)
+		close(started)
+		<-ctx.Done()
+		return nil
+	}
+	calls := 0
+	getter := &uploadTablePartGetter{memory: shared_memory.NewLocal(""), next: func(context.Context) (*abstract.OperationTablePart, error) {
+		calls++
+		return &abstract.OperationTablePart{Name: "table"}, nil
+	}}
+	loader := newUploadTablesTestLoader(storage, 1)
+	done := make(chan error, 1)
+	go func() { done <- loader.DoUploadTables(ctx, storage, getter) }()
+	select {
+	case <-started:
+	case <-ctx.Done():
+		t.Fatal("upload did not start")
+	}
+	cancel()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("uploads did not stop")
+	}
+	require.Equal(t, 1, calls)
+	require.EqualValues(t, 1, loads.Load())
+}
+
+func TestDoUploadTablesKeepsUploadError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	uploadErr := stderrors.New("source failed")
+	var loads atomic.Int64
+	storage := mockstorage.NewMockStorage()
+	storage.LoadTableF = func(context.Context, abstract.TableDescription, abstract.Pusher) error {
+		loads.Add(1)
+		return abstract.NewFatalError(uploadErr)
+	}
+	calls := 0
+	getter := &uploadTablePartGetter{memory: shared_memory.NewLocal(""), next: func(ctx context.Context) (*abstract.OperationTablePart, error) {
+		calls++
+		if calls == 1 {
+			return &abstract.OperationTablePart{Name: "first"}, nil
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	loader := newUploadTablesTestLoader(storage, 2)
+	err := loader.DoUploadTables(ctx, storage, getter)
+	require.ErrorIs(t, err, uploadErr)
+	require.True(t, abstract.IsFatal(err))
+	var categorized transfererrors.Categorized
+	require.ErrorAs(t, err, &categorized)
+	require.Equal(t, categories.Source, categorized.Category())
+	require.EqualValues(t, 1, loads.Load())
+}
+
+func TestDoUploadTablesKeepsFirstGetterError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	started := make(chan struct{})
+	getterErr := stderrors.New("getter failed first")
+	uploadErr := stderrors.New("source failed after cancellation")
+	storage := mockstorage.NewMockStorage()
+	storage.LoadTableF = func(ctx context.Context, _ abstract.TableDescription, _ abstract.Pusher) error {
+		close(started)
+		<-ctx.Done()
+		return abstract.NewFatalError(uploadErr)
+	}
+	calls := 0
+	getter := &uploadTablePartGetter{memory: shared_memory.NewLocal(""), next: func(ctx context.Context) (*abstract.OperationTablePart, error) {
+		calls++
+		if calls == 1 {
+			return &abstract.OperationTablePart{Name: "first"}, nil
+		}
+		select {
+		case <-started:
+			return nil, getterErr
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}}
+	loader := newUploadTablesTestLoader(storage, 2)
+	err := loader.DoUploadTables(ctx, storage, getter)
+	require.ErrorIs(t, err, getterErr)
+	require.NotErrorIs(t, err, uploadErr)
+	var categorized transfererrors.Categorized
+	require.ErrorAs(t, err, &categorized)
+	require.Equal(t, categories.Internal, categorized.Category())
+}
+
+func TestDoUploadTablesWrappedCancellationNoErr(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	started := make(chan struct{})
+	getter := &uploadTablePartGetter{memory: shared_memory.NewLocal(""), next: func(ctx context.Context) (*abstract.OperationTablePart, error) {
+		close(started)
+		<-ctx.Done()
+		return nil, fmt.Errorf("getter interrupted: %w", ctx.Err())
+	}}
+	storage := mockstorage.NewMockStorage()
+	loader := newUploadTablesTestLoader(storage, 1)
+	done := make(chan error, 1)
+	go func() { done <- loader.DoUploadTables(ctx, storage, getter) }()
+	select {
+	case <-started:
+	case <-ctx.Done():
+		t.Fatal("getter did not start")
+	}
+	cancel()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("getter did not stop after cancellation")
+	}
+}
+
+func TestDoUploadTablesInternalCancellationReturnsError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	getter := &uploadTablePartGetter{memory: shared_memory.NewLocal(""), next: func(context.Context) (*abstract.OperationTablePart, error) {
+		return nil, fmt.Errorf("getter interrupted: %w", context.Canceled)
+	}}
+	storage := mockstorage.NewMockStorage()
+	loader := newUploadTablesTestLoader(storage, 1)
+	err := loader.DoUploadTables(ctx, storage, getter)
+	require.NoError(t, ctx.Err(), "caller context must remain live")
+	require.ErrorIs(t, err, context.Canceled)
+	var categorized transfererrors.Categorized
+	require.ErrorAs(t, err, &categorized)
+	require.Equal(t, categories.Internal, categorized.Category())
+}
+
+func TestDoUploadTablesCallerDeadlineNoErr(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	calls := 0
+	getter := &uploadTablePartGetter{memory: shared_memory.NewLocal(""), next: func(ctx context.Context) (*abstract.OperationTablePart, error) {
+		calls++
+		<-ctx.Done()
+		return nil, fmt.Errorf("getter interrupted: %w", ctx.Err())
+	}}
+	storage := mockstorage.NewMockStorage()
+	loader := newUploadTablesTestLoader(storage, 1)
+	err := loader.DoUploadTables(ctx, storage, getter)
+	require.Equal(t, 1, calls, "getter must start before caller deadline")
+	require.ErrorIs(t, ctx.Err(), context.DeadlineExceeded)
+	require.NoError(t, err)
 }

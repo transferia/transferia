@@ -2815,6 +2815,7 @@
   "pkg/worker/tasks/snapshot_table_progress_tracker_test.go":"transfer_manager/go/pkg/worker/tasks/snapshot_table_progress_tracker_test.go",
   "pkg/worker/tasks/start_job.go":"transfer_manager/go/pkg/worker/tasks/start_job.go",
   "pkg/worker/tasks/stop_job.go":"transfer_manager/go/pkg/worker/tasks/stop_job.go",
+  "pkg/worker/tasks/table_part_iterator.go":"transfer_manager/go/pkg/worker/tasks/table_part_iterator.go",
   "pkg/worker/tasks/table_part_provider/abstract.go":"transfer_manager/go/pkg/worker/tasks/table_part_provider/abstract.go",
   "pkg/worker/tasks/table_part_provider/factory.go":"transfer_manager/go/pkg/worker/tasks/table_part_provider/factory.go",
   "pkg/worker/tasks/table_part_provider/readme.md":"transfer_manager/go/pkg/worker/tasks/table_part_provider/readme.md",
