@@ -45,6 +45,8 @@ type SnapshotLoader struct {
 	transfer  *model.Transfer
 	registry  core_metrics.Registry
 
+	lgr log.Logger
+
 	// Transfer params
 	parallelismParams *abstract.ShardUploadParams
 	workerIndex       int
@@ -66,6 +68,8 @@ func NewSnapshotLoader(cp coordinator.Coordinator, operation *model.TransferOper
 		operation: operation,
 		transfer:  transfer,
 		registry:  registry,
+
+		lgr: log.With(logger.Log, log.Int("worker_index", transfer.CurrentJobIndex())),
 
 		parallelismParams: transfer.ParallelismParams(),
 		workerIndex:       transfer.CurrentJobIndex(),
@@ -812,17 +816,21 @@ func (l *SnapshotLoader) sendTableControlEvent(
 			return xerrors.Errorf("unable to push '%v' for table '%v': %w", kind, fqtn, err)
 		}
 
-		logger.Log.Info(
+		l.lgr.Info(
 			fmt.Sprintf("Sent control event '%v' for table '%v' on worker %v", kind, fqtn, l.workerIndex),
 			log.String("kind", string(kind)),
 			log.String("table", fqtn),
-			log.Int("worker_index", l.workerIndex),
 		)
 	}
 	return nil
 }
 
-func (l *SnapshotLoader) sendTablePartControlEvent(event []abstract.ChangeItem, pusher abstract.Pusher, part *abstract.OperationTablePart) error {
+func (l *SnapshotLoader) sendTablePartControlEvent(
+	partLogger log.Logger,
+	event []abstract.ChangeItem,
+	pusher abstract.Pusher,
+	part *abstract.OperationTablePart,
+) error {
 	if len(event) != 1 {
 		return xerrors.Errorf("Logic error, wrong control events count, must be 1, but get %v", len(event))
 	}
@@ -833,11 +841,9 @@ func (l *SnapshotLoader) sendTablePartControlEvent(event []abstract.ChangeItem, 
 		return xerrors.Errorf("unable to sent '%v' for table '%v': %w", kind, part, err)
 	}
 
-	logger.Log.Info(
+	partLogger.Info(
 		fmt.Sprintf("Sent control event '%v' for table '%v' on worker %v", kind, part, l.workerIndex),
 		log.String("kind", string(kind)),
-		log.Any("table_part", part),
-		log.Int("worker_index", l.workerIndex),
 	)
 
 	return nil
@@ -861,19 +867,16 @@ func (l *SnapshotLoader) DoUploadTables(
 			for {
 				part, err := parts.Next(uploadCtx)
 				if err != nil {
-					logger.Log.Error("Unable to get next table to upload", log.Int("worker_index", l.workerIndex), log.Error(err))
+					l.lgr.Error("Unable to get next table to upload", log.Error(err))
 					return errors.CategorizedErrorf(categories.Internal, "unable to get next table to upload: %w", err)
 				}
 				if part == nil {
 					return nil // No more tables to transfer
 				}
 
-				logger.Log.Info(
-					fmt.Sprintf("Assigned table part '%v' to worker %v", part, l.workerIndex),
-					log.Any("table_part", part),
-					log.Int("worker_index", l.workerIndex),
-				)
-				if err := l.uploadTablePartWithRetry(uploadCtx, source, part, progressTracker); err != nil {
+				partLogger := log.With(l.lgr, log.Any("table_part", part))
+				partLogger.Infof("Assigned table part '%v' to worker %v", part, l.workerIndex)
+				if err := l.uploadTablePartWithRetry(uploadCtx, partLogger, source, part, progressTracker); err != nil {
 					return err
 				}
 			}
@@ -893,30 +896,27 @@ func (l *SnapshotLoader) DoUploadTables(
 
 func (l *SnapshotLoader) uploadTablePartWithRetry(
 	ctx context.Context,
+	partLogger log.Logger,
 	source abstract.Storage,
 	part *abstract.OperationTablePart,
 	progressTracker *SnapshotTableProgressTracker,
 ) error {
 	notify := func(err error, dur time.Duration) {
-		logger.Log.Error(
+		partLogger.Error(
 			fmt.Sprintf("Upload table '%v' on worker %v failed, will retry after %s", part, l.workerIndex, dur),
-			log.Any("table_part", part),
-			log.Int("worker_index", l.workerIndex),
 			log.Error(err),
 		)
 	}
 	policy := backoffutil.WithContext(backoffutil.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3), ctx)
 	err := backoffutil.RetryNotify(func() error {
-		return l.uploadTablePart(ctx, source, part, progressTracker)
+		return l.uploadTablePart(ctx, partLogger, source, part, progressTracker)
 	}, policy, notify)
 	if err != nil && ctx.Err() != nil {
 		return nil
 	}
 	if err != nil {
-		logger.Log.Error(
+		partLogger.Error(
 			fmt.Sprintf("Upload table '%v' on worker %v failed", part, l.workerIndex),
-			log.Any("table_part", part),
-			log.Int("worker_index", l.workerIndex),
 			log.Error(err),
 		)
 	}
@@ -925,24 +925,20 @@ func (l *SnapshotLoader) uploadTablePartWithRetry(
 
 func (l *SnapshotLoader) uploadTablePart(
 	ctx context.Context,
+	partLogger log.Logger,
 	source abstract.Storage,
 	part *abstract.OperationTablePart,
 	progressTracker *SnapshotTableProgressTracker,
 ) error {
 	if ctx.Err() != nil {
-		logger.Log.Warn(
+		partLogger.Warn(
 			fmt.Sprintf("Context is canceled while upload table '%v'", part),
-			log.Any("table_part", part),
 			log.Error(ctx.Err()),
 		)
 		return nil
 	}
 
-	logger.Log.Info(
-		fmt.Sprintf("Start load table '%v' on worker %v", part, l.workerIndex),
-		log.Any("table_part", part),
-		log.Int("worker_index", l.workerIndex),
-	)
+	partLogger.Infof("Start load table '%v' on worker %v", part, l.workerIndex)
 
 	progressTracker.Start(part)
 
@@ -950,27 +946,23 @@ func (l *SnapshotLoader) uploadTablePart(
 	currSink, err := sink_factory.MakeAsyncSink(
 		l.transfer,
 		l.operation,
-		logger.Log,
+		l.lgr,
 		l.registry,
 		l.cp,
 		middlewares.MakeConfig(middlewares.WithEnableRetries),
 		progress.SinkOption(),
 	)
 	if err != nil {
-		logger.Log.Error(
+		partLogger.Error(
 			fmt.Sprintf("Failed to create currSink for load table '%v' on worker %v", part, l.workerIndex),
-			log.Any("table_part", part),
-			log.Int("worker_index", l.workerIndex),
 			log.Error(err),
 		)
 		return errors.CategorizedErrorf(categories.Target, "failed to create currSink: %w", err)
 	}
 	closeSink := func() {
 		if err := currSink.Close(); err != nil {
-			logger.Log.Warn(
+			partLogger.Warn(
 				fmt.Sprintf("Failed to close currSink after load table '%v' on worker %v", part, l.workerIndex),
-				log.Any("table_part", part),
-				log.Int("worker_index", l.workerIndex),
 				log.Error(err),
 			)
 		}
@@ -995,30 +987,26 @@ func (l *SnapshotLoader) uploadTablePart(
 	}
 
 	initTableLoad := abstract.MakeInitTableLoad(logPosition, *part.ToTableDescription(), timestampTz, schema)
-	if err := l.sendTablePartControlEvent(initTableLoad, pusher, part); err != nil {
+	if err := l.sendTablePartControlEvent(partLogger, initTableLoad, pusher, part); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to start loading table: %w", err)
 	}
 
 	if err := source.LoadTable(ctx, *part.ToTableDescription(), pusher); err != nil {
-		logger.Log.Error(
+		partLogger.Error(
 			fmt.Sprintf("Failed to load table '%v' on worker %v", part, l.workerIndex),
-			log.Any("table_part", part),
-			log.Int("worker_index", l.workerIndex),
 			log.Error(err),
 		)
 		return errors.CategorizedErrorf(categories.Source, "failed to load table '%s': %w", part, err)
 	}
 
 	doneTableLoad := abstract.MakeDoneTableLoad(logPosition, *part.ToTableDescription(), timestampTz, schema)
-	if err := l.sendTablePartControlEvent(doneTableLoad, pusher, part); err != nil {
+	if err := l.sendTablePartControlEvent(partLogger, doneTableLoad, pusher, part); err != nil {
 		return errors.CategorizedErrorf(categories.Target, "unable to finish table loading: %w", err)
 	}
 
 	if err := state.Close(); err != nil {
-		logger.Log.Error(
+		partLogger.Error(
 			fmt.Sprintf("Failed to deliver items to destination while loading table '%v' on worker %v", part, l.workerIndex),
-			log.Any("table_part", part),
-			log.Int("worker_index", l.workerIndex),
 			log.Error(err),
 		)
 		return errors.CategorizedErrorf(categories.Target, "failed to deliver items to destination while loading table '%v': %w", part, err)
@@ -1030,13 +1018,9 @@ func (l *SnapshotLoader) uploadTablePart(
 		return errors.CategorizedErrorf(categories.Internal, "failed to flush progressTracker: %w", err)
 	}
 
-	logger.Log.Info(
-		fmt.Sprintf(
-			"Finish load table '%v' on worker %v, progress %v / %v (%.2f%%)",
-			part, l.workerIndex, part.CompletedRows, part.ETARows, part.CompletedPercent(),
-		),
-		log.Any("table_part", part),
-		log.Int("worker_index", l.workerIndex),
+	partLogger.Infof(
+		"Finish load table '%v' on worker %v, progress %v / %v (%.2f%%)",
+		part, l.workerIndex, part.CompletedRows, part.ETARows, part.CompletedPercent(),
 	)
 
 	return nil

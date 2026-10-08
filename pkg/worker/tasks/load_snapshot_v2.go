@@ -500,21 +500,22 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 
 	for ctx.Err() == nil {
 		if err := parallelismSemaphore.Acquire(ctx, 1); err != nil {
-			logger.Log.Error("Failed to acquire semaphore to load next table", log.Any("worker_index", l.workerIndex), log.Error(err))
+			l.lgr.Error("Failed to acquire semaphore to load next table", log.Error(err))
 			continue
 		}
 
 		nextTablePart, err := tppGetter.NextOperationTablePart(ctx)
 		if err != nil {
-			logger.Log.Error("Unable to get next table to upload", log.Int("worker_index", l.workerIndex), log.Error(ctx.Err()))
+			l.lgr.Error("Unable to get next table to upload", log.Error(ctx.Err()))
 			parallelismSemaphore.Release(1)
 			return errors.CategorizedErrorf(categories.Internal, "unable to get next table to upload: %w", err)
 		}
 		if nextTablePart == nil {
-			logger.Log.Info("There are no more parts to transfer", log.Int("worker_index", l.workerIndex))
+			l.lgr.Info("There are no more parts to transfer")
 			parallelismSemaphore.Release(1)
 			break // No more tables to transfer
 		}
+		partLogger := log.With(l.lgr, log.Any("table_part", nextTablePart))
 		waitToComplete.Add(1)
 		go func() {
 			defer waitToComplete.Done()
@@ -522,20 +523,14 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 
 			upload := func() error {
 				if ctx.Err() != nil {
-					logger.Log.Warn(
+					partLogger.Warn(
 						fmt.Sprintf("Context is canceled while upload table '%v'", nextTablePart),
-						log.Any("table_part", nextTablePart),
-						log.Int("worker_index", l.workerIndex),
 						log.Error(ctx.Err()),
 					)
 					return nil
 				}
 
-				logger.Log.Info(
-					fmt.Sprintf("Start load table '%v'", nextTablePart.String()),
-					log.Any("table_part", nextTablePart),
-					log.Int("worker_index", l.workerIndex),
-				)
+				partLogger.Infof("Start load table '%v'", nextTablePart.String())
 
 				l.progressUpdateMutex.Lock()
 				nextTablePart.CompletedRows = 0
@@ -554,7 +549,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 					return xerrors.Errorf("unable create snapshot source for part %v: %w", dataObjectPart.FullName(), err)
 				}
 
-				dataTarget, closeTarget, err := l.makeTargetV2(logger.Log)
+				dataTarget, closeTarget, err := l.makeTargetV2(l.lgr)
 				if err != nil {
 					return xerrors.Errorf("unable to create target: %w", err)
 				}
@@ -563,17 +558,16 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 				getProgress := func() {
 					progress, err := snapshotSource.Progress()
 					if err != nil {
-						logger.Log.Warn("Unable to get progress from snapshot source", log.Error(err))
+						partLogger.Warn("Unable to get progress from snapshot source", log.Error(err))
 						return
 					}
 
 					nextTablePart.CompletedRows = progress.Current()
 
 					// Report progress to logs
-					logger.Log.Info(
-						fmt.Sprintf("Load table '%v' progress %v / %v (%.2f%%)", nextTablePart, nextTablePart.CompletedRows, nextTablePart.ETARows, nextTablePart.CompletedPercent()),
-						log.Any("table_part", nextTablePart),
-						log.Int("worker_index", l.workerIndex),
+					partLogger.Infof(
+						"Load table '%v' progress %v / %v (%.2f%%)",
+						nextTablePart, nextTablePart.CompletedRows, nextTablePart.ETARows, nextTablePart.CompletedPercent(),
 					)
 				}
 
@@ -608,10 +602,9 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 					return xerrors.Errorf("unable to flush progress: %w", err)
 				}
 
-				logger.Log.Info(
-					fmt.Sprintf("Finish load table '%v' progress %v / %v (%.2f%%)", nextTablePart, nextTablePart.CompletedRows, nextTablePart.ETARows, nextTablePart.CompletedPercent()),
-					log.Any("table_part", nextTablePart),
-					log.Int("worker_index", l.workerIndex),
+				partLogger.Infof(
+					"Finish load table '%v' progress %v / %v (%.2f%%)",
+					nextTablePart, nextTablePart.CompletedRows, nextTablePart.ETARows, nextTablePart.CompletedPercent(),
 				)
 
 				return nil
@@ -626,10 +619,8 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 				return uploadErr
 			}
 			if err := backoff.Retry(operation, b); err != nil {
-				logger.Log.Error(
+				partLogger.Error(
 					fmt.Sprintf("Upload table '%v' max retries exceeded", nextTablePart),
-					log.Any("table_part", nextTablePart),
-					log.Int("worker_index", l.workerIndex),
 					log.Error(err),
 				)
 				cancel()
