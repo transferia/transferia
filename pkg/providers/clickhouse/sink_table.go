@@ -46,6 +46,7 @@ type sinkTable struct {
 
 // see: https://github.com/Altinity/clickhouse-sink-connector/issues/206#issuecomment-1529968850
 var deleteableVersion = semver.MustParse("23.2.0")
+var dateTime64SecondsVersion = semver.MustParse("26.8.0")
 
 func normalizeTableName(table string) string {
 	res := strings.ReplaceAll(table, "-", "_")
@@ -377,13 +378,8 @@ func (t *sinkTable) uploadAsJSON(rows []abstract.ChangeItem, insertParams clickh
 		t.avgRowSize = int(float64(t.avgRowSize) * 1.5)
 	}
 
-	st, err := httpuploader.UploadCIBatch(rows, httpuploader.NewRules(
-		rows[0].ColumnNames,
-		currSchema,
-		abstract.MakeMapColNameToIndex(currSchema),
-		t.colTypes,
-		t.config.AnyAsString(),
-	), t.config, insertParams, t.tableName, t.avgRowSize, t.logger)
+	rules := t.newHTTPMarshallingRules(rows[0].ColumnNames, currSchema)
+	st, err := httpuploader.UploadCIBatch(rows, rules, t.config, insertParams, t.tableName, t.avgRowSize, t.logger)
 	if err != nil {
 		return err
 	}
@@ -412,6 +408,12 @@ func (t *sinkTable) uploadAsJSON(rows []abstract.ChangeItem, insertParams clickh
 	t.metrics.Len.Add(int64(rowCnt))
 	t.metrics.Count.Inc()
 	return nil
+}
+
+func (t *sinkTable) newHTTPMarshallingRules(names []string, cols []abstract.ColSchema) *httpuploader.MarshallingRules {
+	rules := httpuploader.NewRules(names, cols, abstract.MakeMapColNameToIndex(cols), t.colTypes, t.config.AnyAsString())
+	rules.DateTime64AsSeconds = t.version.GTE(dateTime64SecondsVersion)
+	return rules
 }
 
 // by vals from OldKeys!

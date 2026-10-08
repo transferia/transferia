@@ -22,11 +22,18 @@ import (
 
 const marshalErrTpl = "unable to serialize column %v (value type %T): %w"
 
+// Index is DateTime64 precision; the value is the number of nanoseconds in one tick.
+var dateTime64NanosecondsPerTick = [...]int{
+	1_000_000_000, 100_000_000, 10_000_000, 1_000_000, 100_000,
+	10_000, 1_000, 100, 10, 1,
+}
+
 type MarshallingRules struct {
-	ColSchema      []abstract.ColSchema
-	ColNameToIndex map[string]int
-	ColTypes       columntypes.TypeMapping
-	AnyAsString    bool
+	ColSchema           []abstract.ColSchema
+	ColNameToIndex      map[string]int
+	ColTypes            columntypes.TypeMapping
+	AnyAsString         bool
+	DateTime64AsSeconds bool
 
 	gfMap    *GFMap
 	optTypes []*columntypes.TypeDescription
@@ -44,10 +51,11 @@ func NewRules(names []string, colSchema []abstract.ColSchema, colNameToIndex map
 	}
 
 	return &MarshallingRules{
-		ColSchema:      colSchema,
-		ColNameToIndex: colNameToIndex,
-		ColTypes:       colTypes,
-		AnyAsString:    anyAsString,
+		ColSchema:           colSchema,
+		ColNameToIndex:      colNameToIndex,
+		ColTypes:            colTypes,
+		AnyAsString:         anyAsString,
+		DateTime64AsSeconds: false,
 
 		optTypes: optTypes,
 		gfMap:    NewGrishaFMap(names, colNameToIndex),
@@ -62,10 +70,12 @@ func writeColName(buf *bytes.Buffer, colName string) int {
 	return len(colName) + 3
 }
 
-func marshalTime(colType *columntypes.TypeDescription, v time.Time, buf *bytes.Buffer) {
+func marshalTime(colType *columntypes.TypeDescription, v time.Time, buf *bytes.Buffer, dateTime64AsSeconds bool) {
 	switch {
 	case colType.IsString:
 		_, _ = fmt.Fprintf(buf, "\"%s\"", v.Format("2006-01-02 15:04:05.999999999 -0700 MST"))
+	case colType.IsDateTime64 && dateTime64AsSeconds:
+		marshalDateTime64Seconds(v, colType.DateTime64Precision(), buf)
 	case colType.IsDateTime64:
 		fullTS := v.UnixNano()
 		if colType.DateTime64Precision() > 0 && colType.DateTime64Precision() < 9 {
@@ -76,6 +86,32 @@ func marshalTime(colType *columntypes.TypeDescription, v time.Time, buf *bytes.B
 		_, _ = fmt.Fprintf(buf, "\"%v\"", v.Format("2006-01-02"))
 	default:
 		_, _ = fmt.Fprintf(buf, "%d", v.Unix())
+	}
+}
+
+// ClickHouse 26.8+ interprets JSON numbers for DateTime64 as Unix seconds.
+// Write the fraction without floating point conversion to preserve nanoseconds.
+func marshalDateTime64Seconds(v time.Time, precision int, buf *bytes.Buffer) {
+	seconds := v.Unix()
+	nanoseconds := v.Nanosecond()
+	negative := seconds < 0
+	if negative {
+		if nanoseconds != 0 {
+			seconds = -(seconds + 1)
+			nanoseconds = int(time.Second) - nanoseconds
+		} else {
+			seconds = -seconds
+		}
+	}
+
+	fraction := nanoseconds / dateTime64NanosecondsPerTick[precision]
+	if negative && (seconds != 0 || fraction != 0) {
+		buf.WriteByte('-')
+	}
+	if precision == 0 {
+		_, _ = fmt.Fprintf(buf, "%d", seconds)
+	} else {
+		_, _ = fmt.Fprintf(buf, "%d.%0*d", seconds, precision, fraction)
 	}
 }
 
@@ -104,7 +140,7 @@ func MarshalCItoJSON(inLogger log.Logger, row abstract.ChangeItem, rules *Marsha
 			return abstract.NewFatalError(xerrors.Errorf("unknown type for column '%s' in target table", columnName))
 		}
 
-		isSkip, err := marshalValue(inLogger, buf, colSchema, colType, rules.AnyAsString, columnName, colValues[idx], hLen)
+		isSkip, err := marshalValue(inLogger, buf, colSchema, colType, rules.AnyAsString, rules.DateTime64AsSeconds, columnName, colValues[idx], hLen)
 		if err != nil {
 			return err
 		}
@@ -143,6 +179,7 @@ func marshalValue(
 	colSchema *abstract.ColSchema,
 	colType *columntypes.TypeDescription,
 	anyAsString bool,
+	dateTime64AsSeconds bool,
 	columnName string,
 	val interface{},
 	hLen int,
@@ -223,12 +260,11 @@ func marshalValue(
 	case ytschema.TypeDate.String(), ytschema.TypeDatetime.String(), ytschema.TypeTimestamp.String():
 		// strictify maps ytschema.TypeDate / TypeDatetime / TypeTimestamp -> time.Time (cast.ToTimeE);
 		// the actual JSON shape is driven by the target column type (colType), see marshalTime.
-		switch v := val.(type) {
-		case time.Time:
-			marshalTime(colType, v, buf)
-			return false, nil
-		case *time.Time:
-			marshalTime(colType, *v, buf)
+		if v, ok := val.(*time.Time); ok {
+			val = *v
+		}
+		if v, ok := val.(time.Time); ok {
+			marshalTime(colType, v, buf, dateTime64AsSeconds)
 			return false, nil
 		}
 

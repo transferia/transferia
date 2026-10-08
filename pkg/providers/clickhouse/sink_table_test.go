@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 	"time"
@@ -14,6 +15,8 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/columntypes"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpuploader"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/topology"
 	"github.com/transferia/transferia/pkg/stats"
@@ -61,6 +64,32 @@ func makeSchema(cols *abstract.TableSchema, isUpdateable bool) (*Schema, *sinkTa
 	}
 
 	return NewSchema(cols.Columns(), table.config.SystemColumnsFirst(), table.tableName), table
+}
+
+func TestHTTPDateTime64FormatByServerVersion(t *testing.T) {
+	columns := []abstract.ColSchema{{ColumnName: "_timestamp", DataType: schema.TypeTimestamp.String()}}
+	value := time.Date(2020, 2, 2, 10, 2, 22, 123456789, time.UTC)
+	row := abstract.ChangeItem{ColumnNames: []string{"_timestamp"}, ColumnValues: []any{value}}
+
+	for _, tc := range []struct {
+		version  string
+		expected string
+	}{
+		{"26.7.13.12", "{\"_timestamp\":1580637742123456789}\n"},
+		{"26.8.3.105", "{\"_timestamp\":1580637742.123456789}\n"},
+	} {
+		t.Run(tc.version, func(t *testing.T) {
+			_, table := makeSchema(abstract.NewTableSchema(columns), false)
+			version, err := parseSemver(tc.version)
+			require.NoError(t, err)
+			table.version = *version
+			table.colTypes = columntypes.TypeMapping{"_timestamp": columntypes.NewTypeDescription("DateTime64(9)")}
+			buf := bytes.Buffer{}
+			err = httpuploader.MarshalCItoJSON(logger.Log, row, table.newHTTPMarshallingRules(row.ColumnNames, columns), &buf)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, buf.String())
+		})
+	}
 }
 
 func TestGenerateDDLUpdatable(t *testing.T) {

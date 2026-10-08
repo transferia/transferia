@@ -23,6 +23,7 @@ func TestDatetime64Marshal(t *testing.T) {
 				columntypes.NewTypeDescription(chType),
 				time.Date(2020, 2, 2, 10, 2, 22, 123456789, time.UTC),
 				&buf,
+				false,
 			)
 			require.Equal(t, etalon, buf.String())
 		}
@@ -36,6 +37,44 @@ func TestDatetime64Marshal(t *testing.T) {
 	t.Run("DateTime64(7)", testSpec("DateTime64(7)", "15806377421234567"))
 	t.Run("DateTime64(8)", testSpec("DateTime64(8)", "158063774212345678"))
 	t.Run("DateTime64(9)", testSpec("DateTime64(9)", "1580637742123456789"))
+}
+
+func TestDateTime64MarshalAsSeconds(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		chType   string
+		value    time.Time
+		expected string
+	}{
+		{"milliseconds", "DateTime64(3)", time.Date(2020, 2, 2, 10, 2, 22, 123456789, time.UTC), "1580637742.123"},
+		{"microseconds", "DateTime64(6)", time.Date(2020, 2, 2, 10, 2, 22, 123456789, time.UTC), "1580637742.123456"},
+		{"nanoseconds", "DateTime64(9)", time.Date(2020, 2, 2, 10, 2, 22, 123456789, time.UTC), "1580637742.123456789"},
+		{"before epoch", "DateTime64(9)", time.Unix(-1, 500000001), "-0.499999999"},
+		{"before epoch truncated", "DateTime64(3)", time.Unix(-1, 500000001), "-0.499"},
+		{"whole seconds", "DateTime64(0)", time.Unix(1580637742, 0), "1580637742"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := bytes.Buffer{}
+			marshalTime(columntypes.NewTypeDescription(tc.chType), tc.value, &buf, true)
+			require.Equal(t, tc.expected, buf.String())
+		})
+	}
+}
+
+func TestDateTime64MarshalAsSecondsInJSON(t *testing.T) {
+	colSchema := []abstract.ColSchema{{ColumnName: "_timestamp", DataType: ytschema.TypeTimestamp.String()}}
+	rules := NewRules(
+		[]string{"_timestamp"}, colSchema, abstract.MakeMapColNameToIndex(colSchema),
+		columntypes.TypeMapping{"_timestamp": columntypes.NewTypeDescription("DateTime64(9)")}, false,
+	)
+	rules.DateTime64AsSeconds = true
+	buf := bytes.Buffer{}
+	err := MarshalCItoJSON(logger.Log, abstract.ChangeItem{
+		ColumnNames:  []string{"_timestamp"},
+		ColumnValues: []any{time.Date(2020, 2, 2, 10, 2, 22, 123456789, time.UTC)},
+	}, rules, &buf)
+	require.NoError(t, err)
+	require.Equal(t, "{\"_timestamp\":1580637742.123456789}\n", buf.String())
 }
 
 func TestValidJSON(t *testing.T) {
