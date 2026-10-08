@@ -488,7 +488,18 @@ func TestShardTableGlobalBudget(t *testing.T) {
 	require.NotEmpty(t, partsA)
 	partsARepeat, err := src.ShardTable(ctx, abstract.TableDescription{Name: "table_a", Schema: ""})
 	require.NoError(t, err)
-	require.Equal(t, partsA, partsARepeat, "shard budget must be computed once and reused")
+	require.Len(t, partsARepeat, len(partsA), "shard budget must be computed once and reused")
+	for partIndex := range partsA {
+		part := partsA[partIndex]
+		repeatedPart := partsARepeat[partIndex]
+		require.NotEmpty(t, part.GetPayload())
+		require.NotEmpty(t, repeatedPart.GetPayload())
+		// YT signs cookies anew on each request; compare the partition plan,
+		// excluding the volatile signature and its timestamps.
+		part.SetPayload(nil)
+		repeatedPart.SetPayload(nil)
+		require.Equal(t, part, repeatedPart, "partition plan must remain unchanged")
+	}
 	partsB, err := src.ShardTable(ctx, abstract.TableDescription{Name: "table_b", Schema: ""})
 	require.NoError(t, err)
 	require.NotEmpty(t, partsB)
