@@ -7,6 +7,13 @@ import (
 )
 
 func TestInstallationCatalog(t *testing.T) {
+	t.Run("LbkxMowExposesItsInstance", func(t *testing.T) {
+		instances, ok := ClusterInstances(LbkxMow)
+		require.True(t, ok)
+		require.Equal(t, []LogbrokerInstance{"lbkx-mow.logbroker.yandex.net"}, instances)
+		require.True(t, checkInstanceValidity("lbkx-mow.logbroker.yandex.net"))
+	})
+
 	t.Run("LogbrokerSerbiaExposesBothDataPlaneInstances", func(t *testing.T) {
 		instances, ok := ClusterInstances(LogbrokerSerbia)
 		require.True(t, ok)
@@ -49,6 +56,7 @@ func TestInstallationCatalog(t *testing.T) {
 			Logbroker,
 			LogbrokerPrestable,
 			Lbkx,
+			LbkxMow,
 			Lbkxt,
 			LogbrokerSerbia,
 			LbkxSerbia,
@@ -83,6 +91,19 @@ func TestClusterDefaultDatabase(t *testing.T) {
 }
 
 func TestSourceInstallationConnectionConfig(t *testing.T) {
+	t.Run("LbkxMowUsesDefaultConnection", func(t *testing.T) {
+		source := &LfSource{
+			Cluster:  LbkxMow,
+			Instance: "lbkx-mow.logbroker.yandex.net",
+			Topics:   []string{"account/topic"},
+			Consumer: "account/consumer",
+		}
+		requireSourceConnection(
+			t, source, "lbkx-mow.logbroker.yandex.net:2135", "/Root",
+			[]string{"account/topic"}, false,
+		)
+	})
+
 	t.Run("LogbrokerSerbiaClusterOverridesConnectionSettings", func(t *testing.T) {
 		source := &LfSource{
 			Cluster:  LogbrokerSerbia,
@@ -174,6 +195,17 @@ func TestSourceInstallationConnectionConfig(t *testing.T) {
 }
 
 func TestDestinationInstallationConnectionConfig(t *testing.T) {
+	t.Run("LbkxMowUsesDefaultConnection", func(t *testing.T) {
+		destination := &LbDestination{
+			Instance: "lbkx-mow.logbroker.yandex.net",
+			Topic:    "account/topic",
+		}
+		requireDestinationConnection(
+			t, destination, "lbkx-mow.logbroker.yandex.net:2135", "/Root",
+			"account/topic", "", false,
+		)
+	})
+
 	t.Run("TopicDeterminesAccount", func(t *testing.T) {
 		destination := &LbDestination{
 			Instance: "dct.logbroker.yango.tech",

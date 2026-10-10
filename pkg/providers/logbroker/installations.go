@@ -15,6 +15,7 @@ type TLSMode = model.TLSMode
 const (
 	Logbroker            LogbrokerCluster = "logbroker"
 	Lbkx                 LogbrokerCluster = "lbkx"
+	LbkxMow              LogbrokerCluster = "lbkx-mow"
 	Messenger            LogbrokerCluster = "messenger"
 	LogbrokerPrestable   LogbrokerCluster = "logbroker-prestable"
 	Lbkxt                LogbrokerCluster = "lbkxt"
@@ -107,6 +108,15 @@ var installations = []installationConfig{
 	{
 		cluster:         Lbkx,
 		instances:       []LogbrokerInstance{"lbkx.logbroker.yandex.net"},
+		port:            0,
+		tls:             DefaultTLS,
+		defaultDatabase: "",
+		databasePrefix:  "",
+		uiVisible:       true,
+	},
+	{
+		cluster:         LbkxMow,
+		instances:       []LogbrokerInstance{"lbkx-mow.logbroker.yandex.net"},
 		port:            0,
 		tls:             DefaultTLS,
 		defaultDatabase: "",
