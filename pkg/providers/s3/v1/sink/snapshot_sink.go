@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_delete "github.com/transferia/transferia/pkg/providers/s3/s3util/delete"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	s3_v1_sink_client "github.com/transferia/transferia/pkg/providers/s3/v1/sink/client"
@@ -32,6 +33,8 @@ type SnapshotSink struct {
 	metrics            *stats.SinkerStats
 	fileSplitter       *wrappedFileSplitter
 	serializer         s3_v1_model.SerializerConfig
+	// encryptionKey is nil when objects are written without encryption.
+	encryptionKey *encryption.Key
 }
 
 func (s *SnapshotSink) Close() error {
@@ -71,7 +74,7 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref S3ObjectRef, keyPartNu
 	if err != nil {
 		return xerrors.Errorf("unable to create serializer with outputFormat: %s: %w", s.serializer.FormatName(), err)
 	}
-	writer := s3_v1_sink_writer.NewWriter(s.serializer.FormatEncoding(), pipeWriter)
+	writer := s3_v1_sink_writer.NewWriter(s.serializer.FormatEncoding(), s.encryptionKey, pipeWriter)
 	snapshotWriter, err := NewsnapshotWriter(
 		context.Background(),
 		batchSerializer,
@@ -100,10 +103,16 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref S3ObjectRef, keyPartNu
 				"debug-data-transfer.transfer-id":   aws.String(s.transferID),
 			},
 		}
+		if s.encryptionKey != nil {
+			uploadInput.Metadata[encryption.MetadataKey] = aws.String(encryption.MetadataValue)
+		}
 
 		res, err := s.s3Client.Upload(uploadInput)
 		if err != nil {
-			err = pipeReader.CloseWithError(xerrors.Errorf("unable to upload table part: %w", err))
+			// CloseWithError returns nil: the upload error itself must reach FinishUpload, otherwise a failure after
+			// the whole body was read looks like a successful upload.
+			err = xerrors.Errorf("unable to upload table part: %w", err)
+			_ = pipeReader.CloseWithError(err)
 		} else {
 			err = pipeReader.Close()
 		}
@@ -300,6 +309,10 @@ func NewSnapshotSink(
 	if err != nil {
 		return nil, xerrors.Errorf("unable to make s3 client: %w", err)
 	}
+	encryptionKey, err := encryption.ParseKey(cfg.EncryptionKey)
+	if err != nil {
+		return nil, xerrors.Errorf("invalid encryption key: %w", err)
+	}
 
 	return &SnapshotSink{
 		transferID:         transferID,
@@ -311,5 +324,6 @@ func NewSnapshotSink(
 		snapshotWriter:     nil,
 		fileSplitter:       newFileSplitter(cfg.MaxItemsPerFile, cfg.MaxBytesPerFile),
 		serializer:         cfg.GetSerializer(),
+		encryptionKey:      encryptionKey,
 	}, nil
 }

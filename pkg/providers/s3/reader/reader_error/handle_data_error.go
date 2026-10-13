@@ -4,18 +4,25 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers/unparsed"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 )
 
 // HandleDataError applies UnparsedPolicy to a data-layer ReaderError only.
 // For ScopeRecord it emits one unparsed change item; for ScopeFile/ScopeSchema it emits a file-level unparsed marker.
+// A decryption failure is always fatal: it means a wrong key or a damaged object rather than malformed data,
+// and skipping the object would silently lose its rows.
 func HandleDataError(
 	tableID abstract.TableID,
 	policy s3_model.UnparsedPolicy,
 	readerError ReaderErrorData,
 ) ([]abstract.ChangeItem, ReaderError) {
+	if xerrors.Is(readerError, encryption.ErrAuthentication) {
+		return nil, NewReaderErrorFatal("HandleDataError", readerError)
+	}
 	switch policy {
 	case s3_model.UnparsedPolicyFail:
 		return nil, NewReaderErrorFatal("HandleDataError", readerError)

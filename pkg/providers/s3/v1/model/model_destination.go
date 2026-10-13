@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/synchronizer/bufferer"
 	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.uber.org/zap/zapcore"
@@ -47,6 +48,10 @@ type S3Destination struct {
 
 	// Common connection
 	Connection s3_model.ConnectionConfig
+
+	// EncryptionKey enables client-side encryption of written objects, see the encryption package.
+	// Empty means plaintext objects.
+	EncryptionKey model.SecretString
 
 	/*
 		Only differences between replication and snapshot configuration is way to establish rotation config
@@ -136,6 +141,9 @@ func (d *S3Destination) GetProviderType() abstract.ProviderType {
 }
 
 func (d *S3Destination) Validate() error {
+	if _, err := encryption.ParseKey(d.EncryptionKey); err != nil {
+		return xerrors.Errorf("invalid encryption key: %w", err)
+	}
 	if timeBased, ok := d.GetPartitioner().(*TimeBasedPartitionerConfig); ok {
 		if _, err := timeBased.PathFormat(); err != nil {
 			return xerrors.Errorf("invalid partition type of the time based partitioner: %w", err)

@@ -122,7 +122,7 @@ func (s *Storage) ExactTableRowsCount(_ abstract.TableID) (uint64, error) {
 
 	numRowsFunc := func(inFile *action.AddFile) (int64, int64, error) {
 		filePath := fmt.Sprintf("%s/%s", s.cfg.PathPrefix, inFile.Path)
-		sr, err := s3raw.NewS3RawReader(context.TODO(), s.client, s.cfg.Bucket, filePath, stats.NewSourceStats(s.registry))
+		sr, err := s3raw.NewS3RawReader(context.TODO(), s.client, s.cfg.Bucket, filePath, nil, stats.NewSourceStats(s.registry))
 		if err != nil {
 			return 0, 0, xerrors.Errorf("unable to create reader at: %w", err)
 		}

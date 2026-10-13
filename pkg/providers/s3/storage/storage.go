@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors"
 	"github.com/transferia/transferia/pkg/errors/categories"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	s3_pusher "github.com/transferia/transferia/pkg/providers/s3/pusher"
 	s3_reader "github.com/transferia/transferia/pkg/providers/s3/reader"
@@ -231,7 +232,11 @@ func New(src *s3_model.S3Source, transferID string, lgr log.Logger, registry cor
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create aws session: %w", err)
 	}
-	currReader, err := s3_reader_registry.NewReader(src, lgr, sess, stats.NewSourceStats(registry), s3raw.NewRealS3RawReaderBuilder())
+	encryptionKey, err := encryption.ParseKey(src.EncryptionKey)
+	if err != nil {
+		return nil, xerrors.Errorf("invalid encryption key: %w", err)
+	}
+	currReader, err := s3_reader_registry.NewReader(src, lgr, sess, stats.NewSourceStats(registry), s3raw.NewRealS3RawReaderBuilder().WithEncryptionKey(encryptionKey))
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create reader: %w", err)
 	}

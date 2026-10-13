@@ -10,6 +10,7 @@ import (
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	s3_v1_sink "github.com/transferia/transferia/pkg/providers/s3/v1/sink"
 	s3_v1_sink_client "github.com/transferia/transferia/pkg/providers/s3/v1/sink/client"
@@ -30,6 +31,8 @@ type AsyncSink struct {
 
 	snapshotWriter *s3_v1_sink.SnapshotWriter
 	s3Client       s3_v1_sink_client.S3Client
+	// encryptionKey is nil when objects are written without encryption.
+	encryptionKey *encryption.Key
 
 	offsetsToCommit []uint64
 
@@ -116,7 +119,7 @@ func (s *AsyncSink) initPipe(fileName string) error {
 	if err != nil {
 		return xerrors.Errorf("unable to create serializer with outputFormat: %s: %w", s.serializer.FormatName(), err)
 	}
-	writer := s3_v1_sink_writer.NewWriter(s.serializer.FormatEncoding(), pipeWriter)
+	writer := s3_v1_sink_writer.NewWriter(s.serializer.FormatEncoding(), s.encryptionKey, pipeWriter)
 	snapshotWriter, err := s3_v1_sink.NewsnapshotWriter(
 		context.Background(),
 		batchSerializer,
@@ -140,10 +143,16 @@ func (s *AsyncSink) initPipe(fileName string) error {
 				"debug-data-transfer.file-format":   aws.String(string(s.serializer.FormatName())),
 			},
 		}
+		if s.encryptionKey != nil {
+			uploadInput.Metadata[encryption.MetadataKey] = aws.String(encryption.MetadataValue)
+		}
 
 		res, err := s.s3Client.Upload(uploadInput)
 		if err != nil {
-			err = pipeReader.CloseWithError(xerrors.Errorf("unable to upload table part: %w", err))
+			// CloseWithError returns nil: the upload error itself must reach FinishUpload, otherwise a failure after
+			// the whole body was read looks like a successful upload.
+			err = xerrors.Errorf("unable to upload table part: %w", err)
+			_ = pipeReader.CloseWithError(err)
 		} else {
 			err = pipeReader.Close()
 		}
@@ -295,6 +304,10 @@ func NewReplicationAsyncSink(lgr log.Logger, cfg *s3_v1_model.S3Destination, mtr
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create rotator: %w", err)
 	}
+	encryptionKey, err := encryption.ParseKey(cfg.EncryptionKey)
+	if err != nil {
+		return nil, xerrors.Errorf("invalid encryption key: %w", err)
+	}
 
 	sink := &AsyncSink{
 		logger:          lgr,
@@ -303,6 +316,7 @@ func NewReplicationAsyncSink(lgr log.Logger, cfg *s3_v1_model.S3Destination, mtr
 		rotator:         rotator,
 		partitioner:     partitioner,
 		s3Client:        s3Client,
+		encryptionKey:   encryptionKey,
 		snapshotWriter:  nil, // We can not init writer in constructor, data from first received message is needed
 		offsetsToCommit: make([]uint64, 0),
 		serializer:      cfg.GetSerializer(),

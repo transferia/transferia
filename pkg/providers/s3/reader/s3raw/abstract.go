@@ -10,6 +10,7 @@ import (
 	aws_s3 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	"github.com/transferia/transferia/pkg/stats"
 )
 
@@ -38,12 +39,15 @@ type ReaderAll interface {
 
 //---
 
-type RealS3RawReaderBuilder struct{}
+type RealS3RawReaderBuilder struct {
+	// encryptionKey decrypts objects written by an S3 destination with client-side encryption; nil means plaintext.
+	encryptionKey *encryption.Key
+}
 
 var _ S3RawReaderBuilder = (*RealS3RawReaderBuilder)(nil)
 
 func (b *RealS3RawReaderBuilder) BuildReader(ctx context.Context, client s3iface.S3API, bucket string, key string, metrics *stats.SourceStats) (S3RawReader, error) {
-	return NewS3RawReader(ctx, client, bucket, key, metrics)
+	return NewS3RawReader(ctx, client, bucket, key, b.encryptionKey, metrics)
 }
 
 func (b *RealS3RawReaderBuilder) BuildClient(sess *aws_session.Session) s3iface.S3API {
@@ -51,7 +55,12 @@ func (b *RealS3RawReaderBuilder) BuildClient(sess *aws_session.Session) s3iface.
 }
 
 func NewRealS3RawReaderBuilder() *RealS3RawReaderBuilder {
-	return &RealS3RawReaderBuilder{}
+	return &RealS3RawReaderBuilder{encryptionKey: nil}
+}
+
+// WithEncryptionKey returns a builder of readers that decrypt every object with the key; nil keeps plaintext reading.
+func (b *RealS3RawReaderBuilder) WithEncryptionKey(key *encryption.Key) *RealS3RawReaderBuilder {
+	return &RealS3RawReaderBuilder{encryptionKey: key}
 }
 
 //---

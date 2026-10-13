@@ -14,6 +14,12 @@ func openParquetFromReaderClassifiesParquetPanics(filePath string, r io.ReaderAt
 	defer func() {
 		if rec := recover(); rec != nil {
 			pr = nil
+			// parquet-go panics with the error of the underlying reader: keep it in the chain, so that
+			// a decryption failure is not mistaken for a corrupt file.
+			if recErr, ok := rec.(error); ok {
+				err = xerrors.Errorf("Parquet panic on file: %s: %w", filePath, recErr)
+				return
+			}
 			err = xerrors.Errorf("Parquet panic on file: %s, recover(): %v", filePath, rec)
 		}
 	}()

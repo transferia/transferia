@@ -9,6 +9,7 @@ import (
 	aws_request "github.com/aws/aws-sdk-go/aws/request"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 )
@@ -31,7 +32,8 @@ const (
 	ContractorDecisionReturn ContractorRetryDecision = iota
 	// ContractorDecisionRetry applies backoff and runs the callback again (retryable transport / sink).
 	ContractorDecisionRetry
-	// ContractorDecisionUpgradeFatal wraps the error as ReaderErrorFatal — invalid combination of phase and kind.
+	// ContractorDecisionUpgradeFatal wraps the error as ReaderErrorFatal — invalid combination of phase and kind,
+	// or a decryption failure.
 	ContractorDecisionUpgradeFatal
 )
 
@@ -45,6 +47,11 @@ func ContractorRetryDecisionFor(_ s3_model.UnparsedPolicy, phase ContractorPhase
 		return ContractorDecisionReturn
 	}
 	k := ClassifyContractorError(err)
+	// A decryption failure means a wrong key or a damaged object, retrying cannot fix it. Format readers report it
+	// as a transport error when it comes from reading the object stream, so it is checked before the kind.
+	if k != ContractorKindFatal && xerrors.Is(err, encryption.ErrAuthentication) {
+		return ContractorDecisionUpgradeFatal
+	}
 	switch phase {
 	case ContractorPhaseResolveSchema:
 		switch k {

@@ -9,6 +9,8 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 )
 
@@ -162,4 +164,55 @@ func TestRunWithContractorRetry_UnknownKindFatal(t *testing.T) {
 	require.Error(t, err)
 	_, ok := err.(ReaderErrorFatal)
 	require.True(t, ok, "expected ReaderErrorFatal for unknown ReaderError kind")
+}
+
+// TestDecryptionFailureIsNeverRetried checks that a wrong key or a damaged object fails the transfer at once instead
+// of being retried as a transport error: line, CSV, JSON and proto readers get it from the object stream.
+func TestDecryptionFailureIsNeverRetried(t *testing.T) {
+	cause := xerrors.Errorf("unable to decrypt: %w", encryption.ErrAuthentication)
+	for name, readerErr := range map[string]ReaderError{
+		"transport": NewReaderErrorTransport("chunk.ReadNextChunk", "a.csv", cause),
+		"data":      NewReaderErrorDataFile("parquet.open", "a.parquet", cause),
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, policy := range []s3_model.UnparsedPolicy{s3_model.UnparsedPolicyFail, s3_model.UnparsedPolicyContinue, s3_model.UnparsedPolicyRetry} {
+				for _, phase := range []ContractorPhase{ContractorPhaseResolveSchema, ContractorPhaseRead} {
+					require.Equal(t, ContractorDecisionUpgradeFatal, ContractorRetryDecisionFor(policy, phase, readerErr), "policy %s, phase %v", policy, phase)
+				}
+			}
+
+			var attempts int
+			err := RunWithContractorRetry(
+				context.Background(),
+				s3_model.UnparsedPolicyContinue,
+				ContractorPhaseRead,
+				backoff.NewConstantBackOff(0),
+				func() ReaderError {
+					attempts++
+					return readerErr
+				},
+			)
+			require.Equal(t, 1, attempts)
+			require.True(t, abstract.IsFatal(err), "expected a fatal error: %v", err)
+			require.ErrorIs(t, err, encryption.ErrAuthentication)
+		})
+	}
+
+	fatal := NewReaderErrorFatal("HandleDataError", cause)
+	require.Equal(t, ContractorDecisionReturn, ContractorRetryDecisionFor(s3_model.UnparsedPolicyContinue, ContractorPhaseRead, fatal),
+		"an error that is already fatal is returned as is")
+}
+
+func TestFatalOnDecryptionFailure(t *testing.T) {
+	cause := xerrors.Errorf("unable to decrypt: %w", encryption.ErrAuthentication)
+	upgraded := FatalOnDecryptionFailure("contractor.Read", NewReaderErrorTransport("chunk.ReadNextChunk", "a.csv", cause))
+	require.True(t, abstract.IsFatal(upgraded))
+	require.ErrorIs(t, upgraded, encryption.ErrAuthentication)
+
+	fatal := NewReaderErrorFatal("HandleDataError", cause)
+	require.Equal(t, ReaderError(fatal), FatalOnDecryptionFailure("contractor.Read", fatal), "a fatal error is not wrapped twice")
+
+	transient := NewReaderErrorTransport("chunk.ReadNextChunk", "a.csv", xerrors.New("connection reset"))
+	require.Equal(t, ReaderError(transient), FatalOnDecryptionFailure("contractor.Read", transient), "other errors stay retryable")
+	require.Nil(t, FatalOnDecryptionFailure("contractor.Read", nil))
 }

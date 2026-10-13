@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 )
 
@@ -41,7 +42,12 @@ func withCloser(w io.WriteCloser, closer io.Closer) io.WriteCloser {
 	}
 }
 
-func NewWriter(outputEncoding s3_v1_model.Encoding, rawWriter io.WriteCloser) io.WriteCloser {
+// NewWriter returns a writer that compresses data and, if encryptionKey is set, encrypts the compressed data
+// before rawWriter.
+func NewWriter(outputEncoding s3_v1_model.Encoding, encryptionKey *encryption.Key, rawWriter io.WriteCloser) io.WriteCloser {
+	if encryptionKey != nil {
+		rawWriter = encryption.NewEncryptingWriter(rawWriter, encryptionKey)
+	}
 	switch outputEncoding {
 	case s3_v1_model.GzipEncoding:
 		return withCloser(gzip.NewWriter(rawWriter), rawWriter)

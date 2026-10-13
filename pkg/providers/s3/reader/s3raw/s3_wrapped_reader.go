@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -34,6 +35,8 @@ type wrappedReader[T io.ReadCloser] struct {
 	currReader             T
 	closeFunc              []func() error
 	wrapper                wrapper[T]
+	// encryptionKey decrypts the object before decompression; nil means a plaintext object.
+	encryptionKey *encryption.Key
 }
 
 var (
@@ -94,7 +97,11 @@ func (r *wrappedReader[T]) startStreamReader() error {
 	}
 	r.closeFunc = append(r.closeFunc, rawReader.Close)
 
-	currWrappedReader, err := r.wrapper(rawReader)
+	body, err := r.decrypt(rawReader)
+	if err != nil {
+		return xerrors.Errorf("unable to decrypt, err: %w", err)
+	}
+	currWrappedReader, err := r.wrapper(body)
 	if err != nil {
 		return xerrors.Errorf("unable to wrapReader, err: %w", err)
 	}
@@ -142,7 +149,11 @@ func (r *wrappedReader[T]) ReadAll(ctx context.Context) ([]byte, error) {
 		compressedSize = *file.ContentLength
 	}
 
-	currWrapper, err := r.wrapper(file.Body)
+	body, err := r.decrypt(file.Body)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to decrypt, err: %w", err)
+	}
+	currWrapper, err := r.wrapper(body)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to wrapReader, err: %w", err)
 	}
@@ -169,6 +180,13 @@ func (r *wrappedReader[T]) ReadAll(ctx context.Context) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
+func (r *wrappedReader[T]) decrypt(body io.Reader) (io.Reader, error) {
+	if r.encryptionKey == nil {
+		return body, nil
+	}
+	return encryption.NewDecryptingReader(body, r.encryptionKey)
+}
+
 func (r *wrappedReader[T]) loadObjectInMemory() error {
 	ctx := context.Background()
 	var err error
@@ -192,6 +210,7 @@ func newWrappedReader[T io.ReadCloser](
 	fetcher *s3Fetcher,
 	client s3iface.S3API,
 	stats *stats.SourceStats,
+	encryptionKey *encryption.Key,
 	wrapper wrapper[T],
 ) (S3RawReader, error) {
 	if fetcher == nil {
@@ -211,5 +230,6 @@ func newWrappedReader[T io.ReadCloser](
 		currReader:             *new(T),
 		closeFunc:              nil,
 		wrapper:                wrapper,
+		encryptionKey:          encryptionKey,
 	}, nil
 }

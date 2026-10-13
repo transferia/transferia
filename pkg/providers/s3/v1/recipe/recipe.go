@@ -106,6 +106,7 @@ func PrepareS3(t *testing.T, bucket string, serializer s3_v1_model.SerializerCon
 		TimeExtractorType:   s3_v1_model.RecordMetaTimeExtractor,
 		TimeExtractorConfig: s3_v1_model.TimeExtractorUnion{RecordMeta: &s3_v1_model.RecordMetaTimeExtractorConfig{}, DataField: nil},
 		Cleanup:             model.DisabledCleanup,
+		EncryptionKey:       "",
 	}
 	cfg.WithDefaults()
 

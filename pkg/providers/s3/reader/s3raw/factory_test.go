@@ -119,7 +119,7 @@ func TestNewS3RawReader(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			testData[test.bucket] = map[string]*string{test.key: test.contentEncoding}
 			metrics := stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts()))
-			reader, err := NewS3RawReader(context.Background(), mockS3API, test.bucket, test.key, metrics)
+			reader, err := NewS3RawReader(context.Background(), mockS3API, test.bucket, test.key, nil, metrics)
 			require.NoError(t, err)
 			require.IsType(t, test.expectedReader, reader)
 		})

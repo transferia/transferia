@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/parsers"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 )
 
@@ -46,4 +47,17 @@ func TestHandleDataErrorFileScopeContinue(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 	require.True(t, parsers.IsUnparsed(items[0]))
+}
+
+func TestHandleDataErrorDecryptionIsAlwaysFatal(t *testing.T) {
+	table := abstract.TableID{Namespace: "ns", Name: "tbl"}
+	cause := encryption.ErrAuthentication.Wrap(xerrors.New("segment 2"))
+	for _, policy := range []s3_model.UnparsedPolicy{s3_model.UnparsedPolicyContinue, s3_model.UnparsedPolicyRetry, s3_model.UnparsedPolicyFail} {
+		errorData, ok := AsReaderErrorData(NewReaderErrorDataFile("parquet.open", "f.parquet", cause))
+		require.True(t, ok)
+		items, err := HandleDataError(table, policy, errorData)
+		require.Empty(t, items, "policy %s", policy)
+		require.True(t, abstract.IsFatal(err), "policy %s: %v", policy, err)
+		require.ErrorIs(t, err, encryption.ErrAuthentication)
+	}
 }

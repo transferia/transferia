@@ -44,8 +44,12 @@ type ContractorOption func(*ReaderContractor)
 
 // Read implements Reader. When readBackoff is set, transport/sink failures may retry (full Read repeats).
 // Schema resolution errors (including ReaderErrorNoFiles) are wrapped with contractor.Read.ResolveSchema
-// so callers can use reader_error.AsReaderErrorNoFiles after unwrapping.
+// so callers can use reader_error.AsReaderErrorNoFiles after unwrapping. A decryption failure is always fatal.
 func (c *ReaderContractor) Read(ctx context.Context, filePath string, pusher s3_pusher.Pusher) reader_error.ReaderError {
+	return reader_error.FatalOnDecryptionFailure("contractor.Read", c.read(ctx, filePath, pusher))
+}
+
+func (c *ReaderContractor) read(ctx context.Context, filePath string, pusher s3_pusher.Pusher) reader_error.ReaderError {
 	sch, err := c.resolveSchemaCached(ctx)
 	if err != nil {
 		return reader_error.WrapContractorReadStep("contractor.Read.ResolveSchema", err)
@@ -138,10 +142,12 @@ func (c *ReaderContractor) resolveSchemaCached(ctx context.Context) (*abstract.T
 
 // ResolveSchema returns the cached schema after the first successful inference walk.
 // On ReaderErrorNoFiles (empty prefix / pattern), callers may use reader_error.AsReaderErrorNoFiles.
+// A decryption failure of a sampled object is always fatal.
 func (c *ReaderContractor) ResolveSchema(ctx context.Context) (*abstract.TableSchema, reader_error.ReaderError) {
 	sch, err := c.resolveSchemaCached(ctx)
 	if err != nil {
-		return nil, reader_error.WrapContractorReadStep("contractor.ResolveSchema", err)
+		return nil, reader_error.FatalOnDecryptionFailure("contractor.ResolveSchema",
+			reader_error.WrapContractorReadStep("contractor.ResolveSchema", err))
 	}
 	return sch, nil
 }

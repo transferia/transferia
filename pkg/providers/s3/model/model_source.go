@@ -4,9 +4,11 @@ import (
 	"time"
 
 	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/parsers/registry/protobuf/protoparser"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.uber.org/zap/zapcore"
 )
@@ -82,6 +84,10 @@ type S3Source struct {
 	// FetchInterval - fixed interval for fetching objects. If set to 0, exponential backoff is used
 	FetchInterval       time.Duration `log:"true"`
 	HasAdvancedSettings bool          `log:"true"` // for api consistency
+
+	// EncryptionKey decrypts objects written by an S3 destination with the same key, see the encryption package.
+	// Every object must be encrypted when the key is set. Empty means plaintext objects.
+	EncryptionKey model.SecretString
 }
 
 type ConnectionConfig struct {
@@ -207,6 +213,9 @@ func (s *S3Source) GetProviderType() abstract.ProviderType {
 }
 
 func (s *S3Source) Validate() error {
+	if _, err := encryption.ParseKey(s.EncryptionKey); err != nil {
+		return xerrors.Errorf("invalid encryption key: %w", err)
+	}
 	return nil
 }
 

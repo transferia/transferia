@@ -61,23 +61,28 @@ type Writer struct {
 
 ### NewWriter
 
-Создаёт новый writer с указанным форматом сжатия.
+Создаёт новый writer с указанным форматом сжатия и, если задан ключ, шифрованием.
 
 ```go
-func NewWriter(outputEncoding s3_provider.Encoding, rawWriter io.WriteCloser) io.WriteCloser
+func NewWriter(outputEncoding s3_provider.Encoding, encryptionKey *encryption.Key, rawWriter io.WriteCloser) io.WriteCloser
 ```
 
 **Параметры:**
 - `outputEncoding`: Формат сжатия (`GzipEncoding`, `ZlibEncoding` или без сжатия)
+- `encryptionKey`: Ключ клиентского шифрования объектов; `nil` — без шифрования
 - `rawWriter`: Базовый writer (обычно pipe writer, подключённый к S3 uploader)
 
 **Возвращает:**
-- `io.WriteCloser`: Writer, применяющий указанное сжатие
+- `io.WriteCloser`: Writer, применяющий указанное сжатие и шифрование
+
+Сжатые данные шифруются: цепочка `сжатие → шифрование → rawWriter`. Шифрующий writer оборачивает `rawWriter`,
+его `Close` дописывает последний сегмент и закрывает `rawWriter`. Формат и гарантии описаны в
+[encryption/README.md](../../../encryption/README.md).
 
 **Пример:**
 ```go
 // Создать writer с GZIP сжатием
-writer := NewWriter(s3_provider.GzipEncoding, pipeWriter)
+writer := NewWriter(s3_provider.GzipEncoding, nil, pipeWriter)
 
 // Записать данные
 _, err := writer.Write(data)
@@ -140,7 +145,7 @@ Writer используется в пайплайне записи в S3:
 pipeReader, pipeWriter := io.Pipe()
 
 // Создать writer со сжатием
-writer := writer.NewWriter(cfg.OutputEncoding, pipeWriter)
+writer := writer.NewWriter(cfg.OutputEncoding, encryptionKey, pipeWriter)
 
 // Запустить загрузку в S3 в фоне
 go func() {

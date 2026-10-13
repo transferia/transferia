@@ -3,7 +3,18 @@ package reader_error
 import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 )
+
+// FatalOnDecryptionFailure makes a decryption failure fatal whatever layer reported it: a wrong key or a damaged
+// object cannot be fixed by a retry, while format readers report failures of the object stream as transport errors,
+// which are retried. Other errors and nil are returned as is.
+func FatalOnDecryptionFailure(op string, err ReaderError) ReaderError {
+	if err == nil || ClassifyContractorError(err) == ContractorKindFatal || !xerrors.Is(err, encryption.ErrAuthentication) {
+		return err
+	}
+	return NewReaderErrorFatal(op, err)
+}
 
 // AsReaderErrorData returns (ReaderErrorData, true) if err unwraps to ReaderErrorData or *ReaderErrorData.
 // Transport/sink/fatal wrappers must not match — those are not data-layer errors for UnparsedPolicy routing.
