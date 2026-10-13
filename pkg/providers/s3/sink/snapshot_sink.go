@@ -2,6 +2,7 @@ package sink
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strconv"
 
@@ -30,6 +31,8 @@ type SnapshotSink struct {
 	logger             log.Logger
 	metrics            *stats.SinkerStats
 	fileSplitter       *wrappedFileSplitter
+	// closeErr is kept because closed writers cannot be reopened: a repeated DoneTableLoad must not report success.
+	closeErr error
 }
 
 func (s *SnapshotSink) Close() error {
@@ -76,7 +79,7 @@ func (s *SnapshotSink) validatePush(input []abstract.ChangeItem) error {
 				return xerrors.Errorf("row %d: %w", index, err)
 			}
 		case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad,
-			abstract.InitTableLoad, abstract.DoneTableLoad,
+			abstract.InitTableLoad, abstract.DoneTableLoad, abstract.SynchronizeKind,
 			abstract.DDLKind, abstract.PgDDLKind, abstract.MongoCreateKind,
 			abstract.MongoRenameKind, abstract.MongoDropKind,
 			abstract.TruncateTableKind, abstract.ChCreateTableKind:
@@ -142,9 +145,10 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref S3ObjectRef, keyPartNu
 
 		res, err := s.s3Client.Upload(uploadInput)
 		if err != nil {
-			err = pipeReader.CloseWithError(xerrors.Errorf("unable to upload table part: %w", err))
+			err = xerrors.Errorf("unable to upload table part: %w", err)
+			_ = pipeReader.CloseWithError(err)
 		} else {
-			err = pipeReader.Close()
+			_ = pipeReader.Close()
 		}
 		snapshotWriter.FinishUpload(err)
 		s.logger.Info("upload result", log.String("table", fullTableName), log.String("key", key), log.Any("res", res), log.Error(err))
@@ -169,6 +173,10 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 			}
 		case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad:
 			s.logger.Infof("init/done sharded table load: %s", fullTableName)
+		case abstract.SynchronizeKind:
+			// Preceding pushes are already applied; files are finalized on rotation and DoneTableLoad.
+			s.logger.Info("synchronize event, nothing to flush", log.String("table", fullTableName),
+				log.String("part_id", row.PartID))
 		case abstract.InitTableLoad:
 			s.logger.Info("init table load", log.String("table", fullTableName))
 		case abstract.DoneTableLoad:
@@ -222,13 +230,17 @@ func (s *SnapshotSink) dropTable(ref S3ObjectRef) error {
 }
 
 func (s *SnapshotSink) closeAllSnapshotWriters() error {
+	var errs []error
 	for ref, writer := range s.snapshotWriters {
 		if err := writer.Close(); err != nil {
-			return xerrors.Errorf("unable to close snapshot holder %q: %w", s.fileSplitter.key(ref), err)
+			errs = append(errs, xerrors.Errorf("unable to close snapshot holder %q: %w", s.fileSplitter.key(ref), err))
 		}
 		delete(s.snapshotWriters, ref)
 	}
-	return nil
+	if len(errs) > 0 {
+		s.closeErr = abstract.NewTableUploadError(errors.Join(errs...))
+	}
+	return s.closeErr
 }
 
 // processSnapshot processes the snapshot of the insert items from one table
@@ -385,5 +397,6 @@ func NewSnapshotSink(
 		metrics:            stats.NewSinkerStats(mtrcs),
 		snapshotWriters:    make(map[S3ObjectRef]*SnapshotWriter),
 		fileSplitter:       newFileSplitter(cfg.MaxItemsPerFile, cfg.MaxBytesPerFile),
+		closeErr:           nil,
 	}, nil
 }

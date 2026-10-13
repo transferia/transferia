@@ -10,9 +10,11 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/format"
@@ -656,4 +658,76 @@ func testSnapshotSinkDropPolicy(t *testing.T) {
 	require.NotContains(t, mockS3Client.BucketFiles[cfg.Bucket], expectedKey)
 	require.NotContains(t, mockS3Client.BucketFiles[cfg.Bucket], "test_table/part-1-abcd1234.00001.json")
 	require.Contains(t, mockS3Client.BucketFiles[cfg.Bucket], "other_table/should-remain.json")
+}
+
+func TestSnapshotSink_Push_SynchronizeIsNoOp(t *testing.T) {
+	sink, mock := newTestDropSink(t, "", map[string][]byte{})
+	sink.fileSplitter = newFileSplitter(4, 0)
+	table, partID := "test_table", "part-1"
+	rows := func(count int) []abstract.ChangeItem {
+		res := generateBullets(table, count)
+		for i := range res {
+			res[i].PartID = partID
+		}
+		return res
+	}
+	sync := abstract.MakeSynchronizeEvent()
+	sync.Table, sync.PartID = table, partID
+
+	require.NoError(t, sink.Push([]abstract.ChangeItem{{Kind: abstract.InitTableLoad, Table: table, PartID: partID}}))
+	require.NoError(t, sink.Push(rows(3)))
+	require.NoError(t, sink.Push([]abstract.ChangeItem{sync}))
+	require.NoError(t, sink.Push([]abstract.ChangeItem{abstract.MakeSynchronizeEvent()}))
+	require.NoError(t, sink.Push(append(rows(2), sync)))
+	require.NoError(t, sink.Push([]abstract.ChangeItem{{Kind: abstract.DoneTableLoad, Table: table, PartID: partID}}))
+
+	files := mock.BucketFiles["test-bucket"]
+	require.Len(t, files, 2)
+	for i, rowCount := range []int{4, 1} {
+		key := fmt.Sprintf("%s/part-%s-%s.%05d.json", table, sink.operationTimestamp, hashPartID(partID), i)
+		require.Contains(t, files, key)
+		require.Equal(t, rowCount, bytes.Count(files[key], []byte("\n")))
+		require.NotContains(t, string(files[key]), "{}")
+	}
+}
+
+type failingCompleteS3Client struct {
+	*testutil.MockS3Client
+}
+
+func (c *failingCompleteS3Client) Upload(input *s3manager.UploadInput) (*s3manager.UploadOutput, error) {
+	_, _ = io.Copy(io.Discard, input.Body)
+	return nil, xerrors.New("complete multipart upload failed")
+}
+
+func TestSnapshotSink_DoneTableLoadReturnsUploadError(t *testing.T) {
+	sink, mock := newTestDropSink(t, "", map[string][]byte{})
+	sink.s3Client = &failingCompleteS3Client{MockS3Client: mock}
+	table := "test_table"
+
+	require.NoError(t, sink.Push([]abstract.ChangeItem{{Kind: abstract.InitTableLoad, Table: table}}))
+	require.NoError(t, sink.Push(generateBullets(table, 3)))
+	err := sink.Push([]abstract.ChangeItem{{Kind: abstract.DoneTableLoad, Table: table}})
+	require.ErrorContains(t, err, "complete multipart upload failed")
+}
+
+func TestSnapshotSink_DoneTableLoadClosesAllWritersOnUploadError(t *testing.T) {
+	sink, mock := newTestDropSink(t, "2006/01/02", map[string][]byte{})
+	sink.s3Client = &failingCompleteS3Client{MockS3Client: mock}
+	table := "test_table"
+	day := time.Date(2026, time.October, 12, 0, 0, 0, 0, time.UTC)
+
+	require.NoError(t, sink.Push([]abstract.ChangeItem{{Kind: abstract.InitTableLoad, Table: table}}))
+	require.NoError(t, sink.Push(generateBulletsAt(table, 2, day)))
+	require.NoError(t, sink.Push(generateBulletsAt(table, 2, day.Add(24*time.Hour))))
+	require.Len(t, sink.snapshotWriters, 2)
+
+	err := sink.Push([]abstract.ChangeItem{{Kind: abstract.DoneTableLoad, Table: table}})
+	require.ErrorContains(t, err, "complete multipart upload failed")
+	require.True(t, abstract.IsTableUploadError(err))
+	require.Empty(t, sink.snapshotWriters)
+
+	err = sink.Push([]abstract.ChangeItem{{Kind: abstract.DoneTableLoad, Table: table}})
+	require.ErrorContains(t, err, "complete multipart upload failed")
+	require.Error(t, sink.Close())
 }

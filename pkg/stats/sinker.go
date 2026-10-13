@@ -56,11 +56,7 @@ func (s *SinkerStats) Table(table string, metric string, rows int) {
 	if _, ok := s.tableStat[table]; !ok {
 		s.tableStat[table] = NewTableMetrics(s.registry, table)
 	}
-	p := fmt.Sprintf("sinker.table.%v", metric) // sinker.table ??
-	if _, ok := s.tableStat[table].Metrics[metric]; !ok {
-		s.tableStat[table].Metrics[metric] = s.tableStat[table].registry.WithTags(map[string]string{"table": table}).Counter(p)
-	}
-	s.tableStat[table].Metrics[metric].Add(int64(rows))
+	s.tableStat[table].counter(table, metric).Add(int64(rows))
 }
 
 func (s *SinkerStats) RecordDuration(metric string, duration time.Duration) {

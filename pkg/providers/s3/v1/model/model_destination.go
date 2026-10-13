@@ -8,7 +8,6 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares/synchronizer/bufferer"
-	clickhouse_model "github.com/transferia/transferia/pkg/providers/clickhouse/model"
 	"github.com/transferia/transferia/pkg/providers/s3/encryption"
 	s3_model "github.com/transferia/transferia/pkg/providers/s3/model"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
@@ -85,12 +84,14 @@ func (d *S3Destination) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return logger.MarshalSanitizedObject(d, enc)
 }
 
+const defaultBufferSize = model.BytesSize(128 * 1024 * 1024)
+
 func (d *S3Destination) WithDefaults() {
 	if d.BufferInterval == 0 {
 		d.BufferInterval = time.Second * 30
 	}
 	if d.BufferSize == 0 {
-		d.BufferSize = model.BytesSize(clickhouse_model.BufferTriggingSizeDefault)
+		d.BufferSize = defaultBufferSize
 	}
 	if d.RotatorType == "" {
 		d.RotatorConfig.Default = &DefaultRotatorConfig{

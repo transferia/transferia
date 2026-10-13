@@ -119,6 +119,9 @@ func (s *batchSerializer) Serialize(items []*abstract.ChangeItem) ([]byte, error
 func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstract.ChangeItem, writer io.Writer) (int, error) {
 	if s.concurrency < 2 || len(items) <= s.threshold {
 		buf := s.bufferPool.Get(ctx)
+		if buf == nil {
+			return 0, xerrors.Errorf("batchSerializer: context error: %w", ctx.Err())
+		}
 		defer s.bufferPool.Put(ctx, buf)
 		if err := s.serializeToBuffer(ctx, items, buf); err != nil {
 			return 0, xerrors.Errorf("batchSerializer: unable to serialize items: %w", err)

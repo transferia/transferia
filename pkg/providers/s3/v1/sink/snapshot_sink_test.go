@@ -341,3 +341,34 @@ func TestSnapshotSink_Push_DropKindInvokesDropTable(t *testing.T) {
 	require.Len(t, mock.DeleteObjectsCalls, 1)
 	require.Len(t, mock.DeleteObjectsCalls[0].Delete.Objects, 2)
 }
+
+func TestSnapshotSink_Push_SynchronizeIsNoOp(t *testing.T) {
+	sink, mock := newTestDropSink(t, "", map[string][]byte{})
+	sink.fileSplitter = newFileSplitter(4, 0)
+	table, partID := "test_table", "part-1"
+	rows := func(count int) []abstract.ChangeItem {
+		res := generateBullets(table, count)
+		for i := range res {
+			res[i].PartID = partID
+		}
+		return res
+	}
+	sync := abstract.MakeSynchronizeEvent()
+	sync.Table, sync.PartID = table, partID
+
+	require.NoError(t, sink.Push([]abstract.ChangeItem{{Kind: abstract.InitTableLoad, Table: table, PartID: partID}}))
+	require.NoError(t, sink.Push(rows(3)))
+	require.NoError(t, sink.Push([]abstract.ChangeItem{sync}))
+	require.NoError(t, sink.Push([]abstract.ChangeItem{abstract.MakeSynchronizeEvent()}))
+	require.NoError(t, sink.Push(append(rows(2), sync)))
+	require.NoError(t, sink.Push([]abstract.ChangeItem{{Kind: abstract.DoneTableLoad, Table: table, PartID: partID}}))
+
+	files := mock.BucketFiles["test-bucket"]
+	require.Len(t, files, 2)
+	for i, rowCount := range []int{4, 1} {
+		key := fmt.Sprintf("%s/part-%s-%s.%05d.json", table, sink.operationTimestamp, hashPartID(partID), i)
+		require.Contains(t, files, key)
+		require.Equal(t, rowCount, bytes.Count(files[key], []byte("\n")))
+		require.NotContains(t, string(files[key]), "{}")
+	}
+}

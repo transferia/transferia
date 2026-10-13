@@ -140,6 +140,10 @@ func (s *SnapshotSink) processItemsAndReturnInserts(input []abstract.ChangeItem)
 			s.logger.Info("dropped table", log.String("table", fullTableName))
 		case abstract.InitShardedTableLoad, abstract.DoneShardedTableLoad:
 			s.logger.Infof("init/done sharded table load: %s", fullTableName)
+		case abstract.SynchronizeKind:
+			// Preceding pushes are already applied; files are finalized on rotation and DoneTableLoad.
+			s.logger.Info("synchronize event, nothing to flush", log.String("table", fullTableName),
+				log.String("part_id", row.PartID))
 		case abstract.InitTableLoad:
 			s.logger.Info("init table load", log.String("table", fullTableName))
 		case abstract.DoneTableLoad:

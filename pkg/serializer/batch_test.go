@@ -2,6 +2,7 @@ package serializer
 
 import (
 	"bytes"
+	"context"
 	"runtime"
 	"strconv"
 	"testing"
@@ -79,4 +80,17 @@ func TestBatchSerializer(t *testing.T) {
 		expected,
 		actual,
 	)
+}
+
+func TestBatchSerializerSerializeAndWriteCanceledContext(t *testing.T) {
+	s := newBatchSerializer(&dummySerializer{}, nil, &BatchSerializerConfig{DisableConcurrency: true}).(*batchSerializer)
+	// The canceled context makes the pool return nil once it is empty.
+	require.NotNil(t, s.bufferPool.Get(context.Background()))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var out bytes.Buffer
+	_, err := s.SerializeAndWrite(ctx, []*abstract.ChangeItem{{LSN: 1}}, &out)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, out.Len())
 }
