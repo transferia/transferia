@@ -171,7 +171,7 @@ func CodecFromString(codec string) compress.Codec {
 	case "SNAPPY":
 		return &parquet_snappy.Codec{}
 	case "GZIP":
-		return &parquet_gzip.Codec{}
+		return &parquet_gzip.Codec{Level: parquet_gzip.DefaultCompression}
 	case "ZSTD":
 		return &parquet_zstd.Codec{}
 	default:
