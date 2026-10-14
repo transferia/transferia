@@ -44,6 +44,14 @@ const (
 	//
 	// The only known value is "on", any other value means disabled.
 	FeatureLabelMemThrottle = FeatureLabel("dt-mem-throttle")
+
+	// LabelUseHostGroupZone is used to force dataplane VMs onto a dedicated
+	// host group configured in cpconfig (ig_runtime.dedicated_host_groups).
+	//
+	// The value is either "any" (the first available host group for the
+	// topology zones is used) or a zone name whose dedicated host group
+	// should be used.
+	LabelUseHostGroupZone SystemLabel = SystemLabel(systemLabelPrefix + "hostgroup-zone")
 )
 
 // IsSystemLabelKey returns true if the provided label key is a reserved system label
