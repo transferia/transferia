@@ -47,8 +47,8 @@ given only the key: build a keyset of this template with the key and pass empty 
    non-final segment and one more byte. Both readers return data only from authenticated segments and succeed only
    after the final segment is authenticated.
 3. Compression happens before encryption: ciphertext does not compress.
-4. Object names do not change, `.gz` stays: cleanup regexps and Iceberg rely on names. Objects get the informational
-   metadata `data-transfer-encryption: tink;AES256_GCM_HKDF_1MB`, it never contains key material.
+4. Object names do not change, `.gz` stays: cleanup regexps and Iceberg rely on names. Objects get no S3 metadata
+   about encryption: readers do not need it, and object metadata is stored in plaintext.
 5. A source with a key expects every object to be encrypted and succeeds only if every object is decrypted: a
    plaintext, damaged or truncated object, or another key fails the transfer. Such failures are `ErrAuthentication`,
    and the unparsed policy never skips them. A source without a key reads objects as they are stored.

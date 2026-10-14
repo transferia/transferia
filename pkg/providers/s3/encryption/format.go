@@ -35,14 +35,6 @@ const (
 // name, so encrypted objects stay readable after they are copied or renamed.
 var associatedData = []byte{}
 
-const (
-	// MetadataKey is the S3 user metadata key that marks objects encrypted by Data Transfer. It is informational:
-	// a source with a configured key expects every object to be encrypted regardless of metadata.
-	MetadataKey = "data-transfer-encryption"
-	// MetadataValue describes the format of encrypted objects. It never contains key material.
-	MetadataValue = "tink;AES256_GCM_HKDF_1MB"
-)
-
 // PlaintextSize returns the size of the plaintext stored in a ciphertext of the given size.
 func PlaintextSize(ciphertextSize int64) (int64, error) {
 	if ciphertextSize < headerSize+tagSize {

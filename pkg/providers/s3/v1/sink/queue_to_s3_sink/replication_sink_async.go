@@ -143,9 +143,6 @@ func (s *AsyncSink) initPipe(fileName string) error {
 				"debug-data-transfer.file-format":   aws.String(string(s.serializer.FormatName())),
 			},
 		}
-		if s.encryptionKey != nil {
-			uploadInput.Metadata[encryption.MetadataKey] = aws.String(encryption.MetadataValue)
-		}
 
 		res, err := s.s3Client.Upload(uploadInput)
 		if err != nil {

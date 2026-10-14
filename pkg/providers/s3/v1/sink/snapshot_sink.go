@@ -103,9 +103,6 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref S3ObjectRef, keyPartNu
 				"debug-data-transfer.transfer-id":   aws.String(s.transferID),
 			},
 		}
-		if s.encryptionKey != nil {
-			uploadInput.Metadata[encryption.MetadataKey] = aws.String(encryption.MetadataValue)
-		}
 
 		res, err := s.s3Client.Upload(uploadInput)
 		if err != nil {
