@@ -51,11 +51,10 @@ func (pg *PgHA) Close() error {
 	return err
 }
 
-func (pg *PgHA) hostByRole(role dbaas.Role) (*string, error) {
+// hostByRole resolves the address of the appropriate cluster node using the provided context.
+// The caller's context is respected so that request deadlines are propagated correctly.
+func (pg *PgHA) hostByRole(ctx context.Context, role dbaas.Role) (*string, error) {
 	var node hasql.Node
-	// Create cluster handler
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
 	var err error
 	if role == dbaas.ANY {
 		node, err = pg.cluster.WaitForPrimaryPreferred(ctx)
@@ -76,15 +75,21 @@ func (pg *PgHA) hostByRole(role dbaas.Role) (*string, error) {
 }
 
 func (pg *PgHA) ReplicaHost() (*string, error) {
-	return pg.hostByRole(dbaas.REPLICA)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	return pg.hostByRole(ctx, dbaas.REPLICA)
 }
 
 func (pg *PgHA) MasterHost() (*string, error) {
-	return pg.hostByRole(dbaas.MASTER)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	return pg.hostByRole(ctx, dbaas.MASTER)
 }
 
 func (pg *PgHA) ConnString(role dbaas.Role) (string, error) {
-	host, err := pg.hostByRole(role)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	host, err := pg.hostByRole(ctx, role)
 	if err != nil {
 		return "", xerrors.Errorf("Failed to get host with role %v: %w", role, err)
 	}
@@ -120,7 +125,7 @@ func (pg *PgHA) ConnConfig(role dbaas.Role) (*pgx.ConnConfig, error) {
 }
 
 func (pg *PgHA) PoolExec(ctx context.Context, role dbaas.Role, f func(*pgxpool.Conn) error) error {
-	conn, err := pg.Pool(role)
+	conn, err := pg.Pool(ctx, role)
 	if err != nil {
 		return xerrors.Errorf("Failed to build pool: %w", err)
 	}
@@ -128,17 +133,26 @@ func (pg *PgHA) PoolExec(ctx context.Context, role dbaas.Role, f func(*pgxpool.C
 	return conn.AcquireFunc(ctx, f)
 }
 
-func (pg *PgHA) Pool(role dbaas.Role) (*pgxpool.Pool, error) {
+// Pool returns (creating if necessary) a connection pool for the given role.
+// ConnString resolution (which includes waiting for a healthy cluster node) is performed
+// OUTSIDE the mutex so that one slow hasql wait does not block all other concurrent DB operations.
+func (pg *PgHA) Pool(ctx context.Context, role dbaas.Role) (*pgxpool.Pool, error) {
+	// Resolve the connection string outside the mutex. hostByRole may block while waiting
+	// for hasql to identify the primary; holding the mutex during that wait would serialize
+	// all concurrent DB operations across the process.
+	connString, err := pg.hostByRole(ctx, role)
+	if err != nil {
+		return nil, xerrors.Errorf("Failed to resolve host for role %v: %w", role, err)
+	}
+	fullConnString := pg.ConnStringByHost(*connString)
+
 	pg.poolMutex.Lock()
 	defer pg.poolMutex.Unlock()
-	connString, err := pg.ConnString(role)
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to build connection string: %w", err)
-	}
-	if pool, ok := pg.pools[connString]; ok {
+
+	if pool, ok := pg.pools[fullConnString]; ok {
 		return pool, nil
 	}
-	dsn, err := pgxpool.ParseConfig(connString)
+	dsn, err := pgxpool.ParseConfig(fullConnString)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to parse connection configuration: %w", err)
 	}
@@ -150,7 +164,7 @@ func (pg *PgHA) Pool(role dbaas.Role) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to init pool: %w", err)
 	}
-	pg.pools[connString] = pool
+	pg.pools[fullConnString] = pool
 
 	return pool, nil
 }
