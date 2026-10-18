@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"maps"
+	"slices"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -46,6 +48,16 @@ func buildJsonKV(item *abstract.ChangeItem, anyAsString bool) (map[string]interf
 	return kv, nil
 }
 
+func wrapJSONSerializationError(kv map[string]interface{}, encodeErr error) error {
+	// Match the encoder's sorted key order when multiple columns fail.
+	for _, columnName := range slices.Sorted(maps.Keys(kv)) {
+		if _, err := json.Marshal(kv[columnName]); err != nil {
+			return xerrors.Errorf("JsonSerializer: unable to serialize kv map: column %q: %w", columnName, encodeErr)
+		}
+	}
+	return xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", encodeErr)
+}
+
 func (s *jsonSerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, separator []byte, buf *bytes.Buffer) error {
 	if !item.IsRowEvent() {
 		return nil
@@ -63,7 +75,7 @@ func (s *jsonSerializer) SerializeWithSeparatorTo(item *abstract.ChangeItem, sep
 	encoder := json.NewEncoder(buf)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(kv); err != nil {
-		return xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", err)
+		return wrapJSONSerializationError(kv, err)
 	}
 	// Remove trailing newline added by Encode()
 	data := buf.Bytes()
@@ -100,7 +112,7 @@ func (s *jsonSerializer) Serialize(item *abstract.ChangeItem) ([]byte, error) {
 	encoder := json.NewEncoder(buf)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(kv); err != nil {
-		return nil, xerrors.Errorf("JsonSerializer: unable to serialize kv map: %w", err)
+		return nil, wrapJSONSerializationError(kv, err)
 	}
 	// Remove trailing newline added by Encode()
 	data := buf.Bytes()
