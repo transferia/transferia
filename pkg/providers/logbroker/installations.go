@@ -82,10 +82,9 @@ var installations = []installationConfig{
 	{
 		cluster: Logbroker,
 		instances: []LogbrokerInstance{
-			// "sas.logbroker.yandex.net",
-			// "vla.logbroker.yandex.net",
 			"klg.logbroker.yandex.net",
 			"sam.logbroker.yandex.net",
+			"bro.logbroker.yandex.net",
 		},
 		port:            0,
 		tls:             DefaultTLS,
@@ -96,9 +95,7 @@ var installations = []installationConfig{
 	{
 		cluster: LogbrokerPrestable,
 		instances: []LogbrokerInstance{
-			// "vla.logbroker-prestable.yandex.net",
 			"klg.logbroker-prestable.yandex.net",
-			// "sas.logbroker-prestable.yandex.net",
 		},
 		port:            0,
 		tls:             DefaultTLS,

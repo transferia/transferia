@@ -176,7 +176,7 @@ func TestSourceInstallationConnectionConfig(t *testing.T) {
 	t.Run("LegacyInstallationPreservesExplicitSettings", func(t *testing.T) {
 		source := &LfSource{
 			Cluster:  Logbroker,
-			Instance: "sas.logbroker.yandex.net",
+			Instance: "sam.logbroker.yandex.net",
 			Topics:   []string{"account/topic"},
 			Port:     1234,
 			TLS:      DisabledTLS,
@@ -186,7 +186,7 @@ func TestSourceInstallationConnectionConfig(t *testing.T) {
 		requireSourceConnection(
 			t,
 			source,
-			"sas.logbroker.yandex.net:1234",
+			"sam.logbroker.yandex.net:1234",
 			"/custom",
 			[]string{"account/topic"},
 			false,
@@ -259,7 +259,7 @@ func TestDestinationInstallationConnectionConfig(t *testing.T) {
 
 	t.Run("LegacyInstallationPreservesExplicitSettings", func(t *testing.T) {
 		destination := &LbDestination{
-			Instance: "sas.logbroker.yandex.net",
+			Instance: "sam.logbroker.yandex.net",
 			Topic:    "account/topic",
 			Port:     1234,
 			TLS:      DisabledTLS,
@@ -268,7 +268,7 @@ func TestDestinationInstallationConnectionConfig(t *testing.T) {
 		requireDestinationConnection(
 			t,
 			destination,
-			"sas.logbroker.yandex.net:1234",
+			"sam.logbroker.yandex.net:1234",
 			"/custom",
 			"account/topic",
 			"",
