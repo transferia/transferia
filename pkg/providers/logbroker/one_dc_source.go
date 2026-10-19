@@ -1,6 +1,8 @@
 package logbroker
 
 import (
+	"context"
+
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -14,7 +16,12 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Registry) (abstract.Source, error) {
+// newOneDCSource builds a source for a single logbroker endpoint. The passed ctx is
+// forwarded to the pqv1 reader so that an in-progress connection attempt to an
+// unreachable endpoint can be interrupted by canceling ctx, instead of blocking
+// (potentially forever, since the pqv1 SDK retries indefinitely on its own) until the
+// endpoint becomes reachable.
+func newOneDCSource(ctx context.Context, cfg *LfSource, logger log.Logger, registry core_metrics.Registry) (abstract.Source, error) {
 	// In test we use logbroker with local environment therefore we should skip this check
 	if !env.IsTest() {
 		if instanceIsValid := checkInstanceValidity(cfg.Instance); !instanceIsValid {
@@ -46,7 +53,7 @@ func newOneDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Regi
 			return nil, xerrors.Errorf("unable to create TopicAPI source: %w", err)
 		}
 	} else {
-		source, err = pqv1source.NewSource(topicSourceCfg, parser, logger, sourceMetrics)
+		source, err = pqv1source.NewSource(ctx, topicSourceCfg, parser, logger, sourceMetrics)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to create pqv1 source: %w", err)
 		}

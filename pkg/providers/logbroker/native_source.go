@@ -1,6 +1,8 @@
 package logbroker
 
 import (
+	"context"
+
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -53,5 +55,5 @@ func newNativeSource(cfg *LbSource, logger log.Logger, registry core_metrics.Reg
 		UseFullTopicNameForParsing: false,
 	}
 
-	return pqv1source.NewSource(topicSourceCfg, parser, logger, stats.NewSourceStats(registry))
+	return pqv1source.NewSource(context.Background(), topicSourceCfg, parser, logger, stats.NewSourceStats(registry))
 }

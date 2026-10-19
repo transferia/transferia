@@ -1,6 +1,8 @@
 package source
 
 import (
+	"context"
+
 	"github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -14,7 +16,7 @@ import (
 )
 
 func NewSourceWithParser(transferID string, cfg *YDSSource, logger log.Logger, sourceMetrics *stats.SourceStats, parser parsers.Parser) (abstract.Source, error) {
-	return pqv1source.NewSource(cfg.topicSourceConfig(transferID), parser, logger, sourceMetrics)
+	return pqv1source.NewSource(context.Background(), cfg.topicSourceConfig(transferID), parser, logger, sourceMetrics)
 }
 
 func NewSource(transferID string, cfg sourceConfig, logger log.Logger, registry metrics.Registry) (abstract.Source, error) {
@@ -47,7 +49,7 @@ func newYDSSource(transferID string, cfg *YDSSource, logger log.Logger, sourceMe
 		return nil, xerrors.Errorf("unable to create parser: %w", err)
 	}
 
-	return pqv1source.NewSource(cfg.topicSourceConfig(transferID), parser, logger, sourceMetrics)
+	return pqv1source.NewSource(context.Background(), cfg.topicSourceConfig(transferID), parser, logger, sourceMetrics)
 }
 
 func newYDBTopicSource(cfg *YDBTopicSource, logger log.Logger, sourceMetrics *stats.SourceStats) (abstract.Source, error) {

@@ -299,7 +299,13 @@ func (s *Source) ack(data committableBatch, st time.Time) error {
 	return nil
 }
 
-func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger, metrics *stats.SourceStats) (*Source, error) {
+// NewSource creates a persqueue-based reader. The passed ctx governs connection
+// attempts made while the reader is starting: canceling it interrupts an
+// in-progress (potentially endlessly retried by the underlying SDK) connect/Start
+// call and makes NewSource return promptly with an error instead of blocking forever
+// on an unreachable endpoint. It is not retained for the lifetime of the resulting
+// Source: after a successful start, stopping the source is done via Source.Stop.
+func NewSource(ctx context.Context, cfg *topicsource.Config, parser parsers.Parser, logger log.Logger, metrics *stats.SourceStats) (*Source, error) {
 	topics := make([]persqueue.TopicInfo, len(cfg.Topics))
 	for i, topic := range cfg.Topics {
 		topics[i] = persqueue.TopicInfo{
@@ -340,12 +346,16 @@ func NewSource(cfg *topicsource.Config, parser parsers.Parser, logger log.Logger
 	}
 
 	c := persqueue.NewReaderV1(readerOpts)
-	ctx, cancel := context.WithCancel(context.Background())
+	// Derive from the caller-provided ctx (instead of context.Background()) so that
+	// canceling it (e.g. because a sibling multi-dc endpoint failed and we are
+	// shutting everything down) interrupts a reader that is stuck retrying Start
+	// against an unreachable endpoint, rather than blocking indefinitely.
+	runCtx, cancel := context.WithCancel(ctx)
 	var rb util.Rollbacks
 	rb.Add(cancel)
 	defer rb.Do()
 
-	if _, err := c.Start(ctx); err != nil {
+	if _, err := c.Start(runCtx); err != nil {
 		logger.Error("failed to start reader", log.Error(err))
 		return nil, xerrors.Errorf("failed to start reader: %w", err)
 	}

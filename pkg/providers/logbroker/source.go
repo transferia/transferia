@@ -1,6 +1,8 @@
 package logbroker
 
 import (
+	"context"
+
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -16,7 +18,7 @@ func NewSource(cfg *LfSource, logger log.Logger, registry core_metrics.Registry)
 		}
 		return result, nil
 	}
-	result, err := newOneDCSource(cfg, logger, registry)
+	result, err := newOneDCSource(context.Background(), cfg, logger, registry)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create one-dc source, err: %w", err)
 	}

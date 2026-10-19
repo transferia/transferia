@@ -21,9 +21,14 @@ type multiDcSource struct {
 	errCh   chan error
 	logger  log.Logger
 	metrics core_metrics.Registry
-	closeCh chan struct{}
-	lock    sync.Mutex
-	cfg     *LfSource
+	// ctx/cancel let Run (and Stop) interrupt endpoint goroutines that are stuck
+	// trying to create a reader for an unreachable endpoint: without this, such a
+	// goroutine never notices that its siblings have already failed (or that the
+	// whole source is being stopped) and Run would block forever waiting for it.
+	ctx    context.Context
+	cancel context.CancelFunc
+	lock   sync.Mutex
+	cfg    *LfSource
 }
 
 func isPersqueueTemporaryError(err error) bool {
@@ -51,7 +56,19 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 				childCfg.Database = database
 			}
 			for {
+				select {
+				case <-s.ctx.Done():
+					// Either a sibling endpoint has already failed and the whole
+					// multi-dc source is being torn down (forceStop), or Stop was
+					// called directly. Bail out instead of attempting (or retrying)
+					// a connection to this (possibly still unreachable) endpoint.
+					errCh <- xerrors.Errorf("won`t init endpoint(%v) source: %w", string(endpoint), s.ctx.Err())
+					return
+				default:
+				}
+
 				source, err := newOneDCSource(
+					s.ctx,
 					&childCfg,
 					log.With(s.logger, log.String("dc", string(endpoint))),
 					s.metrics.WithTags(map[string]string{"dc": string(endpoint)}),
@@ -92,6 +109,10 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 	s.lock.Lock()
 	forceStop = true
 	s.lock.Unlock()
+	// Cancel ctx so that any endpoint goroutine still stuck creating a reader for an
+	// unreachable endpoint (and therefore not yet checking forceStop/present in
+	// s.sources) unblocks and reports into errCh below, instead of hanging forever.
+	s.cancel()
 
 	s.logger.Infof("one of endpoint sources stopped (error: %v), so we need to stop other sources", err)
 	for e, src := range s.sources {
@@ -108,6 +129,9 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 }
 
 func (s *multiDcSource) Stop() {
+	// Unblock any endpoint goroutine still creating a reader for an unreachable
+	// endpoint, in addition to stopping the already-started ones below.
+	s.cancel()
 	for _, endpoint := range s.sources {
 		endpoint.Stop()
 	}
@@ -129,6 +153,7 @@ func (s *multiDcSource) Fetch() ([]abstract.ChangeItem, error) {
 				childCfg.Database = database
 			}
 			source, err := newOneDCSource(
+				ctx,
 				&childCfg,
 				s.logger,
 				s.metrics.WithTags(map[string]string{"dc": string(endpoint)}),
@@ -167,6 +192,7 @@ func NewMultiDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Re
 	sources := map[string]abstract.Source{}
 	configs := map[string]LfSource{}
 	statsM := map[string]*stats.SourceStats{}
+	ctx, cancel := context.WithCancel(context.Background())
 	return &multiDcSource{
 		sources: sources,
 		configs: configs,
@@ -174,7 +200,8 @@ func NewMultiDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Re
 		errCh:   make(chan error),
 		logger:  logger,
 		metrics: registry,
-		closeCh: make(chan struct{}),
+		ctx:     ctx,
+		cancel:  cancel,
 		lock:    sync.Mutex{},
 		cfg:     cfg,
 	}, nil

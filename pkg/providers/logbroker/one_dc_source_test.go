@@ -41,6 +41,6 @@ func TestValidInstance(t *testing.T) {
 	}
 	cfg.WithDefaults()
 
-	_, err = newOneDCSource(cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	_, err = newOneDCSource(context.Background(), cfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
 	require.Error(t, err)
 }
