@@ -873,14 +873,7 @@ func (s *sinker) insert(tablePath ydbPath, batch []abstract.ChangeItem) error {
 			fields = append(fields, ydb_table_types.StructFieldValue(c, val))
 		}
 		if s.config.ShardCount > 0 {
-			var cs uint64
-			switch v := r.ColumnValues[0].(type) {
-			case string:
-				cs = crc64.Checksum([]byte(v))
-			default:
-				cs = crc64.Checksum([]byte(fmt.Sprintf("%v", v)))
-			}
-			fields = append(fields, ydb_table_types.StructFieldValue("_shard_key", ydb_table_types.OptionalValue(ydb_table_types.Uint64Value(cs))))
+			fields = append(fields, ydb_table_types.StructFieldValue("_shard_key", ydb_table_types.OptionalValue(ydb_table_types.Uint64Value(shardKey(r)))))
 		}
 		rows[i] = ydb_table_types.StructValue(fields...)
 	}
@@ -1483,6 +1476,30 @@ func (s *sinker) adjustTypName(typ string) string {
 	}
 }
 
+// shardKey returns the crc64 checksum of the first key column's value, looked
+// up by name instead of by position: on DeleteKind events ColumnValues is
+// empty and the value is only available via OldKeys.
+func shardKey(item abstract.ChangeItem) uint64 {
+	keyNames := abstract.KeyNames(item.TableSchema.Columns())
+	if len(keyNames) == 0 {
+		return 0
+	}
+	names, values := item.ColumnNames, item.ColumnValues
+	if item.Kind == abstract.DeleteKind {
+		names, values = item.OldKeys.KeyNames, item.OldKeys.KeyValues
+	}
+	for i, c := range names {
+		if c != keyNames[0] {
+			continue
+		}
+		if s, ok := values[i].(string); ok {
+			return crc64.Checksum([]byte(s))
+		}
+		return crc64.Checksum([]byte(fmt.Sprintf("%v", values[i])))
+	}
+	return 0
+}
+
 func (s *sinker) delete(tablePath ydbPath, item abstract.ChangeItem) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -1507,14 +1524,7 @@ func (s *sinker) delete(tablePath ydbPath, item abstract.ChangeItem) error {
 		fields = append(fields, ydb_table_types.StructFieldValue(c, val))
 	}
 	if s.config.ShardCount > 0 {
-		var cs uint64
-		switch v := item.ColumnValues[0].(type) {
-		case string:
-			cs = crc64.Checksum([]byte(v))
-		default:
-			cs = crc64.Checksum([]byte(fmt.Sprintf("%v", v)))
-		}
-		fields = append(fields, ydb_table_types.StructFieldValue("_shard_key", ydb_table_types.OptionalValue(ydb_table_types.Uint64Value(cs))))
+		fields = append(fields, ydb_table_types.StructFieldValue("_shard_key", ydb_table_types.OptionalValue(ydb_table_types.Uint64Value(shardKey(item)))))
 	}
 	batch := ydb_table_types.StructValue(fields...)
 	writeTx := ydb_table.TxControl(
