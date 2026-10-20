@@ -16,7 +16,16 @@ import (
 )
 
 func NewSourceWithParser(transferID string, cfg *YDSSource, logger log.Logger, sourceMetrics *stats.SourceStats, parser parsers.Parser) (abstract.Source, error) {
-	return pqv1source.NewSource(context.Background(), cfg.topicSourceConfig(transferID), parser, logger, sourceMetrics)
+	topicSourceCfg := cfg.topicSourceConfig(transferID)
+	if cfg.UseTopicAPI {
+		source, err := topicapisource.NewSource(topicSourceCfg, parser, logger, sourceMetrics)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to create TopicAPI source: %w", err)
+		}
+		return source, nil
+	}
+
+	return pqv1source.NewSource(context.Background(), topicSourceCfg, parser, logger, sourceMetrics)
 }
 
 func NewSource(transferID string, cfg sourceConfig, logger log.Logger, registry metrics.Registry) (abstract.Source, error) {
@@ -49,7 +58,7 @@ func newYDSSource(transferID string, cfg *YDSSource, logger log.Logger, sourceMe
 		return nil, xerrors.Errorf("unable to create parser: %w", err)
 	}
 
-	return pqv1source.NewSource(context.Background(), cfg.topicSourceConfig(transferID), parser, logger, sourceMetrics)
+	return NewSourceWithParser(transferID, cfg, logger, sourceMetrics, parser)
 }
 
 func newYDBTopicSource(cfg *YDBTopicSource, logger log.Logger, sourceMetrics *stats.SourceStats) (abstract.Source, error) {

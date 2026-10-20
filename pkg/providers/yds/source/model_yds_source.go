@@ -45,6 +45,9 @@ type YDSSource struct {
 	Token                 model.SecretString            // Connection (is only set when dataplane is internal in adapter)
 	UserdataAuth          bool                          `log:"true"` // Connection (is always true for external dp in adapter)
 	ParseQueueParallelism int                           `log:"true"`
+
+	// UseTopicAPI is a migration flag.
+	UseTopicAPI bool `log:"true"`
 }
 
 func (s *YDSSource) MarshalLogObject(enc zapcore.ObjectEncoder) error {
