@@ -79,6 +79,10 @@ func (s *sink) Push(items []abstract.ChangeItem) error {
 		}
 	}
 
+	if (itemsKind == abstract.InsertKind || itemsKind == abstract.DoneTableLoad) && s.writer == nil {
+		return abstract.NewFatalError(xerrors.Errorf("unable to push %s item to %s: static table writer is not initialized; InitTableLoad is required", itemsKind, tablePath))
+	}
+
 	if itemsKind == abstract.InitShardedTableLoad {
 		if err := s.mainTx.BeginTx(); err != nil {
 			return xerrors.Errorf("preparing main tx error: %w", err)

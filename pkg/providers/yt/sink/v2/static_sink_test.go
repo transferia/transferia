@@ -95,6 +95,24 @@ func (b *bigRow) toChangeItem(namespace, name string) abstract.ChangeItem {
 	}
 }
 
+func TestStaticSinkPushWithoutWriter(t *testing.T) {
+	for _, kind := range []abstract.Kind{abstract.InsertKind, abstract.DoneTableLoad} {
+		t.Run(string(kind), func(t *testing.T) {
+			s := &sink{dir: ypath.Path("//home/test")}
+			err := s.Push([]abstract.ChangeItem{{
+				Kind:  kind,
+				Table: "test_table",
+			}})
+
+			require.ErrorContains(t, err, string(kind))
+			require.ErrorContains(t, err, "//home/test/test_table")
+			require.ErrorContains(t, err, "static table writer is not initialized")
+			require.ErrorContains(t, err, "InitTableLoad")
+			require.True(t, abstract.IsFatal(err))
+		})
+	}
+}
+
 func TestStaticSink(t *testing.T) {
 	t.Run("simple test", staticTableSimple)
 	t.Run("wrong schema test", wrongOrderOfValuesInChangeItem)
