@@ -1,13 +1,72 @@
 package postgres
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/ptr"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/providers/yt"
 )
+
+func TestPgSourceDBLogDestinationCompatibility(t *testing.T) {
+	compatibilityErrorMessage := "DBLog is not supported for YT static tables or dynamic tables loaded through static tables; " +
+		"disable DBLog or use dynamic tables without static loading"
+	testCases := []struct {
+		name         string
+		destination  model.Destination
+		incompatible bool
+	}{
+		{name: "YT static", destination: &yt.YtDestinationWrapper{Model: &yt.YtDestination{Static: true}}, incompatible: true},
+		{
+			name:         "YT dynamic through static",
+			destination:  &yt.YtDestinationWrapper{Model: &yt.YtDestination{UseStaticTableOnSnapshot: true}},
+			incompatible: true,
+		},
+		{name: "YT dynamic", destination: &yt.YtDestinationWrapper{Model: &yt.YtDestination{}}},
+		{name: "YTsaurus static", destination: &yt.YTSaurusStaticDestination{}, incompatible: true},
+		{
+			name:         "YTsaurus dynamic through static",
+			destination:  &yt.YTSaurusDynamicDestination{DoUseStaticTableOnSnapshot: true},
+			incompatible: true,
+		},
+		{name: "YTsaurus dynamic", destination: &yt.YTSaurusDynamicDestination{}},
+		{name: "PostgreSQL", destination: &PgDestination{}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, transferType := range []abstract.TransferType{
+				abstract.TransferTypeSnapshotOnly,
+				abstract.TransferTypeSnapshotAndIncrement,
+				abstract.TransferTypeIncrementOnly,
+			} {
+				t.Run(string(transferType), func(t *testing.T) {
+					src := &PgSource{DBLogEnabled: true}
+					transfer := &model.Transfer{Src: src, Dst: tc.destination, Type: transferType}
+					if tc.incompatible {
+						provider := &Provider{transfer: transfer}
+						activationErr := provider.Activate(
+							context.Background(),
+							nil,
+							nil,
+							providers.ActivateCallbacks{},
+						)
+						require.ErrorContains(t, activationErr, compatibilityErrorMessage)
+						require.ErrorContains(t, transfer.Validate(), compatibilityErrorMessage)
+					}
+					if !tc.incompatible {
+						require.NoError(t, transfer.Validate())
+					}
+					src.DBLogEnabled = false
+					require.NoError(t, transfer.Validate())
+				})
+			}
+		})
+	}
+}
 
 func TestPgDumpStepsAnyStepIsTrue(t *testing.T) {
 	steps := PgDumpSteps{}

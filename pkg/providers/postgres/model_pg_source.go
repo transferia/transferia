@@ -86,6 +86,7 @@ type PgSource struct {
 
 var (
 	_ model.Source                   = (*PgSource)(nil)
+	_ model.DestinationCompatibility = (*PgSource)(nil)
 	_ model.QueueToS3Source          = (*PgSource)(nil)
 	_ model.WithConnectionID         = (*PgSource)(nil)
 	_ model.EndpointParamsDbDefaults = (*PgSource)(nil)
@@ -377,6 +378,22 @@ func (p *PgDumpSteps) AnyStepIsTrue() bool {
 func (p *PgDumpSteps) ValidatePgDumpSteps() error {
 	if p != nil && p.SequenceSet != nil && *p.SequenceSet && !p.Sequence {
 		return xerrors.Errorf("cannot transfer current sequence values without sequences themselves")
+	}
+	return nil
+}
+
+// Compatible checks whether the destination supports DBLog loading.
+func (s *PgSource) Compatible(dst model.Destination, _ abstract.TransferType) error {
+	if !s.DBLogEnabled {
+		return nil
+	}
+	// A local interface keeps PostgreSQL independent of the YT provider package.
+	if ytDst, ok := dst.(interface {
+		Static() bool
+		UseStaticTableOnSnapshot() bool
+	}); ok && (ytDst.Static() || ytDst.UseStaticTableOnSnapshot()) {
+		return xerrors.New("DBLog is not supported for YT static tables or dynamic tables loaded through static tables; " +
+			"disable DBLog or use dynamic tables without static loading")
 	}
 	return nil
 }

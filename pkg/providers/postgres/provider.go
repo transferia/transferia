@@ -144,6 +144,9 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 	if err != nil {
 		return xerrors.Errorf("error getting src params from transfer: %w", err)
 	}
+	if err := src.Compatible(p.transfer.Dst, p.transfer.Type); err != nil {
+		return xerrors.Errorf("source is not compatible with target: %w", err)
+	}
 	if err := VerifyPostgresTables(src, p.transfer, p.logger); err != nil {
 		if isPKeyCheckError(err) {
 			if !p.transfer.SnapshotOnly() {
