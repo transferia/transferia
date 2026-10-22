@@ -103,3 +103,7 @@ INSERT INTO user_types (__primary_key, citext_col, hstore_col) VALUES (default, 
 -- null case
 
 INSERT INTO user_types (__primary_key) VALUES (default);
+
+-- hstore elements with control characters and no spaces
+
+INSERT INTO user_types (__primary_key, hstore_col) VALUES (default, E'"k\nT"=>"a\tb"');

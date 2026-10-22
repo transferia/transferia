@@ -75,7 +75,7 @@ func makeValueTranscoders(connInfo *pgtype.ConnInfo, fields []pgtype.CompositeTy
 		if !ok {
 			return nil, xerrors.Errorf("unknown data type for OID %d (field %s)", field.OID, field.Name)
 		}
-		value := pgtype.NewValue(dataType.Value)
+		value := newNestedValue(dataType.Value)
 		if transcoder, ok := value.(pgtype.ValueTranscoder); ok {
 			transcoders = append(transcoders, transcoder)
 			continue

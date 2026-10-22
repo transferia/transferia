@@ -157,7 +157,16 @@ func TestRepresent_AdditionalCoverage(t *testing.T) {
 			name:     "hstore from map",
 			inValue:  map[string]interface{}{"k": "v"},
 			inSchema: abstract.ColSchema{DataType: schema.TypeAny.String(), OriginalType: "pg:USER-DEFINED:hstore"},
-			outValue: "'k=>v'",
+			outValue: `'"k"=>"v"'`,
+		},
+		{
+			name: "hstore with newline and single quote",
+			inValue: &pgtype.Hstore{
+				Map:    map[string]pgtype.Text{"k": {String: "a'b\nTel", Status: pgtype.Present}},
+				Status: pgtype.Present,
+			},
+			inSchema: abstract.ColSchema{DataType: schema.TypeAny.String(), OriginalType: "pg:USER-DEFINED:hstore"},
+			outValue: "'\"k\"=>\"a''b\nTel\"'",
 		},
 		{
 			name:     "postgres array empty",

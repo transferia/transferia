@@ -263,7 +263,7 @@ func recursiveRepresentToWriter(w *bytes.Buffer, val interface{}, colSchema abst
 					_, _ = w.WriteString("null")
 					return nil
 				}
-				hstoreStrBytes, err := hstoreObj.EncodeText(nil, make([]byte, 0))
+				hstoreStrBytes, err := encodeHstoreText(hstoreObj)
 				if err != nil {
 					return xerrors.Errorf("unable to encode hstore: %w", err)
 				}

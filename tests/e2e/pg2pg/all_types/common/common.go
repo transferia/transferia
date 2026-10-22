@@ -204,13 +204,13 @@ FROM (
 //------------------------------------------------------------------------------------------------
 
 // hstore can be:
-// - a=>1,b=>2
-// - b=>2,a=>1
+// - "a"=>"1", "b"=>"2"
+// - "b"=>"2", "a"=>"1"
 
-var pairsRe = regexp.MustCompile(`[a-zA-Z0-9_]+=>[a-zA-Z0-9_]+(?:,[a-zA-Z0-9_]+=>[a-zA-Z0-9_]+)+`)
+var pairsRe = regexp.MustCompile(`"[a-zA-Z0-9_]+"=>"[a-zA-Z0-9_]+"(?:, "[a-zA-Z0-9_]+"=>"[a-zA-Z0-9_]+")+`)
 
 func sortPairs(s string) string {
-	parts := strings.Split(s, ",")
+	parts := strings.Split(s, ", ")
 
 	sort.Slice(parts, func(i, j int) bool {
 		ki := strings.SplitN(parts[i], "=>", 2)[0]
@@ -218,7 +218,7 @@ func sortPairs(s string) string {
 		return ki < kj
 	})
 
-	return strings.Join(parts, ",")
+	return strings.Join(parts, ", ")
 }
 
 func normalize(text string) string {

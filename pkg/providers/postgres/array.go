@@ -78,7 +78,7 @@ func (a *array) NewValue(connInfo *pgtype.ConnInfo, nameToOID TypeNameToOIDMap) 
 	}
 
 	return NewGenericArray(a.logger, a.name, elementTypeOID, func() (pgtype.Value, error) {
-		return pgtype.NewValue(elementDataType.Value), nil
+		return newNestedValue(elementDataType.Value), nil
 	})
 }
 
