@@ -3,7 +3,7 @@ version: '3'
 services:
   kafka:
     container_name: kafka
-    image: bitnami/kafka:4.0.0
+    image: soldevelo/kafka:4.0.0
     restart: on-failure:3
     ports:
       - 9092:9092
