@@ -119,6 +119,7 @@ type (
 	TransferVersionUpdate   struct{ fake }
 	TransferVersionFreeze   struct{ fake }
 	TransferVersionUnfreeze struct{ fake }
+	GrantInternetAccess     struct{ fake }
 )
 
 var FakeTasks []FakeTask = makeFakeTasks()
@@ -138,6 +139,22 @@ type TransferVersionFreezeParams struct {
 
 type TransferVersionUnfreezeParams struct {
 	CurrentVersion string `json:"current_version"`
+}
+
+type GrantInternetAccessParams struct {
+	Issue          string `json:"issue"`
+	NetworkProject string `json:"network_project"`
+}
+
+// AsGrantInternetAccessParams accepts the pointer of a new operation and the value of a loaded one.
+func AsGrantInternetAccessParams(params interface{}) GrantInternetAccessParams {
+	switch typed := params.(type) {
+	case *GrantInternetAccessParams:
+		return *typed
+	case GrantInternetAccessParams:
+		return typed
+	}
+	return GrantInternetAccessParams{Issue: "", NetworkProject: ""}
 }
 
 type UpdateTransferParams struct {
@@ -218,6 +235,7 @@ type FakeVisitor interface {
 	OnTransferVersionUpdate(t TransferVersionUpdate) interface{}
 	OnTransferVersionFreeze(t TransferVersionFreeze) interface{}
 	OnTransferVersionUnfreeze(t TransferVersionUnfreeze) interface{}
+	OnGrantInternetAccess(t GrantInternetAccess) interface{}
 }
 
 // }}}
@@ -276,6 +294,9 @@ func (t TransferVersionFreeze) VisitFake(v FakeVisitor) interface{} {
 func (t TransferVersionUnfreeze) VisitFake(v FakeVisitor) interface{} {
 	return v.OnTransferVersionUnfreeze(t)
 }
+func (t GrantInternetAccess) VisitFake(v FakeVisitor) interface{} {
+	return v.OnGrantInternetAccess(t)
+}
 
 func (t Replication) Visit(v TaskVisitor) interface{}    { return t.VisitFake(v) }
 func (t Termination) Visit(v TaskVisitor) interface{}    { return t.VisitFake(v) }
@@ -290,6 +311,9 @@ func (t TransferVersionFreeze) Visit(v TaskVisitor) interface{} {
 }
 func (t TransferVersionUnfreeze) Visit(v TaskVisitor) interface{} {
 	return v.OnTransferVersionUnfreeze(t)
+}
+func (t GrantInternetAccess) Visit(v TaskVisitor) interface{} {
+	return v.OnGrantInternetAccess(t)
 }
 
 func (t TestEndpoint) HasTimedOut(createdAt time.Time, pingedAt time.Time) bool {

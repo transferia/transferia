@@ -141,6 +141,9 @@ func (toStringVisitor) OnTransferVersionFreeze(t TransferVersionFreeze) interfac
 func (toStringVisitor) OnTransferVersionUnfreeze(t TransferVersionUnfreeze) interface{} {
 	return "Unfreeze version"
 }
+func (toStringVisitor) OnGrantInternetAccess(t GrantInternetAccess) interface{} {
+	return "Grant internet access"
+}
 
 type paramsVisitor struct{}
 
@@ -179,6 +182,9 @@ func (paramsVisitor) OnTransferVersionFreeze(t TransferVersionFreeze) interface{
 
 func (paramsVisitor) OnTransferVersionUnfreeze(t TransferVersionUnfreeze) interface{} {
 	return new(TransferVersionUnfreezeParams)
+}
+func (paramsVisitor) OnGrantInternetAccess(t GrantInternetAccess) interface{} {
+	return new(GrantInternetAccessParams)
 }
 
 type descriptionVisitor struct {
