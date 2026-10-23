@@ -96,6 +96,11 @@ func (s *Source) run(parseQ parsequeue.WaitableQueue[batchEvent]) error {
 				log.String("topic", typedEvent.PartitionInfo.TopicPath),
 				log.Int64("partition", typedEvent.PartitionInfo.PartitionID),
 			)
+			s.offsetsValidator.InitOffsetForPartition(
+				typedEvent.PartitionInfo.TopicPath,
+				uint32(typedEvent.PartitionInfo.PartitionID),
+				uint64(typedEvent.PartitionInfo.LastOffset),
+			)
 			typedEvent.Confirm()
 
 		case *event.StopEvent:
