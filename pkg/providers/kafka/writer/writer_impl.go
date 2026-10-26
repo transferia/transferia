@@ -36,6 +36,7 @@ func NewWriter(brokers []string, compression kafka.Compression, saslMechanism se
 	rawKafkaWriter := &kafka.Writer{
 		Addr:                            kafka.TCP(brokers...),
 		Balancer:                        &kafka.Hash{},
+		RequiredAcks:                    kafka.RequireAll,
 		AutoDeriveBatchBytes:            true,
 		ApplyBatchBytesAfterCompression: true,
 		Transport: &kafka.Transport{
