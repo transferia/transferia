@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/parsers"
 	blankparser "github.com/transferia/transferia/pkg/parsers/registry/blank"
+	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
 	topiccommon "github.com/transferia/transferia/pkg/providers/ydb/topics/common"
 	topicsource "github.com/transferia/transferia/pkg/providers/ydb/topics/source"
 	"github.com/transferia/transferia/pkg/stats"
@@ -118,6 +119,60 @@ func TestSource(t *testing.T) {
 
 		checkItems(t, topicName, testMessages, res)
 	})
+}
+
+func TestParserRestoresAbsoluteTopicPath(t *testing.T) {
+	sourceMetrics := stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts()))
+	parser, err := parsers.NewParserFromParserConfig(&jsonparser.ParserConfigJSONLb{
+		Fields: []abstract.ColSchema{{ColumnName: "value", DataType: "string"}},
+	}, false, logger.Log, sourceMetrics)
+	require.NoError(t, err)
+
+	source := &Source{
+		config: &topicsource.Config{
+			UseFullTopicNameForParsing: true,
+			ReaderOpts: topicsource.ReaderOptions{
+				TopicAPI: topicsource.TopicAPIReaderOptions{
+					RelativeToAbsoluteTopicPaths: map[string]string{
+						"pm-attributes-payment": "trust-production-bank-exporter-srb/pm-attributes-payment",
+					},
+				},
+			},
+		},
+		parser:  parser,
+		logger:  logger.Log,
+		metrics: sourceMetrics,
+	}
+	parse := source.parserWithCloudFunc()
+
+	items, err := parse(batchEvent{batches: []parsers.MessageBatch{{
+		Topic: "pm-attributes-payment",
+		Messages: []parsers.Message{{
+			Value: []byte(`{"value":"payment"}`),
+		}},
+	}}})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, "trust-production-bank-exporter-srb_pm-attributes-payment", items[0].Table)
+}
+
+func TestBatchesWithAbsoluteTopicPathsDoesNothingWithoutMapping(t *testing.T) {
+	batches := []parsers.MessageBatch{{Topic: "relative-topic"}}
+
+	result, err := batchesWithAbsoluteTopicPaths(batches, map[string]string{})
+
+	require.NoError(t, err)
+	require.Equal(t, batches, result)
+	require.Equal(t, "relative-topic", result[0].Topic)
+}
+
+func TestBatchesWithAbsoluteTopicPathsRejectsMissingMapping(t *testing.T) {
+	_, err := batchesWithAbsoluteTopicPaths(
+		[]parsers.MessageBatch{{Topic: "unknown-relative-topic"}},
+		map[string]string{"known-relative-topic": "account/known-relative-topic"},
+	)
+
+	require.ErrorContains(t, err, `absolute topic path for relative path "unknown-relative-topic" is not configured`)
 }
 
 func TestSourceCodecs(t *testing.T) {

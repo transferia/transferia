@@ -198,10 +198,11 @@ var installations = []installationConfig{
 }
 
 type installationSourceConfig struct {
-	port     int
-	tls      TLSMode
-	database string
-	topics   []string
+	port                         int
+	tls                          TLSMode
+	database                     string
+	topics                       []string
+	relativeToAbsoluteTopicPaths map[string]string
 }
 
 type installationDestinationConfig struct {
@@ -231,12 +232,13 @@ func alignSourceConfigWithKnownInstallations(
 	}
 
 	if installation.databasePrefix != "" {
-		account, relativeTopics, err := extractAccountAndRelativeTopics(config.topics)
+		account, relativeTopics, relativeToAbsoluteTopicPaths, err := extractAccountAndRelativeTopics(config.topics)
 		if err != nil {
 			return config, xerrors.Errorf("unable to configure cluster %q: unable to split source topics: %w", installation.cluster, err)
 		}
 		config.database = path.Join(installation.databasePrefix, account)
 		config.topics = relativeTopics
+		config.relativeToAbsoluteTopicPaths = relativeToAbsoluteTopicPaths
 	}
 
 	return config, nil
@@ -316,28 +318,28 @@ func installationByInstance(instance LogbrokerInstance) (installationConfig, boo
 	return config, false
 }
 
-func extractAccountAndRelativeTopics(topics []string) (string, []string, error) {
+func extractAccountAndRelativeTopics(topics []string) (string, []string, map[string]string, error) {
 	if len(topics) == 0 {
-		return "", nil, xerrors.New("topics must not be empty")
+		return "", nil, nil, xerrors.New("topics must not be empty")
 	}
 
-	account, relativeTopic, err := extractAccountAndRelativeTopic(topics[0])
-	if err != nil {
-		return "", nil, xerrors.Errorf("unable to derive account from topic: %w", err)
-	}
+	var account string
 	relativeTopics := make([]string, len(topics))
-	relativeTopics[0] = relativeTopic
-	for i, topic := range topics[1:] {
+	relativeToAbsoluteTopicPaths := make(map[string]string, len(topics))
+	for i, topic := range topics {
 		currentAccount, currentRelativeTopic, err := extractAccountAndRelativeTopic(topic)
 		if err != nil {
-			return "", nil, xerrors.Errorf("unable to derive account from topic: %w", err)
+			return "", nil, nil, xerrors.Errorf("unable to derive account from topic: %w", err)
 		}
-		if currentAccount != account {
-			return "", nil, xerrors.Errorf("topics must belong to one account: got %q and %q", account, currentAccount)
+		if i == 0 {
+			account = currentAccount
+		} else if currentAccount != account {
+			return "", nil, nil, xerrors.Errorf("topics must belong to one account: got %q and %q", account, currentAccount)
 		}
-		relativeTopics[i+1] = currentRelativeTopic
+		relativeTopics[i] = currentRelativeTopic
+		relativeToAbsoluteTopicPaths[currentRelativeTopic] = strings.Trim(topic, "/")
 	}
-	return account, relativeTopics, nil
+	return account, relativeTopics, relativeToAbsoluteTopicPaths, nil
 }
 
 func extractAccountAndRelativeTopic(topic string) (string, string, error) {

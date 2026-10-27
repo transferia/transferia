@@ -258,8 +258,30 @@ func (s *Source) parserWithCloudFunc() func(batchEvent) ([]abstract.ChangeItem, 
 			return []abstract.ChangeItem{abstract.MakeSynchronizeEvent()}, nil
 		}
 
-		return lbyds.Parse(batchEvent.batches, s.parser, s.metrics, s.logger, transformFunc, s.config.UseFullTopicNameForParsing)
+		batchesWithAbsolutePaths, err := batchesWithAbsoluteTopicPaths(batchEvent.batches, s.config.ReaderOpts.TopicAPI.RelativeToAbsoluteTopicPaths)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to restore absolute topic paths: %w", err)
+		}
+
+		return lbyds.Parse(batchesWithAbsolutePaths, s.parser, s.metrics, s.logger, transformFunc, s.config.UseFullTopicNameForParsing)
 	}
+}
+
+func batchesWithAbsoluteTopicPaths(batches []parsers.MessageBatch, relativeToAbsoluteTopicPaths map[string]string) ([]parsers.MessageBatch, error) {
+	if len(relativeToAbsoluteTopicPaths) == 0 {
+		return batches, nil
+	}
+
+	result := make([]parsers.MessageBatch, len(batches))
+	copy(result, batches)
+	for i := range result {
+		absoluteTopicPath, ok := relativeToAbsoluteTopicPaths[result[i].Topic]
+		if !ok {
+			return nil, xerrors.Errorf("absolute topic path for relative path %q is not configured", result[i].Topic)
+		}
+		result[i].Topic = absoluteTopicPath
+	}
+	return result, nil
 }
 
 func (s *Source) ack(batchEvent batchEvent, st time.Time) error {

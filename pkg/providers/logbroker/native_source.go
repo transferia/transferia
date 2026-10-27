@@ -43,8 +43,9 @@ func newNativeSource(cfg *LbSource, logger log.Logger, registry core_metrics.Reg
 				MinReadInterval:     0,
 			},
 			TopicAPI: topicsource.TopicAPIReaderOptions{
-				MaxBatchSize:         0,
-				MaxBatchMessageCount: 0,
+				MaxBatchSize:                 0,
+				MaxBatchMessageCount:         0,
+				RelativeToAbsoluteTopicPaths: map[string]string{},
 			},
 		},
 		Transformer: nil,

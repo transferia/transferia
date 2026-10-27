@@ -124,10 +124,11 @@ func (s *LfSource) IsQueueToS3Source() {}
 
 func (s *LfSource) buildTopicSourceConfig() (*topicsource.Config, error) {
 	config, err := alignSourceConfigWithKnownInstallations(s.Cluster, s.Instance, installationSourceConfig{
-		port:     s.Port,
-		tls:      s.TLS,
-		database: s.Database,
-		topics:   s.Topics,
+		port:                         s.Port,
+		tls:                          s.TLS,
+		database:                     s.Database,
+		topics:                       s.Topics,
+		relativeToAbsoluteTopicPaths: map[string]string{},
 	})
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve installation source config: %w", err)
@@ -158,8 +159,9 @@ func (s *LfSource) buildTopicSourceConfig() (*topicsource.Config, error) {
 				MinReadInterval:     time.Millisecond * 95,
 			},
 			TopicAPI: topicsource.TopicAPIReaderOptions{
-				MaxBatchSize:         0,
-				MaxBatchMessageCount: 0,
+				MaxBatchSize:                 0,
+				MaxBatchMessageCount:         0,
+				RelativeToAbsoluteTopicPaths: config.relativeToAbsoluteTopicPaths,
 			},
 		},
 		Transformer: nil,

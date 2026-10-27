@@ -45,6 +45,8 @@ type PQv1ReaderOptions struct {
 type TopicAPIReaderOptions struct {
 	MaxBatchSize         uint32
 	MaxBatchMessageCount int
+	// RelativeToAbsoluteTopicPaths is used to restore absolute paths after reading.
+	RelativeToAbsoluteTopicPaths map[string]string
 }
 
 func (o ReaderOptions) MaxMemoryOrDefault() int {
@@ -72,8 +74,9 @@ func NewDefaultReaderOptions() ReaderOptions {
 			MinReadInterval:     0,
 		},
 		TopicAPI: TopicAPIReaderOptions{
-			MaxBatchSize:         0,
-			MaxBatchMessageCount: 0,
+			MaxBatchSize:                 0,
+			MaxBatchMessageCount:         0,
+			RelativeToAbsoluteTopicPaths: map[string]string{},
 		},
 	}
 }

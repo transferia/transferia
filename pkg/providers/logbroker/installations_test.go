@@ -363,7 +363,11 @@ func TestInstallationDatabasePrefixPreservesTransport(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, installationSourceConfig{
-		port: 1234, tls: DisabledTLS, database: serbiaDatabasePrefix + "/account", topics: []string{"topic"},
+		port:                         1234,
+		tls:                          DisabledTLS,
+		database:                     serbiaDatabasePrefix + "/account",
+		topics:                       []string{"topic"},
+		relativeToAbsoluteTopicPaths: map[string]string{"topic": "account/topic"},
 	}, source)
 
 	destination, err := alignDestinationConfigWithKnownInstallations(installation.instances[0], installationDestinationConfig{
@@ -373,6 +377,44 @@ func TestInstallationDatabasePrefixPreservesTransport(t *testing.T) {
 	require.Equal(t, installationDestinationConfig{
 		port: 1234, tls: DisabledTLS, database: serbiaDatabasePrefix + "/account", topicPrefix: "prefix",
 	}, destination)
+}
+
+func TestLfSourceBuildTopicSourceConfigRestoresAbsoluteTopicPaths(t *testing.T) {
+	t.Run("UnchangedTopicsUseEmptyMapping", func(t *testing.T) {
+		for _, installation := range installations {
+			if installation.databasePrefix != "" {
+				continue
+			}
+			t.Run(string(installation.cluster), func(t *testing.T) {
+				config, err := (&LfSource{
+					Cluster: installation.cluster,
+					Topics:  []string{"account/topic"},
+				}).buildTopicSourceConfig()
+				require.NoError(t, err)
+				require.NotNil(t, config.ReaderOpts.TopicAPI.RelativeToAbsoluteTopicPaths)
+				require.Empty(t, config.ReaderOpts.TopicAPI.RelativeToAbsoluteTopicPaths)
+			})
+		}
+	})
+
+	t.Run("SerbianTopicsUseRestorationMapping", func(t *testing.T) {
+		for _, cluster := range []LogbrokerCluster{LogbrokerSerbia, LbkxSerbia} {
+			t.Run(string(cluster), func(t *testing.T) {
+				config, err := (&LfSource{
+					Cluster: cluster,
+					Topics: []string{
+						"/trust-production-bank-exporter-srb/pm-attributes-payment",
+						"/trust-production-bank-exporter-srb/refunds",
+					},
+				}).buildTopicSourceConfig()
+				require.NoError(t, err)
+				require.Equal(t, map[string]string{
+					"pm-attributes-payment": "trust-production-bank-exporter-srb/pm-attributes-payment",
+					"refunds":               "trust-production-bank-exporter-srb/refunds",
+				}, config.ReaderOpts.TopicAPI.RelativeToAbsoluteTopicPaths)
+			})
+		}
+	})
 }
 
 func TestInstallationConnectionConfigErrors(t *testing.T) {
@@ -404,13 +446,17 @@ func TestInstallationConnectionConfigErrors(t *testing.T) {
 	})
 
 	t.Run("SourceTopicsBelongToDifferentAccounts", func(t *testing.T) {
-		source := &LfSource{
-			Cluster: LogbrokerSerbia,
-			Topics:  []string{"first/topic", "second/topic"},
-		}
+		for _, cluster := range []LogbrokerCluster{LogbrokerSerbia, LbkxSerbia} {
+			t.Run(string(cluster), func(t *testing.T) {
+				source := &LfSource{
+					Cluster: cluster,
+					Topics:  []string{"first/topic", "second/topic"},
+				}
 
-		_, err := source.buildTopicSourceConfig()
-		require.ErrorContains(t, err, "topics must belong to one account")
+				_, err := source.buildTopicSourceConfig()
+				require.ErrorContains(t, err, "topics must belong to one account")
+			})
+		}
 	})
 
 	t.Run("DestinationTopicHasNoAccount", func(t *testing.T) {

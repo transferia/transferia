@@ -39,8 +39,9 @@ func buildTopicSourceConfig(defaultConsumer string, cfg *YDSSource) *topicsource
 				MinReadInterval:     0,
 			},
 			TopicAPI: topicsource.TopicAPIReaderOptions{
-				MaxBatchSize:         0,
-				MaxBatchMessageCount: 0,
+				MaxBatchSize:                 0,
+				MaxBatchMessageCount:         0,
+				RelativeToAbsoluteTopicPaths: map[string]string{},
 			},
 		},
 		Transformer: cfg.Transformer,
