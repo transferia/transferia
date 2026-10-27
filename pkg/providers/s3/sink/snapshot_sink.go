@@ -134,12 +134,12 @@ func (s *SnapshotSink) initPipe(fullTableName string, ref S3ObjectRef, keyPartNu
 			Bucket: aws.String(s.cfg.Bucket),
 			Key:    aws.String(key),
 			Metadata: map[string]*string{
-				"debug-data-transfer.file-encoding": aws.String(string(s.cfg.OutputEncoding)),
-				"debug-data-transfer.file-format":   aws.String(string(s.cfg.OutputFormat)),
-				"debug-data-transfer.key-part":      aws.String(strconv.Itoa(keyPartNumber)),
-				"debug-data-transfer.part-id":       aws.String(ref.partID),
-				"debug-data-transfer.source-name":   aws.String(fullTableName),
-				"debug-data-transfer.transfer-id":   aws.String(s.transferID),
+				"debug-data-transfer-file-encoding": aws.String(string(s.cfg.OutputEncoding)),
+				"debug-data-transfer-file-format":   aws.String(string(s.cfg.OutputFormat)),
+				"debug-data-transfer-key-part":      aws.String(strconv.Itoa(keyPartNumber)),
+				"debug-data-transfer-part-id":       aws.String(ref.partID),
+				"debug-data-transfer-source-name":   aws.String(fullTableName),
+				"debug-data-transfer-transfer-id":   aws.String(s.transferID),
 			},
 		}
 

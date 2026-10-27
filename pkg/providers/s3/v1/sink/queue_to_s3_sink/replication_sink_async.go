@@ -139,8 +139,8 @@ func (s *AsyncSink) initPipe(fileName string) error {
 			Bucket: aws.String(s.cfg.Bucket),
 			Key:    aws.String(fileName),
 			Metadata: map[string]*string{
-				"debug-data-transfer.file-encoding": aws.String(string(s.serializer.FormatEncoding())),
-				"debug-data-transfer.file-format":   aws.String(string(s.serializer.FormatName())),
+				"debug-data-transfer-file-encoding": aws.String(string(s.serializer.FormatEncoding())),
+				"debug-data-transfer-file-format":   aws.String(string(s.serializer.FormatName())),
 			},
 		}
 

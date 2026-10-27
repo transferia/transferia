@@ -691,6 +691,37 @@ func TestSnapshotSink_Push_SynchronizeIsNoOp(t *testing.T) {
 	}
 }
 
+type metadataCapturingS3Client struct {
+	*testutil.MockS3Client
+	metadata map[string]string
+}
+
+func (c *metadataCapturingS3Client) Upload(input *s3manager.UploadInput) (*s3manager.UploadOutput, error) {
+	c.metadata = aws.StringValueMap(input.Metadata)
+	return c.MockS3Client.Upload(input)
+}
+
+func TestSnapshotSink_UploadMetadata(t *testing.T) {
+	sink, mock := newTestDropSink(t, "", map[string][]byte{})
+	client := &metadataCapturingS3Client{MockS3Client: mock}
+	sink.s3Client = client
+	sink.transferID = "test-transfer"
+	sink.cfg.OutputEncoding = s3_model.GzipEncoding
+	ref := NewS3ObjectRef("", "ns", "test_table", "part-42", "1700000000", sink.cfg.OutputFormat, sink.cfg.OutputEncoding)
+
+	require.NoError(t, sink.initPipe("ns.test_table", ref, 7))
+	require.NoError(t, sink.Close())
+
+	require.Equal(t, map[string]string{
+		"debug-data-transfer-file-encoding": "GZIP",
+		"debug-data-transfer-file-format":   "JSON",
+		"debug-data-transfer-key-part":      "7",
+		"debug-data-transfer-part-id":       "part-42",
+		"debug-data-transfer-source-name":   "ns.test_table",
+		"debug-data-transfer-transfer-id":   "test-transfer",
+	}, client.metadata)
+}
+
 type failingCompleteS3Client struct {
 	*testutil.MockS3Client
 }
