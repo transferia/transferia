@@ -128,7 +128,7 @@ require (
 	github.com/UNO-SOFT/zlog v0.8.3 // indirect
 	github.com/alecthomas/assert/v2 v2.11.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.14.0 // indirect
-	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20211112161151-bc219186db40 // indirect
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
 	github.com/apache/thrift v0.22.0 // indirect
