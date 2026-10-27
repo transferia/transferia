@@ -37,7 +37,8 @@ const (
 	serbiaLogbrokerPort      = 2136
 )
 
-// ClusterInstances returns a copy of the instances belonging to cluster.
+// ClusterInstances returns the static instances used by the UI, multi-YT and
+// Queue-to-S3. Ordinary federation replication resolves its instances via discovery.
 func ClusterInstances(cluster LogbrokerCluster) ([]LogbrokerInstance, bool) {
 	installation, ok := installationByCluster(cluster)
 	if !ok {
@@ -60,6 +61,9 @@ func UIClusters() []LogbrokerCluster {
 type installationConfig struct {
 	cluster   LogbrokerCluster
 	instances []LogbrokerInstance
+	// endpoint is a stable bootstrap address, not a list of federation members.
+	endpoint  string
+	federated bool
 
 	// port overrides the endpoint port; zero preserves it (effective zero defaults to 2135).
 	port int
@@ -80,7 +84,9 @@ type installationConfig struct {
 
 var installations = []installationConfig{
 	{
-		cluster: Logbroker,
+		cluster:   Logbroker,
+		endpoint:  "logbroker.yandex.net",
+		federated: true,
 		instances: []LogbrokerInstance{
 			"klg.logbroker.yandex.net",
 			"sam.logbroker.yandex.net",
@@ -93,7 +99,9 @@ var installations = []installationConfig{
 		uiVisible:       true,
 	},
 	{
-		cluster: LogbrokerPrestable,
+		cluster:   LogbrokerPrestable,
+		endpoint:  "logbroker-prestable.yandex.net",
+		federated: true,
 		instances: []LogbrokerInstance{
 			"klg.logbroker-prestable.yandex.net",
 		},
@@ -105,6 +113,7 @@ var installations = []installationConfig{
 	},
 	{
 		cluster:         Lbkx,
+		endpoint:        "lbkx.logbroker.yandex.net",
 		instances:       []LogbrokerInstance{"lbkx.logbroker.yandex.net"},
 		port:            0,
 		tls:             DefaultTLS,
@@ -114,6 +123,7 @@ var installations = []installationConfig{
 	},
 	{
 		cluster:         LbkxMow,
+		endpoint:        "lbkx-mow.logbroker.yandex.net",
 		instances:       []LogbrokerInstance{"lbkx-mow.logbroker.yandex.net"},
 		port:            0,
 		tls:             DefaultTLS,
@@ -123,6 +133,7 @@ var installations = []installationConfig{
 	},
 	{
 		cluster:         Messenger,
+		endpoint:        "messenger.logbroker.yandex.net",
 		instances:       []LogbrokerInstance{"messenger.logbroker.yandex.net"},
 		port:            0,
 		tls:             DefaultTLS,
@@ -132,6 +143,7 @@ var installations = []installationConfig{
 	},
 	{
 		cluster:         Lbkxt,
+		endpoint:        "lbkxt.logbroker.yandex.net",
 		instances:       []LogbrokerInstance{"lbkxt.logbroker.yandex.net"},
 		port:            0,
 		tls:             DefaultTLS,
@@ -141,6 +153,7 @@ var installations = []installationConfig{
 	},
 	{
 		cluster:         YcLogbroker,
+		endpoint:        "lb.etn03iai600jur7pipla.ydb.mdb.yandexcloud.net",
 		instances:       []LogbrokerInstance{"lb.etn03iai600jur7pipla.ydb.mdb.yandexcloud.net"},
 		port:            0,
 		tls:             DefaultTLS,
@@ -150,6 +163,7 @@ var installations = []installationConfig{
 	},
 	{
 		cluster:         YcLogbrokerPrestable,
+		endpoint:        "lb.cc8035oc71oh9um52mv3.ydb.mdb.cloud-preprod.yandex.net",
 		instances:       []LogbrokerInstance{"lb.cc8035oc71oh9um52mv3.ydb.mdb.cloud-preprod.yandex.net"},
 		port:            0,
 		tls:             DefaultTLS,
@@ -158,7 +172,9 @@ var installations = []installationConfig{
 		uiVisible:       false,
 	},
 	{
-		cluster: LogbrokerSerbia,
+		cluster:   LogbrokerSerbia,
+		endpoint:  "logbroker.yango.tech",
+		federated: true,
 		instances: []LogbrokerInstance{
 			"dct.logbroker.yango.tech",
 			"orn.logbroker.yango.tech",
@@ -171,6 +187,7 @@ var installations = []installationConfig{
 	},
 	{
 		cluster:         LbkxSerbia,
+		endpoint:        "lbkx.yango.tech",
 		instances:       []LogbrokerInstance{"lbkx.yango.tech"},
 		port:            serbiaLogbrokerPort,
 		tls:             EnabledTLS,

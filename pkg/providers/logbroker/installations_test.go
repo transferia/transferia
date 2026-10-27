@@ -11,7 +11,8 @@ func TestInstallationCatalog(t *testing.T) {
 		instances, ok := ClusterInstances(LbkxMow)
 		require.True(t, ok)
 		require.Equal(t, []LogbrokerInstance{"lbkx-mow.logbroker.yandex.net"}, instances)
-		require.True(t, checkInstanceValidity("lbkx-mow.logbroker.yandex.net"))
+		_, ok = installationByInstance("lbkx-mow.logbroker.yandex.net")
+		require.True(t, ok)
 	})
 
 	t.Run("LogbrokerSerbiaExposesBothDataPlaneInstances", func(t *testing.T) {
@@ -21,15 +22,18 @@ func TestInstallationCatalog(t *testing.T) {
 			"dct.logbroker.yango.tech",
 			"orn.logbroker.yango.tech",
 		}, instances)
-		require.True(t, checkInstanceValidity("dct.logbroker.yango.tech"))
-		require.True(t, checkInstanceValidity("orn.logbroker.yango.tech"))
+		_, ok = installationByInstance("dct.logbroker.yango.tech")
+		require.True(t, ok)
+		_, ok = installationByInstance("orn.logbroker.yango.tech")
+		require.True(t, ok)
 	})
 
 	t.Run("LbkxSerbiaExposesItsGlobalInstance", func(t *testing.T) {
 		instances, ok := ClusterInstances(LbkxSerbia)
 		require.True(t, ok)
 		require.Equal(t, []LogbrokerInstance{"lbkx.yango.tech"}, instances)
-		require.True(t, checkInstanceValidity("lbkx.yango.tech"))
+		_, ok = installationByInstance("lbkx.yango.tech")
+		require.True(t, ok)
 	})
 
 	t.Run("ReturnedInstancesDoNotMutateCatalog", func(t *testing.T) {

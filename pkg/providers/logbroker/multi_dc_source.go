@@ -10,25 +10,24 @@ import (
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
-	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type multiDcSource struct {
 	sources map[string]abstract.Source
-	configs map[string]LfSource
-	stats   map[string]*stats.SourceStats
-	errCh   chan error
 	logger  log.Logger
 	metrics core_metrics.Registry
 	// ctx/cancel let Run (and Stop) interrupt endpoint goroutines that are stuck
 	// trying to create a reader for an unreachable endpoint: without this, such a
 	// goroutine never notices that its siblings have already failed (or that the
 	// whole source is being stopped) and Run would block forever waiting for it.
-	ctx    context.Context
-	cancel context.CancelFunc
-	lock   sync.Mutex
-	cfg    *LfSource
+	ctx       context.Context
+	cancel    context.CancelFunc
+	lock      sync.Mutex
+	cfg       *LfSource
+	stopOnce  sync.Once
+	resolve   func(context.Context, *LfSource, log.Logger) ([]LogbrokerInstance, error)
+	newSource func(context.Context, *LfSource, log.Logger, core_metrics.Registry) (abstract.Source, error)
 }
 
 func isPersqueueTemporaryError(err error) bool {
@@ -40,26 +39,20 @@ func isPersqueueTemporaryError(err error) bool {
 }
 
 func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
-	endpoints, knownCluster := ClusterInstances(s.cfg.Cluster)
-	if !knownCluster {
-		return xerrors.Errorf("cannot run source: unknown cluster %v", s.cfg.Cluster)
+	endpoints, err := s.resolve(s.ctx, s.cfg, s.logger)
+	if err != nil {
+		return xerrors.Errorf("resolve Logbroker sources: %w", err)
 	}
 	endpointsNumber := len(endpoints)
 	errCh := make(chan error, endpointsNumber)
-	forceStop := false
 	for _, endpoint := range endpoints {
 		go func(endpoint LogbrokerInstance) {
-			childCfg := *s.cfg
-			childCfg.MaxIdleTime = time.Hour
-			childCfg.Instance = endpoint
-			if database, ok := clusterDefaultDatabase(s.cfg.Cluster); ok && s.cfg.Database == "" {
-				childCfg.Database = database
-			}
+			childCfg := s.configForInstance(endpoint)
 			for {
 				select {
 				case <-s.ctx.Done():
 					// Either a sibling endpoint has already failed and the whole
-					// multi-dc source is being torn down (forceStop), or Stop was
+					// multi-dc source is being torn down, or Stop was
 					// called directly. Bail out instead of attempting (or retrying)
 					// a connection to this (possibly still unreachable) endpoint.
 					errCh <- xerrors.Errorf("won`t init endpoint(%v) source: %w", string(endpoint), s.ctx.Err())
@@ -67,7 +60,7 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 				default:
 				}
 
-				source, err := newOneDCSource(
+				source, err := s.newSource(
 					s.ctx,
 					&childCfg,
 					log.With(s.logger, log.String("dc", string(endpoint))),
@@ -83,7 +76,7 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 				}
 
 				s.lock.Lock()
-				if forceStop {
+				if s.ctx.Err() != nil {
 					s.lock.Unlock()
 					source.Stop()
 					errCh <- xerrors.Errorf("won`t run endpoint(%v) source because of forced stop", string(endpoint))
@@ -104,21 +97,20 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 			}
 		}(endpoint)
 	}
-	err := <-errCh
+	err = <-errCh
 
-	s.lock.Lock()
-	forceStop = true
-	s.lock.Unlock()
 	// Cancel ctx so that any endpoint goroutine still stuck creating a reader for an
-	// unreachable endpoint (and therefore not yet checking forceStop/present in
+	// unreachable endpoint (and therefore not yet present in
 	// s.sources) unblocks and reports into errCh below, instead of hanging forever.
 	s.cancel()
 
 	s.logger.Infof("one of endpoint sources stopped (error: %v), so we need to stop other sources", err)
+	s.lock.Lock()
 	for e, src := range s.sources {
 		s.logger.Infof("stop endpoint source: %v", e)
 		src.Stop()
 	}
+	s.lock.Unlock()
 
 	s.logger.Infof("waiting for all sources are stopped")
 	for i := 0; i < endpointsNumber-1; i++ {
@@ -131,28 +123,29 @@ func (s *multiDcSource) Run(sink abstract.AsyncSink) error {
 func (s *multiDcSource) Stop() {
 	// Unblock any endpoint goroutine still creating a reader for an unreachable
 	// endpoint, in addition to stopping the already-started ones below.
-	s.cancel()
-	for _, endpoint := range s.sources {
-		endpoint.Stop()
-	}
-	close(s.errCh)
+	s.stopOnce.Do(func() {
+		s.cancel()
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		for _, source := range s.sources {
+			source.Stop()
+		}
+	})
 }
 
 func (s *multiDcSource) Fetch() ([]abstract.ChangeItem, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+	endpoints, err := s.resolve(ctx, s.cfg, s.logger)
+	if err != nil {
+		return nil, xerrors.Errorf("resolve Logbroker sources for sampling: %w", err)
+	}
 	res := make(chan []abstract.ChangeItem, len(s.sources))
 	errCh := make(chan error, len(s.sources))
 	go func() {
-		endpoints, _ := ClusterInstances(s.cfg.Cluster)
 		for _, endpoint := range endpoints {
-			childCfg := *s.cfg
-			childCfg.MaxIdleTime = time.Hour
-			childCfg.Instance = endpoint
-			if database, ok := clusterDefaultDatabase(s.cfg.Cluster); ok && s.cfg.Database == "" {
-				childCfg.Database = database
-			}
-			source, err := newOneDCSource(
+			childCfg := s.configForInstance(endpoint)
+			source, err := s.newSource(
 				ctx,
 				&childCfg,
 				s.logger,
@@ -188,21 +181,29 @@ func (s *multiDcSource) Fetch() ([]abstract.ChangeItem, error) {
 	}
 }
 
+func (s *multiDcSource) configForInstance(endpoint LogbrokerInstance) LfSource {
+	childCfg := *s.cfg
+	childCfg.MaxIdleTime = time.Hour
+	childCfg.Instance = endpoint
+	if database, ok := clusterDefaultDatabase(s.cfg.Cluster); ok && s.cfg.Database == "" {
+		childCfg.Database = database
+	}
+	return childCfg
+}
+
 func NewMultiDCSource(cfg *LfSource, logger log.Logger, registry core_metrics.Registry) (abstract.Source, error) {
 	sources := map[string]abstract.Source{}
-	configs := map[string]LfSource{}
-	statsM := map[string]*stats.SourceStats{}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &multiDcSource{
-		sources: sources,
-		configs: configs,
-		stats:   statsM,
-		errCh:   make(chan error),
-		logger:  logger,
-		metrics: registry,
-		ctx:     ctx,
-		cancel:  cancel,
-		lock:    sync.Mutex{},
-		cfg:     cfg,
+		sources:   sources,
+		logger:    logger,
+		metrics:   registry,
+		ctx:       ctx,
+		cancel:    cancel,
+		lock:      sync.Mutex{},
+		stopOnce:  sync.Once{},
+		cfg:       cfg,
+		resolve:   resolveInstances,
+		newSource: newOneDCSource,
 	}, nil
 }

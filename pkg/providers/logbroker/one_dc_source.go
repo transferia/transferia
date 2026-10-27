@@ -22,9 +22,10 @@ import (
 // (potentially forever, since the pqv1 SDK retries indefinitely on its own) until the
 // endpoint becomes reachable.
 func newOneDCSource(ctx context.Context, cfg *LfSource, logger log.Logger, registry core_metrics.Registry) (abstract.Source, error) {
-	// In test we use logbroker with local environment therefore we should skip this check
-	if !env.IsTest() {
-		if instanceIsValid := checkInstanceValidity(cfg.Instance); !instanceIsValid {
+	// Explicit instances retain catalog validation; cluster readers use resolved
+	// addresses. Tests may connect to a local instance outside the catalog.
+	if !env.IsTest() && cfg.Cluster == "" {
+		if !checkInstanceValidity(cfg.Instance) {
 			return nil, abstract.NewFatalError(xerrors.Errorf("the instance '%s' from config is not known", cfg.Instance))
 		}
 	}

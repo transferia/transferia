@@ -79,6 +79,15 @@ func (s *LfSource) GetProviderType() abstract.ProviderType {
 }
 
 func (s *LfSource) Validate() error {
+	if len(s.Topics) == 0 {
+		return xerrors.New("Logbroker source topics must not be empty")
+	}
+	if s.Cluster != "" {
+		if _, ok := installationByCluster(s.Cluster); !ok {
+			return xerrors.Errorf("unknown Logbroker installation %q", s.Cluster)
+		}
+	}
+
 	parserConfigStruct, err := parsers.ParserConfigMapToStruct(s.ParserConfig)
 	if err != nil {
 		return xerrors.Errorf("unable to make parser from config, err: %w", err)
