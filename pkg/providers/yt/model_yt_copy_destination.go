@@ -5,6 +5,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/providers/yt/yt_client"
 	"go.uber.org/zap/zapcore"
 	"go.ytsaurus.tech/yt/go/mapreduce/spec"
 	"go.ytsaurus.tech/yt/go/yt"
@@ -79,7 +80,7 @@ func (y *YtCopyDestination) SupportMultiThreads() bool {
 }
 
 func (y *YtCopyDestination) Proxy() string {
-	return y.Cluster
+	return yt_client.ClusterProxy(y.Cluster)
 }
 
 func (y *YtCopyDestination) Token() string {

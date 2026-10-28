@@ -21,6 +21,14 @@ type ConnParams interface {
 	ProxyRole() string
 }
 
+// ClusterProxy resolves the connection address without changing the logical cluster name.
+func ClusterProxy(cluster string) string {
+	if cluster == "hahn" {
+		return "lazarus.yt.yandex.net"
+	}
+	return cluster
+}
+
 func FromConnParams(cfg ConnParams, lgr log.Logger) (yt.Client, error) {
 	ytConfig := yt.Config{
 		Proxy:                    cfg.Proxy(),

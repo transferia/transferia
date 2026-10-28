@@ -121,6 +121,9 @@ func (s *YtSource) GetRowIdxColumn() string {
 func (s *YtSource) IsAsyncShardPartsSource() {}
 
 func (s YtSource) Proxy() string {
+	if s.Cluster == "hahn" {
+		return yt_client.ClusterProxy(s.Cluster)
+	}
 	if s.YtProxy != "" {
 		return s.YtProxy
 	}

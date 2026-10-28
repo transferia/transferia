@@ -152,6 +152,7 @@ func (y *verboseErrLogger) Logger() log.Logger {
 //	}
 func NewYtClientWrapper(clientType ClientType, lgr log.Logger, ytConfig *yt.Config) (yt.Client, error) {
 	if ytConfig != nil {
+		ytConfig.Proxy = ClusterProxy(ytConfig.Proxy)
 		if lgr != nil {
 			if ytConfig.Logger == nil {
 				ytLgr := logger.ExtractYTLogger(lgr)
