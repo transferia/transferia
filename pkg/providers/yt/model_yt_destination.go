@@ -475,7 +475,7 @@ func (d *YtDestinationWrapper) DisableProxyDiscovery() bool {
 }
 
 func (d *YtDestinationWrapper) Proxy() string {
-	return yt_client.ClusterProxy(d.Cluster())
+	return d.Cluster()
 }
 
 func (d *YtDestinationWrapper) UseTLS() bool {

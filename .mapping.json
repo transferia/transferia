@@ -2369,7 +2369,6 @@
   "pkg/providers/yt/model_storage_params.go":"transfer_manager/go/pkg/providers/yt/model_storage_params.go",
   "pkg/providers/yt/model_yt_copy_destination.go":"transfer_manager/go/pkg/providers/yt/model_yt_copy_destination.go",
   "pkg/providers/yt/model_yt_destination.go":"transfer_manager/go/pkg/providers/yt/model_yt_destination.go",
-  "pkg/providers/yt/model_yt_proxy_test.go":"transfer_manager/go/pkg/providers/yt/model_yt_proxy_test.go",
   "pkg/providers/yt/model_yt_source.go":"transfer_manager/go/pkg/providers/yt/model_yt_source.go",
   "pkg/providers/yt/model_ytsaurus_dynamic_destination.go":"transfer_manager/go/pkg/providers/yt/model_ytsaurus_dynamic_destination.go",
   "pkg/providers/yt/model_ytsaurus_source.go":"transfer_manager/go/pkg/providers/yt/model_ytsaurus_source.go",
