@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
+	yt_copy_events "github.com/transferia/transferia/pkg/providers/yt/copy/events"
 	"github.com/transferia/transferia/pkg/providers/yt/copy/target"
+	"github.com/transferia/transferia/pkg/providers/yt/cypressmeta"
 	"github.com/transferia/transferia/tests/helpers/delivery"
 	_ "github.com/transferia/transferia/tests/helpers/registration/yt"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
@@ -196,6 +199,90 @@ func uploadSlice(t *testing.T, ytEnv *yttest.Env, path string, data []row) {
 	ytpath, err := ypath.Parse(path)
 	require.NoError(t, err)
 	require.NoError(t, ytEnv.UploadSlice(ytpath, data))
+}
+
+func TestYTCopySkipUnavailableChunks(t *testing.T) {
+	require.NotEmpty(t, SrcYT)
+	require.NotEmpty(t, DstYT)
+	srcEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: SrcYT}), yttest.WithLogger(logger.Log.Structured()))
+	dstEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: DstYT}), yttest.WithLogger(logger.Log.Structured()))
+
+	for _, usePushTransaction := range []bool{false, true} {
+		t.Run(strconv.FormatBool(usePushTransaction), func(t *testing.T) {
+			prefix := "//tm10732_" + strconv.FormatBool(usePushTransaction)
+			input := []row{{1, "first"}, {2, "second"}}
+			require.NoError(t, initSrcData(srcEnv, []ytTbl{{InPath: prefix + "/source/table", Data: input}}))
+			// Remote copy copies source attributes; the destination must replace this stale value.
+			require.NoError(t, srcEnv.YT.SetNode(t.Context(), ypath.Path(prefix+"/source/table").Attr(target.LostRowCountAttr), int64(17), nil))
+
+			src := &provider_yt.YtSource{Cluster: "src", YtProxy: SrcYT, Paths: []string{prefix + "/source"}}
+			dst := &provider_yt.YtCopyDestination{
+				Cluster:               DstYT,
+				Prefix:                prefix + "/target",
+				Pool:                  "default",
+				SkipUnavailableChunks: true,
+				UsePushTransaction:    usePushTransaction,
+				Cleanup:               model.Replace,
+			}
+			transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID+"-"+strconv.FormatBool(usePushTransaction), src, dst, TransferType)
+			worker := delivery.Activate(t, transfer)
+			defer worker.Close(t)
+
+			path := ypath.Path(prefix + "/target/table")
+			var output []row
+			require.NoError(t, dstEnv.DownloadSlice(path, &output))
+			require.Equal(t, input, output)
+			var lostRows int64
+			require.NoError(t, dstEnv.YT.GetNode(t.Context(), path.Attr(target.LostRowCountAttr), &lostRows, nil))
+			require.Zero(t, lostRows)
+		})
+	}
+}
+
+func TestYTCopySourceRowCountChanged(t *testing.T) {
+	require.NotEmpty(t, SrcYT)
+	require.NotEmpty(t, DstYT)
+	srcEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: SrcYT}), yttest.WithLogger(logger.Log.Structured()))
+	dstEnv := yttest.New(t, yttest.WithConfig(yt.Config{Proxy: DstYT}), yttest.WithLogger(logger.Log.Structured()))
+
+	for _, tc := range []struct {
+		name string
+		rows []row
+	}{
+		{name: "appended", rows: []row{{1, "first"}, {2, "second"}, {3, "third"}}},
+		{name: "deleted", rows: []row{{1, "first"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prefix := "//tm10732_row_count_" + tc.name
+			sourcePath := prefix + "/source/table"
+			require.NoError(t, initSrcData(srcEnv, []ytTbl{{InPath: sourcePath, Data: []row{{1, "first"}, {2, "second"}}}}))
+			nodes, err := cypressmeta.ListNodes(t.Context(), srcEnv.YT, "src", []string{sourcePath}, []yt.NodeType{yt.NodeTable}, false, logger.Log)
+			require.NoError(t, err)
+			require.Len(t, nodes, 1)
+			require.Equal(t, int64(2), nodes[0].RowCount)
+			uploadSlice(t, srcEnv, sourcePath, tc.rows)
+
+			src := &provider_yt.YtSource{Cluster: "src", YtProxy: SrcYT, Paths: []string{sourcePath}}
+			src.WithDefaults()
+			dst := &provider_yt.YtCopyDestination{
+				Cluster: DstYT, Prefix: prefix + "/target", Pool: "default",
+				SkipUnavailableChunks: true, UsePushTransaction: true, Cleanup: model.Replace,
+			}
+			dst.WithDefaults()
+			copyTarget, err := target.NewTarget(logger.Log, nil, src, dst, transferhelpers.TransferID+"-"+tc.name)
+			require.NoError(t, err)
+			defer func() { require.NoError(t, copyTarget.Close()) }()
+			require.NoError(t, <-copyTarget.AsyncPush(yt_copy_events.NewEventBatch(nodes)))
+
+			outputPath := ypath.Path(prefix + "/target/table")
+			var output []row
+			require.NoError(t, dstEnv.DownloadSlice(outputPath, &output))
+			require.Equal(t, tc.rows, output)
+			var lostRows int64
+			require.NoError(t, dstEnv.YT.GetNode(t.Context(), outputPath.Attr(target.LostRowCountAttr), &lostRows, nil))
+			require.Zero(t, lostRows)
+		})
+	}
 }
 
 // checkPathsHaveContentRevisionAttr fails if at least one of provided paths does not have ContentRevisionAttr.

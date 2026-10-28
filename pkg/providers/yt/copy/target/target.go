@@ -28,6 +28,7 @@ import (
 type YtCopyTarget struct {
 	cfg        *provider_yt.YtCopyDestination
 	yt         yt.Client
+	sourceYT   yt.Client
 	snapshotTX yt.Tx
 	pool       worker_pool.WorkerPool
 	logger     log.Logger
@@ -43,6 +44,31 @@ type ytMimimalClient interface {
 // User attribute on the target node storing source content_revision (TM-9579).
 // If source content_revision equals this value, we skip copying the node.
 const ContentRevisionAttr = "__dt_content_revision"
+
+// LostRowCountAttr stores the number of source rows omitted by remote copy.
+const LostRowCountAttr = "_lost_row_count"
+
+type remoteCopySpec struct {
+	spec.Spec
+	UnavailableChunkStrategy string `yson:"unavailable_chunk_strategy,omitempty"`
+	UnavailableChunkTactics  string `yson:"unavailable_chunk_tactics,omitempty"`
+}
+
+// The source snapshot must be owned by the user that starts RemoteCopy.
+type copySourceConnParams struct {
+	yt_client.ConnParams
+	token string
+}
+
+var _ yt_client.ConnParams = (*copySourceConnParams)(nil)
+
+func (c *copySourceConnParams) Token() string {
+	return c.token
+}
+
+func (c *copySourceConnParams) ServiceAccountID() string {
+	return ""
+}
 
 type copyTask struct {
 	evt      yt_copy_events.NodeEvent
@@ -80,8 +106,23 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 				var storedRev int64
 				err := task.yt.GetNode(ctx, revAttrPath, &storedRev, nil)
 				if err == nil && storedRev == tbl.ContentRevision {
-					t.logger.Infof("Skipping node %s (source content_revision %d unchanged)", tbl.FullName(), tbl.ContentRevision)
-					return nil
+					var lostRowCount int64
+					if tbl.NodeType == yt.NodeTable {
+						lostRowCountPath := outYPath.Copy().Child("@" + LostRowCountAttr)
+						attrExists, err := task.yt.NodeExists(ctx, lostRowCountPath, nil)
+						if err != nil {
+							return xerrors.Errorf("error checking %s on target %s: %w", LostRowCountAttr, outPath, provider_yt.WrapYTError(err))
+						}
+						if attrExists {
+							if err := task.yt.GetNode(ctx, lostRowCountPath, &lostRowCount, nil); err != nil {
+								return xerrors.Errorf("error getting lost row count on target %s: %w", outPath, provider_yt.WrapYTError(err))
+							}
+						}
+					}
+					if lostRowCount == 0 {
+						t.logger.Infof("Skipping node %s (source content_revision %d unchanged)", tbl.FullName(), tbl.ContentRevision)
+						return nil
+					}
 				}
 			}
 		}
@@ -95,15 +136,53 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 		}
 	}
 
-	copySpec := spec.Spec{
-		Title:                    fmt.Sprintf("DataTransfer RemoteCopy (TransferID %s)", t.transferID),
-		ClusterName:              tbl.Cluster,
-		InputTablePaths:          []ypath.YPath{tbl.OriginalYPath()},
-		OutputTablePath:          tmpOutYPath,
-		CopyAttributes:           boolPtr(true),
-		Pool:                     t.cfg.Pool,
-		ResourceLimits:           t.cfg.ResourceLimits,
-		AllowUnfrozenInputTables: t.cfg.AllowUnfrozenInputTables,
+	rowCountAttr := "row_count"
+	if tbl.Dynamic {
+		rowCountAttr = "chunk_row_count"
+	}
+
+	inputPath := tbl.OriginalYPath()
+	var sourceRowCount int64
+	if t.cfg.SkipUnavailableChunks && tbl.NodeType == yt.NodeTable {
+		tx, err := t.sourceYT.BeginTx(ctx, nil)
+		if err != nil {
+			return xerrors.Errorf("error starting source snapshot transaction for %s: %w", tbl.FullName(), provider_yt.WrapYTError(err))
+		}
+		defer func() {
+			if err := tx.Abort(); err != nil {
+				t.logger.Warnf("Failed to abort source snapshot transaction for %s: %v", tbl.FullName(), err)
+			}
+		}()
+
+		lock, err := tx.LockNode(ctx, inputPath, yt.LockSnapshot, nil)
+		if err != nil {
+			return xerrors.Errorf("error locking source table %s for snapshot: %w", tbl.FullName(), provider_yt.WrapYTError(err))
+		}
+		snapshotPath := ypath.NewRich(lock.NodeID.YPath().String())
+		snapshotPath.TransactionID = tx.ID()
+		inputPath = snapshotPath
+		if err := tx.GetNode(ctx, lock.NodeID.YPath().Attr(rowCountAttr), &sourceRowCount, nil); err != nil {
+			return xerrors.Errorf("error getting row count of source snapshot %s: %w", tbl.FullName(), provider_yt.WrapYTError(err))
+		}
+	}
+
+	copySpec := remoteCopySpec{
+		Spec: spec.Spec{
+			Title:                    fmt.Sprintf("DataTransfer RemoteCopy (TransferID %s)", t.transferID),
+			ClusterName:              tbl.Cluster,
+			InputTablePaths:          []ypath.YPath{inputPath},
+			OutputTablePath:          tmpOutYPath,
+			CopyAttributes:           boolPtr(true),
+			Pool:                     t.cfg.Pool,
+			ResourceLimits:           t.cfg.ResourceLimits,
+			AllowUnfrozenInputTables: t.cfg.AllowUnfrozenInputTables,
+		},
+		UnavailableChunkStrategy: "",
+		UnavailableChunkTactics:  "",
+	}
+	if t.cfg.SkipUnavailableChunks {
+		copySpec.UnavailableChunkStrategy = "skip"
+		copySpec.UnavailableChunkTactics = "skip"
 	}
 
 	createOpts := &yt.CreateNodeOptions{
@@ -157,6 +236,30 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			return xerrors.Errorf("RemoteCopy (id=%s) error for node %s: %w", opID, outPath, opErr)
 		}
 		break
+	}
+
+	if tbl.NodeType == yt.NodeTable {
+		lostRowCountPath := tmpOutYPath.Copy().Child("@" + LostRowCountAttr)
+		writeLostRowCount := t.cfg.SkipUnavailableChunks
+		var lostRowCount int64
+		if t.cfg.SkipUnavailableChunks {
+			var rowCount int64
+			if err := task.yt.GetNode(ctx, tmpOutYPath.Copy().Child("@"+rowCountAttr), &rowCount, nil); err != nil {
+				return xerrors.Errorf("error getting row count of copied table %s: %w", outPath, provider_yt.WrapYTError(err))
+			}
+			lostRowCount = sourceRowCount - rowCount
+		} else {
+			var err error
+			writeLostRowCount, err = task.yt.NodeExists(ctx, lostRowCountPath, nil)
+			if err != nil {
+				return xerrors.Errorf("error checking %s on copied table %s: %w", LostRowCountAttr, outPath, provider_yt.WrapYTError(err))
+			}
+		}
+		if writeLostRowCount {
+			if err := task.yt.SetNode(ctx, lostRowCountPath, lostRowCount, nil); err != nil {
+				return xerrors.Errorf("error setting lost row count on copied table %s: %w", outPath, provider_yt.WrapYTError(err))
+			}
+		}
 	}
 
 	// Move tmp node
@@ -284,17 +387,33 @@ func (t *YtCopyTarget) AsyncPush(in abstract2.EventBatch) chan error {
 func (t *YtCopyTarget) Close() error {
 	err := t.pool.Close()
 	t.yt.Stop()
+	if t.sourceYT != nil {
+		t.sourceYT.Stop()
+	}
 	return err
 }
 
-func NewTarget(logger log.Logger, metrics core_metrics.Registry, cfg *provider_yt.YtCopyDestination, transferID string) (abstract2.EventTarget, error) {
+func NewTarget(logger log.Logger, metrics core_metrics.Registry, sourceCfg provider_yt.YtSourceModel, cfg *provider_yt.YtCopyDestination, transferID string) (abstract2.EventTarget, error) {
+	var rollbacks util.Rollbacks
+	defer rollbacks.Do()
+
 	y, err := yt_client.FromConnParams(cfg, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("error creating ytrpc client: %w", err)
 	}
+	rollbacks.Add(y.Stop)
+	var sourceYT yt.Client
+	if cfg.SkipUnavailableChunks {
+		sourceYT, err = yt_client.FromConnParams(&copySourceConnParams{ConnParams: sourceCfg, token: cfg.Token()}, logger)
+		if err != nil {
+			return nil, xerrors.Errorf("error creating source snapshot client: %w", err)
+		}
+		rollbacks.Add(sourceYT.Stop)
+	}
 	t := &YtCopyTarget{
 		cfg:        cfg,
 		yt:         y,
+		sourceYT:   sourceYT,
 		snapshotTX: nil,
 		pool:       nil,
 		logger:     logger,
@@ -312,5 +431,6 @@ func NewTarget(logger log.Logger, metrics core_metrics.Registry, cfg *provider_y
 		return nil, xerrors.Errorf("error starting copy pool: %w", err)
 	}
 
+	rollbacks.Cancel()
 	return t, nil
 }

@@ -2336,6 +2336,7 @@
   "pkg/providers/yt/copy/source/dataobjects.go":"transfer_manager/go/pkg/providers/yt/copy/source/dataobjects.go",
   "pkg/providers/yt/copy/source/source.go":"transfer_manager/go/pkg/providers/yt/copy/source/source.go",
   "pkg/providers/yt/copy/target/target.go":"transfer_manager/go/pkg/providers/yt/copy/target/target.go",
+  "pkg/providers/yt/copy/target/target_test.go":"transfer_manager/go/pkg/providers/yt/copy/target/target_test.go",
   "pkg/providers/yt/cypress.go":"transfer_manager/go/pkg/providers/yt/cypress.go",
   "pkg/providers/yt/cypress_test.go":"transfer_manager/go/pkg/providers/yt/cypress_test.go",
   "pkg/providers/yt/cypressmeta/list.go":"transfer_manager/go/pkg/providers/yt/cypressmeta/list.go",

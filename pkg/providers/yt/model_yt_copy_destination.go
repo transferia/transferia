@@ -22,6 +22,7 @@ type YtCopyDestination struct {
 	SkipNodeErrors           bool                 `log:"true"`
 	AllowUnfrozenInputTables bool                 `log:"true"`
 	SkipLinkFollowing        bool                 `log:"true"`
+	SkipUnavailableChunks    bool                 `log:"true"`
 	ResourceLimits           *spec.ResourceLimits `log:"true"`
 	Cleanup                  model.CleanupType    `log:"true"`
 }

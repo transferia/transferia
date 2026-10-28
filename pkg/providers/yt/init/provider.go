@@ -135,7 +135,11 @@ func (p *Provider) Target(...abstract.SinkOption) (abstract2.EventTarget, error)
 	if !ok {
 		return nil, targets.UnknownTargetError
 	}
-	return target.NewTarget(p.logger, p.registry, dst, p.transfer.ID)
+	src, ok := p.transfer.Src.(provider_yt.YtSourceModel)
+	if !ok {
+		return nil, xerrors.Errorf("unexpected source type for YT copy: %T", p.transfer.Src)
+	}
+	return target.NewTarget(p.logger, p.registry, src, dst, p.transfer.ID)
 }
 
 // DataProvider returns the legacy abstract2 data provider for copy
