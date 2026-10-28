@@ -21,6 +21,7 @@ import (
 type perTransactionPushTestTX struct {
 	pgx.Tx
 	calls     []string
+	queries   []string
 	commitErr error
 }
 
@@ -29,8 +30,9 @@ func (tx *perTransactionPushTestTX) Commit(context.Context) error {
 	return tx.commitErr
 }
 
-func (tx *perTransactionPushTestTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+func (tx *perTransactionPushTestTX) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag, error) {
 	tx.calls = append(tx.calls, "exec")
+	tx.queries = append(tx.queries, sql)
 	return pgconn.CommandTag{}, nil
 }
 
@@ -71,6 +73,41 @@ func TestPerTransactionPushExecutesOpenTransactionContinuationBeforeSquash(t *te
 
 	require.ErrorIs(t, err, commitErr)
 	require.Equal(t, []string{"exec", "commit"}, currentTX.calls)
+}
+
+func TestPerTransactionPushAppliesTableRename(t *testing.T) {
+	currentTX := &perTransactionPushTestTX{}
+	item := abstract.ChangeItem{
+		ID:           10,
+		LSN:          10,
+		Kind:         abstract.InsertKind,
+		Schema:       "public",
+		Table:        "test",
+		ColumnNames:  []string{"id"},
+		ColumnValues: []any{int64(1)},
+		TableSchema: abstract.NewTableSchema([]abstract.ColSchema{
+			{ColumnName: "id", DataType: "int64", OriginalType: "pg:bigint", PrimaryKey: true},
+		}),
+	}
+	dst := &PgDestination{PerTransactionPush: true, Tables: map[string]string{item.PgName(): "public.renamed"}}
+	s := &sink{
+		currentConn:        new(pgxpool.Conn),
+		config:             dst.ToSinkParams(),
+		logger:             &corezap.Logger{L: zap.NewNop()},
+		metrics:            stats.NewSinkerStats(solomon.NewRegistry(solomon.NewRegistryOpts())),
+		keys:               map[string][]string{},
+		currentTX:          currentTX,
+		currentTXID:        10,
+		transferID:         "test-transfer",
+		lsnTrack:           map[abstract.TableID]uint64{},
+		pendingTableCounts: map[abstract.TableID]int{},
+	}
+
+	require.NoError(t, s.perTransactionPush([]abstract.ChangeItem{item}))
+
+	require.Len(t, currentTX.queries, 1)
+	require.Contains(t, currentTX.queries[0], "insert into public.renamed (")
+	require.NotContains(t, currentTX.queries[0], "insert into "+item.PgName()+" (")
 }
 
 func TestPartialUpdate(t *testing.T) {

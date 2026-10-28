@@ -510,7 +510,7 @@ func (s *sink) perTransactionPush(input []abstract.ChangeItem) error {
 				continue
 			}
 			s.metrics.Table(r.PgName(), "rows", 1)
-			queries[i], err = s.buildQuery(r.PgName(), r.TableSchema.Columns(), batch[i:i+1])
+			queries[i], err = s.buildQuery(s.dstTableName(r.PgName()), r.TableSchema.Columns(), batch[i:i+1])
 			if err != nil {
 				return xerrors.Errorf("unable to build query: %w", err)
 			}
@@ -604,15 +604,16 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 				s.logger.Infof("Skipped dropping table '%v' due cleanup policy", item.PgName())
 				continue
 			}
-			if _, err := s.conn.Exec(context.TODO(), fmt.Sprintf("drop table if exists %v;", item.PgName())); err != nil {
+			pgTable := s.dstTableName(item.PgName())
+			if _, err := s.conn.Exec(context.TODO(), fmt.Sprintf("drop table if exists %v;", pgTable)); err != nil {
 				if pgerrors.IsPgError(err, pgerrors.ErrcWrongObjectType) {
-					s.logger.Infof("drop table %v returns: %v, so try drop as view", item.PgName(), err.Error())
-					if _, err := s.conn.Exec(context.TODO(), fmt.Sprintf("drop view if exists %v;", item.PgName())); err != nil {
+					s.logger.Infof("drop table %v returns: %v, so try drop as view", pgTable, err.Error())
+					if _, err := s.conn.Exec(context.TODO(), fmt.Sprintf("drop view if exists %v;", pgTable)); err != nil {
 						//nolint:descriptiveerrors
 						return err
 					}
 				} else if pgerrors.IsPgError(err, pgerrors.ErrcDropTableWithDependencies) {
-					return coded.Errorf(error_codes.PostgresDropTableWithDependencies, "failed to drop table %v: %w", item.PgName(), err)
+					return coded.Errorf(error_codes.PostgresDropTableWithDependencies, "failed to drop table %v: %w", pgTable, err)
 				} else {
 					//nolint:descriptiveerrors
 					return err
@@ -623,15 +624,16 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 				s.logger.Infof("Skipped truncating table '%v' due cleanup policy", item.PgName())
 				continue
 			}
-			if _, err := s.conn.Exec(context.TODO(), fmt.Sprintf("truncate table %v;", item.PgName())); err != nil {
+			pgTable := s.dstTableName(item.PgName())
+			if _, err := s.conn.Exec(context.TODO(), fmt.Sprintf("truncate table %v;", pgTable)); err != nil {
 				if pgerrors.IsPgError(err, pgerrors.ErrcWrongObjectType) {
-					s.logger.Infof("truncate table %v returns: %v, so this is view, no need to truncate", item.PgName(), err.Error())
+					s.logger.Infof("truncate table %v returns: %v, so this is view, no need to truncate", pgTable, err.Error())
 					continue
 				} else if pgerrors.IsPgError(err, pgerrors.ErrcRelationDoesNotExists) {
-					s.logger.Infof("truncate table %v skip: table not exists", item.PgName())
+					s.logger.Infof("truncate table %v skip: table not exists", pgTable)
 					continue
 				} else if pgerrors.IsPgError(err, pgerrors.ErrcSchemaDoesNotExists) {
-					s.logger.Infof("truncate table %v skip: schema %v not exists", item.PgName(), item.Schema)
+					s.logger.Infof("truncate table %v skip: schema not exists", pgTable)
 					continue
 				} else {
 					//nolint:descriptiveerrors
@@ -660,10 +662,7 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 	}
 
 	for table, batch := range batches {
-		pgTable := table
-		if s.config.Tables()[table] != "" {
-			pgTable = s.config.Tables()[table]
-		}
+		pgTable := s.dstTableName(table)
 		tableID, err := abstract.NewTableIDFromStringPg(pgTable, false)
 		if err != nil {
 			return xerrors.Errorf("failed to parse TableID from %s: %w", pgTable, err)
@@ -718,6 +717,13 @@ func (s *sink) batchInsert(input []abstract.ChangeItem) error {
 	}
 
 	return nil
+}
+
+func (s *sink) dstTableName(pgName string) string {
+	if renamed := s.config.Tables()[pgName]; renamed != "" {
+		return renamed
+	}
+	return pgName
 }
 
 func (s *sink) isTableWithKeys(table string) bool {
