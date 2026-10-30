@@ -144,7 +144,7 @@ func makeCellConverter(c yt_table.YtColumn, structIdx int) cellConverter {
 		return func(ac *Converter, row reflect.Value, _ int64) any {
 			return makeIface(typInt16, ac.ai16.put(int16(row.Field(structIdx).Int())))
 		}
-	case ytschema.TypeInt32:
+	case ytschema.TypeInt32, ytschema.TypeDate32:
 		if isNullable {
 			return func(ac *Converter, row reflect.Value, _ int64) any {
 				fv := row.Field(structIdx)
@@ -157,7 +157,7 @@ func makeCellConverter(c yt_table.YtColumn, structIdx int) cellConverter {
 		return func(ac *Converter, row reflect.Value, _ int64) any {
 			return makeIface(typInt32, ac.ai32.put(int32(row.Field(structIdx).Int())))
 		}
-	case ytschema.TypeInt64:
+	case ytschema.TypeInt64, ytschema.TypeDatetime64, ytschema.TypeTimestamp64, ytschema.TypeInterval64:
 		if isNullable {
 			return func(ac *Converter, row reflect.Value, _ int64) any {
 				fv := row.Field(structIdx)

@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -156,4 +157,64 @@ func TestBuildSkiffFormat_PreservesPrimitiveAndNullableSemantics(t *testing.T) {
 	}, 0, decoder.cols, decoder.idxColName)
 	require.NoError(t, err)
 	require.Equal(t, []any{uint8(3), nil, nil}, values)
+}
+
+func TestExtendedTemporalTypesDecoding(t *testing.T) {
+	for _, tc := range []struct {
+		ytType     ytschema.Type
+		targetType ytschema.Type
+		raw        int64
+		expected   any
+	}{
+		{ytschema.TypeDate32, ytschema.TypeInt32, -53375809, int32(-53375809)},
+		{ytschema.TypeDatetime64, ytschema.TypeInt64, -4611669897600, int64(-4611669897600)},
+		{ytschema.TypeTimestamp64, ytschema.TypeInt64, -4611669897600000000, int64(-4611669897600000000)},
+		{ytschema.TypeInterval64, ytschema.TypeInt64, 9223339708800000000, int64(9223339708800000000)},
+	} {
+		t.Run(tc.ytType.String(), func(t *testing.T) {
+			for _, nullable := range []bool{false, true} {
+				tbl := yt_table.NewTable("types_test")
+				tbl.AddColumn(testYtColumn(t, "value", tc.ytType, nullable))
+				sch, err := tbl.ToOldTable()
+				require.NoError(t, err)
+				require.Equal(t, tc.targetType.String(), sch.Columns()[0].DataType)
+
+				format := buildSkiffFormat(tbl, "")
+				wireSchema, err := skiff.SingleSchema(format)
+				require.NoError(t, err)
+				var encoded bytes.Buffer
+				encoder, err := skiff.NewEncoder(&encoded, *wireSchema)
+				require.NoError(t, err)
+				require.NoError(t, encoder.Write(map[string]any{"value": tc.raw}))
+				expectedRows := [][]any{{tc.expected}}
+				if nullable {
+					require.NoError(t, encoder.Write(map[string]any{"value": nil}))
+					expectedRows = append(expectedRows, []any{nil})
+				}
+				require.NoError(t, encoder.Flush())
+
+				for _, mode := range []string{"struct", "map"} {
+					decoder, err := skiff.NewDecoder(bytes.NewReader(encoded.Bytes()), *format)
+					require.NoError(t, err)
+					rowDecoder := newRowDecoder(tbl, "").cloneForReader()
+					for _, expected := range expectedRows {
+						require.True(t, decoder.Next())
+						var values []any
+						if mode == "struct" {
+							require.NoError(t, decoder.Scan(rowDecoder.rowPtr.Interface()))
+							values, err = rowDecoder.arenaConv.Convert(rowDecoder.rowPtr.Elem(), 0)
+						} else {
+							var row map[string]any
+							require.NoError(t, decoder.Scan(&row))
+							values, err = mapRowToValues(row, 0, []yt_table.YtColumn{tbl.Column(0)}, "")
+						}
+						require.NoError(t, err)
+						require.Equal(t, expected, values, "mode %s, nullable %v", mode, nullable)
+					}
+					require.False(t, decoder.Next())
+					require.NoError(t, decoder.Err())
+				}
+			}
+		})
+	}
 }

@@ -2393,6 +2393,7 @@
   "pkg/providers/yt/provider/source.go":"transfer_manager/go/pkg/providers/yt/provider/source.go",
   "pkg/providers/yt/provider/table/column.go":"transfer_manager/go/pkg/providers/yt/provider/table/column.go",
   "pkg/providers/yt/provider/table/table.go":"transfer_manager/go/pkg/providers/yt/provider/table/table.go",
+  "pkg/providers/yt/provider/temporal_types_test.go":"transfer_manager/go/pkg/providers/yt/provider/temporal_types_test.go",
   "pkg/providers/yt/provider/types/cast.go":"transfer_manager/go/pkg/providers/yt/provider/types/cast.go",
   "pkg/providers/yt/provider/types/resolve.go":"transfer_manager/go/pkg/providers/yt/provider/types/resolve.go",
   "pkg/providers/yt/recipe/README.md":"transfer_manager/go/pkg/providers/yt/recipe/README.md",

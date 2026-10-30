@@ -29,7 +29,9 @@ func skiffGoType(col yt_table.YtColumn) reflect.Type {
 		base = reflect.TypeFor[int16]()
 	case ytschema.TypeInt32:
 		base = reflect.TypeFor[int32]()
-	case ytschema.TypeInt64, ytschema.TypeInterval:
+	case ytschema.TypeInt64, ytschema.TypeInterval,
+		ytschema.TypeDate32, ytschema.TypeDatetime64, ytschema.TypeTimestamp64, ytschema.TypeInterval64:
+		// Extended temporal types use int64 on the Skiff wire, including date32.
 		base = reflect.TypeFor[int64]()
 	case ytschema.TypeUint8:
 		base = reflect.TypeFor[uint8]()
@@ -162,6 +164,7 @@ func wireSizeForPrimitive(t ytschema.Type) int {
 	case ytschema.TypeInt64, ytschema.TypeUint64,
 		ytschema.TypeFloat32, ytschema.TypeFloat64,
 		ytschema.TypeInterval,
+		ytschema.TypeDate32, ytschema.TypeDatetime64, ytschema.TypeTimestamp64, ytschema.TypeInterval64,
 		ytschema.TypeDate, ytschema.TypeDatetime, ytschema.TypeTimestamp:
 		return 8
 	default:
@@ -289,13 +292,13 @@ func castMapValue(v any, col yt_table.YtColumn) (interface{}, error) {
 			return nil, xerrors.Errorf("int16: expected int64, got %T", v)
 		}
 		return int16(i), nil
-	case ytschema.TypeInt32:
+	case ytschema.TypeInt32, ytschema.TypeDate32:
 		i, ok := v.(int64)
 		if !ok {
 			return nil, xerrors.Errorf("int32: expected int64, got %T", v)
 		}
 		return int32(i), nil
-	case ytschema.TypeInt64:
+	case ytschema.TypeInt64, ytschema.TypeDatetime64, ytschema.TypeTimestamp64, ytschema.TypeInterval64:
 		i, ok := v.(int64)
 		if !ok {
 			return nil, xerrors.Errorf("int64: expected int64, got %T", v)

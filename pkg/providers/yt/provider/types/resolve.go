@@ -5,11 +5,15 @@ import (
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
-// resolvePrimitive round-trips a YT primitive type to itself, or maps the
-// "opaque" primitives (Any, Null) to TypeAny so downstream schema layers can
-// treat them uniformly with composite types.
+// resolvePrimitive maps extended temporal types to signed integers, preserving
+// their full range and original units. Other primitives round-trip, except
+// opaque types (Any, Null), which map to TypeAny like composite types.
 func resolvePrimitive(t ytschema.Type) (ytschema.Type, error) {
 	switch t {
+	case ytschema.TypeDate32:
+		return ytschema.TypeInt32, nil
+	case ytschema.TypeDatetime64, ytschema.TypeTimestamp64, ytschema.TypeInterval64:
+		return ytschema.TypeInt64, nil
 	case ytschema.TypeInt8, ytschema.TypeInt16, ytschema.TypeInt32, ytschema.TypeInt64,
 		ytschema.TypeUint8, ytschema.TypeUint16, ytschema.TypeUint32, ytschema.TypeUint64,
 		ytschema.TypeFloat32, ytschema.TypeFloat64,
@@ -32,7 +36,7 @@ func UnwrapOptional(ytType ytschema.ComplexType) (ytschema.ComplexType, bool) {
 }
 
 // Resolve reduces a YT complex type to a single primitive that the passive
-// provider layer works with. Primitives round-trip via resolvePrimitive;
+// provider layer works with. Primitives are normalized via resolvePrimitive;
 // composite types (List, Struct, Tuple, Variant, Dict, Tagged) collapse to
 // TypeAny, since they are wire-encoded as opaque YSON on the Skiff/JSON path.
 func Resolve(typ ytschema.ComplexType) (ytschema.Type, error) {
