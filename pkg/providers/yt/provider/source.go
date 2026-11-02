@@ -47,10 +47,11 @@ type source struct {
 	columnFilter   map[yt.NodeID][]string
 	includeObjects []string
 
-	// mu guards tx, nodes and partsMapping: LoadTable, ShardTable and
+	// mu guards tx, nodes, skippedPaths and partsMapping: LoadTable, ShardTable and
 	// TableList run concurrently on the same instance.
 	mu           sync.Mutex
 	nodes        cypressmeta.YtNodes // listing cache, valid for one snapshot
+	skippedPaths map[string]struct{} // skipped tables that existed in the snapshot
 	partsMapping map[string]int      // global shard budget: tableIDFor(node).Name -> shard count
 	txOwned      bool                // tx was started by this instance (main worker), not attached
 }
@@ -135,6 +136,7 @@ func (s *source) Close() {
 		s.tx = nil
 		s.txOwned = false
 		s.nodes = nil
+		s.skippedPaths = nil
 		s.partsMapping = nil
 	}
 }
@@ -263,38 +265,46 @@ func (s *source) filterByIncludes(ctx context.Context, nodes cypressmeta.YtNodes
 		return nodes, nil
 	}
 
-	cleanPaths := make(map[string]string, len(includeObjects))
+	type includePath struct {
+		path   string
+		prefix string
+	}
+	cleanPaths := make(map[string]includePath, len(includeObjects))
 	for _, obj := range includeObjects {
 		cleanPath := obj
 		if yp, err := ypath.Parse(obj); err == nil {
 			cleanPath = yp.YPath().String()
 		}
-		cleanPaths[obj] = cleanPath
+		cleanPaths[obj] = includePath{path: cleanPath, prefix: cleanPath + "/"}
 	}
-	matches := func(path string) bool {
-		for _, cleanPath := range cleanPaths {
-			if path == cleanPath || strings.HasPrefix(path, cleanPath+"/") {
-				return true
+	found := make(map[string]bool, len(includeObjects))
+	markFound := func(path string) bool {
+		matched := false
+		for obj, cleanPath := range cleanPaths {
+			if path == cleanPath.path || strings.HasPrefix(path, cleanPath.prefix) {
+				found[obj] = true
+				matched = true
 			}
 		}
-		return false
+		return matched
 	}
 
-	found := make(map[string]bool, len(includeObjects))
+	// A deliberately skipped table still satisfies an explicit include. Use
+	// the snapshot listing even if its live path has since been removed.
+	s.mu.Lock()
+	for path := range s.skippedPaths {
+		markFound(path)
+	}
+	s.mu.Unlock()
 	seen := make(map[string]bool)
 	var filtered cypressmeta.YtNodes
 	for _, node := range nodes {
 		path := node.OriginalPath()
-		if !matches(path) || seen[path] {
+		if seen[path] || !markFound(path) {
 			continue
 		}
 		seen[path] = true
 		filtered = append(filtered, node)
-		for obj, cleanPath := range cleanPaths {
-			if path == cleanPath || strings.HasPrefix(path, cleanPath+"/") {
-				found[obj] = true
-			}
-		}
 	}
 	for _, obj := range includeObjects {
 		if found[obj] {
@@ -303,10 +313,7 @@ func (s *source) filterByIncludes(ctx context.Context, nodes cypressmeta.YtNodes
 		// Distinguish "object does not exist" (fail, like the trunk listing did)
 		// from "object exists but has no tables under it" (skip silently —
 		// the legacy filter contributed nothing for such includes).
-		objPath := obj
-		if yp, err := ypath.Parse(obj); err == nil {
-			objPath = yp.YPath().String()
-		}
+		objPath := cleanPaths[obj].path
 		var nodeID yt.NodeID
 		if err := s.yt.GetNode(ctx, ypath.Path(objPath).Attr("id"), &nodeID, nil); err != nil {
 			return nil, errors.CategorizedErrorf(categories.Source, "object: %s not found in source: %w", obj, err)
@@ -541,6 +548,7 @@ func (s *source) EndSnapshot(ctx context.Context) error {
 	}
 	s.tx = nil
 	s.nodes = nil
+	s.skippedPaths = nil
 	s.partsMapping = nil
 	return nil
 }
@@ -552,9 +560,9 @@ func (s *source) EndSnapshot(ctx context.Context) error {
 // TableDescription carries a short row-range summary in Filter and the SDK
 // cookie in Payload.
 //
-// The shard budget is computed once per snapshot across ALL tables (1024
-// parts in total, like the legacy global uniformParts), so a single table's
-// part count depends on the whole listing.
+// The global shard budget is computed once per snapshot across all tables,
+// so a single table's part count depends on the whole listing and the desired
+// part size.
 func (s *source) ShardTable(ctx context.Context, table abstract.TableDescription) ([]abstract.TableDescription, error) {
 	// listTables opens the snapshot TX via ensureTx (or uses the TX attached
 	// by SetShardingContext) and returns the cached listing.
@@ -677,6 +685,7 @@ func (s *source) SetShardingContext(shardedState []byte) error {
 		// aborted local TX; drop them so the next listTables rebuilds them
 		// through the attached snapshot TX.
 		s.nodes = nil
+		s.skippedPaths = nil
 		s.partsMapping = nil
 	}
 	s.tx = tx
@@ -721,11 +730,6 @@ func (s *source) listTables(ctx context.Context) (cypressmeta.YtNodes, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("error listing tables: %w", err)
 	}
-	// Parity with the legacy uniformParts guard: every abstract2 snapshot
-	// failed on more than 1024 tables regardless of sharding.
-	if err := dataobjects.CheckTableCountLimit(tbls); err != nil {
-		return nil, xerrors.Errorf("table count check failed: %w", err)
-	}
 	if s.columnFilter == nil {
 		columnFilter, err := buildColumnFilter(s.yt, s.includeObjects)
 		if err != nil {
@@ -733,16 +737,52 @@ func (s *source) listTables(ctx context.Context) (cypressmeta.YtNodes, error) {
 		}
 		s.columnFilter = columnFilter
 	}
-	for _, tbl := range tbls {
-		lock, lockErr := s.tx.LockNode(ctx, tbl.OriginalYPath(), yt.LockSnapshot, nil)
-		if lockErr != nil {
-			return nil, xerrors.Errorf("unable to lock table %s: %w", tbl.OriginalYPath(), lockErr)
+	locked, err := s.lockAndFilterTables(ctx, tbls)
+	if err != nil {
+		return nil, err
+	}
+	if err := dataobjects.CheckTableCountLimit(locked); err != nil {
+		return nil, xerrors.Errorf("table count check failed: %w", err)
+	}
+	s.nodes = locked
+	return s.nodes, nil
+}
+
+// lockAndFilterTables snapshot-locks tables and filters out empty or non-strict
+// schemas, recording their paths in skippedPaths. Filtering uses the original
+// schema, before column projection or synthetic row-index columns.
+// The caller holds s.mu, so the transaction remains stable throughout listing.
+func (s *source) lockAndFilterTables(ctx context.Context, tables cypressmeta.YtNodes) (cypressmeta.YtNodes, error) {
+	locked := make(cypressmeta.YtNodes, 0, len(tables))
+	skippedPaths := make(map[string]struct{})
+	for _, tbl := range tables {
+		lock, err := s.tx.LockNode(ctx, tbl.OriginalYPath(), yt.LockSnapshot, nil)
+		if err != nil {
+			return nil, xerrors.Errorf("unable to lock table %s: %w", tbl.OriginalYPath(), err)
 		}
 		nodeID := lock.NodeID
 		tbl.NodeID = &nodeID
+		var sch ytschema.Schema
+		// Listing fetched the schema before the lock; read it again from the
+		// locked node to use the snapshot schema.
+		if err := s.tx.GetNode(ctx, nodeID.YPath().Attr("schema"), &sch, nil); err != nil {
+			return nil, xerrors.Errorf("unable to get schema for table %s: %w", tbl.OriginalYPath(), err)
+		}
+		reason := ""
+		if len(sch.Columns) == 0 {
+			reason = "empty schema"
+		} else if sch.Strict != nil && !*sch.Strict {
+			reason = "non-strict schema"
+		}
+		if reason != "" {
+			s.logger.Warn("Skipping YT table with unsupported schema", log.String("table", tbl.OriginalPath()), log.String("reason", reason))
+			skippedPaths[tbl.OriginalPath()] = struct{}{}
+			continue
+		}
+		locked = append(locked, tbl)
 	}
-	s.nodes = tbls
-	return s.nodes, nil
+	s.skippedPaths = skippedPaths
+	return locked, nil
 }
 
 // resolveTable returns the YtNodeMeta whose relative path matches the given TableID.

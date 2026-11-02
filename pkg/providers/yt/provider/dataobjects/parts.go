@@ -14,19 +14,16 @@ import (
 	xslices "golang.org/x/exp/slices"
 )
 
-// grpcShardLimit caps the total number of parts a single ShardTable call may
-// emit.
-const grpcShardLimit = 1024
+// maxPartsPerSnapshot caps the total number of parts allocated across a snapshot.
+const maxPartsPerSnapshot = 100_000
 
 var tablesWeightOverflowErr = xerrors.NewSentinel("total tables weight overflow")
 
 // CheckTableCountLimit returns an error when the snapshot contains more than
-// grpcShardLimit tables. Enforced on every listing of the row source, matching
-// the legacy uniformParts guard that ran on every abstract2 snapshot
-// regardless of sharding.
+// maxPartsPerSnapshot tables: each table needs at least one slot in the global budget.
 func CheckTableCountLimit(tables cypressmeta.YtNodes) error {
-	if len(tables) > grpcShardLimit {
-		return xerrors.Errorf("%v tables. Can not be more than 1024 tables", len(tables))
+	if len(tables) > maxPartsPerSnapshot {
+		return xerrors.Errorf("%v tables. Can not be more than %d tables", len(tables), maxPartsPerSnapshot)
 	}
 	return nil
 }
@@ -129,24 +126,29 @@ type tableWeightPair struct {
 	TableWeight int64
 }
 
-// ComputePartsMapping distributes grpcShardLimit slots across tables, giving
+// ComputePartsMapping distributes maxPartsPerSnapshot slots across tables, giving
 // bigger tables proportionally more parts. Every table gets at least 1 part.
-// Bails out if more than grpcShardLimit tables are passed.
+// Bails out if more than maxPartsPerSnapshot tables are passed.
 //
-// The rules are preserved verbatim from the legacy uniformParts method for
-// bit-compatible sharding behaviour.
+// Desired part size can leave slots unused; the budget is an upper bound.
+// Processing tables in ascending weight order preserves at least one slot
+// for every remaining table.
 func ComputePartsMapping(tables cypressmeta.YtNodes, cfg provider_yt.YtSourceModel, lgr log.Logger) (map[int]int, error) {
+	// Callers may invoke mapping without going through source discovery.
 	if err := CheckTableCountLimit(tables); err != nil {
 		return nil, err
 	}
 	if cfg.GetDesiredPartSizeBytes() == 0 {
 		return nil, xerrors.New("invalid YT provider config: DesiredPartSizeBytes = 0")
 	}
-	restParts := grpcShardLimit
+	restParts := maxPartsPerSnapshot
 	tablesWeightArr := make([]tableWeightPair, 0, len(tables))
 	var totalWeight int64
 
 	for i, w := range tables {
+		if w.DataWeight > 0 && totalWeight > math.MaxInt64-w.DataWeight {
+			return nil, tablesWeightOverflowErr
+		}
 		totalWeight += w.DataWeight
 		tablesWeightArr = append(tablesWeightArr, tableWeightPair{TableIndex: i, TableWeight: w.DataWeight})
 	}

@@ -503,7 +503,7 @@ func TestShardTableGlobalBudget(t *testing.T) {
 	partsB, err := src.ShardTable(ctx, abstract.TableDescription{Name: "table_b", Schema: ""})
 	require.NoError(t, err)
 	require.NotEmpty(t, partsB)
-	require.LessOrEqual(t, len(partsA)+len(partsB), 1024)
+	require.LessOrEqual(t, len(partsA)+len(partsB), 100_000)
 }
 
 // bigRow carries a ~4KiB payload so a few hundred rows exceed PushBatchSize.
