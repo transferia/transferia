@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"sync"
 
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
@@ -13,6 +14,8 @@ type mutableRegistry struct {
 	metrics []mutableMetric
 	mutex   sync.Mutex // just in case
 }
+
+var _ core_metrics.GaugeWithInitialValueRegistry = (*mutableRegistry)(nil)
 
 func NewMutableRegistry(registry core_metrics.Registry) core_metrics.Registry {
 	return &mutableRegistry{
@@ -31,6 +34,17 @@ func (r *mutableRegistry) WithTags(tags map[string]string) core_metrics.Registry
 		metric.Init(r.Registry)
 	}
 	return r.Registry
+}
+
+func (r *mutableRegistry) GaugeWithInitialValue(name string, initialValue float64) core_metrics.Gauge {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	registry, ok := r.Registry.(core_metrics.GaugeWithInitialValueRegistry)
+	if !ok {
+		panic(fmt.Sprintf("metrics: registry %T does not support GaugeWithInitialValue", r.Registry))
+	}
+	return registry.GaugeWithInitialValue(name, initialValue)
 }
 
 func (r *mutableRegistry) Counter(name string) core_metrics.Counter {

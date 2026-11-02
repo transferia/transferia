@@ -2,6 +2,7 @@
 package metrics
 
 import (
+	"fmt"
 	"strings"
 
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
@@ -45,6 +46,8 @@ type registryWrapper struct {
 	nameProcessor func(string) string
 	registry      core_metrics.Registry
 }
+
+var _ core_metrics.GaugeWithInitialValueRegistry = (*registryWrapper)(nil)
 
 func (r registryWrapper) Registry() core_metrics.Registry {
 	return r.registry
@@ -97,6 +100,14 @@ func (r registryWrapper) FuncCounter(name string, function func() int64) core_me
 
 func (r registryWrapper) Gauge(name string) core_metrics.Gauge {
 	return r.registry.Gauge(r.nameProcessor(name))
+}
+
+func (r registryWrapper) GaugeWithInitialValue(name string, initialValue float64) core_metrics.Gauge {
+	registry, ok := r.registry.(core_metrics.GaugeWithInitialValueRegistry)
+	if !ok {
+		panic(fmt.Sprintf("metrics: registry %T does not support GaugeWithInitialValue", r.registry))
+	}
+	return registry.GaugeWithInitialValue(r.nameProcessor(name), initialValue)
 }
 
 func (r registryWrapper) GaugeVec(name string, labels []string) core_metrics.GaugeVec {

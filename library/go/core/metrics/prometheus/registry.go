@@ -14,6 +14,7 @@ import (
 
 var _ metrics.Registry = (*Registry)(nil)
 var _ metrics.MetricsStreamer = (*Registry)(nil)
+var _ metrics.GaugeWithInitialValueRegistry = (*Registry)(nil)
 
 type Registry struct {
 	rg PrometheusRegistry
@@ -110,12 +111,17 @@ func (r Registry) FuncCounter(name string, function func() int64) metrics.FuncCo
 }
 
 func (r Registry) Gauge(name string) metrics.Gauge {
+	return r.GaugeWithInitialValue(name, 0)
+}
+
+func (r Registry) GaugeWithInitialValue(name string, initialValue float64) metrics.Gauge {
 	name = r.sanitizeName(name)
 	gg := prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   r.prefix,
 		Name:        name,
 		ConstLabels: r.tags,
 	})
+	gg.Set(initialValue)
 
 	if err := r.rg.Register(gg); err != nil {
 		var existErr prometheus.AlreadyRegisteredError

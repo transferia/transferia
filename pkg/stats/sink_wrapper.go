@@ -11,13 +11,13 @@ import (
 )
 
 type WrapperStats struct {
-	registry          core_metrics.Registry
+	registry          core_metrics.GaugeWithInitialValueRegistry
 	Lag               core_metrics.Timer
-	MaxLag            core_metrics.Gauge
+	maxLag            *lazyLag
 	Timer             core_metrics.Timer
 	RowEventsPushed   core_metrics.Counter
 	ChangeItemsPushed core_metrics.Counter
-	MaxReadLag        core_metrics.Gauge
+	maxReadLag        *lazyLag
 }
 
 var sinkerBuckets = core_metrics.NewDurationBuckets(
@@ -42,21 +42,33 @@ var sinkerBuckets = core_metrics.NewDurationBuckets(
 )
 
 func NewWrapperStats(registry core_metrics.Registry) *WrapperStats {
+	lagRegistry, ok := registry.(core_metrics.GaugeWithInitialValueRegistry)
+	if !ok {
+		panic(fmt.Sprintf("metrics: registry %T does not support GaugeWithInitialValue", registry))
+	}
 	return &WrapperStats{
-		registry:          registry,
+		registry:          lagRegistry,
 		Lag:               registry.DurationHistogram("sinker.pusher.time.row_lag_sec", sinkerBuckets),
-		MaxLag:            registry.Gauge("sinker.pusher.time.row_max_lag_sec"),
-		MaxReadLag:        registry.Gauge("sinker.pusher.time.row_max_read_lag_sec"),
+		maxLag:            newLazyLag(),
+		maxReadLag:        newLazyLag(),
 		Timer:             registry.DurationHistogram("sinker.pusher.time.batch_push_distribution_sec", sinkerBuckets),
 		RowEventsPushed:   registry.Counter("sinker.pusher.data.row_events_pushed"),
 		ChangeItemsPushed: registry.Counter("sinker.pusher.data.changeitems"),
 	}
 }
 
+func (s *WrapperStats) SetMaxLag(value float64) {
+	s.maxLag.set(s.registry, "sinker.pusher.time.row_max_lag_sec", value)
+}
+
+func (s *WrapperStats) SetMaxReadLag(value float64) {
+	s.maxReadLag.set(s.registry, "sinker.pusher.time.row_max_read_lag_sec", value)
+}
+
 func (s *WrapperStats) LogMaxReadLag(logger log.Logger, input []abstract.ChangeItem) {
 	oldestRow, _, _, _ := batchStats(logger, input)
 	if !oldestRow.IsZero() {
-		s.MaxReadLag.Set(time.Since(oldestRow).Seconds())
+		s.SetMaxReadLag(time.Since(oldestRow).Seconds())
 	}
 }
 
@@ -72,7 +84,7 @@ func (s *WrapperStats) Log(logger log.Logger, startTime time.Time, input []abstr
 	if !oldestRow.IsZero() {
 		maxLag := time.Since(oldestRow)
 		if maxLag.Seconds() > 0 {
-			s.MaxLag.Set(maxLag.Seconds())
+			s.SetMaxLag(maxLag.Seconds())
 		}
 	}
 	s.Timer.RecordDuration(time.Since(startTime))
