@@ -101,8 +101,10 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 	}
 
 	hostConfig := &docker_container.HostConfig{
-		Mounts:      opts.Mounts,
-		AutoRemove:  opts.AutoRemove,
+		Mounts: opts.Mounts,
+		// Remove explicitly after reading stdout and the exit status. Podman's
+		// wait endpoint can wait for removal when AutoRemove is enabled.
+		AutoRemove:  false,
 		LogConfig:   docker_container.LogConfig{Type: opts.LogDriver, Config: opts.LogOptions},
 		NetworkMode: "host",
 	}
@@ -112,7 +114,9 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 	}
 
 	networkingConfig := &docker_network.NetworkingConfig{}
-	if opts.Network != "" {
+	// Host networking has no network endpoint to attach. Podman rejects an
+	// EndpointsConfig alongside NetworkMode=host, even though Docker accepts it.
+	if opts.Network != "" && opts.Network != "host" {
 		networkingConfig.EndpointsConfig = map[string]*docker_network.EndpointSettings{
 			opts.Network: {},
 		}
@@ -124,13 +128,26 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 	}
 
 	d.logger.Infof("container created : %v", resp)
-
-	waitCh, errCh := d.cli.ContainerWait(ctx, resp.ID, docker_container.WaitConditionNextExit)
+	if opts.AutoRemove {
+		defer func() {
+			cleanupContext, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			removeError := d.cli.ContainerRemove(cleanupContext, resp.ID, docker_container.RemoveOptions{Force: true})
+			if removeError != nil {
+				d.logger.Warnf("Unable to remove container %s: %v", resp.ID, removeError)
+			}
+		}()
+	}
 
 	if err := d.cli.ContainerStart(ctx, resp.ID, docker_container.StartOptions{}); err != nil {
 		return nil, nil, xerrors.Errorf("error starting container: %w", err)
 	}
 	d.logger.Info("Docker container started")
+	// Register after starting: NotRunning must observe this run, not the
+	// initial created state. It also handles a process that has already exited.
+	waitContext, cancelWait := context.WithCancel(ctx)
+	defer cancelWait()
+	waitCh, errCh := d.cli.ContainerWait(waitContext, resp.ID, docker_container.WaitConditionNotRunning)
 
 	attachOptions := docker_container.AttachOptions{
 		Stream: true,
@@ -164,22 +181,40 @@ func (d *DockerWrapper) RunContainer(ctx context.Context, opts DockerOpts) (stdo
 		}
 	}()
 
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return nil, nil, xerrors.Errorf("error waiting for container: %w", err)
-		}
-	case <-waitCh:
+	// Podman's Docker-compatible wait endpoint can remain open after exit.
+	// Inspect provides an independent confirmation that the process stopped.
+	statusPoller := time.NewTicker(time.Second)
+	defer statusPoller.Stop()
+waitForExit:
+	for {
 		select {
 		case err := <-errCh:
 			if err != nil {
 				return nil, nil, xerrors.Errorf("error waiting for container: %w", err)
 			}
-		default:
+		case <-waitCh:
+			select {
+			case err := <-errCh:
+				if err != nil {
+					return nil, nil, xerrors.Errorf("error waiting for container: %w", err)
+				}
+			default:
+			}
+			break waitForExit
+		case <-statusPoller.C:
+			inspectContext, cancelInspect := context.WithTimeout(ctx, 5*time.Second)
+			containerInfo, inspectError := d.cli.ContainerInspect(inspectContext, resp.ID)
+			cancelInspect()
+			if inspectError != nil {
+				return nil, nil, xerrors.Errorf("inspect container status: %w", inspectError)
+			}
+			if containerInfo.State != nil && !containerInfo.State.Running {
+				break waitForExit
+			}
+		case <-ctx.Done():
+			_ = d.cli.ContainerKill(ctx, resp.ID, "SIGKILL")
+			return nil, nil, xerrors.Errorf("error waiting for container: %w", ctx.Err())
 		}
-	case <-ctx.Done():
-		_ = d.cli.ContainerKill(ctx, resp.ID, "SIGKILL")
-		return nil, nil, xerrors.Errorf("error waiting for container: %w", ctx.Err())
 	}
 
 	if err := <-copyCh; err != nil {

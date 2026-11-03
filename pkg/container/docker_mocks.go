@@ -16,6 +16,15 @@ type MockDockerClient struct {
 	testify_mock.Mock
 }
 
+func (m *MockDockerClient) ContainerInspect(ctx context.Context, containerID string) (docker_types.ContainerJSON, error) {
+	args := m.Called(ctx, containerID)
+	return args.Get(0).(docker_types.ContainerJSON), args.Error(1)
+}
+
+func (m *MockDockerClient) ContainerRemove(ctx context.Context, containerID string, options docker_container.RemoveOptions) error {
+	return m.Called(ctx, containerID, options).Error(0)
+}
+
 func (m *MockDockerClient) ImageInspectWithRaw(ctx context.Context, image string) (docker_types.ImageInspect, []byte, error) {
 	args := m.Called(ctx, image)
 	return args.Get(0).(docker_types.ImageInspect), args.Get(1).([]byte), args.Error(2)

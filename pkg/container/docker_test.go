@@ -12,11 +12,28 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/transferia/transferia/internal/logger"
 )
+
+func TestHostNetworkDoesNotAttachEndpoint(test *testing.T) {
+	mockClient := new(MockDockerClient)
+	mockClient.On("ImageInspectWithRaw", mock.Anything, "alpine").Return(types.ImageInspect{}, []byte{}, nil).Once()
+	mockClient.On("ContainerCreate", mock.Anything, mock.Anything,
+		mock.MatchedBy(func(hostConfig *container.HostConfig) bool {
+			return hostConfig.NetworkMode == "host"
+		}),
+		mock.MatchedBy(func(networkConfig *network.NetworkingConfig) bool {
+			return len(networkConfig.EndpointsConfig) == 0
+		}), mock.Anything, "").Return(container.CreateResponse{}, testErrNotFound{}).Once()
+	wrapper := &DockerWrapper{cli: mockClient, logger: logger.Log}
+	_, _, err := wrapper.RunContainer(context.Background(), DockerOpts{Image: "alpine", Network: "host"})
+	assert.Error(test, err)
+	mockClient.AssertExpectations(test)
+}
 
 func TestDockerOptsString(t *testing.T) {
 	testCases := []struct {
@@ -264,7 +281,12 @@ func TestDockerWrapper_Run_Success(t *testing.T) {
 		name         string
 		expectError  bool
 		expectStderr bool
+		waitStalled  bool
 	}{
+		{
+			name:        "WaitEndpointStalled",
+			waitStalled: true,
+		},
 		{
 			name:        "Cuccess",
 			expectError: false,
@@ -292,6 +314,7 @@ func TestDockerWrapper_Run_Success(t *testing.T) {
 				Return(io.NopCloser(strings.NewReader("")), nil).Once()
 
 			containerCreateResponse := container.CreateResponse{ID: "container-id"}
+			mockClient.On("ContainerRemove", mock.Anything, "container-id", container.RemoveOptions{Force: true}).Return(nil).Once()
 			mockClient.On("ContainerCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, "test-container").
 				Return(containerCreateResponse, nil).Once()
 
@@ -318,12 +341,18 @@ func TestDockerWrapper_Run_Success(t *testing.T) {
 
 			waitCh := make(chan container.WaitResponse, 1)
 			waitCh <- container.WaitResponse{StatusCode: 0}
+			if tc.waitStalled {
+				<-waitCh
+				mockClient.On("ContainerInspect", mock.Anything, "container-id").Return(types.ContainerJSON{
+					ContainerJSONBase: &types.ContainerJSONBase{State: &types.ContainerState{Running: false, ExitCode: 0}},
+				}, nil).Once()
+			}
 			errCh := make(chan error, 1)
 			if tc.expectError {
 				errCh <- testErrNotFound{}
 			}
 
-			mockClient.On("ContainerWait", mock.Anything, "container-id", container.WaitConditionNextExit).
+			mockClient.On("ContainerWait", mock.Anything, "container-id", container.WaitConditionNotRunning).
 				Return((<-chan container.WaitResponse)(waitCh), (<-chan error)(errCh)).Once()
 
 			dw := &DockerWrapper{

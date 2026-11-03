@@ -14,6 +14,8 @@ import (
 )
 
 type DockerClient interface {
+	ContainerInspect(context.Context, string) (docker_types.ContainerJSON, error)
+	ContainerRemove(context.Context, string, docker_container.RemoveOptions) error
 	ImageInspectWithRaw(ctx context.Context, image string) (docker_types.ImageInspect, []byte, error)
 	ImagePull(ctx context.Context, ref string, options docker_image.PullOptions) (io.ReadCloser, error)
 	ContainerCreate(ctx context.Context, config *docker_container.Config, hostConfig *docker_container.HostConfig,
