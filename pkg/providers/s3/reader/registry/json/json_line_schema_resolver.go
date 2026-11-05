@@ -50,16 +50,6 @@ func (s *JSONLineSchemaResolver) newS3RawReader(ctx context.Context, filePath st
 	return s3RawReader, nil
 }
 
-func (s *JSONLineSchemaResolver) applyAfterInfer(schema *abstract.TableSchema) *abstract.TableSchema {
-	out := schema
-	if !s.hideSystemCols {
-		cols := out.Columns()
-		userDefinedSchemaHasPkey := out.Columns().HasPrimaryKey()
-		out = s3_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
-	}
-	return out
-}
-
 //nolint:descriptiveerrors
 func (s *JSONLineSchemaResolver) resolveSchema(ctx context.Context, key string) (*abstract.TableSchema, reader_error.ReaderError) {
 	buff, rerr := s3_reader.ReadSchemaInferenceFirstChunk(
@@ -112,6 +102,13 @@ func (s *JSONLineSchemaResolver) resolveSchema(ctx context.Context, key string) 
 	var cols []abstract.ColSchema
 
 	for _, colKey := range keys {
+		if s3_model.IsSystemColumn(colKey) {
+			return nil, reader_error.NewReaderErrorDataSchema(
+				"jsonl.resolveSchema.reserved_column",
+				key,
+				xerrors.Errorf("column %q is reserved for S3 system columns", colKey),
+			)
+		}
 		val := unmarshaledJSONLine[colKey]
 		if val == nil {
 			col := abstract.NewColSchema(colKey, ytschema.TypeAny, false)
@@ -159,7 +156,7 @@ func (s *JSONLineSchemaResolver) TryInferSchemaFromObject(ctx context.Context, k
 	if err != nil {
 		return nil, err
 	}
-	return s.applyAfterInfer(sch), nil
+	return withJSONSystemColumns(sch, s.hideSystemCols), nil
 }
 
 //nolint:descriptiveerrors
@@ -179,12 +176,7 @@ func NewJSONLineSchemaResolver(
 		return nil, xerrors.New("jsonl.reader must set format.JSONLSetting")
 	}
 	jsonlSettings := src.Format.JSONLSetting
-	ts := abstract.NewTableSchema(src.OutputSchema)
-	if len(ts.Columns()) != 0 && !src.HideSystemCols {
-		cols := ts.Columns()
-		userDefinedSchemaHasPkey := ts.Columns().HasPrimaryKey()
-		ts = s3_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
-	}
+	ts := withJSONSystemColumns(abstract.NewTableSchema(src.OutputSchema), src.HideSystemCols)
 	return &JSONLineSchemaResolver{
 		s3RawReaderBuilder:      s3RawReaderBuilder,
 		bucket:                  src.Bucket,

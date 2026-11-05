@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -17,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/lr_window/r_window"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
+	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -29,6 +31,13 @@ type S3SharedMemorySecondaryWorker struct {
 
 	poller object_fetcher.ObjectFetcher // poller wrapped over contractor
 	files  []file.File
+
+	// The background timer and the loader can both report the same file as complete,
+	// even with ProcessCount = 1. completedFiles stores files whose Commit succeeded,
+	// so they are not committed again. completionMutex keeps the check, Commit call,
+	// and set update together, so two calls cannot commit the same file at once.
+	completionMutex sync.Mutex
+	completedFiles  *set.Set[string]
 }
 
 func (m *S3SharedMemorySecondaryWorker) Store([]*abstract.OperationTablePart) error {
@@ -38,6 +47,8 @@ func (m *S3SharedMemorySecondaryWorker) Store([]*abstract.OperationTablePart) er
 // TAKE task
 func (m *S3SharedMemorySecondaryWorker) NextOperationTablePart(ctx context.Context) (*abstract.OperationTablePart, error) {
 	if len(m.files) == 0 {
+		// With ProcessCount = 1, the loader asks for another file only after the
+		// previous file has been loaded and its progress has been saved.
 		err := coordinator_utils.SetWorkerDone(m.lgr, m.cp, m.transferID, m.effectiveWorkerNum)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to reset workers state, err: %w", err)
@@ -71,6 +82,9 @@ func (m *S3SharedMemorySecondaryWorker) NextOperationTablePart(ctx context.Conte
 
 // COMMIT task
 func (m *S3SharedMemorySecondaryWorker) UpdateOperationTablesParts(operationID string, tables []*abstract.OperationTablePart) error {
+	// S3 snapshots require ProcessCount = 1: the loader reads one file at a time.
+	// It flushes and removes the completed part before starting the next file,
+	// so each progress update must contain exactly one part.
 	if len(tables) != 1 {
 		return xerrors.Errorf("S3SharedMemorySecondaryWorker.UpdateOperationTablesParts - impossible situation, len(tables) can't not be equal to 1")
 	}
@@ -89,8 +103,18 @@ func (m *S3SharedMemorySecondaryWorker) UpdateOperationTablesParts(operationID s
 	if len(fileList) != 1 {
 		return xerrors.Errorf("len(fileList)!=1, filter=%s", filter)
 	}
+	fileName := fileList[0]
 
-	return m.poller.Commit(fileList[0])
+	m.completionMutex.Lock()
+	defer m.completionMutex.Unlock()
+	if m.completedFiles.Contains(fileName) {
+		return nil
+	}
+	if err := m.poller.Commit(fileName); err != nil {
+		return err
+	}
+	m.completedFiles.Add(fileName)
+	return nil
 }
 
 func (m *S3SharedMemorySecondaryWorker) Close() error {
@@ -171,5 +195,7 @@ func NewS3SharedMemorySecondaryWorker(
 		lgr:                logger,
 		poller:             poller,
 		files:              files,
+		completionMutex:    sync.Mutex{},
+		completedFiles:     set.New[string](),
 	}, nil
 }

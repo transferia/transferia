@@ -86,12 +86,7 @@ func (r *JSONParserReader) EstimateRowsCountAllObjects(ctx context.Context) (uin
 
 //nolint:descriptiveerrors
 func (r *JSONParserReader) finishSchemaAndParser(schema *abstract.TableSchema) reader_error.ReaderError {
-	effective := schema
-	if !r.hideSystemCols {
-		cols := effective.Columns()
-		userDefinedSchemaHasPkey := effective.Columns().HasPrimaryKey()
-		effective = s3_reader.AppendSystemColsTableSchema(cols, !userDefinedSchemaHasPkey)
-	}
+	effective := withJSONSystemColumns(schema, r.hideSystemCols)
 	cfg := new(parser_json.ParserConfigJSONCommon)
 	cfg.AddRest = r.unexpectedFieldBehavior == s3_model.Infer
 	cfg.NullKeysAllowed = true

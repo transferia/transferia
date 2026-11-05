@@ -33,7 +33,6 @@ func NewSnapshotTableProgressTracker(
 	progressUpdateMutex *sync.Mutex,
 	logFields []log.Field,
 ) *SnapshotTableProgressTracker {
-
 	ctx, cancel := context.WithCancel(ctxlog.WithFields(context.Background(), logFields...))
 	tracker := &SnapshotTableProgressTracker{
 		cancel:    cancel,

@@ -13,12 +13,10 @@ import (
 )
 
 var (
-	FileNameSystemCol = "__file_name"
-	RowIndexSystemCol = "__row_index"
+	FileNameSystemCol = s3_model.FileNameSystemCol
+	RowIndexSystemCol = s3_model.RowIndexSystemCol
 
 	EstimateFilesLimit = 10
-
-	SystemColumnNames = map[string]bool{FileNameSystemCol: true, RowIndexSystemCol: true}
 )
 
 //-----------------------------------------------------------------------------

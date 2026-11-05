@@ -30,13 +30,14 @@ func contractJSONLineReader(t *testing.T, src *s3_model.S3Source, sess *aws_sess
 	return parent_reader.NewReaderContractor(read, sch)
 }
 
-// TestJSONLineEmptyObjectSampleDataPolicies: empty file cannot produce a JSONL sample for schema inference (DataSchema).
+// The empty file has no fields, so infer the schema from another file.
+// Reading the empty file must still follow the Continue policy.
 func TestJSONLineEmptyObjectSampleDataPolicies(t *testing.T) {
 	key := "emptyobj.jsonl"
-	// No JSON lines — schema inference cannot read a valid sample.
 	body := []byte("")
 	cli := fake_s3.NewFakeS3Client(t)
 	cli.AddFile(fake_s3.NewFile(key, body, 1))
+	cli.AddFile(fake_s3.NewFile("schema.jsonl", []byte("{\"id\":1}\n"), 2))
 	b := s3raw.NewFakeS3RawReaderBuilder(cli, cli)
 	sess := fake_s3.NewSess()
 	base := &s3_model.S3Source{
@@ -57,12 +58,14 @@ func TestJSONLineEmptyObjectSampleDataPolicies(t *testing.T) {
 	require.NotEmpty(t, p.items, "expected file-level or row unparsed for empty jsonl with Continue")
 }
 
-// TestJSONLineEmptyObject_FailRetry: empty file cannot infer schema (DataSchema) — Fail is fatal, Retry is not.
+// Infer the schema from another file because the empty file has no fields.
+// Reading the empty file is fatal with Fail and remains retryable with Retry.
 func TestJSONLineEmptyObject_FailRetry(t *testing.T) {
 	key := "empty_fail.jsonl"
 	body := []byte("")
 	cli := fake_s3.NewFakeS3Client(t)
 	cli.AddFile(fake_s3.NewFile(key, body, 1))
+	cli.AddFile(fake_s3.NewFile("schema.jsonl", []byte("{\"id\":1}\n"), 2))
 	b := s3raw.NewFakeS3RawReaderBuilder(cli, cli)
 	sess := fake_s3.NewSess()
 	base := &s3_model.S3Source{

@@ -240,7 +240,7 @@ func (r *ReaderParquet) constructCI(
 ) (abstract.ChangeItem, error) {
 	vals := make([]any, len(schema.Columns()))
 	for i, col := range schema.Columns() {
-		if s3_reader.SystemColumnNames[col.ColumnName] {
+		if s3_model.IsSystemColumn(col.ColumnName) {
 			if r.hideSystemCols {
 				continue
 			}

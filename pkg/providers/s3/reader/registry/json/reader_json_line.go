@@ -274,19 +274,8 @@ func (r *JSONLineReader) constructCI(row map[string]any, fileName string, lastMo
 	}
 	// TODO: add support for col.Path
 
-	isSystemCol := func(colName string) bool {
-		switch colName {
-		case s3_reader.FileNameSystemCol:
-			return true
-		case s3_reader.RowIndexSystemCol:
-			return true
-		default:
-			return false
-		}
-	}
-
 	for i, col := range schema.Columns() {
-		if isSystemCol(col.ColumnName) {
+		if s3_model.IsSystemColumn(col.ColumnName) {
 			if r.hideSystemCols {
 				continue
 			}

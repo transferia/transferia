@@ -94,6 +94,13 @@ func (s *JSONParserSchemaResolver) resolveSchema(ctx context.Context, fileKey st
 	var cols []abstract.ColSchema
 
 	for _, fieldName := range keys {
+		if s3_model.IsSystemColumn(fieldName) {
+			return nil, reader_error.NewReaderErrorDataSchema(
+				"json.parser.resolveSchema.reserved_column",
+				fileKey,
+				xerrors.Errorf("column %q is reserved for S3 system columns", fieldName),
+			)
+		}
 		val := unmarshaledJSONLine[fieldName]
 		if val == nil {
 			col := abstract.NewColSchema(fieldName, ytschema.TypeAny, false)
@@ -118,7 +125,7 @@ func (s *JSONParserSchemaResolver) resolveSchema(ctx context.Context, fileKey st
 		cols = append(cols, restCol)
 	}
 
-	return abstract.NewTableSchema(cols), nil
+	return withJSONSystemColumns(abstract.NewTableSchema(cols), s.hideSystemCols), nil
 }
 
 func (s *JSONParserSchemaResolver) SchemaWalkListing() *s3_reader.SchemaWalkListing {
@@ -157,7 +164,7 @@ func NewJSONParserSchemaResolver(
 		return nil, xerrors.New("json.parser.reader is nil")
 	}
 	jsonlSettings := src.Format.JSONLSetting
-	ts := abstract.NewTableSchema(src.OutputSchema)
+	ts := withJSONSystemColumns(abstract.NewTableSchema(src.OutputSchema), src.HideSystemCols)
 	return &JSONParserSchemaResolver{
 		s3RawReaderBuilder:      s3RawReaderBuilder,
 		bucket:                  src.Bucket,

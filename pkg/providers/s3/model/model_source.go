@@ -23,6 +23,9 @@ func init() {
 var _ model.Source = (*S3Source)(nil)
 
 const (
+	FileNameSystemCol = "__file_name"
+	RowIndexSystemCol = "__row_index"
+
 	// defaultReadBatchSize is magic number by in-leskin, impacts how many rows we push each times
 	// we need to push rather small chunks so our bufferer can buffer effectively
 	defaultReadBatchSize = 128
@@ -32,6 +35,11 @@ const (
 	// defaultInflightLimit impacts when to throttle async push in order to not OOM when push buffer becomes too big.
 	defaultInflightLimit = 100_000_000
 )
+
+// IsSystemColumn reports whether name is reserved for an S3 system column.
+func IsSystemColumn(name string) bool {
+	return name == FileNameSystemCol || name == RowIndexSystemCol
+}
 
 type UnparsedPolicy string
 
@@ -215,6 +223,11 @@ func (s *S3Source) GetProviderType() abstract.ProviderType {
 func (s *S3Source) Validate() error {
 	if _, err := encryption.ParseKey(s.EncryptionKey); err != nil {
 		return xerrors.Errorf("invalid encryption key: %w", err)
+	}
+	for _, column := range s.OutputSchema {
+		if IsSystemColumn(column.ColumnName) {
+			return xerrors.Errorf("output schema column %q is reserved for S3 system columns", column.ColumnName)
+		}
 	}
 	return nil
 }
