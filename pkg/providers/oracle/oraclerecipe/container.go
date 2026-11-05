@@ -2,9 +2,11 @@ package oraclerecipe
 
 import (
 	"context"
+	"io"
 	"os"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	testcontainers_go "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -52,6 +54,11 @@ func Run(ctx context.Context, img string, opts ...testcontainers_go.ContainerCus
 			WaitingFor: wait.ForLog("DATABASE IS READY TO USE!").
 				WithStartupTimeout(10 * time.Minute),
 			ShmSize: 512 * 1024 * 1024, // Oracle SGA requires large /dev/shm; 512MB is sufficient for Free edition
+			HostConfigModifier: func(hostConfig *container.HostConfig) {
+				// VKTM raises its scheduling priority during startup. Without this
+				// capability Oracle can abort before opening the database (ORA-00445).
+				hostConfig.CapAdd = append(hostConfig.CapAdd, "SYS_NICE")
+			},
 		},
 		Started: true,
 	}
@@ -64,6 +71,38 @@ func Run(ctx context.Context, img string, opts ...testcontainers_go.ContainerCus
 
 	container, err := testcontainers_go.GenericContainer(ctx, req)
 	if err != nil {
+		// GenericContainer returns the created container even when startup fails.
+		// Preserve its diagnostics before the recipe removes the Podman store.
+		if container != nil {
+			cleanupContext, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			containerState, stateError := container.State(cleanupContext)
+			if stateError == nil {
+				err = xerrors.Errorf("%w; Oracle container exit code=%d, OOMKilled=%t", err, containerState.ExitCode, containerState.OOMKilled)
+			}
+			logs, logsError := container.Logs(cleanupContext)
+			if logsError == nil {
+				output, readError := io.ReadAll(io.LimitReader(logs, 64*1024))
+				_ = logs.Close()
+				if readError == nil {
+					err = xerrors.Errorf("%w; Oracle startup log: %s", err, output)
+				}
+			}
+			alertLog, alertError := container.CopyFileFromContainer(cleanupContext, "/opt/oracle/diag/rdbms/free/FREE/trace/alert_FREE.log")
+			if alertError == nil {
+				output, readError := io.ReadAll(io.LimitReader(alertLog, 256*1024))
+				_ = alertLog.Close()
+				if readError == nil {
+					err = xerrors.Errorf("%w; Oracle alert log: %s", err, output)
+				}
+			}
+			// Diagnostics may use up their timeout. Give removal its own timeout.
+			terminateContext, terminateCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer terminateCancel()
+			if terminateError := container.Terminate(terminateContext); terminateError != nil {
+				err = xerrors.Errorf("%w; terminate Oracle container: %w", err, terminateError)
+			}
+		}
 		return nil, xerrors.Errorf("start oracle container: %w", err)
 	}
 
