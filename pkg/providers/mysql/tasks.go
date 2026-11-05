@@ -15,8 +15,8 @@ import (
 	"github.com/transferia/transferia/pkg/sink_factory"
 )
 
-func CheckMySQLBinlogRowImageFormat(source *MysqlSource) error {
-	storage, err := NewStorage(source.ToStorageParams())
+func CheckMySQLBinlogRowImageFormat(source *MysqlSource, registry core_metrics.Registry) error {
+	storage, err := NewStorage(source.ToStorageParams(), registry)
 	if err != nil {
 		return xerrors.Errorf("Cannot connect to the source database: %w", err)
 	}
@@ -43,13 +43,13 @@ func CheckMySQLBinlogRowImageFormat(source *MysqlSource) error {
 	return nil
 }
 
-func RemoveTracker(src *MysqlSource, id string, cp coordinator.Coordinator) error {
+func RemoveTracker(src *MysqlSource, id string, cp coordinator.Coordinator, registry core_metrics.Registry) error {
 	tracker, err := NewTracker(src, id, cp)
 	if err != nil {
 		return err
 	}
 
-	storage, err := NewStorage(src.ToStorageParams())
+	storage, err := NewStorage(src.ToStorageParams(), registry)
 	if err != nil {
 		return xerrors.Errorf("failed to connect to the source database: %w", err)
 	}
@@ -101,7 +101,7 @@ func LoadMysqlSchema(transfer *model.Transfer, task *model.TransferOperation, re
 		steps = mysqlSource.PreSteps
 	}
 
-	if err = CopySchema(mysqlSource, steps, abstract.PusherFromAsyncSink(sink)); err != nil {
+	if err = CopySchema(mysqlSource, steps, abstract.PusherFromAsyncSink(sink), registry); err != nil {
 		return xerrors.Errorf("unable to copy mysql schema: %w", err)
 	}
 	return nil

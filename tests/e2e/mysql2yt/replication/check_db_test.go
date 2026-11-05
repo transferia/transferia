@@ -156,7 +156,7 @@ func Load(t *testing.T) {
 	require.Equal(t, 2, j)
 
 	fakeClient := coordinator.NewStatefulFakeClient()
-	err = provider_mysql.SyncBinlogPosition(&source, transfer.ID, fakeClient)
+	err = provider_mysql.SyncBinlogPosition(&source, transfer.ID, fakeClient, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)

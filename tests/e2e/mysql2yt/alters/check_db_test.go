@@ -145,7 +145,7 @@ values (1, 13, 'Reverse Engineering'),
 	require.NoError(t, err)
 
 	fakeClient := coordinator.NewStatefulFakeClient()
-	err = provider_mysql.SyncBinlogPosition(&Source, transfer.ID, fakeClient)
+	err = provider_mysql.SyncBinlogPosition(&Source, transfer.ID, fakeClient, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	wrk := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)

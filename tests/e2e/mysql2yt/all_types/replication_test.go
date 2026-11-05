@@ -180,7 +180,7 @@ func TestReplication(t *testing.T) {
 
 	fakeClient := coordinator.NewStatefulFakeClient()
 	syncBinlogPosition := func() {
-		err := provider_mysql.SyncBinlogPosition(Source, transfer.ID, fakeClient)
+		err := provider_mysql.SyncBinlogPosition(Source, transfer.ID, fakeClient, testmetrics.EmptyRegistry())
 		require.NoError(t, err)
 	}
 	syncBinlogPosition()

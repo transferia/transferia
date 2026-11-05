@@ -18,6 +18,7 @@ import (
 	_ "github.com/transferia/transferia/tests/helpers/registration/mysql"
 	_ "github.com/transferia/transferia/tests/helpers/registration/postgres"
 	"github.com/transferia/transferia/tests/helpers/storage/storagecomparison"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -55,7 +56,7 @@ func TestGroup(t *testing.T) {
 }
 
 func Existence(t *testing.T) {
-	_, err := provider_mysql.NewStorage(Source.ToStorageParams())
+	_, err := provider_mysql.NewStorage(Source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	_, err = provider_postgres.NewStorage(Target.ToStorageParams())
 	require.NoError(t, err)

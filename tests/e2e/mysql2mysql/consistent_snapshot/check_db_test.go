@@ -48,9 +48,9 @@ func TestGroup(t *testing.T) {
 }
 
 func Existence(t *testing.T) {
-	_, err := provider_mysql.NewStorage(Source.ToStorageParams())
+	_, err := provider_mysql.NewStorage(Source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
-	_, err = provider_mysql.NewStorage(Target.ToStorageParams())
+	_, err = provider_mysql.NewStorage(Target.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 }
 

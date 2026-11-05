@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 )
 
 //go:embed source.sql
@@ -30,7 +31,7 @@ func TestShardingByPartitions(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.Exec(string(sourceDB))
 	require.NoError(t, err)
-	storage, err := provider_mysql.NewStorage(source.ToStorageParams())
+	storage, err := provider_mysql.NewStorage(source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	parts, err := storage.ShardTable(context.Background(), abstract.TableDescription{
 		Name:   "orders",

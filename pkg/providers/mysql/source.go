@@ -616,7 +616,7 @@ func NewSource(src *MysqlSource, transferID string, objects *model.DataObjects, 
 		return nil, xerrors.Errorf("failed to create connection params: %w", err)
 	}
 
-	storage, err := NewStorage(src.ToStorageParams())
+	storage, err := NewStorage(src.ToStorageParams(), registry)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create storage: %w", err)
 	}

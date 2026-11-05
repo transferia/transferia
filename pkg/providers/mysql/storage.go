@@ -13,11 +13,13 @@ import (
 	"github.com/dustin/go-humanize"
 	mysql_driver "github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/transferia/transferia/internal/logger"
+	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -52,6 +54,7 @@ type Storage struct {
 	preSteps                *MysqlDumpSteps
 	consistentSnapshot      bool
 	database                string
+	metrics                 *stats.SourceStats
 }
 
 func (s *Storage) Close() {
@@ -323,6 +326,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 		chunkSize,
 		pos.LSN,
 		s.IsHomo,
+		s.metrics,
 		pusher,
 	)
 	if err != nil {
@@ -576,12 +580,12 @@ func timezoneOffset(timezone *time.Location) string {
 	return fmt.Sprintf("%s%s:%s", sign, hours, minutes)
 }
 
-func NewStorage(config *MysqlStorageParams) (*Storage, error) {
-	return newStorage(context.Background(), config)
+func NewStorage(config *MysqlStorageParams, registry core_metrics.Registry) (*Storage, error) {
+	return newStorage(context.Background(), config, registry)
 }
 
 // newStorage is NewStorage with ctx; host resolution has timeouts of its own
-func newStorage(ctx context.Context, config *MysqlStorageParams) (*Storage, error) {
+func newStorage(ctx context.Context, config *MysqlStorageParams, registry core_metrics.Registry) (*Storage, error) {
 	var rollbacks util.Rollbacks
 	defer rollbacks.Do()
 
@@ -614,6 +618,7 @@ func newStorage(ctx context.Context, config *MysqlStorageParams) (*Storage, erro
 		snapshotConnectionsPool: nil,
 		IsHomo:                  false,
 		database:                config.Database,
+		metrics:                 stats.NewSourceStats(registry),
 	}
 
 	return storage, nil

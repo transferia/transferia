@@ -72,13 +72,13 @@ func GetSampleableStorageByModel(t *testing.T, serverModel interface{}) abstract
 		result, err = provider_clickhouse.NewStorage(storageParams, nil)
 	// mysql
 	case provider_mysql.MysqlSource:
-		result, err = provider_mysql.NewStorage(model.ToStorageParams())
+		result, err = provider_mysql.NewStorage(model.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	case *provider_mysql.MysqlSource:
-		result, err = provider_mysql.NewStorage(model.ToStorageParams())
+		result, err = provider_mysql.NewStorage(model.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	case provider_mysql.MysqlDestination:
-		result, err = provider_mysql.NewStorage(model.ToStorageParams())
+		result, err = provider_mysql.NewStorage(model.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	case *provider_mysql.MysqlDestination:
-		result, err = provider_mysql.NewStorage(model.ToStorageParams())
+		result, err = provider_mysql.NewStorage(model.ToStorageParams(), solomon.NewRegistry(solomon.NewRegistryOpts()))
 	// mongo
 	case provider_mongo.MongoSource:
 		result, err = provider_mongo.NewStorage(model.ToStorageParams())

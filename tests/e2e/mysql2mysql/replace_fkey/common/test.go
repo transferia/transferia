@@ -36,9 +36,9 @@ func init() {
 }
 
 func Existence(t *testing.T) {
-	_, err := provider_mysql.NewStorage(Source.ToStorageParams())
+	_, err := provider_mysql.NewStorage(Source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
-	_, err = provider_mysql.NewStorage(Target.ToStorageParams())
+	_, err = provider_mysql.NewStorage(Target.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 }
 
@@ -78,7 +78,7 @@ func Load(t *testing.T) {
 	}
 
 	fakeClient := coordinator.NewStatefulFakeClient()
-	err = provider_mysql.SyncBinlogPosition(&Source, connector.ID, fakeClient)
+	err = provider_mysql.SyncBinlogPosition(&Source, connector.ID, fakeClient, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	localWorker := local.NewLocalWorker(fakeClient, connector, testmetrics.EmptyRegistry(), logger.Log)

@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/internal/logger"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -83,13 +84,13 @@ func NewMySQLConnectionParams(t *testing.T, storageParams *provider_mysql.MysqlS
 }
 
 func NewMySQLStorageFromSource(t *testing.T, src *provider_mysql.MysqlSource) *provider_mysql.Storage {
-	storage, err := provider_mysql.NewStorage(src.ToStorageParams())
+	storage, err := provider_mysql.NewStorage(src.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	return storage
 }
 
 func NewMySQLStorageFromTarget(t *testing.T, dst *provider_mysql.MysqlDestination) *provider_mysql.Storage {
-	storage, err := provider_mysql.NewStorage(dst.ToStorageParams())
+	storage, err := provider_mysql.NewStorage(dst.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	return storage
 }

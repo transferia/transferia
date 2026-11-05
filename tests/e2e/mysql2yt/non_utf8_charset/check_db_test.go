@@ -91,7 +91,7 @@ func TestNonUtf8Charset(t *testing.T) {
 	require.NoError(t, storagecomparison.CompareStorages(t, source, ytDestination.LegacyModel(), storagecomparison.NewCompareStorageParams()))
 
 	fakeClient := coordinator.NewStatefulFakeClient()
-	err = provider_mysql.SyncBinlogPosition(&source, transfer.ID, fakeClient)
+	err = provider_mysql.SyncBinlogPosition(&source, transfer.ID, fakeClient, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)

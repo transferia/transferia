@@ -13,8 +13,10 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
+	metrics_mock "github.com/transferia/transferia/library/go/core/metrics/mock"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 	"go.ytsaurus.tech/yt/go/schema"
 )
@@ -39,6 +41,11 @@ type MockLoggerCounters struct {
 type MockLogger struct {
 	prevLog  *log.Logger
 	counters *MockLoggerCounters
+}
+
+func newTestSourceStats() (*stats.SourceStats, *metrics_mock.Registry) {
+	registry := metrics_mock.NewRegistry(metrics_mock.NewRegistryOpts())
+	return stats.NewSourceStats(registry), registry
 }
 
 func (l *MockLogger) SetExpectedErrorf(expectedErrorf int) {
@@ -410,6 +417,8 @@ func Test_readRowsAndPushByChunks_00(t *testing.T) {
 	}
 
 	pusherCalls := 0
+	sourceStats, registry := newTestSourceStats()
+	var bytesRead uint64
 
 	err := readRowsAndPushByChunks(
 		time.Local,
@@ -421,12 +430,60 @@ func Test_readRowsAndPushByChunks_00(t *testing.T) {
 		1,
 		0,
 		false,
+		sourceStats,
 		func(input []abstract.ChangeItem) error {
 			pusherCalls++
+			for _, item := range input {
+				bytesRead += item.Size.Read
+			}
 			return nil
 		})
 	require.NoError(t, err)
 	require.Equal(t, pusherCalls, 3)
+	bytesMetric, ok := registry.GetCounter("publisher.data.bytes")
+	require.True(t, ok)
+	require.Equal(t, int64(bytesRead), bytesMetric.Value.Load())
+	changeItemsMetric, ok := registry.GetCounter("publisher.data.changeitems")
+	require.True(t, ok)
+	require.Equal(t, int64(3), changeItemsMetric.Value.Load())
+}
+
+func TestReadRowsAndPushByChunksEmptyResultDoesNotChangeMetrics(t *testing.T) {
+	var value int
+	rows := &SQLRowsMock{
+		ExpectedCallsNext: 0,
+		ColTypes:          []*sql.ColumnType{makeSQLColumnType("value", reflect.TypeOf(value))},
+	}
+	table := abstract.TableDescription{Name: "table", Schema: "database"}
+	tableSchema := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "value", DataType: schema.TypeInt32.String()},
+	})
+	sourceStats, registry := newTestSourceStats()
+
+	err := readRowsAndPushByChunks(
+		time.Local,
+		rows,
+		time.Now(),
+		table,
+		tableSchema,
+		map[string]string{"value": "int"},
+		1,
+		0,
+		false,
+		sourceStats,
+		func(input []abstract.ChangeItem) error {
+			require.Empty(t, input)
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	bytesMetric, ok := registry.GetCounter("publisher.data.bytes")
+	require.True(t, ok)
+	require.Zero(t, bytesMetric.Value.Load())
+	changeItemsMetric, ok := registry.GetCounter("publisher.data.changeitems")
+	require.True(t, ok)
+	require.Zero(t, changeItemsMetric.Value.Load())
 }
 
 func Test_readRowsAndPushByChunks_01(t *testing.T) {
@@ -465,6 +522,7 @@ func Test_readRowsAndPushByChunks_01(t *testing.T) {
 		2,
 		0,
 		false,
+		nil,
 		func(input []abstract.ChangeItem) error {
 			pusherCalls++
 			return nil
@@ -505,6 +563,7 @@ func Test_readRowsAndPushByChunks_BySize(t *testing.T) {
 	}
 
 	pusherCalls := 0
+	sourceStats, _ := newTestSourceStats()
 
 	err := readRowsAndPushByChunks(
 		time.Local,
@@ -516,10 +575,46 @@ func Test_readRowsAndPushByChunks_BySize(t *testing.T) {
 		200,
 		0,
 		false,
+		sourceStats,
 		func(input []abstract.ChangeItem) error {
 			pusherCalls++
 			return nil
 		})
 	require.NoError(t, err)
 	require.Equal(t, pusherCalls, 2)
+}
+
+func TestReadRowsAndPushByChunksCountsChangeItemsBeforePush(t *testing.T) {
+	var value int
+	rows := &SQLRowsMock{
+		ExpectedCallsNext: 1,
+		ColTypes:          []*sql.ColumnType{makeSQLColumnType("value", reflect.TypeOf(value))},
+	}
+	table := abstract.TableDescription{Name: "table", Schema: "database"}
+	tableSchema := abstract.NewTableSchema([]abstract.ColSchema{
+		{ColumnName: "value", DataType: schema.TypeInt32.String()},
+	})
+	sourceStats, registry := newTestSourceStats()
+	expectedErr := xerrors.New("push failed")
+
+	err := readRowsAndPushByChunks(
+		time.Local,
+		rows,
+		time.Now(),
+		table,
+		tableSchema,
+		map[string]string{"value": "int"},
+		1,
+		0,
+		false,
+		sourceStats,
+		func(input []abstract.ChangeItem) error {
+			return expectedErr
+		},
+	)
+
+	require.ErrorIs(t, err, expectedErr)
+	changeItemsMetric, ok := registry.GetCounter("publisher.data.changeitems")
+	require.True(t, ok)
+	require.Equal(t, int64(1), changeItemsMetric.Value.Load())
 }

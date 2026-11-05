@@ -70,7 +70,7 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 		))
 	}()
 
-	storage, err := provider_mysql.NewStorage(source.ToStorageParams())
+	storage, err := provider_mysql.NewStorage(source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	var rowsValuesOnSnapshot []any
@@ -99,7 +99,7 @@ func TestTimeZoneSnapshotAndReplication(t *testing.T) {
 	}
 
 	fakeClient := coordinator.NewStatefulFakeClient()
-	err = provider_mysql.SyncBinlogPosition(source, transfer.ID, fakeClient)
+	err = provider_mysql.SyncBinlogPosition(source, transfer.ID, fakeClient, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	wrk := local.NewLocalWorker(fakeClient, &transfer, testmetrics.EmptyRegistry(), logger.Log)
@@ -171,7 +171,7 @@ func TestDifferentTimezones(t *testing.T) {
 	storageCfg := source.ToStorageParams()
 	checkTimezoneVals := func(cfg *provider_mysql.MysqlStorageParams, timezone string, expectedRows []any) {
 		cfg.Timezone = timezone
-		storage, err := provider_mysql.NewStorage(cfg)
+		storage, err := provider_mysql.NewStorage(cfg, testmetrics.EmptyRegistry())
 		require.NoError(t, err)
 		defer storage.Close()
 

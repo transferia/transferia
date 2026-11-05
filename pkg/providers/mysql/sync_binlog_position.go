@@ -5,6 +5,7 @@ import (
 
 	mysql_driver "github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/transferia/transferia/internal/logger"
+	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 )
@@ -31,8 +32,8 @@ func GetLogFilePosition(storage *Storage) (string, uint64, string, error) {
 	return file, pos, gtid, nil
 }
 
-func SyncBinlogPosition(src *MysqlSource, id string, cp coordinator.Coordinator) error {
-	storage, err := NewStorage(src.ToStorageParams())
+func SyncBinlogPosition(src *MysqlSource, id string, cp coordinator.Coordinator, registry core_metrics.Registry) error {
+	storage, err := NewStorage(src.ToStorageParams(), registry)
 	if err != nil {
 		return xerrors.Errorf("failed to connect to the source database: %w", err)
 	}

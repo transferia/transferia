@@ -19,6 +19,7 @@ import (
 	_ "github.com/transferia/transferia/tests/helpers/registration/mysql"
 	"github.com/transferia/transferia/tests/helpers/storage"
 	"github.com/transferia/transferia/tests/helpers/testenv"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"github.com/transferia/transferia/tests/helpers/transfer"
 )
 
@@ -92,7 +93,7 @@ func TestCanonSource(t *testing.T) {
 			})
 			execBatch(t, conn, TableSQLs[tableName])
 
-			srcStorage, err := mysql.NewStorage(Source.ToStorageParams())
+			srcStorage, err := mysql.NewStorage(Source.ToStorageParams(), testmetrics.EmptyRegistry())
 			require.NoError(t, err)
 
 			require.NoError(t, storage.WaitEqualRowsCount(t, Source.Database, tableName, srcStorage, counterStorage, time.Second*60))

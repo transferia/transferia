@@ -62,7 +62,7 @@ func TestNonUtf8Charset(t *testing.T) {
 		))
 	}()
 
-	storage, err := provider_mysql.NewStorage(source.ToStorageParams())
+	storage, err := provider_mysql.NewStorage(source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	called := false
@@ -104,7 +104,7 @@ func TestNonUtf8Charset(t *testing.T) {
 	}
 
 	fakeClient := coordinator.NewStatefulFakeClient()
-	err = provider_mysql.SyncBinlogPosition(source, transfer.ID, fakeClient)
+	err = provider_mysql.SyncBinlogPosition(source, transfer.ID, fakeClient, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	wrk := local.NewLocalWorker(fakeClient, &transfer, testmetrics.EmptyRegistry(), logger.Log)

@@ -178,6 +178,7 @@ func (s *Storage) loadSample(
 		2000,
 		0,
 		s.IsHomo,
+		nil,
 		pusher,
 	)
 	if err != nil {

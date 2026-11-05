@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	mysql_unmarshaller_snapshot "github.com/transferia/transferia/pkg/providers/mysql/unmarshaller/snapshot"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/util/size"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -220,6 +221,7 @@ func readRowsAndPushByChunks(
 	chunkSize uint64,
 	lsn uint64,
 	isHomo bool,
+	metrics *stats.SourceStats,
 	pusher abstract.Pusher) error {
 
 	colsNames := makeArrColsNames(tableSchema.Columns())
@@ -241,6 +243,9 @@ func readRowsAndPushByChunks(
 		}
 		readValuesSize := util.DeepSizeof(values)
 		inflightSize += readValuesSize
+		if metrics != nil {
+			metrics.Size.Add(int64(readValuesSize))
+		}
 
 		var columnValues []any
 		if isHomo {
@@ -272,6 +277,9 @@ func readRowsAndPushByChunks(
 		})
 		globalIdx++
 		if uint64(len(inflight)) >= chunkSize || inflightSize >= 16*size.MiB {
+			if metrics != nil {
+				metrics.ChangeItems.Add(int64(len(inflight)))
+			}
 			if err := pusher(inflight); err != nil {
 				return xerrors.Errorf("unable to push changes: %w", err)
 			}
@@ -280,6 +288,9 @@ func readRowsAndPushByChunks(
 		}
 	}
 	if uint64(len(inflight)) > 0 {
+		if metrics != nil {
+			metrics.ChangeItems.Add(int64(len(inflight)))
+		}
 		if err := pusher(inflight); err != nil {
 			return xerrors.Errorf("unable to push changes: %w", err)
 		}

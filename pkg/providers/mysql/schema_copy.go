@@ -8,6 +8,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/transferia/transferia/internal/logger"
+	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 )
@@ -27,8 +28,8 @@ var AlreadyExistsCodes = map[int]bool{
 
 var TableOrViewNotExistsCode = uint16(1146)
 
-func CopySchema(source *MysqlSource, steps *MysqlDumpSteps, pusher abstract.Pusher) error {
-	storage, err := NewStorage(source.ToStorageParams())
+func CopySchema(source *MysqlSource, steps *MysqlDumpSteps, pusher abstract.Pusher, registry core_metrics.Registry) error {
+	storage, err := NewStorage(source.ToStorageParams(), registry)
 	if err != nil {
 		return xerrors.Errorf("unable to create mysql storage: %w", err)
 	}

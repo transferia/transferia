@@ -52,9 +52,9 @@ func TestGroup(t *testing.T) {
 }
 
 func Existence(t *testing.T) {
-	_, err := provider_mysql.NewStorage(Source.ToStorageParams())
+	_, err := provider_mysql.NewStorage(Source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
-	_, err = provider_mysql.NewStorage(Target.ToStorageParams())
+	_, err = provider_mysql.NewStorage(Target.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 }
 
@@ -84,7 +84,7 @@ func Load(t *testing.T) {
 	transfer := transferhelpers.MakeTransfer(transferhelpers.TransferID, &Source, &Target, TransferType)
 
 	fakeClient := coordinator.NewStatefulFakeClient()
-	err = provider_mysql.SyncBinlogPosition(&Source, transfer.ID, fakeClient)
+	err = provider_mysql.SyncBinlogPosition(&Source, transfer.ID, fakeClient, testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	localWorker := local.NewLocalWorker(fakeClient, transfer, testmetrics.EmptyRegistry(), logger.Log)

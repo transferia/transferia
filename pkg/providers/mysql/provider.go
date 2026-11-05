@@ -88,7 +88,7 @@ func (p *Provider) SourceChecksumableStorage() (abstract.ChecksumableStorage, []
 	if !ok {
 		return nil, nil, xerrors.Errorf("unexpected src type: %T", p.transfer.Src)
 	}
-	srcStorage, err := NewStorage(src.ToStorageParams())
+	srcStorage, err := NewStorage(src.ToStorageParams(), p.registry)
 	if err != nil {
 		return nil, nil, xerrors.Errorf(`unable to create mysql storage: %w`, err)
 	}
@@ -123,7 +123,7 @@ func (p *Provider) DestinationChecksumableStorage() (abstract.ChecksumableStorag
 	if !ok {
 		return nil, xerrors.Errorf("unexpected src type: %T", p.transfer.Src)
 	}
-	dstStorage, err := NewStorage(dst.ToStorageParams())
+	dstStorage, err := NewStorage(dst.ToStorageParams(), p.registry)
 	if err != nil {
 		return nil, xerrors.Errorf(`unable to create mysql storage: %w`, err)
 	}
@@ -153,7 +153,7 @@ func (p *Provider) storage(ctx context.Context) (*Storage, error) {
 			src.Timezone = timeZone
 		}
 	}
-	res, err := newStorage(ctx, src.ToStorageParams())
+	res, err := newStorage(ctx, src.ToStorageParams(), p.registry)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to construct storage: %w", err)
 	}
@@ -225,12 +225,12 @@ func (p *Provider) Activate(ctx context.Context, task *model.TransferOperation, 
 	}
 	if !p.transfer.SnapshotOnly() {
 		if src.IsHomo {
-			if err := CheckMySQLBinlogRowImageFormat(src); err != nil {
+			if err := CheckMySQLBinlogRowImageFormat(src, p.registry); err != nil {
 				return err
 			}
 		}
 		src.InitServerID(p.transfer.ID)
-		if err := SyncBinlogPosition(src, p.transfer.ID, p.cp); err != nil {
+		if err := SyncBinlogPosition(src, p.transfer.ID, p.cp, p.registry); err != nil {
 			return xerrors.Errorf("Cannot synchronize binlog position: %w", err)
 		}
 
@@ -266,7 +266,7 @@ func (p *Provider) Deactivate(ctx context.Context, task *model.TransferOperation
 	if !ok {
 		return xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	if err := RemoveTracker(src, p.transfer.ID, p.cp); err != nil {
+	if err := RemoveTracker(src, p.transfer.ID, p.cp, p.registry); err != nil {
 		return xerrors.Errorf("Unable to remove tracker: %w", err)
 	}
 	if !p.transfer.IncrementOnly() {
@@ -286,7 +286,7 @@ func (p *Provider) CleanupSource(ctx context.Context) error {
 	if !ok {
 		return xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	return RemoveTracker(src, p.transfer.ID, p.cp)
+	return RemoveTracker(src, p.transfer.ID, p.cp, p.registry)
 }
 
 func (p *Provider) Update(ctx context.Context, addedTables []abstract.TableDescription) error {

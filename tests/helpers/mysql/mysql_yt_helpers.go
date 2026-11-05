@@ -8,6 +8,7 @@ import (
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	provider_yt "github.com/transferia/transferia/pkg/providers/yt"
 	yt_storage "github.com/transferia/transferia/pkg/providers/yt/storage"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yttest"
@@ -29,7 +30,7 @@ func SetupMySQL2YTTest(t *testing.T, src *provider_mysql.MysqlSource, dst provid
 	_, err := ytEnv.YT.CreateNode(context.Background(), ypath.Path(dst.Path()), yt.NodeMap, &yt.CreateNodeOptions{Recursive: true})
 	require.NoError(t, err)
 
-	mysqlStorage, err := provider_mysql.NewStorage(src.ToStorageParams())
+	mysqlStorage, err := provider_mysql.NewStorage(src.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 	ytStorage, err := yt_storage.NewStorage(dst.ToStorageParams())
 	require.NoError(t, err)

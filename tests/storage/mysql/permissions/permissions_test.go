@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/tests/helpers/mysql"
+	"github.com/transferia/transferia/tests/helpers/testmetrics"
 )
 
 func prepareSource() *provider_mysql.MysqlSource {
@@ -19,7 +20,7 @@ func prepareSource() *provider_mysql.MysqlSource {
 func TestTableListError(t *testing.T) {
 	source := prepareSource()
 
-	storage, err := provider_mysql.NewStorage(source.ToStorageParams())
+	storage, err := provider_mysql.NewStorage(source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	_, err = storage.TableList(nil)
@@ -29,7 +30,7 @@ func TestTableListError(t *testing.T) {
 func TestTableListNoError(t *testing.T) {
 	source := mysql.WithMysqlInclude(prepareSource(), []string{"foo"})
 
-	storage, err := provider_mysql.NewStorage(source.ToStorageParams())
+	storage, err := provider_mysql.NewStorage(source.ToStorageParams(), testmetrics.EmptyRegistry())
 	require.NoError(t, err)
 
 	tables, err := storage.TableList(nil)
