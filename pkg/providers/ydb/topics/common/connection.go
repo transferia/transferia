@@ -16,7 +16,10 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-const defaultPort = 2135
+const (
+	defaultPort              = 2135
+	readerMaxGRPCMessageSize = 128 * 1024 * 1024
+)
 
 type ConnectionConfig struct {
 	Endpoint    string
@@ -53,18 +56,27 @@ func instanceContainsPort(instance string) bool {
 }
 
 func NewYDBDriver(cfg ConnectionConfig, lgr log.Logger) (*ydb.Driver, error) {
-	isSecure := false
+	return newYDBDriver(cfg, lgr)
+}
+
+func NewYDBDriverForRead(cfg ConnectionConfig, lgr log.Logger) (*ydb.Driver, error) {
+	return newYDBDriver(cfg, lgr, ydb.WithGrpcMaxMessageSize(readerMaxGRPCMessageSize))
+}
+
+func newYDBDriver(cfg ConnectionConfig, lgr log.Logger, additionalOptions ...ydb.Option) (*ydb.Driver, error) {
 	opts := []ydb.Option{
 		logadapter.WithTraces(lgr, trace.DetailsAll),
 		ydb.With(
 			config.WithOperationTimeout(60 * time.Second), // to prevent some hanging-on
 		),
 	}
+	opts = append(opts, additionalOptions...)
 
 	if cfg.Credentials != nil {
 		opts = append(opts, ydb.WithCredentials(cfg.Credentials))
 	}
 
+	isSecure := false
 	if cfg.TLSCACertificate != "" {
 		isSecure = true
 		tlsConfig, err := xtls.FromContent(cfg.TLSCACertificate)

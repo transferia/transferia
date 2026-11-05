@@ -58,7 +58,7 @@ func NewPartitionSource(cfg *topicsource.Config, partitionDesc PartitionDescript
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 
-	ydbClient, err := topiccommon.NewYDBDriver(cfg.Connection, logger)
+	ydbClient, err := topiccommon.NewYDBDriverForRead(cfg.Connection, logger)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create ydb client: %w", err)
 	}
