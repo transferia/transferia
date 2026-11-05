@@ -152,6 +152,7 @@ func (s *Storage) LoadTable(ctx context.Context, table abstract.TableDescription
 }
 
 func (s *Storage) LoadTableImplNonDistributed(ctx context.Context, table abstract.TableDescription, pusher abstract.Pusher) error {
+	partID := table.GeneratePartID()
 	if table.Filter == tableIsShardedKey {
 		// clear sharding info
 		table.Filter = ""
@@ -164,7 +165,7 @@ func (s *Storage) LoadTableImplNonDistributed(ctx context.Context, table abstrac
 	if err != nil {
 		return xerrors.Errorf("failed to connect to Greenplum %s: %w", Coordinator().String(), err)
 	}
-	if err := s.segmentLoadTable(ctx, storage, s.coordinatorTx, table, pusher); err != nil {
+	if err := s.segmentLoadTable(ctx, storage, s.coordinatorTx, table, partID, pusher); err != nil {
 		return xerrors.Errorf("failed to load table from Greenplum %s: %w", Coordinator().String(), err)
 	}
 	return nil
@@ -208,6 +209,7 @@ func (s *Storage) LoadTableImplDistributed(ctx context.Context, table abstract.T
 		return abstract.NewFatalError(xerrors.New("Table is not sharded"))
 	}
 
+	partID := table.GeneratePartID()
 	workerID := int32(table.Offset)
 	// clear sharding info
 	table.Filter = ""
@@ -241,7 +243,7 @@ func (s *Storage) LoadTableImplDistributed(ctx context.Context, table abstract.T
 				if err != nil {
 					return xerrors.Errorf("failed to BEGIN transaction: %w", err)
 				}
-				if err := s.segmentLoadTable(ctx, storage, tx, table, pusher); err != nil {
+				if err := s.segmentLoadTable(ctx, storage, tx, table, partID, pusher); err != nil {
 					if err := tx.CloseRollback(ctx); err != nil {
 						logger.Log.Warn("Failed to ROLLBACK transaction", log.String("table", table.Fqtn()), log.String("segment", seg.String()), log.Error(err))
 					}
@@ -268,7 +270,7 @@ func (s *Storage) LoadTableImplDistributed(ctx context.Context, table abstract.T
 	return nil
 }
 
-func (s *Storage) segmentLoadTable(ctx context.Context, storage *provider_postgres.Storage, tx *gpTx, table abstract.TableDescription, pusher abstract.Pusher) error {
+func (s *Storage) segmentLoadTable(ctx context.Context, storage *provider_postgres.Storage, tx *gpTx, table abstract.TableDescription, partID string, pusher abstract.Pusher) error {
 	s.sourceStats.Count.Inc()
 
 	err := tx.withConnection(func(conn *pgx.Conn) error {
@@ -286,14 +288,15 @@ func (s *Storage) segmentLoadTable(ctx context.Context, storage *provider_postgr
 		defer rows.Close()
 
 		ciFetcher := provider_postgres.NewChangeItemsFetcher(rows, conn, abstract.ChangeItem{
-			ID:               uint32(0),
-			LSN:              uint64(0),
-			CommitTime:       uint64(time.Now().UTC().UnixNano()),
-			Counter:          0,
-			Kind:             abstract.InsertKind,
-			Schema:           table.Schema,
-			Table:            table.Name,
-			PartID:           table.GeneratePartID(),
+			ID:         uint32(0),
+			LSN:        uint64(0),
+			CommitTime: uint64(time.Now().UTC().UnixNano()),
+			Counter:    0,
+			Kind:       abstract.InsertKind,
+			Schema:     table.Schema,
+			Table:      table.Name,
+			// Clearing Greenplum routing fields must not change the loader part identity.
+			PartID:           partID,
 			ColumnNames:      schema.Columns().ColumnNames(),
 			ColumnValues:     nil,
 			TableSchema:      schema,
