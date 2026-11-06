@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -115,7 +116,7 @@ func (s *signalTable) CreateWatermark(
 
 		lowBoundStr, err := dblog.ConvertArrayToString(lowBoundArr)
 		if err != nil {
-			return xerrors.Errorf("unable to convert low bound array to string")
+			return xerrors.Errorf("unable to convert low bound array to string: %w", err)
 		}
 
 		query := s.makeWatermarkQuery()
@@ -193,30 +194,21 @@ func (s *signalTable) makeWatermarkQuery() string {
 	return fmt.Sprintf(query, s.schemaName, SignalTableName)
 }
 
-func (s *signalTable) resolveLowBound(ctx context.Context, tableID abstract.TableID) []string {
+func (s *signalTable) readLowBound(ctx context.Context, tableID abstract.TableID) ([]string, error) {
+	query := s.resolveLowBoundQuery()
 	var lowBoundStr string
-
-	err := s.tx(ctx, func(conn pgx.Tx) error {
-		query := s.resolveLowBoundQuery()
-
-		err := conn.QueryRow(ctx, query, tableID.Namespace, tableID.Name, s.transferID, dblog.SuccessWatermarkType).Scan(&lowBoundStr)
-		if err != nil {
-			return xerrors.Errorf("failed to retrieve low_bound for Namespace: %s, Table: %s, transferID: %s, err : %w", tableID.Namespace, tableID.Name, s.transferID, err)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil
+	err := s.conn.QueryRow(ctx, query, tableID.Namespace, tableID.Name, s.transferID, dblog.SuccessWatermarkType).Scan(&lowBoundStr)
+	if xerrors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
 	}
-
-	lowBoundArray, err := dblog.ConvertStringToArray(lowBoundStr)
 	if err != nil {
-		return nil
+		return nil, xerrors.Errorf("failed to read low bound for %s: %w", tableID.Fqtn(), err)
 	}
-
-	return lowBoundArray
+	lowBound, err := dblog.ConvertStringToArray(lowBoundStr)
+	if err != nil {
+		return nil, backoff.Permanent(xerrors.Errorf("failed to decode low bound for %s: %w", tableID.Fqtn(), err))
+	}
+	return lowBound, nil
 }
 
 func (s *signalTable) resolveLowBoundQuery() string {

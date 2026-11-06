@@ -25,10 +25,12 @@ type IncrementalAsyncSink struct {
 
 	primaryKey []string
 
-	chunk         map[string]abstract.ChangeItem
-	itemConverter ChangeItemConverter
-	stopCallback  func()
-	outputPusher  abstract.Pusher
+	chunkRowCount           uint64
+	chunk                   map[string]abstract.ChangeItem
+	itemConverter           ChangeItemConverter
+	stopCallback            func()
+	outputPusher            abstract.Pusher
+	chunkCompletionCallback func(uint64) // called after the chunk is pushed and its success watermark is saved; nil is ok
 }
 
 func NewIncrementalAsyncSink(
@@ -42,20 +44,23 @@ func NewIncrementalAsyncSink(
 	itemConverter ChangeItemConverter,
 	stopCallback func(),
 	outputPusher abstract.Pusher,
+	chunkCompletionCallback func(uint64),
 ) *IncrementalAsyncSink {
 	asyncSink := &IncrementalAsyncSink{
-		ctx:             ctx,
-		logger:          logger,
-		signalTable:     signalTable,
-		tableID:         table,
-		tableIterator:   tableIterator,
-		inWindow:        false,
-		isLastIncrement: false,
-		primaryKey:      primaryKey,
-		chunk:           chunk,
-		itemConverter:   itemConverter,
-		stopCallback:    stopCallback,
-		outputPusher:    outputPusher,
+		ctx:                     ctx,
+		logger:                  logger,
+		signalTable:             signalTable,
+		tableID:                 table,
+		tableIterator:           tableIterator,
+		inWindow:                false,
+		isLastIncrement:         false,
+		primaryKey:              primaryKey,
+		chunk:                   chunk,
+		chunkRowCount:           uint64(len(chunk)),
+		itemConverter:           itemConverter,
+		stopCallback:            stopCallback,
+		outputPusher:            outputPusher,
+		chunkCompletionCallback: chunkCompletionCallback,
 	}
 
 	return asyncSink
@@ -121,6 +126,7 @@ func (s *IncrementalAsyncSink) AsyncPush(items []abstract.ChangeItem) chan error
 					return util.MakeChanWithError(err)
 				}
 
+				s.chunkRowCount = uint64(len(s.chunk))
 				if len(s.chunk) != int(s.tableIterator.limit) {
 					s.isLastIncrement = true
 				}
@@ -170,6 +176,10 @@ func (s *IncrementalAsyncSink) pushChunk() error {
 
 	if _, err := s.signalTable.CreateWatermark(s.ctx, s.tableID, SuccessWatermarkType, s.tableIterator.lowBound); err != nil {
 		return xerrors.Errorf("failed to create success watermark: %w", err)
+	}
+
+	if s.chunkCompletionCallback != nil {
+		s.chunkCompletionCallback(s.chunkRowCount)
 	}
 
 	return nil

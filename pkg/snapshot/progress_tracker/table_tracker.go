@@ -1,4 +1,4 @@
-package tasks
+package progress_tracker
 
 import (
 	"context"
@@ -15,32 +15,37 @@ import (
 	"go.ytsaurus.tech/library/go/core/log/ctxlog"
 )
 
-type SnapshotTableProgressTracker struct {
+type partsUpdater interface {
+	UpdateOperationTablesParts(string, []*abstract.OperationTablePart) error
+}
+
+// TableTracker periodically persists snapshot table progress.
+type TableTracker struct {
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
 	closeOnce *sync.Once
 
 	logFields           []log.Field
-	sharedMemory        abstract.SharedMemory
+	updater             partsUpdater
 	operationID         string
 	parts               map[string]*abstract.OperationTablePart
 	progressUpdateMutex *sync.Mutex
 }
 
-func NewSnapshotTableProgressTracker(
-	sharedMemory abstract.SharedMemory,
+func NewTableTracker(
+	updater partsUpdater,
 	operationID string,
 	progressUpdateMutex *sync.Mutex,
 	logFields []log.Field,
-) *SnapshotTableProgressTracker {
+) *TableTracker {
 	ctx, cancel := context.WithCancel(ctxlog.WithFields(context.Background(), logFields...))
-	tracker := &SnapshotTableProgressTracker{
+	tracker := &TableTracker{
 		cancel:    cancel,
 		wg:        sync.WaitGroup{},
 		closeOnce: &sync.Once{},
 
 		logFields:           logFields,
-		sharedMemory:        sharedMemory,
+		updater:             updater,
 		operationID:         operationID,
 		parts:               map[string]*abstract.OperationTablePart{},
 		progressUpdateMutex: progressUpdateMutex,
@@ -50,7 +55,7 @@ func NewSnapshotTableProgressTracker(
 	return tracker
 }
 
-func (t *SnapshotTableProgressTracker) run(ctx context.Context) {
+func (t *TableTracker) run(ctx context.Context) {
 	defer t.wg.Done()
 	pushTicker := time.NewTicker(time.Minute)
 	defer pushTicker.Stop()
@@ -65,7 +70,7 @@ func (t *SnapshotTableProgressTracker) run(ctx context.Context) {
 }
 
 // Close is thread-safe. Only first call will make sense.
-func (t *SnapshotTableProgressTracker) Close() {
+func (t *TableTracker) Close() {
 	t.closeOnce.Do(func() {
 		t.cancel()
 		t.wg.Wait()
@@ -73,7 +78,7 @@ func (t *SnapshotTableProgressTracker) Close() {
 	})
 }
 
-func (t *SnapshotTableProgressTracker) Flush(isTableDone bool) error {
+func (t *TableTracker) Flush(isTableDone bool) error {
 	t.progressUpdateMutex.Lock()
 	partsCopy := make([]*abstract.OperationTablePart, 0, len(t.parts))
 	for _, table := range t.parts {
@@ -90,7 +95,7 @@ func (t *SnapshotTableProgressTracker) Flush(isTableDone bool) error {
 		currBackOff = backoff.NewExponentialBackOff()
 	}
 	err := backoff.RetryNotify(func() error {
-		return t.sharedMemory.UpdateOperationTablesParts(t.operationID, partsCopy)
+		return t.updater.UpdateOperationTablesParts(t.operationID, partsCopy)
 	}, currBackOff, backoffutil.Log(ctxlog.WithFields(context.Background(), t.logFields...), "UpdateOperationTablesParts"))
 	if err != nil {
 		if !isTableDone {
@@ -122,13 +127,13 @@ func (t *SnapshotTableProgressTracker) Flush(isTableDone bool) error {
 	return nil
 }
 
-func (t *SnapshotTableProgressTracker) Add(part *abstract.OperationTablePart) {
+func (t *TableTracker) Add(part *abstract.OperationTablePart) {
 	t.progressUpdateMutex.Lock()
 	defer t.progressUpdateMutex.Unlock()
 	t.parts[part.Key()] = part
 }
 
-func (t *SnapshotTableProgressTracker) Start(part *abstract.OperationTablePart) {
+func (t *TableTracker) Start(part *abstract.OperationTablePart) {
 	t.progressUpdateMutex.Lock()
 	defer t.progressUpdateMutex.Unlock()
 	part.CompletedRows = 0
@@ -136,7 +141,13 @@ func (t *SnapshotTableProgressTracker) Start(part *abstract.OperationTablePart) 
 	t.parts[part.Key()] = part
 }
 
-func (t *SnapshotTableProgressTracker) Complete(part *abstract.OperationTablePart) {
+func (t *TableTracker) IncCompletedRows(part *abstract.OperationTablePart, rows uint64) {
+	t.progressUpdateMutex.Lock()
+	defer t.progressUpdateMutex.Unlock()
+	part.CompletedRows += rows
+}
+
+func (t *TableTracker) Complete(part *abstract.OperationTablePart) {
 	t.progressUpdateMutex.Lock()
 	defer t.progressUpdateMutex.Unlock()
 	part.Completed = true

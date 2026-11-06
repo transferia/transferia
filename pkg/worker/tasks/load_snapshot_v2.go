@@ -22,6 +22,7 @@ import (
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/sink_factory"
+	"github.com/transferia/transferia/pkg/snapshot/progress_tracker"
 	"github.com/transferia/transferia/pkg/storage_factory"
 	"github.com/transferia/transferia/pkg/targets"
 	"github.com/transferia/transferia/pkg/targets/legacy"
@@ -495,7 +496,7 @@ func (l *SnapshotLoader) doUploadTablesV2(ctx context.Context, snapshotProvider 
 	errorOnce := sync.Once{}
 	var tableUploadErr error
 
-	progressTracker := NewSnapshotTableProgressTracker(tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex, ctxlog.ContextFields(ctx))
+	progressTracker := progress_tracker.NewTableTracker(tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex, ctxlog.ContextFields(ctx))
 	defer progressTracker.Close()
 
 	for ctx.Err() == nil {

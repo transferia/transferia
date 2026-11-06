@@ -16,6 +16,12 @@ type queriableStorage interface {
 	tablequery.TableQueryable
 }
 
+type storageCallbacks struct {
+	onProgressReset         func()
+	chunkCompletionCallback func(uint64)
+	betweenWatermarks       []func()
+}
+
 type Storage struct {
 	logger log.Logger
 
@@ -25,10 +31,28 @@ type Storage struct {
 
 	chunkSize uint64
 
-	transferID       string
-	represent        dblog.ChangeItemConverter
-	keeperSchema     string
-	betweenMarksOpts []func()
+	transferID   string
+	represent    dblog.ChangeItemConverter
+	keeperSchema string
+	callbacks    storageCallbacks
+}
+
+// StorageOption configures optional DBLog callbacks.
+type StorageOption func(*Storage)
+
+// WithOnProgressReset sets the callback run when a table is read from the beginning.
+func WithOnProgressReset(callback func()) StorageOption {
+	return func(s *Storage) { s.callbacks.onProgressReset = callback }
+}
+
+// WithChunkCompletionCallback sets the callback run after a chunk is pushed and its watermark is saved.
+func WithChunkCompletionCallback(callback func(uint64)) StorageOption {
+	return func(s *Storage) { s.callbacks.chunkCompletionCallback = callback }
+}
+
+// WithBetweenWatermarks adds callbacks run between the low and high watermarks of non-empty chunks.
+func WithBetweenWatermarks(callbacks ...func()) StorageOption {
+	return func(s *Storage) { s.callbacks.betweenWatermarks = append(s.callbacks.betweenWatermarks, callbacks...) }
 }
 
 func NewStorage(
@@ -40,19 +64,27 @@ func NewStorage(
 	transferID string,
 	keeperSchema string,
 	represent dblog.ChangeItemConverter,
-	betweenMarksOpts ...func(),
+	opts ...StorageOption,
 ) (abstract.Storage, error) {
-	return &Storage{
-		logger:           log.With(logger, log.Any("component", "dblog")),
-		src:              src,
-		pgStorage:        pgStorage,
-		conn:             conn,
-		chunkSize:        chunkSize,
-		transferID:       transferID,
-		keeperSchema:     keeperSchema,
-		represent:        represent,
-		betweenMarksOpts: betweenMarksOpts,
-	}, nil
+	s := &Storage{
+		logger:       log.With(logger, log.Any("component", "dblog")),
+		src:          src,
+		pgStorage:    pgStorage,
+		conn:         conn,
+		chunkSize:    chunkSize,
+		transferID:   transferID,
+		keeperSchema: keeperSchema,
+		represent:    represent,
+		callbacks: storageCallbacks{
+			onProgressReset:         nil,
+			chunkCompletionCallback: nil,
+			betweenWatermarks:       nil,
+		},
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s, nil
 }
 
 func (s *Storage) Close() {
@@ -88,8 +120,14 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 
 	tableQuery := tablequery.NewTableQuery(tableDescr.ID(), true, tableDescr.Filter, 0, chunkSize)
 	s.logger.Infof("Storage.LoadTable - tableQuery: %v", tableQuery)
-	lowBound := pgSignalTable.resolveLowBound(ctx, tableDescr.ID())
+	lowBound, err := pgSignalTable.readLowBound(ctx, tableDescr.ID())
+	if err != nil {
+		return err
+	}
 	s.logger.Infof("Storage.LoadTable - lowBound: %v", lowBound)
+	if len(lowBound) == 0 && s.callbacks.onProgressReset != nil {
+		s.callbacks.onProgressReset()
+	}
 
 	iterator, err := dblog.NewIncrementalIterator(
 		s.logger,
@@ -100,7 +138,7 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 		pkColNames,
 		lowBound,
 		chunkSize,
-		s.betweenMarksOpts...,
+		s.callbacks.betweenWatermarks...,
 	)
 	if err != nil {
 		return xerrors.Errorf("unable to build iterator, err: %w", err)
@@ -129,6 +167,7 @@ func (s *Storage) LoadTable(ctx context.Context, tableDescr abstract.TableDescri
 		s.represent,
 		func() { s.src.Stop() },
 		pusher,
+		s.callbacks.chunkCompletionCallback,
 	)
 
 	err = s.src.Run(asyncSink)

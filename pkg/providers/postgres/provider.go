@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -20,7 +19,6 @@ import (
 	"github.com/transferia/transferia/pkg/providers"
 	postgres_dblog "github.com/transferia/transferia/pkg/providers/postgres/dblog"
 	"github.com/transferia/transferia/pkg/providers/postgres/pgerrors"
-	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/stats"
 	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
@@ -508,61 +506,26 @@ func (p *Provider) DBLogUpload(ctx context.Context, tables abstract.TableMap, ta
 	if err != nil {
 		return xerrors.Errorf("failed to create postgres storage: %w", err)
 	}
+	defer pgStorage.Close()
 
 	tableDescs := tables.ConvertToTableDescriptions()
 	if p.transfer.RegularSnapshot != nil {
 		tableDescs = pgStorage.BuildArrTableDescriptionWithIncrementalState(tableDescs, p.transfer.RegularSnapshot.Incremental)
 	}
-	for _, table := range tableDescs {
-		if abstract.IsSystemTable(table.Name) {
-			continue
-		}
-		asyncSink, err := sink_factory.MakeAsyncSink(
-			p.transfer,
-			task,
-			logger.Log,
-			p.registry,
-			p.cp,
-			middlewares.MakeConfig(middlewares.WithEnableRetries),
-		)
-
-		pusher := abstract.PusherFromAsyncSink(asyncSink)
-
+	newStorage := func(opts ...postgres_dblog.StorageOption) (abstract.Storage, error) {
+		sourceWrapper, err := NewSourceWrapper(src, src.SlotID, p.transfer.DataObjects, p.logger, stats.NewSourceStats(p.registry), p.cp, true)
 		if err != nil {
-			return xerrors.Errorf("failed to make async sink: %w", err)
+			return nil, xerrors.Errorf("failed to create source wrapper: %w", err)
 		}
-
-		loadTable := func() error {
-			logger.Log.Infof("Starting upload table: %s", table.String())
-
-			sourceWrapper, err := NewSourceWrapper(src, src.SlotID, p.transfer.DataObjects, p.logger, stats.NewSourceStats(p.registry), p.cp, true)
-			if err != nil {
-				return xerrors.Errorf("failed to create source wrapper: %w", err)
-			}
-
-			dblogStorage, err := postgres_dblog.NewStorage(p.logger, sourceWrapper, pgStorage, pgStorage.Conn, src.ChunkSize, p.transfer.ID, src.KeeperSchema, Represent)
-			if err != nil {
-				return xerrors.Errorf("failed to create DBLog storage: %w", err)
-			}
-
-			if err := dblogStorage.LoadTable(ctx, table, pusher); err != nil {
-				return xerrors.Errorf("unable to dblogStorage.LoadTable, err: %w", err)
-			}
-			logger.Log.Infof("Upload table %s successfully", table.String())
-			return nil
+		dblogStorage, err := postgres_dblog.NewStorage(
+			p.logger, sourceWrapper, pgStorage, pgStorage.Conn, src.ChunkSize, p.transfer.ID, src.KeeperSchema, Represent, opts...,
+		)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to create DBLog storage: %w", err)
 		}
-		if err = backoff.RetryNotify(func() error {
-			loadTableErr := loadTable()
-			if abstract.IsFatal(loadTableErr) {
-				loadTableErr = backoff.Permanent(loadTableErr)
-			}
-			return loadTableErr
-		}, backoffutil.NewExponentialBackOff(), backoffutil.Log(ctx, fmt.Sprintf("loading table: %s", table.String()))); err != nil {
-			return xerrors.Errorf("failed to load table: %w", err)
-		}
+		return dblogStorage, nil
 	}
-
-	return nil
+	return postgres_dblog.UploadTables(ctx, tableDescs, p.transfer, task, p.registry, p.cp, pgStorage, newStorage)
 }
 
 func (p *Provider) DBLogCleanup(ctx context.Context, src *PgSource) error {

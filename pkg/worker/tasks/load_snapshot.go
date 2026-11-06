@@ -22,6 +22,7 @@ import (
 	provider_greenplum "github.com/transferia/transferia/pkg/providers/greenplum"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/sink_factory"
+	"github.com/transferia/transferia/pkg/snapshot/progress_tracker"
 	"github.com/transferia/transferia/pkg/storage_factory"
 	"github.com/transferia/transferia/pkg/util"
 	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
@@ -857,7 +858,7 @@ func (l *SnapshotLoader) DoUploadTables(
 	ctx = util.ContextWithTimestamp(ctx, time.Now())
 	group, uploadCtx := errgroup.WithContext(ctx)
 
-	progressTracker := NewSnapshotTableProgressTracker(tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex, ctxlog.ContextFields(ctx))
+	progressTracker := progress_tracker.NewTableTracker(tppGetter.SharedMemory(), l.operation.OperationID, &l.progressUpdateMutex, ctxlog.ContextFields(ctx))
 	defer progressTracker.Close()
 
 	parts := newTablePartIterator(tppGetter)
@@ -899,7 +900,7 @@ func (l *SnapshotLoader) uploadTablePartWithRetry(
 	partLogger log.Logger,
 	source abstract.Storage,
 	part *abstract.OperationTablePart,
-	progressTracker *SnapshotTableProgressTracker,
+	progressTracker *progress_tracker.TableTracker,
 ) error {
 	notify := func(err error, dur time.Duration) {
 		partLogger.Error(
@@ -928,7 +929,7 @@ func (l *SnapshotLoader) uploadTablePart(
 	partLogger log.Logger,
 	source abstract.Storage,
 	part *abstract.OperationTablePart,
-	progressTracker *SnapshotTableProgressTracker,
+	progressTracker *progress_tracker.TableTracker,
 ) error {
 	if ctx.Err() != nil {
 		partLogger.Warn(

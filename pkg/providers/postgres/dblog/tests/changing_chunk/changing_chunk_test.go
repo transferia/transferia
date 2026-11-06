@@ -82,7 +82,10 @@ func TestIncrementalSnapshot(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	storage, err := postgres_dblog.NewStorage(logger.Log, src, pgStorage, pgStorage.Conn, incrementalLimit, transferID, "public", provider_postgres.Represent, opt)
+	storage, err := postgres_dblog.NewStorage(
+		logger.Log, src, pgStorage, pgStorage.Conn, incrementalLimit, transferID, "public", provider_postgres.Represent,
+		postgres_dblog.WithBetweenWatermarks(opt),
+	)
 	require.NoError(t, err)
 
 	sourceTables, err := storage.TableList(nil)
