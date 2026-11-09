@@ -81,7 +81,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.46.0
 	go.uber.org/atomic v1.11.0
 	go.uber.org/mock v0.6.0
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	go.ytsaurus.tech/library/go/core/log v0.0.5
 	go.ytsaurus.tech/yt/go v0.0.35
 	golang.org/x/crypto v0.55.0
