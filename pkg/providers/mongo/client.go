@@ -16,10 +16,12 @@ import (
 	"github.com/transferia/transferia/pkg/dbaas"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/providers/mongo/mongoerrors"
 	"github.com/transferia/transferia/pkg/util"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/x/mongo/driver"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -112,7 +114,8 @@ func Connect(ctx context.Context, opts MongoConnectionOptions, lgr log.Logger) (
 	// create client
 	client, err := newClient(ctx, driverConnectionOptions)
 	if err != nil {
-		if driverConnectionOptions.TLSConfig != nil {
+		// Skip the TLS retry: TLS is already on, or a rejected login proves the server is reachable without TLS
+		if driverConnectionOptions.TLSConfig != nil || error_codes.InvalidCredential.Contains(err) {
 			lgr.Error("Error initializing mongo client",
 				log.Int64("mongo_client_wrapper_id", id),
 				log.String("opts.ClusterID", opts.ClusterID),
@@ -167,21 +170,32 @@ func newClient(ctx context.Context, connOpts *mongo_options.ClientOptions) (*mon
 	client, err := mongo_driver.Connect(ctx, connOpts)
 	logger.Log.Debugf("newClient: mongo_driver.Connect DONE err=%v elapsed=%v", err, time.Since(newClientStart))
 
-	isWithPassword := bool(connOpts != nil && connOpts.Auth != nil && len(connOpts.Auth.Password) > 0)
-	if err != nil && isWithPassword && strings.Contains(err.Error(), connOpts.Auth.Password) {
-		err = xerrors.New(strings.ReplaceAll(err.Error(), connOpts.Auth.Password, "<secret>"))
-
+	if err != nil {
+		isWithPassword := connOpts != nil && connOpts.Auth != nil && len(connOpts.Auth.Password) > 0
+		if isWithPassword && strings.Contains(err.Error(), connOpts.Auth.Password) {
+			err = xerrors.New(strings.ReplaceAll(err.Error(), connOpts.Auth.Password, "<secret>"))
+		}
 		return nil, xerrors.Errorf("unable to connect mongo client: %w", err)
 	}
 
 	logger.Log.Debugf("newClient: Ping START elapsed=%v", time.Since(newClientStart))
 	if err := client.Ping(ctx, nil); err != nil {
 		logger.Log.Debugf("newClient: Ping FAILED err=%v elapsed=%v", err, time.Since(newClientStart))
+		// Monitoring connections of a failed client stay open until Disconnect
+		disconnectCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if disconnectErr := client.Disconnect(disconnectCtx); disconnectErr != nil {
+			logger.Log.Warn("unable to disconnect mongo client after failed ping", log.Error(disconnectErr))
+		}
 		// Network-level classification: prefer structural checks over string matching.
 		// We treat it as DNS failure when error chain contains net.DNSError and driver classifies it as network error.
 		var dnsErr *net.DNSError
 		if mongo_driver.IsNetworkError(err) && xerrors.As(err, &dnsErr) {
 			return nil, coded.Errorf(error_codes.MongoDNSResolutionFailed, "unable to ping mongo db: %w", err)
+		}
+		var driverErr driver.Error
+		if xerrors.As(err, &driverErr) && driverErr.Code == mongoerrors.AuthenticationFailedCode {
+			return nil, coded.Errorf(error_codes.InvalidCredential, "unable to ping mongo db: %w", err)
 		}
 		return nil, xerrors.Errorf("unable to ping mongo db: %w", err)
 	}

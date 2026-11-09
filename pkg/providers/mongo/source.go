@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/providers/mongo/mongoerrors"
 	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -25,15 +26,10 @@ import (
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-const (
-	ChangeStreamFatalErrorCode  = 280
-	ChangeStreamHistoryLostCode = 286
-)
-
 var (
 	fatalCodes = map[int32]bool{
-		ChangeStreamHistoryLostCode: true,
-		ChangeStreamFatalErrorCode:  true,
+		mongoerrors.ChangeStreamHistoryLostCode: true,
+		mongoerrors.ChangeStreamFatalErrorCode:  true,
 	}
 	readTimeout = 60 * time.Minute
 )

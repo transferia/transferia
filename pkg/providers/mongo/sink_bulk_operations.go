@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
+	"github.com/transferia/transferia/pkg/providers/mongo/mongoerrors"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
@@ -17,11 +18,6 @@ import (
 )
 
 const sinkWriteConcurrency = 16 // sinkWriteConcurrency is maximum number of shards flushed concurrently per collection.
-
-const (
-	bsonObjectTooLargeCode = 10334 // "BSONObj size ... is invalid".
-	stringTooLongCode      = 16493 // "Tried to create string longer than 16MB".
-)
 
 type preparedWrite struct {
 	model    mongo_driver.WriteModel
@@ -138,10 +134,10 @@ func codeIfIsTooLargeError(err error) coded.Code {
 	if !xerrors.As(err, &serverErr) {
 		return ""
 	}
-	if serverErr.HasErrorCode(stringTooLongCode) {
+	if serverErr.HasErrorCode(mongoerrors.StringTooLongCode) {
 		return error_codes.MongoCollectionKeyTooLarge
 	}
-	if serverErr.HasErrorCode(bsonObjectTooLargeCode) {
+	if serverErr.HasErrorCode(mongoerrors.BSONObjectTooLargeCode) {
 		return error_codes.MongoBSONObjectTooLarge
 	}
 	return ""

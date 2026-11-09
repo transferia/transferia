@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/mongo/mongoerrors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -35,8 +36,8 @@ func TestMongoFatalErrors(t *testing.T) {
 			}
 		}
 	}
-	t.Run("ChangeStreamFatalErrorCode", mustFatal(ChangeStreamFatalErrorCode))
-	t.Run("ChangeStreamHistoryLostCode", mustFatal(ChangeStreamHistoryLostCode))
+	t.Run("ChangeStreamFatalErrorCode", mustFatal(mongoerrors.ChangeStreamFatalErrorCode))
+	t.Run("ChangeStreamHistoryLostCode", mustFatal(mongoerrors.ChangeStreamHistoryLostCode))
 	t.Run("any other code", mustNotFatal(123))
 }
 
