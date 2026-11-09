@@ -82,6 +82,8 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.1
+	go.ytsaurus.tech/library/go/core/log v0.0.5
+	go.ytsaurus.tech/yt/go v0.0.35
 	golang.org/x/crypto v0.55.0
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
 	golang.org/x/mod v0.41.0
@@ -215,6 +217,8 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mattn/go-sqlite3 v2.0.1+incompatible // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
+	github.com/mitchellh/copystructure v1.2.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
@@ -233,6 +237,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.25.1 // indirect
 	github.com/onsi/gomega v1.38.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
 	github.com/pingcap/check v0.0.0-20211026125417-57bd13f7b5f0 // indirect
@@ -276,6 +281,12 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	go.ytsaurus.tech/library/go/blockcodecs v0.0.3 // indirect
+	go.ytsaurus.tech/library/go/core/buildinfo v0.0.0-20250809130132-fa050e73ac17 // indirect
+	go.ytsaurus.tech/library/go/core/xerrors v0.0.4 // indirect
+	go.ytsaurus.tech/library/go/ptr v0.0.2 // indirect
+	go.ytsaurus.tech/library/go/x/xreflect v0.0.3 // indirect
+	go.ytsaurus.tech/library/go/x/xruntime v0.0.4 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5 // indirect
@@ -448,3 +459,9 @@ replace k8s.io/kubectl => k8s.io/kubectl v0.26.0
 replace github.com/go-resty/resty/v2 => github.com/go-resty/resty/v2 v2.16.3
 
 replace github.com/segmentio/kafka-go => ./vendor_patched/github.com/segmentio/kafka-go
+
+replace github.com/jackc/pglogrepl => ./vendor_patched/github.com/jackc/pglogrepl
+
+replace github.com/moby/go-archive => github.com/moby/go-archive v0.1.0
+
+replace src.yandex.cloud/yc/quantum/license/lib => github.com/pkg/errors v0.9.1

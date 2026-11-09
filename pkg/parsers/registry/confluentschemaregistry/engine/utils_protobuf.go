@@ -13,11 +13,9 @@ import (
 	ytschema "go.ytsaurus.tech/yt/go/schema"
 )
 
-var BuiltInDeps map[string]string //nolint:gochecknoglobals // read-only entity
-
 func protoMap(fileName, fileContent string) map[string]string {
 	result := make(map[string]string)
-	for k, v := range BuiltInDeps {
+	for k, v := range protobuf_extractor.BuiltInDeps {
 		result[k] = v
 	}
 	result[fileName] = fileContent

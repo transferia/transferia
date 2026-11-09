@@ -7,13 +7,14 @@ import (
 
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
-	sr_protobuf "github.com/transferia/transferia/cloud/dataplatform/schemaregistry/pkg/formats/protobuf"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
+
+var BuiltInDeps map[string]string //nolint:gochecknoglobals // read-only entity
 
 func buildToProtoreflectFileDescriptor(body string) (protoreflect.FileDescriptor, error) {
 	fileName := "stub.proto"
@@ -51,7 +52,7 @@ func getRegistry(subjectName string, refs map[string]string) (*protoregistry.Fil
 				contents = string(data)
 			}
 			if contents == "" {
-				contents = sr_protobuf.BuiltInDeps[filename]
+				contents = BuiltInDeps[filename]
 			}
 			if contents == "" {
 				return nil, os.ErrNotExist
@@ -75,7 +76,7 @@ func getRegistry(subjectName string, refs map[string]string) (*protoregistry.Fil
 	for key := range refs {
 		imports = append(imports, key)
 	}
-	for key := range sr_protobuf.BuiltInDeps {
+	for key := range BuiltInDeps {
 		imports = append(imports, key)
 	}
 	unlinkedFiles, err := currParser.ParseFilesButDoNotLink(imports...)

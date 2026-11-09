@@ -1,0 +1,54 @@
+Handle pgproto3/v2 v2.3.3 Encode errors without changing the pgconn v1 API.
+
+--- vendor/github.com/jackc/pglogrepl/pglogrepl.go
++++ vendor/github.com/jackc/pglogrepl/pglogrepl.go
+@@ -298,8 +298,11 @@
+ 		sql += fmt.Sprintf("%s", timelineString)
+ 	}
+ 
+-	buf := (&pgproto3.Query{String: sql}).Encode(nil)
+-	err := conn.SendBytes(ctx, buf)
++	buf, err := (&pgproto3.Query{String: sql}).Encode(nil)
++	if err != nil {
++		return errors.Errorf("failed to encode START_REPLICATION: %w", err)
++	}
++	err = conn.SendBytes(ctx, buf)
+ 	if err != nil {
+ 		return errors.Errorf("failed to send START_REPLICATION: %w", err)
+ 	}
+@@ -391,7 +394,10 @@
+ func StartBaseBackup(ctx context.Context, conn *pgconn.PgConn, options BaseBackupOptions) (result BaseBackupResult, err error) {
+ 	sql := options.sql()
+ 
+-	buf := (&pgproto3.Query{String: sql}).Encode(nil)
++	buf, err := (&pgproto3.Query{String: sql}).Encode(nil)
++	if err != nil {
++		return result, errors.Errorf("failed to encode BASE_BACKUP: %w", err)
++	}
+ 	err = conn.SendBytes(ctx, buf)
+ 	if err != nil {
+ 		return result, errors.Errorf("failed to send BASE_BACKUP: %w", err)
+@@ -628,7 +634,10 @@
+ 	}
+ 
+ 	cd := &pgproto3.CopyData{Data: data}
+-	buf := cd.Encode(nil)
++	buf, err := cd.Encode(nil)
++	if err != nil {
++		return err
++	}
+ 
+ 	return conn.SendBytes(ctx, buf)
+ }
+@@ -644,7 +653,10 @@
+ // to confirm ending the copy-both mode.
+ func SendStandbyCopyDone(ctx context.Context, conn *pgconn.PgConn) (cdr *CopyDoneResult, err error) {
+ 	cd := &pgproto3.CopyDone{}
+-	buf := cd.Encode(nil)
++	buf, err := cd.Encode(nil)
++	if err != nil {
++		return
++	}
+ 	err = conn.SendBytes(ctx, buf)
+ 	if err != nil {
+ 		return

@@ -1,0 +1,63 @@
+{
+	"Version": "v0.0.0-20210731151948-9f1effd582c4",
+	"GoVersion": "1.12",
+	"Sum": "h1:xFKQE4wf+OThB8RVzMuTr6RCrCJWI/3y6zp0qdkQoiE=",
+	"Packages": {
+		"github.com/jackc/pglogrepl": {
+			"Imports": [
+				"bytes",
+				"context",
+				"database/sql/driver",
+				"encoding/binary",
+				"fmt",
+				"github.com/jackc/pgconn",
+				"github.com/jackc/pgio",
+				"github.com/jackc/pgproto3/v2",
+				"golang.org/x/xerrors",
+				"strconv",
+				"strings",
+				"time"
+			],
+			"TestImports": [
+				"context",
+				"encoding/binary",
+				"fmt",
+				"github.com/jackc/pgconn",
+				"github.com/jackc/pglogrepl",
+				"github.com/jackc/pgproto3/v2",
+				"github.com/stretchr/testify/assert",
+				"github.com/stretchr/testify/require",
+				"github.com/stretchr/testify/suite",
+				"math/rand",
+				"os",
+				"strconv",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/jackc/pglogrepl/example/pglogrepl_demo": {
+			"Imports": [
+				"context",
+				"github.com/jackc/pgconn",
+				"github.com/jackc/pglogrepl",
+				"github.com/jackc/pgproto3/v2",
+				"log",
+				"os",
+				"time"
+			],
+			"TestImports": null
+		},
+		"github.com/jackc/pglogrepl/example/pgphysrepl_demo": {
+			"Imports": [
+				"context",
+				"github.com/jackc/pgconn",
+				"github.com/jackc/pglogrepl",
+				"github.com/jackc/pgproto3/v2",
+				"log",
+				"os",
+				"time"
+			],
+			"TestImports": null
+		}
+	}
+}
