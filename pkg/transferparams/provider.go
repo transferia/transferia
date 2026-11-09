@@ -24,10 +24,6 @@ func (p *Provider) InstanceId() (string, error) {
 	return util.GetStringValue(p.transferParams, instanceId)
 }
 
-func (p *Provider) InstanceName() (string, error) {
-	return util.GetStringValue(p.transferParams, instanceName)
-}
-
 func (p *Provider) CloudId() (string, error) {
 	return util.GetStringValue(p.transferParams, cloudId)
 }
@@ -46,4 +42,12 @@ func (p *Provider) JobCount() (int, error) {
 
 func (p *Provider) TransferId() (string, error) {
 	return util.GetStringValue(p.transferParams, transferId)
+}
+
+func (p *Provider) WorkerIndex() (int, error) {
+	return util.GetIntValue(p.transferParams, workerIndex)
+}
+
+func (p *Provider) instanceName() (string, error) {
+	return util.GetStringValue(p.transferParams, instanceName)
 }

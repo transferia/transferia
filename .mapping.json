@@ -2535,6 +2535,8 @@
   "pkg/targets/common.go":"transfer_manager/go/pkg/targets/common.go",
   "pkg/targets/legacy/eventtarget.go":"transfer_manager/go/pkg/targets/legacy/eventtarget.go",
   "pkg/terryid/generator.go":"transfer_manager/go/pkg/terryid/generator.go",
+  "pkg/transferparams/index_source.go":"transfer_manager/go/pkg/transferparams/index_source.go",
+  "pkg/transferparams/index_source_test.go":"transfer_manager/go/pkg/transferparams/index_source_test.go",
   "pkg/transferparams/provider.go":"transfer_manager/go/pkg/transferparams/provider.go",
   "pkg/transferparams/source.go":"transfer_manager/go/pkg/transferparams/source.go",
   "pkg/transferparams/transfer_params.go":"transfer_manager/go/pkg/transferparams/transfer_params.go",

@@ -8,15 +8,22 @@ var (
 	provider *Provider
 )
 
-func Init(source Source) error {
+func Init(source Source, indexSource IndexSource) error {
 	if provider != nil {
 		return nil
 	}
 	var err error
-	provider, err = source.provider()
+	params, err := source.provider()
 	if err != nil {
 		return xerrors.Errorf("cannot initialize transfer params provider: %w", err)
 	}
+	err = indexSource.fillParams(params)
+	if err != nil {
+		return xerrors.Errorf("cannot fill transfer params provider with index: %w", err)
+	}
+
+	// Publish only a fully initialized provider.
+	provider = params
 	return nil
 }
 
@@ -40,6 +47,7 @@ const (
 	runtimeFlavor     = transferParam("runtime_flavor")
 	jobCount          = transferParam("job_count")
 	transferId        = transferParam("transfer_id")
+	workerIndex       = transferParam("worker_index")
 )
 
 func (p transferParam) string() string {
