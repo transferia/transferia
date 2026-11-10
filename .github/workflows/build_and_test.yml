@@ -26,7 +26,7 @@ jobs:
   e2e-tests:
     needs: build
     name: e2e / ${{ matrix.suite.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -109,7 +109,7 @@ jobs:
   generic-tests:
     needs: build
     name: tests - ${{ matrix.suite.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
