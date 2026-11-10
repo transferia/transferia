@@ -1702,6 +1702,7 @@
   "pkg/providers/mongo/utils.go":"transfer_manager/go/pkg/providers/mongo/utils.go",
   "pkg/providers/mongo/version.go":"transfer_manager/go/pkg/providers/mongo/version.go",
   "pkg/providers/mongo/write_models.go":"transfer_manager/go/pkg/providers/mongo/write_models.go",
+  "pkg/providers/mongo/write_models_test.go":"transfer_manager/go/pkg/providers/mongo/write_models_test.go",
   "pkg/providers/mysql/canal.go":"transfer_manager/go/pkg/providers/mysql/canal.go",
   "pkg/providers/mysql/canal_test.go":"transfer_manager/go/pkg/providers/mysql/canal_test.go",
   "pkg/providers/mysql/cast.go":"transfer_manager/go/pkg/providers/mysql/cast.go",

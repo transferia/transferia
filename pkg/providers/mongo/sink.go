@@ -63,6 +63,15 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			return
 		}
 		s.logger.Debugf("flushCollection: splitItemsToBulkOperations DONE coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
+		totalBulks, totalWrites := 0, 0
+		for _, bulks := range shardBulks {
+			totalBulks += len(bulks)
+			for _, bulk := range bulks {
+				totalWrites += len(bulk)
+			}
+		}
+		s.metrics.Table(collID.Collection, "folded_rows", len(items)-totalWrites)
+		s.metrics.Table(collID.Collection, "bulks", totalBulks)
 
 		startFlush := time.Now()
 		s.logger.Debugf("flushCollection: bulk writes START coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
@@ -91,7 +100,8 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 			}
 		}
 		s.logger.Debugf("flushCollection: bulk writes DONE coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
-		s.logger.Infof("Flush collection %v: change items number = %v, shards = %v, elapsed = %v", collID.GetFullName(), len(items), len(shardBulks), time.Since(startFlush))
+		s.logger.Infof("Flush collection %v: change items number = %v, writes = %v (%v folded), shards = %v, bulks = %v, elapsed = %v",
+			collID.GetFullName(), len(items), totalWrites, len(items)-totalWrites, len(shardBulks), totalBulks, time.Since(startFlush))
 	}
 
 	s.metrics.Inflight.Add(int64(len(input)))

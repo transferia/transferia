@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -13,6 +14,7 @@ import (
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readconcern"
 	"go.ytsaurus.tech/library/go/core/log"
+	"golang.org/x/sync/errgroup"
 )
 
 type keyDescriptor struct {
@@ -329,9 +331,18 @@ func (f *keyBatcher) pushUnorderedChangeEvents(changeEventSlice []*changeEvent) 
 func (f *keyBatcher) processBatch(batchAndMetainfo keyBatch) error {
 	// compatible with mongo 4.0 and higher
 	// see: https://docs.mongodb.com/manual/reference/operator/aggregation/unionWith/#mongodb-pipeline-pipe.-unionWith
-	var keysToFetch, keysFetched, deletedKeys int
+	var keysToFetch, deletedKeys int
+	var keysFetched atomic.Int64
 	// TODO(@kry127) preallocation can be optimized: in case of single-threaded processBatch it can be allocated only once in 'f'
 	changeEventSlice := make([]*changeEvent, batchAndMetainfo.batchSize)[:0]
+	// fetched events land in a separate slice under mutex: fetch goroutines run while the main
+	// loop is still appending delete events to changeEventSlice
+	var fetchedEvents []*changeEvent
+	var fetchedMutex sync.Mutex
+	// Full documents of different namespaces are fetched concurrently: their finds are independent,
+	// and ordering is restored by pushUnorderedChangeEvents anyway.
+	eg, egCtx := errgroup.WithContext(f.ctx)
+	eg.SetLimit(8)
 	// group batch by namespace
 	for ns, keys := range groupByNamespace(batchAndMetainfo) {
 		inList := bson.A{}
@@ -350,26 +361,40 @@ func (f *keyBatcher) processBatch(batchAndMetainfo keyBatch) error {
 			continue
 		}
 
-		sizedFullDocuments, err := f.fullDocumentExtractor(f.ctx, ns, inList)
-		if err != nil {
-			return xerrors.Errorf("Error with full documents extraction: %w", err)
-		}
-		for _, sizedFullDoc := range sizedFullDocuments {
-			fullDocument := sizedFullDoc.document
-			// build extracted fullDocument descriptor
-			fullDocumentKD := makeKeyDescriptor(ns, fullDocument.Map()["_id"])
-			// extract timestamp
-			lastOplogEvent, ok := batchAndMetainfo.batch[fullDocumentKD]
-			if !ok {
-				return xerrors.Errorf("FullDocument from pure cursor missing anchor change keyEvent: %v", fullDocument)
+		eg.Go(func() error {
+			sizedFullDocuments, err := f.fullDocumentExtractor(egCtx, ns, inList)
+			if err != nil {
+				return xerrors.Errorf("Error with full documents extraction: %w", err)
 			}
+			nsEvents := make([]*changeEvent, 0, len(sizedFullDocuments))
+			for _, sizedFullDoc := range sizedFullDocuments {
+				fullDocument := sizedFullDoc.document
+				// build extracted fullDocument descriptor
+				fullDocumentKD := makeKeyDescriptor(ns, fullDocument.Map()["_id"])
+				// extract timestamp
+				lastOplogEvent, ok := batchAndMetainfo.batch[fullDocumentKD]
+				if !ok {
+					return xerrors.Errorf("FullDocument from pure cursor missing anchor change keyEvent: %v", fullDocument)
+				}
 
-			changeEventSlice = append(changeEventSlice, newUpsertEvent(lastOplogEvent.keyEvent, sizedFullDoc))
-			keysFetched++
-		}
+				nsEvents = append(nsEvents, newUpsertEvent(lastOplogEvent.keyEvent, sizedFullDoc))
+			}
+			keysFetched.Add(int64(len(nsEvents)))
+			fetchedMutex.Lock()
+			fetchedEvents = append(fetchedEvents, nsEvents...)
+			fetchedMutex.Unlock()
+			return nil
+		})
 	}
-	f.notifyProcessedBatchStatistics(batchAndMetainfo, changeEventSlice, keysToFetch, keysFetched, deletedKeys)
-	return f.pushUnorderedChangeEvents(changeEventSlice)
+	if err := eg.Wait(); err != nil {
+		return xerrors.Errorf("cannot fetch full documents of batch: %w", err)
+	}
+	changeEventSlice = append(changeEventSlice, fetchedEvents...)
+	f.notifyProcessedBatchStatistics(batchAndMetainfo, changeEventSlice, keysToFetch, int(keysFetched.Load()), deletedKeys)
+	if err := f.pushUnorderedChangeEvents(changeEventSlice); err != nil {
+		return xerrors.Errorf("cannot push batch change events: %w", err)
+	}
+	return nil
 }
 
 // NewKeyBatcher

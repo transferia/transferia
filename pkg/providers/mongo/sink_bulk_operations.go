@@ -64,7 +64,8 @@ func (s *sinker) itemsToPreparedWrites(
 }
 
 // splitItemsToBulkOperations distributes items into slice of bulks by hashing the _id, so every row for a given
-// document will always be in the same bulk and keeps its event order. An ordered list of bulks is returned.
+// document will always be in the same bulk and keeps its event order; repeated writes of a document are folded
+// into one where possible (see bulkSplitter). An ordered list of bulks is returned.
 func (s *sinker) splitItemsToBulkOperations(ctx context.Context, collID Namespace, items []abstract.ChangeItem) ([][][]mongo_driver.WriteModel, error) {
 	startPrepare := time.Now()
 
@@ -73,16 +74,26 @@ func (s *sinker) splitItemsToBulkOperations(ctx context.Context, collID Namespac
 		return nil, err
 	}
 
+	// The indexes of the collection are listed only when there is something to fold.
+	fold := !s.orderedWrites() && hasRepeatedDocument(writes)
+	if fold {
+		unique, indexErr := hasUniqueSecondaryIndex(ctx, s.client.Database(collID.Database).Collection(collID.Collection))
+		if indexErr != nil {
+			return nil, xerrors.Errorf("cannot check indexes of %v: %w", collID.GetFullName(), indexErr)
+		}
+		fold = !unique
+	}
 	splitters := make([]bulkSplitter, s.writeConcurrency())
 	for i := range splitters {
-		splitters[i] = newBulkSplitter()
+		splitters[i] = newBulkSplitter(fold)
 	}
 	for _, write := range writes {
 		splitters[shardOfDocumentID(write.docID.String, len(splitters))].Add(write.model, write.docID, write.isolated)
 	}
 	result := make([][][]mongo_driver.WriteModel, 0, len(splitters))
-	totalBulks := 0
+	totalBulks, folded := 0, 0
 	for i := range splitters {
+		folded += splitters[i].Folded()
 		if bulks := splitters[i].Get(); len(bulks) > 0 {
 			result = append(result, bulks)
 			totalBulks += len(bulks)
@@ -92,8 +103,8 @@ func (s *sinker) splitItemsToBulkOperations(ctx context.Context, collID Namespac
 	prepareDuration := time.Since(startPrepare)
 	s.metrics.RecordDuration("bulkPrepare", prepareDuration)
 	s.logger.Debugf(
-		"%v: %d items prepared into %d shard(s), %d bulk(s) in %v",
-		collID.GetFullName(), len(items), len(result), totalBulks, prepareDuration)
+		"%v: %d items prepared into %d shard(s), %d bulk(s), %d folded into an earlier write of the same document, in %v",
+		collID.GetFullName(), len(items), len(result), totalBulks, folded, prepareDuration)
 	return result, nil
 }
 
@@ -114,6 +125,49 @@ func extractDocumentIDs(items []abstract.ChangeItem) ([]documentID, error) {
 		allDocumentIDs[i] = id
 	}
 	return allDocumentIDs, nil
+}
+
+// hasRepeatedDocument reports whether some document is written more than once, i.e. whether there is anything to
+// fold.
+func hasRepeatedDocument(writes []preparedWrite) bool {
+	seen := set.New[string]()
+	for _, write := range writes {
+		if seen.Contains(write.docID.String) {
+			return true
+		}
+		seen.Add(write.docID.String)
+	}
+	return false
+}
+
+// indexSpec is the part of a listIndexes document the fold decision needs.
+type indexSpec struct {
+	Key           bson.D `bson:"key"`
+	Unique        bool   `bson:"unique"`
+	PrepareUnique bool   `bson:"prepareUnique"` // the index rejects new duplicates while being converted to unique
+}
+
+// hasUniqueSecondaryIndex reports whether the collection has a unique index besides the one on _id (see
+// bulkSplitter on why such a collection is not folded). A collection that does not exist yet has none.
+func hasUniqueSecondaryIndex(ctx context.Context, coll *mongo_driver.Collection) (bool, error) {
+	cursor, err := coll.Indexes().List(ctx)
+	if err != nil {
+		return false, xerrors.Errorf("cannot list indexes: %w", err)
+	}
+	var specs []indexSpec
+	if err := cursor.All(ctx, &specs); err != nil {
+		return false, xerrors.Errorf("cannot read indexes: %w", err)
+	}
+	return uniqueSecondaryIndex(specs), nil
+}
+
+func uniqueSecondaryIndex(specs []indexSpec) bool {
+	for _, spec := range specs {
+		if (spec.Unique || spec.PrepareUnique) && !(len(spec.Key) == 1 && spec.Key[0].Key == "_id") {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *sinker) orderedWrites() bool {
@@ -151,7 +205,7 @@ func (s *sinker) bulkWrite(ctx context.Context, collID Namespace, bulk []mongo_d
 
 	docsNumber := len(bulk)
 	startWrite := time.Now()
-	result, err := coll.BulkWrite(ctx, bulk, opts)
+	result, err := s.bulkWriteWithInsertFallback(ctx, collID, coll, bulk, opts)
 	if err != nil {
 		if strings.Contains(err.Error(), "is too large") {
 			s.logger.Warnf("BulkWrite(%v documents) to %v failed: %v. Try serial push instead.", docsNumber, collID.GetFullName(), err)
@@ -173,13 +227,70 @@ func (s *sinker) bulkWrite(ctx context.Context, collID Namespace, bulk []mongo_d
 	return nil
 }
 
+// bulkWriteWithInsertFallback runs the bulk, re-issuing inserts rejected as duplicates (a re-delivered event after
+// a restart, a snapshot retry) as replace-upserts of the same document, so inserts stay idempotent. Any other
+// failure is returned as is, with the counters of what did get written.
+func (s *sinker) bulkWriteWithInsertFallback(
+	ctx context.Context, collID Namespace, coll *mongo_driver.Collection, bulk []mongo_driver.WriteModel, opts *mongo_options.BulkWriteOptions,
+) (*mongo_driver.BulkWriteResult, error) {
+	total := mongo_driver.BulkWriteResult{}
+	base := 0 // index of bulk[0] in the bulk originally passed in, for the ordered tail retries
+	for {
+		result, err := coll.BulkWrite(ctx, bulk, opts)
+		if result != nil {
+			if err != nil && s.orderedWrites() {
+				// An ordered bulk stopped by an error returns raw counters: the driver subtracts the upserts from
+				// MatchedCount only for a bulk that ran to the end.
+				result.MatchedCount -= result.UpsertedCount
+			}
+			updateBulkWriteResult(&total, *result)
+		}
+		if err == nil {
+			return &total, nil
+		}
+		var bulkErr mongo_driver.BulkWriteException
+		if !xerrors.As(err, &bulkErr) || len(bulkErr.WriteErrors) == 0 || bulkErr.WriteConcernError != nil {
+			return &total, xerrors.Errorf("bulk write to %s failed: %w", collID.GetFullName(), err)
+		}
+		var retry []mongo_driver.WriteModel
+		if s.orderedWrites() {
+			// An ordered bulk stops at the first failure: the failed op and everything after it are still to be
+			// written. Every insert of the tail is turned into an upsert at once, not only the failed one: after a
+			// restart the whole tail is likely a re-delivery, and re-issuing one duplicate per round trip would
+			// replay it an op at a time.
+			failed := bulkErr.WriteErrors[0]
+			if insertToUpsertFallback(failed.Request) == nil || !mongo_driver.IsDuplicateKeyError(failed) {
+				return &total, xerrors.Errorf("ordered bulk write to %s failed at op %d: %w", collID.GetFullName(), base+failed.Index, err)
+			}
+			base += failed.Index
+			retry = make([]mongo_driver.WriteModel, 0, len(bulk)-failed.Index)
+			for _, model := range bulk[failed.Index:] {
+				if fallback := insertToUpsertFallback(model); fallback != nil {
+					retry = append(retry, fallback)
+				} else {
+					retry = append(retry, model)
+				}
+			}
+		} else {
+			for _, failed := range bulkErr.WriteErrors {
+				fallback := insertToUpsertFallback(failed.Request)
+				if fallback == nil || !mongo_driver.IsDuplicateKeyError(failed) {
+					return &total, xerrors.Errorf("bulk write to %s failed with %d write errors: %w", collID.GetFullName(), len(bulkErr.WriteErrors), err)
+				}
+				retry = append(retry, fallback)
+			}
+		}
+		bulk = retry // replace-upserts cannot fail as duplicates of _id, so the loop ends within a pass per insert
+	}
+}
+
 // serialPush writes models one by one.
 func (s *sinker) serialPush(ctx context.Context, collID Namespace, bulk []mongo_driver.WriteModel) (*mongo_driver.BulkWriteResult, error) {
 	coll := s.client.Database(collID.Database).Collection(collID.Collection)
 	opts := mongo_options.BulkWrite().SetOrdered(s.orderedWrites())
 	totalResult := mongo_driver.BulkWriteResult{}
 	for i, m := range bulk {
-		iResult, iErr := coll.BulkWrite(ctx, []mongo_driver.WriteModel{m}, opts)
+		iResult, iErr := s.bulkWriteWithInsertFallback(ctx, collID, coll, []mongo_driver.WriteModel{m}, opts)
 		if iErr != nil {
 			return nil, xerrors.Errorf("failed push %v-th document: %w", i, iErr)
 		}
@@ -208,7 +319,7 @@ func (s *sinker) retryCollectionOrdered(ctx context.Context, collID Namespace, i
 				notPushed = append(notPushed, write) // `items` can contain many items for same docID.
 				continue
 			}
-			result, err := coll.BulkWrite(ctx, []mongo_driver.WriteModel{write.model})
+			result, err := s.bulkWriteWithInsertFallback(ctx, collID, coll, []mongo_driver.WriteModel{write.model}, mongo_options.BulkWrite())
 			if err == nil {
 				updateBulkWriteResult(&totalResult, *result)
 				continue
@@ -254,7 +365,25 @@ func (s *sinker) setBulkWriteMetrics(collID Namespace, duration time.Duration, d
 
 func (s *sinker) makeWriteModel(chgItem *abstract.ChangeItem, id documentID, docKey bson.M, shardKey *shardedCollectionSinkContext) (mongo_driver.WriteModel, error) {
 	switch chgItem.Kind {
-	case abstract.InsertKind, abstract.UpdateKind:
+	case abstract.InsertKind:
+		document, err := getDocument(chgItem, shardKey)
+		if err != nil {
+			return nil, xerrors.Errorf("cannot compose MongoDB document from ChangeItem: %w", err)
+		}
+		if shardKey.Enabled() && !shardKey.IsTrivial() {
+			// Sharded by more than _id: the document may have moved to another shard since the event, and only the
+			// upsert by its stored key finds it there; a plain insert would land a second copy on the shard of the
+			// event's key.
+			return makeReplaceModel(makeDocumentFilter(id.Raw, docKey, shardKey.KeyFields()), document), nil
+		}
+		if !containsInRoot(document, "_id") {
+			document = append(bson.D{{Key: "_id", Value: id.Raw}}, document...)
+		}
+		// A plain insert costs the server less than upserting a new _id (inserts of a bulk share a storage
+		// transaction, upserts get one each). A re-delivered insert falls back to the upsert in
+		// bulkWriteWithInsertFallback.
+		return makeInsertModel(document), nil
+	case abstract.UpdateKind:
 		filter := makeDocumentFilter(id.Raw, docKey, shardKey.KeyFields())
 		document, err := getDocument(chgItem, shardKey)
 		if err != nil {

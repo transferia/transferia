@@ -20,6 +20,12 @@ func makeDocumentFilter(id interface{}, documentKey bson.M, keysPath []string) b
 	return result
 }
 
+// filtersByIDOnly reports whether a filter from makeDocumentFilter locates the document by its root _id alone.
+func filtersByIDOnly(filter interface{}) bool {
+	d, ok := filter.(bson.D)
+	return ok && len(d) == 1 && d[0].Key == "_id"
+}
+
 func makeUnsetBSON(paths []string) bson.D {
 	var doc bson.D
 	for _, path := range paths {
@@ -56,4 +62,27 @@ func makeReplaceModel(filter bson.D, document bson.D) *mongo_driver.ReplaceOneMo
 		SetFilter(filter).
 		SetReplacement(document).
 		SetUpsert(true)
+}
+
+func makeInsertModel(document bson.D) *mongo_driver.InsertOneModel {
+	return mongo_driver.NewInsertOneModel().SetDocument(document)
+}
+
+// insertToUpsertFallback turns an insert model into the replace-upsert of the same document by its root _id; nil for
+// other models or documents without a root _id. Inserts are used only where _id alone locates the document (see
+// makeWriteModel), so the filter needs no shard key.
+func insertToUpsertFallback(model mongo_driver.WriteModel) mongo_driver.WriteModel {
+	insert, ok := model.(*mongo_driver.InsertOneModel)
+	if !ok {
+		return nil
+	}
+	document, ok := insert.Document.(bson.D)
+	if !ok {
+		return nil
+	}
+	id, ok := GetValueByPath(document, "_id")
+	if !ok {
+		return nil
+	}
+	return makeReplaceModel(makeDocumentFilter(id, nil, nil), document)
 }
