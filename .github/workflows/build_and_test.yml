@@ -75,14 +75,12 @@ jobs:
       - shell: bash
         run: |
           pg_dump --version
-      - uses: engineerd/setup-kind@v0.6.2
+      - uses: helm/kind-action@v1.15.2
         if: matrix.suite.container
         with:
           version: "v0.26.0"
-          # Handled by the test code
-          skipClusterCreation: true
-          skipClusterDeletion: true
-          skipClusterLogsExport: true
+          # Cluster is handled by the test code
+          install_only: true
       - shell: bash
         if: matrix.suite.yt
         name: prepare local YT
@@ -154,7 +152,6 @@ jobs:
             { group: "pkg", name: "predicate", path: "predicate" },
             { group: "pkg", name: "dblog", path: "dblog" },
             { group: "pkg", name: "functions", path: "functions" },
-            { group: "pkg", name: "maplock", path: "maplock" },
             { group: "pkg", name: "middlewares", path: "middlewares" },
             { group: "pkg", name: "parsequeue", path: "parsequeue" },
             { group: "pkg", name: "util", path: "util" },
