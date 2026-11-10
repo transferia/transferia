@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
-	"github.com/transferia/transferia/library/go/test/yatest"
 	"github.com/transferia/transferia/pkg/abstract"
 	provider_clickhouse "github.com/transferia/transferia/pkg/providers/clickhouse"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/chrecipe"
@@ -20,17 +19,17 @@ func TestShardedStorage(t *testing.T) {
 		Shard1       = chrecipe.MustSource(
 			chrecipe.WithPrefix("DBSHARD1_"),
 			chrecipe.WithDatabase(databaseName),
-			chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard1.sql")),
+			chrecipe.WithInitFile("dump/src_shard1.sql"),
 		)
 		Shard2 = chrecipe.MustSource(
 			chrecipe.WithPrefix("DBSHARD2_"),
 			chrecipe.WithDatabase(databaseName),
-			chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard2.sql")),
+			chrecipe.WithInitFile("dump/src_shard2.sql"),
 		)
 		Shard3 = chrecipe.MustSource(
 			chrecipe.WithPrefix("DBSHARD3_"),
 			chrecipe.WithDatabase(databaseName),
-			chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard3.sql")),
+			chrecipe.WithInitFile("dump/src_shard3.sql"),
 		)
 	)
 	shard1, err := provider_clickhouse.NewStorage(storageParams(t, Shard1), nil)
@@ -78,7 +77,7 @@ func TestTransferSystemTables(t *testing.T) {
 	src := chrecipe.MustSource(
 		chrecipe.WithPrefix("DBSHARD1_"),
 		chrecipe.WithDatabase(tableID.Namespace),
-		chrecipe.WithInitFile(yatest.SourcePath("transfer_manager/go/pkg/providers/clickhouse/tests/storagetest/dump/src_shard1.sql")),
+		chrecipe.WithInitFile("dump/src_shard1.sql"),
 	)
 	src.IncludeTables = append(src.IncludeTables, tableID.Name)
 
