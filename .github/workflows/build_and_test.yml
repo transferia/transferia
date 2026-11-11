@@ -35,7 +35,7 @@ jobs:
             { group: "cmd", name: "cmd", path: "" },
             # providers suites, some of the providers are too heavy to run as single test
             {
-              group: "pkg/providers",
+              group: "pkg",
               name: "container",
               path: "container",
               container: true,

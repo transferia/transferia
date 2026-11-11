@@ -21,11 +21,6 @@ import (
 
 func init() {
 	_ = os.Setenv("YC", "1") // to not go to vanga
-	if provider_kafka.ContainerNeeded() {
-		if err := provider_kafka.StartKafkaContainer(); err != nil {
-			panic(err)
-		}
-	}
 }
 
 func buildSink(t *testing.T, broker, topicName, topicPrefix string, encoding provider_kafka.Encoding, serializationFormat model.SerializationFormatName) abstract.Sinker {
