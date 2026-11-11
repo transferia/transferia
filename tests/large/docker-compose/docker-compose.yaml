@@ -229,6 +229,8 @@ services:
     image: registry.yandex.net/data-transfer/tests/kafka:7.3.2@sha256:c121cdccca1307bb57d87935beaf290533a73fb3b1246e1a9286461ac67ade79
     depends_on:
       - zookeeper
+    # Preflight may connect before ZooKeeper finishes startup, hang for 40s and exit.
+    restart: on-failure:3
     ports:
       - "9092:9092"  # Kafka
     environment:
