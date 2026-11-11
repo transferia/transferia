@@ -84,12 +84,14 @@ func (s *sinker) Replace() error {
 	return nil
 }
 
-func (s *sinker) Commit() error {
+var _ abstract.Committable = (*sinker)(nil)
+
+func (s *sinker) Commit(ctx context.Context) error {
 	commitSink, ok := s.staticSink.(abstract.Committable)
 	if !ok {
 		return xerrors.Errorf("static sink is not commitable for some reason")
 	}
-	if err := commitSink.Commit(); err != nil {
+	if err := commitSink.Commit(ctx); err != nil {
 		return err
 	}
 
@@ -98,9 +100,12 @@ func (s *sinker) Commit() error {
 		return xerrors.Errorf("unable to get state on commit: %w", err)
 	}
 	for _, tablePath := range state.Tables {
-		if err := s.convertStaticToDynamic(context.TODO(), ypath.Path(tablePath)); err != nil {
+		if err := s.convertStaticToDynamic(ctx, ypath.Path(tablePath)); err != nil {
 			return xerrors.Errorf("unable to make table %v dynamic: %w", tablePath, err)
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return xerrors.Errorf("finish static stage: %w", err)
 	}
 	if err := s.stateStorage.RemoveState(); err != nil {
 		return xerrors.Errorf("unable to remove static stage state: %w", err)
@@ -110,6 +115,9 @@ func (s *sinker) Commit() error {
 
 func (s *sinker) convertStaticToDynamic(ctx context.Context, tableYPath ypath.Path) error {
 	return backoff.Retry(func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err := s.ytClient.SetNode(ctx, tableYPath.Attr("tablet_cell_bundle"), s.config.CellBundle(), nil); err != nil {
 			return xerrors.Errorf("unable to set tablet cell bundle %q for destination table %q: %w", s.config.CellBundle(), tableYPath, err)
 		}
@@ -160,7 +168,7 @@ func (s *sinker) convertStaticToDynamic(ctx context.Context, tableYPath ypath.Pa
 			return xerrors.Errorf("unable to mount destination table %q: %w", tableYPath, err)
 		}
 		return nil
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5))
+	}, backoff.WithContext(backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5), ctx))
 }
 
 func (s *sinker) Push(input []abstract.ChangeItem) error {

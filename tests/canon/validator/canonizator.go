@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -19,6 +20,8 @@ type CanonizatorSink struct {
 	skipEmptySubtest      bool
 	changeItemMiddlewares []func(items []abstract.ChangeItem) []abstract.ChangeItem
 }
+
+var _ abstract.Committable = (*CanonizatorSink)(nil)
 
 func RemoveVariableFieldsRowMiddleware(items []abstract.ChangeItem) []abstract.ChangeItem {
 	for i := range items {
@@ -73,7 +76,7 @@ func (c *CanonizatorSink) Push(items []abstract.ChangeItem) error {
 	return nil
 }
 
-func (c *CanonizatorSink) Commit() error {
+func (c *CanonizatorSink) Commit(_ context.Context) error {
 	c.commited = true
 	return nil
 }

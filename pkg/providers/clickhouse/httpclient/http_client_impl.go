@@ -111,11 +111,12 @@ func (c *httpClientImpl) QueryStream(ctx context.Context, lgr log.Logger, host *
 		return nil, xerrors.Errorf("unable to exec request: %w", err)
 	}
 	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
 		rawBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to read unsuccessful response body: %w", err)
 		}
-		chErr := ParseCHException(string(rawBody))
+		chErr := newResponseError(resp.StatusCode, ParseCHException(string(rawBody)))
 		body := strings.ToLower(string(rawBody))
 		// Map common SSL requirement messages to coded error
 		if util.ContainsAnySubstrings(body, "ssl", "required") {
@@ -201,6 +202,11 @@ func ParseCHException(raw string) error {
 		Message:    msg,
 		StackTrace: "",
 	}
+}
+
+// CloseIdleConnections releases pooled connections when a dedicated client is no longer used.
+func (c *httpClientImpl) CloseIdleConnections() {
+	c.httpClient.CloseIdleConnections()
 }
 
 func NewHTTPClientImpl(config conn.ConnParams) (*httpClientImpl, error) {

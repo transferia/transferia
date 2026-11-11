@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.123.0
 	cloud.google.com/go/bigquery v1.74.0
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/v2 v2.0.1
+	github.com/ClickHouse/ch-go v0.71.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/DataDog/datadog-api-client-go/v2 v2.17.0
@@ -70,6 +71,7 @@ require (
 	github.com/twmb/franz-go v1.17.0
 	github.com/twmb/franz-go/pkg/kadm v1.12.0
 	github.com/twmb/franz-go/pkg/kmsg v1.8.0
+	github.com/twmb/murmur3 v1.2.0
 	github.com/valyala/fastjson v1.6.4
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
@@ -121,7 +123,6 @@ require (
 	github.com/Azure/go-amqp v1.5.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.0 // indirect
-	github.com/ClickHouse/ch-go v0.71.0 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect

@@ -81,6 +81,14 @@ type SnapshotSinker interface {
 	SnapshotSink(config middlewares.Config) (abstract.Sinker, error)
 }
 
+// SnapshotOperationCloser releases in-memory resources shared by an operation's
+// snapshot sinks. The owning loader calls it after its upload goroutines finish,
+// on both success and failure. It must be safe to call more than once.
+type SnapshotOperationCloser interface {
+	Provider
+	CloseSnapshotOperation()
+}
+
 // AsyncSinker add ability to setup async-sink instead of sync-sink for provider
 type AsyncSinker interface {
 	Provider

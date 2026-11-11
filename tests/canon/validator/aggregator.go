@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"context"
 	"errors"
 
 	"github.com/transferia/transferia/internal/logger"
@@ -12,6 +13,8 @@ import (
 type Aggregator struct {
 	sinks []abstract.Sinker
 }
+
+var _ abstract.Committable = (*Aggregator)(nil)
 
 func (c *Aggregator) Close() error {
 	var errs []error
@@ -41,12 +44,12 @@ func (c *Aggregator) Push(items []abstract.ChangeItem) error {
 	return nil
 }
 
-func (c *Aggregator) Commit() error {
+func (c *Aggregator) Commit(ctx context.Context) error {
 	var errs []error
 	for _, sink := range c.sinks {
 		committable, ok := sink.(abstract.Committable)
 		if ok {
-			if err := committable.Commit(); err != nil {
+			if err := committable.Commit(ctx); err != nil {
 				logger.Log.Error("unable to commit", log.Error(err))
 				errs = append(errs, err)
 			}

@@ -1,6 +1,7 @@
 package reference
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -62,7 +63,7 @@ func constructSinkCleanupAndPush(t *testing.T, transfer *model.Transfer, tables 
 	logger.Log.Debugf("constructSinkCleanupAndPush: ConstructBaseSink DONE elapsed=%v", time.Since(start))
 	if completableSink, ok := baseSink.(abstract.Committable); ok {
 		logger.Log.Debugf("constructSinkCleanupAndPush: Commit START elapsed=%v", time.Since(start))
-		require.NoError(t, completableSink.Commit())
+		require.NoError(t, completableSink.Commit(context.Background()))
 		logger.Log.Debugf("constructSinkCleanupAndPush: Commit DONE elapsed=%v", time.Since(start))
 	}
 	logger.Log.Debugf("constructSinkCleanupAndPush ALL DONE elapsed=%v", time.Since(start))

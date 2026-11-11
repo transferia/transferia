@@ -180,7 +180,7 @@ func staticTableSimple(t *testing.T) {
 
 	completable, ok := statTable.(abstract.Committable)
 	require.True(t, ok)
-	require.NoError(t, completable.Commit())
+	require.NoError(t, completable.Commit(context.Background()))
 	require.NoError(t, statTable.Close())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -330,7 +330,7 @@ func customAttributesStaticTable(t *testing.T) {
 
 	completable, ok := statTable.(abstract.Committable)
 	require.True(t, ok)
-	require.NoError(t, completable.Commit())
+	require.NoError(t, completable.Commit(context.Background()))
 
 	var attr bool
 	require.NoError(t, env.YT.GetNode(env.Ctx, ypath.Path("//home/cdc/test/static/test_table/ns_weird_table_2").Attr("test"), &attr, nil))
@@ -389,7 +389,7 @@ func includeTimeoutAttributeStaticTable(t *testing.T) {
 
 	completable, ok := statTable.(abstract.Committable)
 	require.True(t, ok)
-	require.NoError(t, completable.Commit())
+	require.NoError(t, completable.Commit(context.Background()))
 
 	var timeout int64
 	require.NoError(t, env.YT.GetNode(env.Ctx, ypath.Path("//home/cdc/test/TM-8315/TimeoutAttributeStaticTable/ns_weird_table_2").Attr("expiration_timeout"), &timeout, nil))
@@ -470,7 +470,7 @@ func TestCompressionErasureCodecsV2StaticSink(t *testing.T) {
 
 	completable, ok := statTable.(abstract.Committable)
 	require.True(t, ok)
-	require.NoError(t, completable.Commit())
+	require.NoError(t, completable.Commit(context.Background()))
 
 	tablePath := dirPath.Child("ns_codec_probe")
 	var actualCompressionCodec string

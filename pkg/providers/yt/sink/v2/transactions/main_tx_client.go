@@ -127,18 +127,21 @@ func (c *MainTxClient) BeginSubTx() (yt.Tx, error) {
 
 // Commit commits the main transaction or abort it if an error occurs.
 // Anyway, the client will be closed.
-func (c *MainTxClient) Commit() error {
+func (c *MainTxClient) Commit(ctx context.Context) error {
 	defer c.Close()
 
 	fn := func(mainTxID yt.TxID) error {
+		if err := ctx.Err(); err != nil {
+			return xerrors.Errorf("commit main transaction: %w", err)
+		}
 		if err := backoff.Retry(func() error {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			commitCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
-			if err := c.client.CommitTx(ctx, mainTxID, nil); err != nil {
+			if err := c.client.CommitTx(commitCtx, mainTxID, nil); err != nil {
 				return xerrors.Errorf("cannot commit main transaction: %w", provider_yt.WrapYTError(err))
 			}
 			return nil
-		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxRetriesCount)); err != nil {
+		}, backoff.WithContext(backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxRetriesCount), ctx)); err != nil {
 			c.logger.Error("error commit sink, retries didnt help", log.Error(err))
 			return err
 		}

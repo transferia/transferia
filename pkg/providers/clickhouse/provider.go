@@ -50,10 +50,11 @@ var (
 )
 
 type Provider struct {
-	logger   log.Logger
-	registry core_metrics.Registry
-	cp       coordinator.Coordinator
-	transfer *model.Transfer
+	logger    log.Logger
+	registry  core_metrics.Registry
+	cp        coordinator.Coordinator
+	transfer  *model.Transfer
+	operation *model.TransferOperation
 }
 
 func (p *Provider) Target(options ...abstract.SinkOption) (abstract2.EventTarget, error) {
@@ -72,6 +73,9 @@ func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
 }
 
 func (p *Provider) AsyncSink(middleware abstract.Middleware) (abstract.AsyncSink, error) {
+	if p.transfer.Dst.(*clickhouse_model.ChDestination).ExactlyOnceSnapshot {
+		return nil, sink_factory.NoAsyncSinkErr
+	}
 	if p.transfer.IsAsyncCHExp() {
 		p.logger.Warn("Using experimental asynchronous ClickHouse sink")
 		sink, err := clickhouse_async.NewSink(p.transfer, p.transfer.Dst.(*clickhouse_model.ChDestination), p.logger, p.registry, middleware)
@@ -225,11 +229,12 @@ func (p *Provider) Test(ctx context.Context) *abstract.TestResult {
 	return tr
 }
 
-func New(lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, _ *model.TransferOperation) providers.Provider {
+func New(lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, operation *model.TransferOperation) providers.Provider {
 	return &Provider{
-		logger:   lgr,
-		registry: registry,
-		cp:       cp,
-		transfer: transfer,
+		logger:    lgr,
+		registry:  registry,
+		cp:        cp,
+		transfer:  transfer,
+		operation: operation,
 	}
 }

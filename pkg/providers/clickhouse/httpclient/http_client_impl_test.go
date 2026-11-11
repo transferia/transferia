@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,36 @@ import (
 	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 )
+
+func TestQueryStreamPreservesHTTPStatusAndClickHouseException(test *testing.T) {
+	for _, statusCode := range []int{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout, http.StatusForbidden} {
+		test.Run(strconv.Itoa(statusCode), func(test *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				writer.WriteHeader(statusCode)
+				if statusCode == http.StatusForbidden {
+					_, _ = io.WriteString(writer, "Code: 516. DB::Exception: Authentication failed (AUTHENTICATION_FAILED)")
+					return
+				}
+				_, _ = io.WriteString(writer, "proxy is unavailable")
+			}))
+			defer server.Close()
+			address := server.Listener.Addr().(*net.TCPAddr)
+			client, err := NewHTTPClientImpl(&stubParams{port: address.Port})
+			require.NoError(test, err)
+			defer client.httpClient.CloseIdleConnections()
+			body, err := client.QueryStream(context.Background(), logger.Log, &chconn.Host{Name: "localhost", HTTPPort: address.Port}, "SELECT 1 FORMAT Null", nil)
+			require.Nil(test, body)
+			var responseError *ResponseError
+			require.ErrorAs(test, err, &responseError)
+			require.Equal(test, statusCode, responseError.StatusCode)
+			if statusCode == http.StatusForbidden {
+				var serverError *clickhouse_go.Exception
+				require.ErrorAs(test, err, &serverError)
+				require.EqualValues(test, 516, serverError.Code)
+			}
+		})
+	}
+}
 
 var _ conn.ConnParams = (*stubParams)(nil)
 

@@ -47,3 +47,26 @@ func TestSourceGettersShouldBeReplacedByConnectionParams(t *testing.T) {
 	require.Equal(t, chSourceWrapper.PemFileContent(), connmanConnection.CACertificates)
 	require.Equal(t, chSourceWrapper.AltHosts(), connmanConnection.Hosts)
 }
+
+func TestHomogeneousSnapshotKeepsAbstract2WithExactlyOnceFlag(test *testing.T) {
+	source := new(ChSource)
+	for _, scenario := range []struct {
+		name        string
+		exactlyOnce bool
+	}{
+		{name: "disabled", exactlyOnce: false},
+		{name: "enabled", exactlyOnce: true},
+	} {
+		test.Run(scenario.name, func(test *testing.T) {
+			destination := &ChDestination{ExactlyOnceSnapshot: scenario.exactlyOnce}
+			transfer := model.Transfer{Src: source, Dst: destination}
+			require.True(test, source.IsAbstract2(destination))
+			require.True(test, transfer.IsAbstract2())
+		})
+	}
+
+	otherDestination := new(model.MockDestination)
+	require.False(test, source.IsAbstract2(otherDestination))
+	transfer := model.Transfer{Src: source, Dst: otherDestination}
+	require.False(test, transfer.IsAbstract2())
+}

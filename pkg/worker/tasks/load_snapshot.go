@@ -19,6 +19,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors/coded"
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/providers"
 	provider_greenplum "github.com/transferia/transferia/pkg/providers/greenplum"
 	provider_postgres "github.com/transferia/transferia/pkg/providers/postgres"
 	"github.com/transferia/transferia/pkg/sink_factory"
@@ -330,7 +331,7 @@ func (l *SnapshotLoader) endSnapshot(
 	return nil
 }
 
-func (l *SnapshotLoader) endDestination() error {
+func (l *SnapshotLoader) endDestination(ctx context.Context) error {
 	cfg := middlewares.MakeConfig(middlewares.WithNoData)
 	baseSink, err := sink_factory.ConstructBaseSink(l.transfer, l.operation, logger.Log, l.registry, l.cp, cfg)
 	if err != nil {
@@ -343,7 +344,7 @@ func (l *SnapshotLoader) endDestination() error {
 	}()
 
 	if commitableSink, ok := baseSink.(abstract.Committable); ok {
-		if err := commitableSink.Commit(); err != nil {
+		if err := commitableSink.Commit(ctx); err != nil {
 			return xerrors.Errorf("unable to commit sink to complete snapshot: %w", err)
 		}
 	}
@@ -379,6 +380,14 @@ func (l *SnapshotLoader) UploadTables(ctx context.Context, tables []abstract.Tab
 			return xerrors.Errorf("unable to upload(v2) tables: %w", err)
 		}
 		return nil
+	}
+
+	if l.transfer.IsSnapshotInSingleWorkerMode() || l.transfer.IsMain() {
+		if owner, ok := providers.Destination[providers.SnapshotOperationCloser](l.lgr, l.registry, l.cp, l.transfer, l.operation); ok {
+			// Service sinks close between control events. Shared snapshot resources
+			// must live until the operation's upload goroutines have finished.
+			defer owner.CloseSnapshotOperation()
+		}
 	}
 
 	if l.transfer.IsSnapshotInSingleWorkerMode() {
@@ -467,8 +476,8 @@ func (l *SnapshotLoader) uploadSingleWorkerMode(ctx context.Context, tables []ab
 		return errors.CategorizedErrorf(categories.Target, "unable to finish tables loading: %w", err)
 	}
 
-	if err := l.endDestination(); err != nil {
-		return errors.CategorizedErrorf(categories.Target, "unable to end snapshot on sink: %v", err)
+	if err := l.endDestination(ctx); err != nil {
+		return errors.CategorizedErrorf(categories.Target, "unable to end snapshot on sink: %w", err)
 	}
 
 	logger.Log.Infof("Will update next incremental state for transfer: %v", nextIncrementalState)
@@ -590,8 +599,8 @@ func (l *SnapshotLoader) uploadMain(ctx context.Context, inTables []abstract.Tab
 		return errors.CategorizedErrorf(categories.Target, "unable to finish tables loading: %w", err)
 	}
 
-	if err := l.endDestination(); err != nil {
-		return errors.CategorizedErrorf(categories.Target, "unable to end snapshot on sink: %v", err)
+	if err := l.endDestination(ctx); err != nil {
+		return errors.CategorizedErrorf(categories.Target, "unable to end snapshot on sink: %w", err)
 	}
 
 	if err := l.updateIncrementalState(updateIncrementalState, nextIncrementalState); err != nil {

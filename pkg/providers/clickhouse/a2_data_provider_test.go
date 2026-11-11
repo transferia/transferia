@@ -124,3 +124,29 @@ func TestConnectionClickhouseProvider(t *testing.T) {
 		require.NoError(t, tr.Err())
 	}
 }
+
+func TestProviderTargetKeepsHomogeneousHTTPWithExactlyOnceFlag(t *testing.T) {
+	source, err := chrecipe.Source(chrecipe.WithInitFile("gotest/dump.sql"))
+	require.NoError(t, err)
+	for _, scenario := range []struct {
+		name        string
+		exactlyOnce bool
+	}{
+		{name: "disabled", exactlyOnce: false},
+		{name: "enabled", exactlyOnce: true},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			destination, err := chrecipe.Target()
+			require.NoError(t, err)
+			destination.ExactlyOnceSnapshot = scenario.exactlyOnce
+			transfer := &model.Transfer{Src: source, Dst: destination, Type: abstract.TransferTypeSnapshotOnly}
+			require.True(t, transfer.IsAbstract2())
+			provider := New(logger.Log, solomon.NewRegistry(nil), coordinator.NewFakeClient(), transfer, nil).(*Provider)
+
+			target, err := provider.Target()
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, target.Close()) })
+			require.IsType(t, new(HTTPTarget), target)
+		})
+	}
+}

@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<clickhouse>
+    <logger>
+        <level>trace</level>
+        <log from_env="RECIPE_CLICKHOUSE_LOG" />
+        <size>1000M</size>
+        <count>10</count>
+    </logger>
+    <http_port from_env="RECIPE_CLICKHOUSE_HTTP_PORT" />
+    <tcp_port from_env="RECIPE_CLICKHOUSE_NATIVE_PORT" />
+    <max_connections>4096</max_connections>
+    <keep_alive_timeout>3</keep_alive_timeout>
+    <max_concurrent_queries>100</max_concurrent_queries>
+    <uncompressed_cache_size>8589934592</uncompressed_cache_size>
+    <mark_cache_size>5368709120</mark_cache_size>
+    <path from_env="RECIPE_CLICKHOUSE_DIR" />
+    <tmp_path from_env="RECIPE_CLICKHOUSE_TMP_DIR" />
+    <user_files_path from_env="RECIPE_CLICKHOUSE_USER_FILES_DIR" />
+    <format_schema_path from_env="RECIPE_CLICKHOUSE_FORMAT_SCHEMA_DIR" />
+    <users_config>users.xml</users_config>
+    <default_profile>default</default_profile>
+    <default_database>default</default_database>
+    <builtin_dictionaries_reload_interval>3600</builtin_dictionaries_reload_interval>
+    <max_session_timeout>3600</max_session_timeout>
+    <default_session_timeout>60</default_session_timeout>
+    <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    </query_log>
+    <dictionaries_config>*_dictionary.xml</dictionaries_config>
+    <distributed_ddl>
+        <path>/clickhouse/task_queue/ddl</path>
+    </distributed_ddl>
+    <interserver_http_host>127.0.0.1</interserver_http_host>
+    <interserver_http_port from_env="RECIPE_CLICKHOUSE_INTERSERVER_PORT" />
+    <zookeeper>
+        <node>
+            <host>127.0.0.1</host>
+            <port>19181</port>
+        </node>
+    </zookeeper>
+    <keeper_server>
+        <tcp_port>19181</tcp_port>
+        <server_id>1</server_id>
+        <log_storage_path>./snapshot_keeper/log</log_storage_path>
+        <snapshot_storage_path>./snapshot_keeper/snapshots</snapshot_storage_path>
+        <raft_configuration>
+            <server>
+                <id>1</id>
+                <hostname>127.0.0.1</hostname>
+                <port>19234</port>
+            </server>
+        </raft_configuration>
+    </keeper_server>
+    <remote_servers>
+        <test_shard_localhost>
+            <shard>
+                <replica>
+                    <host>localhost</host>
+                    <port from_env="RECIPE_CLICKHOUSE_NATIVE_PORT" />
+                </replica>
+            </shard>
+        </test_shard_localhost>
+    </remote_servers>
+    <macros>
+        <shard>01</shard>
+        <replica>01</replica>
+    </macros>
+</clickhouse>

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -9,6 +10,43 @@ import (
 	"github.com/transferia/transferia/pkg/connection"
 	"github.com/transferia/transferia/pkg/connection/clickhouse"
 )
+
+func TestExactlyOnceAltNamesValidation(t *testing.T) {
+	for _, scenario := range []struct {
+		name    string
+		aliases []model.AltName
+		invalid bool
+	}{
+		{name: "no aliases", aliases: nil, invalid: false},
+		{name: "dash collision", aliases: []model.AltName{{From: "orders-live", To: "a"}, {From: "orders_live", To: "b"}}, invalid: true},
+		{name: "dot collision", aliases: []model.AltName{{From: "orders.live", To: "a"}, {From: "orders_live", To: "b"}}, invalid: true},
+		{name: "two normalized aliases", aliases: []model.AltName{{From: "orders-live", To: "a"}, {From: "orders.live", To: "b"}}, invalid: true},
+		{name: "same destination", aliases: []model.AltName{{From: "orders-live", To: "a"}, {From: "orders_live", To: "a"}}, invalid: false},
+		{name: "same normalized destination", aliases: []model.AltName{{From: "orders-live", To: "a-b"}, {From: "orders_live", To: "a.b"}}, invalid: false},
+		{name: "empty alias conflicts", aliases: []model.AltName{{From: "orders-live", To: ""}, {From: "orders_live", To: "other"}}, invalid: true},
+		{name: "empty alias keeps original name", aliases: []model.AltName{{From: "orders-live", To: ""}, {From: "orders_live", To: "orders-live"}}, invalid: false},
+		{name: "exact source duplicate uses last value", aliases: []model.AltName{{From: "orders-live", To: "a"}, {From: "orders-live", To: "b"}, {From: "orders_live", To: "b"}}, invalid: false},
+		{name: "distinct sources", aliases: []model.AltName{{From: "orders", To: "a"}, {From: "archive", To: "b"}}, invalid: false},
+	} {
+		for _, exactlyOnce := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/eo=%t", scenario.name, exactlyOnce), func(t *testing.T) {
+				destination := new(ChDestination)
+				destination.ExactlyOnceSnapshot = exactlyOnce
+				destination.AltNamesList = scenario.aliases
+
+				err := destination.Validate()
+				if exactlyOnce && scenario.invalid {
+					require.ErrorContains(t, err, "ambiguous AltNames")
+					for _, alias := range scenario.aliases {
+						require.Contains(t, err.Error(), alias.From)
+					}
+				} else {
+					require.NoError(t, err)
+				}
+			})
+		}
+	}
+}
 
 func TestMakeChildShardParams(t *testing.T) {
 	chDestinationWrapper := new(ChDestinationWrapper)

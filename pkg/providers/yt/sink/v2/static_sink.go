@@ -41,7 +41,7 @@ type staticTableWriter interface {
 
 type mainTransaction interface {
 	BeginTx() error
-	Commit() error
+	Commit(ctx context.Context) error
 	Close()
 
 	BeginSubTx() (yt.Tx, error)
@@ -63,6 +63,8 @@ type sink struct {
 	metrics *stats.SinkerStats
 	logger  log.Logger
 }
+
+var _ abstract.Committable = (*sink)(nil)
 
 func (s *sink) Push(items []abstract.ChangeItem) error {
 	if len(items) == 0 || !expectedKinds.Contains(items[0].Kind) {
@@ -133,8 +135,8 @@ func (s *sink) Push(items []abstract.ChangeItem) error {
 	return nil
 }
 
-func (s *sink) Commit() error {
-	return s.mainTx.Commit()
+func (s *sink) Commit(ctx context.Context) error {
+	return s.mainTx.Commit(ctx)
 }
 
 func (s *sink) Replace() error {

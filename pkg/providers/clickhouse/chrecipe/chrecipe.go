@@ -183,6 +183,7 @@ func Target(opts ...Option) (*clickhouse_model.ChDestination, error) {
 		AnyAsString:             false,
 		SystemColumnsFirst:      false,
 		IsUpdateable:            false,
+		ExactlyOnceSnapshot:     false,
 		UpsertAbsentToastedRows: false,
 		Hosts:                   nil,
 		UseSchemaInTableName:    false,

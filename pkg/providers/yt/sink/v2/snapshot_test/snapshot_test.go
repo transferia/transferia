@@ -201,7 +201,7 @@ func shardedSnapshotManyTables(t *testing.T) {
 
 	completable, ok := primarySink.(abstract.Committable)
 	require.True(t, ok)
-	require.NoError(t, completable.Commit())
+	require.NoError(t, completable.Commit(context.Background()))
 
 	// check result
 	checkData(t, dst, firstTableName, []row{
@@ -252,7 +252,7 @@ func retryingParts(t *testing.T) {
 
 	completable, ok := currentSink.(abstract.Committable)
 	require.True(t, ok)
-	require.NoError(t, completable.Commit())
+	require.NoError(t, completable.Commit(context.Background()))
 
 	checkData(t, dst, tableName, []row{
 		{AuthorID: "a", ID: 0, IsDeleted: &trueConst},
@@ -371,7 +371,7 @@ func commit(t *testing.T, cp coordinator.Coordinator, transferID string, dst pro
 
 	completable, ok := currentSink.(abstract.Committable)
 	require.True(t, ok)
-	require.NoError(t, completable.Commit())
+	require.NoError(t, completable.Commit(context.Background()))
 }
 
 func pushItems(t *testing.T, cp coordinator.Coordinator, dst provider_yt.YtDestinationModel, input [][]abstract.ChangeItem) {
@@ -384,7 +384,7 @@ func pushItems(t *testing.T, cp coordinator.Coordinator, dst provider_yt.YtDesti
 
 	completable, ok := currentSink.(abstract.Committable)
 	require.True(t, ok)
-	require.NoError(t, completable.Commit())
+	require.NoError(t, completable.Commit(context.Background()))
 }
 
 func checkData(t *testing.T, dst provider_yt.YtDestinationModel, tableName string, expected []row, needSortRes bool) {

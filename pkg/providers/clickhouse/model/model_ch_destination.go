@@ -72,6 +72,10 @@ type ChDestination struct {
 	SystemColumnsFirst      bool `log:"true"`
 	IsUpdateable            bool `log:"true"`
 	UpsertAbsentToastedRows bool `log:"true"`
+	// ExactlyOnceSnapshot stages and verifies complete snapshots before publishing them.
+	// Homogeneous ClickHouse transfers keep their existing abstract2 path.
+	// Replication continues to use the ordinary sink. Disabled by default.
+	ExactlyOnceSnapshot bool `log:"true"`
 
 	// Insert settings
 	InsertParams InsertParams `log:"true"`
@@ -229,7 +233,42 @@ func (d *ChDestination) Validate() error {
 			}
 		}
 	}
+	if err := d.ValidateExactlyOnceAltNames(); err != nil {
+		return xerrors.Errorf("invalid ClickHouse destination: %w", err)
+	}
 	return nil
+}
+
+func (d *ChDestination) ValidateExactlyOnceAltNames() error {
+	if !d.ExactlyOnceSnapshot {
+		return nil
+	}
+	// Tables uses the last entry when the same source name appears more than once.
+	aliasesBySource := make(map[string]string, len(d.AltNamesList))
+	for _, alias := range d.AltNamesList {
+		aliasesBySource[alias.From] = alias.To
+	}
+	aliasesByNormalizedSource := make(map[string]model.AltName, len(aliasesBySource))
+	for source, destination := range aliasesBySource {
+		normalizedSource := NormalizeTableName(source)
+		// An empty alias leaves the normalized source name unchanged.
+		if destination == "" {
+			destination = normalizedSource
+		}
+		normalizedDestination := NormalizeTableName(destination)
+		if previous, exists := aliasesByNormalizedSource[normalizedSource]; exists && previous.To != normalizedDestination {
+			return xerrors.Errorf("ExactlyOnceSnapshot does not allow ambiguous AltNames: %q and %q normalize to %q but map to %q and %q",
+				previous.From, source, normalizedSource, previous.To, normalizedDestination)
+		}
+		aliasesByNormalizedSource[normalizedSource] = model.AltName{From: source, To: normalizedDestination}
+	}
+	return nil
+}
+
+// NormalizeTableName applies the sink's naming rules to aliases and table names.
+func NormalizeTableName(tableName string) string {
+	result := strings.ReplaceAll(tableName, "-", "_")
+	return strings.ReplaceAll(result, ".", "_")
 }
 
 func (d *ChDestination) shallUseJSON(transfer *model.Transfer) bool {
