@@ -462,6 +462,8 @@ replace github.com/segmentio/kafka-go => ./vendor_patched/github.com/segmentio/k
 
 replace github.com/jackc/pglogrepl => ./vendor_patched/github.com/jackc/pglogrepl
 
+replace github.com/pingcap/parser => ./vendor_patched/github.com/pingcap/parser
+
 replace github.com/moby/go-archive => github.com/moby/go-archive v0.1.0
 
 replace src.yandex.cloud/yc/quantum/license/lib => github.com/pkg/errors v0.9.1

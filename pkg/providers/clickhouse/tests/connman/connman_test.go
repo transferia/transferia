@@ -22,6 +22,9 @@ var (
 func init() {
 	source.WithDefaults()
 	target.WithDefaults()
+	// Outside ya make the recipes start separate containers; the tests need a single instance.
+	target.HTTPPort = source.HTTPPort
+	target.NativePort = source.NativePort
 	network.InitConnectionResolver(map[string]connection.ManagedConnection{connID: sourceToManagedConnection(source)})
 }
 

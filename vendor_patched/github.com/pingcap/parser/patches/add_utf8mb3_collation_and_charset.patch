@@ -1,0 +1,64 @@
+--- ./vendor/github.com/pingcap/parser/charset/charset.go.original	2025-09-16 21:21:30
++++ ./vendor/github.com/pingcap/parser/charset/charset.go	2025-09-17 11:22:49
+@@ -58,15 +58,18 @@
+ 	{CharsetASCII, CollationASCII, make(map[string]*Collation), "US ASCII", 1},
+ 	{CharsetLatin1, CollationLatin1, make(map[string]*Collation), "Latin1", 1},
+ 	{CharsetBin, CollationBin, make(map[string]*Collation), "binary", 1},
++	{CharsetUTF8MB3, CollationUTF8MB3, make(map[string]*Collation), "UTF-8 Unicode", 3},
+ }
+ 
+ // All the names supported collations should be in the following table.
+ var supportedCollationNames = map[string]struct{}{
+-	CollationUTF8:    {},
+-	CollationUTF8MB4: {},
+-	CollationASCII:   {},
+-	CollationLatin1:  {},
+-	CollationBin:     {},
++	CollationUTF8:           {},
++	CollationUTF8MB4:        {},
++	CollationASCII:          {},
++	CollationLatin1:         {},
++	CollationBin:            {},
++	CollationUTF8MB3:        {},
++	CollationUTF8MB3General: {},
+ }
+ 
+ // Desc is a charset description.
+@@ -148,6 +151,8 @@
+ 		return descs[3], nil
+ 	case CharsetBin:
+ 		return descs[4], nil
++	case CharsetUTF8MB3:
++		return descs[5], nil
+ 	default:
+ 		return nil, errors.Errorf("Unknown charset %s", cs)
+ 	}
+@@ -200,6 +205,12 @@
+ 	CharsetUTF8MB4 = "utf8mb4"
+ 	// CollationUTF8MB4 is the default collation for CharsetUTF8MB4.
+ 	CollationUTF8MB4 = "utf8mb4_bin"
++	// CharsetUTF8MB4 represents 3 bytes utf8, which works the same way as utf8 in Go.
++	CharsetUTF8MB3 = "utf8mb3"
++	// CollationUTF8MB3 is the default collation for CharsetUTF8MB3.
++	CollationUTF8MB3 = "utf8mb3_unicode_ci"
++	// CollationUTF8MB3General is the general collation for CharsetUTF8MB3.
++	CollationUTF8MB3General = "utf8mb3_general_ci"
+ 	// CharsetASCII is a subset of UTF8.
+ 	CharsetASCII = "ascii"
+ 	// CollationASCII is the default collation for CharsetACSII.
+@@ -432,6 +443,8 @@
+ 	{247, "utf8mb4", "utf8mb4_vietnamese_ci", false},
+ 	{255, "utf8mb4", "utf8mb4_0900_ai_ci", false},
+ 	{2048, "utf8mb4", "utf8mb4_zh_pinyin_tidb_as_cs", false},
++	{2049, "utf8mb3", "utf8mb3_unicode_ci", true},
++	{2050, "utf8mb3", "utf8mb3_general_ci", false},
+ }
+ 
+ // init method always puts to the end of file.
+@@ -459,4 +472,4 @@
+ 			charset.Collations[c.Name] = c
+ 		}
+ 	}
+-}
+\ No newline at end of file
++}

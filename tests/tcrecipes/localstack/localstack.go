@@ -111,7 +111,7 @@ func Run(
 
 	c := &Container{
 		Container: container,
-		host:      "https://timestream.localhost.localstack.cloud:",
+		host:      "http://localhost:",
 	}
 
 	return c, nil

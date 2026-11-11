@@ -10,23 +10,18 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-const defaultImage = "quay.io/minio/minio"
+// MinIO images are no longer published, LocalStack serves the S3 API instead.
+const defaultImage = "localstack/localstack:4.0.3"
 
-const consolePort = nat.Port("9090/tcp")
-const s3APIPort = nat.Port("9000/tcp")
+const s3APIPort = nat.Port("4566/tcp")
 
 type MiniIOContainer struct {
 	testcontainers.Container
 	exposedPort nat.Port
-	consolePort nat.Port
 }
 
 func (c *MiniIOContainer) Port() nat.Port {
 	return c.exposedPort
-}
-
-func (c *MiniIOContainer) ConsolePort() nat.Port {
-	return c.consolePort
 }
 
 type Params struct {
@@ -41,19 +36,10 @@ func Prepare(ctx context.Context) (*MiniIOContainer, error) {
 	}
 	cntr, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			ExposedPorts: []string{consolePort.Port(), s3APIPort.Port()},
+			ExposedPorts: []string{s3APIPort.Port()},
 			Image:        defaultImage,
-			WaitingFor:   wait.ForListeningPort(s3APIPort),
-			Env: map[string]string{
-				"MINIO_ROOT_USER":     params.RootUser,
-				"MINIO_ROOT_PASSWORD": params.RootPassword,
-			},
-			Cmd: []string{
-				"server",
-				"--address", fmt.Sprintf(":%s", s3APIPort.Port()),
-				"--console-address", fmt.Sprintf(":%s", consolePort.Port()),
-				"/data",
-			},
+			WaitingFor:   wait.ForHTTP("/_localstack/health").WithPort(s3APIPort),
+			Env:          map[string]string{"SERVICES": "s3"},
 		},
 		Started: true,
 	})
@@ -62,11 +48,6 @@ func Prepare(ctx context.Context) (*MiniIOContainer, error) {
 	}
 
 	exposedPort, err := cntr.MappedPort(ctx, s3APIPort)
-	if err != nil {
-		return nil, err
-	}
-
-	consolePort, err := cntr.MappedPort(ctx, consolePort)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +61,12 @@ func Prepare(ctx context.Context) (*MiniIOContainer, error) {
 	if err := os.Setenv("S3MDS_PORT", exposedPort.Port()); err != nil {
 		return nil, err
 	}
-	if err := os.Setenv("S3_REGION", "us-east-2"); err != nil {
+	if err := os.Setenv("S3_REGION", "us-east-1"); err != nil {
 		return nil, err
 	}
 	if err := os.Setenv("S3_ENDPOINT", fmt.Sprintf("http://localhost:%s", exposedPort.Port())); err != nil {
 		return nil, err
 	}
 
-	return &MiniIOContainer{Container: cntr, exposedPort: exposedPort, consolePort: consolePort}, nil
+	return &MiniIOContainer{Container: cntr, exposedPort: exposedPort}, nil
 }
