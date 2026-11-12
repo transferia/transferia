@@ -217,7 +217,7 @@ func TestRunCopySkipUnavailableChunks(t *testing.T) {
 			require.Equal(t, client.outputPath.YPath().String(), outputPath.Value)
 			if tc.enabled {
 				require.Equal(t, "skip", client.operationSpec["unavailable_chunk_strategy"])
-				require.Equal(t, "skip", client.operationSpec["unavailable_chunk_tactics"])
+				require.NotContains(t, client.operationSpec, "unavailable_chunk_tactics")
 				require.Equal(t, "repairable", client.operationSpec["chunk_availability_policy"])
 			} else {
 				require.NotContains(t, client.operationSpec, "unavailable_chunk_strategy")

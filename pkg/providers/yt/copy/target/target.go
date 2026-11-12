@@ -51,7 +51,6 @@ const LostRowCountAttr = "_lost_row_count"
 type remoteCopySpec struct {
 	spec.Spec
 	UnavailableChunkStrategy string `yson:"unavailable_chunk_strategy,omitempty"`
-	UnavailableChunkTactics  string `yson:"unavailable_chunk_tactics,omitempty"`
 	ChunkAvailabilityPolicy  string `yson:"chunk_availability_policy,omitempty"`
 }
 
@@ -179,12 +178,10 @@ func (t *YtCopyTarget) runCopy(task copyTask) error {
 			AllowUnfrozenInputTables: t.cfg.AllowUnfrozenInputTables,
 		},
 		UnavailableChunkStrategy: "",
-		UnavailableChunkTactics:  "",
 		ChunkAvailabilityPolicy:  "",
 	}
 	if t.cfg.SkipUnavailableChunks {
 		copySpec.UnavailableChunkStrategy = "skip"
-		copySpec.UnavailableChunkTactics = "skip"
 		copySpec.ChunkAvailabilityPolicy = "repairable"
 	}
 
