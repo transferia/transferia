@@ -3,10 +3,14 @@ package serializer
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"runtime"
 	"strconv"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -93,4 +97,32 @@ func TestBatchSerializerSerializeAndWriteCanceledContext(t *testing.T) {
 	_, err := s.SerializeAndWrite(ctx, []*abstract.ChangeItem{{LSN: 1}}, &out)
 	require.ErrorIs(t, err, context.Canceled)
 	require.Zero(t, out.Len())
+}
+
+func TestBatchSerializerSerializeAndWriteRecoversAfterWriteError(t *testing.T) {
+	t.Parallel()
+
+	s := newBatchSerializer(&dummySerializer{}, []byte(","), &BatchSerializerConfig{
+		Concurrency: 2,
+		Threshold:   1,
+	})
+	items := []*abstract.ChangeItem{{LSN: 1}, {LSN: 2}, {LSN: 3}, {LSN: 4}}
+	writeErr := errors.New("snapshot write failed")
+	pipeReader, pipeWriter := io.Pipe()
+	require.NoError(t, pipeReader.CloseWithError(writeErr))
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	// Exercise repeated failures because dropping a buffer on cancellation depends on scheduling.
+	for range 32 {
+		_, err := s.SerializeAndWrite(ctx, items, pipeWriter)
+		assert.ErrorIs(t, err, writeErr)
+
+		var out bytes.Buffer
+		written, err := s.SerializeAndWrite(ctx, items, &out)
+		require.NoError(t, err, "the next batch must be able to use the same serializer")
+		require.Equal(t, "1,2,3,4", out.String())
+		require.Equal(t, 7, written)
+	}
 }

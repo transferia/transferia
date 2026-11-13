@@ -39,15 +39,13 @@ func (p *BufferPool) Get(ctx context.Context) *bytes.Buffer {
 	}
 }
 
-// Put returns the buffer to the pool and resets it
-func (p *BufferPool) Put(ctx context.Context, buf *bytes.Buffer) {
+// Put returns a checked-out buffer without blocking. A full pool discards the buffer.
+func (p *BufferPool) Put(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
-	buf.Reset()
 	select {
-	case <-ctx.Done():
-		return
 	case p.pool <- buf:
+	default:
 	}
 }

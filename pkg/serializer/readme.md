@@ -174,7 +174,7 @@ Buffer lifecycle:
    │    │    │
    └────┼────┘
         │
-        │ Put(ctx, buf) - return buffer
+        │ Put(buf) - return buffer
         ▼
 ┌──────────────────────────────────────────────────────────┐
 │                    BufferPool                            │
@@ -191,7 +191,7 @@ Buffer lifecycle:
 The [`SerializeAndWrite()`](batch.go:119) method provides streaming serialization:
 
 ```go
-err := serializer.SerializeAndWrite(ctx, items, writer)
+written, err := serializer.SerializeAndWrite(ctx, items, writer)
 ```
 
 **Features**:
@@ -202,7 +202,11 @@ err := serializer.SerializeAndWrite(ctx, items, writer)
   2. Serializes its chunk
   3. Waits for its turn (via [`sync.Cond`](batch.go:138))
   4. Writes to output
-  5. Returns buffer to pool
+  5. Returns the buffer to the pool, including on cancellation
+
+The caller owns the writer. An in-flight `Write` must be able to finish
+independently of `SerializeAndWrite` returning, including when the context is
+canceled.
 
 **Synchronization**:
 ```go
@@ -296,6 +300,7 @@ type BatchSerializerCommonConfig struct {
    - For streaming: separator added to all chunks except last
 
 3. **Error Handling**:
-   - Any goroutine error cancels all others via `errgroup`
-   - Context cancellation propagates immediately
-   - Partial results are discarded on error
+   - The first worker error cancels the group via `errgroup`.
+   - Streaming waits for started workers before returning the first worker error
+     or the context error that interrupted scheduling if no worker failed.
+   - Bytes already written by the streaming API remain in the destination.

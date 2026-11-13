@@ -122,7 +122,7 @@ func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstra
 		if buf == nil {
 			return 0, xerrors.Errorf("batchSerializer: context error: %w", ctx.Err())
 		}
-		defer s.bufferPool.Put(ctx, buf)
+		defer s.bufferPool.Put(buf)
 		if err := s.serializeToBuffer(ctx, items, buf); err != nil {
 			return 0, xerrors.Errorf("batchSerializer: unable to serialize items: %w", err)
 		}
@@ -134,9 +134,7 @@ func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstra
 		return written, nil
 	}
 
-	cancelableCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	eg, egCtx := errgroup.WithContext(cancelableCtx)
+	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(s.concurrency)
 
 	var nextToWrite int
@@ -151,10 +149,12 @@ func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstra
 
 	var totalWritten atomic.Int32
 
+	var scheduleErr error
 	bufsCnt := (len(items) + s.threshold - 1) / s.threshold
 	for i := range bufsCnt {
-		if egCtx.Err() != nil {
-			return 0, xerrors.Errorf("batchSerializer: context error: %w", egCtx.Err())
+		scheduleErr = egCtx.Err()
+		if scheduleErr != nil {
+			break
 		}
 
 		i := i
@@ -164,9 +164,9 @@ func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstra
 		eg.Go(func() error {
 			buf := s.bufferPool.Get(egCtx)
 			if buf == nil {
-				return xerrors.Errorf("batchSerializer: nil buffer from pool")
+				return egCtx.Err()
 			}
-			defer s.bufferPool.Put(egCtx, buf)
+			defer s.bufferPool.Put(buf)
 
 			if err := s.serializeToBuffer(egCtx, items[start:end], buf); err != nil {
 				return xerrors.Errorf("batchSerializer: unable to serialize items: %w", err)
@@ -201,6 +201,9 @@ func (s *batchSerializer) SerializeAndWrite(ctx context.Context, items []*abstra
 
 	if err := eg.Wait(); err != nil {
 		return 0, xerrors.Errorf("batchSerializer: processing error: %w", err)
+	}
+	if scheduleErr != nil {
+		return 0, xerrors.Errorf("batchSerializer: context error: %w", scheduleErr)
 	}
 
 	return int(totalWritten.Load()), nil

@@ -2512,6 +2512,7 @@
   "pkg/serializer/batch_factory.go":"transfer_manager/go/pkg/serializer/batch_factory.go",
   "pkg/serializer/batch_test.go":"transfer_manager/go/pkg/serializer/batch_test.go",
   "pkg/serializer/buffer/pool.go":"transfer_manager/go/pkg/serializer/buffer/pool.go",
+  "pkg/serializer/buffer/pool_test.go":"transfer_manager/go/pkg/serializer/buffer/pool_test.go",
   "pkg/serializer/csv.go":"transfer_manager/go/pkg/serializer/csv.go",
   "pkg/serializer/csv_format.go":"transfer_manager/go/pkg/serializer/csv_format.go",
   "pkg/serializer/interface.go":"transfer_manager/go/pkg/serializer/interface.go",
