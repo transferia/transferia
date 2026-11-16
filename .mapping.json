@@ -4054,6 +4054,8 @@
   "tests/helpers/transformer/yql_transformer_helper.go":"transfer_manager/go/tests/helpers/transformer/yql_transformer_helper.go",
   "tests/helpers/utils/test_read_closer.go":"transfer_manager/go/tests/helpers/utils/test_read_closer.go",
   "tests/helpers/yatestx/yatestx.go":"transfer_manager/go/tests/helpers/yatestx/yatestx.go",
+  "tests/helpers/ydb/federationmock/README.md":"transfer_manager/go/tests/helpers/ydb/federationmock/README.md",
+  "tests/helpers/ydb/federationmock/server.go":"transfer_manager/go/tests/helpers/ydb/federationmock/server.go",
   "tests/helpers/ydb/recipe/recipe.go":"transfer_manager/go/tests/helpers/ydb/recipe/recipe.go",
   "tests/helpers/ydb/recipe/table/table.go":"transfer_manager/go/tests/helpers/ydb/recipe/table/table.go",
   "tests/helpers/ydb/recipe/topic/topic.go":"transfer_manager/go/tests/helpers/ydb/recipe/topic/topic.go",
