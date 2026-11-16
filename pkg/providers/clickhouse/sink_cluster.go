@@ -8,6 +8,7 @@ import (
 	"context"
 	stderrors "errors"
 	"sync"
+	"time"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/ptr"
@@ -153,7 +154,14 @@ func (c *sinkCluster) RemoveOldParts(keepPartCount int, table string) error {
 	return nil
 }
 
-func newSinkCluster(config clickhouse_model.ChSinkClusterParams, lgr log.Logger, metrics *stats.ChStats, topology *topology.Topology) (*sinkCluster, error) {
+func newSinkCluster(config clickhouse_model.ChSinkClusterParams, lgr log.Logger, metrics *stats.ChStats, topology *topology.Topology, failedAt map[string]time.Time) (*sinkCluster, error) {
+	return newSinkClusterWithServerFactory(config, lgr, topology, failedAt, func(host *conn_clickhouse.Host, cluster *sinkCluster) (*SinkServer, error) {
+		return NewSinkServer(config.MakeChildServerParams(host), lgr, metrics, cluster)
+	})
+}
+
+// newSinkClusterWithServerFactory is separate from newSinkCluster only so tests can substitute server creation.
+func newSinkClusterWithServerFactory(config clickhouse_model.ChSinkClusterParams, lgr log.Logger, topology *topology.Topology, failedAt map[string]time.Time, makeServer func(*conn_clickhouse.Host, *sinkCluster) (*SinkServer, error)) (*sinkCluster, error) {
 	sinkCl := &sinkCluster{
 		logger:                lgr,
 		config:                config,
@@ -164,9 +172,22 @@ func newSinkCluster(config clickhouse_model.ChSinkClusterParams, lgr log.Logger,
 	}
 
 	newServer := func(host *conn_clickhouse.Host) (*SinkServer, error) {
-		return NewSinkServer(config.MakeChildServerParams(host), lgr, metrics, sinkCl)
+		server, err := makeServer(host, sinkCl)
+		if err != nil {
+			return nil, err
+		}
+		// Apply the build's snapshot before pool publication, both at startup
+		// and when the same factory later revives a native-unreachable host.
+		if at := failedAt[host.String()]; at.After(server.lastFail) {
+			server.lastFail = at
+		}
+		return server, nil
 	}
-	pool, err := newServerPool(config.AltHosts(), newServer, defaultReviveInterval, lgr)
+	hosts, err := config.ResolveHosts(context.Background())
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve ClickHouse hosts: %w", err)
+	}
+	pool, err := newServerPool(hosts, newServer, defaultReviveInterval, lgr)
 	if err != nil {
 		return nil, err
 	}

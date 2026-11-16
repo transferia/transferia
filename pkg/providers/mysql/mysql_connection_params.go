@@ -95,7 +95,7 @@ func ResolveHosts(config *MysqlStorageParams) ([]*connection.Host, error) {
 		return nil, xerrors.New("Neither cluster nor hosts are provided in endpoint config!")
 	}
 
-	clusterHosts, err := dbaas.ResolveClusterHosts(dbaas.ProviderTypeMysql, config.ClusterID)
+	clusterHosts, err := dbaas.ResolveClusterHosts(context.Background(), dbaas.ProviderTypeMysql, config.ClusterID)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get mysql hosts: %w", err)
 	}

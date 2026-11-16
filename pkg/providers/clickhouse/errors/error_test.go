@@ -1,11 +1,13 @@
 package errors
 
 import (
+	stderrors "errors"
 	"testing"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/providers/clickhouse/httpclient"
 )
 
 func TestIsFatalClickhouseError(t *testing.T) {
@@ -51,4 +53,31 @@ func TestIsTooManyPartitionsError(t *testing.T) {
 	require.True(t, IsTooManyPartitionsError(tooManyPartitionsHTTP))
 	require.False(t, IsTooManyPartitionsError(tooManyParts), "merge backlog error must be retried as is, without lifting limits")
 	require.False(t, IsTooManyPartitionsError(xerrors.New("Too many partitions for single INSERT block")), "non-clickhouse errors must not match")
+}
+
+func TestIsRetryableWithoutReset(t *testing.T) {
+	mergeBacklog := "Too many parts. Merges are processing significantly slower than inserts."
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "native query limit", err: &clickhouse.Exception{Code: 202}, want: true},
+		{name: "wrapped merge backlog", err: xerrors.Errorf("insert failed: %w", &clickhouse.Exception{Code: 252, Message: mergeBacklog}), want: true},
+		{name: "HTTP merge backlog", err: httpclient.ParseCHException("Code: 252. DB::Exception: " + mergeBacklog + " (TOO_MANY_PARTS)"), want: true},
+		{name: "partition limit", err: &clickhouse.Exception{Code: 252, Message: "Too many partitions for single INSERT block"}},
+		{name: "other parts error", err: &clickhouse.Exception{Code: 252, Message: "Too many parts"}},
+		{name: "unknown code with backlog text", err: &clickhouse.Exception{Code: 999, Message: mergeBacklog}},
+		{name: "memory limit", err: &clickhouse.Exception{Code: 241}},
+		{name: "query timeout", err: &clickhouse.Exception{Code: 159}},
+		{name: "socket timeout", err: &clickhouse.Exception{Code: 209}},
+		{name: "network failure", err: &clickhouse.Exception{Code: 210}},
+		{name: "table not initialized", err: &clickhouse.Exception{Code: 667}},
+		{name: "plain text", err: xerrors.New("Code: 252. DB::Exception: " + mergeBacklog)},
+		{name: "mixed replica errors", err: xerrors.Errorf("DDL failed: %w", stderrors.Join(&clickhouse.Exception{Code: 202}, &clickhouse.Exception{Code: 667}))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, IsRetryableWithoutReset(tc.err))
+		})
+	}
 }

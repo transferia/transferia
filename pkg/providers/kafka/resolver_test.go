@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ type MockHostResolver struct {
 	err   error
 }
 
-func (m *MockHostResolver) ResolveHosts() ([]dbaas.ClusterHost, error) {
+func (m *MockHostResolver) ResolveHosts(context.Context) ([]dbaas.ClusterHost, error) {
 	return m.hosts, m.err
 }
 
@@ -26,7 +27,7 @@ type MockResolverFactory struct {
 	resolvers map[string]dbaas.HostResolver
 }
 
-func (m *MockResolverFactory) HostResolver(typ dbaas.ProviderType, clusterID string) (dbaas.HostResolver, error) {
+func (m *MockResolverFactory) HostResolver(_ context.Context, typ dbaas.ProviderType, clusterID string) (dbaas.HostResolver, error) {
 	resolver, ok := m.resolvers[clusterID]
 	if !ok {
 		return nil, xerrors.Errorf("cluster %s not found", clusterID)
@@ -42,7 +43,7 @@ func (m *MockResolverFactory) ShardResolver(typ dbaas.ProviderType, clusterID st
 	return nil, dbaas.NotSupported
 }
 
-func (m *MockResolverFactory) ShardGroupHostsResolver(typ dbaas.ProviderType, clusterID string) (dbaas.ShardGroupHostsResolver, error) {
+func (m *MockResolverFactory) ShardGroupHostsResolver(_ context.Context, typ dbaas.ProviderType, clusterID string) (dbaas.ShardGroupHostsResolver, error) {
 	return nil, dbaas.NotSupported
 }
 

@@ -1,7 +1,9 @@
 package model
 
 import (
+	"context"
 	"slices"
+	"time"
 
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -10,8 +12,12 @@ import (
 	"github.com/transferia/transferia/pkg/dbaas"
 )
 
-func ResolveHostsFromMDBCluster(clusterID string, shardGroup string, nativePort, httpPort int) ([]*conn_clickhouse.Host, map[string][]*conn_clickhouse.Host, error) {
-	hosts, err := resolveShardGroupHosts(clusterID, shardGroup)
+func resolveHostsFromMDBCluster(ctx context.Context, clusterID, shardGroup string, nativePort, httpPort int, requiredShards []string) ([]*conn_clickhouse.Host, map[string][]*conn_clickhouse.Host, error) {
+	// Bound the whole discovery operation, including IAM and retry delays,
+	// even when the caller has no deadline.
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	hosts, err := resolveShardGroupHosts(ctx, clusterID, shardGroup, requiredShards)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -36,7 +42,7 @@ func ResolveHostsFromMDBCluster(clusterID string, shardGroup string, nativePort,
 	return resultHosts, resolveShardsByHosts(resultHosts), nil
 }
 
-func ResolveShardGroupHostsAndShards(clickhouseConn *conn_clickhouse.Connection, connectionID, shardGroup string, nativePort, httpPort int) ([]*conn_clickhouse.Host, map[string][]*conn_clickhouse.Host, error) {
+func ResolveShardGroupHostsAndShards(ctx context.Context, clickhouseConn *conn_clickhouse.Connection, connectionID, shardGroup string, nativePort, httpPort int) ([]*conn_clickhouse.Host, map[string][]*conn_clickhouse.Host, error) {
 	if connectionID != "" {
 		hosts, err := resolveHostsByConnection(clickhouseConn, shardGroup)
 		if err != nil {
@@ -45,7 +51,7 @@ func ResolveShardGroupHostsAndShards(clickhouseConn *conn_clickhouse.Connection,
 		return hosts, resolveShardsByHosts(hosts), nil
 	}
 
-	return ResolveHostsFromMDBCluster(clickhouseConn.ClusterID, shardGroup, nativePort, httpPort)
+	return resolveHostsFromMDBCluster(ctx, clickhouseConn.ClusterID, shardGroup, nativePort, httpPort, nil)
 }
 
 func resolveHostsByConnection(clickhouseConn *conn_clickhouse.Connection, shardGroup string) ([]*conn_clickhouse.Host, error) {
@@ -86,28 +92,21 @@ func resolveShardsByHosts(hosts []*conn_clickhouse.Host) map[string][]*conn_clic
 	return shards
 }
 
-func resolveShardGroupHosts(clusterID, shardGroup string) ([]dbaas.ClusterHost, error) {
-	var hosts []dbaas.ClusterHost
-	if shardGroup != "" {
-		dbaasResolver, err := dbaas.Current()
-		if err != nil {
-			return nil, xerrors.Errorf("unable to get dbaas resolver: %w", err)
-		}
-		shardGroupResolver, err := dbaasResolver.ShardGroupHostsResolver(dbaas.ProviderTypeClickhouse, clusterID)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to get shard group resolver: %w", err)
-		}
-		hosts, err = shardGroupResolver.ResolveShardGroupHosts(shardGroup)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to resolve shard group hosts: %w", err)
-		}
-	} else {
-		var err error
-		hosts, err = dbaas.ResolveClusterHosts(dbaas.ProviderTypeClickhouse, clusterID)
-		if err != nil {
-			return nil, xerrors.Errorf("unable to list hosts: %w", err)
-		}
+func resolveShardGroupHosts(ctx context.Context, clusterID, shardGroup string, requiredShards []string) ([]dbaas.ClusterHost, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, xerrors.Errorf("ClickHouse discovery canceled: %w", err)
 	}
-
+	dbaasResolver, err := dbaas.Current()
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get dbaas resolver: %w", err)
+	}
+	resolver, err := dbaasResolver.ShardGroupHostsResolver(ctx, dbaas.ProviderTypeClickhouse, clusterID)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to get shard group resolver: %w", err)
+	}
+	hosts, err := resolver.ResolveHostsForShards(ctx, shardGroup, requiredShards)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to resolve shard group hosts: %w", err)
+	}
 	return hosts, nil
 }

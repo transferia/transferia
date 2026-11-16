@@ -1,18 +1,22 @@
 package dbaas
 
-import "github.com/transferia/transferia/library/go/core/xerrors"
+import (
+	"context"
+
+	"github.com/transferia/transferia/library/go/core/xerrors"
+)
 
 var NotSupported = xerrors.NewSentinel("resolver not supported")
 
 type ResolverFactory interface {
-	HostResolver(typ ProviderType, clusterID string) (HostResolver, error)
+	HostResolver(ctx context.Context, typ ProviderType, clusterID string) (HostResolver, error)
 	PasswordResolver(typ ProviderType, clusterID string) (PasswordResolver, error)
 	ShardResolver(typ ProviderType, clusterID string) (ShardResolver, error)
-	ShardGroupHostsResolver(typ ProviderType, clusterID string) (ShardGroupHostsResolver, error)
+	ShardGroupHostsResolver(ctx context.Context, typ ProviderType, clusterID string) (ShardGroupHostsResolver, error)
 }
 
 type HostResolver interface {
-	ResolveHosts() ([]ClusterHost, error)
+	ResolveHosts(ctx context.Context) ([]ClusterHost, error)
 }
 
 type PasswordResolver interface {
@@ -24,7 +28,9 @@ type ShardResolver interface {
 }
 
 type ShardGroupHostsResolver interface {
-	ResolveShardGroupHosts(shardGroup string) ([]ClusterHost, error)
+	// Empty shardGroup resolves the whole cluster. A nonempty requiredShards
+	// limits health validation to the original shards used by the transfer.
+	ResolveHostsForShards(ctx context.Context, shardGroup string, requiredShards []string) ([]ClusterHost, error)
 }
 
 type ClusterHost struct {

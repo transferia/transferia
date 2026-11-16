@@ -301,11 +301,11 @@ func NewFromDBAAS(name, user, password, cluster string) (*PgHA, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("unable to init dbaas: %w", err)
 	}
-	resolver, err := instc.HostResolver(dbaas.ProviderTypePostgresql, cluster)
+	resolver, err := instc.HostResolver(context.Background(), dbaas.ProviderTypePostgresql, cluster)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create resolver: %w", err)
 	}
-	apiHosts, err := resolver.ResolveHosts()
+	apiHosts, err := resolver.ResolveHosts(context.Background())
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve hosts: %w", err)
 	}

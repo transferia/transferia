@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	_ "embed"
 	"strings"
 	"time"
@@ -290,6 +291,10 @@ func (s ChSourceWrapper) SystemColumnsFirst() bool {
 
 func (s ChSourceWrapper) AltHosts() []*conn_clickhouse.Host {
 	return s.connectionParams.Hosts
+}
+
+func (s ChSourceWrapper) ResolveHosts(ctx context.Context) ([]*conn_clickhouse.Host, error) {
+	return s.connectionParams.currentHosts(ctx)
 }
 
 func (s ChSourceWrapper) UseSchemaInTableName() bool {

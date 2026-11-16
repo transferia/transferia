@@ -1,6 +1,7 @@
 package googlemetadata
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -67,29 +68,29 @@ func GetMetadataBoolField(field GoogleCEMetaDataParam) (bool, error) {
 	}
 }
 
-func GetMetadataStringField(field GoogleCEMetaDataParam) (string, error) {
-	rawValue, err := GetMetadataRawField(field)
+func GetMetadataStringField(ctx context.Context, field GoogleCEMetaDataParam) (string, error) {
+	request, err := makeGoogleMetadataRequest(ctx, field, false)
+	if err != nil {
+		return "", xerrors.Errorf("cannot create request for field %q: %w", field, err)
+	}
+	value, err := doRequest(request)
 	if err != nil {
 		return "", xerrors.Errorf("cannot get field %q: %w", field, err)
 	}
-	if value, ok := rawValue.(string); !ok {
-		return "", xerrors.Errorf("value of field %q is not string", field)
-	} else {
-		return value, nil
-	}
+	return value, nil
 }
 
 func GetMetadataRawField(field GoogleCEMetaDataParam) (interface{}, error) {
-	request, err := makeGoogleMetadataRequest(field, false)
+	request, err := makeGoogleMetadataRequest(context.Background(), field, false)
 	if err != nil {
 		return nil, xerrors.Errorf("cannot create request: %w", err)
 	}
 	return doRequest(request)
 }
 
-func makeGoogleMetadataRequest(param GoogleCEMetaDataParam, recursive bool) (*http.Request, error) {
+func makeGoogleMetadataRequest(ctx context.Context, param GoogleCEMetaDataParam, recursive bool) (*http.Request, error) {
 	url := fmt.Sprintf("http://%v/computeMetadata/v1/instance/%v?recursive=%v", InstanceMetadataAddr, param, recursive)
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

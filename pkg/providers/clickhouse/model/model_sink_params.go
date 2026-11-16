@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -99,6 +100,8 @@ type ChSinkClusterParams interface {
 	//
 	// it's very ad-hoc field - every sinker rewrites it as it want
 	AltHosts() []*conn_clickhouse.Host
+	// ResolveHosts refreshes replicas within the initial shard scope.
+	ResolveHosts(context.Context) ([]*conn_clickhouse.Host, error)
 
 	// ShardByTransferID
 	// TODO(@timmyb32r) - is it meaningful?) highly likely something wrong with this option.

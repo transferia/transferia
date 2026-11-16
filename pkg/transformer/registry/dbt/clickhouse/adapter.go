@@ -17,12 +17,12 @@ type Adapter struct {
 	*clickhouse_model.ChDestination
 }
 
-func (d *Adapter) DBTConfiguration(_ context.Context) (any, error) {
+func (d *Adapter) DBTConfiguration(ctx context.Context) (any, error) {
 	storageParams, err := d.ToStorageParams()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to resolve storage params: %w", err)
 	}
-	hosts, err := clickhouse_model.ConnectionHosts(storageParams, "")
+	hosts, err := clickhouse_model.ConnectionHosts(ctx, storageParams, "")
 	if err != nil {
 		return nil, xerrors.Errorf("failed to obtain a list of hosts for the destination ClickHouse: %w", err)
 	}

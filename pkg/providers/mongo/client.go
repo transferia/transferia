@@ -221,7 +221,7 @@ func getClusterInfo(endpoint *MongoConnectionOptions) (hosts []string, sharded b
 	if err != nil {
 		return nil, false, xerrors.Errorf("unable to get dbaas provider: %w", err)
 	}
-	clusterHosts, err := dbaas.ResolveClusterHosts(dbaas.ProviderTypeMongodb, endpoint.ClusterID)
+	clusterHosts, err := dbaas.ResolveClusterHosts(context.Background(), dbaas.ProviderTypeMongodb, endpoint.ClusterID)
 	if err != nil {
 		return nil, false, xerrors.Errorf("unable to resolve mongodb hosts: %w", err)
 	}

@@ -86,7 +86,7 @@ func (s *Storage) ResolveDbaasMasterHosts() (master, replica *GpHP, err error) {
 	if err != nil {
 		return nil, nil, xerrors.Errorf("unable to build instance: %w", err)
 	}
-	resolver, err := instnc.HostResolver(dbaas.ProviderTypeGreenplum, s.config.Connection.MDBCluster.ClusterID)
+	resolver, err := instnc.HostResolver(context.Background(), dbaas.ProviderTypeGreenplum, s.config.Connection.MDBCluster.ClusterID)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("unable to build resolver: %w", err)
 	}

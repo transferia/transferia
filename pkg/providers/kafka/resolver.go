@@ -19,7 +19,7 @@ import (
 func ResolveBrokers(s *KafkaConnectionOptions) ([]string, error) {
 	var brokers []string
 	if s.ClusterID != "" {
-		hosts, err := dbaas.ResolveClusterHosts(dbaas.ProviderTypeKafka, s.ClusterID)
+		hosts, err := dbaas.ResolveClusterHosts(context.Background(), dbaas.ProviderTypeKafka, s.ClusterID)
 		if err != nil {
 			return nil, xerrors.Errorf("cannot get hosts for cluster %s: %w", s.ClusterID, err)
 		}

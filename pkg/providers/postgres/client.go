@@ -142,7 +142,7 @@ func detectHostsByRoles(lgr log.Logger, conn *connection.ConnectionPG) (master *
 	} else {
 		//roles are unknown - this is manual connection or on-premise pg installation
 		var clusterHosts []dbaas.ClusterHost
-		clusterHosts, err = dbaas.ResolveClusterHosts(dbaas.ProviderTypePostgresql, conn.ClusterID)
+		clusterHosts, err = dbaas.ResolveClusterHosts(context.Background(), dbaas.ProviderTypePostgresql, conn.ClusterID)
 		lgr.Info("Resolved cluster to hosts via dbaas", log.String("cluster", conn.ClusterID), log.Any("hosts", clusterHosts))
 		if err != nil {
 			return nil, nil, nil, xerrors.Errorf("unable to resolve postgres hosts: %w", err)

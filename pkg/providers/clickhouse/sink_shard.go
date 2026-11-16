@@ -3,7 +3,6 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
-	sql_driver "database/sql/driver"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -76,6 +75,12 @@ type sinkShard struct {
 	closeReasonErr error
 	topology       *topology.Topology
 	retryFunc      func(func() error) error
+
+	// Recovery state used to rebuild connections to healthy servers after a failed push.
+	needsReset   bool
+	lastFailures map[string]time.Time
+
+	newClusterForTests func(map[string]time.Time) (*sinkCluster, error)
 }
 
 func (s *sinkShard) Close() error {
@@ -93,24 +98,40 @@ func (s *sinkShard) Close() error {
 	return nil
 }
 
-func (s *sinkShard) reset() {
-	s.closeReasonErr = xerrors.New("close sinkShard for resetting")
-	if err := s.Close(); err != nil {
-		s.logger.Error("Failed to close sinkShard", log.Error(err))
-	}
-
-	err := backoff.Retry(func() error {
-		cl, err := newSinkCluster(s.config, s.logger, s.chStats, s.topology)
-		s.cluster = cl
-		return err
-	}, backoff.NewExponentialBackOff())
-	if err != nil {
-		s.logger.Error("unable to reset sinkShard", log.Error(err))
-		s.closeReasonErr = err
-		if err := s.Close(); err != nil {
-			s.logger.Error("Failed to close sinkShard", log.Error(err))
+func (s *sinkShard) reset() error {
+	// Keep failures independently of the connected pool: a native-unreachable
+	// endpoint may return through the revive loop after several replacements.
+	// Each build gets a fresh immutable snapshot, also used by its late revives.
+	failedAt := make(map[string]time.Time)
+	remember := func(endpoint string, at time.Time) {
+		if !at.IsZero() && time.Since(at).Minutes() <= 5 && at.After(failedAt[endpoint]) {
+			failedAt[endpoint] = at
 		}
 	}
+	for endpoint, at := range s.lastFailures {
+		remember(endpoint, at)
+	}
+	for _, server := range s.cluster.pool.serversCopy() {
+		remember(server.config.Host().String(), server.lastFail)
+	}
+	s.lastFailures = failedAt
+	create := s.newClusterForTests
+	if create == nil {
+		create = func(failedAt map[string]time.Time) (*sinkCluster, error) {
+			return newSinkCluster(s.config, s.logger, s.chStats, s.topology, failedAt)
+		}
+	}
+	cluster, err := create(failedAt)
+	if err != nil {
+		return xerrors.Errorf("unable to reset ClickHouse shard: %w", err)
+	}
+	previous := s.cluster
+	s.cluster = cluster
+	s.needsReset = false
+	if err := previous.Close(); err != nil {
+		s.logger.Warn("Failed to close previous ClickHouse cluster", log.Error(err))
+	}
+	return nil
 }
 
 func (s *sinkShard) retry(f func() error) error {
@@ -124,6 +145,14 @@ func (s *sinkShard) retry(f func() error) error {
 
 func (s *sinkShard) Push(input []abstract.ChangeItem) error {
 	err := s.retry(func() error {
+		if s.needsReset {
+			if err := s.reset(); err != nil {
+				if abstract.IsFatal(err) {
+					return xerrors.Errorf("ClickHouse shard recovery failed: %w", &backoff.PermanentError{Err: err})
+				}
+				return xerrors.Errorf("unable to recover ClickHouse shard: %w", err)
+			}
+		}
 		err := s.pushBatch(input)
 		if err == nil || xerrors.Is(err, sql.ErrTxDone) {
 			return nil
@@ -139,8 +168,10 @@ func (s *sinkShard) Push(input []abstract.ChangeItem) error {
 			return xerrors.Errorf("ddl task error: %w", &backoff.PermanentError{Err: err})
 		}
 
-		if xerrors.Is(err, sql_driver.ErrBadConn) {
-			s.reset()
+		// Other HTTP (e.g. 667) or stale-schema errors need not wrap ErrBadConn,
+		// so conservatively refresh replicas and metadata before retrying.
+		if !clickhouse_errors.IsRetryableWithoutReset(err) {
+			s.needsReset = true
 		}
 		return err
 	})
@@ -303,7 +334,7 @@ func MakeAltNames(config clickhouse_model.ChSinkShardParams) map[string]string {
 }
 
 func newSinkShard(shardName string, config clickhouse_model.ChSinkShardParams, topology *topology.Topology, logger log.Logger, chStats *stats.ChStats, sinkStats *stats.SinkerStats) (*sinkShard, error) {
-	cl, err := newSinkCluster(config, logger, chStats, topology)
+	cl, err := newSinkCluster(config, logger, chStats, topology, nil)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create a sink for a concrete ClickHouse cluster: %w", err)
 	}
@@ -319,6 +350,11 @@ func newSinkShard(shardName string, config clickhouse_model.ChSinkShardParams, t
 		closeReasonErr: nil,
 		topology:       topology,
 		retryFunc:      nil,
+
+		needsReset:   false,
+		lastFailures: nil,
+
+		newClusterForTests: nil,
 	}
 
 	return s, nil

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"net/url"
@@ -344,6 +345,7 @@ func newChDestinationWrapper(model ChDestination) *ChDestinationWrapper {
 			Secure:         model.SSLEnabled || model.MdbClusterID != "",
 			PemFileContent: model.PemFileContent,
 			ClusterID:      model.MdbClusterID,
+			resolveHosts:   nil,
 		},
 		hosts:   make([]*conn_clickhouse.Host, 0),
 		useJSON: false,
@@ -442,6 +444,10 @@ func (d ChDestinationWrapper) SystemColumnsFirst() bool {
 
 func (d ChDestinationWrapper) AltHosts() []*conn_clickhouse.Host {
 	return d.connectionParams.Hosts
+}
+
+func (d ChDestinationWrapper) ResolveHosts(ctx context.Context) ([]*conn_clickhouse.Host, error) {
+	return d.connectionParams.currentHosts(ctx)
 }
 
 func (d ChDestinationWrapper) UseSchemaInTableName() bool {

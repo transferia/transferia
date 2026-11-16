@@ -1,6 +1,7 @@
 package transferparams
 
 import (
+	"context"
 	"os"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -31,7 +32,7 @@ type DummySource struct {
 }
 
 func (*VmMetadataSource) provider() (*Provider, error) {
-	metadata, err := googlemetadata.GetMetadataStringField(googlemetadata.GoogleUserData)
+	metadata, err := googlemetadata.GetMetadataStringField(context.Background(), googlemetadata.GoogleUserData)
 	if err != nil {
 		return nil, xerrors.Errorf("cannot get metadata: %w", err)
 	}
@@ -42,12 +43,12 @@ func (*VmMetadataSource) provider() (*Provider, error) {
 
 	// next fields are required for correct work of data transfer
 	// will be fairly moved to separate field in future
-	instanceNameVal, err := googlemetadata.GetMetadataStringField(googlemetadata.GoogleName)
+	instanceNameVal, err := googlemetadata.GetMetadataStringField(context.Background(), googlemetadata.GoogleName)
 	if err != nil {
 		return nil, xerrors.Errorf("cannot get instance name from metadata: %w", err)
 	}
 	transferParams[instanceName] = instanceNameVal
-	instanceIdVal, err := googlemetadata.GetMetadataStringField(googlemetadata.GoogleID)
+	instanceIdVal, err := googlemetadata.GetMetadataStringField(context.Background(), googlemetadata.GoogleID)
 	if err != nil {
 		return nil, xerrors.Errorf("cannot get instance id from metadata: %w", err)
 	}

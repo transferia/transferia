@@ -1,6 +1,8 @@
 package model
 
 import (
+	"context"
+
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	conn_clickhouse "github.com/transferia/transferia/pkg/connection/clickhouse"
 )
@@ -14,6 +16,48 @@ type connectionParams struct {
 	PemFileContent string
 	Hosts          []*conn_clickhouse.Host
 	Shards         map[string][]*conn_clickhouse.Host
+	resolveHosts   func(context.Context, []string) ([]*conn_clickhouse.Host, map[string][]*conn_clickhouse.Host, error)
+}
+
+func managedHostsResolver(clusterID, shardGroup string, nativePort, httpPort int) func(context.Context, []string) ([]*conn_clickhouse.Host, map[string][]*conn_clickhouse.Host, error) {
+	if clusterID == "" {
+		return nil
+	}
+	return func(ctx context.Context, requiredShards []string) ([]*conn_clickhouse.Host, map[string][]*conn_clickhouse.Host, error) {
+		return resolveHostsFromMDBCluster(ctx, clusterID, shardGroup, nativePort, httpPort, requiredShards)
+	}
+}
+
+// currentHosts preserves the initial shard scope while refreshing the replicas within it.
+func (c connectionParams) currentHosts(ctx context.Context) ([]*conn_clickhouse.Host, error) {
+	if c.resolveHosts == nil {
+		return c.Hosts, nil
+	}
+	var requiredShards []string
+	seen := make(map[string]bool)
+	for _, initialHost := range c.Hosts {
+		if seen[initialHost.ShardName] {
+			continue
+		}
+		seen[initialHost.ShardName] = true
+		requiredShards = append(requiredShards, initialHost.ShardName)
+	}
+	if len(requiredShards) == 0 {
+		return nil, xerrors.New("no ClickHouse hosts configured")
+	}
+	_, shards, err := c.resolveHosts(ctx, requiredShards)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to refresh original ClickHouse shards: %w", err)
+	}
+	var hosts []*conn_clickhouse.Host
+	for _, shard := range requiredShards {
+		current := shards[shard]
+		if len(current) == 0 {
+			return nil, xerrors.Errorf("no healthy ClickHouse hosts available for shard %q", shard)
+		}
+		hosts = append(hosts, current...)
+	}
+	return hosts, nil
 }
 
 func (c connectionParams) SetShards(shards map[string][]*conn_clickhouse.Host) {
@@ -46,6 +90,7 @@ func ConnectionParamsFromSource(chSource *ChSource, shardGroup string) (*connect
 			Database:       chSource.Database,
 			Hosts:          connectionHosts,
 			Shards:         shards,
+			resolveHosts:   managedHostsResolver(chSource.MdbClusterID, shardGroup, chSource.NativePort, chSource.HTTPPort),
 		}
 	}
 
@@ -76,6 +121,7 @@ func ConnectionParamsFromDestination(chDestination *ChDestination) (*connectionP
 			Database:       chDestination.Database,
 			Hosts:          connectionHosts,
 			Shards:         shards,
+			resolveHosts:   managedHostsResolver(chDestination.MdbClusterID, chDestination.ChClusterName, chDestination.NativePort, chDestination.HTTPPort),
 		}
 	}
 
@@ -101,9 +147,10 @@ func ConnectionParamsByConnectionID(connectionID string, shardGroup string, nati
 		PemFileContent: conn.CACertificates,
 		Hosts:          conn.Hosts,
 		Shards:         make(map[string][]*conn_clickhouse.Host),
+		resolveHosts:   nil,
 	}
 
-	hosts, shards, err := ResolveShardGroupHostsAndShards(conn, connectionID, shardGroup, nativePort, httpPort)
+	hosts, shards, err := ResolveShardGroupHostsAndShards(context.Background(), conn, connectionID, shardGroup, nativePort, httpPort)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to resolve shard group hosts and shards: %w", err)
 	}

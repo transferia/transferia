@@ -1,8 +1,10 @@
 package errors
 
 import (
+	stderrors "errors"
 	"strings"
 
+	"github.com/ClickHouse/ch-go/proto"
 	clickhouse_go "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 )
@@ -29,6 +31,22 @@ func IsFatalClickhouseError(err error) bool {
 		return false
 	}
 	return NonRetryableCode[exception.Code]
+}
+
+// IsRetryableWithoutReset recognizes backpressure that can be retried using the
+// existing sink cluster. Joined errors may include failures that require reset.
+func IsRetryableWithoutReset(err error) bool {
+	for ; err != nil; err = stderrors.Unwrap(err) {
+		if exception, ok := err.(*clickhouse_go.Exception); ok {
+			switch proto.Error(exception.Code) {
+			case proto.ErrTooManySimultaneousQueries:
+				return true
+			case proto.ErrTooManyParts:
+				return strings.Contains(exception.Message, "Merges are processing significantly slower than inserts")
+			}
+		}
+	}
+	return false
 }
 
 // IsTooManyPartitionsError matches the "Too many partitions for single INSERT block" error,

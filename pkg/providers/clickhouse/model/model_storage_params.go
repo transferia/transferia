@@ -117,7 +117,7 @@ func (c *ChStorageParams) String() string {
 
 func resolveHosts(clucterID, shardGroup string, shardList []ClickHouseShard, nativePort, httpPort int) ([]*conn_clickhouse.Host, map[string][]*conn_clickhouse.Host, error) {
 	if clucterID != "" {
-		return ResolveHostsFromMDBCluster(clucterID, shardGroup, nativePort, httpPort)
+		return resolveHostsFromMDBCluster(context.Background(), clucterID, shardGroup, nativePort, httpPort, nil)
 	}
 
 	hosts, shards := resolveShardsAndHosts(shardList, nativePort, httpPort)

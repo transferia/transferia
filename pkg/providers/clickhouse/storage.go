@@ -21,6 +21,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	conn_clickhouse "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/errors/coded"
 	"github.com/transferia/transferia/pkg/providers/clickhouse/conn"
 	clickhouse_errors "github.com/transferia/transferia/pkg/providers/clickhouse/errors"
@@ -721,14 +722,13 @@ func MakeConnection(cfg *clickhouse_model.ChStorageParams) (*sql.DB, error) {
 }
 
 func makeShardConnection(cfg *clickhouse_model.ChStorageParams, shardName string) (*sql.DB, error) {
-	hosts, err := clickhouse_model.ConnectionHosts(cfg, shardName)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to resolve ClickHouse configuration to a list of hosts: %w", err)
-	}
-	if len(hosts) == 0 {
-		return nil, xerrors.Errorf("no hosts available for shard %q", shardName)
-	}
-	return conn.ConnectNative(hosts[0], cfg.ToConnParams(), hosts[1:]...)
+	return conn.ConnectNativeWithResolver(cfg.ToConnParams(), func(ctx context.Context) ([]*conn_clickhouse.Host, error) {
+		hosts, err := clickhouse_model.ConnectionHosts(ctx, cfg, shardName)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to resolve ClickHouse configuration to a list of hosts: %w", err)
+		}
+		return hosts, nil
+	})
 }
 
 func (s *Storage) LoadSchema() (dbSchema abstract.DBSchema, err error) {

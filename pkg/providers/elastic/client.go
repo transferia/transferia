@@ -27,7 +27,7 @@ const (
 )
 
 func openSearchResolveHosts(clusterID string) ([]string, error) {
-	hosts, err := dbaas.ResolveClusterHosts(dbaas.ProviderTypeOpenSearch, clusterID)
+	hosts, err := dbaas.ResolveClusterHosts(context.Background(), dbaas.ProviderTypeOpenSearch, clusterID)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get hosts for ClusterID, err: %w", err)
 	}
@@ -84,7 +84,7 @@ func configFromConnection(logger log.Logger, connectionID string) (*elasticsearc
 }
 
 func elasticSearchResolveHosts(clusterID string) ([]string, error) {
-	hosts, err := dbaas.ResolveClusterHosts(dbaas.ProviderTypeElasticSearch, clusterID)
+	hosts, err := dbaas.ResolveClusterHosts(context.Background(), dbaas.ProviderTypeElasticSearch, clusterID)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to get hosts for ClusterID, err: %w", err)
 	}
