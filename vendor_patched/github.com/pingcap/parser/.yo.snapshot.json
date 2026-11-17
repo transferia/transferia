@@ -1,0 +1,279 @@
+{
+	"Version": "v0.0.0-20210415081931-48e7f467fd74",
+	"GoVersion": "1.13",
+	"Sum": "h1:FkVEC3Fck3fD16hMObMl/IWs72jR9FmqPn0Bdf728Sk=",
+	"Packages": {
+		"github.com/pingcap/parser": {
+			"Imports": [
+				"bytes",
+				"crypto/sha256",
+				"fmt",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser/ast",
+				"github.com/pingcap/parser/auth",
+				"github.com/pingcap/parser/charset",
+				"github.com/pingcap/parser/model",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/opcode",
+				"github.com/pingcap/parser/terror",
+				"github.com/pingcap/parser/types",
+				"hash",
+				"math",
+				"reflect",
+				"regexp",
+				"strconv",
+				"strings",
+				"sync",
+				"unicode",
+				"unicode/utf8",
+				"unsafe"
+			],
+			"TestImports": [
+				"bytes",
+				"fmt",
+				"github.com/pingcap/check",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser",
+				"github.com/pingcap/parser/ast",
+				"github.com/pingcap/parser/charset",
+				"github.com/pingcap/parser/format",
+				"github.com/pingcap/parser/model",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/opcode",
+				"github.com/pingcap/parser/terror",
+				"github.com/pingcap/parser/test_driver",
+				"io/ioutil",
+				"os",
+				"path",
+				"runtime",
+				"sort",
+				"strings",
+				"testing",
+				"unicode"
+			]
+		},
+		"github.com/pingcap/parser/ast": {
+			"Imports": [
+				"bytes",
+				"fmt",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser/auth",
+				"github.com/pingcap/parser/format",
+				"github.com/pingcap/parser/model",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/opcode",
+				"github.com/pingcap/parser/terror",
+				"github.com/pingcap/parser/types",
+				"io",
+				"math",
+				"net/url",
+				"reflect",
+				"regexp",
+				"strconv",
+				"strings",
+				"time"
+			],
+			"TestImports": [
+				"bytes",
+				"fmt",
+				"github.com/pingcap/check",
+				"github.com/pingcap/parser",
+				"github.com/pingcap/parser/ast",
+				"github.com/pingcap/parser/auth",
+				"github.com/pingcap/parser/format",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/test_driver",
+				"strings",
+				"testing"
+			]
+		},
+		"github.com/pingcap/parser/auth": {
+			"Imports": [
+				"bytes",
+				"crypto/sha1",
+				"encoding/hex",
+				"fmt",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser/format",
+				"github.com/pingcap/parser/terror"
+			],
+			"TestImports": [
+				"github.com/pingcap/check"
+			]
+		},
+		"github.com/pingcap/parser/charset": {
+			"Imports": [
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/terror",
+				"golang.org/x/text/encoding",
+				"golang.org/x/text/encoding/charmap",
+				"golang.org/x/text/encoding/japanese",
+				"golang.org/x/text/encoding/korean",
+				"golang.org/x/text/encoding/simplifiedchinese",
+				"golang.org/x/text/encoding/traditionalchinese",
+				"golang.org/x/text/encoding/unicode",
+				"strings"
+			],
+			"TestImports": [
+				"github.com/pingcap/check",
+				"math/rand",
+				"testing"
+			]
+		},
+		"github.com/pingcap/parser/format": {
+			"Imports": [
+				"bytes",
+				"fmt",
+				"io",
+				"strings"
+			],
+			"TestImports": [
+				"bytes",
+				"github.com/pingcap/check",
+				"io/ioutil",
+				"strings",
+				"testing"
+			]
+		},
+		"github.com/pingcap/parser/goyacc": {
+			"Imports": [
+				"bufio",
+				"bytes",
+				"flag",
+				"fmt",
+				"github.com/cznic/mathutil",
+				"github.com/cznic/parser/yacc",
+				"github.com/cznic/sortutil",
+				"github.com/cznic/strutil",
+				"github.com/cznic/y",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser/format",
+				"go/format",
+				"go/scanner",
+				"go/token",
+				"io",
+				"io/ioutil",
+				"log",
+				"os",
+				"regexp",
+				"runtime",
+				"sort",
+				"strings"
+			],
+			"TestImports": null
+		},
+		"github.com/pingcap/parser/model": {
+			"Imports": [
+				"encoding/json",
+				"fmt",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser/auth",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/terror",
+				"github.com/pingcap/parser/types",
+				"math",
+				"strconv",
+				"strings",
+				"sync",
+				"time"
+			],
+			"TestImports": [
+				"encoding/json",
+				"fmt",
+				"github.com/pingcap/check",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/types",
+				"testing",
+				"time"
+			]
+		},
+		"github.com/pingcap/parser/mysql": {
+			"Imports": [
+				"bytes",
+				"fmt",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser/format",
+				"strconv",
+				"strings",
+				"unicode"
+			],
+			"TestImports": [
+				"github.com/pingcap/check",
+				"testing"
+			]
+		},
+		"github.com/pingcap/parser/opcode": {
+			"Imports": [
+				"github.com/pingcap/parser/format",
+				"io"
+			],
+			"TestImports": [
+				"bytes",
+				"testing"
+			]
+		},
+		"github.com/pingcap/parser/terror": {
+			"Imports": [
+				"fmt",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/log",
+				"github.com/pingcap/parser/mysql",
+				"go.uber.org/zap",
+				"strconv",
+				"strings",
+				"sync"
+			],
+			"TestImports": [
+				"encoding/json",
+				"fmt",
+				"github.com/pingcap/check",
+				"github.com/pingcap/errors",
+				"os",
+				"runtime",
+				"strings",
+				"testing"
+			]
+		},
+		"github.com/pingcap/parser/test_driver": {
+			"Imports": [
+				"bytes",
+				"encoding/hex",
+				"fmt",
+				"github.com/pingcap/errors",
+				"github.com/pingcap/parser/ast",
+				"github.com/pingcap/parser/charset",
+				"github.com/pingcap/parser/format",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/types",
+				"io",
+				"math",
+				"strconv",
+				"strings"
+			],
+			"TestImports": null
+		},
+		"github.com/pingcap/parser/types": {
+			"Imports": [
+				"fmt",
+				"github.com/pingcap/parser/charset",
+				"github.com/pingcap/parser/format",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/terror",
+				"io",
+				"strings"
+			],
+			"TestImports": [
+				"fmt",
+				"github.com/pingcap/check",
+				"github.com/pingcap/parser",
+				"github.com/pingcap/parser/ast",
+				"github.com/pingcap/parser/charset",
+				"github.com/pingcap/parser/mysql",
+				"github.com/pingcap/parser/test_driver",
+				"github.com/pingcap/parser/types",
+				"testing"
+			]
+		}
+	}
+}

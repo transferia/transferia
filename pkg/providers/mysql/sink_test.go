@@ -23,6 +23,7 @@ import (
 	"github.com/transferia/transferia/pkg/errors/codes"
 	"github.com/transferia/transferia/pkg/format"
 	"github.com/transferia/transferia/pkg/stats"
+	"github.com/transferia/transferia/tests/tcrecipes"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -515,6 +516,9 @@ func Test_pushQuires_Deadlock_ReturnsCodedError(t *testing.T) {
 }
 
 func recipeTarget(t *testing.T) (*MysqlDestination, *sql.DB) {
+	if tcrecipes.Enabled() {
+		t.Skip("no mysql recipe for this package outside ya make")
+	}
 	port, err := strconv.Atoi(os.Getenv("RECIPE_MYSQL_PORT"))
 	require.NoError(t, err)
 	dst := &MysqlDestination{
