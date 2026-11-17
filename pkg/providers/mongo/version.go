@@ -19,6 +19,10 @@ func must(version semver.Version, err error) semver.Version {
 
 var (
 	MongoVersion4_0 = must(semver.ParseTolerant("4.0"))
+	// MongoVersion5_0 is the first one where an update ($setField) can change a field with a dot in its name.
+	MongoVersion5_0 = must(semver.ParseTolerant("5.0"))
+	// MongoVersion6_1 is the first one to report disambiguatedPaths in update events.
+	MongoVersion6_1 = must(semver.ParseTolerant("6.1"))
 )
 
 // GetVersion tries to get version from database authSource. If authSource is empty string, default will be used
@@ -53,4 +57,19 @@ func ReplicationSourceFallback(logger log.Logger, pl MongoReplicationSource, mon
 		return MongoReplicationSourceOplog
 	}
 	return pl
+}
+
+// updateDocumentObstacle tells why update events cannot be delivered as update descriptions
+// (MongoReplicationSourcePerDatabaseUpdateDocument), or returns an empty string when they can.
+func updateDocumentObstacle(source *MongoSource, mongoVersion *semver.Version) string {
+	if !source.IsHomo {
+		return "only a MongoDB target applies update descriptions"
+	}
+	if mongoVersion == nil {
+		return "the version of MongoDB is unknown"
+	}
+	if mongoVersion.GTE(MongoVersion5_0) && mongoVersion.LT(MongoVersion6_1) {
+		return "MongoDB 5.0-6.0 updates fields with dots in names and does not tell them from paths in update events"
+	}
+	return ""
 }

@@ -116,7 +116,7 @@ func multiNamespaceFetch(t *testing.T) {
 	for ns, count := range perNamespace {
 		require.Equal(t, keysPerNamespace, count, "namespace %s", ns)
 	}
-	require.Equal(t, "drop", pushed[len(pushed)-1].event.OperationType)
+	require.Equal(t, OperationTypeDrop, pushed[len(pushed)-1].event.OperationType)
 	require.GreaterOrEqual(t, maxConcurrent, int64(2), "fetches of different namespaces should overlap")
 }
 

@@ -72,7 +72,37 @@ func (p *Provider) Source() (abstract.Source, error) {
 		src.IsHomo = p.transfer.DstType() == ProviderType
 	}
 	src.SlotID = p.transfer.ID
+	if src.ReplicationSource == MongoReplicationSourcePerDatabaseUpdateDocument {
+		documents, err := p.sourceDocuments()
+		if err != nil {
+			// NewSource fails the same way on the objects of the transfer.
+			return nil, abstract.NewFatalError(xerrors.Errorf("cannot tell whether the sink can read the source: %w", err))
+		}
+		if documents == nil {
+			// The sink has to read the source when a patch does not fit the document of the target.
+			p.logger.Info("The target cannot tell the source collections of its own, falling back to full documents")
+			withFullDocuments := *src
+			withFullDocuments.ReplicationSource = MongoReplicationSourcePerDatabaseFullDocument
+			src = &withFullDocuments
+		}
+	}
 	return NewSource(src, p.transfer.ID, p.transfer.DataObjects, p.logger, p.registry, p.cp)
+}
+
+// sourceDocuments returns the reader of the source documents for the sink, or nil when the collections of the
+// target cannot be traced back to the ones of the source: the source or the target is not MongoDB, transformers may
+// rename collections, or the target puts several source databases into one.
+func (p *Provider) sourceDocuments() (sourceDocuments, error) {
+	src, isMongoSource := p.transfer.Src.(*MongoSource)
+	dst, isMongoTarget := p.transfer.Dst.(*MongoDestination)
+	if !isMongoSource || !isMongoTarget || p.transfer.HasPublicTransformation() || p.transfer.HasExtraTransformation() {
+		return nil, nil
+	}
+	filter, err := replicatedCollections(src, p.transfer.DataObjects)
+	if err != nil {
+		return nil, xerrors.Errorf("cannot tell the replicated collections: %w", err)
+	}
+	return newSourceDocuments(src, filter.Collections, dst, p.logger), nil
 }
 
 func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
@@ -80,7 +110,11 @@ func (p *Provider) Sink(config middlewares.Config) (abstract.Sinker, error) {
 	if !ok {
 		return nil, xerrors.Errorf("unexpected type: %T", p.transfer.Src)
 	}
-	return NewSinker(p.logger, dst, p.registry)
+	source, err := p.sourceDocuments()
+	if err != nil {
+		return nil, xerrors.Errorf("cannot make a reader of the source: %w", err)
+	}
+	return NewSinker(p.logger, dst, p.registry, source)
 }
 
 func (p *Provider) Storage() (abstract.Storage, error) {

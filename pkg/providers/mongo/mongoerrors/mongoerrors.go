@@ -2,7 +2,10 @@ package mongoerrors
 
 // MongoDB server error codes from https://github.com/mongodb/mongo/blob/master/src/mongo/base/error_codes.yml
 const (
+	BadValueCode                = 2
 	AuthenticationFailedCode    = 18
+	PathNotViableCode           = 28
+	NonExistentPathCode         = 29
 	ChangeStreamFatalErrorCode  = 280
 	ChangeStreamHistoryLostCode = 286
 	BSONObjectTooLargeCode      = 10334

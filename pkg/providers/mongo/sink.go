@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/stats"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
 	"go.ytsaurus.tech/library/go/core/log"
 	"golang.org/x/sync/errgroup"
@@ -32,6 +33,11 @@ type sinker struct {
 	logger  log.Logger
 	metrics *stats.SinkerStats
 	config  *MongoDestination
+	// source reads the documents which patches cannot bring up to date, see Provider.sourceDocuments.
+	source sourceDocuments
+
+	patchTimeMutex  sync.Mutex
+	latestPatchTime primitive.Timestamp // see notePatchTime
 }
 
 func (s *sinker) Push(input []abstract.ChangeItem) error {
@@ -42,27 +48,33 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 	var errMu sync.Mutex
 	collectionErrors := map[Namespace]error{}
 
-	setError := func(collID Namespace, err error) {
+	setError := func(namespace Namespace, err error) {
 		errMu.Lock()
-		collectionErrors[collID] = err
+		collectionErrors[namespace] = err
 		errMu.Unlock()
 	}
 
-	flushCollection := func(collID Namespace, items []abstract.ChangeItem, wg *sync.WaitGroup) {
+	// flushCollection writes the items, the head of rest, and reports whether they are written; the error is kept
+	// in collectionErrors. The ordered retry goes over the whole rest: a write freeing a unique index value may be
+	// anywhere in it. Then restDone is set.
+	flushCollection := func(
+		namespace Namespace,
+		items, rest []abstract.ChangeItem,
+		requireMetadata bool,
+	) (ok bool, restDone bool) {
 		flushStart := time.Now()
-		s.logger.Debugf("flushCollection START coll=%s items=%d", collID.GetFullName(), len(items))
+		s.logger.Debugf("flushCollection START coll=%s items=%d", namespace.GetFullName(), len(items))
 		defer func() {
-			s.logger.Debugf("flushCollection DONE coll=%s elapsed=%v", collID.GetFullName(), time.Since(flushStart))
-			wg.Done()
+			s.logger.Debugf("flushCollection DONE coll=%s elapsed=%v", namespace.GetFullName(), time.Since(flushStart))
 		}()
 
-		s.logger.Debugf("flushCollection: splitItemsToBulkOperations START coll=%s", collID.GetFullName())
-		shardBulks, err := s.splitItemsToBulkOperations(ctx, collID, items)
+		s.logger.Debugf("flushCollection: splitItemsToBulkOperations START coll=%s", namespace.GetFullName())
+		shardBulks, folded, err := s.splitItemsToBulkOperations(ctx, namespace, items, requireMetadata)
 		if err != nil {
-			setError(collID, err)
-			return
+			setError(namespace, err)
+			return false, false
 		}
-		s.logger.Debugf("flushCollection: splitItemsToBulkOperations DONE coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
+		s.logger.Debugf("flushCollection: splitItemsToBulkOperations DONE coll=%s shards=%d elapsed=%v", namespace.GetFullName(), len(shardBulks), time.Since(flushStart))
 		totalBulks, totalWrites := 0, 0
 		for _, bulks := range shardBulks {
 			totalBulks += len(bulks)
@@ -70,17 +82,17 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 				totalWrites += len(bulk)
 			}
 		}
-		s.metrics.Table(collID.Collection, "folded_rows", len(items)-totalWrites)
-		s.metrics.Table(collID.Collection, "bulks", totalBulks)
+		s.metrics.Table(namespace.Collection, "folded_rows", folded)
+		s.metrics.Table(namespace.Collection, "bulks", totalBulks)
 
 		startFlush := time.Now()
-		s.logger.Debugf("flushCollection: bulk writes START coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
+		s.logger.Debugf("flushCollection: bulk writes START coll=%s shards=%d elapsed=%v", namespace.GetFullName(), len(shardBulks), time.Since(flushStart))
 		eg, egCtx := errgroup.WithContext(ctx)
 		for _, bulks := range shardBulks {
 			eg.Go(func() error {
 				// Bulks of one shard share document _ids, so they run sequentially to preserve per-document event order.
 				for _, bulk := range bulks {
-					if err := s.bulkWrite(egCtx, collID, bulk); err != nil {
+					if err := s.bulkWrite(egCtx, namespace, bulk); err != nil {
 						return err
 					}
 				}
@@ -89,21 +101,25 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 		}
 		if err := eg.Wait(); err != nil {
 			if s.orderedWrites() || !mongo_driver.IsDuplicateKeyError(err) {
-				setError(collID, err)
-				return
+				setError(namespace, err)
+				return false, false
 			}
 			// Duplicate key error received, possibly due to parallel write. Retry in non-parallel (ordered) mode.
-			msg := fmt.Sprintf("Write to %s caused duplicate key error, retrying orderly", collID.GetFullName())
+			msg := fmt.Sprintf("Write to %s caused duplicate key error, retrying orderly", namespace.GetFullName())
 			s.logger.Warn(msg, log.Error(err))
-			if retryErr := s.retryCollectionOrdered(ctx, collID, items); retryErr != nil {
-				setError(collID, xerrors.Errorf("ordered retry failed: %w", retryErr))
+			if retryErr := s.retryCollectionOrdered(ctx, namespace, rest, requireMetadata); retryErr != nil {
+				setError(namespace, xerrors.Errorf("ordered retry failed: %w", retryErr))
+				return false, false
 			}
+			restDone = true
 		}
-		s.logger.Debugf("flushCollection: bulk writes DONE coll=%s shards=%d elapsed=%v", collID.GetFullName(), len(shardBulks), time.Since(flushStart))
+		s.logger.Debugf("flushCollection: bulk writes DONE coll=%s shards=%d elapsed=%v", namespace.GetFullName(), len(shardBulks), time.Since(flushStart))
 		s.logger.Infof("Flush collection %v: change items number = %v, writes = %v (%v folded), shards = %v, bulks = %v, elapsed = %v",
-			collID.GetFullName(), len(items), totalWrites, len(items)-totalWrites, len(shardBulks), totalBulks, time.Since(startFlush))
+			namespace.GetFullName(), len(items), totalWrites, folded, len(shardBulks), totalBulks, time.Since(startFlush))
+		return true, restDone
 	}
 
+	s.notePatchTime(input)
 	s.metrics.Inflight.Add(int64(len(input)))
 	startPush := time.Now()
 
@@ -130,9 +146,24 @@ func (s *sinker) Push(input []abstract.ChangeItem) error {
 		if collections != nil {
 			s.logger.Debugf("sinker.Push: waiting for %d flush goroutines elapsed=%v", len(collections), time.Since(pushStart))
 			var wg sync.WaitGroup
-			for collID, items := range collections {
+			for namespace, items := range collections {
 				wg.Add(1)
-				go flushCollection(collID, items, &wg)
+				go func() {
+					defer wg.Done()
+					portions, err := s.patchPortions(ctx, namespace, items)
+					if err != nil {
+						setError(namespace, err)
+						return
+					}
+					rest := items
+					requireMetadata := hasDocumentPatches(items)
+					for _, portion := range portions {
+						if ok, restDone := flushCollection(namespace, portion, rest, requireMetadata); !ok || restDone {
+							return
+						}
+						rest = rest[len(portion):]
+					}
+				}()
 			}
 			wg.Wait()
 			s.logger.Debugf("sinker.Push: all flush goroutines done elapsed=%v", time.Since(pushStart))
@@ -263,11 +294,11 @@ func (s *sinker) processDDL(ctx context.Context, item *abstract.ChangeItem) erro
 
 func joinErrors(errors map[Namespace]error) error {
 	joined := ""
-	for collID, err := range errors {
+	for namespace, err := range errors {
 		if len(joined) > 0 {
 			joined += "\n"
 		}
-		joined += fmt.Sprintf("\t%v.%v: %v", collID.Database, collID.Collection, err)
+		joined += fmt.Sprintf("\t%v.%v: %v", namespace.Database, namespace.Collection, err)
 	}
 	return xerrors.Errorf("Failed write into some collections:\n%v", joined)
 }
@@ -372,12 +403,22 @@ func (s *sinker) dropDatabase(item *abstract.ChangeItem) error {
 
 func (s *sinker) Close() error {
 	s.logger.Debugf("sinker.Close START")
+	if s.source != nil {
+		if err := s.source.Close(context.Background()); err != nil {
+			s.logger.Warn("Cannot close the connection to the source", log.Error(err))
+		}
+	}
 	err := s.client.Close(context.Background())
 	s.logger.Debugf("sinker.Close DONE err=%v", err)
 	return err
 }
 
-func NewSinker(lgr log.Logger, dst *MongoDestination, mtrcs core_metrics.Registry) (abstract.Sinker, error) {
+func NewSinker(
+	lgr log.Logger,
+	dst *MongoDestination,
+	mtrcs core_metrics.Registry,
+	source sourceDocuments,
+) (abstract.Sinker, error) {
 	newSinkerStart := time.Now()
 	logger.Log.Debugf("NewSinker START hosts=%v port=%d", dst.Hosts, dst.Port)
 	opts := dst.ConnectionOptions(dst.RootCAFiles)
@@ -393,5 +434,9 @@ func NewSinker(lgr log.Logger, dst *MongoDestination, mtrcs core_metrics.Registr
 		logger:  lgr,
 		metrics: stats.NewSinkerStats(mtrcs),
 		config:  dst,
+		source:  source,
+
+		patchTimeMutex:  sync.Mutex{},
+		latestPatchTime: primitive.Timestamp{T: 0, I: 0},
 	}, nil
 }

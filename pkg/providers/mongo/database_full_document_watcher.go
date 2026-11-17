@@ -23,6 +23,13 @@ type databaseFullDocumentWatcher struct {
 	changeStream *mongo_driver.ChangeStream
 }
 
+// patchEventTypes are the events of a stream opened with showExpandedEvents which it would deliver without the
+// option as well. The option is needed for disambiguatedPaths only.
+var patchEventTypes = bson.A{
+	OperationTypeInsert, OperationTypeUpdate, OperationTypeReplace, OperationTypeDelete,
+	OperationTypeDrop, OperationTypeRename, OperationTypeDropDatabase, OperationTypeInvalidate,
+}
+
 func (f *databaseFullDocumentWatcher) GetResumeToken() bson.Raw {
 	return f.changeStream.ResumeToken()
 }
@@ -45,12 +52,23 @@ func (f *databaseFullDocumentWatcher) Watch(ctx context.Context, pusher changeEv
 		decodeTime := time.Since(st)
 
 		// NOTE: if we don't handle the invalidate keyEvent, MongoDB driver stucks in an infinite loop inside changeStream.Next()
-		if chgEvent.OperationType == "invalidate" {
+		if chgEvent.OperationType == OperationTypeInvalidate {
 			return xerrors.Errorf(
 				"Invalidate keyEvent on full document change stream for database %s: %v",
 				f.database.Name(),
 				chgEvent,
 			)
+		}
+
+		if chgEvent.OperationType == OperationTypeUpdate && chgEvent.UpdateDescription != nil &&
+			chgEvent.UpdateDescription.HasDottedFieldName() {
+			found, err := f.lookupFullDocument(ctx, &chgEvent)
+			if err != nil {
+				return xerrors.Errorf("cannot look up a document updated at a field with a dot in its name: %w", err)
+			}
+			if !found {
+				continue // deleted since, the delete event is ahead
+			}
 		}
 
 		if err := pusher(ctx, &changeEvent{
@@ -67,6 +85,21 @@ func (f *databaseFullDocumentWatcher) Watch(ctx context.Context, pusher changeEv
 	}
 
 	return f.changeStream.Err()
+}
+
+// lookupFullDocument turns an update event into one carrying the current document instead of the description.
+func (f *databaseFullDocumentWatcher) lookupFullDocument(ctx context.Context, event *ChangeEvent) (bool, error) {
+	collection := f.database.Collection(event.Namespace.Collection)
+	documents, err := findCurrentDocuments(ctx, collection, []interface{}{event.DocumentKey.ID}, event.ClusterTime)
+	if err != nil {
+		return false, xerrors.Errorf("cannot find the document in %s: %w", event.Namespace.GetFullName(), err)
+	}
+	if len(documents) == 0 {
+		return false, nil
+	}
+	event.FullDocument = documents[0]
+	event.UpdateDescription = nil
+	return true, nil
 }
 
 func (s *mongoSource) pipelineToJSON(pipeline mongo_driver.Pipeline) string {
@@ -95,7 +128,16 @@ func (s *mongoSource) toJSON(bsonValue interface{}) string {
 	return string(data)
 }
 
-func NewDatabaseFullDocumentWatcher(s *mongoSource, dbPu ParallelizationUnitDatabase, rs MongoReplicationSource) (*databaseFullDocumentWatcher, error) {
+// NewDatabaseFullDocumentWatcher opens the change stream of a database delivering update events either with the
+// document (MongoReplicationSourcePerDatabaseFullDocument) or with the description of the update
+// (MongoReplicationSourcePerDatabaseUpdateDocument). With expandedEvents the description tells dotted field names
+// apart, see UpdateDescription.DisambiguatedPaths.
+func NewDatabaseFullDocumentWatcher(
+	s *mongoSource,
+	dbPu ParallelizationUnitDatabase,
+	rs MongoReplicationSource,
+	expandedEvents bool,
+) (*databaseFullDocumentWatcher, error) {
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 
@@ -117,6 +159,12 @@ func NewDatabaseFullDocumentWatcher(s *mongoSource, dbPu ParallelizationUnitData
 		// our makeChangeItem in source.go does not use update description, although it is the most probable reason of BSONObjTooLarge
 		pipelineProject = append(pipelineProject, bson.E{Key: "updateDescription", Value: 0})
 	}
+	if expandedEvents {
+		operationTypes := bson.D{{Key: "$in", Value: patchEventTypes}}
+		pipeline = append(pipeline, bson.D{
+			{Key: "$match", Value: bson.D{{Key: "operationType", Value: operationTypes}}},
+		})
+	}
 	pipeline = append(pipeline, bson.D{
 		// experimental: remove fullDocument._id from full document for space optimization
 		// key is available as documentKey._id as alternative
@@ -129,6 +177,9 @@ func NewDatabaseFullDocumentWatcher(s *mongoSource, dbPu ParallelizationUnitData
 		opts.SetFullDocument(mongo_options.UpdateLookup) // creates FullDocument field in change stream
 	} else {
 		opts.SetFullDocument(mongo_options.Default)
+	}
+	if expandedEvents {
+		opts.SetShowExpandedEvents(true)
 	}
 
 	ts, err := dbPu.GetClusterTime(s.ctx, s.client)
@@ -153,6 +204,11 @@ func NewDatabaseFullDocumentWatcher(s *mongoSource, dbPu ParallelizationUnitData
 	if err != nil {
 		if isFatalMongoCode(err) {
 			err = abstract.NewFatalError(err)
+		} else if expandedEvents {
+			// Without the option dotted field names are not told apart, and a patch would corrupt such a field.
+			s.logger.Warn("Cannot watch database with expanded events, falling back to full documents",
+				log.String("database", dbName), log.Error(err))
+			return NewDatabaseFullDocumentWatcher(s, dbPu, MongoReplicationSourcePerDatabaseFullDocument, false)
 		}
 		return nil, xerrors.Errorf("Cannot watch database %s: %w", dbName, err)
 	}

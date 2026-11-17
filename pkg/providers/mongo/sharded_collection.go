@@ -2,7 +2,6 @@ package mongo
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
@@ -53,7 +52,7 @@ func (c *shardedCollectionSinkContext) Init(ctx context.Context, documentIDs []d
 
 	c.docKeysCache = map[string]bson.M{}
 	for _, key := range result {
-		c.docKeysCache[fmt.Sprintf("%#v", key["_id"])] = key
+		c.docKeysCache[documentIDString(key["_id"])] = key
 	}
 	return nil
 }
@@ -128,27 +127,45 @@ func getResultDocumentKey(item *abstract.ChangeItem, storedDocKey bson.M, shardK
 	if storedDocKey == nil {
 		return resultKey, false, nil
 	}
-	if item.Kind == abstract.MongoUpdateDocumentKind {
-		updateItem, err := NewUpdateDocumentChangeItem(item)
-		if err != nil {
-			return nil, false, xerrors.Errorf("invalid ChangeItem for MongoUpdateDocumentKind: %w", err)
-		}
-		if updateItem.IsApplicablePatch() { // otherwise full document will be used
-			keyPatch := updateItem.CheckDiffByKeys(shardKeyFields)
-			resultKey, err = updateDocument(storedDocKey, keyPatch)
-			if err != nil {
-				return nil, false, xerrors.Errorf("cannot define result document key after operation: %w", err)
-			}
-		}
-	}
 	keyChanged = hasDiff(storedDocKey, resultKey, shardKeyFields)
 	return resultKey, keyChanged, nil
 }
 
-func newShardedCollectionSinkContext(ctx context.Context, client *MongoClientWrapper, collection Namespace, lgr log.Logger) *shardedCollectionSinkContext {
-	shardKey, err := GetShardingKey(ctx, client, collection)
-	if err != nil {
-		lgr.Debugf("cannot get sharding key for %v: %v", collection.GetFullName(), err)
+func newShardedCollectionSinkContext(
+	ctx context.Context,
+	client *MongoClientWrapper,
+	collection Namespace,
+	lgr log.Logger,
+	requireMetadata bool,
+) (*shardedCollectionSinkContext, error) {
+	var shardKey *ShardKeysInfo
+	if !requireMetadata {
+		// Full-document-only batches retain their existing best-effort metadata lookup.
+		var err error
+		shardKey, err = GetShardingKey(ctx, client, collection)
+		if err != nil {
+			lgr.Debugf("cannot get sharding key for %v: %v", collection.GetFullName(), err)
+		}
+	} else {
+		var server struct {
+			Msg      string `bson:"msg"`
+			IsMaster *bool  `bson:"ismaster"`
+		}
+		// isMaster also works on MongoDB 4.4, where hello is not yet available.
+		command := bson.D{{Key: "isMaster", Value: 1}}
+		if err := client.Database("admin").RunCommand(ctx, command).Decode(&server); err != nil {
+			return nil, xerrors.Errorf("cannot identify server type for %v: %w", collection.GetFullName(), err)
+		}
+		if server.Msg == "isdbgrid" {
+			var err error
+			shardKey, err = GetShardingKey(ctx, client, collection)
+			if err != nil {
+				return nil, xerrors.Errorf("cannot get sharding key for %v: %w", collection.GetFullName(), err)
+			}
+		} else if server.IsMaster == nil {
+			return nil, xerrors.Errorf("cannot identify server type for %v: unrecognized isMaster response",
+				collection.GetFullName())
+		}
 	}
 	return &shardedCollectionSinkContext{
 		client:       client,
@@ -156,5 +173,5 @@ func newShardedCollectionSinkContext(ctx context.Context, client *MongoClientWra
 		shardKey:     shardKey,
 		enabled:      shardKey != nil,
 		docKeysCache: map[string]bson.M{},
-	}
+	}, nil
 }

@@ -24,7 +24,7 @@ type localOplogRsWatcher struct {
 
 	initialTime     primitive.Timestamp
 	config          *MongoSource
-	shouldReplicate func(optype string, ns Namespace) bool
+	shouldReplicate func(optype OperationType, ns Namespace) bool
 	txnTracker      *oplogTxnTracker
 
 	fullWhereStatementCache *bson.D
@@ -228,20 +228,20 @@ func (w localOplogRsWatcher) watchBatchFrom(ctx context.Context, ts primitive.Ti
 	return until, eventsRead, err
 }
 
-func makeOplogShouldReplicate(config *MongoSource) func(opType string, ns Namespace) bool {
+func makeOplogShouldReplicate(config *MongoSource) func(opType OperationType, ns Namespace) bool {
 	techDB := config.TechnicalDatabase
 	if techDB == "" {
 		techDB = DataTransferSystemDatabase
 	}
 
-	return func(opType string, ns Namespace) bool {
-		if opType == "noop" {
+	return func(opType OperationType, ns Namespace) bool {
+		if opType == OperationTypeNoop {
 			return true
 		}
 		if yslices.Contains(SystemDBs, ns.Database) || ns.Database == techDB {
 			return false
 		}
-		if opType == "dropDatabase" {
+		if opType == OperationTypeDropDatabase {
 			// TODO(@kry127) discuss this solution
 			if len(config.Collections) == 0 {
 				return true // replicate all strategy

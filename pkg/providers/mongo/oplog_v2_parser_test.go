@@ -69,19 +69,19 @@ func TestOplogV2Parser_ApplyOpsTransaction(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 4)
 
-	require.Equal(t, "update", events[0].OperationType)
+	require.Equal(t, OperationTypeUpdate, events[0].OperationType)
 	require.Equal(t, Namespace{Database: "payment-platform", Collection: "invoices"}, events[0].Namespace)
 	require.Equal(t, invoiceID, events[0].DocumentKey.ID)
 
-	require.Equal(t, "update", events[1].OperationType)
+	require.Equal(t, OperationTypeUpdate, events[1].OperationType)
 	require.Equal(t, Namespace{Database: "payment-platform", Collection: "transaction_projections"}, events[1].Namespace)
 	require.Equal(t, projectionID, events[1].DocumentKey.ID)
 
-	require.Equal(t, "insert", events[2].OperationType)
+	require.Equal(t, OperationTypeInsert, events[2].OperationType)
 	require.Equal(t, Namespace{Database: "payment-platform", Collection: "events"}, events[2].Namespace)
 	require.Equal(t, "evt-1", events[2].DocumentKey.ID)
 
-	require.Equal(t, "delete", events[3].OperationType)
+	require.Equal(t, OperationTypeDelete, events[3].OperationType)
 	require.Equal(t, Namespace{Database: "payment-platform", Collection: "events"}, events[3].Namespace)
 	require.Equal(t, "evt-0", events[3].DocumentKey.ID)
 
@@ -118,7 +118,7 @@ func TestOplogV2Parser_ApplyOpsPreparedAndPartial(t *testing.T) {
 	events, err := entry.toMongoKeyChangeEvents(logger.Log)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.Equal(t, "insert", events[0].OperationType)
+	require.Equal(t, OperationTypeInsert, events[0].OperationType)
 	require.Equal(t, "a", events[0].DocumentKey.ID)
 	require.Equal(t, ts, events[0].ClusterTime)
 }
@@ -154,7 +154,7 @@ func TestOplogV2Parser_PlainEntries(t *testing.T) {
 	events, err := insert.toMongoKeyChangeEvents(logger.Log)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.Equal(t, "insert", events[0].OperationType)
+	require.Equal(t, OperationTypeInsert, events[0].OperationType)
 	require.Equal(t, Namespace{Database: "db1", Collection: "coll1"}, events[0].Namespace)
 	require.Equal(t, int32(1), events[0].DocumentKey.ID)
 	require.Equal(t, ts, events[0].ClusterTime)
@@ -169,7 +169,7 @@ func TestOplogV2Parser_PlainEntries(t *testing.T) {
 	events, err = noop.toMongoKeyChangeEvents(logger.Log)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.Equal(t, "noop", events[0].OperationType)
+	require.Equal(t, OperationTypeNoop, events[0].OperationType)
 	require.Equal(t, ts, events[0].ClusterTime)
 
 	create := decodeOplogEntry(t, bson.D{
@@ -182,7 +182,7 @@ func TestOplogV2Parser_PlainEntries(t *testing.T) {
 	events, err = create.toMongoKeyChangeEvents(logger.Log)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.Equal(t, "create", events[0].OperationType)
+	require.Equal(t, OperationTypeCreate, events[0].OperationType)
 	require.Equal(t, Namespace{Database: "db1", Collection: "coll2"}, events[0].Namespace)
 }
 

@@ -78,7 +78,7 @@ func getDocumentID(chgItem *abstract.ChangeItem) (documentID, error) {
 			id.Raw = generatedID
 		}
 	}
-	id.String = fmt.Sprintf("%#v", id.Raw)
+	id.String = documentIDString(id.Raw)
 	return *id, nil
 }
 

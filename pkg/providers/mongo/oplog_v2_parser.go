@@ -69,7 +69,7 @@ func newNoopChangeEvent(clusterTime primitive.Timestamp) *KeyChangeEvent {
 	var documentKey DocumentKey
 	var namespace, toNamespace Namespace
 	return &KeyChangeEvent{
-		OperationType: "noop",
+		OperationType: OperationTypeNoop,
 		DocumentKey:   documentKey,
 		Namespace:     namespace,
 		ToNamespace:   toNamespace,
@@ -117,7 +117,7 @@ func (e oplogRsChangeEventV2) applyOpsToKeyChangeEvents(logger log.Logger, apply
 		if err != nil {
 			return nil, xerrors.Errorf("cannot convert applyOps[%d] of oplog entry %v: %w", i, e.Timestamp, err)
 		}
-		if event == nil || event.OperationType == "noop" {
+		if event == nil || event.OperationType == OperationTypeNoop {
 			continue
 		}
 		result = append(result, event)
@@ -135,7 +135,7 @@ func (e oplogRsChangeEventV2) toMongoKeyChangeEvent(log log.Logger) (*KeyChangeE
 	if originalNs == nil && e.OperationType != "n" {
 		return nil, xerrors.Errorf("invalid namespace %q in operation type %s", e.NamespaceRaw, e.OperationType)
 	}
-	var operationType string
+	var operationType OperationType
 	var documentKey DocumentKey
 	var namespace, toNamespace Namespace
 
@@ -145,19 +145,19 @@ func (e oplogRsChangeEventV2) toMongoKeyChangeEvent(log log.Logger) (*KeyChangeE
 		if err := bson.Unmarshal(e.Object, &doc); err != nil {
 			return nil, xerrors.Errorf("document unmarshal error in operation type %s: %w", e.OperationType, err)
 		}
-		operationType, namespace, documentKey = "insert", *originalNs, DocumentKey{ID: doc.Map()["_id"]}
+		operationType, namespace, documentKey = OperationTypeInsert, *originalNs, DocumentKey{ID: doc.Map()["_id"]}
 	case "u":
 		var key DocumentKey
 		if err := bson.Unmarshal(e.Object2, &key); err != nil {
 			return nil, xerrors.Errorf("document key unmarshal error in operation type %s: %w", e.OperationType, err)
 		}
-		operationType, namespace, documentKey = "update", *originalNs, key
+		operationType, namespace, documentKey = OperationTypeUpdate, *originalNs, key
 	case "d":
 		var key DocumentKey
 		if err := bson.Unmarshal(e.Object, &key); err != nil {
 			return nil, xerrors.Errorf("document key unmarshal error in operation type %s: %w", e.OperationType, err)
 		}
-		operationType, namespace, documentKey = "delete", *originalNs, key
+		operationType, namespace, documentKey = OperationTypeDelete, *originalNs, key
 	case "c":
 		var selector oplogRsChangeEventV2CommandSelector
 		if err := bson.Unmarshal(e.Object, &selector); err != nil {
@@ -165,16 +165,16 @@ func (e oplogRsChangeEventV2) toMongoKeyChangeEvent(log log.Logger) (*KeyChangeE
 		}
 		switch selector.toType() {
 		case oplogRsChangeEventV2CommandTypeCreate:
-			operationType, namespace = "create", MakeNamespace(originalNs.Database, selector.Create)
+			operationType, namespace = OperationTypeCreate, MakeNamespace(originalNs.Database, selector.Create)
 		case oplogRsChangeEventV2CommandTypeRename:
 			nsFrom := ParseNamespace(selector.RenameCollection)
 			nsTo := ParseNamespace(selector.RenamedTo)
-			operationType, namespace, toNamespace = "rename", *nsFrom, *nsTo
+			operationType, namespace, toNamespace = OperationTypeRename, *nsFrom, *nsTo
 		case oplogRsChangeEventV2CommandTypeDrop:
-			operationType, namespace = "drop", MakeNamespace(originalNs.Database, selector.Drop)
+			operationType, namespace = OperationTypeDrop, MakeNamespace(originalNs.Database, selector.Drop)
 		case oplogRsChangeEventV2CommandTypeDropdatabase:
 			// TODO(@kry127) what is the collection? This is database only
-			operationType, namespace = "dropDatabase", MakeNamespace(originalNs.Database, "")
+			operationType, namespace = OperationTypeDropDatabase, MakeNamespace(originalNs.Database, "")
 		default:
 			if selector.isTransactionControl() {
 				return nil, nil

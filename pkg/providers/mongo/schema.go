@@ -189,10 +189,6 @@ func (u *UpdateDocumentChangeItem) HasTruncatedArrays() bool {
 	return len(u.TruncatedArrays()) > 0
 }
 
-func (u *UpdateDocumentChangeItem) IsApplicablePatch() bool {
-	return !u.HasTruncatedArrays() && (len(u.UpdatedFields()) > 0 || len(u.RemovedFields()) > 0)
-}
-
 func (u *UpdateDocumentChangeItem) FullDocument() bson.D {
 	idx := UpdateDocumentSchema.Indexes[FullDocument]
 	return u.item.ColumnValues[idx].(bson.D)

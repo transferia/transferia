@@ -62,7 +62,7 @@ func (f *databaseDocumentKeyWatcher) Watch(ctx context.Context, changeEventPushe
 		decodeTime := time.Since(st)
 
 		// NOTE: if we don't handle the invalidate keyEvent, MongoDB driver stucks in an infinite loop inside changeStream.Next()
-		if docIDEvent.OperationType == "invalidate" {
+		if docIDEvent.OperationType == OperationTypeInvalidate {
 			return xerrors.Errorf(
 				"Invalidate keyEvent on full document change stream for database %s: %v",
 				f.databaseName,

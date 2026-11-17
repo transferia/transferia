@@ -379,7 +379,7 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 	chgEvent := readEvent.event
 	rawEventSize := uint64(readEvent.size)
 	switch chgEvent.OperationType {
-	case "insert":
+	case OperationTypeInsert:
 		item := DExt(chgEvent.FullDocument)
 		if item == nil {
 			return abstract.ChangeItem{}, xerrors.New("Empty FullDocument")
@@ -407,7 +407,7 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 			Query:            "",
 			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
-	case "delete":
+	case OperationTypeDelete:
 		key, err := s.extractKey(chgEvent.DocumentKey.ID)
 		if err != nil {
 			return abstract.ChangeItem{}, xerrors.Errorf("cannot extract key for delete event: %w", err)
@@ -434,12 +434,12 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 			Query:            "",
 			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
-	case "update", "replace":
+	case OperationTypeUpdate, OperationTypeReplace:
 		key, err := s.extractKey(chgEvent.DocumentKey.ID)
 		if err != nil {
 			return abstract.ChangeItem{}, xerrors.Errorf("cannot extract key for update event: %w", err)
 		}
-		if chgEvent.OperationType == "update" && chgEvent.UpdateDescription != nil && s.config.IsHomo {
+		if chgEvent.OperationType == OperationTypeUpdate && chgEvent.UpdateDescription != nil && s.config.IsHomo {
 			return abstract.ChangeItem{
 				ID:          0,
 				LSN:         uint64(chgEvent.ClusterTime.T),
@@ -496,7 +496,7 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 			Query:            "",
 			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
-	case "create":
+	case OperationTypeCreate:
 		return abstract.ChangeItem{
 			ID:               0,
 			LSN:              uint64(chgEvent.ClusterTime.T),
@@ -515,7 +515,7 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 			Query:            "",
 			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
-	case "drop":
+	case OperationTypeDrop:
 		return abstract.ChangeItem{
 			ID:               0,
 			LSN:              uint64(chgEvent.ClusterTime.T),
@@ -534,7 +534,7 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 			Query:            "",
 			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
-	case "rename":
+	case OperationTypeRename:
 		return abstract.ChangeItem{
 			ID:          0,
 			LSN:         uint64(chgEvent.ClusterTime.T),
@@ -559,7 +559,7 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 			Query:            "",
 			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
-	case "dropDatabase":
+	case OperationTypeDropDatabase:
 		return abstract.ChangeItem{
 			ID:               0,
 			LSN:              uint64(chgEvent.ClusterTime.T),
@@ -578,7 +578,7 @@ func (s *mongoSource) makeChangeItem(readEvent *puChangeEvent) (abstract.ChangeI
 			Query:            "",
 			QueueMessageMeta: changeitem.QueueMessageMeta{TopicName: "", PartitionNum: 0, Offset: 0, Index: 0},
 		}, nil
-	case "noop":
+	case OperationTypeNoop:
 		return abstract.ChangeItem{
 			ID:               0,
 			LSN:              uint64(chgEvent.ClusterTime.T),
@@ -636,7 +636,16 @@ func (s *mongoSource) openChangeStreams() (map[ParallelizationUnit]ChangeStreamW
 	case MongoReplicationSourceUnspecified:
 		fallthrough
 	case MongoReplicationSourcePerDatabase, MongoReplicationSourcePerDatabaseFullDocument, MongoReplicationSourcePerDatabaseUpdateDocument:
-		if changeStreams, err := s.openPerDatabaseChangeStreams(replicationSource); err != nil {
+		if replicationSource == MongoReplicationSourcePerDatabaseUpdateDocument {
+			if reason := updateDocumentObstacle(s.config, mongoVersion); reason != "" {
+				s.logger.Infof("Falling back from update descriptions to full documents: %v", reason)
+				replicationSource = MongoReplicationSourcePerDatabaseFullDocument
+			}
+		}
+		// Before MongoDB 5.0 an update cannot change a field with a dot in its name, there is nothing to tell apart.
+		expandedEvents := replicationSource == MongoReplicationSourcePerDatabaseUpdateDocument &&
+			mongoVersion.GTE(MongoVersion6_1)
+		if changeStreams, err := s.openPerDatabaseChangeStreams(replicationSource, expandedEvents); err != nil {
 			return nil, xerrors.Errorf("couldn't open per-database change streams: %w", err)
 		} else {
 			return changeStreams, nil
@@ -652,7 +661,10 @@ func (s *mongoSource) openChangeStreams() (map[ParallelizationUnit]ChangeStreamW
 	}
 }
 
-func (s *mongoSource) openPerDatabaseChangeStreams(rs MongoReplicationSource) (map[ParallelizationUnit]ChangeStreamWatcher, error) {
+func (s *mongoSource) openPerDatabaseChangeStreams(
+	rs MongoReplicationSource,
+	expandedEvents bool,
+) (map[ParallelizationUnit]ChangeStreamWatcher, error) {
 	rollbacks := util.Rollbacks{}
 	defer rollbacks.Do()
 	changeStreams := map[ParallelizationUnit]ChangeStreamWatcher{}
@@ -687,7 +699,7 @@ func (s *mongoSource) openPerDatabaseChangeStreams(rs MongoReplicationSource) (m
 		case MongoReplicationSourcePerDatabase:
 			watcher, err = NewDatabaseDocumentKeyWatcher(s, pu)
 		case MongoReplicationSourcePerDatabaseFullDocument, MongoReplicationSourcePerDatabaseUpdateDocument:
-			watcher, err = NewDatabaseFullDocumentWatcher(s, pu, rs)
+			watcher, err = NewDatabaseFullDocumentWatcher(s, pu, rs, expandedEvents)
 		default:
 			return nil, abstract.NewFatalError(xerrors.Errorf("Inapplicable replication source: %s", rs))
 		}
@@ -788,10 +800,20 @@ func overrideFilter(filter MongoCollectionFilter, includeTables map[abstract.Tab
 	return filter
 }
 
-func NewSource(src *MongoSource, transferID string, objects *model.DataObjects, logger log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator) (abstract.Source, error) {
+// replicatedCollections returns the collection filter of the source narrowed by the objects of the transfer.
+func replicatedCollections(src *MongoSource, objects *model.DataObjects) (MongoCollectionFilter, error) {
 	includeObjects, err := abstract.BuildIncludeMap(objects.GetIncludeObjects(), ProviderType)
 	if err != nil {
-		return nil, abstract.NewFatalError(xerrors.Errorf("to build exclude map: %w", err))
+		empty := MongoCollectionFilter{Collections: nil, ExcludedCollections: nil}
+		return empty, xerrors.Errorf("to build exclude map: %w", err)
+	}
+	return overrideFilter(src.GetMongoCollectionFilter(), includeObjects), nil
+}
+
+func NewSource(src *MongoSource, transferID string, objects *model.DataObjects, logger log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator) (abstract.Source, error) {
+	filter, err := replicatedCollections(src, objects)
+	if err != nil {
+		return nil, abstract.NewFatalError(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	doneChannel := make(chan error)
@@ -800,7 +822,7 @@ func NewSource(src *MongoSource, transferID string, objects *model.DataObjects, 
 		metrics:              stats.NewSourceStats(registry),
 		cp:                   cp,
 		config:               src,
-		filter:               overrideFilter(src.GetMongoCollectionFilter(), includeObjects),
+		filter:               filter,
 		ctx:                  ctx,
 		cancel:               cancel,
 		doneChannel:          doneChannel,

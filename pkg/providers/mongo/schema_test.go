@@ -93,7 +93,6 @@ func TestUpdateDocumentChangeItem(t *testing.T) {
 	}
 	updateItem, err := NewUpdateDocumentChangeItem(&changeItem)
 	require.NoError(t, err)
-	require.True(t, updateItem.IsApplicablePatch())
 	patch := updateItem.CheckDiffByKeys([]string{"document.a", "document.b", "document.c"})
 	require.Equal(t, len(patch), 3)
 	require.Equal(t, patch["document.a"], "nrg4g5dp")
@@ -129,7 +128,6 @@ func TestCheckDiffByKeys_FlatDottedNotation(t *testing.T) {
 
 	updateItem, err := NewUpdateDocumentChangeItem(&changeItem)
 	require.NoError(t, err)
-	require.True(t, updateItem.IsApplicablePatch())
 
 	patch := updateItem.CheckDiffByKeys([]string{"driver.name", "status", "nonexistent", "old_field"})
 

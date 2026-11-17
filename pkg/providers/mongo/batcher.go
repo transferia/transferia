@@ -128,7 +128,7 @@ func (f *keyBatcher) PushKeyChangeEvent(keyEvent *keyChangeEvent) error {
 	docIDEvent := keyEvent.keyEvent
 
 	switch docIDEvent.OperationType {
-	case "insert", "update", "replace", "delete", "noop":
+	case OperationTypeInsert, OperationTypeUpdate, OperationTypeReplace, OperationTypeDelete, OperationTypeNoop:
 		// postpone insert and update change events for upload from pure cursor
 		err := f.putInBatch(keyEvent)
 		if err != nil {
@@ -348,7 +348,7 @@ func (f *keyBatcher) processBatch(batchAndMetainfo keyBatch) error {
 		inList := bson.A{}
 		for _, key := range keys {
 			switch key.keyEvent.OperationType {
-			case "insert", "update", "replace":
+			case OperationTypeInsert, OperationTypeUpdate, OperationTypeReplace:
 				inList = append(inList, key.keyEvent.DocumentKey.ID)
 				keysToFetch++
 			default:

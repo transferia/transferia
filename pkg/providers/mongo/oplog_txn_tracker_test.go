@@ -64,8 +64,8 @@ func TestOplogTxnTracker_PreparedCommit(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 2)
 	require.Equal(t, 600, size)
-	require.Equal(t, "insert", events[0].OperationType)
-	require.Equal(t, "delete", events[1].OperationType)
+	require.Equal(t, OperationTypeInsert, events[0].OperationType)
+	require.Equal(t, OperationTypeDelete, events[1].OperationType)
 	for _, event := range events {
 		require.Equal(t, commitTS, event.ClusterTime)
 	}
@@ -108,7 +108,7 @@ func TestOplogTxnTracker_UnpreparedImplicitCommit(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	require.Equal(t, 100, size)
-	require.Equal(t, "insert", events[0].OperationType)
+	require.Equal(t, OperationTypeInsert, events[0].OperationType)
 	require.Equal(t, ts, events[0].ClusterTime)
 
 	_, held := tracker.HoldTS(ts)
@@ -269,7 +269,7 @@ func TestOplogTxnTracker_PlainEntriesPassThrough(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	require.Equal(t, 100, size)
-	require.Equal(t, "insert", events[0].OperationType)
+	require.Equal(t, OperationTypeInsert, events[0].OperationType)
 
 	// applyOps without lsid (manual admin command) is applied immediately
 	manualApplyOps := decodeOplogEntry(t, bson.D{
@@ -298,7 +298,7 @@ func TestOplogTxnTracker_PlainEntriesPassThrough(t *testing.T) {
 	events, _, err = tracker.Process(retryable, ts, 100)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.Equal(t, "delete", events[0].OperationType)
+	require.Equal(t, OperationTypeDelete, events[0].OperationType)
 	require.Equal(t, "r", events[0].DocumentKey.ID)
 
 	_, held := tracker.HoldTS(ts)

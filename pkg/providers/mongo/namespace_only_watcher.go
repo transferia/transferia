@@ -41,7 +41,7 @@ func (f *oneshotNamespaceRetriever) GetNamespace(ctx context.Context) (*Namespac
 		}
 
 		// NOTE: if we don't handle the invalidate keyEvent, MongoDB driver stucks in an infinite loop inside changeStream.Next()
-		if chgEvent.OperationType == "invalidate" {
+		if chgEvent.OperationType == OperationTypeInvalidate {
 			return nil, xerrors.Errorf(
 				"Invalidate keyEvent on change stream for database %s: %v",
 				f.database.Name(),

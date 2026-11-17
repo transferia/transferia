@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -23,6 +24,7 @@ import (
 	"github.com/transferia/transferia/tests/helpers/testmetrics"
 	transferhelpers "github.com/transferia/transferia/tests/helpers/transfer"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
@@ -166,6 +168,90 @@ func Load(t *testing.T) {
 
 	_, err = coll.UpdateMany(context.Background(), bson.M{"age": bson.M{"$lte": 21}}, bson.D{{Key: "$set", Value: bson.D{{Key: "City", Value: "Gotham"}}}})
 	require.NoError(t, err)
+
+	//------------------------------------------------------------------------------------
+	// updates of every kind an update description may hold
+
+	dstClient, err := MakeDstClient(&Target)
+	require.NoError(t, err)
+	defer func() { _ = dstClient.Close(context.Background()) }()
+	dstColl := dstClient.Database("db").Collection("timmyb32r_test")
+
+	ctx := context.Background()
+	byID := func(id string) bson.D { return bson.D{{Key: "_id", Value: id}} }
+	update := func(id string, update interface{}) {
+		result, err := coll.UpdateOne(ctx, byID(id), update)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, result.MatchedCount)
+	}
+	set := func(field string, value interface{}) bson.D {
+		return bson.D{{Key: "$set", Value: bson.D{{Key: field, Value: value}}}}
+	}
+	waitSame := func(id string) {
+		var src, dst bson.M
+		same := assert.Eventually(t, func() bool {
+			src, dst = nil, nil
+			if err := coll.FindOne(ctx, byID(id)).Decode(&src); err != nil {
+				return false
+			}
+			if err := dstColl.FindOne(ctx, byID(id)).Decode(&dst); err != nil {
+				return false
+			}
+			return assert.ObjectsAreEqual(src, dst)
+		}, 60*time.Second, 200*time.Millisecond)
+		require.True(t, same, "document %v: source %v, target %v", id, src, dst)
+	}
+
+	_, err = coll.InsertOne(ctx, bson.D{
+		{Key: "_id", Value: "doc"},
+		{Key: "n", Value: bson.D{{Key: "x", Value: 1}, {Key: "y", Value: 2}}},
+		{Key: "arr", Value: bson.A{1, 2, 3, 4, 5}},
+		{Key: "objs", Value: bson.A{bson.D{{Key: "x", Value: 1}}, bson.D{{Key: "x", Value: 2}}, bson.D{{Key: "x", Value: 3}}}},
+	})
+	require.NoError(t, err)
+	update("doc", set("n.x", 10))
+	update("doc", bson.D{{Key: "$unset", Value: bson.D{{Key: "n.y", Value: ""}}}})
+	update("doc", bson.D{{Key: "$push", Value: bson.D{{Key: "arr", Value: 6}}}})
+	update("doc", set("arr.0", 100))
+	// truncates the array (MongoDB 5.0+ reports it as truncatedArrays, older ones as the whole new array)
+	update("doc", mongo.Pipeline{set("arr", bson.D{{Key: "$slice", Value: bson.A{"$arr", 3}}})})
+	// truncates the array and changes the elements left
+	update("doc", mongo.Pipeline{set("objs", bson.A{bson.D{{Key: "x", Value: 10}}, bson.D{{Key: "x", Value: 20}}})})
+	update("doc", bson.D{{Key: "$pop", Value: bson.D{{Key: "arr", Value: 1}}}})
+	waitSame("doc")
+
+	// the target lost the document: the update must bring it back whole, not as a stub of the changed fields
+	_, err = dstColl.DeleteOne(ctx, byID("doc"))
+	require.NoError(t, err)
+	update("doc", set("n.x", 11))
+	waitSame("doc")
+
+	// the document of the target is not the one the update was made for
+	_, err = dstColl.UpdateOne(ctx, byID("doc"), set("n", "scalar"))
+	require.NoError(t, err)
+	update("doc", set("n.x", 12))
+	waitSame("doc")
+
+	_, err = coll.ReplaceOne(ctx, byID("doc"), bson.D{{Key: "replaced", Value: true}})
+	require.NoError(t, err)
+	waitSame("doc")
+
+	// a field with a dot in its name: an update operator would take the name for a path of nested fields
+	version, err := provider_mongo.GetVersion(ctx, client, "")
+	require.NoError(t, err)
+	if version.GTE(provider_mongo.MongoVersion6_1) {
+		setDotted := func(value int) mongo.Pipeline {
+			return mongo.Pipeline{{{Key: "$replaceWith", Value: bson.D{{Key: "$setField", Value: bson.D{
+				{Key: "field", Value: "dot.ted"}, {Key: "input", Value: "$$ROOT"}, {Key: "value", Value: value},
+			}}}}}}
+		}
+		update("doc", setDotted(1))
+		update("doc", setDotted(2))
+		waitSame("doc")
+		var dst bson.M
+		require.NoError(t, dstColl.FindOne(ctx, byID("doc")).Decode(&dst))
+		require.EqualValues(t, 2, dst["dot.ted"])
+	}
 
 	//------------------------------------------------------------------------------------
 	// check results

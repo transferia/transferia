@@ -78,7 +78,7 @@ func TestBulkSplitter_PartialUpdateCutsBulk(t *testing.T) {
 	filter := bson.D{{Key: "_id", Value: "a"}}
 	splitter := newBulkSplitter(true)
 	splitter.Add(testReplace("a", 1), id, false)
-	splitter.Add(makeUpdateModel(filter, bson.D{{Key: "v", Value: 2}}, nil), id, false)
+	splitter.Add(makeUpdateModels(filter, bson.D{{Key: "v", Value: 2}}, nil, nil)[0], id, false)
 	splitter.Add(testReplace("a", 3), id, false)
 
 	bulks := splitter.Get()
