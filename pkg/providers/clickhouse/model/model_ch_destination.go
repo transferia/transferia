@@ -17,6 +17,7 @@ import (
 	conn_clickhouse "github.com/transferia/transferia/pkg/connection/clickhouse"
 	"github.com/transferia/transferia/pkg/middlewares/synchronizer/bufferer"
 	"go.uber.org/zap/zapcore"
+	"go.ytsaurus.tech/library/go/core/log"
 )
 
 var (
@@ -76,6 +77,7 @@ type ChDestination struct {
 	// ExactlyOnceSnapshot stages and verifies complete snapshots before publishing them.
 	// Homogeneous ClickHouse transfers keep their existing abstract2 path.
 	// Replication continues to use the ordinary sink. Disabled by default.
+	// The transfer label dt-ch-exactly-once-snapshot overrides this setting.
 	ExactlyOnceSnapshot bool `log:"true"`
 
 	// Insert settings
@@ -304,6 +306,20 @@ func (d *ChDestination) ToReplicationFromPGSinkParams() ChDestinationWrapper {
 }
 
 func (d *ChDestination) FillDependentFields(transfer *model.Transfer) {
+	if value, err := transfer.FeatureLabel(model.FeatureLabelCHExactlyOnceSnapshot); err == nil {
+		switch value {
+		case "on":
+			d.ExactlyOnceSnapshot = true
+		case "off":
+			d.ExactlyOnceSnapshot = false
+		default:
+			logger.Log.Warn("ignoring invalid ClickHouse exactly-once snapshot label; keeping endpoint setting",
+				log.String("transfer_id", transfer.ID),
+				log.String("label", string(model.FeatureLabelCHExactlyOnceSnapshot)),
+				log.String("value", value))
+		}
+	}
+
 	if !model.IsAppendOnlySource(transfer.Src) && !transfer.SnapshotOnly() {
 		d.IsUpdateable = true
 		if d.ShardCol != "" {

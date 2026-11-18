@@ -6,9 +6,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/transferia/transferia/internal/logger"
+	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/connection"
 	"github.com/transferia/transferia/pkg/connection/clickhouse"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
+	logzap "go.ytsaurus.tech/library/go/core/log/zap"
 )
 
 func TestExactlyOnceAltNamesValidation(t *testing.T) {
@@ -148,4 +154,50 @@ func TestInsertParamsAsURLParams(t *testing.T) {
 		url.Values{"max_partitions_per_insert_block": []string{"0"}},
 		InsertParams{UnlimitedPartitionsPerInsertBlock: true}.AsURLParams(),
 	)
+}
+
+func TestExactlyOnceSnapshotLabel(t *testing.T) {
+	originalLogger := logger.Log
+	t.Cleanup(func() { logger.Log = originalLogger })
+
+	for _, endpointEnabled := range []bool{false, true} {
+		for _, scenario := range []struct {
+			name     string
+			labels   string
+			expected bool
+			warning  bool
+		}{
+			{name: "missing", labels: `{}`, expected: endpointEnabled},
+			{name: "empty labels", labels: "", expected: endpointEnabled},
+			{name: "on", labels: `{"dt-ch-exactly-once-snapshot":"on"}`, expected: true},
+			{name: "off", labels: `{"dt-ch-exactly-once-snapshot":"off"}`, expected: false},
+			{name: "unknown", labels: `{"dt-ch-exactly-once-snapshot":"true"}`, expected: endpointEnabled, warning: true},
+			{name: "empty value", labels: `{"dt-ch-exactly-once-snapshot":""}`, expected: endpointEnabled, warning: true},
+			{name: "uppercase", labels: `{"dt-ch-exactly-once-snapshot":"ON"}`, expected: endpointEnabled, warning: true},
+		} {
+			t.Run(fmt.Sprintf("%s/endpoint=%t", scenario.name, endpointEnabled), func(t *testing.T) {
+				core, logs := observer.New(zapcore.WarnLevel)
+				logger.Log = &logzap.Logger{L: zap.New(core)}
+				destination := &ChDestination{ExactlyOnceSnapshot: endpointEnabled}
+				transfer := &model.Transfer{
+					ID:     "label-test",
+					Type:   abstract.TransferTypeSnapshotOnly,
+					Labels: scenario.labels,
+					Dst:    destination,
+				}
+
+				transfer.FillDependentFields()
+
+				require.Equal(t, scenario.expected, destination.ExactlyOnceSnapshot)
+				if scenario.warning {
+					require.Equal(t, 1, logs.Len())
+					fields := logs.All()[0].ContextMap()
+					require.Equal(t, "label-test", fields["transfer_id"])
+					require.Equal(t, "dt-ch-exactly-once-snapshot", fields["label"])
+				} else {
+					require.Zero(t, logs.Len())
+				}
+			})
+		}
+	}
 }

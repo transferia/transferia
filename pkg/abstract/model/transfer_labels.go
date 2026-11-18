@@ -40,6 +40,11 @@ const (
 
 	FeatureLabelAsyncCH = FeatureLabel("dt-async-ch")
 
+	// FeatureLabelCHExactlyOnceSnapshot overrides the ClickHouse endpoint setting.
+	// "on" enables exactly-once snapshots, "off" disables them.
+	// Other values are ignored with a warning.
+	FeatureLabelCHExactlyOnceSnapshot = FeatureLabel("dt-ch-exactly-once-snapshot")
+
 	// FeatureLabelMemThrottle is used to enable/disable MemoryThrorrler middleware.
 	//
 	// The only known value is "on", any other value means disabled.
