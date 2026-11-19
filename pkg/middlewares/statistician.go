@@ -35,7 +35,7 @@ func newStatistician(s abstract.Sinker, logger log.Logger, stats *stats.WrapperS
 
 		stats:         stats,
 		statsMtx:      sync.Mutex{},
-		ticker:        time.NewTicker(3 * time.Hour), // base interval should be greater than the time required to start the slowest-starting transfer
+		ticker:        time.NewTicker(15 * time.Minute), // hot fix so that transfers dont loose the lag metric for too long if job gets aborted
 		stopMonitorCh: make(chan struct{}),
 
 		NoLagForTooLongThreshold: 15 * time.Minute,
