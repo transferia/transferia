@@ -2,8 +2,11 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/library/go/ptr"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -11,6 +14,34 @@ import (
 	"github.com/transferia/transferia/pkg/providers"
 	"github.com/transferia/transferia/pkg/providers/yt"
 )
+
+func TestExtraTransformersClosesStorage(t *testing.T) {
+	ctx := t.Context()
+	poolConfig, err := pgxpool.ParseConfig("host=localhost")
+	require.NoError(t, err)
+	poolConfig.LazyConnect = true
+	poolConfig.BeforeConnect = func(context.Context, *pgx.ConnConfig) error {
+		return errors.New("unexpected PostgreSQL connection")
+	}
+	pool, err := pgxpool.ConnectConfig(ctx, poolConfig)
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	src := PgSource{CollapseInheritTables: true}
+	transfer := &model.Transfer{Src: &model.MockSource{
+		StorageFactory: func() abstract.Storage {
+			return &Storage{
+				Config:           &PgStorageParams{},
+				Conn:             pool,
+				childToParentMap: map[abstract.TableID]abstract.TableID{},
+			}
+		},
+	}}
+	transformers, err := src.ExtraTransformers(ctx, transfer, nil)
+	require.NoError(t, err)
+	require.Len(t, transformers, 1)
+	require.EqualError(t, pool.Ping(ctx), "closed pool")
+}
 
 func TestPgSourceDBLogDestinationCompatibility(t *testing.T) {
 	compatibilityErrorMessage := "DBLog is not supported for YT static tables or dynamic tables loaded through static tables; " +

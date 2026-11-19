@@ -439,6 +439,8 @@ func (s *PgSource) ExtraTransformers(ctx context.Context, transfer *model.Transf
 		if err != nil {
 			return nil, errors.CategorizedErrorf(categories.Source, "unable to resolve PG storage from transfer source: %w", err)
 		}
+		defer pgStorageAbstract.Close()
+
 		pgStorage, ok := pgStorageAbstract.(*Storage)
 		if !ok {
 			return nil, errors.CategorizedErrorf(categories.Source, "storage is not of type '%T', actual type '%T'", pgStorage, pgStorageAbstract)
