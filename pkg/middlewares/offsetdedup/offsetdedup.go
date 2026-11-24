@@ -54,12 +54,11 @@ var _ abstract.QueueToS3Sink = (*OffsetDedup)(nil)
 // OffsetDedup has two processing modes:
 //
 //   - Recovery mode starts when OffsetStore returns a Position. Redelivered
-//     ChangeItems are skipped through that exact position, including the item
-//     at the position itself. If a batch also contains newer items, the skipped
-//     offsets remain pending until those newer items succeed in the sink; only
-//     then can both groups be acknowledged safely.
-//   - Live mode starts immediately for a fresh stream, or after recovery finds
-//     the saved Position. All items are forwarded to the sink. From every
+//     ChangeItems at or before that position are skipped. If a batch contains
+//     newer items, the skipped offsets remain pending until those newer items
+//     succeed in the sink; only then can both groups be acknowledged safely.
+//   - Live mode starts immediately for a fresh stream, or at the first position
+//     after the saved Position. All items are forwarded to the sink. From every
 //     successful sink result, the complete trailing group with the same offset
 //     is withheld until a later offset arrives. Seeing a later offset proves
 //     that all ChangeItems produced by the preceding source message have been
@@ -204,8 +203,9 @@ func (o *OffsetDedup) Close() error {
 }
 
 // AsyncV2Push implements abstract.QueueToS3Sink. All non-empty pushes belong to
-// one stream and must use the same context, result channel, and table. The first
-// context becomes the stream lifetime context used by the wrapped sink.
+// one stream and must use the same context, result channel, and table. Items
+// must arrive in nondecreasing order by Offset, then Index. The first context
+// becomes the stream lifetime context used by the wrapped sink.
 func (o *OffsetDedup) AsyncV2Push(pushCtx context.Context, sourceResults chan<- abstract.AsyncPushResult, items []abstract.ChangeItem) {
 	if len(items) == 0 {
 		return
@@ -285,12 +285,13 @@ func (o *OffsetDedup) lazyInitializeStream(
 	return nil
 }
 
-// skipCommittedItems skips items through skipThrough. Once that position is
-// found, the rest of the batch is written normally.
+// skipCommittedItems skips the committed prefix and forwards the batch from the
+// first position after skipThrough.
 func (o *OffsetDedup) skipCommittedItems(items []abstract.ChangeItem) pushAction {
 	boundaryIndex := -1
 	for i, item := range items {
-		if positionOf(item) == *o.skipThrough {
+		itemPosition := positionOf(item)
+		if itemPosition.Offset > o.skipThrough.Offset || (itemPosition.Offset == o.skipThrough.Offset && itemPosition.Index > o.skipThrough.Index) {
 			boundaryIndex = i
 			break
 		}
@@ -302,9 +303,11 @@ func (o *OffsetDedup) skipCommittedItems(items []abstract.ChangeItem) pushAction
 		return newPushAction(nil, abstract.NewQueueSourceAsyncPushResult(offsets, nil))
 	}
 
-	skippedOffsets := extractOffsetsFromChangeItems(items[:boundaryIndex+1])
-	o.logger.Debug("offset dedup skipped committed offsets", log.String("offsets", changeItemsOffsetsToRanges(items[:boundaryIndex+1])))
-	itemsToWrite := items[boundaryIndex+1:]
+	skippedOffsets := extractOffsetsFromChangeItems(items[:boundaryIndex])
+	if boundaryIndex > 0 {
+		o.logger.Debug("offset dedup skipped committed offsets", log.String("offsets", changeItemsOffsetsToRanges(items[:boundaryIndex])))
+	}
+	itemsToWrite := items[boundaryIndex:]
 	o.skipThrough = nil
 	if len(itemsToWrite) == 0 {
 		return newPushAction(nil, abstract.NewQueueSourceAsyncPushResult(skippedOffsets, nil))
