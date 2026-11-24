@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/transformer"
 )
 
 type restrictedCDCReplicationDestination struct {
@@ -46,17 +47,31 @@ func (s *parsedCDCReplicationSource) Parser() map[string]interface{} {
 
 func TestValidateQueueCDCReplication(t *testing.T) {
 	destination := &restrictedCDCReplicationDestination{}
-	transformation := &Transformation{ExtraTransformers: []abstract.Transformer{nil}}
+	publicTransformers := &transformer.Transformers{Transformers: []transformer.Transformer{{"rename_tables": nil}}}
+	extraTransformers := []abstract.Transformer{nil}
 
-	t.Run("transformations are forbidden", func(t *testing.T) {
+	t.Run("public transformations are forbidden", func(t *testing.T) {
 		transfer := &Transfer{
 			Type:           abstract.TransferTypeIncrementOnly,
 			Src:            &tableCDCReplicationSource{includes: []string{"public.table"}},
 			Dst:            destination,
-			Transformation: transformation,
+			Transformation: &Transformation{Transformers: publicTransformers},
 		}
 		err := transfer.Validate()
 		require.EqualError(t, err, "transformations are not supported for replication to mock")
+	})
+
+	t.Run("extra transformations are allowed without public transformations", func(t *testing.T) {
+		transfer := &Transfer{
+			Type:           abstract.TransferTypeIncrementOnly,
+			Src:            &tableCDCReplicationSource{includes: []string{"public.table"}},
+			Dst:            destination,
+			Transformation: &Transformation{Transformers: &transformer.Transformers{}, ExtraTransformers: extraTransformers},
+		}
+		require.NoError(t, transfer.Validate())
+
+		transfer.Transformation.Transformers = publicTransformers
+		require.EqualError(t, transfer.Validate(), "transformations are not supported for replication to mock")
 	})
 
 	t.Run("snapshot transformations are unaffected", func(t *testing.T) {
@@ -64,7 +79,7 @@ func TestValidateQueueCDCReplication(t *testing.T) {
 			Type:           abstract.TransferTypeSnapshotOnly,
 			Src:            &tableCDCReplicationSource{includes: []string{"public.first", "public.second"}},
 			Dst:            destination,
-			Transformation: transformation,
+			Transformation: &Transformation{Transformers: publicTransformers},
 		}
 		require.NoError(t, transfer.Validate())
 	})

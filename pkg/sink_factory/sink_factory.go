@@ -83,7 +83,7 @@ func MakeAsyncReplicationSink(
 		transfer.Type,
 		transfer.Src,
 		transfer.Dst,
-		transfer.HasTransformation(),
+		transfer.Transformation,
 		transfer.DataObjects,
 	); err != nil {
 		return nil, xerrors.Errorf("invalid async replication configuration: %w", err)

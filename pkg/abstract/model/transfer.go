@@ -266,7 +266,7 @@ func (f *Transfer) Validate() error {
 		f.Type,
 		f.Src,
 		f.Dst,
-		f.HasTransformation(),
+		f.Transformation,
 		f.DataObjects,
 	); err != nil {
 		return err
@@ -313,7 +313,7 @@ func ValidateQueueCDCReplication(
 	transferType abstract.TransferType,
 	src Source,
 	dst Destination,
-	hasTransformation bool,
+	transformation *Transformation,
 	dataObjects *DataObjects,
 ) error {
 	if transferType != abstract.TransferTypeIncrementOnly {
@@ -323,7 +323,8 @@ func ValidateQueueCDCReplication(
 		return nil
 	}
 
-	if _, ok := dst.(QueueOffsetDependantDestination); ok && hasTransformation {
+	if _, ok := dst.(QueueOffsetDependantDestination); ok && transformation != nil &&
+		transformation.Transformers != nil && len(transformation.Transformers.Transformers) > 0 {
 		return xerrors.Errorf("transformations are not supported for replication to %s", dst.GetProviderType())
 	}
 
