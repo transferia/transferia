@@ -14,9 +14,9 @@ type Credentials interface {
 }
 
 var NewServiceAccountCreds = func(logger log.Logger, serviceAccountID string) (Credentials, error) {
-	return nil, xerrors.New("not implemented")
+	return nil, xerrors.New("service account credentials factory is not initialized")
 }
 
 var NewIamCreds = func(logger log.Logger) (Credentials, error) {
-	return nil, xerrors.Errorf("not implemented")
+	return nil, xerrors.Errorf("IAM credentials factory is not initialized")
 }
