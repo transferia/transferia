@@ -10,6 +10,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_options "go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readconcern"
@@ -85,6 +86,8 @@ func MakeDefaultFullDocumentExtractor(client *MongoClientWrapper) FullDocumentEx
 // database and produce new change events that dispatch into specified
 // in NewKeyBatcher's fullDocumentPusher argument
 type keyBatcher struct {
+	metrics stats.RegisteredSourceStats
+
 	logger                log.Logger
 	fullDocumentExtractor FullDocumentExtractor
 	pusher                changeEventPusher // receiver of full document events
@@ -406,11 +409,25 @@ func NewKeyBatcher(
 	fullDocumentPusher changeEventPusher,
 	parameters *BatcherParameters,
 ) (*keyBatcher, error) {
+	var metrics stats.RegisteredSourceStats
+	return newKeyBatcher(ctx, logger, fullDocumentExtractor, fullDocumentPusher, parameters, metrics)
+}
+
+func newKeyBatcher(
+	ctx context.Context,
+	logger log.Logger,
+	fullDocumentExtractor FullDocumentExtractor,
+	fullDocumentPusher changeEventPusher,
+	parameters *BatcherParameters,
+	metrics stats.RegisteredSourceStats,
+) (*keyBatcher, error) {
 	if parameters == nil {
 		return nil, abstract.NewFatalError(xerrors.New("batcher parameters required"))
 	}
 	ctxNew, cancelNew := context.WithCancel(ctx)
 	ret := keyBatcher{
+		metrics: metrics,
+
 		logger:                logger,
 		fullDocumentExtractor: fullDocumentExtractor,
 		pusher:                fullDocumentPusher,

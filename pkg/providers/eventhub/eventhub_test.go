@@ -17,6 +17,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	provider_eventhub "github.com/transferia/transferia/pkg/providers/eventhub"
+	"github.com/transferia/transferia/pkg/stats"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"go.ytsaurus.tech/library/go/core/log"
 	ya_zap "go.ytsaurus.tech/library/go/core/log/zap"
@@ -93,7 +94,7 @@ func TestNewSource(t *testing.T) {
 	logger, err := ya_zap.New(ya_zap.CLIConfig(log.DebugLevel))
 	require.NoError(t, err)
 
-	src, err := provider_eventhub.NewSource(transferID.String(), cfg, logger, dt_metrics.NewRegistry())
+	src, err := provider_eventhub.NewSource(transferID.String(), cfg, logger, stats.NewSourceStats(dt_metrics.NewRegistry()))
 	require.NoError(t, err)
 	logger.Info("eventhub source was initialized")
 

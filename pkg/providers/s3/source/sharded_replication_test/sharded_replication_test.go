@@ -20,6 +20,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3recipe"
 	s3_sink_testutil "github.com/transferia/transferia/pkg/providers/s3/sink/testutil"
 	s3_source "github.com/transferia/transferia/pkg/providers/s3/source"
+	"github.com/transferia/transferia/pkg/stats"
 )
 
 func init() {
@@ -109,9 +110,9 @@ func TestNativeS3PathsAreUnescaped(t *testing.T) {
 	cp := s3_sink_testutil.NewFakeClientWithTransferState()
 
 	parallelism := abstract.NewFakeShardingTaskRuntime(0, 1, 1, 1)
-	sourceOne, err := s3_source.NewSource(src, "test-1", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, parallelism)
+	sourceOne, err := s3_source.NewSource(src, "test-1", logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())), cp, parallelism)
 	require.NoError(t, err)
-	sourceTwo, err := s3_source.NewSource(src, "test-2", logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()), cp, parallelism)
+	sourceTwo, err := s3_source.NewSource(src, "test-2", logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())), cp, parallelism)
 	require.NoError(t, err)
 
 	sink1 := mockAsyncSink{}

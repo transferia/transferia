@@ -16,12 +16,14 @@ import (
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/source_factory"
 	"github.com/transferia/transferia/pkg/source_factory/eventsource"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
 type BasicStrategy struct {
-	transfer *model.Transfer
+	transfer       *model.Transfer
+	attemptMetrics *stats.ReplicationAttemptMetrics
 
 	sink                abstract.AsyncSink
 	legacySource        abstract.Source
@@ -36,6 +38,10 @@ type BasicStrategy struct {
 func (s *BasicStrategy) Run() error {
 	s.wg.Add(1)
 	defer s.wg.Done()
+	if s.attemptMetrics != nil {
+		stopMetrics := s.attemptMetrics.Start()
+		defer stopMetrics()
+	}
 
 	if s.legacySource != nil {
 		if err := s.legacySource.Run(s.sink); err != nil {
@@ -75,9 +81,10 @@ func (s *BasicStrategy) Stop() error {
 	return nil
 }
 
-func NewBasicStrategy(transfer *model.Transfer, cp coordinator.Coordinator, registry metrics.Registry, logger log.Logger) (*BasicStrategy, error) {
+func NewBasicStrategy(transfer *model.Transfer, cp coordinator.Coordinator, registry metrics.Registry, logger log.Logger, attemptMetrics *stats.ReplicationAttemptMetrics) (*BasicStrategy, error) {
 	basicStrategy := &BasicStrategy{
-		transfer: transfer,
+		transfer:       transfer,
+		attemptMetrics: attemptMetrics,
 
 		sink:                nil,
 		legacySource:        nil,
@@ -90,7 +97,7 @@ func NewBasicStrategy(transfer *model.Transfer, cp coordinator.Coordinator, regi
 	}
 
 	var err error
-	basicStrategy.sink, err = sink_factory.MakeAsyncSink(transfer, new(model.TransferOperation), logger, registry, cp, middlewares.MakeConfig(middlewares.AtReplicationStage))
+	basicStrategy.sink, err = sink_factory.MakeAsyncSinkWithAttemptMetrics(transfer, new(model.TransferOperation), logger, registry, cp, middlewares.MakeConfig(middlewares.AtReplicationStage), attemptMetrics)
 	if err != nil {
 		return nil, errors.CategorizedErrorf(categories.Target, "failed to create sink: %w", err)
 	}
@@ -111,7 +118,7 @@ func NewBasicStrategy(transfer *model.Transfer, cp coordinator.Coordinator, regi
 	)
 	if err != nil {
 		if xerrors.Is(err, data.TryLegacySourceError) {
-			basicStrategy.legacySource, err = source_factory.NewSource(transfer, logger, registry, cp)
+			basicStrategy.legacySource, err = source_factory.NewSource(transfer, logger, registry, cp, basicStrategy.attemptMetrics)
 		}
 		if err != nil {
 			return nil, errors.CategorizedErrorf(categories.Source, "failed to create source: %w", err)

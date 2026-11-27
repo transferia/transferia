@@ -36,7 +36,7 @@ func TestS3ReplicationSinkReportsUploadError(t *testing.T) {
 	cfg.RotatorConfig = s3_v1_model.RotatorUnion{Default: &s3_v1_model.DefaultRotatorConfig{Interval: rotationInterval}}
 	cfg.PartitionerConfig = s3_v1_model.PartitionerUnion{Default: &s3_v1_model.DefaultPartitionerConfig{}}
 
-	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 	currSink.s3Client = failingUploadClient{S3Client: currSink.s3Client}
 

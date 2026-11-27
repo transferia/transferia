@@ -36,7 +36,7 @@ type replication struct {
 	logger          log.Logger
 	conn            *pgxpool.Pool
 	replConn        *mutexedPgConn
-	metrics         *stats.SourceStats
+	metrics         stats.RegisteredSourceStats
 	wal2jsonParser  *Wal2JsonParser
 	error           chan error
 	once            sync.Once
@@ -116,6 +116,7 @@ func (p *replication) Stop() {
 	p.once.Do(func() {
 		close(p.stopCh)
 		p.sharedCtxCancel()
+		p.metrics.Close()
 		if err := p.replConn.Close(context.Background()); err != nil {
 			p.logger.Error("Cannot close replication connection", log.Error(err))
 		}
@@ -575,7 +576,7 @@ func newReplicationPublisher(
 		logger:          lgr,
 		conn:            connPool,
 		replConn:        replConn,
-		metrics:         stats,
+		metrics:         stats.BuildRegisteredSourceStats(),
 		wal2jsonParser:  NewWal2JsonParser(),
 		error:           make(chan error, 1),
 		once:            sync.Once{},

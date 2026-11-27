@@ -56,7 +56,7 @@ type oracleLogMinerSource struct {
 	schemaRepo *oracle_schema.Database
 	tracker    logtracker.LogTracker
 	logger     log.Logger
-	metrics    *stats.SourceStats
+	metrics    stats.RegisteredSourceStats
 	run        *oracleLogMinerSourceRun
 }
 
@@ -91,7 +91,7 @@ func newOracleLogMinerSource(
 		schemaRepo: schema,
 		tracker:    tracker,
 		logger:     logger,
-		metrics:    metrics,
+		metrics:    metrics.BuildRegisteredSourceStats(),
 		run:        nil,
 	}
 }
@@ -388,7 +388,7 @@ func (source *oracleLogMinerSource) pushTransaction(transaction *FinishedTransac
 				builder.Reset()
 			}
 
-			if source.metrics != nil {
+			if source.metrics.SourceStats != nil {
 				// bytes read from row.SQLRedo
 				source.metrics.Size.Add(int64(len(row.SQLRedo)))
 			}
@@ -400,7 +400,7 @@ func (source *oracleLogMinerSource) pushTransaction(transaction *FinishedTransac
 			}
 			if include {
 				batch.Add(item)
-				if source.metrics != nil {
+				if source.metrics.SourceStats != nil {
 					source.metrics.ChangeItems.Inc()
 					source.metrics.Parsed.Inc()
 				}
@@ -739,7 +739,7 @@ func (source *oracleLogMinerSource) logState() {
 }
 
 func (source *oracleLogMinerSource) updateUsageMetric(posSCN uint64) {
-	if source.metrics == nil || source.run == nil || !source.Running() {
+	if source.metrics.SourceStats == nil || source.run == nil || !source.Running() {
 		return
 	}
 	if posSCN == 0 {
@@ -803,6 +803,9 @@ func (source *oracleLogMinerSource) Run(sink abstract.AsyncSink) error {
 	if source.run != nil {
 		return xerrors.New("Already running")
 	}
+	// Stop is idempotent. Both Run and the replication strategy may call it.
+	defer source.Stop()
+
 	startPosition, err := source.tracker.ReadPosition()
 	if err != nil {
 		return xerrors.Errorf("Can't read position from tracker: %w", err)
@@ -830,8 +833,6 @@ func (source *oracleLogMinerSource) Run(sink abstract.AsyncSink) error {
 		batchProcessWait:        sync.WaitGroup{},
 		batchProcessError:       nil,
 	}
-	defer source.Stop()
-
 	go source.logState()
 
 	lastMineStart := time.Now().Add(-minMineTimeout)
@@ -893,6 +894,7 @@ func (source *oracleLogMinerSource) Stop() {
 	if source.run != nil {
 		source.run.cancel()
 	}
+	source.metrics.Close()
 }
 
 // LogMinerSource implements abstract.Source (Oracle redo via LogMiner).

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -31,7 +30,7 @@ type S3Source struct {
 	logger        log.Logger
 	srcModel      *s3_model.S3Source
 	transferID    string
-	metrics       *stats.SourceStats
+	metrics       stats.RegisteredSourceStats
 	reader        s3_reader.Reader
 	objectFetcher object_fetcher.ObjectFetcher
 	errCh         chan error
@@ -42,6 +41,8 @@ type S3Source struct {
 
 func (s *S3Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.New(s.logger, 10, sink, s3_reader.ParsePassthroughChunk, s.ack)
+	// Stop is idempotent. Both Run and the replication strategy may call it.
+	defer s.Stop()
 	monitorDone := make(chan struct{})
 	go func() {
 		select {
@@ -198,20 +199,21 @@ func (s *S3Source) ack(chunk s3_pusher.Chunk, pushSt time.Time) error {
 
 func (s *S3Source) Stop() {
 	s.cancel()
+	s.metrics.Close()
 }
 
 func NewSource(
 	srcModel *s3_model.S3Source,
 	transferID string,
 	logger log.Logger,
-	registry core_metrics.Registry,
+	sourceStats *stats.SourceStats,
 	cp coordinator.Coordinator,
 	runtimeParallelism abstract.ShardingTaskRuntime,
 ) (abstract.Source, error) {
 	fetcher, ctx, cancel, currReader, currMetrics, err := object_fetcher.NewWrapped(
 		context.Background(),
 		logger,
-		registry,
+		sourceStats,
 		srcModel,
 		transferID,
 		cp,
@@ -226,7 +228,7 @@ func NewSource(
 		logger:        logger,
 		srcModel:      srcModel,
 		transferID:    transferID,
-		metrics:       currMetrics,
+		metrics:       currMetrics.BuildRegisteredSourceStats(),
 		reader:        currReader,
 		objectFetcher: fetcher,
 		errCh:         make(chan error, 1),

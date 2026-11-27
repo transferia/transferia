@@ -16,6 +16,7 @@ import (
 	s3_sink "github.com/transferia/transferia/pkg/providers/s3/sink"
 	s3_source "github.com/transferia/transferia/pkg/providers/s3/source"
 	s3_storage "github.com/transferia/transferia/pkg/providers/s3/storage"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -79,7 +80,7 @@ func (p *Provider) Type() abstract.ProviderType {
 	return s3_model.ProviderType
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	src, ok := p.transfer.Src.(*s3_model.S3Source)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
@@ -88,7 +89,8 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if !ok {
 		return nil, xerrors.Errorf("s3 source not supported non-sharding runtime: %T", p.transfer.Runtime)
 	}
-	return s3_source.NewSource(src, p.transfer.ID, p.logger, p.registry, p.cp, shardingRuntime)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return s3_source.NewSource(src, p.transfer.ID, p.logger, sourceStats, p.cp, shardingRuntime)
 }
 
 func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {

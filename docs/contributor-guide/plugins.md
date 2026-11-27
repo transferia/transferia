@@ -30,7 +30,7 @@ type Snapshot interface {
 
 type Replication interface {
     Provider
-    Source() (abstract.Source, error)
+    Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error)
 }
 
 type Sinker interface {
@@ -107,7 +107,7 @@ func (p *Provider) Storage() (abstract.Storage, error) {
     // Implementation
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
     // Implementation
 }
 
@@ -304,7 +304,7 @@ func (p *Provider) Type() abstract.ProviderType {
     return ProviderType
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
     // Implementation
 }
 ```

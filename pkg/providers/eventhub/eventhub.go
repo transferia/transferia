@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/v2"
-	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
@@ -42,7 +41,7 @@ type Source struct {
 	stopCh                         chan struct{}
 	errCh                          chan error
 	dataCh                         chan receivedEvent
-	metrics                        *stats.SourceStats
+	metrics                        stats.RegisteredSourceStats
 	transformer                    *model.DataTransformOptions
 	executor                       *functions.Executor
 	parser                         parsers.Parser
@@ -120,6 +119,7 @@ func (s *Source) readPartition(partitionID string, partitionClient *azeventhubs.
 }
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
+	// Stop is idempotent. Both Run and the replication strategy may call it.
 	defer s.Stop()
 
 	info, err := s.consumerClient.GetEventHubProperties(s.ctx, nil)
@@ -302,6 +302,7 @@ func (s *Source) Stop() {
 	s.once.Do(func() {
 		close(s.stopCh)
 		s.cancelFunc()
+		s.metrics.Close()
 
 		closeCtx, cancel := context.WithTimeout(context.Background(), closeTimeout)
 		defer cancel()
@@ -342,7 +343,7 @@ func buildConnectionString(cfg *EventHubSource) string {
 	)
 }
 
-func NewSource(transferID string, cfg *EventHubSource, logger log.Logger, registry core_metrics.Registry) (abstract.Source, error) {
+func NewSource(transferID string, cfg *EventHubSource, logger log.Logger, sourceStats *stats.SourceStats) (abstract.Source, error) {
 	if cfg.Auth == nil {
 		return nil, xerrors.New("eventhub auth is required")
 	}
@@ -376,7 +377,7 @@ func NewSource(transferID string, cfg *EventHubSource, logger log.Logger, regist
 	source := &Source{
 		ctx:                ctx,
 		consumerClient:     consumerClient,
-		metrics:            stats.NewSourceStats(registry),
+		metrics:            sourceStats.BuildRegisteredSourceStats(),
 		startPosition:      startPosition,
 		transformer:        cfg.Transformer,
 		nameSpace:          cfg.NamespaceName,
@@ -398,6 +399,7 @@ func NewSource(transferID string, cfg *EventHubSource, logger log.Logger, regist
 		executor, err := functions.NewExecutor(cfg.Transformer, cfg.Transformer.CloudFunctionsBaseURL, functions.YDS, logger)
 		if err != nil {
 			logger.Error("init function executor", log.Error(err))
+			source.metrics.Close()
 			_ = source.consumerClient.Close(context.Background())
 			return nil, xerrors.Errorf("unable to init functions transformer: %w", err)
 		}
@@ -405,8 +407,9 @@ func NewSource(transferID string, cfg *EventHubSource, logger log.Logger, regist
 	}
 
 	if cfg.ParserConfig != nil {
-		parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, source.metrics)
+		parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, sourceStats)
 		if err != nil {
+			source.metrics.Close()
 			_ = source.consumerClient.Close(context.Background())
 			return nil, xerrors.Errorf("unable to make parser, err: %w", err)
 		}

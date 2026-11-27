@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -31,7 +32,7 @@ type Provider struct {
 	transfer *model.Transfer
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(_ *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	src, ok := p.transfer.Src.(*AirbyteSource)
 	if !ok {
 		return nil, xerrors.Errorf("unknown src type: %T", p.transfer.Src)

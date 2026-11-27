@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -63,7 +64,7 @@ type Provider struct {
 	transfer *model.Transfer
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	src, ok := p.transfer.Src.(*MongoSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Src)
@@ -86,7 +87,8 @@ func (p *Provider) Source() (abstract.Source, error) {
 			src = &withFullDocuments
 		}
 	}
-	return NewSource(src, p.transfer.ID, p.transfer.DataObjects, p.logger, p.registry, p.cp)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return NewSource(src, p.transfer.ID, p.transfer.DataObjects, p.logger, sourceStats, p.cp)
 }
 
 // sourceDocuments returns the reader of the source documents for the sink, or nil when the collections of the

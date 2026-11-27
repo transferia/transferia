@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -34,7 +33,7 @@ type Source struct {
 	feedName string
 
 	logger  log.Logger
-	metrics *stats.SourceStats
+	metrics stats.RegisteredSourceStats
 
 	once       sync.Once
 	ctx        context.Context
@@ -58,6 +57,7 @@ func (s *Source) Run(sink abstract.AsyncSink) error {
 func (s *Source) Stop() {
 	s.once.Do(func() {
 		s.cancelFunc()
+		s.metrics.Close()
 		if err := s.reader.Close(context.Background()); err != nil {
 			s.logger.Warn("unable to close reader", log.Error(err))
 		}
@@ -295,7 +295,7 @@ func discoverChangeFeedMode(ydbClient *ydb_go_sdk.Driver, tablePath, changeFeedN
 	return result, nil
 }
 
-func NewSource(transferID string, cfg *YdbSource, logger log.Logger, registry core_metrics.Registry) (*Source, error) {
+func NewSource(transferID string, cfg *YdbSource, logger log.Logger, sourceStats *stats.SourceStats) (*Source, error) {
 	clientCtx, cancelFunc := context.WithCancel(context.Background())
 	var rb util.Rollbacks
 	defer rb.Do()
@@ -334,7 +334,7 @@ func NewSource(transferID string, cfg *YdbSource, logger log.Logger, registry co
 		cfg:          cfg,
 		feedName:     feedName,
 		logger:       logger,
-		metrics:      stats.NewSourceStats(registry),
+		metrics:      sourceStats.BuildRegisteredSourceStats(),
 		once:         sync.Once{},
 		ctx:          clientCtx,
 		cancelFunc:   cancelFunc,
@@ -343,6 +343,8 @@ func NewSource(transferID string, cfg *YdbSource, logger log.Logger, registry co
 		memThrottler: throttler.NewMemoryThrottler(uint64(cfg.BufferSize)),
 		ydbClient:    ydbClient,
 	}
+
+	rb.Add(src.metrics.Close)
 
 	for _, tablePath := range cfg.Tables {
 		err = src.updateLocalCacheTableSchema(tablePath)

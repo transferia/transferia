@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/changeitem"
@@ -44,7 +43,7 @@ func isFatalMongoCode(err error) bool {
 
 type mongoSource struct {
 	logger      log.Logger
-	metrics     *stats.SourceStats
+	metrics     stats.RegisteredSourceStats
 	cp          coordinator.Coordinator
 	config      *MongoSource
 	filter      MongoCollectionFilter
@@ -735,7 +734,7 @@ func (s *mongoSource) openOplogChangeStream() (map[ParallelizationUnit]ChangeStr
 	if err != nil {
 		return nil, xerrors.Errorf("error getting oplog cluster time: %w", err)
 	}
-	cs, err := newOplogWatcher(s.logger, s.client, *clusterTime, s.filterOplogWithRegex, s.config)
+	cs, err := newOplogWatcher(s.logger, s.client, *clusterTime, s.filterOplogWithRegex, s.config, s.metrics)
 	if err != nil {
 		return nil, xerrors.Errorf("error making oplog watcher: %w", err)
 	}
@@ -750,6 +749,7 @@ func (s *mongoSource) shutdown(shutdownErr error) {
 	s.logger.Warn("Shutdown source", log.Error(shutdownErr))
 	s.onceShutdown.Do(func() {
 		s.cancel()
+		s.metrics.Close()
 		if s.changeEvents == nil { // Not started yet
 			close(s.doneChannel)
 			return
@@ -810,7 +810,7 @@ func replicatedCollections(src *MongoSource, objects *model.DataObjects) (MongoC
 	return overrideFilter(src.GetMongoCollectionFilter(), includeObjects), nil
 }
 
-func NewSource(src *MongoSource, transferID string, objects *model.DataObjects, logger log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator) (abstract.Source, error) {
+func NewSource(src *MongoSource, transferID string, objects *model.DataObjects, logger log.Logger, sourceStats *stats.SourceStats, cp coordinator.Coordinator) (abstract.Source, error) {
 	filter, err := replicatedCollections(src, objects)
 	if err != nil {
 		return nil, abstract.NewFatalError(err)
@@ -819,7 +819,7 @@ func NewSource(src *MongoSource, transferID string, objects *model.DataObjects, 
 	doneChannel := make(chan error)
 	return &mongoSource{
 		logger:               logger,
-		metrics:              stats.NewSourceStats(registry),
+		metrics:              sourceStats.BuildRegisteredSourceStats(),
 		cp:                   cp,
 		config:               src,
 		filter:               filter,

@@ -7,6 +7,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -37,12 +38,13 @@ func (p *Provider) Type() abstract.ProviderType {
 	return ProviderType
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	src, ok := p.transfer.Src.(*EventHubSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
-	return NewSource(p.transfer.ID, src, p.logger, p.registry)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return NewSource(p.transfer.ID, src, p.logger, sourceStats)
 }
 
 func New(lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, _ *model.TransferOperation) providers.Provider {

@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/file"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/lr_window/r_window"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -115,7 +116,7 @@ func ListAllReturnDispatcher(
 	registry core_metrics.Registry,
 	srcModel *s3_model.S3Source,
 ) (*dispatcher.Dispatcher, error) {
-	_, s3client, currReader, _, err := s3sess.NewSessClientReaderMetrics(logger, srcModel, registry)
+	_, s3client, currReader, _, err := s3sess.NewSessClientReaderMetrics(logger, srcModel, stats.NewSourceStats(registry))
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create s3session/s3client/reader, err: %w", err)
 	}

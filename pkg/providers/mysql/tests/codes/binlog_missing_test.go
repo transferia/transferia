@@ -14,6 +14,7 @@ import (
 	error_codes "github.com/transferia/transferia/pkg/errors/codes"
 	provider_mysql "github.com/transferia/transferia/pkg/providers/mysql"
 	"github.com/transferia/transferia/pkg/providers/mysql/mysqlrecipe"
+	"github.com/transferia/transferia/pkg/stats"
 )
 
 type noopAsyncSink struct{}
@@ -75,7 +76,7 @@ func TestBinlogFirstFileMissing_ReturnsCodedError(t *testing.T) {
 
 	// Пробуем создать Source и запустить publisher
 	registry := solomon.NewRegistry(solomon.NewRegistryOpts())
-	s, err := provider_mysql.NewSource(src, transfer.ID, &model.DataObjects{}, logger.Log, registry, fakeCp, true)
+	s, err := provider_mysql.NewSource(src, transfer.ID, &model.DataObjects{}, logger.Log, registry, fakeCp, true, stats.NewSourceStats(registry))
 	require.NoError(t, err)
 	// Запускаем source с no-op sink'ом; ошибка должна вернуться при старте канала
 	err = s.Run(&noopAsyncSink{})

@@ -104,7 +104,7 @@ func testS3SinkReplicationSimple(t *testing.T) {
 
 	ctx := context.Background()
 
-	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	// Asynchronous read
@@ -137,7 +137,7 @@ func testS3SinkReplicationSimpleCrash(t *testing.T) {
 
 	ctx := context.Background()
 
-	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	// Asynchronous read
@@ -151,7 +151,7 @@ func testS3SinkReplicationSimpleCrash(t *testing.T) {
 
 	// Reinit sink
 	cfg.RotatorConfig = s3_v1_model.RotatorUnion{Default: &s3_v1_model.DefaultRotatorConfig{Interval: rotationInterval}}
-	currSink, err = NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	currSink, err = NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	// Source read
@@ -184,7 +184,7 @@ func testS3SinkReplicationBorderBatch(t *testing.T) {
 
 	ctx := context.Background()
 
-	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	// Asynchronous read
@@ -229,7 +229,7 @@ func testS3SinkReplicationBorderBatchCrash(t *testing.T) {
 
 	ctx := context.Background()
 
-	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	// Asynchronous read
@@ -253,7 +253,7 @@ func testS3SinkReplicationBorderBatchCrash(t *testing.T) {
 
 	// Reinit sink
 	cfg.RotatorConfig = s3_v1_model.RotatorUnion{Default: &s3_v1_model.DefaultRotatorConfig{Interval: rotationInterval}}
-	currSink, err = NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	currSink, err = NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	// Source read
@@ -290,7 +290,7 @@ func testS3SinkReplicationNoBlocking(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	currSink, err := NewReplicationAsyncSink(logger.Log, cfg, solomon.NewRegistry(solomon.NewRegistryOpts()), nil)
 	require.NoError(t, err)
 
 	// Asynchronous read

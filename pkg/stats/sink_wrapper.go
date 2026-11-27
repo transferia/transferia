@@ -11,6 +11,7 @@ import (
 )
 
 type WrapperStats struct {
+	attemptMetrics    *ReplicationAttemptMetrics
 	registry          core_metrics.GaugeWithInitialValueRegistry
 	Lag               core_metrics.Timer
 	maxLag            *lazyLag
@@ -42,11 +43,20 @@ var sinkerBuckets = core_metrics.NewDurationBuckets(
 )
 
 func NewWrapperStats(registry core_metrics.Registry) *WrapperStats {
+	return newWrapperStats(registry, nil)
+}
+
+func (m *ReplicationAttemptMetrics) BuildSinkStats(registry core_metrics.Registry) *WrapperStats {
+	return newWrapperStats(registry, m)
+}
+
+func newWrapperStats(registry core_metrics.Registry, attemptMetrics *ReplicationAttemptMetrics) *WrapperStats {
 	lagRegistry, ok := registry.(core_metrics.GaugeWithInitialValueRegistry)
 	if !ok {
 		panic(fmt.Sprintf("metrics: registry %T does not support GaugeWithInitialValue", registry))
 	}
 	return &WrapperStats{
+		attemptMetrics:    attemptMetrics,
 		registry:          lagRegistry,
 		Lag:               registry.DurationHistogram("sinker.pusher.time.row_lag_sec", sinkerBuckets),
 		maxLag:            newLazyLag(),

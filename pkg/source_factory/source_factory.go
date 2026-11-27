@@ -7,29 +7,30 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
-func NewSource(transfer *model.Transfer, lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator) (abstract.Source, error) {
+func NewSource(transfer *model.Transfer, lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	replicator, ok := providers.Source[providers.Replication](lgr, registry, cp, transfer)
 	if !ok {
 		lgr.Error("Unable to create source")
 		return nil, xerrors.Errorf("unknown source: %s: %T", transfer.SrcType(), transfer.Src)
 	}
-	res, err := replicator.Source()
+	res, err := replicator.Source(attemptMetrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create %T: %w", transfer.Src, err)
 	}
 	return res, nil
 }
 
-func NewPartitionableSource(transfer *model.Transfer, lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, partition abstract.Partition) (abstract.QueueToS3Source, error) {
+func NewPartitionableSource(transfer *model.Transfer, lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, partition abstract.Partition, attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.QueueToS3Source, error) {
 	replicator, ok := providers.Source[providers.PartitionableSource](lgr, registry, cp, transfer)
 	if !ok {
 		lgr.Error("Unable to create partitionable source")
 		return nil, xerrors.Errorf("unknown source: %s: %T", transfer.SrcType(), transfer.Src)
 	}
-	res, err := replicator.PartitionSource(partition)
+	res, err := replicator.PartitionSource(partition, attemptMetrics)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create async %T: %w", transfer.Src, err)
 	}

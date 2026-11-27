@@ -38,10 +38,23 @@ func MakeAsyncSink(
 	config middlewares.Config,
 	opts ...abstract.SinkOption,
 ) (abstract.AsyncSink, error) {
+	return MakeAsyncSinkWithAttemptMetrics(transfer, task, lgr, mtrcs, cp, config, nil, opts...)
+}
+
+func MakeAsyncSinkWithAttemptMetrics(
+	transfer *model.Transfer,
+	task *model.TransferOperation,
+	lgr log.Logger,
+	mtrcs core_metrics.Registry,
+	cp coordinator.Coordinator,
+	config middlewares.Config,
+	attemptMetrics *stats.ReplicationAttemptMetrics,
+	opts ...abstract.SinkOption,
+) (abstract.AsyncSink, error) {
 	makeStart := time.Now()
 	lgr.Debugf("MakeAsyncSink START src=%s dst=%s", transfer.SrcType(), transfer.DstType())
 	var pipelineAsync abstract.AsyncSink = nil
-	middleware, err := syncMiddleware(transfer, lgr, mtrcs, cp, opts...)
+	middleware, err := syncMiddleware(transfer, lgr, mtrcs, cp, attemptMetrics, opts...)
 	if err != nil {
 		lgr.Debugf("MakeAsyncSink FAILED (syncMiddleware) err=%v elapsed=%v", err, time.Since(makeStart))
 		return nil, xerrors.Errorf("error building sync middleware pipeline: %w", err)
@@ -77,6 +90,7 @@ func MakeAsyncReplicationSink(
 	cp coordinator.Coordinator,
 	config middlewares.Config,
 	partition abstract.Partition,
+	attemptMetrics *stats.ReplicationAttemptMetrics,
 	opts ...abstract.SinkOption,
 ) (abstract.QueueToS3Sink, error) {
 	if err := model.ValidateQueueCDCReplication(
@@ -97,7 +111,7 @@ func MakeAsyncReplicationSink(
 	if !ok {
 		return nil, xerrors.Errorf("async v2 sink: %s: %T not supported", transfer.DstType(), transfer.Dst)
 	}
-	asyncSink, err := factory.AsyncV2Sink(config, partition)
+	asyncSink, err := factory.AsyncV2Sink(config, partition, attemptMetrics)
 	if err != nil {
 		return nil, errors.CategorizedErrorf(categories.Target, "failed to construct async v2 sink: %w", err)
 	}
@@ -111,7 +125,7 @@ func MakeAsyncReplicationSink(
 	return asyncSink, nil
 }
 
-func syncMiddleware(transfer *model.Transfer, lgr log.Logger, mtrcs core_metrics.Registry, cp coordinator.Coordinator, opts ...abstract.SinkOption) (abstract.Middleware, error) {
+func syncMiddleware(transfer *model.Transfer, lgr log.Logger, mtrcs core_metrics.Registry, cp coordinator.Coordinator, attemptMetrics *stats.ReplicationAttemptMetrics, opts ...abstract.SinkOption) (abstract.Middleware, error) {
 	transformer, err := middlewares.Transformation(transfer, lgr, mtrcs)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to set transformation middleware: %w", err)
@@ -123,7 +137,8 @@ func syncMiddleware(transfer *model.Transfer, lgr log.Logger, mtrcs core_metrics
 
 		pipeline = middlewares.OutputDataMetering()(pipeline)
 
-		pipeline = middlewares.Statistician(lgr, stats.NewWrapperStats(mtrcs))(pipeline)
+		wrapperStats := attemptMetrics.BuildSinkStats(mtrcs)
+		pipeline = middlewares.Statistician(lgr, wrapperStats)(pipeline)
 		if dst, ok := transfer.Dst.(model.SystemTablesDependantDestination); !ok || !dst.ReliesOnSystemTablesTransferring() {
 			pipeline = middlewares.Filter(mtrcs, middlewares.ExcludeSystemTables)(pipeline)
 		}

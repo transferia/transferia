@@ -18,6 +18,7 @@ import (
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/lr_window/r_window"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/object_fetcher"
 	"github.com/transferia/transferia/pkg/providers/s3/s3util/s3sess"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -144,7 +145,7 @@ func NewS3SharedMemorySecondaryWorker(
 	cp coordinator.Coordinator,
 	shardingContext []byte,
 ) (*S3SharedMemorySecondaryWorker, error) {
-	_, s3client, currReader, _, err := s3sess.NewSessClientReaderMetrics(logger, cfg, registry)
+	_, s3client, currReader, _, err := s3sess.NewSessClientReaderMetrics(logger, cfg, stats.NewSourceStats(registry))
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create s3session/s3client/reader, err: %w", err)
 	}

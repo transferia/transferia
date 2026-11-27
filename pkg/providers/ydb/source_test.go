@@ -16,6 +16,7 @@ import (
 	"github.com/transferia/transferia/library/go/test/canon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/stats"
 	ydbrecipe "github.com/transferia/transferia/tests/helpers/ydb/recipe"
 	"github.com/transferia/transferia/tests/helpers/ydb/recipe/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
@@ -59,7 +60,7 @@ func TestSourceCDC(t *testing.T) {
 
 		srcCfg := srcCfgTemplate
 		srcCfg.Tables = []string{tableName}
-		src, err := NewSource(transferID, &srcCfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewSource(transferID, &srcCfg, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 
 		pushedItems := waitExpectedEvents(t, src, expectedItemsCount)
@@ -77,7 +78,7 @@ func TestSourceCDC(t *testing.T) {
 
 		srcCfg := srcCfgTemplate
 		srcCfg.Tables = tableNames
-		src, err := NewSource(transferID, &srcCfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewSource(transferID, &srcCfg, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 
 		pushedItems := waitExpectedEvents(t, src, expectedItemsCount)
@@ -94,7 +95,7 @@ func TestSourceCDC(t *testing.T) {
 		srcCfg := srcCfgTemplate
 		srcCfg.Tables = []string{tableName}
 		srcCfg.ChangeFeedCustomName = customFeedName
-		src, err := NewSource(transferID, &srcCfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewSource(transferID, &srcCfg, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 
 		pushedItems := waitExpectedEvents(t, src, expectedItemsCount)
@@ -128,7 +129,7 @@ func TestSourceCDC(t *testing.T) {
 
 		srcCfg := srcCfgTemplate
 		srcCfg.Tables = []string{tableName}
-		src, err := NewSource(transferID, &srcCfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewSource(transferID, &srcCfg, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 
 		pushedItems := waitExpectedEvents(t, src, len(upsertQueries))
@@ -179,7 +180,7 @@ func TestSourceCDC(t *testing.T) {
 
 		srcCfg := srcCfgTemplate
 		srcCfg.Tables = []string{tableName}
-		src, err := NewSource(transferID, &srcCfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewSource(transferID, &srcCfg, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 
 		pushedItems := waitExpectedEvents(t, src, len(upsertQueries))
@@ -205,7 +206,7 @@ func checkSchemaUpdateWithMode(t *testing.T, db *ydb.Driver, transferID string, 
 
 	srcCfg := srcCfgTemplate
 	srcCfg.Tables = []string{tableName}
-	src, err := NewSource(transferID, &srcCfg, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	src, err := NewSource(transferID, &srcCfg, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.NoError(t, err)
 
 	pushedItems := make([]abstract.ChangeItem, 0)

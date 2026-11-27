@@ -12,6 +12,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
 	kafka_client "github.com/transferia/transferia/pkg/providers/kafka/client"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"github.com/transferia/transferia/pkg/util/queues/coherence_check"
 	"github.com/transferia/transferia/pkg/util/set"
@@ -117,7 +118,7 @@ func (p *Provider) Type() abstract.ProviderType {
 	return ProviderType
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	src, ok := p.transfer.Src.(*KafkaSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
@@ -129,7 +130,8 @@ func (p *Provider) Source() (abstract.Source, error) {
 		src.SynchronizeIsNeeded = p.transfer.DstType() == "lb" // sorry for that
 	}
 	src.GroupTopics = p.inferTopicsFromTransfer(src)
-	return NewSource(p.transfer.ID, src, p.logger, p.registry)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return NewSource(p.transfer.ID, src, p.logger, sourceStats)
 }
 
 func (p *Provider) PartitionLister() (abstract.PartitionLister, error) {
@@ -150,7 +152,7 @@ func (p *Provider) inferTopicsFromTransfer(src *KafkaSource) []string {
 	return src.GroupTopics
 }
 
-func (p *Provider) PartitionSource(partition abstract.Partition) (abstract.QueueToS3Source, error) {
+func (p *Provider) PartitionSource(partition abstract.Partition, attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.QueueToS3Source, error) {
 	src, ok := p.transfer.Src.(*KafkaSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected async source type: %T", p.transfer.Src)
@@ -164,7 +166,8 @@ func (p *Provider) PartitionSource(partition abstract.Partition) (abstract.Queue
 		Partition: int32(partition.Partition),
 	}
 
-	return NewPartitionSource(p.transfer.ID, src, partitionDesc, p.logger, p.registry)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return NewPartitionSource(p.transfer.ID, src, partitionDesc, p.logger, sourceStats)
 }
 
 func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {

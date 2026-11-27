@@ -8,6 +8,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers"
 	provider_oracle "github.com/transferia/transferia/pkg/providers/oracle"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -51,12 +52,13 @@ func (p *Provider) Storage() (abstract.Storage, error) {
 	return NewOracleStorage(p.logger, p.registry, p.cp, &cfg, p.transfer.ID, snapshotShardsNum)
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	specificConfig, ok := p.transfer.Src.(*provider_oracle.OracleSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	return newsource(p.logger, p.registry, p.cp, specificConfig, p.transfer.ID)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return newsource(p.logger, p.cp, specificConfig, p.transfer.ID, sourceStats)
 }
 
 func New(lgr log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, transfer *model.Transfer, _ *model.TransferOperation) providers.Provider {

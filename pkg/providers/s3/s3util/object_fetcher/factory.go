@@ -117,13 +117,13 @@ func newObjectFetcherWrapped(
 func NewWrapped(
 	ctx context.Context,
 	logger log.Logger,
-	registry core_metrics.Registry,
+	sourceStats *stats.SourceStats,
 	srcModel *s3_model.S3Source,
 	transferID string,
 	cp coordinator.Coordinator,
 	runtimeParallelism abstract.ShardingTaskRuntime,
 ) (ObjectFetcher, context.Context, func(), s3_reader.Reader, *stats.SourceStats, error) {
-	sess, s3client, currReader, currMetrics, err := s3sess.NewSessClientReaderMetrics(logger, srcModel, registry)
+	sess, s3client, currReader, currMetrics, err := s3sess.NewSessClientReaderMetrics(logger, srcModel, sourceStats)
 	if err != nil {
 		return nil, nil, nil, nil, nil, xerrors.Errorf("failed to create s3session/s3client/reader, err: %w", err)
 	}

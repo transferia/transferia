@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/stats"
 )
 
 func TestReadWriteWithCompression(t *testing.T) {
@@ -26,7 +27,7 @@ func TestReadWriteWithCompression(t *testing.T) {
 		require.NoError(t, currSink.Push([]abstract.ChangeItem{*sinkTestMirrorChangeItem}))
 		time.Sleep(time.Second) // just in case
 
-		src, err := NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewSource("asd", kafkaSource, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 		items, err := src.Fetch()
 		require.NoError(t, err)

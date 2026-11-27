@@ -13,6 +13,7 @@ import (
 	debezium_parameters "github.com/transferia/transferia/pkg/debezium/parameters"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -170,7 +171,7 @@ func (p *Provider) ListTables(ctx context.Context) (abstract.TableMap, error) {
 	return storage.tableList(ctx, nil)
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	var res abstract.Source
 	src, ok := p.transfer.Src.(*MysqlSource)
 	if !ok {
@@ -189,8 +190,9 @@ func (p *Provider) Source() (abstract.Source, error) {
 			src.Timezone = timeZone
 		}
 	}
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
 	if err := backoff.Retry(func() error {
-		if source, err := NewSource(src, p.transfer.ID, p.transfer.DataObjects, p.logger, p.registry, p.cp, failOnDecimal); err != nil {
+		if source, err := NewSource(src, p.transfer.ID, p.transfer.DataObjects, p.logger, p.registry, p.cp, failOnDecimal, sourceStats); err != nil {
 			return xerrors.Errorf("unable to create new mysql source: %w", err)
 		} else {
 			res = source

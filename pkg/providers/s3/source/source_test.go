@@ -82,7 +82,7 @@ func TestS3Source_run_fetch_delay(t *testing.T) {
 		logger:        logger.Log,
 		ctx:           ctx,
 		errCh:         make(chan error, 1),
-		metrics:       stats.NewSourceStats(metrics.NewRegistry()),
+		metrics:       stats.NewSourceStats(metrics.NewRegistry()).BuildRegisteredSourceStats(),
 		reader:        &mockReader{},
 		cancel:        func() {},
 	}
@@ -114,7 +114,7 @@ func TestS3Source_run_default_delay(t *testing.T) {
 		logger:        logger.Log,
 		ctx:           ctx,
 		errCh:         make(chan error, 1),
-		metrics:       stats.NewSourceStats(metrics.NewRegistry()),
+		metrics:       stats.NewSourceStats(metrics.NewRegistry()).BuildRegisteredSourceStats(),
 		reader:        &mockReader{},
 		cancel:        func() {},
 	}
@@ -160,7 +160,7 @@ func TestS3SourceRunReturnsOnSinkFailure(t *testing.T) {
 		cancel:        cancel,
 		logger:        logger.Log,
 		srcModel:      &s3_model.S3Source{Concurrency: 1},
-		metrics:       stats.NewSourceStats(metrics.NewRegistry()),
+		metrics:       stats.NewSourceStats(metrics.NewRegistry()).BuildRegisteredSourceStats(),
 		reader:        &oneChunkReader{},
 		objectFetcher: &oneObjectFetcher{},
 		errCh:         make(chan error, 1),

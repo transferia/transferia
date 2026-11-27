@@ -13,7 +13,6 @@ import (
 	aws_session "github.com/aws/aws-sdk-go/aws/session"
 	aws_kinesis "github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/cenkalti/backoff/v4"
-	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -33,12 +32,11 @@ var (
 )
 
 type Source struct {
-	registry core_metrics.Registry
-	cp       coordinator.Coordinator
-	logger   log.Logger
-	config   *KinesisSource
-	metrics  *stats.SourceStats
-	parser   parsers.Parser
+	cp      coordinator.Coordinator
+	logger  log.Logger
+	config  *KinesisSource
+	metrics stats.RegisteredSourceStats
+	parser  parsers.Parser
 
 	inflightThrottler throttler.Throttler
 
@@ -76,6 +74,8 @@ func (s *Source) Fetch() ([]abstract.ChangeItem, error) {
 
 func (s *Source) Run(sink abstract.AsyncSink) error {
 	parseQ := parsequeue.NewWaitable(s.logger, s.config.ParseQueueParallelism, sink, s.parse, s.ack)
+	// Stop is idempotent. Both Run and the replication strategy may call it.
+	defer s.Stop()
 
 	runErr := s.run(parseQ)
 
@@ -113,6 +113,7 @@ func (s *Source) run(parseQ *parsequeue.WaitableParseQueue[[]*consumer.Record]) 
 
 func (s *Source) Stop() {
 	s.cancel()
+	s.metrics.Close()
 }
 
 func (s *Source) ack(data []*consumer.Record, pushSt time.Time) error {
@@ -252,7 +253,7 @@ func NewSource(
 	cp coordinator.Coordinator,
 	cfg *KinesisSource,
 	logger log.Logger,
-	registry core_metrics.Registry,
+	sourceStats *stats.SourceStats,
 ) (*Source, error) {
 	cred := aws_credentials.AnonymousCredentials
 	if cfg.AccessKey != "" {
@@ -280,7 +281,7 @@ func NewSource(
 
 	var parser parsers.Parser
 	if cfg.ParserConfig != nil {
-		parser, err = parsers.NewParserFromMap(cfg.ParserConfig, false, logger, stats.NewSourceStats(registry))
+		parser, err = parsers.NewParserFromMap(cfg.ParserConfig, false, logger, sourceStats)
 		if err != nil {
 			return nil, xerrors.Errorf("unable to make parser, err: %w", err)
 		}
@@ -288,11 +289,10 @@ func NewSource(
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Source{
-		registry:          registry,
 		cp:                cp,
 		logger:            logger,
 		config:            cfg,
-		metrics:           stats.NewSourceStats(registry),
+		metrics:           sourceStats.BuildRegisteredSourceStats(),
 		parser:            parser,
 		inflightThrottler: throttler.NewMemoryThrottler(uint64(cfg.BufferSize)),
 		ctx:               ctx,

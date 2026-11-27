@@ -15,6 +15,7 @@ import (
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/sink_factory"
 	"github.com/transferia/transferia/pkg/source_factory"
+	"github.com/transferia/transferia/pkg/stats"
 	backoffutil "github.com/transferia/transferia/pkg/util/backoff"
 	"github.com/transferia/transferia/pkg/util/set"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -25,6 +26,7 @@ type newSinkF func(partition abstract.Partition) (abstract.QueueToS3Sink, error)
 type newListerF func() (abstract.PartitionLister, error)
 
 type PartitionedStrategy struct {
+	attemptMetrics    *stats.ReplicationAttemptMetrics
 	errCh             chan error
 	stopCh            chan struct{}
 	mutex             sync.Mutex
@@ -43,6 +45,10 @@ type PartitionedStrategy struct {
 }
 
 func (s *PartitionedStrategy) Run() error {
+	if s.attemptMetrics != nil {
+		stopMetrics := s.attemptMetrics.Start()
+		defer stopMetrics()
+	}
 	if err := s.syncRunnersWithPartitions(); err != nil {
 		return xerrors.Errorf("unable to synchronize runners with partitions initially: %w", err)
 	}
@@ -145,6 +151,7 @@ func (s *PartitionedStrategy) syncRunnersWithPartitions() error {
 
 		partitionSink, err := s.newSink(partition)
 		if err != nil {
+			partitionSource.Stop()
 			return xerrors.Errorf("failed to create sink: %w", err)
 		}
 
@@ -256,13 +263,14 @@ func assignedPartitions(workerIndex, totalWorkers int, allPartitions []abstract.
 	return result
 }
 
-func NewPartitionedStrategy(transfer *model.Transfer, cp coordinator.Coordinator, registry metrics.Registry, logger log.Logger) (*PartitionedStrategy, error) {
+func NewPartitionedStrategy(transfer *model.Transfer, cp coordinator.Coordinator, registry metrics.Registry, logger log.Logger, attemptMetrics *stats.ReplicationAttemptMetrics) (*PartitionedStrategy, error) {
 	shardingRuntime, ok := transfer.RuntimeForReplication().(abstract.ShardingTaskRuntime)
 	if !ok {
 		return nil, xerrors.New("unexpected runtime type")
 	}
 
 	partitionedStrategy := &PartitionedStrategy{
+		attemptMetrics:    attemptMetrics,
 		errCh:             make(chan error, 1),
 		stopCh:            make(chan struct{}),
 		mutex:             sync.Mutex{},
@@ -281,7 +289,7 @@ func NewPartitionedStrategy(transfer *model.Transfer, cp coordinator.Coordinator
 	}
 
 	partitionedStrategy.newSource = func(partition abstract.Partition) (abstract.QueueToS3Source, error) {
-		return source_factory.NewPartitionableSource(transfer, logger, registry, cp, partition)
+		return source_factory.NewPartitionableSource(transfer, logger, registry, cp, partition, partitionedStrategy.attemptMetrics)
 	}
 
 	partitionedStrategy.newSink = func(partition abstract.Partition) (abstract.QueueToS3Sink, error) {
@@ -293,6 +301,7 @@ func NewPartitionedStrategy(transfer *model.Transfer, cp coordinator.Coordinator
 			cp,
 			middlewares.MakeConfig(middlewares.AtReplicationStage),
 			partition,
+			attemptMetrics,
 		)
 	}
 

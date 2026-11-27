@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -31,13 +32,18 @@ type pendingOplogTxn struct {
 // Prepared (2PC) transactions put ops into the oplog at prepare time; applying them immediately is wrong:
 // refetch by _id before commit reads the pre-transaction document, and deletes of an aborted tx cannot be undone.
 type oplogTxnTracker struct {
+	metrics stats.RegisteredSourceStats
+
 	logger  log.Logger
 	pending map[oplogTxnKey]*pendingOplogTxn
 }
 
 func newOplogTxnTracker(logger log.Logger) *oplogTxnTracker {
+	var metrics stats.RegisteredSourceStats
 	return &oplogTxnTracker{
 		logger:  logger,
+		metrics: metrics,
+
 		pending: map[oplogTxnKey]*pendingOplogTxn{},
 	}
 }

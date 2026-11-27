@@ -9,7 +9,9 @@ import (
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
+	"github.com/transferia/transferia/pkg/config/env"
 	"github.com/transferia/transferia/pkg/runtime/local/replicationstrategy"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"github.com/transferia/transferia/pkg/worker/tasks"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -111,18 +113,22 @@ func (w *LocalWorker) initialize() error {
 		return xerrors.Errorf("failed to set extra runtime transformations: %w", err)
 	}
 
+	var attemptMetrics *stats.ReplicationAttemptMetrics
+	if env.In(env.EnvironmentInternal) {
+		attemptMetrics = stats.NewReplicationAttemptMetrics(w.registry.WithTags(map[string]string{"resource_id": w.transfer.ID}))
+	}
 	var err error
 	if needPartitionedStrategy(w.transfer) {
 		if !w.transfer.RuntimeForReplication().IsSupportedPartitionedStrategy() {
 			return abstract.NewFatalError(xerrors.New("partitioned replication is not compatible with MultiYTRuntime"))
 		}
 
-		w.strategy, err = replicationstrategy.NewPartitionedStrategy(w.transfer, w.cp, w.registry, w.logger)
+		w.strategy, err = replicationstrategy.NewPartitionedStrategy(w.transfer, w.cp, w.registry, w.logger, attemptMetrics)
 		if err != nil {
 			return xerrors.Errorf("failed to initialize partitioned replication strategy: %w", err)
 		}
 	} else {
-		w.strategy, err = replicationstrategy.NewBasicStrategy(w.transfer, w.cp, w.registry, w.logger)
+		w.strategy, err = replicationstrategy.NewBasicStrategy(w.transfer, w.cp, w.registry, w.logger, attemptMetrics)
 		if err != nil {
 			return xerrors.Errorf("failed to initialize basic replication strategy: %w", err)
 		}

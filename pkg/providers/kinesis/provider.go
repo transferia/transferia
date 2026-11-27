@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -42,12 +43,13 @@ func (p *Provider) Type() abstract.ProviderType {
 	return ProviderType
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	src, ok := p.transfer.Src.(*KinesisSource)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected source type: %T", p.transfer.Src)
 	}
-	return NewSource(p.transfer.ID, p.cp, src, p.logger, p.registry)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return NewSource(p.transfer.ID, p.cp, src, p.logger, sourceStats)
 }
 
 func (p *Provider) Activate(context.Context, *model.TransferOperation, abstract.TableMap, providers.ActivateCallbacks) error {

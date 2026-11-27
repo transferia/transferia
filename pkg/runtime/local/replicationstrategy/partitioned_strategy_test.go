@@ -27,7 +27,7 @@ func TestPartitionedStrategy(t *testing.T) {
 	}
 
 	t.Run("NewPartitionedStrategy", func(t *testing.T) {
-		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
+		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log, nil)
 		require.NoError(t, err)
 
 		require.NotNil(t, partitionedStrategy.errCh)
@@ -40,7 +40,7 @@ func TestPartitionedStrategy(t *testing.T) {
 
 	t.Run("StartOneRunner", func(t *testing.T) {
 		// Construct partitioned strategy and mock source
-		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
+		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log, nil)
 		require.NoError(t, err)
 
 		partition := abstract.Partition{Topic: "test", Partition: 0}
@@ -64,7 +64,7 @@ func TestPartitionedStrategy(t *testing.T) {
 
 	t.Run("StartFewRunners", func(t *testing.T) {
 		// Construct partitioned strategy and mock source
-		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
+		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log, nil)
 		require.NoError(t, err)
 
 		firstPartition := abstract.Partition{Topic: "test", Partition: 0}
@@ -99,7 +99,7 @@ func TestPartitionedStrategy(t *testing.T) {
 
 	t.Run("ErrorInOneRunner", func(t *testing.T) {
 		// Construct partitioned strategy and mock source
-		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
+		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log, nil)
 		require.NoError(t, err)
 
 		partition := abstract.Partition{Topic: "test", Partition: 0}
@@ -124,7 +124,7 @@ func TestPartitionedStrategy(t *testing.T) {
 
 	t.Run("ErrorInFewRunners", func(t *testing.T) {
 		// Construct partitioned strategy and mock source
-		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
+		partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log, nil)
 		require.NoError(t, err)
 
 		firstPartition := abstract.Partition{Topic: "test", Partition: 0}
@@ -164,7 +164,7 @@ func TestSyncRunnersWithPartitions(t *testing.T) {
 		},
 	}
 
-	partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
+	partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log, nil)
 	require.NoError(t, err)
 
 	var partitions []abstract.Partition
@@ -273,7 +273,7 @@ func TestGetOrderedPartitions(t *testing.T) {
 		},
 	}
 
-	partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log)
+	partitionedStrategy, err := NewPartitionedStrategy(transfer, cp, solomon.NewRegistry(solomon.NewRegistryOpts()), logger.Log, nil)
 	require.NoError(t, err)
 
 	var partitions []abstract.Partition

@@ -28,7 +28,7 @@ import (
 type poller struct {
 	logger          log.Logger
 	conn            *pgxpool.Pool
-	metrics         *stats.SourceStats
+	metrics         stats.RegisteredSourceStats
 	stopCh          chan struct{}
 	slotID          string
 	wal2jsonParser  *Wal2JsonParser
@@ -265,6 +265,7 @@ func (p *poller) commitOffset(lsn string, slotName string) error {
 func (p *poller) Stop() {
 	p.once.Do(func() {
 		close(p.stopCh)
+		p.metrics.Close()
 		p.wg.Wait()
 		p.slotMonitor.Close()
 		p.wal2jsonParser.Close()
@@ -595,7 +596,7 @@ func newPollingPublisher(
 	plr := poller{
 		logger:          lgr,
 		conn:            conn,
-		metrics:         registry,
+		metrics:         registry.BuildRegisteredSourceStats(),
 		stopCh:          make(chan struct{}),
 		slotID:          cfg.SlotID,
 		wal2jsonParser:  NewWal2JsonParser(),

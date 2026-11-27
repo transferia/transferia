@@ -35,6 +35,7 @@ type AsyncSink struct {
 	encryptionKey *encryption.Key
 
 	offsetsToCommit []uint64
+	attemptMetrics  *stats.ReplicationAttemptMetrics
 
 	//concurrentState is a wrapper around all the asyncronous variables that are needed for reqular rotation to work
 	concurrentState *lifecycleState
@@ -290,7 +291,7 @@ func (s *AsyncSink) asyncPush(ctx context.Context, errCh chan<- abstract.AsyncPu
 	s.processBeforeRotation(ctx, errCh, items)
 }
 
-func NewReplicationAsyncSink(lgr log.Logger, cfg *s3_v1_model.S3Destination, mtrcs core_metrics.Registry) (*AsyncSink, error) {
+func NewReplicationAsyncSink(lgr log.Logger, cfg *s3_v1_model.S3Destination, mtrcs core_metrics.Registry, attemptMetrics *stats.ReplicationAttemptMetrics) (*AsyncSink, error) {
 	useReplace := false // for now cleanup is not supported for replication sink
 	s3Client, err := s3_v1_sink_client.New(lgr, cfg.Bucket, cfg.Connection, cfg.PartSize, useReplace)
 	if err != nil {
@@ -307,6 +308,7 @@ func NewReplicationAsyncSink(lgr log.Logger, cfg *s3_v1_model.S3Destination, mtr
 	}
 
 	sink := &AsyncSink{
+		attemptMetrics:  attemptMetrics,
 		logger:          lgr,
 		metrics:         stats.NewSinkerStats(mtrcs),
 		cfg:             cfg,

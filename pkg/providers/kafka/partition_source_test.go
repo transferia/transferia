@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/transferia/transferia/internal/logger"
 	"github.com/transferia/transferia/library/go/core/metrics/solomon"
+	"github.com/transferia/transferia/pkg/stats"
 	sourcehelpers "github.com/transferia/transferia/tests/helpers/source"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -32,7 +33,7 @@ func TestPartitionSource(t *testing.T) {
 
 		testData := createTopicAndFillWithData(t, topicName, &kafkaCfg)
 
-		src, err := NewPartitionSource("dtt", &kafkaCfg, partitionDesc, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewPartitionSource("dtt", &kafkaCfg, partitionDesc, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 
 		result, err := sourcehelpers.WaitForItemsQueueToS3(src, 10, 500*time.Millisecond)
@@ -67,7 +68,7 @@ func TestPartitionSource(t *testing.T) {
 		testData := createTopicAndFillWithData(t, topicName, &kafkaCfg)
 
 		// create tmp source and commit a few messages before run
-		src, err := NewPartitionSource("dtt", &kafkaCfg, partitionDesc, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err := NewPartitionSource("dtt", &kafkaCfg, partitionDesc, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 
 		require.NoError(t, src.reader.CommitMessages(context.Background(), []kgo.Record{
@@ -77,7 +78,7 @@ func TestPartitionSource(t *testing.T) {
 		}...))
 		src.Stop()
 
-		src, err = NewPartitionSource("dtt", &kafkaCfg, partitionDesc, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+		src, err = NewPartitionSource("dtt", &kafkaCfg, partitionDesc, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 		require.NoError(t, err)
 
 		result, err := sourcehelpers.WaitForItemsQueueToS3(src, 7, 500*time.Millisecond)

@@ -3,11 +3,11 @@ package kafka
 import (
 	"errors"
 
-	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	queue_to_s3_parsequeue "github.com/transferia/transferia/pkg/parsequeue/queue_to_s3"
 	kafka_reader "github.com/transferia/transferia/pkg/providers/kafka/reader"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/queues/sequencer"
 	"github.com/transferia/transferia/pkg/util/throttler"
 	"go.ytsaurus.tech/library/go/core/log"
@@ -67,19 +67,20 @@ type PartitionDescription struct {
 	Partition int32
 }
 
-func NewPartitionSource(transferID string, cfg *KafkaSource, partitionDesc PartitionDescription, logger log.Logger, registry core_metrics.Registry) (*PartitionSource, error) {
+func NewPartitionSource(transferID string, cfg *KafkaSource, partitionDesc PartitionDescription, logger log.Logger, sourceStats *stats.SourceStats) (*PartitionSource, error) {
 	opts, err := kafkaClientCommonOptions(cfg)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to build options for partition source: %w", err)
 	}
 
-	baseSource, err := newBaseSource(cfg, throttler.NewStubThrottler(), logger, registry)
+	baseSource, err := newBaseSource(cfg, throttler.NewStubThrottler(), logger, sourceStats)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create Source for partition: %w", err)
 	}
 
 	r, err := kafka_reader.NewPartitionReader(transferID, partitionDesc.Partition, partitionDesc.Topic, opts)
 	if err != nil {
+		baseSource.metrics.Close()
 		return nil, xerrors.Errorf("unable to create reader for partition: %w", err)
 	}
 	baseSource.reader = r

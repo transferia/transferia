@@ -9,6 +9,7 @@ import (
 )
 
 type SourceStats struct {
+	attempt       *ReplicationAttemptMetrics
 	registry      core_metrics.Registry
 	rw            sync.Mutex
 	Usage         core_metrics.Gauge
@@ -51,11 +52,23 @@ func (s *SourceStats) SourceRows(table string, rows uint64) {
 }
 
 func (s *SourceStats) WithTags(tags map[string]string) *SourceStats {
-	return NewSourceStats(s.registry.WithTags(tags))
+	return s.attempt.BuildSourceStats(s.registry.WithTags(tags))
 }
+
+// RegisteredSourceStats owns the metrics associated with one source instance.
+type RegisteredSourceStats struct {
+	*SourceStats
+}
+
+func (s *SourceStats) BuildRegisteredSourceStats() RegisteredSourceStats {
+	return RegisteredSourceStats{SourceStats: s}
+}
+
+func (s *SourceStats) Close() {}
 
 func NewSourceStats(registry core_metrics.Registry) *SourceStats {
 	return &SourceStats{
+		attempt:       nil,
 		registry:      registry,
 		rw:            sync.Mutex{},
 		tableStat:     map[string]*TableStat{},

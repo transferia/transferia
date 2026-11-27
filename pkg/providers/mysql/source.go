@@ -36,7 +36,7 @@ func init() {
 type binlogHandler struct {
 	inflight         []abstract.ChangeItem
 	logger           log.Logger
-	metrics          *stats.SourceStats
+	metrics          stats.RegisteredSourceStats
 	sink             abstract.AsyncSink
 	inflightSize     uint32
 	bufferLimit      uint32
@@ -53,6 +53,7 @@ type binlogHandler struct {
 }
 
 func (h *binlogHandler) Close() error {
+	h.metrics.Close()
 	h.isClosed = true
 	return h.tracker.Close()
 }
@@ -508,6 +509,7 @@ func (p *publisher) Stop() {
 }
 
 func (p *publisher) flusher() {
+	// Stop is idempotent. Both the flusher and the replication strategy may call it.
 	defer p.Stop()
 	lastPushedGTID := ""
 	ticker := time.NewTicker(time.Second)
@@ -607,7 +609,7 @@ func (p *publisher) flusher() {
 	}
 }
 
-func NewSource(src *MysqlSource, transferID string, objects *model.DataObjects, logger log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, failOnDecimal bool) (abstract.Source, error) {
+func NewSource(src *MysqlSource, transferID string, objects *model.DataObjects, logger log.Logger, registry core_metrics.Registry, cp coordinator.Coordinator, failOnDecimal bool, sourceStats *stats.SourceStats) (abstract.Source, error) {
 	var rollbacks util.Rollbacks
 	defer rollbacks.Do()
 
@@ -688,7 +690,7 @@ func NewSource(src *MysqlSource, transferID string, objects *model.DataObjects, 
 	handler := &binlogHandler{
 		inflight:         make([]abstract.ChangeItem, 0),
 		logger:           logger,
-		metrics:          stats.NewSourceStats(registry),
+		metrics:          sourceStats.BuildRegisteredSourceStats(),
 		sink:             nil,
 		inflightSize:     0,
 		bufferLimit:      src.BufferLimit,

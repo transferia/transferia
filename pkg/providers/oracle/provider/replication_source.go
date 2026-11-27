@@ -2,7 +2,6 @@ package provider
 
 import (
 	"github.com/jmoiron/sqlx"
-	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
 	"github.com/transferia/transferia/pkg/abstract/coordinator"
@@ -23,10 +22,10 @@ type source struct {
 
 func newsource(
 	logger log.Logger,
-	registry core_metrics.Registry,
 	cp coordinator.Coordinator,
 	cfg *provider_oracle.OracleSource,
 	transferID string,
+	sourceStats *stats.SourceStats,
 ) (*source, error) {
 	sqlxDB, err := oracle_common.CreateConnection(cfg)
 	if err != nil {
@@ -54,7 +53,7 @@ func newsource(
 		}
 	}
 
-	inner := logminer.NewLogMinerSource(sqlxDB, cfg, schemaRepo, tracker, logger, stats.NewSourceStats(registry))
+	inner := logminer.NewLogMinerSource(sqlxDB, cfg, schemaRepo, tracker, logger, sourceStats)
 
 	return &source{inner: inner, db: sqlxDB}, nil
 }

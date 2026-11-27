@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/abstract2"
 	"github.com/transferia/transferia/pkg/middlewares"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -35,14 +36,14 @@ type TableLister interface {
 // this means that provider can do data replication
 type Replication interface {
 	Provider
-	Source() (abstract.Source, error)
+	Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error)
 }
 
 // PartitionableSource add to provider `abstract.QueueToS3Source` factory to provider
 // it means that provider can do data replication for specified partition.
 type PartitionableSource interface {
 	Provider
-	PartitionSource(partition abstract.Partition) (abstract.QueueToS3Source, error)
+	PartitionSource(partition abstract.Partition, attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.QueueToS3Source, error)
 }
 
 // PartitionListerProvider add partition lister factory to provider.
@@ -72,7 +73,7 @@ type Sinker interface {
 
 type QueueToS3Sink interface {
 	Provider
-	AsyncV2Sink(config middlewares.Config, partition abstract.Partition) (abstract.QueueToS3Sink, error)
+	AsyncV2Sink(config middlewares.Config, partition abstract.Partition, attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.QueueToS3Sink, error)
 }
 
 // SnapshotSinker optional separate writer for snapshots. Will always called for snapshots with all control events

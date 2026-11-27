@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	core_metrics "github.com/transferia/transferia/library/go/core/metrics"
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/library/go/core/xerrors/multierr"
 	"github.com/transferia/transferia/pkg/abstract"
@@ -35,7 +34,7 @@ type messageReader interface {
 
 type Source struct {
 	config            *KafkaSource
-	metrics           *stats.SourceStats
+	metrics           stats.RegisteredSourceStats
 	logger            log.Logger
 	reader            messageReader
 	cancel            context.CancelFunc
@@ -166,6 +165,7 @@ func (s *Source) Stop() {
 		if err := s.reader.Close(); err != nil {
 			s.logger.Warn("unable to close reader", log.Error(err))
 		}
+		s.metrics.Close()
 	})
 }
 
@@ -365,7 +365,7 @@ func recordsFromQueueMessages(messages []sequencer.QueueMessage) []kgo.Record {
 }
 
 // newBaseSource creates partially initialized Source without reader
-func newBaseSource(cfg *KafkaSource, inflightThrottler throttler.Throttler, logger log.Logger, registry core_metrics.Registry) (*Source, error) {
+func newBaseSource(cfg *KafkaSource, inflightThrottler throttler.Throttler, logger log.Logger, sourceStats *stats.SourceStats) (*Source, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := cfg.WithConnectionID(); err != nil {
 		cancel()
@@ -374,7 +374,7 @@ func newBaseSource(cfg *KafkaSource, inflightThrottler throttler.Throttler, logg
 
 	source := &Source{
 		config:            cfg,
-		metrics:           stats.NewSourceStats(registry),
+		metrics:           sourceStats.BuildRegisteredSourceStats(),
 		reader:            nil,
 		logger:            logger,
 		cancel:            cancel,
@@ -392,6 +392,7 @@ func newBaseSource(cfg *KafkaSource, inflightThrottler throttler.Throttler, logg
 		executor, err := functions.NewExecutor(cfg.Transformer, cfg.Transformer.CloudFunctionsBaseURL, functions.YDS, logger)
 		if err != nil {
 			logger.Error("init function executor", log.Error(err))
+			source.metrics.Close()
 			cancel()
 			return nil, xerrors.Errorf("unable to init functions transformer: %w", err)
 		}
@@ -399,8 +400,9 @@ func newBaseSource(cfg *KafkaSource, inflightThrottler throttler.Throttler, logg
 	}
 
 	if cfg.ParserConfig != nil {
-		parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, source.metrics)
+		parser, err := parsers.NewParserFromMap(cfg.ParserConfig, false, logger, sourceStats)
 		if err != nil {
+			source.metrics.Close()
 			cancel()
 			return nil, xerrors.Errorf("unable to make parser, err: %w", err)
 		}
@@ -410,7 +412,7 @@ func newBaseSource(cfg *KafkaSource, inflightThrottler throttler.Throttler, logg
 	return source, nil
 }
 
-func NewSource(transferID string, cfg *KafkaSource, logger log.Logger, registry core_metrics.Registry) (*Source, error) {
+func NewSource(transferID string, cfg *KafkaSource, logger log.Logger, sourceStats *stats.SourceStats) (*Source, error) {
 	opts, err := kafkaClientCommonOptions(cfg)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to build options: %w", err)
@@ -420,13 +422,14 @@ func NewSource(transferID string, cfg *KafkaSource, logger log.Logger, registry 
 		return nil, xerrors.Errorf("unable to check topic existence: %w", err)
 	}
 
-	source, err := newBaseSource(cfg, throttler.NewMemoryThrottler(uint64(cfg.BufferSizeOrDefault())), logger, registry)
+	source, err := newBaseSource(cfg, throttler.NewMemoryThrottler(uint64(cfg.BufferSizeOrDefault())), logger, sourceStats)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to create Source for group: %w", err)
 	}
 
 	topics := cfg.Topics()
 	if len(topics) == 0 {
+		source.metrics.Close()
 		return nil, abstract.NewFatalError(xerrors.New("kafka topic required"))
 	}
 
@@ -446,6 +449,7 @@ func NewSource(transferID string, cfg *KafkaSource, logger log.Logger, registry 
 
 	r, err := kafka_reader.NewGroupReader(transferID, topics, opts)
 	if err != nil {
+		source.metrics.Close()
 		return nil, xerrors.Errorf("unable to create reader for group: %w", err)
 	}
 	source.reader = r

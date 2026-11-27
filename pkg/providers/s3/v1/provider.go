@@ -11,6 +11,7 @@ import (
 	s3_v1_model "github.com/transferia/transferia/pkg/providers/s3/v1/model"
 	s3_v1_sink "github.com/transferia/transferia/pkg/providers/s3/v1/sink"
 	"github.com/transferia/transferia/pkg/providers/s3/v1/sink/queue_to_s3_sink"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.ytsaurus.tech/library/go/core/log"
 )
 
@@ -57,13 +58,13 @@ func (p *Provider) Sink(middlewares.Config) (abstract.Sinker, error) {
 	}
 }
 
-func (p *Provider) AsyncV2Sink(middlewares.Config, abstract.Partition) (abstract.QueueToS3Sink, error) {
+func (p *Provider) AsyncV2Sink(_ middlewares.Config, _ abstract.Partition, attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.QueueToS3Sink, error) {
 	dst, ok := p.transfer.Dst.(*s3_v1_model.S3Destination)
 	if !ok {
 		return nil, xerrors.Errorf("unexpected target type: %T", p.transfer.Dst)
 	}
 
-	sink, err := queue_to_s3_sink.NewReplicationAsyncSink(p.logger, dst, p.registry)
+	sink, err := queue_to_s3_sink.NewReplicationAsyncSink(p.logger, dst, p.registry, attemptMetrics)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create replication asynchronous sink: %w", err)
 	}

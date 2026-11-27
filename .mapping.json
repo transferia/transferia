@@ -2600,6 +2600,7 @@
   "pkg/stats/other.go":"transfer_manager/go/pkg/stats/other.go",
   "pkg/stats/pool.go":"transfer_manager/go/pkg/stats/pool.go",
   "pkg/stats/replication.go":"transfer_manager/go/pkg/stats/replication.go",
+  "pkg/stats/replication_attempt.go":"transfer_manager/go/pkg/stats/replication_attempt.go",
   "pkg/stats/repository.go":"transfer_manager/go/pkg/stats/repository.go",
   "pkg/stats/server.go":"transfer_manager/go/pkg/stats/server.go",
   "pkg/stats/sink_wrapper.go":"transfer_manager/go/pkg/stats/sink_wrapper.go",

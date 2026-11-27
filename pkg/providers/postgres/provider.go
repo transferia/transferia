@@ -317,14 +317,14 @@ func (p *Provider) SnapshotSink(mwConfig middlewares.Config) (abstract.Sinker, e
 	return NewSink(p.logger, p.transfer.ID, dst.ToSinkParams(), p.registry)
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	s, err := p.srcParamsFromTransfer()
 	if err != nil {
 		return nil, xerrors.Errorf("error getting source params from transfer: %w", err)
 	}
-	st := stats.NewSourceStats(p.registry)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
 	return backoff.RetryNotifyWithData(func() (abstract.Source, error) {
-		return NewSourceWrapper(s, p.transfer.ID, p.transfer.DataObjects, p.logger, st, p.cp, false)
+		return NewSourceWrapper(s, p.transfer.ID, p.transfer.DataObjects, p.logger, sourceStats, p.cp, false)
 	}, backoff.WithMaxRetries(backoffutil.NewExponentialBackOff(), 3), backoffutil.LogWithLogger(context.Background(), p.logger, "unable to init pg source"))
 }
 
@@ -336,13 +336,13 @@ func (p *Provider) PartitionLister() (abstract.PartitionLister, error) {
 	return NewPartitionLister(src.SlotID), nil
 }
 
-func (p *Provider) PartitionSource(partition abstract.Partition) (abstract.QueueToS3Source, error) {
+func (p *Provider) PartitionSource(partition abstract.Partition, attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.QueueToS3Source, error) {
 	src, err := p.srcParamsFromTransfer()
 	if err != nil {
 		return nil, xerrors.Errorf("error getting source params from transfer: %w", err)
 	}
-	st := stats.NewSourceStats(p.registry)
-	return NewPartitionSource(src, p.transfer.ID, p.transfer.DataObjects, partition, p.logger, st, p.cp)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return NewPartitionSource(src, p.transfer.ID, p.transfer.DataObjects, partition, p.logger, sourceStats, p.cp)
 }
 
 // Build a type mapping and print elapsed time in log.

@@ -14,6 +14,7 @@ import (
 	"github.com/transferia/transferia/pkg/parsers"
 	jsonparser "github.com/transferia/transferia/pkg/parsers/registry/json"
 	"github.com/transferia/transferia/pkg/providers/kafka/client"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/throttler"
 	mocksink "github.com/transferia/transferia/tests/helpers/mock_sink"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -59,7 +60,7 @@ func TestWithThrottler(t *testing.T) {
 		return nil
 	})
 	kafkaSource := &KafkaSource{BufferSize: 100}
-	source, err := newBaseSource(kafkaSource, throttler.NewMemoryThrottler(100), logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	source, err := newBaseSource(kafkaSource, throttler.NewMemoryThrottler(100), logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.NoError(t, err)
 	source.reader = reader
 	require.NoError(t, err)
@@ -114,7 +115,7 @@ func TestConsumer(t *testing.T) {
 	}
 	time.Sleep(time.Second) // just in case
 
-	src, err := NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	src, err := NewSource("asd", kafkaSource, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.NoError(t, err)
 	items, err := src.Fetch()
 	require.NoError(t, err)
@@ -126,14 +127,14 @@ func TestMissedTopic(t *testing.T) {
 	kafkaSource, err := SourceRecipe()
 	require.NoError(t, err)
 	kafkaSource.Topic = "not-exists-topic"
-	_, err = NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	_, err = NewSource("asd", kafkaSource, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.Error(t, err)
 	require.True(t, abstract.IsFatal(err))
 	kafkaSource.Topic = "topic1"
 	kafkaClient, err := client.NewClient(kafkaSource.Connection.Brokers, nil, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, kafkaClient.CreateTopicIfNotExist(logger.Log, kafkaSource.Topic, nil))
-	_, err = NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	_, err = NewSource("asd", kafkaSource, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.NoError(t, err)
 }
 
@@ -141,7 +142,7 @@ func TestNonExistsTopic(t *testing.T) {
 	kafkaSource, err := SourceRecipe()
 	require.NoError(t, err)
 	kafkaSource.Topic = "tmp"
-	_, err = NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	_, err = NewSource("asd", kafkaSource, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.Error(t, err)
 }
 
@@ -176,7 +177,7 @@ func TestOffsetPolicy(t *testing.T) {
 	time.Sleep(time.Second) // just in case
 
 	kafkaSource.OffsetPolicy = AtStartOffsetPolicy // Will read old item (1, 2 and 3)
-	src, err := NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	src, err := NewSource("asd", kafkaSource, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.NoError(t, err)
 	items, err := src.Fetch()
 	require.NoError(t, err)
@@ -192,7 +193,7 @@ func TestOffsetPolicy(t *testing.T) {
 	}()
 
 	kafkaSource.OffsetPolicy = AtEndOffsetPolicy // Will read only new items (3 and 4)
-	src, err = NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	src, err = NewSource("asd", kafkaSource, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.NoError(t, err)
 	items, err = src.Fetch()
 	require.NoError(t, err)
@@ -214,7 +215,7 @@ func TestParseLSNNotSetNull(t *testing.T) {
 	require.NoError(t, err)
 
 	kafkaSource.Topic = "topic2"
-	src, err := NewSource("asd", kafkaSource, logger.Log, solomon.NewRegistry(solomon.NewRegistryOpts()))
+	src, err := NewSource("asd", kafkaSource, logger.Log, stats.NewSourceStats(solomon.NewRegistry(solomon.NewRegistryOpts())))
 	require.NoError(t, err)
 
 	src.parser = &mockParser{}

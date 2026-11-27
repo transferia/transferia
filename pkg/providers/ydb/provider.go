@@ -10,6 +10,7 @@ import (
 	"github.com/transferia/transferia/pkg/abstract/model"
 	"github.com/transferia/transferia/pkg/middlewares"
 	"github.com/transferia/transferia/pkg/providers"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util/gobwrapper"
 	"go.ytsaurus.tech/library/go/core/log"
 )
@@ -74,7 +75,7 @@ func (p *Provider) fillIncludedTables(src *YdbSource) {
 	src.Tables = result
 }
 
-func (p *Provider) Source() (abstract.Source, error) {
+func (p *Provider) Source(attemptMetrics *stats.ReplicationAttemptMetrics) (abstract.Source, error) {
 	src, ok := p.transfer.Src.(*YdbSource)
 	if !ok {
 		return nil, xerrors.Errorf("Unknown source type: %T", p.transfer.Src)
@@ -95,7 +96,8 @@ func (p *Provider) Source() (abstract.Source, error) {
 	if err := CreateChangeFeedIfNotExists(ctx, src, p.transfer.ID, ydbClient); err != nil {
 		return nil, xerrors.Errorf("unable to upsert changeFeed, err: %w", err)
 	}
-	return NewSource(p.transfer.ID, src, p.logger, p.registry)
+	sourceStats := attemptMetrics.BuildSourceStats(p.registry)
+	return NewSource(p.transfer.ID, src, p.logger, sourceStats)
 }
 
 func (p *Provider) Activate(ctx context.Context, _ *model.TransferOperation, tables abstract.TableMap, callbacks providers.ActivateCallbacks) error {

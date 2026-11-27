@@ -9,6 +9,7 @@ import (
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	yslices "github.com/transferia/transferia/library/go/slices"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/stats"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
@@ -40,7 +41,7 @@ func (w *localOplogRsWatcher) Close(ctx context.Context) {
 }
 
 func (w *localOplogRsWatcher) Watch(ctx context.Context, pusher changeEventPusher) error {
-	batcher, err := NewKeyBatcher(ctx, w.logger, MakeDefaultFullDocumentExtractor(w.client), pusher, w.config.BatchingParams)
+	batcher, err := newKeyBatcher(ctx, w.logger, MakeDefaultFullDocumentExtractor(w.client), pusher, w.config.BatchingParams, w.txnTracker.metrics)
 	if err != nil {
 		return xerrors.Errorf("cannot initialize batcher: %w", err)
 	}
@@ -260,7 +261,7 @@ func makeOplogShouldReplicate(config *MongoSource) func(opType OperationType, ns
 }
 
 func newOplogWatcher(
-	lgr log.Logger, cl *MongoClientWrapper, watchFrom primitive.Timestamp, filterOplogWithRegex bool, cfg *MongoSource,
+	lgr log.Logger, cl *MongoClientWrapper, watchFrom primitive.Timestamp, filterOplogWithRegex bool, cfg *MongoSource, metrics stats.RegisteredSourceStats,
 ) (*localOplogRsWatcher, error) {
 	shouldReplicate := makeOplogShouldReplicate(cfg)
 
@@ -279,5 +280,6 @@ func newOplogWatcher(
 
 		fullWhereStatementCache: nil,
 	}
+	watcher.txnTracker.metrics = metrics
 	return watcher, nil
 }

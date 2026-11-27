@@ -6,6 +6,7 @@ import (
 
 	"github.com/transferia/transferia/library/go/core/xerrors"
 	"github.com/transferia/transferia/pkg/abstract"
+	"github.com/transferia/transferia/pkg/stats"
 	"github.com/transferia/transferia/pkg/util"
 	"go.mongodb.org/mongo-driver/bson"
 	mongo_driver "go.mongodb.org/mongo-driver/mongo"
@@ -22,6 +23,7 @@ type databaseDocumentKeyWatcher struct {
 	client       *MongoClientWrapper
 	changeStream *mongo_driver.ChangeStream
 	config       *MongoSource
+	metrics      stats.RegisteredSourceStats
 }
 
 func (f *databaseDocumentKeyWatcher) GetResumeToken() bson.Raw {
@@ -42,7 +44,7 @@ func (f *databaseDocumentKeyWatcher) Watch(ctx context.Context, changeEventPushe
 	defer cancel()
 
 	// delegate keyEvent pushing to batcher
-	batcher, err := NewKeyBatcher(ctx, f.logger, MakeDefaultFullDocumentExtractor(f.client), changeEventPusher, f.config.BatchingParams)
+	batcher, err := newKeyBatcher(ctx, f.logger, MakeDefaultFullDocumentExtractor(f.client), changeEventPusher, f.config.BatchingParams, f.metrics)
 	if err != nil {
 		return xerrors.Errorf("Cannot create batcher: %w", err)
 	}
@@ -149,5 +151,6 @@ func NewDatabaseDocumentKeyWatcher(s *mongoSource, dbPu ParallelizationUnitDatab
 		client:       s.client,
 		changeStream: cs,
 		config:       s.config,
+		metrics:      s.metrics,
 	}, nil
 }
